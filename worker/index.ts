@@ -1,5 +1,5 @@
 export interface Env {
-  WEB3FORMS_KEY: string
+  WEB3FORMS_KEY?: string
 }
 
 type ContactBody = {
@@ -26,6 +26,16 @@ export default {
 
     if (request.method !== 'POST') {
       return json({ success: false, message: 'Método não permitido.' }, 405)
+    }
+
+    if (!env.WEB3FORMS_KEY) {
+      return json(
+        {
+          success: false,
+          message: 'WEB3FORMS_KEY não encontrada no Worker.'
+        },
+        500
+      )
     }
 
     try {
@@ -55,16 +65,27 @@ export default {
         })
       })
 
-      const data = await web3Response.json<{
-        success?: boolean
-        message?: string
-      }>()
+      const rawText = await web3Response.text()
+
+      let data: { success?: boolean; message?: string } = {}
+
+      try {
+        data = JSON.parse(rawText)
+      } catch {
+        return json(
+          {
+            success: false,
+            message: `Resposta inválida do Web3Forms: ${rawText || 'sem conteúdo'}`
+          },
+          502
+        )
+      }
 
       if (!web3Response.ok || !data.success) {
         return json(
           {
             success: false,
-            message: data.message || 'Erro ao enviar pedido.'
+            message: data.message || `Web3Forms rejeitou o pedido (${web3Response.status}).`
           },
           400
         )
@@ -74,11 +95,11 @@ export default {
         success: true,
         message: 'Pedido enviado com sucesso.'
       })
-    } catch {
+    } catch (error) {
       return json(
         {
           success: false,
-          message: 'Erro interno ao processar o pedido.'
+          message: error instanceof Error ? error.message : 'Erro interno ao processar o pedido.'
         },
         500
       )
