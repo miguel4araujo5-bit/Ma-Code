@@ -17,16 +17,13 @@ export default function MACode() {
     setErrorMessage('')
 
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: import.meta.env.VITE_WEB3FORMS_KEY,
-          subject: 'Pedido de orçamento - MA-Code',
-          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
           message: form.message
