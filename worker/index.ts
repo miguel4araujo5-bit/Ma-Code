@@ -1,6 +1,4 @@
-export interface Env {
-  WEB3FORMS_KEY?: string
-}
+export interface Env {}
 
 type ContactBody = {
   name?: string
@@ -17,7 +15,7 @@ const json = (body: unknown, status = 200) =>
   })
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
 
     if (url.pathname !== '/api/contact') {
@@ -26,16 +24,6 @@ export default {
 
     if (request.method !== 'POST') {
       return json({ success: false, message: 'Método não permitido.' }, 405)
-    }
-
-    if (!env.WEB3FORMS_KEY) {
-      return json(
-        {
-          success: false,
-          message: 'WEB3FORMS_KEY não encontrada no Worker.'
-        },
-        500
-      )
     }
 
     try {
