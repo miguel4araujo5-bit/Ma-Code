@@ -24,7 +24,7 @@ export default function MACode() {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: '18547eb2-4deb-4420-b33d-64813f8918e5',
+          access_key: import.meta.env.VITE_WEB3FORMS_KEY,
           subject: 'Pedido de orçamento - MA-Code',
           from_name: 'MA-Code Website',
           name: form.name,
