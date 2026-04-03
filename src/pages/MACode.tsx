@@ -42,8 +42,10 @@ export default function MACode() {
         email: '',
         message: ''
       })
-    } catch {
-      setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.'
+      setErrorMessage(message)
     } finally {
       setIsSending(false)
     }
