@@ -56,7 +56,7 @@ export default {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: env.WEB3FORMS_KEY,
+          access_key: '18547eb2-4deb-4420-b33d-64813f8918e5',
           subject: 'Pedido de orçamento - MA-Code',
           from_name: 'MA-Code Website',
           name,
