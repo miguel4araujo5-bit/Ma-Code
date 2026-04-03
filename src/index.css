@@ -3,25 +3,56 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    background-color: #050816;
+  }
+
   body {
-    @apply bg-[#f7f3ee] text-stone-900 antialiased;
+    @apply bg-[#050816] text-white antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 28%),
+      radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 24%),
+      radial-gradient(circle at bottom, rgba(14, 165, 233, 0.08), transparent 28%);
+  }
+
+  ::selection {
+    background-color: rgba(56, 189, 248, 0.28);
+    color: #ffffff;
   }
 }
 
 @layer components {
   .input-label {
-    @apply mb-2 block text-sm font-medium text-stone-700;
+    @apply mb-3 block text-sm font-medium uppercase tracking-[0.18em] text-slate-300;
   }
 
   .input-field {
-    @apply w-full border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500;
+    @apply w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/70 focus:bg-white/[0.06] focus:ring-2 focus:ring-cyan-400/20;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(10px);
   }
 
   .btn-primary {
-    @apply border border-stone-900 bg-stone-900 px-6 py-4 text-sm font-medium uppercase tracking-[0.2em] text-white transition hover:bg-stone-800;
+    @apply inline-flex items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/15 px-6 py-4 text-sm font-semibold uppercase tracking-[0.24em] text-white transition duration-200 hover:border-cyan-300/70 hover:bg-cyan-300/20 hover:shadow-[0_0_30px_rgba(34,211,238,0.18)];
+    backdrop-filter: blur(10px);
+  }
+
+  .section-badge {
+    @apply inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.28em] text-cyan-200;
+    backdrop-filter: blur(10px);
+  }
+
+  .tech-card {
+    @apply rounded-3xl border border-white/10 bg-white/[0.04] p-8 transition duration-200 hover:border-cyan-400/30 hover:bg-white/[0.06] hover:shadow-[0_0_40px_rgba(34,211,238,0.10)];
+    backdrop-filter: blur(14px);
+  }
+
+  .glass-panel {
+    @apply rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-[0_20px_80px_rgba(2,8,23,0.45)];
+    backdrop-filter: blur(16px);
   }
 }
 
 .bg-brand-paper {
-  background-color: #f7f3ee;
+  background-color: #050816;
 }
