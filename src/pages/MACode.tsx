@@ -57,9 +57,9 @@ export default function MACode() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-brand-paper px-6 pb-24 pt-24 text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-cyan-400/12 blur-3xl" />
-        <div className="absolute right-[-6rem] top-20 h-80 w-80 rounded-full bg-indigo-500/14 blur-3xl" />
-        <div className="absolute bottom-[-8rem] left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="orb left-[-8rem] top-[-6rem] h-72 w-72 bg-cyan-400/12" />
+        <div className="orb right-[-6rem] top-20 h-80 w-80 bg-indigo-500/14 [animation-delay:1.2s]" />
+        <div className="orb bottom-[-8rem] left-1/2 h-96 w-96 -translate-x-1/2 bg-sky-500/10 [animation-delay:2.1s]" />
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
@@ -74,7 +74,7 @@ export default function MACode() {
         <section className="mx-auto max-w-5xl text-center">
           <div className="section-badge">Websites • Aplicações Web • Automação Digital</div>
 
-          <h1 className="mt-8 text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl md:text-7xl">
+          <h1 className="text-glow mt-8 text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl md:text-7xl">
             Criamos websites e plataformas que ajudam o seu negócio a vender mais.
           </h1>
 
@@ -94,7 +94,7 @@ export default function MACode() {
 
             <a
               href="#servicos"
-              className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-white/15 bg-white/[0.03] px-6 py-4 text-sm font-medium uppercase tracking-[0.18em] text-white transition hover:border-cyan-300/40 hover:bg-white/[0.06]"
+              className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-white/15 bg-white/[0.03] px-6 py-4 text-sm font-medium uppercase tracking-[0.18em] text-white transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-white/[0.06]"
             >
               Ver serviços
             </a>
@@ -117,21 +117,21 @@ export default function MACode() {
         </section>
 
         <section className="mt-16 grid gap-4 sm:grid-cols-3">
-          <div className="glass-panel p-6 text-center">
+          <div className="glass-panel panel-highlight p-6 text-center">
             <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Rápido</p>
             <p className="mt-2 text-sm leading-7 text-slate-300">
               Soluções leves, modernas e preparadas para uma experiência fluida.
             </p>
           </div>
 
-          <div className="glass-panel p-6 text-center">
+          <div className="glass-panel panel-highlight p-6 text-center">
             <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Credível</p>
             <p className="mt-2 text-sm leading-7 text-slate-300">
               Uma imagem digital mais profissional para transmitir confiança ao cliente.
             </p>
           </div>
 
-          <div className="glass-panel p-6 text-center">
+          <div className="glass-panel panel-highlight p-6 text-center">
             <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Escalável</p>
             <p className="mt-2 text-sm leading-7 text-slate-300">
               Estrutura preparada para crescer com o seu negócio e com os seus objetivos.
@@ -142,7 +142,7 @@ export default function MACode() {
         <section id="servicos" className="mt-24">
           <div className="mx-auto max-w-3xl text-center">
             <div className="section-badge">Serviços</div>
-            <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+            <h2 className="text-glow mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
               Soluções pensadas para gerar resultado
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
@@ -153,7 +153,7 @@ export default function MACode() {
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <div className="tech-card">
-              <div className="mb-5 h-12 w-12 rounded-2xl border border-cyan-400/20 bg-cyan-400/10" />
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-[0_0_24px_rgba(34,211,238,0.12)]" />
               <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
                 Websites para gerar contactos
               </h3>
@@ -164,7 +164,7 @@ export default function MACode() {
             </div>
 
             <div className="tech-card">
-              <div className="mb-5 h-12 w-12 rounded-2xl border border-indigo-400/20 bg-indigo-400/10" />
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-indigo-400/20 bg-indigo-400/10 shadow-[0_0_24px_rgba(99,102,241,0.12)]" />
               <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
                 Sistemas de marcação online
               </h3>
@@ -175,7 +175,7 @@ export default function MACode() {
             </div>
 
             <div className="tech-card">
-              <div className="mb-5 h-12 w-12 rounded-2xl border border-sky-400/20 bg-sky-400/10" />
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-sky-400/20 bg-sky-400/10 shadow-[0_0_24px_rgba(14,165,233,0.12)]" />
               <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
                 Aplicações web e automação
               </h3>
@@ -188,11 +188,11 @@ export default function MACode() {
         </section>
 
         <section className="mt-24">
-          <div className="glass-panel p-8 sm:p-10 md:p-12">
+          <div className="glass-panel panel-highlight p-8 sm:p-10 md:p-12">
             <div className="grid gap-10 md:grid-cols-2 md:items-center">
               <div>
                 <div className="section-badge">Porque escolher a MA-Code</div>
-                <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+                <h2 className="text-glow mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
                   Tecnologia com boa aparência e objetivo comercial
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
@@ -203,7 +203,7 @@ export default function MACode() {
               </div>
 
               <div className="grid gap-4">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
                     Mais confiança
                   </p>
@@ -212,7 +212,7 @@ export default function MACode() {
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
                     Mais clareza
                   </p>
@@ -221,7 +221,7 @@ export default function MACode() {
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
                     Mais conversão
                   </p>
@@ -237,7 +237,7 @@ export default function MACode() {
         <section className="mt-24">
           <div className="mx-auto max-w-3xl text-center">
             <div className="section-badge">Como funciona</div>
-            <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+            <h2 className="text-glow mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
               Um processo simples e direto
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
@@ -286,10 +286,10 @@ export default function MACode() {
         </section>
 
         <section id="orcamento" className="mt-24">
-          <div className="glass-panel mx-auto max-w-4xl p-8 sm:p-10 md:p-12">
+          <div className="glass-panel panel-highlight mx-auto max-w-4xl p-8 sm:p-10 md:p-12">
             <div className="mb-10">
               <div className="section-badge">Pedido de orçamento</div>
-              <h2 className="mt-6 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
+              <h2 className="text-glow mt-6 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
                 Vamos falar sobre o seu projeto
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
@@ -334,13 +334,13 @@ export default function MACode() {
               </div>
 
               {successMessage ? (
-                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-4 text-sm text-emerald-200">
+                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-4 text-sm text-emerald-200 backdrop-blur-xl">
                   {successMessage}
                 </div>
               ) : null}
 
               {errorMessage ? (
-                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-200">
+                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-200 backdrop-blur-xl">
                   {errorMessage}
                 </div>
               ) : null}
