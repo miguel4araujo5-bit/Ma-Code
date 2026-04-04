@@ -67,9 +67,9 @@ export default function MACode() {
         <section className="mx-auto max-w-5xl text-center">
           <div className="hero-logo-shell mx-auto w-fit">
             <img
-              src="/macodelogo.jpg"
+              src="/logo.svg"
               alt="MA-Code"
-              className="hero-logo mx-auto h-auto w-[220px] sm:w-[270px] md:w-[320px]"
+              className="hero-logo-svg mx-auto h-auto w-[220px] sm:w-[270px] md:w-[320px]"
             />
           </div>
 
