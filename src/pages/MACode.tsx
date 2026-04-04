@@ -77,20 +77,21 @@ export default function MACode() {
           </div>
 
           <div className="section-badge mt-8">
-            Websites • Lojas Online • IA • Automação • Manutenção
+            Websites • Lojas Online • Marcações • IA • Manutenção
           </div>
 
           <h1
             id="hero-title"
             className="text-glow mt-8 text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl md:text-7xl"
           >
-            Criamos websites e plataformas para ajudar o seu negócio a crescer
+            Criamos websites e lojas online para o seu negócio parecer mais profissional e vender
+            melhor
           </h1>
 
           <p className="mx-auto mt-8 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-            Se precisa de um website profissional, uma loja online, um sistema de marcações ou uma
-            solução mais avançada para o seu negócio, a MA-Code trata do desenvolvimento, da
-            implementação e da manutenção.
+            Se precisa de um website profissional, de uma loja online ou de um sistema simples para
+            organizar melhor o seu negócio, a MA-Code trata do desenvolvimento, da implementação e
+            da manutenção, sem complicações desnecessárias.
           </p>
 
           <div className="mx-auto mt-8 w-fit">
@@ -117,32 +118,35 @@ export default function MACode() {
           </div>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-xs uppercase tracking-[0.24em] text-slate-400">
-            <span className="tech-pill">Mais credibilidade</span>
-            <span className="tech-pill">Mais clientes</span>
-            <span className="tech-pill">Mais automatização</span>
+            <span className="tech-pill">Mais confiança</span>
+            <span className="tech-pill">Mais contactos</span>
+            <span className="tech-pill">Mais organização</span>
             <span className="tech-pill">Menos complicação</span>
           </div>
         </section>
 
         <section className="mt-16 grid gap-4 sm:grid-cols-3" aria-label="Vantagens principais">
           <div className="glass-panel panel-highlight p-6 text-center">
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Imagem</h2>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Credibilidade</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
-              Um website profissional transmite mais confiança e ajuda a valorizar a sua marca.
+              Um website profissional transmite confiança e melhora a imagem da sua marca logo no
+              primeiro contacto.
             </p>
           </div>
 
           <div className="glass-panel panel-highlight p-6 text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Resultados</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
-              Soluções pensadas para captar contactos, gerar pedidos e facilitar vendas.
+              Criamos soluções pensadas para captar contactos, facilitar pedidos e ajudar o negócio
+              a vender melhor.
             </p>
           </div>
 
           <div className="glass-panel panel-highlight p-6 text-center">
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Acompanhamento</h2>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Continuidade</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
-              Não fica sozinho depois do lançamento. Podemos continuar a gerir, melhorar e manter.
+              Podemos continuar a acompanhar o projeto depois do lançamento com manutenção,
+              melhorias e suporte.
             </p>
           </div>
         </section>
@@ -154,12 +158,11 @@ export default function MACode() {
               id="servicos-title"
               className="text-glow mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl"
             >
-              Soluções digitais pensadas para negócios reais
+              Soluções claras para negócios que querem crescer online
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Desde a criação de websites até sistemas mais completos, a MA-Code desenvolve
-              soluções à medida para empresas, profissionais e projetos que precisam de presença
-              digital séria e funcional.
+              A MA-Code desenvolve soluções digitais à medida, desde websites simples e eficazes
+              até sistemas mais completos para vendas, marcações, organização e automatização.
             </p>
           </div>
 
@@ -182,7 +185,7 @@ export default function MACode() {
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 Desenvolvemos lojas online com catálogo, carrinho de compras e checkout para vender
-                os seus produtos com uma experiência simples e profissional.
+                os seus produtos de forma simples, profissional e organizada.
               </p>
             </article>
 
@@ -192,8 +195,8 @@ export default function MACode() {
                 Sistemas de marcações
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Ideal para clínicas, consultórios, barbearias, salões, oficinas e outros negócios
-                que precisam de agendamentos organizados e automáticos.
+                Ideal para clínicas, consultórios, salões, barbearias, oficinas e outros negócios
+                que precisam de agendamentos mais organizados e automáticos.
               </p>
             </article>
 
@@ -204,29 +207,30 @@ export default function MACode() {
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 Automatizamos tarefas, melhoramos processos e integramos IA para poupar tempo,
-                responder mais rápido e tornar o negócio mais eficiente.
+                responder mais depressa e reduzir trabalho manual.
               </p>
             </article>
 
             <article className="tech-card">
               <div className="icon-glow-indigo mb-5 h-12 w-12 rounded-2xl border border-violet-400/20 bg-violet-400/10" />
               <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
-                CRM, bases de dados e gestão
+                Gestão de clientes e operações
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 Criamos soluções para organizar clientes, pedidos, dados e processos internos de
-                forma mais prática e profissional.
+                forma mais prática, limpa e profissional.
               </p>
             </article>
 
             <article className="tech-card">
               <div className="icon-glow-sky mb-5 h-12 w-12 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/10" />
               <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
-                Soluções avançadas
+                Desenvolvimento à medida
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Para projetos mais técnicos, também trabalhamos com integrações complexas,
-                plataformas personalizadas, blockchain, tokens e outras funcionalidades específicas.
+                Para projetos mais específicos, também desenvolvemos plataformas personalizadas,
+                integrações avançadas e outras funcionalidades adaptadas ao que o seu negócio
+                precisa.
               </p>
             </article>
           </div>
@@ -241,13 +245,13 @@ export default function MACode() {
                   id="porque-escolher-title"
                   className="text-glow mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl"
                 >
-                  Uma solução clara para quem quer crescer online sem complicações
+                  Uma solução simples para quem quer crescer online sem perder tempo
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
                   Há negócios que só precisam de um bom website. Outros precisam de loja online,
-                  automação, marcações, gestão de clientes ou integrações mais avançadas. A
-                  vantagem da MA-Code é conseguir acompanhar esse crescimento sem o obrigar a mudar
-                  de parceiro.
+                  marcações, automatização ou ferramentas internas. A vantagem da MA-Code é começar
+                  com o que faz sentido hoje e permitir evoluir depois, sem ter de recomeçar tudo
+                  do zero.
                 </p>
               </div>
 
@@ -257,17 +261,18 @@ export default function MACode() {
                     Mais confiança
                   </p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">
-                    Um projeto profissional ajuda a transmitir credibilidade logo no primeiro
-                    contacto com o cliente.
+                    Um projeto profissional ajuda a causar uma boa primeira impressão e a aumentar a
+                    credibilidade.
                   </p>
                 </div>
 
                 <div className="mini-panel">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
-                    Mais organização
+                    Mais simplicidade
                   </p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">
-                    Sistemas bem pensados reduzem trabalho manual e tornam a operação mais simples.
+                    Explicamos o processo de forma clara e ajudamos a escolher a solução certa sem
+                    linguagem técnica desnecessária.
                   </p>
                 </div>
 
@@ -276,8 +281,8 @@ export default function MACode() {
                     Mais margem para crescer
                   </p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">
-                    O seu projeto pode começar simples e evoluir depois, sem ter de recomeçar tudo
-                    do zero.
+                    O seu projeto pode começar simples e evoluir depois para novas funcionalidades,
+                    sem ter de mudar de parceiro técnico.
                   </p>
                 </div>
               </div>
@@ -296,7 +301,7 @@ export default function MACode() {
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
               O objetivo é perceber o que precisa, propor a solução certa e garantir que tudo fica
-              a funcionar de forma clara e profissional.
+              pronto a funcionar de forma clara e profissional.
             </p>
           </div>
 
@@ -308,7 +313,7 @@ export default function MACode() {
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 Analisamos o seu negócio, o objetivo do projeto e o tipo de solução que faz mais
-                sentido.
+                sentido para o seu caso.
               </p>
             </article>
 
@@ -318,7 +323,7 @@ export default function MACode() {
                 Desenvolvemos a solução
               </h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Criamos uma plataforma profissional, funcional e preparada para ser usada no dia a
+                Criamos uma solução profissional, funcional e preparada para ser usada no dia a
                 dia.
               </p>
             </article>
@@ -355,8 +360,7 @@ export default function MACode() {
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   Não. Para além de websites, também criamos lojas online, sistemas de marcações,
-                  automações, integrações de IA, ferramentas de gestão e soluções mais avançadas
-                  quando o projeto precisa.
+                  automações, integrações e outras soluções adaptadas ao negócio.
                 </p>
               </article>
 
@@ -365,8 +369,8 @@ export default function MACode() {
                   Posso pedir algo simples?
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Sim. Nem todos os projetos precisam de funcionalidades complexas. Podemos criar
-                  desde um website simples e profissional até uma plataforma mais completa.
+                  Sim. Nem todos os projetos precisam de algo complexo. Podemos criar desde um
+                  website simples e profissional até uma solução mais completa.
                 </p>
               </article>
 
@@ -375,8 +379,8 @@ export default function MACode() {
                   Também tratam da manutenção?
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Sim. Podemos tratar de atualizações, melhorias, gestão técnica e manutenção para
-                  garantir que o projeto continua estável e profissional.
+                  Sim. Podemos tratar de atualizações, melhorias, suporte e manutenção para garantir
+                  que o projeto continua estável e atual.
                 </p>
               </article>
 
@@ -385,8 +389,8 @@ export default function MACode() {
                   Trabalham com clientes que não percebem da parte técnica?
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Sim. Explicamos tudo de forma simples e ajudamos a encontrar a solução certa, sem
-                  complicar com linguagem técnica desnecessária.
+                  Sim. Explicamos tudo de forma simples e ajudamos a escolher a melhor opção sem
+                  complicar com linguagem técnica.
                 </p>
               </article>
             </div>
@@ -405,8 +409,8 @@ export default function MACode() {
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
                 Diga-nos o que precisa. Seja um website, uma loja online, um sistema de marcações
-                ou uma solução mais completa, analisamos o projeto e apresentamos a melhor opção
-                para o seu caso.
+                ou outra solução para o seu negócio, analisamos o projeto e apresentamos a melhor
+                opção para o seu caso.
               </p>
             </div>
 
