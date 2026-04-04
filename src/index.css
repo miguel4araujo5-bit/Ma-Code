@@ -379,7 +379,7 @@ body {
   }
 
   .service-card {
-    @apply group relative overflow-hidden rounded-[2rem] border p-6 md:p-7;
+    @apply relative overflow-hidden rounded-[2rem] border p-6 md:p-7;
     background:
       linear-gradient(180deg, rgba(11, 18, 32, 0.9), rgba(7, 14, 23, 0.84));
     border-color: rgba(125, 211, 252, 0.14);
