@@ -87,8 +87,14 @@ export default function MACode() {
           <p className="mx-auto mt-8 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
             Criamos websites, plataformas e integrações avançadas para negócios e projetos que
             precisam de presença digital forte, performance séria e funcionalidades modernas.
-            <span className="font-semibold text-cyan-200"> A partir de 19€/mês.</span>
           </p>
+
+          <div className="mx-auto mt-8 w-fit">
+            <div className="price-pill">
+              <span className="price-pill-label">Planos desde</span>
+              <span className="price-pill-value">19€/mês</span>
+            </div>
+          </div>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <a
