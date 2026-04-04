@@ -77,7 +77,7 @@ export default function MACode() {
           </div>
 
           <div className="section-badge mt-8">
-            Websites • Lojas Online • Marcações • IA • Manutenção
+            Websites • Lojas Online • Marcações • Automação • Suporte
           </div>
 
           <h1
@@ -89,9 +89,9 @@ export default function MACode() {
           </h1>
 
           <p className="mx-auto mt-8 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-            Se precisa de um website profissional, de uma loja online ou de um sistema simples para
-            organizar melhor o seu negócio, a MA-Code trata do desenvolvimento, da implementação e
-            da manutenção, sem complicações desnecessárias.
+            Tratamos do desenvolvimento, da implementação e da manutenção. Se precisa de um website
+            profissional, de uma loja online ou de uma solução simples para organizar melhor o seu
+            negócio, a MA-Code ajuda-o a avançar sem complicações.
           </p>
 
           <div className="mx-auto mt-8 w-fit">
@@ -129,8 +129,8 @@ export default function MACode() {
           <div className="glass-panel panel-highlight p-6 text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Credibilidade</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
-              Um website profissional transmite confiança e melhora a imagem da sua marca logo no
-              primeiro contacto.
+              Um website profissional melhora a imagem da sua marca e transmite mais confiança logo
+              no primeiro contacto.
             </p>
           </div>
 
@@ -143,10 +143,10 @@ export default function MACode() {
           </div>
 
           <div className="glass-panel panel-highlight p-6 text-center">
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Continuidade</h2>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">Acompanhamento</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
-              Podemos continuar a acompanhar o projeto depois do lançamento com manutenção,
-              melhorias e suporte.
+              Depois do lançamento, podemos continuar com manutenção, melhorias e suporte sempre
+              que precisar.
             </p>
           </div>
         </section>
@@ -161,8 +161,8 @@ export default function MACode() {
               Soluções claras para negócios que querem crescer online
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              A MA-Code desenvolve soluções digitais à medida, desde websites simples e eficazes
-              até sistemas mais completos para vendas, marcações, organização e automatização.
+              A MA-Code desenvolve soluções à medida, desde websites simples e eficazes até
+              sistemas mais completos para vendas, marcações, organização e automatização.
             </p>
           </div>
 
