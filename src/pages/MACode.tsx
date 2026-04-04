@@ -71,20 +71,34 @@ export default function MACode() {
       </div>
 
       <div className="relative mx-auto max-w-6xl">
-        <section className="mx-auto max-w-4xl text-center">
-          <div className="section-badge">
-            Websites • Automação • Sistemas Digitais
-          </div>
+        <section className="mx-auto max-w-5xl text-center">
+          <div className="section-badge">Websites • Aplicações Web • Automação Digital</div>
 
-          <h1 className="mt-8 text-5xl font-semibold tracking-[-0.04em] text-white sm:text-6xl md:text-7xl">
-            Construímos presença digital com estética, velocidade e resultado.
+          <h1 className="mt-8 text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl md:text-7xl">
+            Criamos websites e plataformas que ajudam o seu negócio a vender mais.
           </h1>
 
           <p className="mx-auto mt-8 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-            Desenvolvemos websites e aplicações modernas para marcas e negócios que precisam de
-            uma presença tecnológica credível, rápida e preparada para crescer.
+            Desenvolvemos soluções digitais modernas, rápidas e pensadas para gerar confiança,
+            captar clientes e elevar a presença online da sua marca.
             <span className="font-semibold text-cyan-200"> A partir de 19€/mês.</span>
           </p>
+
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <a
+              href="#orcamento"
+              className="btn-primary inline-flex min-w-[220px] items-center justify-center"
+            >
+              Pedir orçamento
+            </a>
+
+            <a
+              href="#servicos"
+              className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-white/15 bg-white/[0.03] px-6 py-4 text-sm font-medium uppercase tracking-[0.18em] text-white transition hover:border-cyan-300/40 hover:bg-white/[0.06]"
+            >
+              Ver serviços
+            </a>
+          </div>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-xs uppercase tracking-[0.24em] text-slate-400">
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
@@ -96,62 +110,197 @@ export default function MACode() {
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
               Mobile optimized
             </span>
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
+              Foco em conversão
+            </span>
           </div>
         </section>
 
-        <section className="mt-20 grid gap-6 md:grid-cols-3">
-          <div className="tech-card">
-            <div className="mb-5 h-12 w-12 rounded-2xl border border-cyan-400/20 bg-cyan-400/10" />
-            <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
-              Websites Profissionais
-            </h3>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              Websites modernos, rápidos e pensados para converter melhor, transmitir confiança e
-              elevar a imagem digital da marca.
+        <section className="mt-16 grid gap-4 sm:grid-cols-3">
+          <div className="glass-panel p-6 text-center">
+            <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Rápido</p>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Soluções leves, modernas e preparadas para uma experiência fluida.
             </p>
           </div>
 
-          <div className="tech-card">
-            <div className="mb-5 h-12 w-12 rounded-2xl border border-indigo-400/20 bg-indigo-400/10" />
-            <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
-              Sistemas de Marcação
-            </h3>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              Fluxos de reserva online para salões, clínicas e serviços com uma experiência simples,
-              profissional e preparada para o utilizador final.
+          <div className="glass-panel p-6 text-center">
+            <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Credível</p>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Uma imagem digital mais profissional para transmitir confiança ao cliente.
             </p>
           </div>
 
-          <div className="tech-card">
-            <div className="mb-5 h-12 w-12 rounded-2xl border border-sky-400/20 bg-sky-400/10" />
-            <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
-              Aplicações Web
-            </h3>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              Plataformas personalizadas para automatizar processos, organizar operações e criar
-              soluções digitais alinhadas com o teu negócio.
+          <div className="glass-panel p-6 text-center">
+            <p className="text-3xl font-semibold tracking-[-0.04em] text-white">Escalável</p>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Estrutura preparada para crescer com o seu negócio e com os seus objetivos.
             </p>
           </div>
         </section>
 
-        <section className="mt-20">
+        <section id="servicos" className="mt-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="section-badge">Serviços</div>
+            <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              Soluções pensadas para gerar resultado
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+              Não criamos apenas páginas bonitas. Desenvolvemos presença digital com estratégia,
+              clareza e foco no crescimento do negócio.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            <div className="tech-card">
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-cyan-400/20 bg-cyan-400/10" />
+              <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
+                Websites para gerar contactos
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Websites profissionais pensados para apresentar a sua marca com clareza,
+                transmitir confiança e transformar visitas em oportunidades reais.
+              </p>
+            </div>
+
+            <div className="tech-card">
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-indigo-400/20 bg-indigo-400/10" />
+              <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
+                Sistemas de marcação online
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Ideal para clínicas, salões e serviços que precisam de simplificar reservas,
+                reduzir fricção e melhorar a experiência do cliente.
+              </p>
+            </div>
+
+            <div className="tech-card">
+              <div className="mb-5 h-12 w-12 rounded-2xl border border-sky-400/20 bg-sky-400/10" />
+              <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
+                Aplicações web e automação
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Plataformas personalizadas para organizar processos, automatizar tarefas e criar
+                soluções ajustadas à operação do seu negócio.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-24">
+          <div className="glass-panel p-8 sm:p-10 md:p-12">
+            <div className="grid gap-10 md:grid-cols-2 md:items-center">
+              <div>
+                <div className="section-badge">Porque escolher a MA-Code</div>
+                <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+                  Tecnologia com boa aparência e objetivo comercial
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
+                  O objetivo não é apenas “ter um site”. O objetivo é ter uma presença digital que
+                  represente bem a marca, carregue rápido, funcione em qualquer dispositivo e ajude
+                  o negócio a crescer.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                    Mais confiança
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-slate-300">
+                    Um site profissional melhora a perceção da marca e aumenta a credibilidade.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                    Mais clareza
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-slate-300">
+                    Estrutura organizada para que o visitante perceba rapidamente o que oferece.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                    Mais conversão
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-slate-300">
+                    Chamadas para ação mais fortes e uma experiência mais preparada para vender.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="section-badge">Como funciona</div>
+            <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              Um processo simples e direto
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
+              Sem complicação desnecessária. O foco é perceber o objetivo, desenvolver a solução e
+              entregar algo pronto a usar.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            <div className="tech-card">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">
+                01
+              </p>
+              <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-white">
+                Diz-nos o que precisa
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Partilhe a ideia, o objetivo do projeto e o tipo de solução que pretende.
+              </p>
+            </div>
+
+            <div className="tech-card">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">
+                02
+              </p>
+              <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-white">
+                Criamos a estrutura
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Desenvolvemos um design moderno e uma base técnica sólida para o projeto.
+              </p>
+            </div>
+
+            <div className="tech-card">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">
+                03
+              </p>
+              <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-white">
+                Entregamos pronto a usar
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Recebe uma solução funcional, profissional e preparada para o seu negócio avançar.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="orcamento" className="mt-24">
           <div className="glass-panel mx-auto max-w-4xl p-8 sm:p-10 md:p-12">
             <div className="mb-10">
               <div className="section-badge">Pedido de orçamento</div>
               <h2 className="mt-6 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
-                Vamos falar sobre o teu projeto
+                Vamos falar sobre o seu projeto
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                Diz-nos o que pretendes criar e entramos em contacto com uma proposta ajustada ao
-                teu objetivo, ao teu negócio e ao nível de personalização que precisas.
+                Diga-nos o que pretende criar e entraremos em contacto com uma proposta ajustada ao
+                seu objetivo, ao seu negócio e ao nível de personalização que precisa.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
               <div>
-                <label className="input-label">
-                  Nome
-                </label>
+                <label className="input-label">Nome</label>
 
                 <input
                   className="input-field"
@@ -162,9 +311,7 @@ export default function MACode() {
               </div>
 
               <div>
-                <label className="input-label">
-                  Email
-                </label>
+                <label className="input-label">Email</label>
 
                 <input
                   type="email"
@@ -176,9 +323,7 @@ export default function MACode() {
               </div>
 
               <div>
-                <label className="input-label">
-                  Descreve o projeto
-                </label>
+                <label className="input-label">Descreva o projeto</label>
 
                 <textarea
                   className="input-field h-36 resize-none"
@@ -200,11 +345,7 @@ export default function MACode() {
                 </div>
               ) : null}
 
-              <button
-                type="submit"
-                className="btn-primary w-full"
-                disabled={isSending}
-              >
+              <button type="submit" className="btn-primary w-full" disabled={isSending}>
                 {isSending ? 'A enviar...' : 'Pedir orçamento'}
               </button>
             </form>
