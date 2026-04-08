@@ -18,6 +18,7 @@ body {
     radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.12), transparent 28%),
     linear-gradient(180deg, #061019 0%, #08131d 35%, #071018 100%);
   color: #e5f3ff;
+  min-width: 320px;
 }
 
 ::selection {
@@ -28,6 +29,21 @@ body {
 @layer base {
   * {
     border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  a,
+  button,
+  input,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid rgba(103, 232, 249, 0.65);
+    outline-offset: 3px;
   }
 }
 
@@ -62,6 +78,7 @@ body {
   .site-bg-orb {
     @apply pointer-events-none absolute rounded-full blur-3xl;
     z-index: 0;
+    will-change: transform;
   }
 
   .site-bg-orb-one {
@@ -107,6 +124,7 @@ body {
     border-radius: 9999px;
     background: linear-gradient(135deg, #22d3ee, #8b5cf6);
     box-shadow: 0 0 18px rgba(34, 211, 238, 0.75);
+    flex-shrink: 0;
   }
 
   .tech-badge {
@@ -126,11 +144,13 @@ body {
     background: #22d3ee;
     box-shadow: 0 0 0 rgba(34, 211, 238, 0.7);
     animation: pulse-ring 2.2s infinite;
+    flex-shrink: 0;
   }
 
   .hero-title {
     @apply max-w-4xl text-4xl font-semibold leading-tight text-white md:text-6xl;
     letter-spacing: -0.03em;
+    text-wrap: balance;
   }
 
   .hero-title .hero-price {
@@ -140,10 +160,12 @@ body {
     background-clip: text;
     color: transparent;
     animation: text-flow 5s linear infinite;
+    white-space: nowrap;
   }
 
   .hero-subtitle {
     @apply max-w-2xl text-base leading-8 text-slate-300 md:text-lg;
+    text-wrap: pretty;
   }
 
   .btn-primary {
@@ -179,6 +201,12 @@ body {
     color: #ffffff;
     box-shadow: 0 0 24px rgba(34, 211, 238, 0.08);
     transform: translateY(-2px);
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    min-height: 3.5rem;
   }
 
   .hightech-button::after,
@@ -235,6 +263,7 @@ body {
   .tech-marquee__track {
     @apply flex w-max items-center gap-3;
     animation: marquee 24s linear infinite;
+    will-change: transform;
   }
 
   .tech-pill {
@@ -348,6 +377,7 @@ body {
     box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
     backdrop-filter: blur(12px);
     animation: float-chip 5s ease-in-out infinite;
+    will-change: transform;
   }
 
   .floating-chip--one {
@@ -417,10 +447,12 @@ body {
   .service-card__title {
     @apply mb-4 text-2xl font-semibold text-white;
     letter-spacing: -0.02em;
+    text-wrap: balance;
   }
 
   .service-card__description {
     @apply text-base leading-8 text-slate-300;
+    text-wrap: pretty;
   }
 
   .highlight-strip {
@@ -457,6 +489,7 @@ body {
 
   .highlight-strip__content p {
     @apply max-w-3xl text-base leading-8 text-slate-300;
+    text-wrap: pretty;
   }
 
   .contact-side-panel {
@@ -472,10 +505,12 @@ body {
   .contact-side-panel__title {
     @apply mt-5 text-3xl font-semibold text-white md:text-4xl;
     letter-spacing: -0.03em;
+    text-wrap: balance;
   }
 
   .contact-side-panel__text {
     @apply mt-4 text-base leading-8 text-slate-300;
+    text-wrap: pretty;
   }
 
   .contact-metrics {
@@ -668,6 +703,272 @@ body {
   }
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .service-card:hover {
+    transform: translateY(-8px);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px) scale(1.01);
+  }
+
+  .btn-secondary:hover,
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .hero-panel {
+    min-height: 23rem;
+  }
+
+  .floating-chip--one {
+    right: 0.5rem;
+  }
+
+  .floating-chip--two {
+    left: 0.5rem;
+  }
+
+  .floating-chip--three {
+    right: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-grid {
+    background-size: 34px 34px;
+    opacity: 0.34;
+  }
+
+  .site-noise {
+    opacity: 0.04;
+  }
+
+  .site-bg-orb-one {
+    width: 18rem;
+    height: 18rem;
+    top: -4rem;
+    left: -4rem;
+  }
+
+  .site-bg-orb-two {
+    width: 19rem;
+    height: 19rem;
+    top: 24rem;
+    right: -6rem;
+  }
+
+  .site-bg-orb-three {
+    width: 16rem;
+    height: 16rem;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .brand-mark {
+    @apply px-3.5 py-2 text-[12px];
+    letter-spacing: 0.16em;
+  }
+
+  .tech-badge {
+    @apply px-3.5 py-2 text-[11px];
+    letter-spacing: 0.24em;
+  }
+
+  .hero-title {
+    @apply text-[2.4rem] leading-[1.08];
+  }
+
+  .hero-subtitle {
+    @apply text-[15px] leading-7;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply w-full px-5 py-3.5 text-[12px];
+    letter-spacing: 0.18em;
+    min-height: 3.25rem;
+  }
+
+  .tech-marquee {
+    @apply p-3.5;
+  }
+
+  .tech-marquee::before,
+  .tech-marquee::after {
+    width: 2.5rem;
+  }
+
+  .tech-pill {
+    @apply px-3 py-2 text-[11px];
+    letter-spacing: 0.18em;
+  }
+
+  .hero-panel {
+    @apply p-4;
+    min-height: 20rem;
+    border-radius: 1.75rem;
+  }
+
+  .hero-panel__header {
+    @apply mb-6 px-3.5 py-3;
+  }
+
+  .hero-panel__label {
+    letter-spacing: 0.22em;
+  }
+
+  .hud-card {
+    @apply p-4;
+    border-radius: 1.25rem;
+  }
+
+  .hud-card strong {
+    @apply text-lg;
+  }
+
+  .floating-chip {
+    @apply px-2.5 py-1.5 text-[10px];
+    letter-spacing: 0.18em;
+  }
+
+  .floating-chip--one {
+    top: 4.5rem;
+    right: 0.25rem;
+  }
+
+  .floating-chip--two {
+    bottom: 4rem;
+    left: 0.25rem;
+  }
+
+  .floating-chip--three {
+    right: 1rem;
+    bottom: 1.25rem;
+  }
+
+  .section-label {
+    @apply px-3.5 py-2 text-[11px];
+    letter-spacing: 0.22em;
+  }
+
+  .service-card {
+    @apply p-5;
+    border-radius: 1.75rem;
+  }
+
+  .service-card__index {
+    @apply mb-4;
+  }
+
+  .service-card__title {
+    @apply mb-3 text-xl;
+  }
+
+  .service-card__description {
+    @apply text-[15px] leading-7;
+  }
+
+  .highlight-strip {
+    @apply px-5 py-5;
+    border-radius: 1.75rem;
+  }
+
+  .highlight-strip__content p {
+    @apply text-[15px] leading-7;
+  }
+
+  .contact-side-panel,
+  .form-shell {
+    @apply p-5;
+    border-radius: 1.75rem;
+  }
+
+  .contact-side-panel__title {
+    @apply text-[1.9rem];
+    line-height: 1.08;
+  }
+
+  .contact-side-panel__text {
+    @apply text-[15px] leading-7;
+  }
+
+  .contact-metrics {
+    @apply mt-6 gap-3;
+  }
+
+  .metric-card {
+    @apply p-4;
+    border-radius: 1.25rem;
+  }
+
+  .input-label {
+    @apply text-[12px];
+    letter-spacing: 0.14em;
+  }
+
+  .input-field {
+    @apply rounded-[1.1rem] px-4 py-3.5 text-[15px];
+  }
+
+  .input-textarea {
+    min-height: 9rem;
+  }
+
+  .status-message {
+    @apply text-[14px];
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 2.05rem;
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+  }
+
+  .hero-title .hero-price {
+    white-space: normal;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem;
+    line-height: 1.75;
+  }
+
+  .hero-panel {
+    min-height: 18.5rem;
+  }
+
+  .hero-panel__content {
+    gap: 0.85rem;
+  }
+
+  .hud-card strong {
+    font-size: 1rem;
+  }
+
+  .floating-chip--three {
+    right: 0.75rem;
+  }
+
+  .service-card__title {
+    font-size: 1.15rem;
+  }
+
+  .contact-side-panel__title {
+    font-size: 1.7rem;
+  }
+
+  .site-grid {
+    background-size: 28px 28px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -675,5 +976,13 @@ body {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+
+  .site-bg-orb,
+  .floating-chip,
+  .tech-marquee__track,
+  .hero-panel__scan,
+  .btn-shine {
+    transform: none !important;
   }
 }
