@@ -13,6 +13,19 @@ const techPills = [
   'EVM'
 ]
 
+const marqueeItems = [
+  'Websites Profissionais',
+  'Lojas Online',
+  'Aplicações Web',
+  'Sistemas de Marcação',
+  'IA e Automação',
+  'Integrações API',
+  'CRM e Gestão',
+  'Bases de Dados',
+  'Blockchain EVM',
+  'Performance e Otimização'
+]
+
 const serviceCards = [
   {
     title: 'Websites Profissionais',
@@ -256,6 +269,16 @@ export default function MACode() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
+            <div className="hero-marquee__track">
+              {[...marqueeItems, ...marqueeItems].map((item, index) => (
+                <span key={`${item}-${index}`} className="hero-marquee__item">
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
 
