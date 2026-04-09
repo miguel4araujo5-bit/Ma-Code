@@ -79,6 +79,7 @@ body {
     @apply pointer-events-none absolute rounded-full blur-3xl;
     z-index: 0;
     will-change: transform;
+    mix-blend-mode: screen;
   }
 
   .site-bg-orb-one {
@@ -110,12 +111,45 @@ body {
 
   .brand-mark {
     @apply relative inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm font-semibold tracking-[0.2em] uppercase text-slate-100;
-    border-color: rgba(125, 211, 252, 0.22);
-    background: rgba(9, 17, 27, 0.58);
-    backdrop-filter: blur(14px);
+    border-color: rgba(125, 211, 252, 0.24);
+    background:
+      linear-gradient(180deg, rgba(12, 20, 32, 0.8), rgba(7, 14, 23, 0.62));
+    backdrop-filter: blur(16px);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-      0 0 24px rgba(34, 211, 238, 0.08);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+      0 0 24px rgba(34, 211, 238, 0.08),
+      0 10px 30px rgba(2, 8, 23, 0.28);
+  }
+
+  .brand-mark::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.08),
+      transparent 32%,
+      transparent 70%,
+      rgba(103, 232, 249, 0.06)
+    );
+    opacity: 0.8;
+  }
+
+  .brand-mark img {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter:
+      drop-shadow(0 0 10px rgba(34, 211, 238, 0.22))
+      drop-shadow(0 0 22px rgba(139, 92, 246, 0.14));
+  }
+
+  .brand-mark span:last-child {
+    position: relative;
+    z-index: 1;
   }
 
   .brand-mark__dot {
@@ -137,6 +171,21 @@ body {
     backdrop-filter: blur(14px);
   }
 
+  .tech-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 18%,
+      transparent 34%
+    );
+    transform: translateX(-130%);
+    animation: badge-sweep 5.4s linear infinite;
+    pointer-events: none;
+  }
+
   .tech-badge__pulse {
     width: 0.6rem;
     height: 0.6rem;
@@ -151,6 +200,7 @@ body {
     @apply max-w-4xl text-4xl font-semibold leading-tight text-white md:text-6xl;
     letter-spacing: -0.03em;
     text-wrap: balance;
+    text-shadow: 0 0 24px rgba(255, 255, 255, 0.02);
   }
 
   .hero-title .hero-price {
@@ -161,6 +211,7 @@ body {
     color: transparent;
     animation: text-flow 5s linear infinite;
     white-space: nowrap;
+    filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.16));
   }
 
   .hero-subtitle {
@@ -178,6 +229,16 @@ body {
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.18), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 48%);
+    pointer-events: none;
+  }
+
   .btn-primary:hover {
     transform: translateY(-2px) scale(1.01);
     box-shadow:
@@ -193,6 +254,24 @@ body {
     background: rgba(8, 15, 25, 0.5);
     color: #dbeafe;
     backdrop-filter: blur(14px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-secondary::before,
+  .btn-ghost::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      120deg,
+      transparent,
+      rgba(255, 255, 255, 0.05),
+      transparent
+    );
+    opacity: 0;
+    transition: opacity 300ms ease;
+    pointer-events: none;
   }
 
   .btn-secondary:hover,
@@ -201,6 +280,11 @@ body {
     color: #ffffff;
     box-shadow: 0 0 24px rgba(34, 211, 238, 0.08);
     transform: translateY(-2px);
+  }
+
+  .btn-secondary:hover::before,
+  .btn-ghost:hover::before {
+    opacity: 1;
   }
 
   .btn-primary,
@@ -237,6 +321,9 @@ body {
     border-color: rgba(125, 211, 252, 0.16);
     background: rgba(7, 14, 23, 0.52);
     backdrop-filter: blur(14px);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      0 0 35px rgba(34, 211, 238, 0.04);
   }
 
   .tech-marquee::before,
@@ -270,7 +357,9 @@ body {
     @apply inline-flex items-center rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-cyan-100;
     background: rgba(15, 23, 42, 0.85);
     border: 1px solid rgba(103, 232, 249, 0.16);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      0 0 18px rgba(34, 211, 238, 0.04);
     white-space: nowrap;
   }
 
@@ -285,6 +374,36 @@ body {
       0 30px 80px rgba(2, 8, 23, 0.55),
       inset 0 1px 0 rgba(255, 255, 255, 0.04),
       0 0 50px rgba(34, 211, 238, 0.08);
+    isolation: isolate;
+  }
+
+  .hero-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 22%),
+      linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.04), transparent);
+    mix-blend-mode: screen;
+    opacity: 0.95;
+  }
+
+  .hero-panel::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: calc(2rem - 1px);
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(34, 211, 238, 0.08), transparent 22%),
+      radial-gradient(circle at 84% 14%, rgba(139, 92, 246, 0.09), transparent 20%),
+      linear-gradient(rgba(103, 232, 249, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(103, 232, 249, 0.05) 1px, transparent 1px);
+    background-size: auto, auto, 24px 24px, 24px 24px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.88), transparent 92%);
+    opacity: 0.22;
   }
 
   .hero-panel__glow {
@@ -314,7 +433,11 @@ body {
   .hero-panel__header {
     @apply relative z-10 mb-8 flex items-center justify-between rounded-2xl border px-4 py-3;
     border-color: rgba(148, 163, 184, 0.16);
-    background: rgba(15, 23, 42, 0.45);
+    background:
+      linear-gradient(180deg, rgba(20, 28, 46, 0.56), rgba(10, 16, 28, 0.46));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 25px rgba(34, 211, 238, 0.03);
   }
 
   .hero-panel__dots {
@@ -326,6 +449,7 @@ body {
     height: 0.55rem;
     border-radius: 9999px;
     background: rgba(148, 163, 184, 0.5);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.04);
   }
 
   .hero-panel__dots span:first-child {
@@ -342,6 +466,7 @@ body {
 
   .hero-panel__label {
     @apply text-xs font-medium uppercase tracking-[0.28em] text-cyan-100;
+    text-shadow: 0 0 12px rgba(34, 211, 238, 0.16);
   }
 
   .hero-panel__content {
@@ -356,6 +481,18 @@ body {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.03),
       0 0 30px rgba(34, 211, 238, 0.04);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hud-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(120deg, rgba(255, 255, 255, 0.04), transparent 30%),
+      radial-gradient(circle at 100% 0%, rgba(103, 232, 249, 0.08), transparent 24%);
+    pointer-events: none;
   }
 
   .hud-card--wide {
@@ -368,13 +505,17 @@ body {
 
   .hud-card strong {
     @apply text-xl font-semibold text-white;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.02);
   }
 
   .floating-chip {
     @apply absolute rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-100;
-    background: rgba(7, 14, 23, 0.8);
+    background:
+      linear-gradient(180deg, rgba(10, 18, 30, 0.88), rgba(7, 14, 23, 0.76));
     border-color: rgba(103, 232, 249, 0.16);
-    box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
+    box-shadow:
+      0 0 18px rgba(34, 211, 238, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(12px);
     animation: float-chip 5s ease-in-out infinite;
     will-change: transform;
@@ -406,6 +547,9 @@ body {
     border-color: rgba(103, 232, 249, 0.16);
     background: rgba(7, 14, 23, 0.6);
     backdrop-filter: blur(12px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.02),
+      0 0 18px rgba(34, 211, 238, 0.04);
   }
 
   .service-card {
@@ -419,7 +563,20 @@ body {
     transition:
       transform 300ms ease,
       border-color 300ms ease,
-      box-shadow 300ms ease;
+      box-shadow 300ms ease,
+      background 300ms ease;
+    isolation: isolate;
+  }
+
+  .service-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at top right, rgba(103, 232, 249, 0.1), transparent 24%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 28%);
+    opacity: 0.95;
   }
 
   .service-card:hover {
@@ -460,6 +617,19 @@ body {
     background:
       linear-gradient(90deg, rgba(8, 15, 25, 0.88), rgba(12, 22, 36, 0.8));
     border-color: rgba(103, 232, 249, 0.14);
+    box-shadow:
+      0 20px 50px rgba(2, 8, 23, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .highlight-strip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(120deg, rgba(255, 255, 255, 0.05), transparent 28%),
+      radial-gradient(circle at 85% 50%, rgba(34, 211, 238, 0.08), transparent 24%);
   }
 
   .highlight-strip__glow {
@@ -500,6 +670,18 @@ body {
     box-shadow:
       0 24px 60px rgba(2, 8, 23, 0.38),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .contact-side-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 26%),
+      radial-gradient(circle at 100% 0%, rgba(103, 232, 249, 0.06), transparent 22%);
   }
 
   .contact-side-panel__title {
@@ -521,6 +703,9 @@ body {
     @apply rounded-[1.5rem] border p-5;
     background: rgba(15, 23, 42, 0.6);
     border-color: rgba(148, 163, 184, 0.14);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.025),
+      0 0 20px rgba(34, 211, 238, 0.03);
   }
 
   .metric-card__label {
@@ -541,6 +726,18 @@ body {
       0 0 40px rgba(34, 211, 238, 0.05),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(18px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .form-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 24%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.08), transparent 22%);
   }
 
   .input-label {
@@ -552,7 +749,9 @@ body {
     border: 1px solid rgba(148, 163, 184, 0.16);
     background:
       linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(9, 16, 28, 0.72));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 0 0 rgba(34, 211, 238, 0);
   }
 
   .input-field::placeholder {
@@ -578,6 +777,7 @@ body {
   .status-message {
     @apply rounded-2xl px-4 py-3 text-sm;
     border: 1px solid transparent;
+    backdrop-filter: blur(8px);
   }
 
   .status-message--success {
@@ -632,6 +832,15 @@ body {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+
+@keyframes badge-sweep {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
   }
 }
 
@@ -716,6 +925,30 @@ body {
   .btn-ghost:hover {
     transform: translateY(-2px);
   }
+
+  .brand-mark:hover {
+    border-color: rgba(103, 232, 249, 0.32);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 0 30px rgba(34, 211, 238, 0.1),
+      0 16px 34px rgba(2, 8, 23, 0.34);
+    transform: translateY(-1px);
+  }
+
+  .tech-pill:hover {
+    border-color: rgba(103, 232, 249, 0.28);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      0 0 26px rgba(34, 211, 238, 0.08);
+  }
+
+  .metric-card:hover,
+  .hud-card:hover {
+    border-color: rgba(103, 232, 249, 0.2);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 0 34px rgba(34, 211, 238, 0.06);
+  }
 }
 
 @media (max-width: 1024px) {
@@ -773,6 +1006,11 @@ body {
     letter-spacing: 0.16em;
   }
 
+  .brand-mark img {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
   .tech-badge {
     @apply px-3.5 py-2 text-[11px];
     letter-spacing: 0.24em;
@@ -812,6 +1050,11 @@ body {
     @apply p-4;
     min-height: 20rem;
     border-radius: 1.75rem;
+  }
+
+  .hero-panel::after {
+    background-size: auto, auto, 18px 18px, 18px 18px;
+    opacity: 0.18;
   }
 
   .hero-panel__header {
@@ -982,7 +1225,8 @@ body {
   .floating-chip,
   .tech-marquee__track,
   .hero-panel__scan,
-  .btn-shine {
+  .btn-shine,
+  .tech-badge::after {
     transform: none !important;
   }
 }
