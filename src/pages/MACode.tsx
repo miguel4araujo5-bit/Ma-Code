@@ -171,10 +171,10 @@ export default function MACode() {
       <div className="site-grid" />
       <div className="site-noise" />
 
-      <section className="relative overflow-hidden px-6 pb-16 pt-8 md:px-10 md:pb-24 md:pt-10">
+      <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 md:px-10 md:pb-24 md:pt-10">
         <div className="mx-auto max-w-7xl">
-          <header className="mb-10 flex items-center justify-between">
-            <a href="/" className="brand-mark" aria-label="MA-Code - Página inicial">
+          <header className="mb-8 flex items-center justify-between sm:mb-10">
+            <a href="/" className="brand-mark max-w-full" aria-label="MA-Code - Página inicial">
               <img
                 src="/logo.svg"
                 alt="MA-Code"
@@ -182,7 +182,7 @@ export default function MACode() {
                 loading="eager"
                 decoding="async"
               />
-              <span>MA-Code</span>
+              <span className="truncate">MA-Code</span>
             </a>
 
             <a href="#orcamento" className="btn-ghost hidden md:inline-flex">
@@ -190,53 +190,58 @@ export default function MACode() {
             </a>
           </header>
 
-          <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className={`space-y-8 ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
-              <div className="inline-flex">
-                <div className="tech-badge">
+          <div className="grid items-start gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-10">
+            <div className={`space-y-6 sm:space-y-7 md:space-y-8 ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
+              <div className="inline-flex max-w-full">
+                <div className="tech-badge max-w-full">
                   <span className="tech-badge__pulse" />
-                  <span>Websites • IA • Automação • Blockchain</span>
+                  <span className="sm:hidden">Websites • IA • Automação</span>
+                  <span className="hidden sm:inline">Websites • IA • Automação • Blockchain</span>
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <h1 className="hero-title">
+              <div className="space-y-4 sm:space-y-5">
+                <h1 className="hero-title !max-w-full !text-[2.8rem] !leading-[0.98] tracking-[-0.03em] sm:!text-[3.35rem] sm:!leading-[0.98] md:!text-[4.3rem] md:!leading-[0.96]">
                   Criamos websites, lojas online, aplicações web, automação e soluções blockchain
                   para negócios que querem mais credibilidade, mais eficiência e mais crescimento.{' '}
-                  <span className="hero-price">(A partir de 19€/mês)</span>
+                  <span className="hero-price block pt-2 sm:inline sm:pt-0">(A partir de 19€/mês)</span>
                 </h1>
 
-                <p className="hero-subtitle">
+                <p className="hero-subtitle !max-w-[42rem] !text-[1rem] !leading-7 text-slate-300 sm:!text-[1.05rem] sm:!leading-8 md:!text-lg">
                   Soluções digitais com visual premium, estrutura clara e foco comercial para ajudar
                   a sua marca a transmitir confiança e gerar mais oportunidades desde o primeiro
                   segundo.
                 </p>
               </div>
 
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <a href="#orcamento" className="btn-primary hightech-button">
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                <a href="#orcamento" className="btn-primary hightech-button w-full sm:w-auto">
                   <span className="btn-shine" />
                   <span className="relative z-10">Pedir orçamento</span>
                 </a>
 
-                <a href="#servicos" className="btn-secondary hightech-button-secondary">
+                <a href="#servicos" className="btn-secondary hightech-button-secondary w-full sm:w-auto">
                   Ver serviços
                 </a>
               </div>
 
-              <div className="tech-marquee" aria-label="Tecnologias e áreas de serviço">
-                <div className="tech-marquee__track">
-                  {[...techPills, ...techPills].map((item, index) => (
-                    <span key={`${item}-${index}`} className="tech-pill">
-                      {item}
-                    </span>
-                  ))}
+              <div className="-mx-1 sm:mx-0">
+                <div className="tech-marquee" aria-label="Tecnologias e áreas de serviço">
+                  <div className="tech-marquee__track">
+                    {[...techPills, ...techPills].map((item, index) => (
+                      <span key={`${item}-${index}`} className="tech-pill">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className={`relative ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
-              <div className="hero-panel">
+            <div
+              className={`relative mx-auto w-full max-w-[560px] lg:max-w-none ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}
+            >
+              <div className="hero-panel scale-[0.96] sm:scale-100">
                 <div className="hero-panel__glow" />
                 <div className="hero-panel__scan" />
 
@@ -275,7 +280,7 @@ export default function MACode() {
         </div>
       </section>
 
-      <section id="servicos" className="px-6 pb-8 md:px-10 md:pb-14">
+      <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Serviços</span>
@@ -291,7 +296,7 @@ export default function MACode() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {serviceCards.map((card, index) => (
               <article
                 key={card.title}
@@ -308,7 +313,7 @@ export default function MACode() {
         </div>
       </section>
 
-      <section className="px-6 pb-8 md:px-10 md:pb-14">
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="highlight-strip">
             <div className="highlight-strip__glow" />
@@ -324,13 +329,13 @@ export default function MACode() {
         </div>
       </section>
 
-      <section className="px-6 pb-8 md:px-10 md:pb-14">
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Porque escolher a MA-Code</span>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-3">
             {valuePoints.map((item, index) => (
               <article
                 key={item.title}
@@ -346,13 +351,13 @@ export default function MACode() {
         </div>
       </section>
 
-      <section className="px-6 pb-8 md:px-10 md:pb-14">
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Processo</span>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {processSteps.map((step, index) => (
               <article
                 key={step.title}
@@ -368,7 +373,7 @@ export default function MACode() {
         </div>
       </section>
 
-      <section className="px-6 pb-8 md:px-10 md:pb-14">
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Perguntas frequentes</span>
@@ -378,7 +383,7 @@ export default function MACode() {
             {faqItems.map((item, index) => (
               <article
                 key={item.question}
-                className={`rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-sm ${
+                className={`rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm sm:p-6 ${
                   mounted ? 'animate-fade-in-up' : 'opacity-0'
                 }`}
                 style={{ animationDelay: `${index * 90}ms` }}
@@ -391,7 +396,7 @@ export default function MACode() {
         </div>
       </section>
 
-      <section id="orcamento" className="px-6 pb-20 md:px-10 md:pb-24">
+      <section id="orcamento" className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="contact-side-panel">
