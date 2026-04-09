@@ -8,6 +8,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -19,6 +20,7 @@ body {
     linear-gradient(180deg, #061019 0%, #08131d 35%, #071018 100%);
   color: #e5f3ff;
   min-width: 320px;
+  overflow-x: hidden;
 }
 
 ::selection {
@@ -31,11 +33,24 @@ body {
     border-color: rgba(148, 163, 184, 0.2);
   }
 
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   a,
   button,
   input,
   textarea {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
   }
 
   a:focus-visible,
@@ -110,7 +125,8 @@ body {
   }
 
   .brand-mark {
-    @apply relative inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm font-semibold tracking-[0.2em] uppercase text-slate-100;
+    @apply relative inline-flex max-w-full items-center gap-3 rounded-full border px-4 py-2 text-sm font-semibold uppercase text-slate-100;
+    letter-spacing: 0.2em;
     border-color: rgba(125, 211, 252, 0.24);
     background:
       linear-gradient(180deg, rgba(12, 20, 32, 0.8), rgba(7, 14, 23, 0.62));
@@ -150,6 +166,7 @@ body {
   .brand-mark span:last-child {
     position: relative;
     z-index: 1;
+    min-width: 0;
   }
 
   .brand-mark__dot {
@@ -162,13 +179,20 @@ body {
   }
 
   .tech-badge {
-    @apply relative inline-flex items-center gap-3 overflow-hidden rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.32em] text-cyan-100;
+    @apply relative inline-flex max-w-full items-center gap-3 overflow-hidden rounded-full border px-4 py-2 text-xs font-semibold uppercase text-cyan-100;
+    letter-spacing: 0.32em;
     border-color: rgba(103, 232, 249, 0.26);
     background: linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(8, 15, 25, 0.7));
     box-shadow:
       0 0 0 1px rgba(125, 211, 252, 0.08),
       0 0 30px rgba(56, 189, 248, 0.09);
     backdrop-filter: blur(14px);
+  }
+
+  .tech-badge span:last-child {
+    min-width: 0;
+    position: relative;
+    z-index: 1;
   }
 
   .tech-badge::after {
@@ -201,6 +225,7 @@ body {
     letter-spacing: -0.03em;
     text-wrap: balance;
     text-shadow: 0 0 24px rgba(255, 255, 255, 0.02);
+    overflow-wrap: anywhere;
   }
 
   .hero-title .hero-price {
@@ -318,6 +343,7 @@ body {
 
   .tech-marquee {
     @apply relative overflow-hidden rounded-2xl border p-4;
+    width: 100%;
     border-color: rgba(125, 211, 252, 0.16);
     background: rgba(7, 14, 23, 0.52);
     backdrop-filter: blur(14px);
@@ -364,7 +390,7 @@ body {
   }
 
   .hero-panel {
-    @apply relative overflow-hidden rounded-[2rem] border p-5 md:p-6;
+    @apply relative w-full overflow-hidden rounded-[2rem] border p-5 md:p-6;
     min-height: 27rem;
     background:
       linear-gradient(180deg, rgba(11, 18, 32, 0.95), rgba(6, 12, 22, 0.85));
@@ -506,6 +532,7 @@ body {
   .hud-card strong {
     @apply text-xl font-semibold text-white;
     text-shadow: 0 0 18px rgba(255, 255, 255, 0.02);
+    overflow-wrap: anywhere;
   }
 
   .floating-chip {
@@ -1002,67 +1029,83 @@ body {
   }
 
   .brand-mark {
-    @apply px-3.5 py-2 text-[12px];
-    letter-spacing: 0.16em;
+    @apply px-3 py-2 text-[11px];
+    letter-spacing: 0.12em;
+    gap: 0.7rem;
   }
 
   .brand-mark img {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.6rem;
+    height: 1.6rem;
   }
 
   .tech-badge {
-    @apply px-3.5 py-2 text-[11px];
-    letter-spacing: 0.24em;
+    @apply px-3 py-2 text-[10px];
+    letter-spacing: 0.14em;
+    gap: 0.55rem;
+    max-width: 100%;
   }
 
   .hero-title {
-    @apply text-[2.4rem] leading-[1.08];
+    font-size: 2.2rem;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    text-wrap: pretty;
+  }
+
+  .hero-title .hero-price {
+    white-space: normal;
   }
 
   .hero-subtitle {
     @apply text-[15px] leading-7;
+    max-width: 100%;
   }
 
   .btn-primary,
   .btn-secondary,
   .btn-ghost {
     @apply w-full px-5 py-3.5 text-[12px];
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     min-height: 3.25rem;
   }
 
   .tech-marquee {
-    @apply p-3.5;
+    @apply p-3;
   }
 
   .tech-marquee::before,
   .tech-marquee::after {
-    width: 2.5rem;
+    width: 2.25rem;
   }
 
   .tech-pill {
-    @apply px-3 py-2 text-[11px];
-    letter-spacing: 0.18em;
+    @apply px-3 py-2 text-[10px];
+    letter-spacing: 0.14em;
   }
 
   .hero-panel {
     @apply p-4;
-    min-height: 20rem;
+    min-height: 17.5rem;
     border-radius: 1.75rem;
   }
 
   .hero-panel::after {
     background-size: auto, auto, 18px 18px, 18px 18px;
-    opacity: 0.18;
+    opacity: 0.16;
   }
 
   .hero-panel__header {
-    @apply mb-6 px-3.5 py-3;
+    @apply mb-4 px-3 py-2.5;
   }
 
   .hero-panel__label {
-    letter-spacing: 0.22em;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
+  .hero-panel__content {
+    gap: 0.85rem;
   }
 
   .hud-card {
@@ -1070,33 +1113,38 @@ body {
     border-radius: 1.25rem;
   }
 
+  .hud-card__label {
+    margin-bottom: 0.5rem;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
   .hud-card strong {
-    @apply text-lg;
+    font-size: 1rem;
+    line-height: 1.35;
   }
 
   .floating-chip {
     @apply px-2.5 py-1.5 text-[10px];
-    letter-spacing: 0.18em;
+    letter-spacing: 0.12em;
   }
 
   .floating-chip--one {
-    top: 4.5rem;
+    top: 4rem;
     right: 0.25rem;
   }
 
   .floating-chip--two {
-    bottom: 4rem;
-    left: 0.25rem;
+    display: none;
   }
 
   .floating-chip--three {
-    right: 1rem;
-    bottom: 1.25rem;
+    display: none;
   }
 
   .section-label {
     @apply px-3.5 py-2 text-[11px];
-    letter-spacing: 0.22em;
+    letter-spacing: 0.18em;
   }
 
   .service-card {
@@ -1168,35 +1216,92 @@ body {
 }
 
 @media (max-width: 480px) {
+  .brand-mark {
+    max-width: 100%;
+    padding-left: 0.85rem;
+    padding-right: 0.95rem;
+    gap: 0.65rem;
+    font-size: 10px;
+    letter-spacing: 0.11em;
+  }
+
+  .brand-mark img {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .tech-badge {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    padding: 0.8rem 0.95rem;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    gap: 0.5rem;
+  }
+
   .hero-title {
-    font-size: 2.05rem;
-    line-height: 1.06;
-    letter-spacing: -0.035em;
+    font-size: 1.95rem;
+    line-height: 1.03;
+    letter-spacing: -0.04em;
   }
 
   .hero-title .hero-price {
+    display: block;
+    padding-top: 0.45rem;
     white-space: normal;
   }
 
   .hero-subtitle {
     font-size: 0.95rem;
-    line-height: 1.75;
+    line-height: 1.72;
+  }
+
+  .tech-marquee {
+    padding: 0.8rem;
+    border-radius: 1.15rem;
+  }
+
+  .tech-marquee::before,
+  .tech-marquee::after {
+    width: 1.5rem;
   }
 
   .hero-panel {
-    min-height: 18.5rem;
+    min-height: 16rem;
+    padding: 0.9rem;
+  }
+
+  .hero-panel__header {
+    margin-bottom: 0.75rem;
+    padding: 0.8rem 0.9rem;
+  }
+
+  .hero-panel__dots span {
+    width: 0.45rem;
+    height: 0.45rem;
+  }
+
+  .hero-panel__label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
   }
 
   .hero-panel__content {
-    gap: 0.85rem;
+    gap: 0.7rem;
+  }
+
+  .hud-card {
+    padding: 0.9rem;
+    border-radius: 1rem;
   }
 
   .hud-card strong {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
-  .floating-chip--three {
-    right: 0.75rem;
+  .floating-chip--one {
+    display: none;
   }
 
   .service-card__title {
