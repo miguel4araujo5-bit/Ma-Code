@@ -1,18 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
-const techPills = [
-  'Web Design',
-  'Web Apps',
-  'Automação',
-  'IA',
-  'E-commerce',
-  'Cloud',
-  'APIs',
-  'Performance',
-  'Blockchain',
-  'EVM'
-]
-
 const marqueeItems = [
   'Websites Profissionais',
   'Lojas Online',
@@ -191,7 +178,7 @@ export default function MACode() {
               <img
                 src="/logo.svg"
                 alt="MA-Code"
-                className="h-8 w-8 shrink-0 object-contain"
+                className="h-10 w-10 shrink-0 object-contain md:h-12 md:w-12"
                 loading="eager"
                 decoding="async"
               />
@@ -274,18 +261,8 @@ export default function MACode() {
 
           <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
             <div className="hero-marquee__track">
-              {[...marqueeItems, ...marqueeItems].map((item, index) => (
+              {[...marqueeItems, ...marqueeItems, ...marqueeItems].map((item, index) => (
                 <span key={`${item}-${index}`} className="hero-marquee__item">
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="hero-pills-wrap">
-            <div className="hero-pills">
-              {techPills.map((item) => (
-                <span key={item} className="tech-pill">
                   {item}
                 </span>
               ))}
