@@ -8,21 +8,104 @@ const techPills = [
   'E-commerce',
   'Cloud',
   'APIs',
-  'Performance'
+  'Performance',
+  'Blockchain',
+  'EVM'
 ]
 
 const serviceCards = [
   {
     title: 'Websites Profissionais',
-    description: 'Websites rápidos, modernos e otimizados para telemóvel.'
+    description:
+      'Websites rápidos, modernos e otimizados para telemóvel, pensados para transmitir confiança e gerar mais contactos.'
+  },
+  {
+    title: 'Lojas Online',
+    description:
+      'Lojas online com visual premium, estrutura clara e experiência pensada para vender mais e facilitar a gestão.'
   },
   {
     title: 'Sistemas de Marcação',
-    description: 'Sistemas de reservas online para salões, clínicas e serviços.'
+    description:
+      'Sistemas de reservas online para salões, clínicas e serviços que querem receber pedidos com mais organização.'
   },
   {
     title: 'Aplicações Web',
-    description: 'Plataformas personalizadas para automatizar o seu negócio.'
+    description:
+      'Plataformas personalizadas para automatizar processos, organizar operações e poupar tempo no dia a dia.'
+  },
+  {
+    title: 'IA e Automação',
+    description:
+      'Integrações de IA, automações e fluxos inteligentes para reduzir tarefas repetitivas e melhorar a eficiência.'
+  },
+  {
+    title: 'Blockchain e EVM',
+    description:
+      'Criação de tokens, integrações de ações em blockchain EVM e soluções digitais ligadas a smart contracts e ecossistemas on-chain.'
+  }
+]
+
+const valuePoints = [
+  {
+    title: 'Mais credibilidade',
+    description:
+      'Uma presença digital mais forte ajuda a sua marca a parecer mais profissional desde o primeiro contacto.'
+  },
+  {
+    title: 'Mais organização',
+    description:
+      'Criamos soluções que ajudam a receber pedidos, marcar serviços, automatizar tarefas e organizar operações.'
+  },
+  {
+    title: 'Mais capacidade de crescer',
+    description:
+      'O objetivo não é apenas “ter um site”, mas criar uma base digital preparada para captar mais oportunidades.'
+  }
+]
+
+const processSteps = [
+  {
+    title: '1. Diagnóstico',
+    description: 'Percebemos o seu negócio, o objetivo do projeto e o que realmente faz sentido construir.'
+  },
+  {
+    title: '2. Estrutura',
+    description:
+      'Definimos a solução, a organização da página e a melhor forma de apresentar a sua oferta.'
+  },
+  {
+    title: '3. Desenvolvimento',
+    description:
+      'Criamos uma solução moderna, rápida e alinhada com a sua imagem, funcionalidades e necessidades.'
+  },
+  {
+    title: '4. Entrega',
+    description:
+      'Colocamos o projeto online e deixamos a base preparada para operar melhor e crescer com mais confiança.'
+  }
+]
+
+const faqItems = [
+  {
+    question: 'Que tipo de projetos desenvolvem?',
+    answer:
+      'Desenvolvemos websites profissionais, lojas online, sistemas de marcações, aplicações web, automações, integrações de IA e soluções com blockchain EVM, incluindo criação de tokens e ações on-chain.'
+  },
+  {
+    question: 'Fazem projetos simples e também soluções mais avançadas?',
+    answer:
+      'Sim. Podemos criar desde uma presença digital mais simples até soluções mais completas com gestão, automação, integrações, funcionalidades personalizadas e componentes blockchain.'
+  },
+  {
+    question: 'O site fica adaptado para telemóvel?',
+    answer:
+      'Sim. Os projetos são pensados para funcionar bem em telemóvel, tablet e desktop, com foco em clareza, velocidade e experiência do utilizador.'
+  },
+  {
+    question: 'Como funciona o pedido de orçamento?',
+    answer:
+      'Envie-nos o que pretende, analisamos o projeto e respondemos com uma proposta ajustada ao tipo de solução que faz sentido para o seu caso.'
   }
 ]
 
@@ -112,19 +195,21 @@ export default function MACode() {
               <div className="inline-flex">
                 <div className="tech-badge">
                   <span className="tech-badge__pulse" />
-                  <span>Websites • IA • Automação</span>
+                  <span>Websites • IA • Automação • Blockchain</span>
                 </div>
               </div>
 
               <div className="space-y-5">
                 <h1 className="hero-title">
-                  Criamos websites e aplicações modernas para empresas que querem uma presença digital
-                  profissional e eficiente. <span className="hero-price">(A partir de 19€/mês)</span>
+                  Criamos websites, lojas online, aplicações web, automação e soluções blockchain
+                  para negócios que querem mais credibilidade, mais eficiência e mais crescimento.{' '}
+                  <span className="hero-price">(A partir de 19€/mês)</span>
                 </h1>
 
                 <p className="hero-subtitle">
-                  Presença digital moderna, visual premium e uma experiência mais impactante desde o
-                  primeiro segundo.
+                  Soluções digitais com visual premium, estrutura clara e foco comercial para ajudar
+                  a sua marca a transmitir confiança e gerar mais oportunidades desde o primeiro
+                  segundo.
                 </p>
               </div>
 
@@ -139,7 +224,7 @@ export default function MACode() {
                 </a>
               </div>
 
-              <div className="tech-marquee">
+              <div className="tech-marquee" aria-label="Tecnologias e áreas de serviço">
                 <div className="tech-marquee__track">
                   {[...techPills, ...techPills].map((item, index) => (
                     <span key={`${item}-${index}`} className="tech-pill">
@@ -172,18 +257,18 @@ export default function MACode() {
 
                   <div className="hud-card">
                     <span className="hud-card__label">Visual</span>
-                    <strong>Moderno</strong>
+                    <strong>Premium</strong>
                   </div>
 
                   <div className="hud-card hud-card--wide">
-                    <span className="hud-card__label">Experiência</span>
-                    <strong>Profissional e eficiente</strong>
+                    <span className="hud-card__label">Objetivo</span>
+                    <strong>Mais confiança, mais organização, mais impacto</strong>
                   </div>
                 </div>
 
                 <div className="floating-chip floating-chip--one">UI</div>
                 <div className="floating-chip floating-chip--two">CODE</div>
-                <div className="floating-chip floating-chip--three">AI</div>
+                <div className="floating-chip floating-chip--three">EVM</div>
               </div>
             </div>
           </div>
@@ -196,7 +281,17 @@ export default function MACode() {
             <span className="section-label">Serviços</span>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Soluções digitais pensadas para vender melhor, operar melhor e crescer com mais força
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
+              Desenvolvemos soluções para empresas, marcas e projetos que precisam de presença
+              digital, automação, organização interna e funcionalidades mais avançadas.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {serviceCards.map((card, index) => (
               <article
                 key={card.title}
@@ -204,8 +299,8 @@ export default function MACode() {
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
-                <div className="service-card__index">0{index + 1}</div>
-                <h2 className="service-card__title">{card.title}</h2>
+                <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
+                <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
               </article>
             ))}
@@ -222,9 +317,76 @@ export default function MACode() {
               <span className="section-label">Vantagens</span>
               <p>
                 Criamos soluções digitais com visual moderno, estrutura clara e foco real em
-                confiança, impacto e crescimento do negócio.
+                confiança, impacto, eficiência e crescimento do negócio.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 pb-8 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 section-label-wrap">
+            <span className="section-label">Porque escolher a MA-Code</span>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {valuePoints.map((item, index) => (
+              <article
+                key={item.title}
+                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                style={{ animationDelay: `${index * 120}ms` }}
+              >
+                <div className="service-card__line" />
+                <h2 className="service-card__title">{item.title}</h2>
+                <p className="service-card__description">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 pb-8 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 section-label-wrap">
+            <span className="section-label">Processo</span>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {processSteps.map((step, index) => (
+              <article
+                key={step.title}
+                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="service-card__line" />
+                <h2 className="service-card__title">{step.title}</h2>
+                <p className="service-card__description">{step.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 pb-8 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 section-label-wrap">
+            <span className="section-label">Perguntas frequentes</span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {faqItems.map((item, index) => (
+              <article
+                key={item.question}
+                className={`rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-sm ${
+                  mounted ? 'animate-fade-in-up' : 'opacity-0'
+                }`}
+                style={{ animationDelay: `${index * 90}ms` }}
+              >
+                <h2 className="text-base font-semibold text-white md:text-lg">{item.question}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{item.answer}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -237,18 +399,28 @@ export default function MACode() {
               <h2 className="contact-side-panel__title">Pedir Orçamento</h2>
               <p className="contact-side-panel__text">
                 Diga-nos o que precisa e entramos em contacto consigo com uma proposta ajustada ao
-                seu projeto.
+                seu projeto, ao seu negócio e ao tipo de solução que faz sentido construir.
               </p>
 
               <div className="contact-metrics">
                 <div className="metric-card">
-                  <span className="metric-card__label">Design</span>
-                  <strong>High Tech</strong>
+                  <span className="metric-card__label">Visual</span>
+                  <strong>Premium</strong>
                 </div>
                 <div className="metric-card">
-                  <span className="metric-card__label">Entrega</span>
-                  <strong>Moderna</strong>
+                  <span className="metric-card__label">Foco</span>
+                  <strong>Comercial</strong>
                 </div>
+              </div>
+
+              <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
+                <p>Indique, se possível:</p>
+                <ul className="space-y-2 text-slate-200/90">
+                  <li>• Que tipo de projeto pretende</li>
+                  <li>• Se já tem site ou se vai começar do zero</li>
+                  <li>• Se precisa de loja online, marcações, automação, IA ou blockchain</li>
+                  <li>• Que objetivo quer atingir com esta solução</li>
+                </ul>
               </div>
             </div>
 
