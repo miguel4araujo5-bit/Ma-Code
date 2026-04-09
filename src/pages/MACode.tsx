@@ -173,19 +173,20 @@ export default function MACode() {
 
       <section className="relative overflow-hidden px-5 pb-14 pt-6 sm:px-6 md:px-10 md:pb-20 md:pt-8">
         <div className="mx-auto max-w-7xl">
-          <header className="mb-8 flex items-center justify-between md:mb-12">
+          <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
             <a href="/" className="brand-mark" aria-label="MA-Code - Página inicial">
               <img
                 src="/logo.svg"
+                srcSet="/logo.svg 1x, /ma-code.png 2x"
                 alt="MA-Code"
-                className="h-10 w-10 shrink-0 object-contain md:h-12 md:w-12"
+                className="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16 md:h-20 md:w-20"
                 loading="eager"
                 decoding="async"
               />
               <span>MA-Code</span>
             </a>
 
-            <a href="#orcamento" className="btn-ghost hidden md:inline-flex">
+            <a href="#orcamento" className="btn-ghost text-sm sm:text-base">
               Pedir orçamento
             </a>
           </header>
@@ -194,7 +195,7 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites • IA • Automação • Blockchain</span>
+                <span>Websites • IA • Automação • Blockchain EVM</span>
               </div>
 
               <h1 className="hero-title">
