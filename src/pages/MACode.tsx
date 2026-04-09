@@ -91,8 +91,14 @@ export default function MACode() {
       <section className="relative overflow-hidden px-6 pb-16 pt-8 md:px-10 md:pb-24 md:pt-10">
         <div className="mx-auto max-w-7xl">
           <header className="mb-10 flex items-center justify-between">
-            <a href="/" className="brand-mark">
-              <span className="brand-mark__dot" />
+            <a href="/" className="brand-mark" aria-label="MA-Code - Página inicial">
+              <img
+                src="/logo.svg"
+                alt="MA-Code"
+                className="h-8 w-8 shrink-0 object-contain"
+                loading="eager"
+                decoding="async"
+              />
               <span>MA-Code</span>
             </a>
 
@@ -106,7 +112,7 @@ export default function MACode() {
               <div className="inline-flex">
                 <div className="tech-badge">
                   <span className="tech-badge__pulse" />
-                  <span>MA-Code</span>
+                  <span>Websites • IA • Automação</span>
                 </div>
               </div>
 
@@ -213,9 +219,10 @@ export default function MACode() {
             <div className="highlight-strip__glow" />
             <div className="highlight-strip__grid" />
             <div className="highlight-strip__content">
-              <span className="section-label">Visual Upgrade</span>
+              <span className="section-label">Vantagens</span>
               <p>
-                O objetivo aqui é dar mais impacto visual sem mexer na mensagem principal do site.
+                Criamos soluções digitais com visual moderno, estrutura clara e foco real em
+                confiança, impacto e crescimento do negócio.
               </p>
             </div>
           </div>
@@ -292,7 +299,11 @@ export default function MACode() {
                 </div>
 
                 {successMessage ? (
-                  <div className="status-message status-message--success" role="status" aria-live="polite">
+                  <div
+                    className="status-message status-message--success"
+                    role="status"
+                    aria-live="polite"
+                  >
                     {successMessage}
                   </div>
                 ) : null}
