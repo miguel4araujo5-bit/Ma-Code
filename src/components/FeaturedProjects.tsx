@@ -63,9 +63,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                   return (
                     <figure
                       key={project.slug}
-                      className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 group-hover:-translate-y-1 group-hover:border-cyan-300/25 ${
-                        index === 1 ? 'sm:mt-10' : ''
-                      } ${index === 2 ? 'sm:mt-5' : ''}`}
+                      className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 group-hover:-translate-y-1 group-hover:border-cyan-300/25"
                     >
                       <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
                         <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
