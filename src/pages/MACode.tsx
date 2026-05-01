@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import Portfolio from '../components/Portfolio'
 
 const marqueeItems = [
   'Websites Profissionais',
@@ -308,6 +309,8 @@ export default function MACode() {
           </div>
         </div>
       </section>
+
+      <Portfolio mounted={mounted} />
 
       <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
