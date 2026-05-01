@@ -4,14 +4,14 @@ import FeaturedProjects from '../components/FeaturedProjects'
 const marqueeItems = [
   'Websites Profissionais',
   'Lojas Online',
-  'Aplicações Web',
   'Sistemas de Marcação',
+  'Aplicações Web',
   'IA e Automação',
   'Integrações API',
   'CRM e Gestão',
   'Bases de Dados',
-  'Blockchain EVM',
-  'Performance e Otimização'
+  'Performance e Otimização',
+  'Soluções Digitais Avançadas'
 ]
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
@@ -19,34 +19,40 @@ const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 const serviceCards = [
   {
     title: 'Websites Profissionais',
-    description: 'Sites rápidos, modernos e preparados para gerar contactos.'
+    description:
+      'Sites rápidos, modernos e preparados para transmitir confiança, funcionar bem no telemóvel e gerar contactos.'
   },
   {
     title: 'Lojas Online',
-    description: 'E-commerce com catálogo, carrinho, checkout e estrutura preparada para vender.'
+    description:
+      'E-commerce com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.'
   },
   {
     title: 'Sistemas de Marcação',
-    description: 'Marcações online para salões, clínicas, serviços locais e negócios com agenda.'
+    description:
+      'Agendas online para salões, clínicas, serviços locais e negócios que precisam de organizar marcações.'
   },
   {
-    title: 'Aplicações Web',
-    description: 'Ferramentas personalizadas para organizar processos e poupar tempo.'
+    title: 'Aplicações Web e Gestão',
+    description:
+      'Ferramentas personalizadas, áreas administrativas, dashboards e sistemas internos para organizar processos.'
   },
   {
     title: 'IA e Automação',
-    description: 'Automação, integrações e IA para reduzir tarefas repetitivas.'
+    description:
+      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas do negócio.'
   },
   {
-    title: 'Blockchain e EVM',
-    description: 'Tokens, integrações EVM e funcionalidades digitais ligadas a smart contracts.'
+    title: 'Integrações Avançadas',
+    description:
+      'APIs, bases de dados, CRM, integrações externas e soluções blockchain EVM quando o projeto precisa de algo mais técnico.'
   }
 ]
 
 const processSteps = [
   {
     title: '1. Diagnóstico',
-    description: 'Percebemos o objetivo, o negócio e o tipo de solução necessária.'
+    description: 'Percebemos o objetivo, o tipo de negócio e o que o projeto precisa de resolver.'
   },
   {
     title: '2. Estrutura',
@@ -58,8 +64,19 @@ const processSteps = [
   },
   {
     title: '4. Publicação',
-    description: 'Colocamos tudo online e deixamos a base preparada para funcionar.'
+    description: 'Colocamos tudo online com domínio, alojamento e uma base pronta a funcionar.'
   }
+]
+
+const projectTypes = [
+  'Website simples',
+  'Website profissional',
+  'Loja online',
+  'Sistema de marcações',
+  'Aplicação web',
+  'Automação / IA',
+  'Integração avançada',
+  'Ainda não sei'
 ]
 
 function updateMeta(name: string, content: string) {
@@ -90,6 +107,9 @@ export default function MACode() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    phone: '',
+    projectType: '',
+    hasWebsite: '',
     message: ''
   })
   const [isSending, setIsSending] = useState(false)
@@ -100,10 +120,10 @@ export default function MACode() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Criação de Websites, Lojas Online, Automação e IA | MA-Code'
+    document.title = 'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
     updateMeta(
       'description',
-      'Criação de websites profissionais, lojas online, sistemas de marcação, aplicações web, automação, IA e soluções blockchain EVM para negócios em Portugal.'
+      'Criação de websites profissionais, lojas online, sistemas de marcação, aplicações web, automação e integração de IA para negócios em Portugal. Websites simples desde 19€/mês.'
     )
     updateCanonical('https://ma-code.pt/')
   }, [])
@@ -113,6 +133,15 @@ export default function MACode() {
     setIsSending(true)
     setSuccessMessage('')
     setErrorMessage('')
+
+    const enrichedMessage = [
+      `Tipo de projeto: ${form.projectType || 'Não indicado'}`,
+      `Já tem site: ${form.hasWebsite || 'Não indicado'}`,
+      `Telefone/WhatsApp: ${form.phone || 'Não indicado'}`,
+      '',
+      'Mensagem:',
+      form.message
+    ].join('\n')
 
     try {
       const response = await fetch('/api/contact', {
@@ -124,7 +153,7 @@ export default function MACode() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          message: form.message
+          message: enrichedMessage
         })
       })
 
@@ -138,6 +167,9 @@ export default function MACode() {
       setForm({
         name: '',
         email: '',
+        phone: '',
+        projectType: '',
+        hasWebsite: '',
         message: ''
       })
     } catch {
@@ -179,25 +211,26 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites • Lojas Online • Apps • IA • Automação</span>
+                <span>Websites profissionais para negócios que querem crescer</span>
               </div>
 
               <h1 className="hero-title">
-                Criamos websites, lojas online e sistemas digitais para negócios que querem vender
-                melhor.
+                Websites modernos para negócios que querem parecer mais profissionais, receber mais
+                contactos e vender melhor.
               </h1>
 
-              <div className="hero-price-badge">Projetos desde 19€/mês</div>
+              <div className="hero-price-badge">Website simples desde 19€/mês</div>
 
               <p className="hero-subtitle">
-                Sites modernos, rápidos e adaptados a telemóvel, com possibilidade de loja online,
-                marcações, automação, IA e integrações avançadas.
+                Criamos sites rápidos, adaptados a telemóvel e preparados para transmitir confiança.
+                Quando o projeto precisa de mais, também desenvolvemos lojas online, marcações,
+                aplicações web, automação e integração de IA.
               </p>
 
               <div className="hero-actions">
                 <a href="#orcamento" className="btn-primary hightech-button">
                   <span className="btn-shine" />
-                  <span className="relative z-10">Pedir orçamento</span>
+                  <span className="relative z-10">Pedir proposta gratuita</span>
                 </a>
 
                 <a href="/projetos" className="btn-secondary hightech-button-secondary">
@@ -206,7 +239,7 @@ export default function MACode() {
               </div>
 
               <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
-                <li>Desde 19€/mês</li>
+                <li>Domínio + alojamento</li>
                 <li>Mobile-first</li>
                 <li>Foco em contactos</li>
               </ul>
@@ -226,8 +259,8 @@ export default function MACode() {
 
                 <div className="hero-panel__content">
                   <div className="hud-card">
-                    <span className="hud-card__label">Websites</span>
-                    <strong>Rápidos e profissionais</strong>
+                    <span className="hud-card__label">Entrada</span>
+                    <strong>Website profissional</strong>
                   </div>
 
                   <div className="hud-card">
@@ -236,8 +269,8 @@ export default function MACode() {
                   </div>
 
                   <div className="hud-card hud-card--wide">
-                    <span className="hud-card__label">Soluções</span>
-                    <strong>Marcações, lojas online, automação, IA e integração de sistemas</strong>
+                    <span className="hud-card__label">Evolução</span>
+                    <strong>Loja online, marcações, área admin, automação e IA</strong>
                   </div>
                 </div>
               </div>
@@ -258,6 +291,8 @@ export default function MACode() {
         </div>
       </section>
 
+      <FeaturedProjects mounted={mounted} />
+
       <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
@@ -266,11 +301,11 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              O que podemos criar
+              Soluções para lançar, vender e automatizar
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Do site simples ao sistema digital completo, criamos soluções ajustadas ao objetivo do
-              negócio.
+              Começamos pelo essencial: uma presença online profissional. Depois, se o negócio
+              precisar, evoluímos para loja online, marcações, sistemas internos, automação ou IA.
             </p>
           </div>
 
@@ -291,12 +326,19 @@ export default function MACode() {
         </div>
       </section>
 
-      <FeaturedProjects mounted={mounted} />
-
       <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Processo</span>
+          </div>
+
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Um processo simples, sem complicar o cliente
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
+              O objetivo é transformar a ideia numa solução funcional, clara e pronta a ser usada.
+            </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -320,14 +362,15 @@ export default function MACode() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="contact-side-panel">
               <span className="section-label">Pedido</span>
-              <h2 className="contact-side-panel__title">Pedir Orçamento</h2>
+              <h2 className="contact-side-panel__title">Pedir Proposta</h2>
               <p className="contact-side-panel__text">
-                Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao projeto.
+                Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
+                projeto.
               </p>
 
               <div className="contact-metrics">
                 <div className="metric-card">
-                  <span className="metric-card__label">Projetos</span>
+                  <span className="metric-card__label">Website simples</span>
                   <strong>Desde 19€/mês</strong>
                 </div>
                 <div className="metric-card">
@@ -337,46 +380,106 @@ export default function MACode() {
               </div>
 
               <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
-                <p>Indique, se possível:</p>
+                <p>Para uma resposta mais certeira, indique:</p>
                 <ul className="space-y-2 text-slate-200/90">
                   <li>• Que tipo de projeto pretende</li>
                   <li>• Se já tem site ou quer começar do zero</li>
-                  <li>• Se precisa de loja, marcações, automação, IA ou blockchain</li>
-                  <li>• Qual é o principal objetivo do projeto</li>
+                  <li>• Se precisa de loja, marcações, área admin, automação ou IA</li>
+                  <li>• Qual é o principal objetivo: contactos, vendas, reservas ou organização</li>
                 </ul>
               </div>
             </div>
 
             <div className="form-shell">
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label htmlFor="name" className="input-label">
-                    Nome
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    className="input-field"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                    autoComplete="name"
-                  />
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="name" className="input-label">
+                      Nome
+                    </label>
+                    <input
+                      id="name"
+                      type="text"
+                      className="input-field"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="email" className="input-label">
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      className="input-field"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="phone" className="input-label">
+                      Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
+                    </label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      className="input-field"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      autoComplete="tel"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="projectType" className="input-label">
+                      Tipo de projeto
+                    </label>
+                    <select
+                      id="projectType"
+                      className="input-field"
+                      value={form.projectType}
+                      onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+                      required
+                    >
+                      <option value="" disabled>
+                        Selecione uma opção
+                      </option>
+                      {projectTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="input-label">
-                    Email
+                  <label htmlFor="hasWebsite" className="input-label">
+                    Já tem site?
                   </label>
-                  <input
-                    id="email"
-                    type="email"
+                  <select
+                    id="hasWebsite"
                     className="input-field"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                    autoComplete="email"
-                  />
+                    value={form.hasWebsite}
+                    onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
+                  >
+                    <option value="">Selecione uma opção</option>
+                    <option value="Sim, já tenho site">Sim, já tenho site</option>
+                    <option value="Não, quero começar do zero">Não, quero começar do zero</option>
+                    <option value="Tenho domínio, mas não tenho site">
+                      Tenho domínio, mas não tenho site
+                    </option>
+                    <option value="Não tenho a certeza">Não tenho a certeza</option>
+                  </select>
                 </div>
 
                 <div>
@@ -390,6 +493,7 @@ export default function MACode() {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
+                    placeholder="Exemplo: preciso de um website para o meu negócio, com apresentação dos serviços, contactos, botão de WhatsApp e possibilidade de evoluir para marcações online."
                   />
                 </div>
 
@@ -416,7 +520,7 @@ export default function MACode() {
                 >
                   <span className="btn-shine" />
                   <span className="relative z-10">
-                    {isSending ? 'A enviar...' : 'Pedir orçamento'}
+                    {isSending ? 'A enviar...' : 'Pedir proposta gratuita'}
                   </span>
                 </button>
               </form>
