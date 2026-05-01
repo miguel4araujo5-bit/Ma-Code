@@ -91,6 +91,18 @@ function updateMeta(name: string, content: string) {
   meta.content = content
 }
 
+function updatePropertyMeta(property: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`)
+
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.setAttribute('property', property)
+    document.head.appendChild(meta)
+  }
+
+  meta.content = content
+}
+
 function updateCanonical(href: string) {
   let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
 
@@ -110,7 +122,8 @@ export default function MACode() {
     phone: '',
     projectType: '',
     hasWebsite: '',
-    message: ''
+    message: '',
+    botcheck: ''
   })
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -121,10 +134,56 @@ export default function MACode() {
     setMounted(true)
 
     document.title = 'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+
     updateMeta(
       'description',
       'Criação de websites profissionais, lojas online, sistemas de marcação, aplicações web, automação e integração de IA para negócios em Portugal. Websites simples desde 19€/mês.'
     )
+
+    updateMeta(
+      'keywords',
+      'criação de websites, websites profissionais, websites para negócios, lojas online, desenvolvimento web Portugal, sistema de marcações, aplicações web, automação, integração de IA, CRM, bases de dados, MA-Code'
+    )
+
+    updateMeta(
+      'robots',
+      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+    )
+
+    updatePropertyMeta('og:type', 'website')
+    updatePropertyMeta('og:locale', 'pt_PT')
+    updatePropertyMeta('og:site_name', 'MA-Code')
+    updatePropertyMeta('og:url', 'https://ma-code.pt/')
+    updatePropertyMeta(
+      'og:title',
+      'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+    )
+    updatePropertyMeta(
+      'og:description',
+      'Websites modernos, rápidos e preparados para telemóvel. Criamos sites, lojas online, marcações, aplicações web e automação com IA para negócios em Portugal.'
+    )
+    updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
+    updatePropertyMeta(
+      'og:image:alt',
+      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+    )
+
+    updateMeta('twitter:card', 'summary_large_image')
+    updateMeta('twitter:url', 'https://ma-code.pt/')
+    updateMeta(
+      'twitter:title',
+      'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+    )
+    updateMeta(
+      'twitter:description',
+      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos e vender melhor.'
+    )
+    updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
+    updateMeta(
+      'twitter:image:alt',
+      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+    )
+
     updateCanonical('https://ma-code.pt/')
   }, [])
 
@@ -133,15 +192,6 @@ export default function MACode() {
     setIsSending(true)
     setSuccessMessage('')
     setErrorMessage('')
-
-    const enrichedMessage = [
-      `Tipo de projeto: ${form.projectType || 'Não indicado'}`,
-      `Já tem site: ${form.hasWebsite || 'Não indicado'}`,
-      `Telefone/WhatsApp: ${form.phone || 'Não indicado'}`,
-      '',
-      'Mensagem:',
-      form.message
-    ].join('\n')
 
     try {
       const response = await fetch('/api/contact', {
@@ -153,7 +203,11 @@ export default function MACode() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          message: enrichedMessage
+          phone: form.phone,
+          projectType: form.projectType,
+          hasWebsite: form.hasWebsite,
+          message: form.message,
+          botcheck: form.botcheck
         })
       })
 
@@ -170,7 +224,8 @@ export default function MACode() {
         phone: '',
         projectType: '',
         hasWebsite: '',
-        message: ''
+        message: '',
+        botcheck: ''
       })
     } catch {
       setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
@@ -392,6 +447,16 @@ export default function MACode() {
 
             <div className="form-shell">
               <form onSubmit={handleSubmit} className="space-y-5">
+                <input
+                  type="text"
+                  name="botcheck"
+                  className="hidden"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={form.botcheck}
+                  onChange={(e) => setForm({ ...form, botcheck: e.target.value })}
+                />
+
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label htmlFor="name" className="input-label">
