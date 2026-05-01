@@ -36,22 +36,22 @@ export const portfolioProjects: PortfolioProject[] = [
     technologies: ['React', 'TypeScript', 'Vite', 'Tailwind CSS', 'Cloudflare', 'PWA'],
     images: [
       {
-        src: '/projetos/reo-home.png',
+        src: '/projetos/reo-home.PNG',
         alt: 'Página inicial da REO – Rádio Escolar Online',
         caption: 'Página inicial',
       },
       {
-        src: '/projetos/reo-arquivo.png',
+        src: '/projetos/reo-arquivo.PNG',
         alt: 'Arquivo digital da REO com programas e episódios',
         caption: 'Arquivo digital',
       },
       {
-        src: '/projetos/reo-programas.png',
+        src: '/projetos/reo-programas.PNG',
         alt: 'Página de programas da REO – Rádio Escolar Online',
         caption: 'Programas da rádio',
       },
       {
-        src: '/projetos/reo-instalmenu.png',
+        src: '/projetos/reo-instalmenu.PNG',
         alt: 'Menu de instalação da aplicação PWA da REO',
         caption: 'Instalação como PWA',
       },
@@ -75,29 +75,29 @@ export const portfolioProjects: PortfolioProject[] = [
     technologies: ['React', 'TypeScript', 'Tailwind CSS', 'Cloudflare Workers', 'PWA'],
     images: [
       {
-        src: '/projetos/rosa-home.png',
+        src: '/projetos/rosa-home.PNG',
         alt: 'Página inicial do website Rosa Maria Cabeleireiros',
         caption: 'Página inicial',
       },
       {
-        src: '/projetos/rosa-marcacoes.png',
+        src: '/projetos/rosa-marcacoes.PNG',
         alt: 'Sistema de marcações online Rosa Maria Cabeleireiros',
         caption: 'Marcações online',
       },
       {
-        src: '/projetos/rosa-agenda.png',
+        src: '/projetos/rosa-agenda.PNG',
         alt: 'Agenda de marcações do website Rosa Maria Cabeleireiros',
         caption: 'Agenda de marcações',
       },
       {
-        src: '/projetos/rosa-adminview.png',
+        src: '/projetos/rosa-adminview.PNG',
         alt: 'Painel privado de administração do website Rosa Maria Cabeleireiros',
         caption: 'Painel administrativo',
       },
       {
-        src: '/projetos/rosa-mapas.png',
-        alt: 'Secção de localização e mapas do website Rosa Maria Cabeleireiros',
-        caption: 'Localização e mapas',
+        src: '/projetos/rosa-mapas.PNG',
+        alt: 'Secção de localização e mapa do website Rosa Maria Cabeleireiros',
+        caption: 'Localização e mapa',
       },
     ],
   },
@@ -119,32 +119,37 @@ export const portfolioProjects: PortfolioProject[] = [
     technologies: ['React', 'TypeScript', 'Tailwind CSS', 'Cloudflare Workers', 'D1 Database'],
     images: [
       {
-        src: '/projetos/porto-home.png',
+        src: '/projetos/porto-home.PNG',
         alt: 'Página inicial da loja online Porto Exótico',
         caption: 'Página inicial',
       },
       {
-        src: '/projetos/porto-loja.png',
+        src: '/projetos/porto-loja.PNG',
         alt: 'Catálogo da loja online Porto Exótico',
         caption: 'Loja online',
       },
       {
-        src: '/projetos/porto-carrinhocompras.png',
+        src: '/projetos/porto-carrinhocompras.PNG',
         alt: 'Carrinho de compras da loja online Porto Exótico',
         caption: 'Carrinho de compras',
       },
       {
-        src: '/projetos/porto-admin.png',
+        src: '/projetos/porto-pagamentos.PNG',
+        alt: 'Área de métodos de pagamento da loja online Porto Exótico',
+        caption: 'Métodos de pagamento',
+      },
+      {
+        src: '/projetos/porto-admin.PNG',
         alt: 'Área administrativa da loja online Porto Exótico',
         caption: 'Área administrativa',
       },
       {
-        src: '/projetos/porto-cookies.png',
+        src: '/projetos/porto-cookies.PNG',
         alt: 'Banner de consentimento de cookies da loja online Porto Exótico',
         caption: 'Consentimento de cookies',
       },
       {
-        src: '/projetos/porto-ia-assistente.png',
+        src: '/projetos/porto-ia-assistente.PNG',
         alt: 'Assistente de inteligência artificial da loja online Porto Exótico',
         caption: 'Assistente IA',
       },
