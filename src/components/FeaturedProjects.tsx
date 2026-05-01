@@ -19,7 +19,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
         >
           <div className="service-card__line" />
 
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div className="relative z-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
             <div>
               <div className="mb-5 section-label-wrap">
                 <span className="section-label">Projetos</span>
@@ -54,43 +54,47 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             </div>
 
             <div className="relative">
-              <div className="absolute -inset-6 rounded-[2rem] bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/16" />
+              <div className="absolute -inset-6 rounded-[2.5rem] bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/16" />
 
-              <div className="relative grid gap-3 sm:grid-cols-3">
+              <div className="relative grid gap-4 sm:grid-cols-3 sm:items-start">
                 {featuredProjects.map((project, index) => {
                   const featuredImage = project.images[0]
 
                   return (
                     <figure
                       key={project.slug}
-                      className={`relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/25 shadow-2xl shadow-sky-950/20 transition duration-500 group-hover:-translate-y-1 ${
-                        index === 1 ? 'sm:mt-8' : ''
-                      } ${index === 2 ? 'sm:mt-4' : ''}`}
+                      className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 group-hover:-translate-y-1 group-hover:border-cyan-300/25 ${
+                        index === 1 ? 'sm:mt-10' : ''
+                      } ${index === 2 ? 'sm:mt-5' : ''}`}
                     >
-                      <div className="relative aspect-[4/5] overflow-hidden">
-                        {featuredImage ? (
-                          <img
-                            src={featuredImage.src}
-                            alt={featuredImage.alt}
-                            className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.04]"
-                            loading="lazy"
-                            decoding="async"
-                            onError={(event) => {
-                              event.currentTarget.style.display = 'none'
-                            }}
-                          />
-                        ) : null}
+                      <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
+                        <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        <div className="relative aspect-[9/16] w-full overflow-hidden px-2 pb-3 pt-6">
+                          {featuredImage ? (
+                            <img
+                              src={featuredImage.src}
+                              alt={featuredImage.alt}
+                              className="h-full w-full rounded-xl object-contain object-top transition duration-500 group-hover:scale-[1.025]"
+                              loading="lazy"
+                              decoding="async"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : null}
 
-                        <figcaption className="absolute bottom-3 left-3 right-3">
-                          <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
-                            Projeto 0{index + 1}
-                          </span>
-                          <strong className="mt-1 block text-sm font-semibold text-white">
-                            {project.title}
-                          </strong>
-                        </figcaption>
+                          <div className="pointer-events-none absolute inset-x-2 bottom-3 h-24 rounded-b-xl bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+                          <figcaption className="absolute bottom-5 left-5 right-5 z-20">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
+                              Projeto 0{index + 1}
+                            </span>
+                            <strong className="mt-1 block text-sm font-semibold text-white">
+                              {project.title}
+                            </strong>
+                          </figcaption>
+                        </div>
                       </div>
                     </figure>
                   )
