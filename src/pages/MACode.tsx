@@ -19,73 +19,61 @@ const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 const serviceCards = [
   {
     title: 'Websites Profissionais',
-    description:
-      'Websites rápidos, modernos e otimizados para telemóvel, pensados para transmitir confiança e gerar mais contactos.'
+    description: 'Sites rápidos, modernos e preparados para gerar contactos.'
   },
   {
     title: 'Lojas Online',
-    description:
-      'Lojas online com visual premium, estrutura clara e experiência pensada para vender mais e facilitar a gestão.'
+    description: 'E-commerce com catálogo, carrinho, checkout e estrutura preparada para vender.'
   },
   {
     title: 'Sistemas de Marcação',
-    description:
-      'Sistemas de reservas online para salões, clínicas e serviços que querem receber pedidos com mais organização.'
+    description: 'Marcações online para salões, clínicas, serviços locais e negócios com agenda.'
   },
   {
     title: 'Aplicações Web',
-    description:
-      'Plataformas personalizadas para automatizar processos, organizar operações e poupar tempo no dia a dia.'
+    description: 'Ferramentas personalizadas para organizar processos e poupar tempo.'
   },
   {
     title: 'IA e Automação',
-    description:
-      'Integrações de IA, automações e fluxos inteligentes para reduzir tarefas repetitivas e melhorar a eficiência.'
+    description: 'Automação, integrações e IA para reduzir tarefas repetitivas.'
   },
   {
     title: 'Blockchain e EVM',
-    description:
-      'Criação de tokens, integrações de ações em blockchain EVM e soluções digitais ligadas a smart contracts e ecossistemas on-chain.'
+    description: 'Tokens, integrações EVM e funcionalidades digitais ligadas a smart contracts.'
   }
 ]
 
 const valuePoints = [
   {
-    title: 'Mais credibilidade',
-    description:
-      'Uma presença digital mais forte ajuda a sua marca a parecer mais profissional desde o primeiro contacto.'
+    title: 'Mais confiança',
+    description: 'Uma presença digital profissional melhora a primeira impressão da sua marca.'
+  },
+  {
+    title: 'Mais contactos',
+    description: 'Criamos páginas pensadas para levar o visitante a pedir orçamento, marcar ou comprar.'
   },
   {
     title: 'Mais organização',
-    description:
-      'Criamos soluções que ajudam a receber pedidos, marcar serviços, automatizar tarefas e organizar operações.'
-  },
-  {
-    title: 'Mais capacidade de crescer',
-    description:
-      'O objetivo não é apenas “ter um site”, mas criar uma base digital preparada para captar mais oportunidades.'
+    description: 'Podemos integrar formulários, marcações, automações, bases de dados e gestão interna.'
   }
 ]
 
 const processSteps = [
   {
     title: '1. Diagnóstico',
-    description: 'Percebemos o seu negócio, o objetivo do projeto e o que realmente faz sentido construir.'
+    description: 'Percebemos o objetivo, o negócio e o tipo de solução necessária.'
   },
   {
     title: '2. Estrutura',
-    description:
-      'Definimos a solução, a organização da página e a melhor forma de apresentar a sua oferta.'
+    description: 'Organizamos páginas, conteúdo, funcionalidades e percurso do utilizador.'
   },
   {
     title: '3. Desenvolvimento',
-    description:
-      'Criamos uma solução moderna, rápida e alinhada com a sua imagem, funcionalidades e necessidades.'
+    description: 'Criamos o site, loja ou sistema com foco em performance, mobile e clareza.'
   },
   {
-    title: '4. Entrega',
-    description:
-      'Colocamos o projeto online e deixamos a base preparada para operar melhor e crescer com mais confiança.'
+    title: '4. Publicação',
+    description: 'Colocamos tudo online e deixamos a base preparada para funcionar.'
   }
 ]
 
@@ -93,22 +81,22 @@ const faqItems = [
   {
     question: 'Que tipo de projetos desenvolvem?',
     answer:
-      'Desenvolvemos websites profissionais, lojas online, sistemas de marcações, aplicações web, automações, integrações de IA e soluções com blockchain EVM, incluindo criação de tokens e ações on-chain.'
+      'Desenvolvemos websites, lojas online, sistemas de marcações, aplicações web, automações, integrações de IA e soluções blockchain EVM.'
   },
   {
-    question: 'Fazem projetos simples e também soluções mais avançadas?',
+    question: 'Quanto custa começar?',
     answer:
-      'Sim. Podemos criar desde uma presença digital mais simples até soluções mais completas com gestão, automação, integrações, funcionalidades personalizadas e componentes blockchain.'
+      'Temos projetos simples desde 19€/mês. O valor final depende do tipo de site, funcionalidades e nível de personalização necessário.'
   },
   {
     question: 'O site fica adaptado para telemóvel?',
     answer:
-      'Sim. Os projetos são pensados para funcionar bem em telemóvel, tablet e desktop, com foco em clareza, velocidade e experiência do utilizador.'
+      'Sim. Todos os projetos são pensados para funcionar bem em telemóvel, tablet e computador.'
   },
   {
     question: 'Como funciona o pedido de orçamento?',
     answer:
-      'Envie-nos o que pretende, analisamos o projeto e respondemos com uma proposta ajustada ao tipo de solução que faz sentido para o seu caso.'
+      'Envia-nos uma breve descrição do projeto e respondemos com uma proposta ajustada ao que precisa.'
   }
 ]
 
@@ -198,19 +186,19 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites • IA • Automação • Blockchain EVM</span>
+                <span>Websites • Lojas Online • Apps • IA • Automação</span>
               </div>
 
               <h1 className="hero-title">
-                Criamos websites, lojas online, aplicações web, automação e soluções blockchain
-                para negócios que querem mais credibilidade, eficiência e crescimento.
+                Criamos websites, lojas online e sistemas digitais para negócios que querem vender
+                melhor e trabalhar com mais organização.
               </h1>
 
               <div className="hero-price-badge">Projetos desde 19€/mês</div>
 
               <p className="hero-subtitle">
-                Soluções digitais com visual premium, estrutura clara e foco comercial para ajudar
-                a sua marca a transmitir confiança, captar mais contactos e operar melhor.
+                Sites rápidos, modernos e adaptados a telemóvel, com possibilidade de marcações
+                online, loja, automação, IA e integrações avançadas.
               </p>
 
               <div className="hero-actions">
@@ -219,15 +207,15 @@ export default function MACode() {
                   <span className="relative z-10">Pedir orçamento</span>
                 </a>
 
-                <a href="#servicos" className="btn-secondary hightech-button-secondary">
-                  Ver serviços
+                <a href="#projetos" className="btn-secondary hightech-button-secondary">
+                  Ver projetos
                 </a>
               </div>
 
               <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
-                <li>Visual premium</li>
-                <li>Estrutura clara</li>
-                <li>Foco em conversão</li>
+                <li>Sites desde 19€/mês</li>
+                <li>Mobile-first</li>
+                <li>Foco em contactos</li>
               </ul>
             </div>
 
@@ -245,18 +233,18 @@ export default function MACode() {
 
                 <div className="hero-panel__content">
                   <div className="hud-card">
-                    <span className="hud-card__label">Performance</span>
-                    <strong>Rápido e leve</strong>
+                    <span className="hud-card__label">Websites</span>
+                    <strong>Rápidos e profissionais</strong>
                   </div>
 
                   <div className="hud-card">
-                    <span className="hud-card__label">Posicionamento</span>
-                    <strong>Profissional</strong>
+                    <span className="hud-card__label">Objetivo</span>
+                    <strong>Mais contactos</strong>
                   </div>
 
                   <div className="hud-card hud-card--wide">
-                    <span className="hud-card__label">Objetivo</span>
-                    <strong>Mais contactos, mais organização, mais confiança</strong>
+                    <span className="hud-card__label">Soluções</span>
+                    <strong>Marcações, lojas online, automação, IA e integração de sistemas</strong>
                   </div>
                 </div>
               </div>
@@ -285,11 +273,11 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Soluções digitais pensadas para vender melhor, operar melhor e crescer com mais força
+              O que podemos criar para o seu negócio
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Desenvolvemos soluções para empresas, marcas e projetos que precisam de presença
-              digital, automação, organização interna e funcionalidades mais avançadas.
+              Desde sites simples até sistemas com marcações, loja online, automação, IA ou
+              integrações personalizadas.
             </p>
           </div>
 
@@ -314,24 +302,18 @@ export default function MACode() {
 
       <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
-          <div className="highlight-strip">
-            <div className="highlight-strip__glow" />
-            <div className="highlight-strip__grid" />
-            <div className="highlight-strip__content">
-              <span className="section-label">Vantagens</span>
-              <p>
-                Criamos soluções digitais com visual moderno, estrutura clara e foco real em
-                confiança, impacto, eficiência e crescimento do negócio.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
             <span className="section-label">Porque escolher a MA-Code</span>
+          </div>
+
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Menos complicação. Mais presença digital.
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
+              Criamos soluções práticas, modernas e orientadas para resultados reais: contactos,
+              marcações, vendas e organização.
+            </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
@@ -402,18 +384,17 @@ export default function MACode() {
               <span className="section-label">Pedido</span>
               <h2 className="contact-side-panel__title">Pedir Orçamento</h2>
               <p className="contact-side-panel__text">
-                Diga-nos o que precisa e entramos em contacto consigo com uma proposta ajustada ao
-                seu projeto, ao seu negócio e ao tipo de solução que faz sentido construir.
+                Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao projeto.
               </p>
 
               <div className="contact-metrics">
                 <div className="metric-card">
-                  <span className="metric-card__label">Visual</span>
-                  <strong>Premium</strong>
+                  <span className="metric-card__label">Projetos</span>
+                  <strong>Desde 19€/mês</strong>
                 </div>
                 <div className="metric-card">
                   <span className="metric-card__label">Foco</span>
-                  <strong>Comercial</strong>
+                  <strong>Contactos</strong>
                 </div>
               </div>
 
@@ -421,9 +402,9 @@ export default function MACode() {
                 <p>Indique, se possível:</p>
                 <ul className="space-y-2 text-slate-200/90">
                   <li>• Que tipo de projeto pretende</li>
-                  <li>• Se já tem site ou se vai começar do zero</li>
-                  <li>• Se precisa de loja online, marcações, automação, IA ou blockchain</li>
-                  <li>• Que objetivo quer atingir com esta solução</li>
+                  <li>• Se já tem site ou quer começar do zero</li>
+                  <li>• Se precisa de loja, marcações, automação, IA ou blockchain</li>
+                  <li>• Qual é o principal objetivo do projeto</li>
                 </ul>
               </div>
             </div>
