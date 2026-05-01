@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import Portfolio from '../components/Portfolio'
+import FeaturedProjects from '../components/FeaturedProjects'
 
 const marqueeItems = [
   'Websites Profissionais',
@@ -43,21 +43,6 @@ const serviceCards = [
   }
 ]
 
-const valuePoints = [
-  {
-    title: 'Mais confiança',
-    description: 'Uma presença digital profissional melhora a primeira impressão da sua marca.'
-  },
-  {
-    title: 'Mais contactos',
-    description: 'Criamos páginas pensadas para levar o visitante a pedir orçamento, marcar ou comprar.'
-  },
-  {
-    title: 'Mais organização',
-    description: 'Podemos integrar formulários, marcações, automações, bases de dados e gestão interna.'
-  }
-]
-
 const processSteps = [
   {
     title: '1. Diagnóstico',
@@ -77,28 +62,29 @@ const processSteps = [
   }
 ]
 
-const faqItems = [
-  {
-    question: 'Que tipo de projetos desenvolvem?',
-    answer:
-      'Desenvolvemos websites, lojas online, sistemas de marcações, aplicações web, automações, integrações de IA e soluções blockchain EVM.'
-  },
-  {
-    question: 'Quanto custa começar?',
-    answer:
-      'Temos projetos simples desde 19€/mês. O valor final depende do tipo de site, funcionalidades e nível de personalização necessário.'
-  },
-  {
-    question: 'O site fica adaptado para telemóvel?',
-    answer:
-      'Sim. Todos os projetos são pensados para funcionar bem em telemóvel, tablet e computador.'
-  },
-  {
-    question: 'Como funciona o pedido de orçamento?',
-    answer:
-      'Envia-nos uma breve descrição do projeto e respondemos com uma proposta ajustada ao que precisa.'
+function updateMeta(name: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = name
+    document.head.appendChild(meta)
   }
-]
+
+  meta.content = content
+}
+
+function updateCanonical(href: string) {
+  let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.rel = 'canonical'
+    document.head.appendChild(canonical)
+  }
+
+  canonical.href = href
+}
 
 export default function MACode() {
   const [form, setForm] = useState({
@@ -113,6 +99,13 @@ export default function MACode() {
 
   useEffect(() => {
     setMounted(true)
+
+    document.title = 'Criação de Websites, Lojas Online, Automação e IA | MA-Code'
+    updateMeta(
+      'description',
+      'Criação de websites profissionais, lojas online, sistemas de marcação, aplicações web, automação, IA e soluções blockchain EVM para negócios em Portugal.'
+    )
+    updateCanonical('https://ma-code.pt/')
   }, [])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -191,14 +184,14 @@ export default function MACode() {
 
               <h1 className="hero-title">
                 Criamos websites, lojas online e sistemas digitais para negócios que querem vender
-                melhor e trabalhar com mais organização.
+                melhor.
               </h1>
 
               <div className="hero-price-badge">Projetos desde 19€/mês</div>
 
               <p className="hero-subtitle">
-                Sites rápidos, modernos e adaptados a telemóvel, com possibilidade de marcações
-                online, loja, automação, IA e integrações avançadas.
+                Sites modernos, rápidos e adaptados a telemóvel, com possibilidade de loja online,
+                marcações, automação, IA e integrações avançadas.
               </p>
 
               <div className="hero-actions">
@@ -207,13 +200,13 @@ export default function MACode() {
                   <span className="relative z-10">Pedir orçamento</span>
                 </a>
 
-                <a href="#projetos" className="btn-secondary hightech-button-secondary">
+                <a href="/projetos" className="btn-secondary hightech-button-secondary">
                   Ver projetos
                 </a>
               </div>
 
               <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
-                <li>Sites desde 19€/mês</li>
+                <li>Desde 19€/mês</li>
                 <li>Mobile-first</li>
                 <li>Foco em contactos</li>
               </ul>
@@ -273,11 +266,11 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              O que podemos criar para o seu negócio
+              O que podemos criar
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Desde sites simples até sistemas com marcações, loja online, automação, IA ou
-              integrações personalizadas.
+              Do site simples ao sistema digital completo, criamos soluções ajustadas ao objetivo do
+              negócio.
             </p>
           </div>
 
@@ -298,39 +291,7 @@ export default function MACode() {
         </div>
       </section>
 
-      <Portfolio mounted={mounted} />
-
-      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-6 section-label-wrap">
-            <span className="section-label">Porque escolher a MA-Code</span>
-          </div>
-
-          <div className="mb-8 max-w-3xl">
-            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Menos complicação. Mais presença digital.
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Criamos soluções práticas, modernas e orientadas para resultados reais: contactos,
-              marcações, vendas e organização.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {valuePoints.map((item, index) => (
-              <article
-                key={item.title}
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-                style={{ animationDelay: `${index * 120}ms` }}
-              >
-                <div className="service-card__line" />
-                <h2 className="service-card__title">{item.title}</h2>
-                <p className="service-card__description">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeaturedProjects mounted={mounted} />
 
       <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
@@ -348,29 +309,6 @@ export default function MACode() {
                 <div className="service-card__line" />
                 <h2 className="service-card__title">{step.title}</h2>
                 <p className="service-card__description">{step.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-6 section-label-wrap">
-            <span className="section-label">Perguntas frequentes</span>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {faqItems.map((item, index) => (
-              <article
-                key={item.question}
-                className={`rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm md:p-6 ${
-                  mounted ? 'animate-fade-in-up' : 'opacity-0'
-                }`}
-                style={{ animationDelay: `${index * 90}ms` }}
-              >
-                <h2 className="text-base font-semibold text-white md:text-lg">{item.question}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{item.answer}</p>
               </article>
             ))}
           </div>
