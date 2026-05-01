@@ -4,12 +4,57 @@ type PortfolioProps = {
   mounted: boolean
 }
 
+type ProjectScreenshot = {
+  src: string
+  alt: string
+  caption: string
+}
+
 function getProjectDomain(href: string) {
   try {
     return new URL(href).hostname.replace(/^www\./, '')
   } catch {
     return href
   }
+}
+
+function ProjectImageFrame({
+  image,
+  featured = false,
+  eager = false,
+}: {
+  image: ProjectScreenshot
+  featured?: boolean
+  eager?: boolean
+}) {
+  return (
+    <figure
+      className={`group relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 hover:-translate-y-1 hover:border-cyan-300/25 ${
+        featured ? 'mx-auto w-full max-w-[30rem]' : 'mx-auto w-full max-w-[22rem]'
+      }`}
+    >
+      <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
+        <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
+
+        <div className="relative aspect-[9/16] w-full overflow-hidden px-2 pb-3 pt-7">
+          <img
+            src={image.src}
+            alt={image.alt}
+            className="h-full w-full rounded-xl object-contain object-top transition duration-500 group-hover:scale-[1.015]"
+            loading={eager ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none'
+            }}
+          />
+        </div>
+
+        <figcaption className="border-t border-white/10 bg-black/35 px-4 py-3 text-xs font-medium leading-5 text-white backdrop-blur-md">
+          {image.caption}
+        </figcaption>
+      </div>
+    </figure>
+  )
 }
 
 export default function Portfolio({ mounted }: PortfolioProps) {
@@ -73,7 +118,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               >
                 <div className="service-card__line" />
 
-                <div className="relative z-10 grid gap-8 xl:grid-cols-[0.92fr_1.08fr] xl:items-start">
+                <div className="relative z-10 grid gap-8 xl:grid-cols-[0.86fr_1.14fr] xl:items-start">
                   <div>
                     <div className="mb-4 flex flex-wrap items-center gap-3">
                       <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-200">
@@ -192,54 +237,17 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <figure className="group relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20">
-                      <div className="relative aspect-[16/10] overflow-hidden rounded-[1.35rem] border border-white/10 bg-black/20">
-                        <img
-                          src={featuredImage.src}
-                          alt={featuredImage.alt}
-                          className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.035]"
-                          loading={index === 0 ? 'eager' : 'lazy'}
-                          decoding="async"
-                          onError={(event) => {
-                            event.currentTarget.style.display = 'none'
-                          }}
-                        />
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-
-                        <figcaption className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-xs font-medium text-white backdrop-blur-md">
-                          {featuredImage.caption}
-                        </figcaption>
-                      </div>
-                    </figure>
+                  <div className="space-y-5">
+                    <ProjectImageFrame
+                      image={featuredImage}
+                      featured
+                      eager={index === 0}
+                    />
 
                     {galleryImages.length > 0 && (
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
                         {galleryImages.map((image) => (
-                          <figure
-                            key={image.src}
-                            className="group relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20"
-                          >
-                            <div className="relative aspect-[4/3] overflow-hidden rounded-[1.05rem] border border-white/10 bg-black/20">
-                              <img
-                                src={image.src}
-                                alt={image.alt}
-                                className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.04]"
-                                loading="lazy"
-                                decoding="async"
-                                onError={(event) => {
-                                  event.currentTarget.style.display = 'none'
-                                }}
-                              />
-
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-                              <figcaption className="absolute bottom-3 left-3 right-3 rounded-full border border-white/10 bg-black/45 px-3 py-2 text-xs font-medium text-white backdrop-blur-md">
-                                {image.caption}
-                              </figcaption>
-                            </div>
-                          </figure>
+                          <ProjectImageFrame key={image.src} image={image} />
                         ))}
                       </div>
                     )}
