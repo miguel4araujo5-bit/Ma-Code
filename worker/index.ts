@@ -6,6 +6,10 @@ type ContactBody = {
   name?: string
   email?: string
   message?: string
+  phone?: string
+  projectType?: string
+  hasWebsite?: string
+  botcheck?: string
 }
 
 type Web3FormsResponse = {
@@ -18,11 +22,19 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff'
     }
   })
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+
+const cleanText = (value: string, maxLength: number) =>
+  value
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -36,7 +48,7 @@ export default {
       return new Response(null, {
         status: 204,
         headers: {
-          'Allow': 'POST, OPTIONS'
+          Allow: 'POST, OPTIONS'
         }
       })
     }
@@ -55,15 +67,37 @@ export default {
       )
     }
 
+    const contentLength = Number(request.headers.get('content-length') || 0)
+
+    if (contentLength > 25_000) {
+      return json(
+        {
+          success: false,
+          message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.'
+        },
+        413
+      )
+    }
+
     try {
       const body = (await request.json()) as ContactBody
 
-      const name = body.name?.trim() || ''
-      const email = body.email?.trim() || ''
-      const message = body.message?.trim() || ''
+      if (body.botcheck?.trim()) {
+        return json({
+          success: true,
+          message: 'Pedido enviado com sucesso.'
+        })
+      }
+
+      const name = cleanText(body.name || '', 120)
+      const email = cleanText(body.email || '', 180).toLowerCase()
+      const phone = cleanText(body.phone || '', 80)
+      const projectType = cleanText(body.projectType || '', 120)
+      const hasWebsite = cleanText(body.hasWebsite || '', 120)
+      const message = cleanText(body.message || '', 5000)
 
       if (!name || !email || !message) {
-        return json({ success: false, message: 'Preencha todos os campos.' }, 400)
+        return json({ success: false, message: 'Preencha todos os campos obrigatórios.' }, 400)
       }
 
       if (name.length < 2) {
@@ -84,6 +118,17 @@ export default {
         )
       }
 
+      const fullMessage = [
+        projectType ? `Tipo de projeto: ${projectType}` : null,
+        hasWebsite ? `Já tem site: ${hasWebsite}` : null,
+        phone ? `Telefone/WhatsApp: ${phone}` : null,
+        '',
+        'Mensagem:',
+        message
+      ]
+        .filter((line) => line !== null)
+        .join('\n')
+
       const web3Response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
@@ -96,21 +141,25 @@ export default {
           from_name: 'MA-Code Website',
           name,
           email,
-          message
+          replyto: email,
+          phone,
+          project_type: projectType,
+          has_website: hasWebsite,
+          message: fullMessage,
+          page: url.origin,
+          timestamp: new Date().toISOString()
         })
       })
-
-      const rawText = await web3Response.text()
 
       let data: Web3FormsResponse = {}
 
       try {
-        data = JSON.parse(rawText) as Web3FormsResponse
+        data = (await web3Response.json()) as Web3FormsResponse
       } catch {
         return json(
           {
             success: false,
-            message: `Resposta inválida do Web3Forms: ${rawText || 'sem conteúdo'}`
+            message: 'Não foi possível confirmar o envio do formulário. Tente novamente.'
           },
           502
         )
@@ -120,7 +169,7 @@ export default {
         return json(
           {
             success: false,
-            message: data.message || `Web3Forms rejeitou o pedido (${web3Response.status}).`
+            message: data.message || 'Não foi possível enviar o pedido. Tente novamente.'
           },
           400
         )
@@ -130,12 +179,11 @@ export default {
         success: true,
         message: 'Pedido enviado com sucesso.'
       })
-    } catch (error) {
+    } catch {
       return json(
         {
           success: false,
-          message:
-            error instanceof Error ? error.message : 'Erro interno ao processar o pedido.'
+          message: 'Erro interno ao processar o pedido. Tente novamente.'
         },
         500
       )
