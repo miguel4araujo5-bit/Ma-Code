@@ -30,17 +30,25 @@ function ProjectImageFrame({
   return (
     <figure
       className={`group relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 hover:-translate-y-1 hover:border-cyan-300/25 ${
-        featured ? 'mx-auto w-full max-w-[30rem]' : 'mx-auto w-full max-w-[22rem]'
+        featured ? 'mx-auto w-full max-w-[40rem]' : 'mx-auto w-full max-w-[28rem]'
       }`}
     >
       <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
         <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
 
-        <div className="relative aspect-[9/16] w-full overflow-hidden px-2 pb-3 pt-7">
+        <div className="absolute right-3 top-2 z-20 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80 backdrop-blur-md">
+          Scroll
+        </div>
+
+        <div
+          className={`relative w-full overflow-y-auto overflow-x-hidden px-2 pb-3 pt-7 ${
+            featured ? 'max-h-[42rem] md:max-h-[50rem]' : 'max-h-[34rem] md:max-h-[40rem]'
+          }`}
+        >
           <img
             src={image.src}
             alt={image.alt}
-            className="h-full w-full rounded-xl object-contain object-top transition duration-500 group-hover:scale-[1.015]"
+            className="w-full rounded-xl object-top transition duration-500 group-hover:scale-[1.01]"
             loading={eager ? 'eager' : 'lazy'}
             decoding="async"
             onError={(event) => {
@@ -49,9 +57,20 @@ function ProjectImageFrame({
           />
         </div>
 
-        <figcaption className="border-t border-white/10 bg-black/35 px-4 py-3 text-xs font-medium leading-5 text-white backdrop-blur-md">
-          {image.caption}
-        </figcaption>
+        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/45 px-4 py-3 text-xs font-medium leading-5 text-white backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+          <figcaption>{image.caption}</figcaption>
+
+          <a
+            href={image.src}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition hover:text-white"
+            aria-label={`Abrir imagem maior: ${image.caption}`}
+          >
+            Abrir maior
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
       </div>
     </figure>
   )
@@ -72,16 +91,17 @@ export default function Portfolio({ mounted }: PortfolioProps) {
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              A página foi organizada para mostrar não só imagens bonitas, mas também o
-              objetivo, a solução entregue, as funcionalidades e o valor prático de cada
-              projeto.
+              A página foi organizada para mostrar não só imagens bonitas, mas também o objetivo, a
+              solução entregue, as funcionalidades e o valor prático de cada projeto.
+            </p>
+
+            <p className="mt-3 max-w-3xl text-xs leading-6 text-cyan-100/80 md:text-sm">
+              Os prints verticais podem ser percorridos dentro da moldura ou abertos em tamanho
+              maior para ver todos os detalhes.
             </p>
           </div>
 
-          <nav
-            className="grid gap-3 sm:grid-cols-3"
-            aria-label="Navegação rápida pelos projetos"
-          >
+          <nav className="grid gap-3 sm:grid-cols-3" aria-label="Navegação rápida pelos projetos">
             {portfolioProjects.map((project) => (
               <a
                 key={project.slug}
@@ -111,14 +131,14 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               <article
                 id={project.slug}
                 key={project.slug}
-                className={`service-card scroll-mt-24 overflow-hidden ${
+                className={`service-card scroll-mt-28 overflow-hidden ${
                   mounted ? 'animate-fade-in-up' : 'opacity-0'
                 }`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
 
-                <div className="relative z-10 grid gap-8 xl:grid-cols-[0.86fr_1.14fr] xl:items-start">
+                <div className="relative z-10 grid gap-8 xl:grid-cols-[0.9fr_1.1fr] xl:items-start">
                   <div>
                     <div className="mb-4 flex flex-wrap items-center gap-3">
                       <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-200">
@@ -237,12 +257,10 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-5">
-                    <ProjectImageFrame
-                      image={featuredImage}
-                      featured
-                      eager={index === 0}
-                    />
+                  <div className="space-y-5 xl:sticky xl:top-6">
+                    {featuredImage ? (
+                      <ProjectImageFrame image={featuredImage} featured eager={index === 0} />
+                    ) : null}
 
                     {galleryImages.length > 0 && (
                       <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
@@ -275,9 +293,9 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                A MA-Code pode criar um website simples, uma loja online, um sistema de
-                marcações, uma aplicação interna, uma área administrativa ou uma integração
-                personalizada com IA, bases de dados, APIs ou automação.
+                A MA-Code pode criar um website simples, uma loja online, um sistema de marcações,
+                uma aplicação interna, uma área administrativa ou uma integração personalizada com
+                IA, bases de dados, APIs ou automação.
               </p>
             </div>
 
