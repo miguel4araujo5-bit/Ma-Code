@@ -13,6 +13,8 @@ const marqueeItems = [
   'Performance e Otimização'
 ]
 
+const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
+
 const serviceCards = [
   {
     title: 'Websites Profissionais',
@@ -261,8 +263,10 @@ export default function MACode() {
           </div>
 
           <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
-            <div className="hero-marquee__track">
-              {[...marqueeItems, ...marqueeItems, ...marqueeItems].map((item, index) => (
+            <span className="sr-only">{marqueeItems.join(', ')}</span>
+
+            <div className="hero-marquee__track" aria-hidden="true">
+              {marqueeLoopItems.map((item, index) => (
                 <span key={`${item}-${index}`} className="hero-marquee__item">
                   {item}
                 </span>
