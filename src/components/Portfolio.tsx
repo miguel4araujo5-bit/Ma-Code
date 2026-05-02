@@ -9,12 +9,35 @@ type ProjectScreenshot = PortfolioImage
 
 const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
 
+const projectTypes = [
+  'Website simples',
+  'Website profissional',
+  'Loja online',
+  'Sistema de marcações',
+  'Aplicação web',
+  'Automação / IA',
+  'Integração avançada',
+  'Ainda não sei'
+]
+
 function getProjectDomain(href: string) {
   try {
     return new URL(href).hostname.replace(/^www\./, '')
   } catch {
     return href
   }
+}
+
+function getSuggestedProjectType(project: PortfolioProject) {
+  if (project.slug === 'porto-exotico') return 'Loja online'
+  if (project.slug === 'rosa-maria') return 'Sistema de marcações'
+  if (project.slug === 'reo') return 'Aplicação web'
+
+  return 'Ainda não sei'
+}
+
+function getProjectDomainLabel(project: PortfolioProject) {
+  return getProjectDomain(project.href)
 }
 
 function ProjectImageFrame({
@@ -83,10 +106,12 @@ export default function Portfolio({ mounted }: PortfolioProps) {
     name: '',
     email: '',
     phone: '',
-    projectReference: '',
+    projectType: '',
+    hasWebsite: '',
     message: '',
     botcheck: '',
   })
+
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -95,12 +120,19 @@ export default function Portfolio({ mounted }: PortfolioProps) {
     setSuccessMessage('')
     setErrorMessage('')
 
+    const suggestedMessage = `Referência: ${project.title} (${getProjectDomainLabel(project)})
+
+Olá, gostava de criar uma solução semelhante a este projeto.
+
+Objetivo principal:
+Funcionalidades pretendidas:
+Já tenho site ou quero começar do zero:
+Observações adicionais:`
+
     setForm((currentForm) => ({
       ...currentForm,
-      projectReference: project.title,
-      message:
-        currentForm.message ||
-        `Olá, gostava de criar uma solução semelhante ao projeto ${project.title}.`,
+      projectType: currentForm.projectType || getSuggestedProjectType(project),
+      message: currentForm.message || suggestedMessage,
     }))
   }
 
@@ -124,12 +156,13 @@ export default function Portfolio({ mounted }: PortfolioProps) {
         },
         body: JSON.stringify({
           access_key: web3FormsAccessKey,
-          subject: 'Pedido de proposta - Portefólio MA-Code',
-          from_name: 'MA-Code Portefólio',
+          subject: 'Pedido de orçamento - MA-Code',
+          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
           phone: form.phone || 'Não indicado',
-          'Projeto de referência': form.projectReference || 'Não indicado',
+          'Tipo de projeto': form.projectType,
+          'Já tem site?': form.hasWebsite || 'Não indicado',
           message: form.message,
           botcheck: form.botcheck,
         }),
@@ -149,7 +182,8 @@ export default function Portfolio({ mounted }: PortfolioProps) {
         name: '',
         email: '',
         phone: '',
-        projectReference: '',
+        projectType: '',
+        hasWebsite: '',
         message: '',
         botcheck: '',
       })
@@ -419,39 +453,31 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                Diga-nos que tipo de projeto pretende criar. Pode usar um dos exemplos acima como
-                referência: loja online, sistema de marcações, painel administrativo, PWA, automação,
-                IA ou integração com dados existentes.
+                Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
+                projeto. Pode usar um dos exemplos acima como referência: loja online, sistema de
+                marcações, painel administrativo, PWA, automação, IA ou integração com dados
+                existentes.
               </p>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                    Exemplos de pedido
-                  </span>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">
-                    “Quero uma loja online como a Porto Exótico” ou “Quero um sistema de marcações
-                    como o Rosa Maria”.
-                  </p>
-                </div>
+              <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                  Para uma resposta mais certeira, indique:
+                </span>
 
-                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                    Resposta mais certeira
-                  </span>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">
-                    Indique objetivo, funcionalidades pretendidas, se já tem site e se precisa de
-                    área administrativa, automação ou IA.
-                  </p>
-                </div>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                  <li>• Que tipo de projeto pretende</li>
+                  <li>• Se já tem site ou quer começar do zero</li>
+                  <li>• Se precisa de loja, marcações, área admin, automação ou IA</li>
+                  <li>• Qual é o principal objetivo: contactos, vendas, reservas ou organização</li>
+                </ul>
               </div>
             </div>
 
             <div className="form-shell">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <input type="hidden" name="access_key" value={web3FormsAccessKey} />
-                <input type="hidden" name="subject" value="Pedido de proposta - Portefólio MA-Code" />
-                <input type="hidden" name="from_name" value="MA-Code Portefólio" />
+                <input type="hidden" name="subject" value="Pedido de orçamento - MA-Code" />
+                <input type="hidden" name="from_name" value="MA-Code Website" />
 
                 <input
                   type="text"
@@ -500,7 +526,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label htmlFor="portfolio-phone" className="input-label">
-                      Telefone / WhatsApp
+                      Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
                     </label>
                     <input
                       id="portfolio-phone"
@@ -514,20 +540,21 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                   </div>
 
                   <div>
-                    <label htmlFor="portfolio-reference" className="input-label">
-                      Projeto de referência
+                    <label htmlFor="portfolio-project-type" className="input-label">
+                      Tipo de projeto
                     </label>
                     <select
-                      id="portfolio-reference"
-                      name="projectReference"
+                      id="portfolio-project-type"
+                      name="projectType"
                       className="input-field"
-                      value={form.projectReference}
-                      onChange={(e) => setForm({ ...form, projectReference: e.target.value })}
+                      value={form.projectType}
+                      onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+                      required
                     >
-                      <option value="">Selecionar referência</option>
-                      {portfolioProjects.map((project) => (
-                        <option key={project.slug} value={project.title}>
-                          {project.title}
+                      <option value="">Selecione uma opção</option>
+                      {projectTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
                         </option>
                       ))}
                     </select>
@@ -535,8 +562,29 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                 </div>
 
                 <div>
+                  <label htmlFor="portfolio-has-website" className="input-label">
+                    Já tem site?
+                  </label>
+                  <select
+                    id="portfolio-has-website"
+                    name="hasWebsite"
+                    className="input-field"
+                    value={form.hasWebsite}
+                    onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
+                  >
+                    <option value="">Selecione uma opção</option>
+                    <option value="Sim, já tenho site">Sim, já tenho site</option>
+                    <option value="Não, quero começar do zero">Não, quero começar do zero</option>
+                    <option value="Tenho domínio, mas não tenho site">
+                      Tenho domínio, mas não tenho site
+                    </option>
+                    <option value="Não tenho a certeza">Não tenho a certeza</option>
+                  </select>
+                </div>
+
+                <div>
                   <label htmlFor="portfolio-message" className="input-label">
-                    O que pretende criar?
+                    Descreva o projeto
                   </label>
                   <textarea
                     id="portfolio-message"
@@ -545,30 +593,34 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Ex.: Quero uma solução semelhante ao projeto Rosa Maria, com marcações online, painel privado e gestão diária dos serviços."
+                    placeholder="Exemplo: preciso de um website para o meu negócio, com apresentação dos serviços, contactos, botão de WhatsApp e possibilidade de evoluir para marcações online."
                   />
                 </div>
 
                 {successMessage ? (
-                  <p className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
+                  <div
+                    className="status-message status-message--success"
+                    role="status"
+                    aria-live="polite"
+                  >
                     {successMessage}
-                  </p>
+                  </div>
                 ) : null}
 
                 {errorMessage ? (
-                  <p className="rounded-2xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">
+                  <div className="status-message status-message--error" role="alert">
                     {errorMessage}
-                  </p>
+                  </div>
                 ) : null}
 
                 <button
                   type="submit"
-                  className="btn-primary hightech-button w-full justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-primary hightech-button w-full disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={isSending}
                 >
                   <span className="btn-shine" />
                   <span className="relative z-10">
-                    {isSending ? 'A enviar pedido...' : 'Enviar pedido de proposta'}
+                    {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
                   </span>
                 </button>
               </form>
