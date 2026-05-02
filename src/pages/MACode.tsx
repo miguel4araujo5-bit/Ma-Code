@@ -19,16 +19,22 @@ const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 const pathCards = [
   {
     title: 'Começar simples',
+    href: '/criacao-websites',
+    cta: 'Ver criação de websites',
     description:
       'Website profissional para apresentar o negócio, transmitir confiança e receber contactos, com domínio e alojamento incluídos.'
   },
   {
     title: 'Vender ou receber marcações',
+    href: '/lojas-online',
+    cta: 'Ver lojas online',
     description:
       'Loja online, sistema de marcações, formulários, WhatsApp e páginas preparadas para transformar visitas em pedidos reais.'
   },
   {
     title: 'Criar um sistema à medida',
+    href: '/automacao-ia',
+    cta: 'Ver automação e IA',
     description:
       'Áreas administrativas, bases de dados, automação, IA e integrações para organizar processos e reduzir trabalho manual.'
   }
@@ -37,31 +43,43 @@ const pathCards = [
 const serviceCards = [
   {
     title: 'Presença profissional',
+    href: '/criacao-websites',
+    cta: 'Saber mais',
     description:
       'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de parecer credíveis desde o primeiro clique.'
   },
   {
     title: 'Venda online',
+    href: '/lojas-online',
+    cta: 'Saber mais',
     description:
       'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.'
   },
   {
     title: 'Marcações automáticas',
+    href: '/sistemas-marcacao',
+    cta: 'Saber mais',
     description:
       'Sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários.'
   },
   {
     title: 'Gestão interna',
+    href: '#orcamento',
+    cta: 'Pedir proposta',
     description:
       'Aplicações web, áreas administrativas, dashboards e ferramentas personalizadas para controlar informação e processos.'
   },
   {
     title: 'Menos trabalho manual',
+    href: '/automacao-ia',
+    cta: 'Saber mais',
     description:
       'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas usadas no dia a dia.'
   },
   {
     title: 'Sistemas ligados',
+    href: '#orcamento',
+    cta: 'Pedir proposta',
     description:
       'APIs, bases de dados, CRM, integrações externas e soluções técnicas para projetos que precisam de ir além do website.'
   }
@@ -384,16 +402,20 @@ export default function MACode() {
 
           <div className="grid gap-6 md:grid-cols-3">
             {pathCards.map((card, index) => (
-              <article
+              <a
                 key={card.title}
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                href={card.href}
+                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
                 <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
                 <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
-              </article>
+                <span className="mt-5 inline-flex text-sm font-bold text-cyan-200 transition group-hover:translate-x-1">
+                  {card.cta} →
+                </span>
+              </a>
             ))}
           </div>
         </div>
@@ -419,16 +441,20 @@ export default function MACode() {
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {serviceCards.map((card, index) => (
-              <article
+              <a
                 key={card.title}
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                href={card.href}
+                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
                 <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
                 <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
-              </article>
+                <span className="mt-5 inline-flex text-sm font-bold text-cyan-200 transition group-hover:translate-x-1">
+                  {card.cta} →
+                </span>
+              </a>
             ))}
           </div>
         </div>
