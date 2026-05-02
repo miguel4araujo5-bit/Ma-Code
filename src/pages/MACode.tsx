@@ -2,69 +2,87 @@ import { useEffect, useState, type FormEvent } from 'react'
 import FeaturedProjects from '../components/FeaturedProjects'
 
 const marqueeItems = [
-  'Websites Profissionais',
+  'Website desde 19€/mês',
+  'Domínio + Alojamento',
+  'Sites Mobile-First',
   'Lojas Online',
-  'Sistemas de Marcação',
-  'Aplicações Web',
-  'IA e Automação',
+  'Marcações Online',
+  'Áreas Administrativas',
+  'Automação e IA',
   'Integrações API',
-  'CRM e Gestão',
-  'Bases de Dados',
-  'Performance e Otimização',
-  'Soluções Digitais Avançadas'
+  'Performance e SEO',
+  'Projetos à Medida'
 ]
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
+const pathCards = [
+  {
+    title: 'Começar simples',
+    description:
+      'Website profissional para apresentar o negócio, transmitir confiança e receber contactos, com domínio e alojamento incluídos.'
+  },
+  {
+    title: 'Vender ou receber marcações',
+    description:
+      'Loja online, sistema de marcações, formulários, WhatsApp e páginas preparadas para transformar visitas em pedidos reais.'
+  },
+  {
+    title: 'Criar um sistema à medida',
+    description:
+      'Áreas administrativas, bases de dados, automação, IA e integrações para organizar processos e reduzir trabalho manual.'
+  }
+]
+
 const serviceCards = [
   {
-    title: 'Websites Profissionais',
+    title: 'Presença profissional',
     description:
-      'Sites rápidos, modernos e preparados para transmitir confiança, funcionar bem no telemóvel e gerar contactos.'
+      'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de parecer credíveis desde o primeiro clique.'
   },
   {
-    title: 'Lojas Online',
+    title: 'Venda online',
     description:
-      'E-commerce com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.'
+      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.'
   },
   {
-    title: 'Sistemas de Marcação',
+    title: 'Marcações automáticas',
     description:
-      'Agendas online para salões, clínicas, serviços locais e negócios que precisam de organizar marcações.'
+      'Sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários.'
   },
   {
-    title: 'Aplicações Web e Gestão',
+    title: 'Gestão interna',
     description:
-      'Ferramentas personalizadas, áreas administrativas, dashboards e sistemas internos para organizar processos.'
+      'Aplicações web, áreas administrativas, dashboards e ferramentas personalizadas para controlar informação e processos.'
   },
   {
-    title: 'IA e Automação',
+    title: 'Menos trabalho manual',
     description:
-      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas do negócio.'
+      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas usadas no dia a dia.'
   },
   {
-    title: 'Integrações Avançadas',
+    title: 'Sistemas ligados',
     description:
-      'APIs, bases de dados, CRM, integrações externas e soluções blockchain EVM quando o projeto precisa de algo mais técnico.'
+      'APIs, bases de dados, CRM, integrações externas e soluções técnicas para projetos que precisam de ir além do website.'
   }
 ]
 
 const processSteps = [
   {
-    title: '1. Diagnóstico',
-    description: 'Percebemos o objetivo, o tipo de negócio e o que o projeto precisa de resolver.'
+    title: '1. Percebemos o objetivo',
+    description: 'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'
   },
   {
-    title: '2. Estrutura',
-    description: 'Organizamos páginas, conteúdo, funcionalidades e percurso do utilizador.'
+    title: '2. Definimos a estrutura',
+    description: 'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'
   },
   {
-    title: '3. Desenvolvimento',
-    description: 'Criamos o site, loja ou sistema com foco em performance, mobile e clareza.'
+    title: '3. Criamos e afinamos',
+    description: 'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'
   },
   {
-    title: '4. Publicação',
-    description: 'Colocamos tudo online com domínio, alojamento e uma base pronta a funcionar.'
+    title: '4. Publicamos online',
+    description: 'Colocamos tudo a funcionar com domínio, alojamento e uma base pronta para evoluir.'
   }
 ]
 
@@ -133,11 +151,11 @@ export default function MACode() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+    document.title = 'Criação de Websites Profissionais e Lojas Online | MA-Code'
 
     updateMeta(
       'description',
-      'Criação de websites profissionais, lojas online, sistemas de marcação, aplicações web, automação e integração de IA para negócios em Portugal. Websites simples desde 19€/mês.'
+      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios em Portugal. Website simples desde 19€/mês com domínio e alojamento.'
     )
 
     updateMeta(
@@ -156,11 +174,11 @@ export default function MACode() {
     updatePropertyMeta('og:url', 'https://ma-code.pt/')
     updatePropertyMeta(
       'og:title',
-      'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+      'Criação de Websites Profissionais e Lojas Online | MA-Code'
     )
     updatePropertyMeta(
       'og:description',
-      'Websites modernos, rápidos e preparados para telemóvel. Criamos sites, lojas online, marcações, aplicações web e automação com IA para negócios em Portugal.'
+      'Websites rápidos, modernos e adaptados a telemóvel. Criamos sites, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos.'
     )
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
     updatePropertyMeta(
@@ -172,7 +190,7 @@ export default function MACode() {
     updateMeta('twitter:url', 'https://ma-code.pt/')
     updateMeta(
       'twitter:title',
-      'Criação de Websites Profissionais, Lojas Online e IA | MA-Code'
+      'Criação de Websites Profissionais e Lojas Online | MA-Code'
     )
     updateMeta(
       'twitter:description',
@@ -258,7 +276,7 @@ export default function MACode() {
             </a>
 
             <a href="#orcamento" className="btn-ghost text-sm sm:text-base">
-              Pedir orçamento
+              Pedir proposta
             </a>
           </header>
 
@@ -266,26 +284,28 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites profissionais para negócios que querem crescer</span>
+                <span>Website simples desde 19€/mês com domínio e alojamento</span>
               </div>
 
               <h1 className="hero-title">
-                Websites modernos para negócios que querem parecer mais profissionais, receber mais
-                contactos e vender melhor.
+                Websites profissionais para negócios que querem receber mais contactos e vender
+                melhor.
               </h1>
 
-              <div className="hero-price-badge">Website simples desde 19€/mês</div>
+              <div className="hero-price-badge">
+                Website simples desde 19€/mês · domínio + alojamento incluídos
+              </div>
 
               <p className="hero-subtitle">
-                Criamos sites rápidos, adaptados a telemóvel e preparados para transmitir confiança.
-                Quando o projeto precisa de mais, também desenvolvemos lojas online, marcações,
-                aplicações web, automação e integração de IA.
+                Criamos sites rápidos, bonitos e adaptados a telemóvel. Começamos pelo essencial e
+                evoluímos quando o negócio precisa de loja online, marcações, automação, IA ou área
+                administrativa.
               </p>
 
               <div className="hero-actions">
                 <a href="#orcamento" className="btn-primary hightech-button">
                   <span className="btn-shine" />
-                  <span className="relative z-10">Pedir proposta gratuita</span>
+                  <span className="relative z-10">Receber proposta gratuita</span>
                 </a>
 
                 <a href="/projetos" className="btn-secondary hightech-button-secondary">
@@ -319,8 +339,8 @@ export default function MACode() {
                   </div>
 
                   <div className="hud-card">
-                    <span className="hud-card__label">Objetivo</span>
-                    <strong>Mais contactos</strong>
+                    <span className="hud-card__label">Incluído</span>
+                    <strong>Domínio + alojamento</strong>
                   </div>
 
                   <div className="hud-card hud-card--wide">
@@ -346,6 +366,39 @@ export default function MACode() {
         </div>
       </section>
 
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 section-label-wrap">
+            <span className="section-label">Ponto de partida</span>
+          </div>
+
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Comece simples. Evolua quando precisar.
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
+              Nem todos os negócios precisam da mesma solução. A MA-Code ajuda a escolher o caminho
+              certo sem complicar.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {pathCards.map((card, index) => (
+              <article
+                key={card.title}
+                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                style={{ animationDelay: `${index * 120}ms` }}
+              >
+                <div className="service-card__line" />
+                <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
+                <h3 className="service-card__title">{card.title}</h3>
+                <p className="service-card__description">{card.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <FeaturedProjects mounted={mounted} />
 
       <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
@@ -359,8 +412,8 @@ export default function MACode() {
               Soluções para lançar, vender e automatizar
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Começamos pelo essencial: uma presença online profissional. Depois, se o negócio
-              precisar, evoluímos para loja online, marcações, sistemas internos, automação ou IA.
+              Do website simples à solução à medida: criamos a base digital certa para o negócio
+              parecer profissional, receber contactos e crescer com organização.
             </p>
           </div>
 
@@ -392,7 +445,7 @@ export default function MACode() {
               Um processo simples, sem complicar o cliente
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              O objetivo é transformar a ideia numa solução funcional, clara e pronta a ser usada.
+              O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada.
             </p>
           </div>
 
@@ -417,7 +470,7 @@ export default function MACode() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="contact-side-panel">
               <span className="section-label">Pedido</span>
-              <h2 className="contact-side-panel__title">Pedir Proposta</h2>
+              <h2 className="contact-side-panel__title">Conte-nos o que precisa</h2>
               <p className="contact-side-panel__text">
                 Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
                 projeto.
@@ -429,8 +482,8 @@ export default function MACode() {
                   <strong>Desde 19€/mês</strong>
                 </div>
                 <div className="metric-card">
-                  <span className="metric-card__label">Foco</span>
-                  <strong>Contactos</strong>
+                  <span className="metric-card__label">Inclui</span>
+                  <strong>Domínio + alojamento</strong>
                 </div>
               </div>
 
@@ -585,7 +638,7 @@ export default function MACode() {
                 >
                   <span className="btn-shine" />
                   <span className="relative z-10">
-                    {isSending ? 'A enviar...' : 'Pedir proposta gratuita'}
+                    {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
                   </span>
                 </button>
               </form>
