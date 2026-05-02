@@ -1,25 +1,21 @@
 import MACode from './MACode'
 import PortfolioPage from './PortfolioPage'
 import ServicePage from './ServicePage'
-import { servicePages, type ServicePageSlug } from '../data/servicePages'
+import { getServicePageByPath, type ServicePageSlug } from '../data/servicePages'
 
 type AppPage =
   | { type: 'home' }
   | { type: 'portfolio' }
   | { type: 'service'; slug: ServicePageSlug }
 
-function normalizePath(pathname: string) {
-  return pathname.replace(/\/+$/, '') || '/'
-}
-
 function getPageFromPath(): AppPage {
-  const path = normalizePath(window.location.pathname)
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
 
   if (path === '/projetos') {
     return { type: 'portfolio' }
   }
 
-  const servicePage = servicePages.find((page) => page.path === path)
+  const servicePage = getServicePageByPath(path)
 
   if (servicePage) {
     return {
