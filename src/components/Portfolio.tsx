@@ -1,10 +1,13 @@
-import { portfolioProjects, type PortfolioImage } from '../data/projects'
+import { useState, type FormEvent } from 'react'
+import { portfolioProjects, type PortfolioImage, type PortfolioProject } from '../data/projects'
 
 type PortfolioProps = {
   mounted: boolean
 }
 
 type ProjectScreenshot = PortfolioImage
+
+const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
 
 function getProjectDomain(href: string) {
   try {
@@ -26,7 +29,7 @@ function ProjectImageFrame({
   return (
     <figure
       className={`group relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 hover:-translate-y-1 hover:border-cyan-300/25 ${
-        featured ? 'mx-auto w-full max-w-[40rem]' : 'mx-auto w-full max-w-[28rem]'
+        featured ? 'mx-auto w-full max-w-[38rem]' : 'mx-auto w-full max-w-[24rem]'
       }`}
       aria-label={`Imagem do projeto: ${image.caption}`}
     >
@@ -39,7 +42,7 @@ function ProjectImageFrame({
 
         <div
           className={`relative w-full overflow-y-auto overflow-x-hidden scroll-smooth px-2 pb-3 pt-7 overscroll-contain focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 ${
-            featured ? 'max-h-[72vh] md:max-h-[50rem]' : 'max-h-[64vh] md:max-h-[40rem]'
+            featured ? 'max-h-[62vh] md:max-h-[38rem]' : 'max-h-[48vh] md:max-h-[30rem]'
           }`}
           tabIndex={0}
           aria-label={`Percorrer screenshot: ${image.caption}`}
@@ -76,6 +79,87 @@ function ProjectImageFrame({
 }
 
 export default function Portfolio({ mounted }: PortfolioProps) {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    projectReference: '',
+    message: '',
+    botcheck: '',
+  })
+  const [isSending, setIsSending] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleProjectInquiry = (project: PortfolioProject) => {
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      projectReference: project.title,
+      message:
+        currentForm.message ||
+        `Olá, gostava de criar uma solução semelhante ao projeto ${project.title}.`,
+    }))
+  }
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsSending(true)
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    if (form.botcheck) {
+      setIsSending(false)
+      return
+    }
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: web3FormsAccessKey,
+          subject: 'Pedido de proposta - Portefólio MA-Code',
+          from_name: 'MA-Code Portefólio',
+          name: form.name,
+          email: form.email,
+          phone: form.phone || 'Não indicado',
+          'Projeto de referência': form.projectReference || 'Não indicado',
+          message: form.message,
+          botcheck: form.botcheck,
+        }),
+      })
+
+      const data = (await response.json()) as {
+        success?: boolean
+        message?: string
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Erro ao enviar pedido')
+      }
+
+      setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
+      setForm({
+        name: '',
+        email: '',
+        phone: '',
+        projectReference: '',
+        message: '',
+        botcheck: '',
+      })
+    } catch {
+      setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   return (
     <section
       id="projetos"
@@ -93,18 +177,18 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               id="portfolio-heading"
               className="text-3xl font-semibold tracking-tight text-white md:text-4xl"
             >
-              Projetos publicados que mostram soluções reais em funcionamento.
+              Projetos reais com estratégia, desenvolvimento e funcionalidades à medida.
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Exemplos concretos de websites profissionais, lojas online, sistemas de marcação,
-              áreas administrativas, aplicações PWA e plataformas digitais criadas pela MA-Code para
-              resolver necessidades reais.
+              Aqui não mostramos apenas páginas bonitas. Mostramos sistemas publicados, lojas online,
+              aplicações PWA, áreas administrativas, automações, integrações e ferramentas digitais
+              criadas para resolver problemas concretos.
             </p>
 
             <p className="mt-3 max-w-3xl text-xs leading-6 text-cyan-100/80 md:text-sm">
-              Toque num projeto para avançar diretamente para o caso. Nas molduras, deslize para ver
-              o ecrã completo ou abra a imagem em tamanho maior.
+              Escolha um projeto para ver o que foi criado, que funcionalidades foram implementadas e
+              que valor prático a solução trouxe ao cliente.
             </p>
           </div>
 
@@ -117,7 +201,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                 aria-label={`Ver detalhes do projeto ${project.title}`}
               >
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                  Ver projeto
+                  Ver caso
                 </span>
                 <strong className="mt-2 block text-sm font-semibold text-white">
                   {project.title}
@@ -147,7 +231,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               >
                 <div className="service-card__line" />
 
-                <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
+                <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,0.98fr)_minmax(22rem,0.82fr)] xl:items-start">
                   <div className="min-w-0">
                     <div className="mb-4 flex flex-wrap items-center gap-3">
                       <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-200">
@@ -165,7 +249,10 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                       </a>
                     </div>
 
-                    <h2 id={`${project.slug}-title`} className="service-card__title text-2xl md:text-3xl">
+                    <h2
+                      id={`${project.slug}-title`}
+                      className="service-card__title text-2xl md:text-3xl"
+                    >
                       {project.title}
                     </h2>
 
@@ -179,51 +266,50 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                       ))}
                     </div>
 
-                    <div className="mt-6 grid gap-4">
-                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                          Necessidade do cliente
-                        </span>
-                        <p className="mt-3 text-sm leading-7 text-slate-200">
-                          {project.clientNeed}
-                        </p>
-                      </div>
+                    <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {project.proofPoints.map((point) => (
+                        <li
+                          key={point}
+                          className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs font-semibold leading-5 text-cyan-50"
+                        >
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
 
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Solução criada
-                          </span>
+                    <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                        Necessidade do cliente
+                      </span>
+                      <p className="mt-3 text-sm leading-7 text-slate-200">
+                        {project.clientNeed}
+                      </p>
+                    </div>
 
-                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                            {project.highlights.map((highlight) => (
-                              <li key={highlight} className="flex gap-3">
+                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                      {project.featureGroups.map((group) => (
+                        <div
+                          key={group.title}
+                          className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                        >
+                          <h3 className="text-sm font-semibold text-white">{group.title}</h3>
+
+                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                            {group.items.map((item) => (
+                              <li key={item} className="flex gap-3">
                                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.65)]" />
-                                <span>{highlight}</span>
+                                <span>{item}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
+                      ))}
+                    </div>
 
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Entregue no projeto
-                          </span>
-
-                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                            {project.deliverables.map((deliverable) => (
-                              <li key={deliverable} className="flex gap-3">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
-                                <span>{deliverable}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
                       <div className="rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.06] p-5">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
-                          Valor para o cliente
+                          Valor prático
                         </span>
 
                         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -233,6 +319,21 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                               className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-sm leading-6 text-cyan-50"
                             >
                               {value}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                          Entregue
+                        </span>
+
+                        <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
+                          {project.deliverables.map((deliverable) => (
+                            <li key={deliverable} className="flex gap-3">
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
+                              <span>{deliverable}</span>
                             </li>
                           ))}
                         </ul>
@@ -263,7 +364,8 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                       </a>
 
                       <a
-                        href="/#orcamento"
+                        href="#portfolio-contact"
+                        onClick={() => handleProjectInquiry(project)}
                         className="btn-secondary hightech-button-secondary"
                         aria-label={`Pedir uma solução semelhante ao projeto ${project.title}`}
                       >
@@ -278,11 +380,17 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                     ) : null}
 
                     {galleryImages.length > 0 && (
-                      <div className="grid gap-5 md:grid-cols-2 md:items-start">
-                        {galleryImages.map((image) => (
-                          <ProjectImageFrame key={image.src} image={image} />
-                        ))}
-                      </div>
+                      <details className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                        <summary className="cursor-pointer text-sm font-semibold text-cyan-100 transition hover:text-white">
+                          Ver mais imagens do projeto
+                        </summary>
+
+                        <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+                          {galleryImages.map((image) => (
+                            <ProjectImageFrame key={image.src} image={image} />
+                          ))}
+                        </div>
+                      </details>
                     )}
                   </div>
                 </div>
@@ -292,36 +400,179 @@ export default function Portfolio({ mounted }: PortfolioProps) {
         </div>
 
         <div
-          className={`service-card mt-8 ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+          id="portfolio-contact"
+          className={`service-card mt-8 scroll-mt-28 ${
+            mounted ? 'animate-fade-in-up' : 'opacity-0'
+          }`}
           style={{ animationDelay: `${portfolioProjects.length * 120}ms` }}
         >
           <div className="service-card__line" />
 
-          <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="relative z-10 grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
                 Próximo projeto
               </span>
 
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                Quer criar uma solução digital parecida para o seu negócio?
+                Quer uma solução semelhante para o seu negócio?
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                A MA-Code cria websites profissionais, lojas online, sistemas de marcações, áreas
-                administrativas, aplicações internas, automação e integrações adaptadas à realidade
-                de cada negócio.
+                Diga-nos que tipo de projeto pretende criar. Pode usar um dos exemplos acima como
+                referência: loja online, sistema de marcações, painel administrativo, PWA, automação,
+                IA ou integração com dados existentes.
               </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                    Exemplos de pedido
+                  </span>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    “Quero uma loja online como a Porto Exótico” ou “Quero um sistema de marcações
+                    como o Rosa Maria”.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                    Resposta mais certeira
+                  </span>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    Indique objetivo, funcionalidades pretendidas, se já tem site e se precisa de
+                    área administrativa, automação ou IA.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <a
-              href="/#orcamento"
-              className="btn-primary hightech-button"
-              aria-label="Pedir proposta para criar uma solução digital"
-            >
-              <span className="btn-shine" />
-              <span className="relative z-10">Receber proposta</span>
-            </a>
+            <div className="form-shell">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <input type="hidden" name="access_key" value={web3FormsAccessKey} />
+                <input type="hidden" name="subject" value="Pedido de proposta - Portefólio MA-Code" />
+                <input type="hidden" name="from_name" value="MA-Code Portefólio" />
+
+                <input
+                  type="text"
+                  name="botcheck"
+                  className="hidden"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={form.botcheck}
+                  onChange={(e) => setForm({ ...form, botcheck: e.target.value })}
+                />
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="portfolio-name" className="input-label">
+                      Nome
+                    </label>
+                    <input
+                      id="portfolio-name"
+                      name="name"
+                      type="text"
+                      className="input-field"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="portfolio-email" className="input-label">
+                      Email
+                    </label>
+                    <input
+                      id="portfolio-email"
+                      name="email"
+                      type="email"
+                      className="input-field"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="portfolio-phone" className="input-label">
+                      Telefone / WhatsApp
+                    </label>
+                    <input
+                      id="portfolio-phone"
+                      name="phone"
+                      type="tel"
+                      className="input-field"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      autoComplete="tel"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="portfolio-reference" className="input-label">
+                      Projeto de referência
+                    </label>
+                    <select
+                      id="portfolio-reference"
+                      name="projectReference"
+                      className="input-field"
+                      value={form.projectReference}
+                      onChange={(e) => setForm({ ...form, projectReference: e.target.value })}
+                    >
+                      <option value="">Selecionar referência</option>
+                      {portfolioProjects.map((project) => (
+                        <option key={project.slug} value={project.title}>
+                          {project.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="portfolio-message" className="input-label">
+                    O que pretende criar?
+                  </label>
+                  <textarea
+                    id="portfolio-message"
+                    name="message"
+                    className="input-field min-h-36 resize-y"
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    required
+                    placeholder="Ex.: Quero uma solução semelhante ao projeto Rosa Maria, com marcações online, painel privado e gestão diária dos serviços."
+                  />
+                </div>
+
+                {successMessage ? (
+                  <p className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
+                    {successMessage}
+                  </p>
+                ) : null}
+
+                {errorMessage ? (
+                  <p className="rounded-2xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">
+                    {errorMessage}
+                  </p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  className="btn-primary hightech-button w-full justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSending}
+                >
+                  <span className="btn-shine" />
+                  <span className="relative z-10">
+                    {isSending ? 'A enviar pedido...' : 'Enviar pedido de proposta'}
+                  </span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
