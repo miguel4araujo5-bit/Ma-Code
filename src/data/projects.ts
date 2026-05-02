@@ -24,27 +24,27 @@ export const portfolioProjects: PortfolioProject[] = [
   {
     slug: 'rosa-maria',
     title: 'Rosa Maria Cabeleireiros',
-    subtitle: 'Website profissional com sistema de marcações online',
+    subtitle: 'Website profissional com marcações online e painel privado',
     teaser:
-      'Website para salão de cabeleireiro com marcações online, painel privado, agenda e notificações.',
+      'Website para salão de cabeleireiro com marcações online, agenda, área administrativa e experiência mobile.',
     category: 'Negócio Local • Marcações • Área Admin',
     href: 'https://rosa-maria.pt',
     description:
-      'Website profissional desenvolvido para modernizar a presença digital do salão Rosa Maria Cabeleireiros, em São Mamede de Infesta.\n\nO projeto combina apresentação dos serviços, sistema de marcações online, painel privado de administração, agenda, notificações, localização com mapa e experiência otimizada para telemóvel. A solução permite ao salão receber pedidos de marcação de forma mais organizada e transmitir uma imagem mais profissional aos clientes.',
+      'Website profissional criado para modernizar a presença digital do salão Rosa Maria Cabeleireiros, em São Mamede de Infesta.\n\nA solução junta apresentação dos serviços, marcações online, agenda, painel privado, notificações, localização com mapa e uma experiência pensada para telemóvel.',
     clientNeed:
-      'O salão precisava de uma presença online mais credível e de uma forma simples de receber, consultar e gerir pedidos de marcação, sem depender apenas de chamadas, mensagens dispersas ou gestão manual da agenda.',
+      'O salão precisava de parecer mais profissional online e de receber pedidos de marcação de forma mais organizada, sem depender apenas de chamadas, mensagens soltas ou gestão manual.',
     highlights: [
       'Website profissional adaptado a telemóvel',
       'Sistema de marcações online simples e direto',
-      'Painel privado para gerir marcações e horários',
+      'Agenda e painel privado para gestão interna',
       'Notificações de novas marcações',
-      'Localização com mapa e SEO local',
+      'Localização com mapa e base de SEO local',
     ],
     deliverables: [
       'Website institucional com apresentação dos serviços',
       'Formulário de marcação adaptado ao negócio',
-      'Agenda administrativa com gestão de disponibilidade',
-      'Painel privado para consulta e organização de marcações',
+      'Agenda administrativa para consulta de horários',
+      'Painel privado para gestão de marcações',
       'PWA preparada para utilização no telemóvel',
     ],
     businessValue: [
@@ -52,23 +52,23 @@ export const portfolioProjects: PortfolioProject[] = [
       'Mais facilidade em receber pedidos de marcação',
       'Menos tempo perdido em gestão manual',
       'Melhor experiência para clientes locais',
-      'Base preparada para evoluir com novas funcionalidades',
+      'Base pronta para evoluir com novas funcionalidades',
     ],
     technologies: ['React', 'TypeScript', 'Tailwind CSS', 'Cloudflare Workers', 'PWA'],
     images: [
       {
         src: '/projetos/rosa-home.PNG',
-        alt: 'Página inicial do website Rosa Maria Cabeleireiros',
+        alt: 'Página inicial do website Rosa Maria Cabeleireiros em São Mamede de Infesta',
         caption: 'Página inicial',
       },
       {
         src: '/projetos/rosa-marcacoes.PNG',
-        alt: 'Sistema de marcações online Rosa Maria Cabeleireiros',
+        alt: 'Sistema de marcações online do website Rosa Maria Cabeleireiros',
         caption: 'Marcações online',
       },
       {
         src: '/projetos/rosa-agenda.PNG',
-        alt: 'Agenda de marcações do website Rosa Maria Cabeleireiros',
+        alt: 'Agenda de marcações do painel administrativo Rosa Maria Cabeleireiros',
         caption: 'Agenda de marcações',
       },
       {
@@ -86,15 +86,15 @@ export const portfolioProjects: PortfolioProject[] = [
   {
     slug: 'porto-exotico',
     title: 'Porto Exótico',
-    subtitle: 'Loja online moderna com carrinho, checkout e área administrativa',
+    subtitle: 'Loja online com catálogo, carrinho, checkout e gestão de encomendas',
     teaser:
-      'E-commerce responsivo com catálogo, carrinho de compras, checkout, consentimento de cookies e gestão de encomendas.',
+      'E-commerce responsivo com catálogo, carrinho de compras, checkout, cookies, analytics e área administrativa.',
     category: 'E-commerce • Checkout • Área Admin',
     href: 'https://portoexotico.pt',
     description:
-      'Reconstrução completa de uma presença digital antiga para uma loja online moderna, discreta, responsiva e preparada para venda direta.\n\nO projeto inclui catálogo de produtos, páginas de produto, carrinho de compras, checkout estruturado, páginas legais, consentimento de cookies, analytics, assistente digital e área administrativa para acompanhamento de encomendas.',
+      'Reconstrução de uma presença digital antiga para uma loja online moderna, discreta, responsiva e preparada para venda direta.\n\nO projeto inclui catálogo de produtos, páginas individuais, carrinho de compras, checkout, páginas legais, consentimento de cookies, analytics, assistente digital e área administrativa para acompanhamento de encomendas.',
     clientNeed:
-      'A marca precisava de uma loja online mais credível, organizada e preparada para vender, com navegação clara, apresentação profissional dos produtos, experiência discreta, carrinho de compras, checkout e gestão interna das encomendas.',
+      'A marca precisava de uma loja online mais credível, organizada e preparada para vender, com apresentação profissional dos produtos, navegação clara, checkout e gestão interna das encomendas.',
     highlights: [
       'Loja online com categorias e páginas de produto',
       'Carrinho de compras e checkout estruturado',
@@ -126,7 +126,7 @@ export const portfolioProjects: PortfolioProject[] = [
       },
       {
         src: '/projetos/porto-loja.PNG',
-        alt: 'Catálogo da loja online Porto Exótico',
+        alt: 'Catálogo de produtos da loja online Porto Exótico',
         caption: 'Loja online',
       },
       {
@@ -136,12 +136,12 @@ export const portfolioProjects: PortfolioProject[] = [
       },
       {
         src: '/projetos/porto-pagamentos.PNG',
-        alt: 'Área de métodos de pagamento da loja online Porto Exótico',
+        alt: 'Secção de métodos de pagamento da loja online Porto Exótico',
         caption: 'Métodos de pagamento',
       },
       {
         src: '/projetos/porto-admin.PNG',
-        alt: 'Área administrativa da loja online Porto Exótico',
+        alt: 'Área administrativa para gestão de encomendas da loja Porto Exótico',
         caption: 'Área administrativa',
       },
       {
@@ -159,7 +159,7 @@ export const portfolioProjects: PortfolioProject[] = [
   {
     slug: 'reo',
     title: 'REO – Rádio Escolar Online',
-    subtitle: 'Aplicação web/PWA para rádio escolar e arquivo digital',
+    subtitle: 'PWA para rádio escolar, programas e arquivo digital',
     teaser:
       'Plataforma PWA para rádio escolar com arquivo digital, programas, episódios e reprodução de áudio.',
     category: 'Educação • PWA • Arquivo Digital',
@@ -167,7 +167,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description:
       'Plataforma digital criada para organizar, preservar e tornar acessível o arquivo da rádio escolar do Agrupamento de Escolas de S. Bento de Vizela.\n\nA solução permite consultar programas, ouvir emissões, navegar por conteúdos e aproximar a rádio escolar da comunidade educativa através de uma experiência simples, moderna e acessível em computador e telemóvel.',
     clientNeed:
-      'A rádio escolar precisava de uma presença digital organizada, onde a comunidade pudesse encontrar programas, consultar episódios, aceder ao arquivo e utilizar a plataforma de forma prática, sem depender de ficheiros dispersos ou publicações difíceis de encontrar.',
+      'A rádio escolar precisava de uma presença digital organizada, onde a comunidade pudesse encontrar programas, consultar episódios e aceder ao arquivo sem depender de ficheiros dispersos ou publicações difíceis de encontrar.',
     highlights: [
       'Arquivo digital organizado por ano, programa e episódio',
       'Reprodução de áudio diretamente na plataforma',
@@ -193,7 +193,7 @@ export const portfolioProjects: PortfolioProject[] = [
     images: [
       {
         src: '/projetos/reo-home.PNG',
-        alt: 'Página inicial da REO – Rádio Escolar Online',
+        alt: 'Página inicial da REO Rádio Escolar Online',
         caption: 'Página inicial',
       },
       {
@@ -203,12 +203,12 @@ export const portfolioProjects: PortfolioProject[] = [
       },
       {
         src: '/projetos/reo-programas.PNG',
-        alt: 'Página de programas da REO – Rádio Escolar Online',
+        alt: 'Página de programas da REO Rádio Escolar Online',
         caption: 'Programas da rádio',
       },
       {
         src: '/projetos/reo-instalmenu.PNG',
-        alt: 'Menu de instalação da aplicação PWA da REO',
+        alt: 'Menu de instalação da aplicação PWA da REO no telemóvel',
         caption: 'Instalação como PWA',
       },
     ],
