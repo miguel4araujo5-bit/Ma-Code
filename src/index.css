@@ -37,6 +37,7 @@ body {
   a,
   button,
   input,
+  select,
   textarea {
     -webkit-tap-highlight-color: transparent;
   }
@@ -51,6 +52,7 @@ body {
   a:focus-visible,
   button:focus-visible,
   input:focus-visible,
+  select:focus-visible,
   textarea:focus-visible {
     outline: 2px solid rgba(103, 232, 249, 0.65);
     outline-offset: 3px;
@@ -191,6 +193,10 @@ body {
     -webkit-backdrop-filter: blur(14px);
   }
 
+  .hero-topline span:last-child {
+    min-width: 0;
+  }
+
   .hero-topline__dot {
     width: 0.65rem;
     height: 0.65rem;
@@ -214,6 +220,8 @@ body {
 
   .hero-price-badge {
     @apply mt-5 inline-flex rounded-full border px-4 py-2 text-sm font-semibold;
+    max-width: 100%;
+    line-height: 1.45;
     border-color: rgba(103, 232, 249, 0.2);
     background: rgba(10, 18, 30, 0.54);
     color: #7dd3fc;
@@ -637,6 +645,11 @@ body {
       radial-gradient(circle at 100% 0%, rgba(103, 232, 249, 0.06), transparent 22%);
   }
 
+  .contact-side-panel > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .contact-side-panel__title {
     @apply mt-5 text-3xl font-semibold text-white md:text-4xl;
     letter-spacing: -0.03em;
@@ -692,6 +705,11 @@ body {
       radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.06), transparent 22%);
   }
 
+  .form-shell form {
+    position: relative;
+    z-index: 1;
+  }
+
   .input-label {
     @apply mb-2 block text-sm font-medium uppercase text-slate-200;
     letter-spacing: 0.16em;
@@ -719,6 +737,19 @@ body {
     box-shadow:
       0 0 0 4px rgba(34, 211, 238, 0.08),
       0 0 24px rgba(34, 211, 238, 0.06);
+  }
+
+  .input-field option {
+    background: #0f172a;
+    color: #ffffff;
+  }
+
+  select.input-field {
+    cursor: pointer;
+  }
+
+  textarea.input-field {
+    cursor: text;
   }
 
   .input-textarea {
@@ -981,11 +1012,18 @@ body {
   }
 
   .btn-primary,
-  .btn-secondary,
-  .btn-ghost {
+  .btn-secondary {
     @apply w-full px-5 py-3.5 text-[12px];
     letter-spacing: 0.12em;
     min-height: 3.2rem;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-3 text-[11px];
+    width: auto;
+    min-height: 3rem;
+    flex-shrink: 0;
+    letter-spacing: 0.1em;
   }
 
   .hero-mini-points {
@@ -1125,6 +1163,7 @@ body {
   .hero-price-badge {
     width: 100%;
     justify-content: center;
+    text-align: center;
   }
 
   .hero-subtitle {
