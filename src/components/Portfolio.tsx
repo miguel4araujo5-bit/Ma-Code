@@ -37,7 +37,7 @@ function ProjectImageFrame({
         <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
 
         <div className="absolute right-3 top-2 z-20 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80 backdrop-blur-md">
-          Scroll
+          Deslizar
         </div>
 
         <div
@@ -87,12 +87,12 @@ export default function Portfolio({ mounted }: PortfolioProps) {
             </div>
 
             <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              Exemplos claros do que foi criado.
+              Projetos publicados. Soluções reais.
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              A página foi organizada para mostrar não só imagens bonitas, mas também o objetivo, a
-              solução entregue, as funcionalidades e o valor prático de cada projeto.
+              Cada projeto mostra o que o cliente precisava, o que foi criado e o valor prático da
+              solução entregue.
             </p>
 
             <p className="mt-3 max-w-3xl text-xs leading-6 text-cyan-100/80 md:text-sm">
@@ -109,7 +109,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                 className="group rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition duration-300 hover:-translate-y-1 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]"
               >
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                  Ver projeto
+                  Ver caso
                 </span>
                 <strong className="mt-2 block text-sm font-semibold text-white">
                   {project.title}
@@ -172,7 +172,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                     <div className="mt-6 grid gap-4">
                       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                          Objetivo
+                          Necessidade
                         </span>
                         <p className="mt-3 text-sm leading-7 text-slate-200">
                           {project.clientNeed}
@@ -182,7 +182,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Funcionalidades
+                            Solução criada
                           </span>
 
                           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
@@ -289,19 +289,19 @@ export default function Portfolio({ mounted }: PortfolioProps) {
               </span>
 
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                Tem um negócio, loja ou ideia que precisa de uma solução digital?
+                Quer criar uma solução parecida para o seu negócio?
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                A MA-Code pode criar um website simples, uma loja online, um sistema de marcações,
-                uma aplicação interna, uma área administrativa ou uma integração personalizada com
-                IA, bases de dados, APIs ou automação.
+                A MA-Code cria websites profissionais, lojas online, sistemas de marcações, áreas
+                administrativas, aplicações internas, automação e integrações adaptadas à realidade
+                de cada negócio.
               </p>
             </div>
 
             <a href="/#orcamento" className="btn-primary hightech-button">
               <span className="btn-shine" />
-              <span className="relative z-10">Pedir orçamento</span>
+              <span className="relative z-10">Receber proposta</span>
             </a>
           </div>
         </div>
