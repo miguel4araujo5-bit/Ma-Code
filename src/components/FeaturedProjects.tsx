@@ -12,8 +12,10 @@ function getProjectProof(project: PortfolioProject) {
   if (value.includes('rosa')) {
     return {
       label: 'Marcações + Área Admin',
-      description:
-        'Website profissional com sistema de marcações online, experiência mobile e painel administrativo para gestão do negócio.',
+      problem: 'Gestão de marcações feita de forma manual e pouco organizada.',
+      solution:
+        'Website profissional com marcações online, experiência mobile e painel administrativo para gerir pedidos.',
+      result: 'Menos mensagens soltas, agenda mais organizada e imagem mais profissional.',
       tags: ['Website', 'Marcações', 'Admin']
     }
   }
@@ -21,25 +23,31 @@ function getProjectProof(project: PortfolioProject) {
   if (value.includes('porto') || value.includes('exotico') || value.includes('exótico')) {
     return {
       label: 'Loja Online + Checkout',
-      description:
-        'E-commerce com apresentação de produtos, carrinho de compras, checkout e estrutura preparada para venda online.',
+      problem: 'Necessidade de apresentar produtos online com uma experiência discreta e credível.',
+      solution:
+        'Loja online com catálogo, carrinho de compras, checkout, páginas legais e estrutura preparada para venda.',
+      result: 'Base digital completa para apresentar produtos, receber encomendas e crescer online.',
       tags: ['E-commerce', 'Carrinho', 'Checkout']
     }
   }
 
   if (value.includes('reo')) {
     return {
-      label: 'Plataforma Digital',
-      description:
-        'Projeto digital com organização de conteúdos, arquivo, programas e estrutura pensada para utilização por uma instituição.',
+      label: 'Arquivo + Plataforma Digital',
+      problem: 'Conteúdos dispersos e necessidade de uma presença digital organizada.',
+      solution:
+        'Plataforma com programas, arquivo, conteúdos estruturados e navegação simples para utilização institucional.',
+      result: 'Conteúdos mais acessíveis, melhor organização e presença digital mais forte.',
       tags: ['Plataforma', 'Arquivo', 'Conteúdos']
     }
   }
 
   return {
     label: 'Projeto Digital',
-    description:
+    problem: 'Necessidade de transformar uma ideia numa presença digital clara.',
+    solution:
       'Solução web criada à medida, com foco em apresentação profissional, estrutura clara e utilização simples.',
+    result: 'Projeto publicado, funcional e preparado para utilização real.',
     tags: ['Website', 'UX', 'Mobile']
   }
 }
@@ -65,24 +73,23 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
-                  Trabalho publicado, funcional e feito para negócios reais
+                  Projetos publicados, não conceitos.
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Mais do que páginas bonitas: desenvolvemos websites, lojas online, sistemas de
-                  marcação, áreas administrativas e plataformas digitais pensadas para resolver
-                  necessidades concretas.
+                  Websites, lojas online e plataformas criadas para negócios reais, com objetivos
+                  concretos: apresentar melhor, organizar processos, receber contactos e vender.
                 </p>
               </div>
 
               <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                  O que isto demonstra
+                  O que isto prova
                 </p>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  A MA-Code consegue criar desde um website simples de apresentação até sistemas com
-                  carrinho, marcações, painel de administração, conteúdos dinâmicos e funcionalidades
-                  personalizadas.
+                  A MA-Code não cria apenas páginas bonitas. Cria soluções digitais completas:
+                  marcações, lojas, áreas administrativas, arquivos, conteúdos dinâmicos e
+                  funcionalidades adaptadas ao negócio.
                 </p>
               </div>
             </div>
@@ -129,7 +136,28 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                     </div>
 
                     <div className="relative z-10 px-2 pb-2 pt-4">
-                      <p className="text-sm leading-6 text-slate-300">{proof.description}</p>
+                      <div className="space-y-3 text-sm leading-6 text-slate-300">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Problema
+                          </p>
+                          <p className="mt-1">{proof.problem}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/80">
+                            Solução
+                          </p>
+                          <p className="mt-1">{proof.solution}</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/5 p-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                            Resultado
+                          </p>
+                          <p className="mt-1 text-slate-200">{proof.result}</p>
+                        </div>
+                      </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
                         {proof.tags.map((tag) => (
@@ -150,11 +178,10 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="mt-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Quer ver mais detalhes de cada projeto?
+                  Quer criar algo parecido para o seu negócio?
                 </p>
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  A página de projetos mostra melhor as funcionalidades, imagens e tipo de solução
-                  criada.
+                  Veja os projetos com mais detalhe ou peça uma proposta adaptada ao que precisa.
                 </p>
               </div>
 
@@ -163,7 +190,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-200/50 hover:bg-cyan-300/15"
                 aria-label="Ver página completa de projetos da MA-Code"
               >
-                Ver página de projetos
+                Ver projetos
                 <span aria-hidden="true">→</span>
               </a>
             </div>
