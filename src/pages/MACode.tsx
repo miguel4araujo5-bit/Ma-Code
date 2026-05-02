@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import FeaturedProjects from '../components/FeaturedProjects'
 
+const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
+
 const marqueeItems = [
   'Website desde 19€/mês',
   'Domínio + Alojamento',
@@ -161,6 +163,7 @@ export default function MACode() {
     message: '',
     botcheck: ''
   })
+
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -190,15 +193,19 @@ export default function MACode() {
     updatePropertyMeta('og:locale', 'pt_PT')
     updatePropertyMeta('og:site_name', 'MA-Code')
     updatePropertyMeta('og:url', 'https://ma-code.pt/')
+
     updatePropertyMeta(
       'og:title',
       'Criação de Websites Profissionais e Lojas Online | MA-Code'
     )
+
     updatePropertyMeta(
       'og:description',
       'Websites rápidos, modernos e adaptados a telemóvel. Criamos sites, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos.'
     )
+
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
+
     updatePropertyMeta(
       'og:image:alt',
       'MA-Code - criação de websites profissionais, lojas online, automação e IA'
@@ -206,15 +213,19 @@ export default function MACode() {
 
     updateMeta('twitter:card', 'summary_large_image')
     updateMeta('twitter:url', 'https://ma-code.pt/')
+
     updateMeta(
       'twitter:title',
       'Criação de Websites Profissionais e Lojas Online | MA-Code'
     )
+
     updateMeta(
       'twitter:description',
       'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos e vender melhor.'
     )
+
     updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
+
     updateMeta(
       'twitter:image:alt',
       'MA-Code - criação de websites profissionais, lojas online, automação e IA'
@@ -225,35 +236,48 @@ export default function MACode() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
     setIsSending(true)
     setSuccessMessage('')
     setErrorMessage('')
 
+    if (form.botcheck) {
+      setIsSending(false)
+      return
+    }
+
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
+          access_key: web3FormsAccessKey,
+          subject: 'Pedido de orçamento - MA-Code',
+          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
-          phone: form.phone,
-          projectType: form.projectType,
-          hasWebsite: form.hasWebsite,
+          phone: form.phone || 'Não indicado',
+          'Tipo de projeto': form.projectType,
+          'Já tem site?': form.hasWebsite || 'Não indicado',
           message: form.message,
           botcheck: form.botcheck
         })
       })
 
-      const data = await response.json()
+      const data = (await response.json()) as {
+        success?: boolean
+        message?: string
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Erro ao enviar pedido')
       }
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
+
       setForm({
         name: '',
         email: '',
@@ -341,12 +365,14 @@ export default function MACode() {
             <div className={`hero-aside ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
               <div className="hero-panel">
                 <div className="hero-panel__glow" />
+
                 <div className="hero-panel__header">
                   <div className="hero-panel__dots">
                     <span />
                     <span />
                     <span />
                   </div>
+
                   <span className="hero-panel__label">MA-Code Interface</span>
                 </div>
 
@@ -394,6 +420,7 @@ export default function MACode() {
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
               Comece simples. Evolua quando precisar.
             </h2>
+
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
               Nem todos os negócios precisam da mesma solução. A MA-Code ajuda a escolher o caminho
               certo sem complicar.
@@ -405,14 +432,14 @@ export default function MACode() {
               <a
                 key={card.title}
                 href={card.href}
-                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
                 <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
                 <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
-                <span className="mt-5 inline-flex text-sm font-bold text-cyan-200 transition group-hover:translate-x-1">
+                <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
                   {card.cta} →
                 </span>
               </a>
@@ -433,6 +460,7 @@ export default function MACode() {
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
               Soluções para lançar, vender e automatizar
             </h2>
+
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
               Do website simples à solução à medida: criamos a base digital certa para o negócio
               parecer profissional, receber contactos e crescer com organização.
@@ -444,14 +472,14 @@ export default function MACode() {
               <a
                 key={card.title}
                 href={card.href}
-                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
                 <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
                 <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
-                <span className="mt-5 inline-flex text-sm font-bold text-cyan-200 transition group-hover:translate-x-1">
+                <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
                   {card.cta} →
                 </span>
               </a>
@@ -470,6 +498,7 @@ export default function MACode() {
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
               Um processo simples, sem complicar o cliente
             </h2>
+
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
               O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada.
             </p>
@@ -479,12 +508,11 @@ export default function MACode() {
             {processSteps.map((step, index) => (
               <article
                 key={step.title}
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-                style={{ animationDelay: `${index * 100}ms` }}
+                className={`process-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                style={{ animationDelay: `${index * 120}ms` }}
               >
-                <div className="service-card__line" />
-                <h2 className="service-card__title">{step.title}</h2>
-                <p className="service-card__description">{step.description}</p>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
               </article>
             ))}
           </div>
@@ -496,7 +524,9 @@ export default function MACode() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="contact-side-panel">
               <span className="section-label">Pedido</span>
+
               <h2 className="contact-side-panel__title">Conte-nos o que precisa</h2>
+
               <p className="contact-side-panel__text">
                 Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
                 projeto.
@@ -507,6 +537,7 @@ export default function MACode() {
                   <span className="metric-card__label">Website simples</span>
                   <strong>Desde 19€/mês</strong>
                 </div>
+
                 <div className="metric-card">
                   <span className="metric-card__label">Inclui</span>
                   <strong>Domínio + alojamento</strong>
@@ -515,6 +546,7 @@ export default function MACode() {
 
               <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
                 <p>Para uma resposta mais certeira, indique:</p>
+
                 <ul className="space-y-2 text-slate-200/90">
                   <li>• Que tipo de projeto pretende</li>
                   <li>• Se já tem site ou quer começar do zero</li>
@@ -525,7 +557,16 @@ export default function MACode() {
             </div>
 
             <div className="form-shell">
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form
+                action="https://api.web3forms.com/submit"
+                method="POST"
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+                <input type="hidden" name="access_key" value={web3FormsAccessKey} />
+                <input type="hidden" name="subject" value="Pedido de orçamento - MA-Code" />
+                <input type="hidden" name="from_name" value="MA-Code Website" />
+
                 <input
                   type="text"
                   name="botcheck"
@@ -541,8 +582,10 @@ export default function MACode() {
                     <label htmlFor="name" className="input-label">
                       Nome
                     </label>
+
                     <input
                       id="name"
+                      name="name"
                       type="text"
                       className="input-field"
                       value={form.name}
@@ -556,8 +599,10 @@ export default function MACode() {
                     <label htmlFor="email" className="input-label">
                       Email
                     </label>
+
                     <input
                       id="email"
+                      name="email"
                       type="email"
                       className="input-field"
                       value={form.email}
@@ -573,8 +618,10 @@ export default function MACode() {
                     <label htmlFor="phone" className="input-label">
                       Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
                     </label>
+
                     <input
                       id="phone"
+                      name="phone"
                       type="tel"
                       className="input-field"
                       value={form.phone}
@@ -587,8 +634,10 @@ export default function MACode() {
                     <label htmlFor="projectType" className="input-label">
                       Tipo de projeto
                     </label>
+
                     <select
                       id="projectType"
+                      name="Tipo de projeto"
                       className="input-field"
                       value={form.projectType}
                       onChange={(e) => setForm({ ...form, projectType: e.target.value })}
@@ -597,6 +646,7 @@ export default function MACode() {
                       <option value="" disabled>
                         Selecione uma opção
                       </option>
+
                       {projectTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
@@ -610,8 +660,10 @@ export default function MACode() {
                   <label htmlFor="hasWebsite" className="input-label">
                     Já tem site?
                   </label>
+
                   <select
                     id="hasWebsite"
+                    name="Já tem site?"
                     className="input-field"
                     value={form.hasWebsite}
                     onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
@@ -630,8 +682,10 @@ export default function MACode() {
                   <label htmlFor="message" className="input-label">
                     Descreva o projeto
                   </label>
+
                   <textarea
                     id="message"
+                    name="message"
                     rows={6}
                     className="input-field input-textarea"
                     value={form.message}
