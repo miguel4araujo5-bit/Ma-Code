@@ -36,19 +36,31 @@ const cleanText = (value: string, maxLength: number) =>
     .trim()
     .slice(0, maxLength)
 
+const cleanMultilineText = (value: string, maxLength: number) =>
+  value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, maxLength)
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
 
     if (url.pathname !== '/api/contact') {
-      return new Response('Not Found', { status: 404 })
+      return json({ success: false, message: 'Endpoint não encontrado.' }, 404)
     }
 
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: {
-          Allow: 'POST, OPTIONS'
+          Allow: 'POST, OPTIONS',
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff'
         }
       })
     }
@@ -67,6 +79,18 @@ export default {
       )
     }
 
+    const contentType = request.headers.get('content-type') || ''
+
+    if (!contentType.toLowerCase().includes('application/json')) {
+      return json(
+        {
+          success: false,
+          message: 'Formato de pedido inválido.'
+        },
+        415
+      )
+    }
+
     const contentLength = Number(request.headers.get('content-length') || 0)
 
     if (contentLength > 25_000) {
@@ -79,56 +103,77 @@ export default {
       )
     }
 
+    let body: ContactBody
+
     try {
-      const body = (await request.json()) as ContactBody
+      body = (await request.json()) as ContactBody
+    } catch {
+      return json(
+        {
+          success: false,
+          message: 'Não foi possível ler os dados do formulário. Tente novamente.'
+        },
+        400
+      )
+    }
 
-      if (body.botcheck?.trim()) {
-        return json({
-          success: true,
-          message: 'Pedido enviado com sucesso.'
-        })
-      }
+    if (body.botcheck?.trim()) {
+      return json({
+        success: true,
+        message: 'Pedido enviado com sucesso.'
+      })
+    }
 
-      const name = cleanText(body.name || '', 120)
-      const email = cleanText(body.email || '', 180).toLowerCase()
-      const phone = cleanText(body.phone || '', 80)
-      const projectType = cleanText(body.projectType || '', 120)
-      const hasWebsite = cleanText(body.hasWebsite || '', 120)
-      const message = cleanText(body.message || '', 5000)
+    const name = cleanText(body.name || '', 120)
+    const email = cleanText(body.email || '', 180).toLowerCase()
+    const phone = cleanText(body.phone || '', 80)
+    const projectType = cleanText(body.projectType || '', 120)
+    const hasWebsite = cleanText(body.hasWebsite || '', 120)
+    const message = cleanMultilineText(body.message || '', 5000)
 
-      if (!name || !email || !message) {
-        return json({ success: false, message: 'Preencha todos os campos obrigatórios.' }, 400)
-      }
+    if (!name || !email || !message) {
+      return json({ success: false, message: 'Preencha todos os campos obrigatórios.' }, 400)
+    }
 
-      if (name.length < 2) {
-        return json({ success: false, message: 'Indique um nome válido.' }, 400)
-      }
+    if (name.length < 2) {
+      return json({ success: false, message: 'Indique um nome válido.' }, 400)
+    }
 
-      if (!isValidEmail(email)) {
-        return json({ success: false, message: 'Indique um email válido.' }, 400)
-      }
+    if (!isValidEmail(email)) {
+      return json({ success: false, message: 'Indique um email válido.' }, 400)
+    }
 
-      if (message.length < 10) {
-        return json(
-          {
-            success: false,
-            message: 'Descreva o projeto com um pouco mais de detalhe.'
-          },
-          400
-        )
-      }
+    if (message.length < 10) {
+      return json(
+        {
+          success: false,
+          message: 'Descreva o projeto com um pouco mais de detalhe.'
+        },
+        400
+      )
+    }
 
-      const fullMessage = [
-        projectType ? `Tipo de projeto: ${projectType}` : null,
-        hasWebsite ? `Já tem site: ${hasWebsite}` : null,
-        phone ? `Telefone/WhatsApp: ${phone}` : null,
-        '',
-        'Mensagem:',
-        message
-      ]
-        .filter((line) => line !== null)
-        .join('\n')
+    const fullMessage = [
+      'Novo pedido recebido através do site MA-Code.',
+      '',
+      `Nome: ${name}`,
+      `Email: ${email}`,
+      phone ? `Telefone/WhatsApp: ${phone}` : 'Telefone/WhatsApp: não indicado',
+      projectType ? `Tipo de projeto: ${projectType}` : 'Tipo de projeto: não indicado',
+      hasWebsite ? `Já tem site: ${hasWebsite}` : 'Já tem site: não indicado',
+      '',
+      'Mensagem:',
+      message,
+      '',
+      `Página: ${url.origin}`,
+      `Data: ${new Date().toISOString()}`
+    ].join('\n')
 
+    const subject = ['Pedido de proposta - MA-Code', projectType || null, name]
+      .filter(Boolean)
+      .join(' | ')
+
+    try {
       const web3Response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
@@ -137,7 +182,7 @@ export default {
         },
         body: JSON.stringify({
           access_key: env.WEB3FORMS_ACCESS_KEY,
-          subject: 'Pedido de orçamento - MA-Code',
+          subject,
           from_name: 'MA-Code Website',
           name,
           email,
@@ -183,9 +228,9 @@ export default {
       return json(
         {
           success: false,
-          message: 'Erro interno ao processar o pedido. Tente novamente.'
+          message: 'Erro ao comunicar com o serviço de envio. Tente novamente.'
         },
-        500
+        502
       )
     }
   }
