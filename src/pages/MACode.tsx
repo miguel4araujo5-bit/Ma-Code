@@ -4,7 +4,7 @@ import FeaturedProjects from '../components/FeaturedProjects'
 const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
 
 const marqueeItems = [
-  'Website desde 19€/mês',
+  'Websites desde 19€/mês',
   'Domínio + Alojamento',
   'Sites Mobile-First',
   'Lojas Online',
@@ -21,41 +21,41 @@ const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 const proofPoints = [
   {
     value: '19€/mês',
-    label: 'ponto de entrada',
-    description: 'Website simples com domínio e alojamento incluídos.'
+    label: 'plano de entrada',
+    description: 'Para websites simples com domínio e alojamento incluídos.'
   },
   {
     value: 'Mobile-first',
     label: 'pensado para telemóvel',
-    description: 'Layout rápido, claro e preparado para quem chega pelo smartphone.'
+    description: 'Experiência rápida, clara e preparada para quem chega pelo smartphone.'
   },
   {
     value: 'Evolutivo',
     label: 'cresce com o negócio',
-    description: 'Pode começar com um site e evoluir para loja, marcações, admin, IA ou app.'
+    description: 'Pode começar com um website e evoluir para loja, marcações, admin, IA ou app.'
   }
 ]
 
 const pathCards = [
   {
-    title: 'Começar simples',
-    eyebrow: 'Presença online',
+    title: 'Criar presença profissional',
+    eyebrow: 'Website',
     href: '/criacao-websites',
     cta: 'Ver criação de websites',
     description:
-      'Website profissional para apresentar o negócio, transmitir confiança e receber contactos, com domínio e alojamento incluídos.',
+      'Website profissional para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos com uma imagem cuidada.',
     points: ['Página inicial forte', 'Serviços bem explicados', 'Contactos e WhatsApp'],
-    outcome: 'Ideal para negócios que querem começar bem, sem complicar.'
+    outcome: 'Ideal para negócios que precisam de parecer profissionais desde o primeiro clique.'
   },
   {
-    title: 'Vender ou receber marcações',
+    title: 'Transformar visitas em pedidos',
     eyebrow: 'Conversão',
-    href: '/lojas-online',
-    cta: 'Ver lojas online',
+    href: '#servicos',
+    cta: 'Ver soluções de conversão',
     description:
-      'Loja online, sistema de marcações, formulários, WhatsApp e páginas preparadas para transformar visitas em pedidos reais.',
-    points: ['Catálogo ou agenda', 'Fluxo de pedido simples', 'Experiência clara no telemóvel'],
-    outcome: 'Ideal para quem quer transformar visitas em encomendas, reservas ou pedidos.'
+      'Páginas, formulários, WhatsApp, loja online ou marcações para transformar visitantes em pedidos, reservas, encomendas ou contactos reais.',
+    points: ['Pedido simples', 'Percurso claro', 'Experiência preparada para telemóvel'],
+    outcome: 'Ideal para quem já tem procura ou quer tornar o site mais útil para vender e captar clientes.'
   },
   {
     title: 'Criar um sistema à medida',
@@ -63,65 +63,65 @@ const pathCards = [
     href: '/automacao-ia',
     cta: 'Ver automação e IA',
     description:
-      'Áreas administrativas, bases de dados, automação, IA e integrações para organizar processos e reduzir trabalho manual.',
+      'Áreas administrativas, bases de dados, automações, IA e integrações para organizar processos e reduzir trabalho manual.',
     points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],
-    outcome: 'Ideal para negócios que precisam de organização, escala e menos trabalho manual.'
+    outcome: 'Ideal para negócios que precisam de mais organização, escala e controlo no dia a dia.'
   }
 ]
 
 const serviceCards = [
   {
-    title: 'Presença profissional',
+    title: 'Criação de websites profissionais',
     label: 'Website',
     href: '/criacao-websites',
     cta: 'Saber mais',
     description:
-      'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de parecer credíveis desde o primeiro clique.',
+      'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de apresentar serviços, gerar confiança e receber contactos.',
     bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']
   },
   {
-    title: 'Venda online',
+    title: 'Lojas online / e-commerce',
     label: 'E-commerce',
     href: '/lojas-online',
     cta: 'Saber mais',
     description:
-      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.',
+      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender com mais clareza.',
     bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']
   },
   {
-    title: 'Marcações automáticas',
+    title: 'Sistemas de marcação online',
     label: 'Agenda',
     href: '/sistemas-marcacao',
     cta: 'Saber mais',
     description:
-      'Sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários.',
+      'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de organizar horários, pedidos e disponibilidade.',
     bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']
   },
   {
-    title: 'Gestão interna',
+    title: 'Áreas administrativas e dashboards',
     label: 'Admin',
     href: '#orcamento',
     cta: 'Pedir proposta',
     description:
-      'Aplicações web, áreas administrativas, dashboards e ferramentas personalizadas para controlar informação e processos.',
+      'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir informação, pedidos, contas e processos internos.',
     bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']
   },
   {
-    title: 'Menos trabalho manual',
+    title: 'Automação e IA para negócios',
     label: 'Automação',
     href: '/automacao-ia',
     cta: 'Saber mais',
     description:
-      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas usadas no dia a dia.',
+      'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',
     bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']
   },
   {
-    title: 'Sistemas ligados',
+    title: 'Integrações API e sistemas ligados',
     label: 'Integrações',
     href: '#orcamento',
     cta: 'Pedir proposta',
     description:
-      'APIs, bases de dados, CRM, integrações externas e soluções técnicas para projetos que precisam de ir além do website.',
+      'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',
     bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']
   }
 ]
@@ -156,7 +156,7 @@ const processSteps = [
   },
   {
     title: '4. Publicamos online',
-    description: 'Colocamos tudo a funcionar com domínio, alojamento e uma base pronta para evoluir.'
+    description: 'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'
   }
 ]
 
@@ -227,11 +227,11 @@ export default function MACode() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Criação de Websites Profissionais e Lojas Online | MA-Code'
+    document.title = 'Criação de Websites Profissionais, Lojas Online e Apps | MA-Code'
 
     updateMeta(
       'description',
-      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios em Portugal. Website simples desde 19€/mês com domínio e alojamento.'
+      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web, áreas administrativas, automação e IA para negócios em Portugal. Planos de entrada desde 19€/mês.'
     )
 
     updateMeta(
@@ -251,12 +251,12 @@ export default function MACode() {
 
     updatePropertyMeta(
       'og:title',
-      'Criação de Websites Profissionais e Lojas Online | MA-Code'
+      'Criação de Websites Profissionais, Lojas Online e Apps | MA-Code'
     )
 
     updatePropertyMeta(
       'og:description',
-      'Websites rápidos, modernos e adaptados a telemóvel. Criamos sites, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos.'
+      'Criamos websites, lojas online, sistemas de marcação, aplicações web, áreas administrativas, automação e IA para negócios que querem vender, receber contactos e trabalhar com mais organização.'
     )
 
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -271,12 +271,12 @@ export default function MACode() {
 
     updateMeta(
       'twitter:title',
-      'Criação de Websites Profissionais e Lojas Online | MA-Code'
+      'Criação de Websites Profissionais, Lojas Online e Apps | MA-Code'
     )
 
     updateMeta(
       'twitter:description',
-      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web e automação com IA para negócios que querem receber mais contactos e vender melhor.'
+      'Websites, lojas online, sistemas de marcação, aplicações web, automação e IA para negócios que querem vender, receber contactos e trabalhar com mais organização.'
     )
 
     updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
@@ -380,22 +380,22 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites, lojas, marcações, automação e aplicações web</span>
+                <span>Websites, lojas online, marcações, automação e aplicações web</span>
               </div>
 
               <h1 className="hero-title">
-                Sites profissionais que parecem bem, carregam rápido e transformam visitas em
-                contactos.
+                Criamos soluções digitais que ajudam negócios reais a vender, receber contactos e
+                trabalhar com mais organização.
               </h1>
 
               <div className="hero-price-badge">
-                Website simples desde 19€/mês · domínio + alojamento incluídos
+                Planos de entrada desde 19€/mês · domínio + alojamento incluídos
               </div>
 
               <p className="hero-subtitle">
-                A MA-Code cria a presença digital certa para o seu negócio: primeiro um site claro e
-                credível, depois loja online, marcações, automação, IA ou área administrativa quando
-                fizer sentido evoluir.
+                A MA-Code desenvolve websites profissionais, lojas online, sistemas de marcação,
+                áreas administrativas, automações e soluções com IA. Pode começar com uma presença
+                simples e evoluir para uma plataforma mais completa quando o negócio precisar.
               </p>
 
               <div className="hero-actions">
@@ -509,12 +509,12 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Comece com o que precisa agora. Evolua quando o negócio pedir mais.
+              Comece com o que o negócio precisa agora. Evolua quando fizer sentido.
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Nem todos os negócios precisam da mesma solução. A MA-Code ajuda a escolher o caminho
-              certo: presença online, conversão ou sistema à medida.
+              Nem todos os projetos precisam de nascer complexos. A MA-Code ajuda a escolher a
+              solução certa: presença profissional, conversão ou sistema digital à medida.
             </p>
           </div>
 
@@ -571,7 +571,8 @@ export default function MACode() {
                 <span className="section-label">Do site ao sistema</span>
 
                 <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  A ideia não é vender “mais um site”. É criar uma base digital que possa crescer.
+                  A ideia não é entregar “mais um site”. É criar uma base digital que possa crescer
+                  com o negócio.
                 </h2>
 
                 <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
@@ -618,8 +619,9 @@ export default function MACode() {
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Do website simples à solução à medida: criamos a base digital certa para o negócio
-              parecer profissional, receber contactos e crescer com organização.
+              Do website simples à solução à medida: criamos a base digital certa para apresentar o
+              negócio, receber contactos, vender online, organizar marcações ou automatizar
+              processos.
             </p>
           </div>
 
@@ -865,7 +867,7 @@ export default function MACode() {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Exemplo: preciso de um website para o meu negócio, com apresentação dos serviços, contactos, botão de WhatsApp e possibilidade de evoluir para marcações online."
+                    placeholder="Exemplo: preciso de um website para apresentar o meu negócio, receber contactos por WhatsApp e, mais tarde, talvez evoluir para marcações online ou loja."
                   />
                 </div>
 
