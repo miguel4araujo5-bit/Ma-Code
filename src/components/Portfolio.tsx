@@ -65,7 +65,7 @@ function ProjectImageFrame({
         <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
 
         <div className="absolute right-3 top-2 z-20 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80 backdrop-blur-md">
-          Deslizar
+          Percorrer
         </div>
 
         <div
@@ -129,6 +129,9 @@ export default function Portfolio({ mounted }: PortfolioProps) {
 
 Olá, gostava de criar uma solução semelhante a este projeto.
 
+O que gostei neste exemplo:
+- ${project.proofPoints.join('\n- ')}
+
 Objetivo principal:
 Funcionalidades pretendidas:
 Já tenho site ou quero começar do zero:
@@ -139,6 +142,19 @@ Observações adicionais:`
       projectType: getSuggestedProjectType(project),
       message: suggestedMessage
     }))
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('portfolio-contact')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+
+      window.setTimeout(() => {
+        document.getElementById('portfolio-message')?.focus({
+          preventScroll: true
+        })
+      }, 350)
+    })
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -210,20 +226,20 @@ Observações adicionais:`
         <div className="mb-8 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
             <div className="mb-5 section-label-wrap">
-              <span className="section-label">Projetos selecionados</span>
+              <span className="section-label">Projetos publicados</span>
             </div>
 
             <h2
               id="portfolio-heading"
               className="text-3xl font-semibold tracking-tight text-white md:text-4xl"
             >
-              Projetos reais, publicados e feitos para resolver problemas concretos.
+              Soluções digitais criadas para resolver problemas concretos.
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Três exemplos de soluções criadas pela MA-Code: uma plataforma digital/PWA, um sistema
-              de marcações com área administrativa e uma loja online com e-commerce, analytics,
-              cookies, IA e backoffice.
+              Três exemplos de trabalho desenvolvido pela MA-Code: uma aplicação web/PWA para rádio
+              escolar, um sistema de marcações com área administrativa e uma loja online com
+              e-commerce, analytics, cookies, IA e backoffice.
             </p>
           </div>
 
@@ -435,14 +451,14 @@ Observações adicionais:`
                           <span className="relative z-10">Ver projeto publicado</span>
                         </a>
 
-                        <a
-                          href="#portfolio-contact"
+                        <button
+                          type="button"
                           onClick={() => handleProjectInquiry(project)}
                           className="btn-secondary hightech-button-secondary"
                           aria-label={`Pedir uma solução semelhante ao projeto ${project.title}`}
                         >
                           Quero uma solução semelhante
-                        </a>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -473,7 +489,8 @@ Observações adicionais:`
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
                 Escolha um dos exemplos acima como referência ou descreva uma ideia diferente.
-                Respondemos com uma proposta ajustada ao objetivo do projeto.
+                Respondemos com uma proposta ajustada ao objetivo, às funcionalidades necessárias e
+                ao ponto em que o seu negócio se encontra.
               </p>
 
               <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -625,7 +642,7 @@ Observações adicionais:`
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Exemplo: preciso de um website para o meu negócio, com apresentação dos serviços, contactos, botão de WhatsApp e possibilidade de evoluir para marcações online."
+                    placeholder="Exemplo: preciso de um website para apresentar o meu negócio, receber contactos por WhatsApp e, mais tarde, talvez evoluir para marcações online ou loja."
                   />
                 </div>
 
