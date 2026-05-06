@@ -20,19 +20,19 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Marcações + Área Admin',
       description:
-        'Sistema criado para transformar pedidos soltos em marcações organizadas, com uma presença profissional e um painel privado para gestão diária.',
+        'Website com marcações online, agenda privada, gestão de horários, cálculo diário de serviços e contacto rápido com clientes.',
       tags: ['Website', 'Marcações', 'Admin'],
-      outcome: 'Menos gestão manual. Mais pedidos organizados.'
+      outcome: 'Menos mensagens soltas. Mais marcações organizadas.'
     }
   }
 
   if (value.includes('porto') || value.includes('exotico') || value.includes('exótico')) {
     return {
-      label: 'Loja Online + Checkout',
+      label: 'Loja Online + IA',
       description:
-        'E-commerce preparado para apresentar produtos, receber encomendas, gerir carrinho, checkout, cookies, analytics e acompanhamento interno.',
-      tags: ['E-commerce', 'Checkout', 'Analytics'],
-      outcome: 'Venda online com estrutura profissional.'
+        'E-commerce com catálogo, carrinho, checkout, consentimento de cookies, analytics, assistente IA e backoffice de encomendas.',
+      tags: ['E-commerce', 'IA', 'Backoffice'],
+      outcome: 'Loja online preparada para vender, medir e gerir.'
     }
   }
 
@@ -40,9 +40,9 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Arquivo Digital + PWA',
       description:
-        'Plataforma institucional para organizar programas, episódios e arquivo digital, com experiência mobile e ligação a conteúdos existentes.',
+        'Plataforma web/PWA para organizar programas, episódios e conteúdos áudio, reaproveitando dados existentes no Google Drive da escola.',
       tags: ['PWA', 'Arquivo', 'Google Drive'],
-      outcome: 'Conteúdos mais acessíveis e organizados.'
+      outcome: 'Arquivo mais acessível, organizado e fácil de consultar.'
     }
   }
 
@@ -51,7 +51,7 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     description:
       'Solução web criada à medida, com foco em apresentação profissional, estrutura clara e utilização simples.',
     tags: ['Website', 'UX', 'Mobile'],
-    outcome: 'Uma solução adaptada ao objetivo real.'
+    outcome: 'Uma solução ajustada ao objetivo do projeto.'
   }
 }
 
@@ -64,7 +64,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
         <a
           href="/projetos"
           aria-label="Ver página completa de projetos da MA-Code"
-          className={`group block overflow-hidden rounded-[2.25rem] border border-cyan-300/15 bg-slate-950/70 p-5 no-underline shadow-2xl shadow-cyan-950/20 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-950/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 sm:p-6 md:p-8 ${
+          className={`group relative block overflow-hidden rounded-[2.25rem] border border-cyan-300/15 bg-slate-950/70 p-5 no-underline shadow-2xl shadow-cyan-950/20 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-950/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 sm:p-6 md:p-8 ${
             mounted ? 'animate-fade-in-up' : 'opacity-0'
           }`}
         >
@@ -86,8 +86,8 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
                   Websites, lojas online, sistemas de marcação, áreas administrativas e plataformas
-                  digitais criadas para negócios reais, com problemas concretos e funcionalidades
-                  úteis no dia a dia.
+                  digitais criadas para resolver necessidades concretas: receber contactos, vender,
+                  organizar processos e poupar tempo no dia a dia.
                 </p>
               </div>
 
@@ -97,8 +97,8 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 </p>
 
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Estes projetos mostram três níveis diferentes de trabalho: presença profissional,
-                  conversão online e sistemas digitais com gestão interna, arquivo, automação ou
+                  Estes projetos mostram três níveis de trabalho: presença profissional, conversão
+                  online e sistemas digitais com gestão interna, arquivo, IA, analytics ou
                   integrações.
                 </p>
               </div>
@@ -186,12 +186,12 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Ver os projetos completos com imagens e funcionalidades
+                  Ver projetos completos com imagens e funcionalidades
                 </p>
 
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  A página de portefólio mostra os projetos com mais detalhe: contexto, necessidade
-                  do cliente, funcionalidades, valor para o negócio e capturas reais.
+                  A página de portefólio mostra cada projeto com mais detalhe: contexto,
+                  necessidade do cliente, funcionalidades, valor prático e capturas reais.
                 </p>
               </div>
 
@@ -206,4 +206,3 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
     </section>
   )
 }
-
