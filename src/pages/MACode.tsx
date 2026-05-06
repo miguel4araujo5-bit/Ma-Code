@@ -18,72 +18,126 @@ const marqueeItems = [
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
+const proofPoints = [
+  {
+    value: '19€/mês',
+    label: 'ponto de entrada',
+    description: 'Website simples com domínio e alojamento incluídos.'
+  },
+  {
+    value: 'Mobile-first',
+    label: 'pensado para telemóvel',
+    description: 'Layout rápido, claro e preparado para quem chega pelo smartphone.'
+  },
+  {
+    value: 'Evolutivo',
+    label: 'cresce com o negócio',
+    description: 'Pode começar com um site e evoluir para loja, marcações, admin, IA ou app.'
+  }
+]
+
 const pathCards = [
   {
     title: 'Começar simples',
+    eyebrow: 'Presença online',
     href: '/criacao-websites',
     cta: 'Ver criação de websites',
     description:
-      'Website profissional para apresentar o negócio, transmitir confiança e receber contactos, com domínio e alojamento incluídos.'
+      'Website profissional para apresentar o negócio, transmitir confiança e receber contactos, com domínio e alojamento incluídos.',
+    points: ['Página inicial forte', 'Serviços bem explicados', 'Contactos e WhatsApp'],
+    outcome: 'Ideal para negócios que querem começar bem, sem complicar.'
   },
   {
     title: 'Vender ou receber marcações',
+    eyebrow: 'Conversão',
     href: '/lojas-online',
     cta: 'Ver lojas online',
     description:
-      'Loja online, sistema de marcações, formulários, WhatsApp e páginas preparadas para transformar visitas em pedidos reais.'
+      'Loja online, sistema de marcações, formulários, WhatsApp e páginas preparadas para transformar visitas em pedidos reais.',
+    points: ['Catálogo ou agenda', 'Fluxo de pedido simples', 'Experiência clara no telemóvel'],
+    outcome: 'Ideal para quem quer transformar visitas em encomendas, reservas ou pedidos.'
   },
   {
     title: 'Criar um sistema à medida',
+    eyebrow: 'Automação e gestão',
     href: '/automacao-ia',
     cta: 'Ver automação e IA',
     description:
-      'Áreas administrativas, bases de dados, automação, IA e integrações para organizar processos e reduzir trabalho manual.'
+      'Áreas administrativas, bases de dados, automação, IA e integrações para organizar processos e reduzir trabalho manual.',
+    points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],
+    outcome: 'Ideal para negócios que precisam de organização, escala e menos trabalho manual.'
   }
 ]
 
 const serviceCards = [
   {
     title: 'Presença profissional',
+    label: 'Website',
     href: '/criacao-websites',
     cta: 'Saber mais',
     description:
-      'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de parecer credíveis desde o primeiro clique.'
+      'Websites rápidos, modernos e adaptados a telemóvel para negócios que precisam de parecer credíveis desde o primeiro clique.',
+    bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']
   },
   {
     title: 'Venda online',
+    label: 'E-commerce',
     href: '/lojas-online',
     cta: 'Saber mais',
     description:
-      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.'
+      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos e receber encomendas.',
+    bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']
   },
   {
     title: 'Marcações automáticas',
+    label: 'Agenda',
     href: '/sistemas-marcacao',
     cta: 'Saber mais',
     description:
-      'Sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários.'
+      'Sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários.',
+    bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']
   },
   {
     title: 'Gestão interna',
+    label: 'Admin',
     href: '#orcamento',
     cta: 'Pedir proposta',
     description:
-      'Aplicações web, áreas administrativas, dashboards e ferramentas personalizadas para controlar informação e processos.'
+      'Aplicações web, áreas administrativas, dashboards e ferramentas personalizadas para controlar informação e processos.',
+    bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']
   },
   {
     title: 'Menos trabalho manual',
+    label: 'Automação',
     href: '/automacao-ia',
     cta: 'Saber mais',
     description:
-      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas usadas no dia a dia.'
+      'Automação de tarefas, integração de IA, formulários inteligentes e ligação entre ferramentas usadas no dia a dia.',
+    bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']
   },
   {
     title: 'Sistemas ligados',
+    label: 'Integrações',
     href: '#orcamento',
     cta: 'Pedir proposta',
     description:
-      'APIs, bases de dados, CRM, integrações externas e soluções técnicas para projetos que precisam de ir além do website.'
+      'APIs, bases de dados, CRM, integrações externas e soluções técnicas para projetos que precisam de ir além do website.',
+    bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']
+  }
+]
+
+const evolutionSteps = [
+  {
+    title: 'Primeiro: presença',
+    description: 'Um website claro, rápido e credível para explicar o negócio e receber contactos.'
+  },
+  {
+    title: 'Depois: conversão',
+    description: 'Formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'
+  },
+  {
+    title: 'Quando fizer sentido: sistema',
+    description: 'Área administrativa, automação, IA, integrações e ferramentas para gerir processos.'
   }
 ]
 
@@ -109,6 +163,7 @@ const processSteps = [
 const projectTypes = [
   'Website simples',
   'Website profissional',
+  'Redesign de website existente',
   'Loja online',
   'Sistema de marcações',
   'Aplicação web',
@@ -302,7 +357,7 @@ export default function MACode() {
       <div className="site-grid" />
       <div className="site-noise" />
 
-      <section className="relative overflow-hidden px-5 pb-14 pt-6 sm:px-6 md:px-10 md:pb-20 md:pt-8">
+      <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
         <div className="mx-auto max-w-7xl">
           <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
             <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
@@ -325,12 +380,12 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Website simples desde 19€/mês com domínio e alojamento</span>
+                <span>Websites, lojas, marcações, automação e aplicações web</span>
               </div>
 
               <h1 className="hero-title">
-                Websites profissionais para negócios que querem receber mais contactos e vender
-                melhor.
+                Sites profissionais que parecem bem, carregam rápido e transformam visitas em
+                contactos.
               </h1>
 
               <div className="hero-price-badge">
@@ -338,9 +393,9 @@ export default function MACode() {
               </div>
 
               <p className="hero-subtitle">
-                Criamos sites rápidos, bonitos e adaptados a telemóvel. Começamos pelo essencial e
-                evoluímos quando o negócio precisa de loja online, marcações, automação, IA ou área
-                administrativa.
+                A MA-Code cria a presença digital certa para o seu negócio: primeiro um site claro e
+                credível, depois loja online, marcações, automação, IA ou área administrativa quando
+                fizer sentido evoluir.
               </p>
 
               <div className="hero-actions">
@@ -350,7 +405,7 @@ export default function MACode() {
                 </a>
 
                 <a href="/projetos" className="btn-secondary hightech-button-secondary">
-                  Ver projetos
+                  Ver projetos reais
                 </a>
               </div>
 
@@ -372,27 +427,64 @@ export default function MACode() {
                     <span />
                   </div>
 
-                  <span className="hero-panel__label">MA-Code Interface</span>
+                  <span className="hero-panel__label">Plano MA-Code</span>
                 </div>
 
                 <div className="hero-panel__content">
-                  <div className="hud-card">
-                    <span className="hud-card__label">Entrada</span>
-                    <strong>Website profissional</strong>
-                  </div>
-
-                  <div className="hud-card">
-                    <span className="hud-card__label">Incluído</span>
-                    <strong>Domínio + alojamento</strong>
-                  </div>
-
                   <div className="hud-card hud-card--wide">
-                    <span className="hud-card__label">Evolução</span>
-                    <strong>Loja online, marcações, área admin, automação e IA</strong>
+                    <span className="hud-card__label">Entrada recomendada</span>
+                    <strong>Website profissional pronto para receber contactos</strong>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="hud-card">
+                      <span className="hud-card__label">Inclui</span>
+                      <strong>Domínio + alojamento</strong>
+                    </div>
+
+                    <div className="hud-card">
+                      <span className="hud-card__label">Foco</span>
+                      <strong>Mobile, clareza e conversão</strong>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-5">
+                    <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+                      Evolução possível
+                    </span>
+
+                    <div className="grid gap-3 text-sm text-slate-200">
+                      <span>→ Loja online e checkout</span>
+                      <span>→ Sistema de marcações</span>
+                      <span>→ Área administrativa</span>
+                      <span>→ Automação, IA e integrações</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {proofPoints.map((point, index) => (
+              <article
+                key={point.label}
+                className={`rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur ${
+                  mounted ? 'animate-fade-in-up' : 'opacity-0'
+                }`}
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <strong className="block text-xl font-semibold tracking-tight text-white">
+                  {point.value}
+                </strong>
+
+                <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                  {point.label}
+                </span>
+
+                <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
+              </article>
+            ))}
           </div>
 
           <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
@@ -417,12 +509,12 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Comece simples. Evolua quando precisar.
+              Comece com o que precisa agora. Evolua quando o negócio pedir mais.
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
               Nem todos os negócios precisam da mesma solução. A MA-Code ajuda a escolher o caminho
-              certo sem complicar.
+              certo: presença online, conversão ou sistema à medida.
             </p>
           </div>
 
@@ -431,18 +523,83 @@ export default function MACode() {
               <a
                 key={card.title}
                 href={card.href}
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
-                <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
-                <h3 className="service-card__title">{card.title}</h3>
+
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                      {card.eyebrow}
+                    </span>
+
+                    <h3 className="service-card__title">{card.title}</h3>
+                  </div>
+
+                  <div className="service-card__index">
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                </div>
+
                 <p className="service-card__description">{card.description}</p>
+
+                <ul className="mt-5 space-y-2 text-sm text-slate-200/90">
+                  {card.points.map((point) => (
+                    <li key={point}>• {point}</li>
+                  ))}
+                </ul>
+
+                <p className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4 text-sm leading-6 text-cyan-50/90">
+                  {card.outcome}
+                </p>
+
                 <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
                   {card.cta} →
                 </span>
               </a>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <span className="section-label">Do site ao sistema</span>
+
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                  A ideia não é vender “mais um site”. É criar uma base digital que possa crescer.
+                </h2>
+
+                <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
+                  Muitos negócios começam por precisar apenas de uma presença profissional. Depois
+                  surgem pedidos, marcações, vendas, gestão interna, automação ou integrações. A
+                  estrutura é pensada para não fechar portas a essa evolução.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                {evolutionSteps.map((step, index) => (
+                  <article
+                    key={step.title}
+                    className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+                  >
+                    <div className="mb-2 flex items-center gap-3">
+                      <span className="flex size-8 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-sm font-bold text-cyan-100">
+                        {index + 1}
+                      </span>
+
+                      <h3 className="font-semibold text-white">{step.title}</h3>
+                    </div>
+
+                    <p className="text-sm leading-6 text-slate-300">{step.description}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -457,7 +614,7 @@ export default function MACode() {
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Soluções para lançar, vender e automatizar
+              Escolha pelo problema que quer resolver
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
@@ -475,9 +632,26 @@ export default function MACode() {
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="service-card__line" />
-                <div className="service-card__index">{String(index + 1).padStart(2, '0')}</div>
+
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                    {card.label}
+                  </span>
+
+                  <div className="service-card__index">
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                </div>
+
                 <h3 className="service-card__title">{card.title}</h3>
                 <p className="service-card__description">{card.description}</p>
+
+                <ul className="mt-5 grid gap-2 text-sm text-slate-200/90">
+                  {card.bullets.map((bullet) => (
+                    <li key={bullet}>• {bullet}</li>
+                  ))}
+                </ul>
+
                 <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
                   {card.cta} →
                 </span>
@@ -499,7 +673,8 @@ export default function MACode() {
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada.
+              O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada,
+              sem linguagem técnica desnecessária nem decisões confusas.
             </p>
           </div>
 
@@ -528,7 +703,7 @@ export default function MACode() {
 
               <p className="contact-side-panel__text">
                 Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
-                projeto.
+                projeto, ao estado atual do negócio e ao nível de funcionalidade necessário.
               </p>
 
               <div className="contact-metrics">
