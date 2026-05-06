@@ -8,6 +8,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 1.5rem;
   overflow-x: hidden;
 }
 
@@ -65,6 +66,15 @@ body {
     -webkit-tap-highlight-color: transparent;
   }
 
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   img,
   svg,
   video,
@@ -88,11 +98,17 @@ body {
   details summary::-webkit-details-marker {
     display: none;
   }
+
+  div[aria-label^='Percorrer screenshot'] {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    touch-action: pan-y;
+  }
 }
 
 @layer components {
   .site-shell {
-    @apply relative min-h-screen overflow-hidden;
+    @apply relative min-h-screen overflow-x-hidden;
   }
 
   .site-grid {
