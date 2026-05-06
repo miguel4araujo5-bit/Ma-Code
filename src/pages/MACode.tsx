@@ -305,16 +305,15 @@ export default function MACode() {
       <section className="relative overflow-hidden px-5 pb-14 pt-6 sm:px-6 md:px-10 md:pb-20 md:pt-8">
         <div className="mx-auto max-w-7xl">
           <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
-            <a href="/" className="brand-mark" aria-label="MA-Code - Página inicial">
+            <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
               <img
-                src="/logo.svg"
-                srcSet="/logo.svg 1x, /ma-code.png 2x"
-                alt="MA-Code"
-                className="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16 md:h-20 md:w-20"
+                src="/ma-code.png"
+                alt="MA-Code.pt"
+                className="shrink-0 object-contain"
                 loading="eager"
                 decoding="async"
               />
-              <span>MA-Code</span>
+              <span>MA-Code.pt</span>
             </a>
 
             <a href="#orcamento" className="btn-ghost text-sm sm:text-base">
