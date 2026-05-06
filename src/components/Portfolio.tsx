@@ -221,14 +221,9 @@ Observações adicionais:`
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Aqui não mostramos apenas páginas bonitas. Mostramos soluções digitais com estratégia,
-              funcionalidades úteis, experiência mobile, áreas administrativas, automação,
-              integrações, arquivo digital, e-commerce e sistemas de marcação.
-            </p>
-
-            <p className="mt-3 max-w-3xl text-xs leading-6 text-cyan-100/80 md:text-sm">
-              Use estes projetos como referência para perceber o tipo de solução que a MA-Code pode
-              criar para o seu negócio.
+              Três exemplos de soluções criadas pela MA-Code: uma plataforma digital/PWA, um sistema
+              de marcações com área administrativa e uma loja online com e-commerce, analytics,
+              cookies, IA e backoffice.
             </p>
           </div>
 
@@ -254,40 +249,6 @@ Observações adicionais:`
               </a>
             ))}
           </nav>
-        </div>
-
-        <div className="mb-8 rounded-[2rem] border border-cyan-300/15 bg-cyan-300/[0.05] p-5 md:p-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
-                O que vai ver
-              </span>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                Três projetos com objetivos diferentes: plataforma digital, sistema de marcações e
-                loja online.
-              </p>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
-                Como ler a página
-              </span>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                Primeiro veja o objetivo e o valor prático. Depois explore as funcionalidades e as
-                imagens.
-              </p>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
-                Nas molduras
-              </span>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                Deslize dentro das imagens para ver o ecrã completo ou abra a captura em tamanho
-                maior.
-              </p>
-            </div>
-          </div>
         </div>
 
         <div className="grid gap-8">
@@ -342,15 +303,9 @@ Observações adicionais:`
                       </p>
                     </div>
 
-                    <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/[0.05] p-5">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
-                        Em resumo
-                      </span>
-
-                      <p className="mt-3 text-sm leading-7 text-slate-200">
-                        {project.teaser}
-                      </p>
-                    </div>
+                    <p className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/[0.05] p-5 text-sm leading-7 text-slate-200">
+                      {project.teaser}
+                    </p>
                   </div>
 
                   <div className="grid gap-8 xl:grid-cols-[minmax(18rem,0.82fr)_minmax(0,1.18fr)] xl:items-start">
@@ -378,7 +333,7 @@ Observações adicionais:`
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Necessidade do cliente
+                            Necessidade
                           </span>
 
                           <p className="mt-3 text-sm leading-7 text-slate-200">
@@ -402,20 +357,14 @@ Observações adicionais:`
                         </div>
                       </div>
 
-                      <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="mt-5 flex flex-wrap gap-2">
                         {project.proofPoints.map((point) => (
-                          <div
+                          <span
                             key={point}
-                            className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs font-semibold leading-5 text-cyan-50"
+                            className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-xs font-semibold text-cyan-50"
                           >
                             {point}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300 md:text-base">
-                        {project.description.split('\n\n').map((paragraph) => (
-                          <p key={paragraph}>{paragraph}</p>
+                          </span>
                         ))}
                       </div>
 
@@ -445,36 +394,22 @@ Observações adicionais:`
                         </div>
                       </div>
 
-                      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.86fr]">
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Destaques
-                          </span>
+                      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                          Entregue
+                        </span>
 
-                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                            {project.highlights.map((highlight) => (
-                              <li key={highlight} className="flex gap-3">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,0.65)]" />
-                                <span>{highlight}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                            Entregue
-                          </span>
-
-                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                            {project.deliverables.map((deliverable) => (
-                              <li key={deliverable} className="flex gap-3">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
-                                <span>{deliverable}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {project.deliverables.map((deliverable) => (
+                            <li
+                              key={deliverable}
+                              className="flex gap-3 text-sm leading-6 text-slate-200"
+                            >
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
+                              <span>{deliverable}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
 
                       <div className="mt-5 flex flex-wrap gap-2" aria-label="Tecnologias usadas">
@@ -537,22 +472,20 @@ Observações adicionais:`
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                Diga-nos o que pretende criar e respondemos com uma proposta ajustada ao tipo de
-                projeto. Pode usar um dos exemplos acima como referência: loja online, sistema de
-                marcações, painel administrativo, PWA, automação, IA ou integração com dados
-                existentes.
+                Escolha um dos exemplos acima como referência ou descreva uma ideia diferente.
+                Respondemos com uma proposta ajustada ao objetivo do projeto.
               </p>
 
               <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                  Para uma resposta mais certeira, indique:
+                  Para orientar a proposta
                 </span>
 
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                  <li>• Que tipo de projeto pretende</li>
-                  <li>• Se já tem site ou quer começar do zero</li>
-                  <li>• Se precisa de loja, marcações, área admin, automação ou IA</li>
-                  <li>• Qual é o principal objetivo: contactos, vendas, reservas ou organização</li>
+                  <li>• Tipo de projeto pretendido</li>
+                  <li>• Se já existe site, domínio ou conteúdos</li>
+                  <li>• Funcionalidades necessárias: loja, marcações, admin, automação ou IA</li>
+                  <li>• Objetivo principal: contactos, vendas, reservas ou organização interna</li>
                 </ul>
               </div>
             </div>
