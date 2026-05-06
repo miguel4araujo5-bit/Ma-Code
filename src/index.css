@@ -157,14 +157,16 @@ body {
   }
 
   .brand-mark img {
-    width: 3.25rem;
-    height: 3.25rem;
-    object-fit: contain;
-    flex-shrink: 0;
-    filter:
-      drop-shadow(0 0 8px rgba(34, 211, 238, 0.18))
-      drop-shadow(0 0 16px rgba(139, 92, 246, 0.1));
-  }
+  width: 3.25rem;
+  height: 3.25rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 0.8rem;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(7, 89, 133, 0.08),
+    0 8px 18px rgba(2, 8, 23, 0.08);
+}
 
   .brand-mark span:last-child {
   position: relative;
