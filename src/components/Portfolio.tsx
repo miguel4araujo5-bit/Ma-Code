@@ -12,6 +12,7 @@ const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
 const projectTypes = [
   'Website simples',
   'Website profissional',
+  'Redesign de website existente',
   'Loja online',
   'Sistema de marcações',
   'Aplicação web',
@@ -40,10 +41,14 @@ function getProjectDomainLabel(project: PortfolioProject) {
   return getProjectDomain(project.href)
 }
 
+function getProjectPosition(index: number) {
+  return String(index + 1).padStart(2, '0')
+}
+
 function ProjectImageFrame({
   image,
   featured = false,
-  eager = false,
+  eager = false
 }: {
   image: ProjectScreenshot
   featured?: boolean
@@ -52,7 +57,7 @@ function ProjectImageFrame({
   return (
     <figure
       className={`group relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-sky-500/10 via-slate-950 to-violet-500/10 p-2 shadow-2xl shadow-sky-950/20 transition duration-500 hover:-translate-y-1 hover:border-cyan-300/25 ${
-        featured ? 'mx-auto w-full max-w-[38rem]' : 'mx-auto w-full max-w-[24rem]'
+        featured ? 'mx-auto w-full max-w-[42rem]' : 'mx-auto w-full max-w-[24rem]'
       }`}
       aria-label={`Imagem do projeto: ${image.caption}`}
     >
@@ -65,7 +70,7 @@ function ProjectImageFrame({
 
         <div
           className={`relative w-full overflow-y-auto overflow-x-hidden scroll-smooth px-2 pb-3 pt-7 overscroll-contain focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 ${
-            featured ? 'max-h-[62vh] md:max-h-[38rem]' : 'max-h-[48vh] md:max-h-[30rem]'
+            featured ? 'max-h-[64vh] md:max-h-[42rem]' : 'max-h-[44vh] md:max-h-[28rem]'
           }`}
           tabIndex={0}
           aria-label={`Percorrer screenshot: ${image.caption}`}
@@ -109,7 +114,7 @@ export default function Portfolio({ mounted }: PortfolioProps) {
     projectType: '',
     hasWebsite: '',
     message: '',
-    botcheck: '',
+    botcheck: ''
   })
 
   const [isSending, setIsSending] = useState(false)
@@ -131,8 +136,8 @@ Observações adicionais:`
 
     setForm((currentForm) => ({
       ...currentForm,
-      projectType: currentForm.projectType || getSuggestedProjectType(project),
-      message: currentForm.message || suggestedMessage,
+      projectType: getSuggestedProjectType(project),
+      message: suggestedMessage
     }))
   }
 
@@ -152,7 +157,7 @@ Observações adicionais:`
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json',
+          Accept: 'application/json'
         },
         body: JSON.stringify({
           access_key: web3FormsAccessKey,
@@ -164,8 +169,8 @@ Observações adicionais:`
           'Tipo de projeto': form.projectType,
           'Já tem site?': form.hasWebsite || 'Não indicado',
           message: form.message,
-          botcheck: form.botcheck,
-        }),
+          botcheck: form.botcheck
+        })
       })
 
       const data = (await response.json()) as {
@@ -178,6 +183,7 @@ Observações adicionais:`
       }
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
+
       setForm({
         name: '',
         email: '',
@@ -185,7 +191,7 @@ Observações adicionais:`
         projectType: '',
         hasWebsite: '',
         message: '',
-        botcheck: '',
+        botcheck: ''
       })
     } catch {
       setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
@@ -201,7 +207,7 @@ Observações adicionais:`
       aria-labelledby="portfolio-heading"
     >
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+        <div className="mb-8 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
             <div className="mb-5 section-label-wrap">
               <span className="section-label">Projetos selecionados</span>
@@ -211,23 +217,23 @@ Observações adicionais:`
               id="portfolio-heading"
               className="text-3xl font-semibold tracking-tight text-white md:text-4xl"
             >
-              Projetos reais com estratégia, desenvolvimento e funcionalidades à medida.
+              Projetos reais, publicados e feitos para resolver problemas concretos.
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Aqui não mostramos apenas páginas bonitas. Mostramos sistemas publicados, lojas online,
-              aplicações PWA, áreas administrativas, automações, integrações e ferramentas digitais
-              criadas para resolver problemas concretos.
+              Aqui não mostramos apenas páginas bonitas. Mostramos soluções digitais com estratégia,
+              funcionalidades úteis, experiência mobile, áreas administrativas, automação,
+              integrações, arquivo digital, e-commerce e sistemas de marcação.
             </p>
 
             <p className="mt-3 max-w-3xl text-xs leading-6 text-cyan-100/80 md:text-sm">
-              Escolha um projeto para ver o que foi criado, que funcionalidades foram implementadas e
-              que valor prático a solução trouxe ao cliente.
+              Use estes projetos como referência para perceber o tipo de solução que a MA-Code pode
+              criar para o seu negócio.
             </p>
           </div>
 
           <nav className="grid gap-3 sm:grid-cols-3" aria-label="Navegação rápida pelos projetos">
-            {portfolioProjects.map((project) => (
+            {portfolioProjects.map((project, index) => (
               <a
                 key={project.slug}
                 href={`#${project.slug}`}
@@ -235,17 +241,53 @@ Observações adicionais:`
                 aria-label={`Ver detalhes do projeto ${project.title}`}
               >
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                  Ver caso
+                  Caso {getProjectPosition(index)}
                 </span>
+
                 <strong className="mt-2 block text-sm font-semibold text-white">
                   {project.title}
                 </strong>
+
                 <span className="mt-1 block text-xs leading-5 text-slate-400">
                   {project.teaser}
                 </span>
               </a>
             ))}
           </nav>
+        </div>
+
+        <div className="mb-8 rounded-[2rem] border border-cyan-300/15 bg-cyan-300/[0.05] p-5 md:p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
+                O que vai ver
+              </span>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Três projetos com objetivos diferentes: plataforma digital, sistema de marcações e
+                loja online.
+              </p>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
+                Como ler a página
+              </span>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Primeiro veja o objetivo e o valor prático. Depois explore as funcionalidades e as
+                imagens.
+              </p>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/75">
+                Nas molduras
+              </span>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Deslize dentro das imagens para ver o ecrã completo ou abra a captura em tamanho
+                maior.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-8">
@@ -265,167 +307,209 @@ Observações adicionais:`
               >
                 <div className="service-card__line" />
 
-                <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,0.98fr)_minmax(22rem,0.82fr)] xl:items-start">
-                  <div className="min-w-0">
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
-                      <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-200">
-                        {project.category}
-                      </span>
+                <div className="relative z-10">
+                  <div className="mb-8 grid gap-6 xl:grid-cols-[0.92fr_1.08fr] xl:items-end">
+                    <div>
+                      <div className="mb-4 flex flex-wrap items-center gap-3">
+                        <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-200">
+                          Caso {getProjectPosition(index)}
+                        </span>
 
-                      <a
-                        href={project.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50"
-                        aria-label={`Abrir website do projeto ${project.title}`}
-                      >
-                        {getProjectDomain(project.href)}
-                      </a>
-                    </div>
+                        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">
+                          {project.category}
+                        </span>
 
-                    <h2
-                      id={`${project.slug}-title`}
-                      className="service-card__title text-2xl md:text-3xl"
-                    >
-                      {project.title}
-                    </h2>
-
-                    <p className="mt-2 text-sm font-medium text-sky-100/90 md:text-base">
-                      {project.subtitle}
-                    </p>
-
-                    <div className="mt-4 space-y-4 text-sm leading-7 text-slate-300 md:text-base">
-                      {project.description.split('\n\n').map((paragraph) => (
-                        <p key={paragraph}>{paragraph}</p>
-                      ))}
-                    </div>
-
-                    <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      {project.proofPoints.map((point) => (
-                        <li
-                          key={point}
-                          className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs font-semibold leading-5 text-cyan-50"
+                        <a
+                          href={project.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+                          aria-label={`Abrir website do projeto ${project.title}`}
                         >
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
+                          {getProjectDomain(project.href)}
+                        </a>
+                      </div>
 
-                    <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                        Necessidade do cliente
-                      </span>
-                      <p className="mt-3 text-sm leading-7 text-slate-200">
-                        {project.clientNeed}
+                      <h2
+                        id={`${project.slug}-title`}
+                        className="service-card__title text-2xl md:text-3xl"
+                      >
+                        {project.title}
+                      </h2>
+
+                      <p className="mt-2 text-sm font-medium text-sky-100/90 md:text-base">
+                        {project.subtitle}
                       </p>
                     </div>
 
-                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                      {project.featureGroups.map((group) => (
-                        <div
-                          key={group.title}
-                          className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
-                        >
-                          <h3 className="text-sm font-semibold text-white">{group.title}</h3>
+                    <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/[0.05] p-5">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
+                        Em resumo
+                      </span>
 
-                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                            {group.items.map((item) => (
-                              <li key={item} className="flex gap-3">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.65)]" />
-                                <span>{item}</span>
+                      <p className="mt-3 text-sm leading-7 text-slate-200">
+                        {project.teaser}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-8 xl:grid-cols-[minmax(18rem,0.82fr)_minmax(0,1.18fr)] xl:items-start">
+                    <div className="min-w-0 space-y-5 xl:sticky xl:top-6">
+                      {featuredImage ? (
+                        <ProjectImageFrame image={featuredImage} featured eager={index === 0} />
+                      ) : null}
+
+                      {galleryImages.length > 0 ? (
+                        <details className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                          <summary className="cursor-pointer text-sm font-semibold text-cyan-100 transition hover:text-white">
+                            Ver mais imagens do projeto
+                          </summary>
+
+                          <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+                            {galleryImages.map((image) => (
+                              <ProjectImageFrame key={image.src} image={image} />
+                            ))}
+                          </div>
+                        </details>
+                      ) : null}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                            Necessidade do cliente
+                          </span>
+
+                          <p className="mt-3 text-sm leading-7 text-slate-200">
+                            {project.clientNeed}
+                          </p>
+                        </div>
+
+                        <div className="rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.06] p-5">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
+                            Valor prático
+                          </span>
+
+                          <ul className="mt-4 space-y-3 text-sm leading-6 text-cyan-50">
+                            {project.businessValue.map((value) => (
+                              <li key={value} className="flex gap-3">
+                                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.65)]" />
+                                <span>{value}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
-                      <div className="rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.06] p-5">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
-                          Valor prático
-                        </span>
-
-                        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                          {project.businessValue.map((value) => (
-                            <li
-                              key={value}
-                              className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-sm leading-6 text-cyan-50"
-                            >
-                              {value}
-                            </li>
-                          ))}
-                        </ul>
                       </div>
 
-                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                      <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {project.proofPoints.map((point) => (
+                          <div
+                            key={point}
+                            className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs font-semibold leading-5 text-cyan-50"
+                          >
+                            {point}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300 md:text-base">
+                        {project.description.split('\n\n').map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+                      </div>
+
+                      <div className="mt-6">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-                          Entregue
+                          Funcionalidades principais
                         </span>
 
-                        <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                          {project.deliverables.map((deliverable) => (
-                            <li key={deliverable} className="flex gap-3">
-                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
-                              <span>{deliverable}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                          {project.featureGroups.map((group) => (
+                            <div
+                              key={group.title}
+                              className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                            >
+                              <h3 className="text-sm font-semibold text-white">{group.title}</h3>
 
-                    <div className="mt-5 flex flex-wrap gap-2" aria-label="Tecnologias usadas">
-                      {project.technologies.map((technology) => (
-                        <span
-                          key={technology}
-                          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300"
-                        >
-                          {technology}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <a
-                        href={project.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-primary hightech-button"
-                        aria-label={`Ver projeto publicado: ${project.title}`}
-                      >
-                        <span className="btn-shine" />
-                        <span className="relative z-10">Ver projeto publicado</span>
-                      </a>
-
-                      <a
-                        href="#portfolio-contact"
-                        onClick={() => handleProjectInquiry(project)}
-                        className="btn-secondary hightech-button-secondary"
-                        aria-label={`Pedir uma solução semelhante ao projeto ${project.title}`}
-                      >
-                        Quero uma solução semelhante
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 space-y-5 xl:sticky xl:top-6">
-                    {featuredImage ? (
-                      <ProjectImageFrame image={featuredImage} featured eager={index === 0} />
-                    ) : null}
-
-                    {galleryImages.length > 0 && (
-                      <details className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-                        <summary className="cursor-pointer text-sm font-semibold text-cyan-100 transition hover:text-white">
-                          Ver mais imagens do projeto
-                        </summary>
-
-                        <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
-                          {galleryImages.map((image) => (
-                            <ProjectImageFrame key={image.src} image={image} />
+                              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                {group.items.map((item) => (
+                                  <li key={item} className="flex gap-3">
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.65)]" />
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           ))}
                         </div>
-                      </details>
-                    )}
+                      </div>
+
+                      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.86fr]">
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                            Destaques
+                          </span>
+
+                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
+                            {project.highlights.map((highlight) => (
+                              <li key={highlight} className="flex gap-3">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,0.65)]" />
+                                <span>{highlight}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+                            Entregue
+                          </span>
+
+                          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-200">
+                            {project.deliverables.map((deliverable) => (
+                              <li key={deliverable} className="flex gap-3">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.65)]" />
+                                <span>{deliverable}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap gap-2" aria-label="Tecnologias usadas">
+                        {project.technologies.map((technology) => (
+                          <span
+                            key={technology}
+                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300"
+                          >
+                            {technology}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="mt-6 flex flex-wrap gap-3">
+                        <a
+                          href={project.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary hightech-button"
+                          aria-label={`Ver projeto publicado: ${project.title}`}
+                        >
+                          <span className="btn-shine" />
+                          <span className="relative z-10">Ver projeto publicado</span>
+                        </a>
+
+                        <a
+                          href="#portfolio-contact"
+                          onClick={() => handleProjectInquiry(project)}
+                          className="btn-secondary hightech-button-secondary"
+                          aria-label={`Pedir uma solução semelhante ao projeto ${project.title}`}
+                        >
+                          Quero uma solução semelhante
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -449,7 +533,7 @@ Observações adicionais:`
               </span>
 
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                Quer uma solução semelhante para o seu negócio?
+                Quer criar uma solução semelhante para o seu negócio?
               </h2>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
@@ -474,7 +558,12 @@ Observações adicionais:`
             </div>
 
             <div className="form-shell">
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form
+                action="https://api.web3forms.com/submit"
+                method="POST"
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
                 <input type="hidden" name="access_key" value={web3FormsAccessKey} />
                 <input type="hidden" name="subject" value="Pedido de orçamento - MA-Code" />
                 <input type="hidden" name="from_name" value="MA-Code Website" />
@@ -494,6 +583,7 @@ Observações adicionais:`
                     <label htmlFor="portfolio-name" className="input-label">
                       Nome
                     </label>
+
                     <input
                       id="portfolio-name"
                       name="name"
@@ -510,6 +600,7 @@ Observações adicionais:`
                     <label htmlFor="portfolio-email" className="input-label">
                       Email
                     </label>
+
                     <input
                       id="portfolio-email"
                       name="email"
@@ -528,6 +619,7 @@ Observações adicionais:`
                     <label htmlFor="portfolio-phone" className="input-label">
                       Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
                     </label>
+
                     <input
                       id="portfolio-phone"
                       name="phone"
@@ -543,15 +635,19 @@ Observações adicionais:`
                     <label htmlFor="portfolio-project-type" className="input-label">
                       Tipo de projeto
                     </label>
+
                     <select
                       id="portfolio-project-type"
-                      name="projectType"
+                      name="Tipo de projeto"
                       className="input-field"
                       value={form.projectType}
                       onChange={(e) => setForm({ ...form, projectType: e.target.value })}
                       required
                     >
-                      <option value="">Selecione uma opção</option>
+                      <option value="" disabled>
+                        Selecione uma opção
+                      </option>
+
                       {projectTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
@@ -565,9 +661,10 @@ Observações adicionais:`
                   <label htmlFor="portfolio-has-website" className="input-label">
                     Já tem site?
                   </label>
+
                   <select
                     id="portfolio-has-website"
-                    name="hasWebsite"
+                    name="Já tem site?"
                     className="input-field"
                     value={form.hasWebsite}
                     onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
@@ -586,10 +683,12 @@ Observações adicionais:`
                   <label htmlFor="portfolio-message" className="input-label">
                     Descreva o projeto
                   </label>
+
                   <textarea
                     id="portfolio-message"
                     name="message"
-                    className="input-field min-h-36 resize-y"
+                    rows={7}
+                    className="input-field input-textarea"
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
@@ -619,6 +718,7 @@ Observações adicionais:`
                   disabled={isSending}
                 >
                   <span className="btn-shine" />
+
                   <span className="relative z-10">
                     {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
                   </span>
