@@ -10,6 +10,7 @@ type ProjectProof = {
   label: string
   description: string
   tags: string[]
+  outcome: string
 }
 
 function getProjectProof(project: PortfolioProject): ProjectProof {
@@ -19,8 +20,9 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Marcações + Área Admin',
       description:
-        'Website profissional com marcações online, experiência mobile e painel administrativo para gestão do negócio.',
-      tags: ['Website', 'Marcações', 'Admin']
+        'Sistema criado para transformar pedidos soltos em marcações organizadas, com uma presença profissional e um painel privado para gestão diária.',
+      tags: ['Website', 'Marcações', 'Admin'],
+      outcome: 'Menos gestão manual. Mais pedidos organizados.'
     }
   }
 
@@ -28,17 +30,19 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Loja Online + Checkout',
       description:
-        'E-commerce com catálogo, carrinho de compras, checkout e estrutura preparada para venda online.',
-      tags: ['E-commerce', 'Carrinho', 'Checkout']
+        'E-commerce preparado para apresentar produtos, receber encomendas, gerir carrinho, checkout, cookies, analytics e acompanhamento interno.',
+      tags: ['E-commerce', 'Checkout', 'Analytics'],
+      outcome: 'Venda online com estrutura profissional.'
     }
   }
 
   if (value.includes('reo')) {
     return {
-      label: 'Plataforma Digital',
+      label: 'Arquivo Digital + PWA',
       description:
-        'Projeto digital com organização de conteúdos, arquivo, programas e estrutura pensada para utilização institucional.',
-      tags: ['Plataforma', 'Arquivo', 'Conteúdos']
+        'Plataforma institucional para organizar programas, episódios e arquivo digital, com experiência mobile e ligação a conteúdos existentes.',
+      tags: ['PWA', 'Arquivo', 'Google Drive'],
+      outcome: 'Conteúdos mais acessíveis e organizados.'
     }
   }
 
@@ -46,7 +50,8 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     label: 'Projeto Digital',
     description:
       'Solução web criada à medida, com foco em apresentação profissional, estrutura clara e utilização simples.',
-    tags: ['Website', 'UX', 'Mobile']
+    tags: ['Website', 'UX', 'Mobile'],
+    outcome: 'Uma solução adaptada ao objetivo real.'
   }
 }
 
@@ -59,11 +64,14 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
         <a
           href="/projetos"
           aria-label="Ver página completa de projetos da MA-Code"
-          className={`service-card group block no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 ${
+          className={`group block overflow-hidden rounded-[2.25rem] border border-cyan-300/15 bg-slate-950/70 p-5 no-underline shadow-2xl shadow-cyan-950/20 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-950/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 sm:p-6 md:p-8 ${
             mounted ? 'animate-fade-in-up' : 'opacity-0'
           }`}
         >
-          <div className="service-card__line" />
+          <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100">
+            <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl" />
+            <div className="absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+          </div>
 
           <div className="relative z-10">
             <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
@@ -73,23 +81,25 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
-                  Trabalho publicado, funcional e feito para negócios reais.
+                  Não mostramos apenas design. Mostramos soluções a funcionar.
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
                   Websites, lojas online, sistemas de marcação, áreas administrativas e plataformas
-                  digitais criadas para resolver necessidades concretas.
+                  digitais criadas para negócios reais, com problemas concretos e funcionalidades
+                  úteis no dia a dia.
                 </p>
               </div>
 
               <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                  O que isto demonstra
+                  Prova de capacidade
                 </p>
 
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  A MA-Code cria soluções completas: presença online, venda, marcações, arquivo,
-                  gestão interna e funcionalidades adaptadas a cada negócio.
+                  Estes projetos mostram três níveis diferentes de trabalho: presença profissional,
+                  conversão online e sistemas digitais com gestão interna, arquivo, automação ou
+                  integrações.
                 </p>
               </div>
             </div>
@@ -98,11 +108,13 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
               {featuredProjects.map((project, index) => {
                 const featuredImage = project.images[0]
                 const proof = getProjectProof(project)
+                const firstBusinessValue = project.businessValue[0]
+                const firstHighlight = project.highlights[0]
 
                 return (
                   <article
                     key={project.slug}
-                    className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/55 p-3 shadow-2xl shadow-sky-950/20"
+                    className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-sky-950/20 transition duration-300 group-hover:border-cyan-200/20"
                   >
                     <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
                       <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
@@ -121,7 +133,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                           />
                         ) : null}
 
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/95 via-black/55 to-transparent" />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
 
                         <div className="absolute bottom-4 left-4 right-4 z-20">
                           <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
@@ -140,6 +152,21 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                     <div className="relative z-10 px-2 pb-2 pt-4">
                       <p className="text-sm leading-6 text-slate-300">{proof.description}</p>
 
+                      <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/75">
+                          Resultado
+                        </p>
+
+                        <p className="mt-2 text-sm font-medium leading-6 text-cyan-50">
+                          {proof.outcome}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 space-y-2 text-xs leading-5 text-slate-400">
+                        {firstHighlight ? <p>• {firstHighlight}</p> : null}
+                        {firstBusinessValue ? <p>• {firstBusinessValue}</p> : null}
+                      </div>
+
                       <div className="mt-4 flex flex-wrap gap-2">
                         {proof.tags.map((tag) => (
                           <span
@@ -156,15 +183,15 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
               })}
             </div>
 
-            <div className="mt-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Ver os 3 projetos com mais detalhe
+                  Ver os projetos completos com imagens e funcionalidades
                 </p>
 
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  Esta área inteira abre a página de portefólio, onde estão os projetos completos,
-                  imagens e funcionalidades.
+                  A página de portefólio mostra os projetos com mais detalhe: contexto, necessidade
+                  do cliente, funcionalidades, valor para o negócio e capturas reais.
                 </p>
               </div>
 
@@ -179,3 +206,4 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
     </section>
   )
 }
+
