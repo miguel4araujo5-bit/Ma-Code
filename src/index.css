@@ -979,9 +979,10 @@ body {
   }
 
   .brand-mark img {
-    width: 2.5rem;
-    height: 2.5rem;
-  }
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.55rem;
+}
 
   .hero-topline {
     width: 100%;
