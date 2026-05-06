@@ -63,11 +63,11 @@ export default function PortfolioPage() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Projetos Publicados de Websites e Lojas Online | MA-Code'
+    document.title = 'Portefólio de Websites, Lojas Online e Sistemas Digitais | MA-Code'
 
     updateMeta(
       'description',
-      'Conheça projetos reais publicados pela MA-Code: websites profissionais, lojas online, sistemas de marcação, aplicações PWA, áreas administrativas e soluções digitais à medida.'
+      'Conheça projetos publicados pela MA-Code: websites profissionais, lojas online, sistemas de marcação, aplicações PWA, áreas administrativas, automação, IA e soluções digitais à medida.'
     )
 
     updateMeta(
@@ -86,11 +86,11 @@ export default function PortfolioPage() {
     updatePropertyMeta('og:url', 'https://ma-code.pt/projetos')
     updatePropertyMeta(
       'og:title',
-      'Projetos Publicados de Websites e Lojas Online | MA-Code'
+      'Portefólio de Websites, Lojas Online e Sistemas Digitais | MA-Code'
     )
     updatePropertyMeta(
       'og:description',
-      'Projetos reais da MA-Code com websites profissionais, lojas online, sistemas de marcação, PWA, áreas administrativas e soluções digitais em funcionamento.'
+      'Projetos publicados da MA-Code com websites profissionais, lojas online, sistemas de marcação, PWA, áreas administrativas, automação, IA e soluções digitais em funcionamento.'
     )
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
     updatePropertyMeta(
@@ -102,11 +102,11 @@ export default function PortfolioPage() {
     updateMeta('twitter:url', 'https://ma-code.pt/projetos')
     updateMeta(
       'twitter:title',
-      'Projetos Publicados de Websites e Lojas Online | MA-Code'
+      'Portefólio de Websites, Lojas Online e Sistemas Digitais | MA-Code'
     )
     updateMeta(
       'twitter:description',
-      'Veja projetos reais da MA-Code: websites profissionais, lojas online, marcações, PWA, áreas administrativas e aplicações web.'
+      'Veja projetos publicados da MA-Code: websites profissionais, lojas online, sistemas de marcação, PWA, áreas administrativas, automação, IA e aplicações web.'
     )
     updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
     updateMeta(
@@ -122,11 +122,11 @@ export default function PortfolioPage() {
         {
           '@type': 'CollectionPage',
           '@id': 'https://ma-code.pt/projetos#collectionpage',
-          name: 'Projetos publicados MA-Code',
+          name: 'Portefólio MA-Code',
           url: 'https://ma-code.pt/projetos',
           inLanguage: 'pt-PT',
           description:
-            'Projetos reais publicados pela MA-Code, incluindo websites profissionais, lojas online, sistemas de marcação, aplicações web, PWA e áreas administrativas.',
+            'Projetos publicados pela MA-Code, incluindo websites profissionais, lojas online, sistemas de marcação, aplicações web, PWA, áreas administrativas, automação e IA.',
           isPartOf: {
             '@id': 'https://ma-code.pt/#website'
           },
@@ -204,7 +204,7 @@ export default function PortfolioPage() {
               <span>MA-Code</span>
             </a>
 
-            <a href="/#orcamento" className="btn-ghost text-sm sm:text-base">
+            <a href="#portfolio-contact" className="btn-ghost text-sm sm:text-base">
               Pedir proposta
             </a>
           </header>
@@ -217,13 +217,13 @@ export default function PortfolioPage() {
               </div>
 
               <h1 className="hero-title">
-                Projetos reais que mostram soluções digitais em funcionamento.
+                Projetos publicados que mostram soluções digitais em funcionamento.
               </h1>
 
               <p className="hero-subtitle">
                 Veja exemplos concretos do que a MA-Code constrói: websites profissionais, lojas
                 online, sistemas de marcação, aplicações PWA, áreas administrativas e plataformas
-                digitais feitas para resolver necessidades reais.
+                digitais feitas para resolver necessidades concretas.
               </p>
 
               <ul className="hero-mini-points" aria-label="Tipos de projetos desenvolvidos">
@@ -240,7 +240,7 @@ export default function PortfolioPage() {
                   <span className="relative z-10">Ver projetos publicados</span>
                 </a>
 
-                <a href="/#orcamento" className="btn-secondary hightech-button-secondary">
+                <a href="#portfolio-contact" className="btn-secondary hightech-button-secondary">
                   Quero algo semelhante
                 </a>
               </div>
@@ -257,7 +257,7 @@ export default function PortfolioPage() {
 
               <div className="relative z-10">
                 <span className="mb-4 inline-flex rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
-                  Prova real
+                  Prova publicada
                 </span>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white">
