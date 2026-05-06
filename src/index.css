@@ -894,14 +894,15 @@ body {
   }
 
   .brand-mark:hover {
-    border-color: rgba(103, 232, 249, 0.3);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 0 24px rgba(34, 211, 238, 0.08),
-      0 16px 34px rgba(2, 8, 23, 0.28);
-    transform: translateY(-1px);
-  }
-
+  border-color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, #ffffff 0%, #e0f7ff 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.95),
+    0 0 30px rgba(34, 211, 238, 0.2),
+    0 18px 38px rgba(2, 8, 23, 0.3);
+  transform: translateY(-1px);
+}
+  
   .hero-marquee__item:hover {
     border-color: rgba(103, 232, 249, 0.24);
     box-shadow:
