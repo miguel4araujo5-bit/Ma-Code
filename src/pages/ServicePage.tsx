@@ -157,22 +157,42 @@ function createServiceSchema(page: NonNullable<ReturnType<typeof getServicePageB
 
 function getServiceOutcome(slug: ServicePageSlug) {
   if (slug === 'criacao-websites') {
-    return 'Presença profissional preparada para gerar contactos.'
+    return 'Website profissional preparado para receber contactos.'
   }
 
   if (slug === 'lojas-online') {
-    return 'Venda online com catálogo, carrinho, checkout e base de gestão.'
+    return 'Loja online preparada para apresentar produtos e receber encomendas.'
   }
 
   if (slug === 'sistemas-marcacao') {
-    return 'Marcações mais organizadas, com menos mensagens perdidas.'
+    return 'Sistema de marcações para organizar horários e reduzir mensagens perdidas.'
   }
 
   if (slug === 'automacao-ia') {
-    return 'Menos trabalho manual através de automação, IA e integrações.'
+    return 'Automação, IA e integrações para reduzir trabalho manual.'
   }
 
   return 'Solução digital ajustada ao objetivo do negócio.'
+}
+
+function getServicePlaceholder(slug: ServicePageSlug) {
+  if (slug === 'criacao-websites') {
+    return 'Exemplo: preciso de um website para apresentar os meus serviços, receber contactos por WhatsApp e passar uma imagem mais profissional.'
+  }
+
+  if (slug === 'lojas-online') {
+    return 'Exemplo: quero criar uma loja online para apresentar produtos, receber encomendas e preparar o negócio para vender pela internet.'
+  }
+
+  if (slug === 'sistemas-marcacao') {
+    return 'Exemplo: preciso de um sistema para receber marcações online, gerir horários e evitar pedidos perdidos por chamada ou mensagem.'
+  }
+
+  if (slug === 'automacao-ia') {
+    return 'Exemplo: quero automatizar tarefas repetitivas, organizar pedidos ou usar IA para responder melhor aos clientes e poupar tempo.'
+  }
+
+  return 'Exemplo: preciso de uma solução digital para apresentar o negócio, receber contactos e organizar melhor o trabalho do dia a dia.'
 }
 
 export default function ServicePage({ slug }: ServicePageProps) {
@@ -311,7 +331,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
           </p>
 
           <h1 className="mb-4 text-3xl font-semibold tracking-tight md:text-5xl">
-            Esta página de serviço não existe.
+            Não encontrámos esta página de serviço.
           </h1>
 
           <p className="mb-8 text-base leading-8 text-slate-300">
@@ -479,7 +499,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
             </div>
 
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              O que o seu negócio ganha
+              O que este serviço pode melhorar
             </h2>
           </div>
 
@@ -513,7 +533,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
             <span className="section-label">Incluído</span>
 
             <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Funcionalidades e entregáveis
+              O que pode ficar incluído
             </h2>
           </div>
 
@@ -542,7 +562,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
             </div>
 
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Como trabalhamos
+              Como o projeto avança
             </h2>
           </div>
 
@@ -582,7 +602,8 @@ export default function ServicePage({ slug }: ServicePageProps) {
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Respostas diretas sobre este tipo de projeto, evolução possível e forma de trabalho.
+              Respostas diretas sobre este tipo de projeto, o que pode incluir e como a solução pode
+              evoluir.
             </p>
           </div>
 
@@ -616,7 +637,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
               </div>
 
               <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                Outras soluções que podem complementar este projeto
+                Serviços que podem complementar este projeto
               </h2>
             </div>
 
@@ -657,13 +678,11 @@ export default function ServicePage({ slug }: ServicePageProps) {
             <div className="contact-side-panel">
               <span className="section-label">Pedido de proposta</span>
 
-              <h2 className="contact-side-panel__title">
-                Conte-nos o que precisa para {page.shortLabel.toLowerCase()}
-              </h2>
+              <h2 className="contact-side-panel__title">Fale-nos do projeto</h2>
 
               <p className="contact-side-panel__text">
-                Descreva o objetivo, o tipo de negócio e as funcionalidades necessárias. Quanto mais
-                contexto enviar, mais certeira será a resposta.
+                Explique o que pretende criar, que problema quer resolver e que funcionalidades são
+                importantes. Com esse contexto, conseguimos responder com uma proposta mais ajustada.
               </p>
 
               <div className="contact-metrics">
@@ -792,7 +811,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
 
                 <div>
                   <label htmlFor="service-has-website" className="input-label">
-                    Já tem website?
+                    Já tem site?
                   </label>
 
                   <select
@@ -803,10 +822,10 @@ export default function ServicePage({ slug }: ServicePageProps) {
                     onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
                   >
                     <option value="">Selecione uma opção</option>
-                    <option value="Sim, já tenho website">Sim, já tenho website</option>
+                    <option value="Sim, já tenho site">Sim, já tenho site</option>
                     <option value="Não, quero começar do zero">Não, quero começar do zero</option>
-                    <option value="Tenho domínio, mas não tenho website">
-                      Tenho domínio, mas não tenho website
+                    <option value="Tenho domínio, mas não tenho site">
+                      Tenho domínio, mas não tenho site
                     </option>
                     <option value="Não tenho a certeza">Não tenho a certeza</option>
                   </select>
@@ -825,7 +844,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Exemplo: preciso de uma página para apresentar os meus serviços, receber contactos e preparar o site para aparecer melhor no Google."
+                    placeholder={getServicePlaceholder(page.slug)}
                   />
                 </div>
 
