@@ -279,20 +279,15 @@ export default function ServicePage({ slug }: ServicePageProps) {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          projectType: form.projectType,
-          hasWebsite: form.hasWebsite,
-          message: [
-            `Página de origem: ${page.label}`,
-            `URL: ${page.seo.canonical}`,
-            '',
-            form.message
-          ].join('\n'),
-          botcheck: form.botcheck
-        })
-      })
+  name: form.name,
+  email: form.email,
+  phone: form.phone,
+  projectType: form.projectType,
+  hasWebsite: form.hasWebsite,
+  pageUrl: page.seo.canonical,
+  message: form.message,
+  botcheck: form.botcheck
+})
 
       const data = (await response.json()) as {
         success?: boolean
