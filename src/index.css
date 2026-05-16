@@ -1365,3 +1365,211 @@ body {
     -webkit-animation: none !important;
   }
 }
+
+
+@media (max-width: 1023px) {
+  .site-shell > section:first-of-type {
+    padding-top: 1rem !important;
+    padding-bottom: 2.5rem !important;
+  }
+
+  .site-shell > section:first-of-type > div {
+    max-width: 100% !important;
+  }
+
+  .site-shell > section:first-of-type header {
+    justify-content: center !important;
+    margin-bottom: 1.75rem !important;
+  }
+
+  .site-shell > section:first-of-type header .btn-ghost {
+    display: none !important;
+  }
+
+  .brand-mark {
+    max-width: 100% !important;
+    padding: 0.7rem 0.9rem !important;
+    gap: 0.55rem !important;
+    font-size: 0.62rem !important;
+    letter-spacing: 0.07em !important;
+  }
+
+  .brand-mark img {
+    width: 2.15rem !important;
+    height: 2.15rem !important;
+  }
+
+  .hero-layout {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+
+  .hero-layout > :nth-child(2) {
+    display: none !important;
+  }
+
+  .hero-aside,
+  .hero-panel,
+  .hero-panel *,
+  .hud-card,
+  .hud-card * {
+    display: none !important;
+  }
+
+  .hero-copy {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .hero-topline {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+    padding: 0.72rem 0.8rem !important;
+    font-size: 0.56rem !important;
+    line-height: 1.35 !important;
+    letter-spacing: 0.075em !important;
+    text-align: center !important;
+    border-radius: 9999px !important;
+  }
+
+  .hero-topline__dot {
+    width: 0.48rem !important;
+    height: 0.48rem !important;
+  }
+
+  .hero-title {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 1rem !important;
+    font-size: clamp(1.85rem, 8.5vw, 2.2rem) !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.045em !important;
+    text-align: left !important;
+    text-wrap: pretty !important;
+  }
+
+  .hero-price-badge {
+    width: 100% !important;
+    justify-content: center !important;
+    margin-top: 1rem !important;
+    padding: 0.72rem 0.85rem !important;
+    border-radius: 1rem !important;
+    font-size: 0.82rem !important;
+    line-height: 1.45 !important;
+    text-align: center !important;
+  }
+
+  .hero-subtitle {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 1rem !important;
+    font-size: 0.94rem !important;
+    line-height: 1.62 !important;
+    text-align: left !important;
+  }
+
+  .hero-actions {
+    width: 100% !important;
+    margin-top: 1.35rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .hero-actions .btn-primary,
+  .hero-actions .btn-secondary {
+    width: 100% !important;
+    min-height: 3rem !important;
+    padding: 0.95rem 1rem !important;
+    border-radius: 1.05rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0.075em !important;
+    text-align: center !important;
+  }
+
+  .hero-mini-points {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .hero-mini-points li {
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 0.55rem 0.35rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.63rem !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  .hero-marquee,
+  .site-shell .ma-service-marquee {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 3rem !important;
+    margin-top: 1rem !important;
+    padding: 0.58rem 0 !important;
+    border-radius: 1rem !important;
+    overflow: hidden !important;
+  }
+
+  .hero-marquee::before,
+  .hero-marquee::after,
+  .site-shell .ma-service-marquee::before,
+  .site-shell .ma-service-marquee::after {
+    width: 0.85rem !important;
+  }
+
+  .hero-marquee__track,
+  .site-shell .ma-service-marquee__track {
+    display: flex !important;
+    gap: 0.5rem !important;
+    width: max-content !important;
+    min-width: max-content !important;
+    white-space: nowrap !important;
+    animation-duration: 18s !important;
+    -webkit-animation-duration: 18s !important;
+  }
+
+  .hero-marquee__item,
+  .site-shell .ma-service-marquee__item {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    padding: 0.5rem 0.62rem !important;
+    font-size: 0.52rem !important;
+    line-height: 1 !important;
+    letter-spacing: 0.055em !important;
+    white-space: nowrap !important;
+  }
+
+  .site-shell > section:first-of-type > div > .mt-8.grid {
+    display: none !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero-title {
+    font-size: 1.72rem !important;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem !important;
+  }
+
+  .hero-mini-points li {
+    font-size: 0.58rem !important;
+    padding: 0.5rem 0.25rem !important;
+  }
+
+  .hero-marquee__item,
+  .site-shell .ma-service-marquee__item {
+    font-size: 0.49rem !important;
+    padding: 0.48rem 0.56rem !important;
+  }
+}
