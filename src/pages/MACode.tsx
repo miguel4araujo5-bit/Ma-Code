@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 
@@ -67,6 +67,77 @@ type AnalyticsWindow = Window & {
   dataLayer?: unknown[]
 }
 
+type AttributionData = {
+  traffic_source?: string
+  traffic_medium?: string
+  traffic_campaign?: string
+  traffic_term?: string
+  traffic_content?: string
+  traffic_referrer?: string
+  landing_page?: string
+}
+
+const attributionStorageKey = 'ma_code_attribution'
+
+function getReferrerSource(referrer: string) {
+  if (!referrer) {
+    return 'direct'
+  }
+
+  try {
+    return new URL(referrer).hostname.replace(/^www\./, '')
+  } catch {
+    return 'referral'
+  }
+}
+
+function getTrafficAttribution(): AttributionData {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const hasCampaignParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].some((param) =>
+    searchParams.has(param)
+  )
+
+  try {
+    const storedAttribution = window.sessionStorage.getItem(attributionStorageKey)
+
+    if (storedAttribution && !hasCampaignParams) {
+      return JSON.parse(storedAttribution) as AttributionData
+    }
+  } catch {
+    return {
+      traffic_source: searchParams.get('utm_source') || getReferrerSource(document.referrer),
+      traffic_medium: searchParams.get('utm_medium') || (document.referrer ? 'referral' : 'direct'),
+      traffic_campaign: searchParams.get('utm_campaign') || undefined,
+      traffic_term: searchParams.get('utm_term') || undefined,
+      traffic_content: searchParams.get('utm_content') || undefined,
+      traffic_referrer: document.referrer || undefined,
+      landing_page: window.location.href
+    }
+  }
+
+  const attribution = {
+    traffic_source: searchParams.get('utm_source') || getReferrerSource(document.referrer),
+    traffic_medium: searchParams.get('utm_medium') || (document.referrer ? 'referral' : 'direct'),
+    traffic_campaign: searchParams.get('utm_campaign') || undefined,
+    traffic_term: searchParams.get('utm_term') || undefined,
+    traffic_content: searchParams.get('utm_content') || undefined,
+    traffic_referrer: document.referrer || undefined,
+    landing_page: window.location.href
+  }
+
+  try {
+    window.sessionStorage.setItem(attributionStorageKey, JSON.stringify(attribution))
+  } catch {
+    return attribution
+  }
+
+  return attribution
+}
+
 function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
   if (typeof window === 'undefined') {
     return
@@ -74,9 +145,11 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
 
   const analyticsWindow = window as AnalyticsWindow
   const eventParameters = {
+    event_category: 'ma_code_homepage',
     page_location: window.location.href,
     page_path: window.location.pathname,
     page_title: document.title,
+    ...getTrafficAttribution(),
     ...parameters
   }
 
@@ -85,12 +158,12 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
     return
   }
 
-  if (Array.isArray(analyticsWindow.dataLayer)) {
-    analyticsWindow.dataLayer.push({
-      event: eventName,
-      ...eventParameters
-    })
-  }
+  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer) ? analyticsWindow.dataLayer : []
+
+  analyticsWindow.dataLayer.push({
+    event: eventName,
+    ...eventParameters
+  })
 }
 
 function ServiceMarquee() {return (
@@ -377,6 +450,7 @@ const [isSending, setIsSending] = useState(false)
 const [successMessage, setSuccessMessage] = useState('')
 const [errorMessage, setErrorMessage] = useState('')
 const [mounted, setMounted] = useState(false)
+const formStartedRef = useRef(false)
 
 useEffect(() => {setMounted(true)
 
@@ -441,11 +515,32 @@ updateMeta(
 
 updateCanonical('https://ma-code.pt/')
 
+trackEvent('homepage_view', {
+  page_name: 'homepage',
+  page_type: 'landing_page'
+})
+
 }, [])
+
+const trackFormStart = () => {
+  if (formStartedRef.current) {
+    return
+  }
+
+  formStartedRef.current = true
+
+  trackEvent('proposal_form_started', {
+    form_name: 'pedido_proposta',
+    trigger: 'first_form_interaction',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
+}
 
 const selectProjectPath = (event: MouseEvent,projectType: string,projectGoal: string) => {event.preventDefault()
 
-trackEvent('select_project_path', {
+trackEvent('project_path_selected', {
   project_type: projectType,
   project_goal: projectGoal,
   section: 'path_cards'
@@ -480,7 +575,7 @@ setSuccessMessage('')
 setErrorMessage('')
 
 if (form.botcheck) {
-  trackEvent('contact_form_blocked', {
+  trackEvent('proposal_form_blocked', {
     form_name: 'pedido_proposta',
     reason: 'botcheck'
   })
@@ -489,7 +584,7 @@ if (form.botcheck) {
   return
 }
 
-trackEvent('contact_form_submit', {
+trackEvent('proposal_form_submit_attempt', {
   form_name: 'pedido_proposta',
   project_type: form.projectType || 'not_selected',
   project_goal: form.projectGoal || 'not_selected',
@@ -525,7 +620,7 @@ try {
     throw new Error(data.message || 'Erro ao enviar pedido')
   }
 
-  trackEvent('contact_form_success', {
+  trackEvent('proposal_form_submit_success', {
     form_name: 'pedido_proposta',
     project_type: form.projectType || 'not_selected',
     project_goal: form.projectGoal || 'not_selected',
@@ -550,7 +645,7 @@ try {
     botcheck: ''
   })
 } catch {
-  trackEvent('contact_form_error', {
+  trackEvent('proposal_form_submit_error', {
     form_name: 'pedido_proposta',
     project_type: form.projectType || 'not_selected',
     project_goal: form.projectGoal || 'not_selected',
@@ -1053,7 +1148,7 @@ return (
         </div>
 
         <div className="form-shell">
-          <form onSubmit={handleSubmit} className="space-y-5" aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}>
+          <form onSubmit={handleSubmit} onFocus={trackFormStart} onChange={trackFormStart} className="space-y-5" aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}>
             <input
               type="text"
               name="botcheck"
