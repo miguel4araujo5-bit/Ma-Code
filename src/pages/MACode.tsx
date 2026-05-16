@@ -206,6 +206,16 @@ const projectTypes = [
   'Ainda não sei'
 ]
 
+const projectGoals = [
+  'Receber mais contactos',
+  'Vender online',
+  'Receber marcações',
+  'Organizar processos internos',
+  'Automatizar tarefas',
+  'Melhorar imagem e confiança',
+  'Ainda não sei'
+]
+
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
@@ -436,14 +446,15 @@ function ServiceMarquee() {
 
 export default function MACode() {
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    projectType: '',
-    hasWebsite: '',
-    message: '',
-    botcheck: ''
-  })
+  name: '',
+  email: '',
+  phone: '',
+  projectType: '',
+  projectGoal: '',
+  hasWebsite: '',
+  message: '',
+  botcheck: ''
+})
 
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -541,15 +552,16 @@ export default function MACode() {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          projectType: form.projectType,
-          hasWebsite: form.hasWebsite,
-          pageUrl: 'https://ma-code.pt/',
-          message: form.message,
-          botcheck: form.botcheck
+       body: JSON.stringify({
+  name: form.name,
+  email: form.email,
+  phone: form.phone,
+  projectType: form.projectType,
+  projectGoal: form.projectGoal,
+  hasWebsite: form.hasWebsite,
+  pageUrl: 'https://ma-code.pt/',
+  message: form.message,
+  botcheck: form.botcheck
         })
       })
 
@@ -563,16 +575,16 @@ export default function MACode() {
       }
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        hasWebsite: '',
-        message: '',
-        botcheck: ''
-      })
+  setForm({
+  name: '',
+  email: '',
+  phone: '',
+  projectType: '',
+  projectGoal: '',
+  hasWebsite: '',
+  message: '',
+  botcheck: ''
+    })
     } catch {
       setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
     } finally {
@@ -1086,10 +1098,29 @@ export default function MACode() {
                 </div>
 
                 <div>
-                  <label htmlFor="hasWebsite" className="input-label">
-                    Já tem site?
-                  </label>
+  <label htmlFor="projectGoal" className="input-label">
+    Objetivo principal do projeto
+  </label>
 
+  <select
+    id="projectGoal"
+    name="Objetivo principal do projeto"
+    className="input-field"
+    value={form.projectGoal}
+    onChange={(e) => setForm({ ...form, projectGoal: e.target.value })}
+    required
+  >
+    <option value="" disabled>
+      Selecione uma opção
+    </option>
+
+    {projectGoals.map((goal) => (
+      <option key={goal} value={goal}>
+        {goal}
+      </option>
+    ))}
+  </select>
+</div>
                   <select
                     id="hasWebsite"
                     name="Já tem site?"
