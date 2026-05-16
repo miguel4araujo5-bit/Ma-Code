@@ -22,11 +22,13 @@ type Web3FormsResponse = {
 type HeaderMap = Record<string, string>
 
 const MAX_BODY_BYTES = 25_000
+const ORIGIN_BLOCKED_MESSAGE = 'Pedido bloqueado por origem inválida.'
 
 const securityHeaders: HeaderMap = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin'
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Robots-Tag': 'noindex, nofollow'
 }
 
 const json = (body: unknown, status = 200, headers: HeaderMap = {}) =>
@@ -63,24 +65,17 @@ const isLocalDevelopmentOrigin = (origin: string) => {
   }
 }
 
-const isAllowedOrigin = (origin: string | null, requestOrigin: string, env: Env) => {
-  if (!origin) {
-    return true
-  }
+const getDefaultAllowedOrigins = (requestOrigin: string) =>
+  new Set([requestOrigin, 'https://ma-code.pt', 'https://www.ma-code.pt'])
 
+const isAllowedOrigin = (origin: string, requestOrigin: string, env: Env) => {
   const normalizedOrigin = normalizeOrigin(origin)
 
   if (!normalizedOrigin) {
     return false
   }
 
-  const defaultAllowedOrigins = new Set([
-    requestOrigin,
-    'https://ma-code.pt',
-    'https://www.ma-code.pt'
-  ])
-
-  if (defaultAllowedOrigins.has(normalizedOrigin)) {
+  if (getDefaultAllowedOrigins(requestOrigin).has(normalizedOrigin)) {
     return true
   }
 
@@ -89,6 +84,32 @@ const isAllowedOrigin = (origin: string | null, requestOrigin: string, env: Env)
   }
 
   return getConfiguredOrigins(env).includes(normalizedOrigin)
+}
+
+const getRefererOrigin = (request: Request) => {
+  const referer = request.headers.get('referer')
+
+  if (!referer) {
+    return ''
+  }
+
+  return normalizeOrigin(referer)
+}
+
+const getVerifiedRequestOrigin = (request: Request, requestOrigin: string, env: Env) => {
+  const origin = request.headers.get('origin')
+
+  if (origin) {
+    return isAllowedOrigin(origin, requestOrigin, env) ? normalizeOrigin(origin) : ''
+  }
+
+  const refererOrigin = getRefererOrigin(request)
+
+  if (!refererOrigin) {
+    return ''
+  }
+
+  return isAllowedOrigin(refererOrigin, requestOrigin, env) ? refererOrigin : ''
 }
 
 const createCorsHeaders = (origin: string | null): HeaderMap => {
@@ -132,7 +153,7 @@ const cleanMultilineText = (value: string, maxLength: number) =>
     .trim()
     .slice(0, maxLength)
 
-const cleanPageUrl = (value: unknown, fallback: string) => {
+const cleanPageUrl = (value: unknown, fallback: string, env: Env) => {
   const cleaned = cleanText(toStringValue(value), 300)
 
   if (!cleaned) {
@@ -142,7 +163,10 @@ const cleanPageUrl = (value: unknown, fallback: string) => {
   try {
     const parsedUrl = new URL(cleaned)
 
-    if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+    if (
+      (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
+      isAllowedOrigin(parsedUrl.origin, normalizeOrigin(fallback), env)
+    ) {
       return parsedUrl.toString().slice(0, 300)
     }
 
@@ -155,9 +179,10 @@ const cleanPageUrl = (value: unknown, fallback: string) => {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+    const requestOrigin = url.origin
     const origin = request.headers.get('origin')
-    const originAllowed = isAllowedOrigin(origin, url.origin, env)
-    const corsHeaders = originAllowed ? createCorsHeaders(origin) : {}
+    const verifiedOrigin = getVerifiedRequestOrigin(request, requestOrigin, env)
+    const corsHeaders = origin && verifiedOrigin ? createCorsHeaders(verifiedOrigin) : {}
 
     const respond = (body: unknown, status = 200, headers: HeaderMap = {}) =>
       json(body, status, {
@@ -169,8 +194,8 @@ export default {
       return respond({ success: false, message: 'Endpoint não encontrado.' }, 404)
     }
 
-    if (!originAllowed) {
-      return respond({ success: false, message: 'Pedido bloqueado por origem inválida.' }, 403)
+    if (!verifiedOrigin) {
+      return respond({ success: false, message: ORIGIN_BLOCKED_MESSAGE }, 403)
     }
 
     if (request.method === 'OPTIONS') {
@@ -310,7 +335,7 @@ export default {
     const phone = cleanText(toStringValue(body.phone), 80)
     const projectType = cleanText(toStringValue(body.projectType), 120)
     const hasWebsite = cleanText(toStringValue(body.hasWebsite), 120)
-    const pageUrl = cleanPageUrl(body.pageUrl, url.origin)
+    const pageUrl = cleanPageUrl(body.pageUrl, requestOrigin, env)
     const message = cleanMultilineText(toStringValue(body.message), 5000)
 
     if (!name || !email || !message) {
