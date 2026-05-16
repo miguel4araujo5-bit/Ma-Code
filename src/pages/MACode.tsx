@@ -1,4 +1,6 @@
-import { useEffect, useState, type FormEvent, type MouseEvent } from 'react'import { FeatureList, SectionHeader } from '../components/DesignSystem'import FeaturedProjects from '../components/FeaturedProjects'
+import { useEffect, useState, type FormEvent, type MouseEvent } from 'react'
+import { FeatureList, SectionHeader } from '../components/DesignSystem'
+import FeaturedProjects from '../components/FeaturedProjects'
 
 const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
 
@@ -22,25 +24,46 @@ const projectTypes = ['Website simples','Website profissional','Redesign de webs
 
 const projectGoals = ['Receber mais contactos','Vender online','Receber marcações','Organizar processos internos','Automatizar tarefas','Melhorar imagem e confiança','Ainda não sei']
 
-function updateMeta(name: string, content: string) {let meta = document.querySelector(meta[name="${name}"])
+function updateMeta(name: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
-if (!meta) {meta = document.createElement('meta')meta.name = namedocument.head.appendChild(meta)}
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = name
+    document.head.appendChild(meta)
+  }
 
-meta.content = content}
+  meta.content = content
+}
 
-function updatePropertyMeta(property: string, content: string) {let meta = document.querySelector(meta[property="${property}"])
+function updatePropertyMeta(property: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`)
 
-if (!meta) {meta = document.createElement('meta')meta.setAttribute('property', property)document.head.appendChild(meta)}
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.setAttribute('property', property)
+    document.head.appendChild(meta)
+  }
 
-meta.content = content}
+  meta.content = content
+}
 
-function updateCanonical(href: string) {let canonical = document.querySelector('link[rel="canonical"]')
+function updateCanonical(href: string) {
+  let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
 
-if (!canonical) {canonical = document.createElement('link')canonical.rel = 'canonical'document.head.appendChild(canonical)}
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.rel = 'canonical'
+    document.head.appendChild(canonical)
+  }
 
-canonical.href = href}
+  canonical.href = href
+}
 
-function ServiceMarquee() {return ({`.ma-service-marquee {position: relative !important;display: block !important;width: 100% !important;max-width: 100% !important;min-height: 3.8rem !important;margin-top: 1.75rem !important;overflow: hidden !important;border-radius: 1.45rem !important;border: 1px solid rgba(103, 232, 249, 0.16) !important;padding: 0.82rem 0 !important;background:linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.035),0 0 24px rgba(34, 211, 238, 0.045) !important;backdrop-filter: blur(14px);-webkit-backdrop-filter: blur(14px);opacity: 1 !important;visibility: visible !important;z-index: 30 !important;isolation: isolate !important;transform: translate3d(0, 0, 0) !important;-webkit-transform: translate3d(0, 0, 0) !important;}
+function ServiceMarquee() {return (
+<div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
+  <style>{`
+.ma-service-marquee {position: relative !important;display: block !important;width: 100% !important;max-width: 100% !important;min-height: 3.8rem !important;margin-top: 1.75rem !important;overflow: hidden !important;border-radius: 1.45rem !important;border: 1px solid rgba(103, 232, 249, 0.16) !important;padding: 0.82rem 0 !important;background:linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.035),0 0 24px rgba(34, 211, 238, 0.045) !important;backdrop-filter: blur(14px);-webkit-backdrop-filter: blur(14px);opacity: 1 !important;visibility: visible !important;z-index: 30 !important;isolation: isolate !important;transform: translate3d(0, 0, 0) !important;-webkit-transform: translate3d(0, 0, 0) !important;}
 
       .ma-service-marquee::before,
       .ma-service-marquee::after {
@@ -206,7 +229,7 @@ function ServiceMarquee() {return ({`.ma-service-marquee {position: relative !im
 function DigitalStackVisual() {const stackItems = [{label: 'Website',detail: 'Base clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Automação',detail: 'Menos manual',marker: '03'},{label: 'Sistema',detail: 'Escala digital',marker: '04'}]
 
 return (
-
+<div>
   <div className="relative z-10 flex items-center justify-between gap-4">
     <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
       Mapa visual
@@ -317,7 +340,10 @@ return (
 
 export default function MACode() {const [form, setForm] = useState({name: '',email: '',phone: '',projectType: '',projectGoal: '',hasWebsite: '',message: '',botcheck: ''})
 
-const [isSending, setIsSending] = useState(false)const [successMessage, setSuccessMessage] = useState('')const [errorMessage, setErrorMessage] = useState('')const [mounted, setMounted] = useState(false)
+const [isSending, setIsSending] = useState(false)
+const [successMessage, setSuccessMessage] = useState('')
+const [errorMessage, setErrorMessage] = useState('')
+const [mounted, setMounted] = useState(false)
 
 useEffect(() => {setMounted(true)
 
@@ -406,6 +432,10 @@ window.requestAnimationFrame(() => {
 
 const handleSubmit = async (e: FormEvent) => {e.preventDefault()
 
+if (isSending) {
+  return
+}
+
 setIsSending(true)
 setSuccessMessage('')
 setErrorMessage('')
@@ -464,7 +494,7 @@ try {
 }
 
 return (
-
+<main>
   <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
     <div className="mx-auto max-w-7xl">
       <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
@@ -921,11 +951,12 @@ return (
         </div>
 
         <div className="form-shell">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}>
             <input
               type="text"
               name="botcheck"
               className="hidden"
+              aria-hidden="true"
               tabIndex={-1}
               autoComplete="off"
               value={form.botcheck}
@@ -1077,6 +1108,7 @@ return (
 
             {successMessage ? (
               <div
+                id="form-status"
                 className="status-message status-message--success"
                 role="status"
                 aria-live="polite"
@@ -1086,7 +1118,7 @@ return (
             ) : null}
 
             {errorMessage ? (
-              <div className="status-message status-message--error" role="alert">
+              <div id="form-status" className="status-message status-message--error" role="alert" aria-live="assertive">
                 {errorMessage}
               </div>
             ) : null}
@@ -1095,6 +1127,7 @@ return (
               type="submit"
               className="btn-primary hightech-button w-full disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isSending}
+              aria-busy={isSending}
             >
               <span className="btn-shine" />
               <span className="relative z-10">
