@@ -414,6 +414,18 @@ export default function MACode() {
                 <li>Mobile-first</li>
                 <li>Foco em contactos</li>
               </ul>
+
+              <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
+                <span className="sr-only">{marqueeItems.join(', ')}</span>
+
+                <div className="hero-marquee__track" aria-hidden="true">
+                  {marqueeLoopItems.map((item, index) => (
+                    <span key={`${item}-${index}`} className="hero-marquee__item">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className={`hero-aside ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
@@ -485,18 +497,6 @@ export default function MACode() {
                 <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
               </article>
             ))}
-          </div>
-
-          <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
-            <span className="sr-only">{marqueeItems.join(', ')}</span>
-
-            <div className="hero-marquee__track" aria-hidden="true">
-              {marqueeLoopItems.map((item, index) => (
-                <span key={`${item}-${index}`} className="hero-marquee__item">
-                  {item}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </section>
