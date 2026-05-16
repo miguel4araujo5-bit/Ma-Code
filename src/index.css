@@ -986,9 +986,9 @@ body {
   }
 
   .site-shell > section:first-of-type header {
-    justify-content: center !important;
-    margin-bottom: 1.75rem !important;
-  }
+  justify-content: flex-start !important;
+  margin-bottom: 1.75rem !important;
+}
 
   .site-shell > section:first-of-type header .btn-ghost {
     display: none !important;
