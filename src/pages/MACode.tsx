@@ -208,6 +208,198 @@ function updateCanonical(href: string) {
   canonical.href = href
 }
 
+function ServiceMarquee() {
+  return (
+    <div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
+      <style>
+        {`
+          .ma-service-marquee {
+            position: relative !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 3.8rem !important;
+            margin-top: 1.75rem !important;
+            overflow: hidden !important;
+            border-radius: 1.45rem !important;
+            border: 1px solid rgba(103, 232, 249, 0.16) !important;
+            padding: 0.82rem 0 !important;
+            background:
+              linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;
+            box-shadow:
+              inset 0 1px 0 rgba(255, 255, 255, 0.035),
+              0 0 24px rgba(34, 211, 238, 0.045) !important;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 30 !important;
+            isolation: isolate !important;
+            transform: translate3d(0, 0, 0) !important;
+            -webkit-transform: translate3d(0, 0, 0) !important;
+          }
+
+          .ma-service-marquee::before,
+          .ma-service-marquee::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4rem;
+            z-index: 2;
+            pointer-events: none;
+          }
+
+          .ma-service-marquee::before {
+            left: 0;
+            background: linear-gradient(90deg, rgba(6, 16, 25, 1), transparent);
+          }
+
+          .ma-service-marquee::after {
+            right: 0;
+            background: linear-gradient(270deg, rgba(6, 16, 25, 1), transparent);
+          }
+
+          .ma-service-marquee__track {
+            position: relative !important;
+            z-index: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+            width: max-content !important;
+            min-width: max-content !important;
+            white-space: nowrap !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translate3d(0, 0, 0);
+            -webkit-transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            will-change: transform;
+            animation: ma-service-marquee-scroll 28s linear infinite;
+            -webkit-animation: ma-service-marquee-scroll 28s linear infinite;
+          }
+
+          .ma-service-marquee__item {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex: 0 0 auto !important;
+            border-radius: 9999px !important;
+            border: 1px solid rgba(103, 232, 249, 0.16) !important;
+            padding: 0.68rem 1rem !important;
+            background: rgba(15, 23, 42, 0.72) !important;
+            color: #cffafe !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            line-height: 1 !important;
+            letter-spacing: 0.13em !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            box-shadow:
+              inset 0 0 0 1px rgba(255, 255, 255, 0.018),
+              0 0 12px rgba(34, 211, 238, 0.035) !important;
+          }
+
+          @keyframes ma-service-marquee-scroll {
+            0% {
+              transform: translate3d(0, 0, 0);
+              -webkit-transform: translate3d(0, 0, 0);
+            }
+
+            100% {
+              transform: translate3d(-33.333333%, 0, 0);
+              -webkit-transform: translate3d(-33.333333%, 0, 0);
+            }
+          }
+
+          @-webkit-keyframes ma-service-marquee-scroll {
+            0% {
+              transform: translate3d(0, 0, 0);
+              -webkit-transform: translate3d(0, 0, 0);
+            }
+
+            100% {
+              transform: translate3d(-33.333333%, 0, 0);
+              -webkit-transform: translate3d(-33.333333%, 0, 0);
+            }
+          }
+
+          @media (max-width: 768px) {
+            .ma-service-marquee {
+              min-height: 3.45rem !important;
+              margin-top: 1.35rem !important;
+              border-radius: 1.2rem !important;
+              padding: 0.72rem 0 !important;
+            }
+
+            .ma-service-marquee::before,
+            .ma-service-marquee::after {
+              width: 1.35rem;
+            }
+
+            .ma-service-marquee__track {
+              gap: 0.62rem !important;
+              animation-duration: 20s;
+              -webkit-animation-duration: 20s;
+            }
+
+            .ma-service-marquee__item {
+              padding: 0.62rem 0.78rem !important;
+              font-size: 0.58rem !important;
+              letter-spacing: 0.08em !important;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .ma-service-marquee {
+              min-height: 3.25rem !important;
+              margin-top: 1.15rem !important;
+              padding: 0.68rem 0 !important;
+            }
+
+            .ma-service-marquee::before,
+            .ma-service-marquee::after {
+              width: 0.85rem;
+            }
+
+            .ma-service-marquee__track {
+              gap: 0.55rem !important;
+              animation-duration: 17s;
+              -webkit-animation-duration: 17s;
+            }
+
+            .ma-service-marquee__item {
+              padding: 0.58rem 0.72rem !important;
+              font-size: 0.54rem !important;
+              letter-spacing: 0.07em !important;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .ma-service-marquee__track {
+              animation-duration: 55s !important;
+              -webkit-animation-duration: 55s !important;
+            }
+          }
+        `}
+      </style>
+
+      <span className="sr-only">{marqueeItems.join(', ')}</span>
+
+      <div className="ma-service-marquee__track" aria-hidden="true">
+        {marqueeLoopItems.map((item, index) => (
+          <span key={`${item}-${index}`} className="ma-service-marquee__item">
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function MACode() {
   const [form, setForm] = useState({
     name: '',
@@ -415,17 +607,7 @@ export default function MACode() {
                 <li>Foco em contactos</li>
               </ul>
 
-              <div className="hero-marquee" aria-label="Serviços e soluções da MA-Code">
-                <span className="sr-only">{marqueeItems.join(', ')}</span>
-
-                <div className="hero-marquee__track" aria-hidden="true">
-                  {marqueeLoopItems.map((item, index) => (
-                    <span key={`${item}-${index}`} className="hero-marquee__item">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <ServiceMarquee />
             </div>
 
             <div className={`hero-aside ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
