@@ -55,6 +55,33 @@ const valueLadder = [
   }
 ]
 
+const competitiveAdvantages = [
+  {
+    title: 'Mais específico do que um template',
+    description:
+      'A estrutura é pensada para o negócio, os serviços, o cliente ideal e o objetivo comercial, não apenas para preencher um modelo bonito.',
+    points: ['Estrutura à medida', 'Conteúdo orientado ao cliente', 'Percurso claro até ao contacto']
+  },
+  {
+    title: 'Mais evolutivo do que um site fechado',
+    description:
+      'O projeto pode começar com presença online e crescer para loja, marcações, área administrativa, automação, IA ou integrações.',
+    points: ['Base preparada para crescer', 'Menos retrabalho futuro', 'Funcionalidades por fases']
+  },
+  {
+    title: 'Mais próximo do que uma agência distante',
+    description:
+      'A comunicação é direta, simples e focada em resolver o problema real do negócio sem transformar o processo numa complicação.',
+    points: ['Processo claro', 'Decisões objetivas', 'Acompanhamento direto']
+  },
+  {
+    title: 'Mais prático do que só design bonito',
+    description:
+      'O foco não é apenas aparência. É criar uma ferramenta que gere confiança, contactos, pedidos, reservas ou organização interna.',
+    points: ['Foco em conversão', 'Mobile-first', 'Valor comercial']
+  }
+]
+
 const pathCards = [
   {
     title: 'Quero um website profissional',
@@ -446,15 +473,15 @@ function ServiceMarquee() {
 
 export default function MACode() {
   const [form, setForm] = useState({
-  name: '',
-  email: '',
-  phone: '',
-  projectType: '',
-  projectGoal: '',
-  hasWebsite: '',
-  message: '',
-  botcheck: ''
-})
+    name: '',
+    email: '',
+    phone: '',
+    projectType: '',
+    projectGoal: '',
+    hasWebsite: '',
+    message: '',
+    botcheck: ''
+  })
 
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -552,16 +579,16 @@ export default function MACode() {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
-       body: JSON.stringify({
-  name: form.name,
-  email: form.email,
-  phone: form.phone,
-  projectType: form.projectType,
-  projectGoal: form.projectGoal,
-  hasWebsite: form.hasWebsite,
-  pageUrl: 'https://ma-code.pt/',
-  message: form.message,
-  botcheck: form.botcheck
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          projectType: form.projectType,
+          projectGoal: form.projectGoal,
+          hasWebsite: form.hasWebsite,
+          pageUrl: 'https://ma-code.pt/',
+          message: form.message,
+          botcheck: form.botcheck
         })
       })
 
@@ -575,16 +602,16 @@ export default function MACode() {
       }
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-  setForm({
-  name: '',
-  email: '',
-  phone: '',
-  projectType: '',
-  projectGoal: '',
-  hasWebsite: '',
-  message: '',
-  botcheck: ''
-    })
+      setForm({
+        name: '',
+        email: '',
+        phone: '',
+        projectType: '',
+        projectGoal: '',
+        hasWebsite: '',
+        message: '',
+        botcheck: ''
+      })
     } catch {
       setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
     } finally {
@@ -766,6 +793,72 @@ export default function MACode() {
                 <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+              <div>
+                <span className="section-label">Diferenciação</span>
+
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                  Porque escolher a MA-Code em vez de uma solução genérica?
+                </h2>
+
+                <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
+                  O mercado tem templates, construtores automáticos, freelancers baratos e agências
+                  grandes. A MA-Code posiciona-se entre o simples e o completo: começa com uma
+                  presença online acessível, mas prepara o negócio para evoluir para vendas,
+                  marcações, automação, IA e sistemas internos quando fizer sentido.
+                </p>
+
+                <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-cyan-300/5 p-5">
+                  <span className="block text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
+                    Posicionamento
+                  </span>
+
+                  <strong className="mt-2 block text-lg font-semibold text-white">
+                    Website simples para começar. Base digital preparada para crescer.
+                  </strong>
+
+                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                    Isto reduz o risco de comprar uma solução barata hoje e ter de refazer tudo
+                    amanhã quando o negócio precisar de mais funcionalidades.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {competitiveAdvantages.map((advantage, index) => (
+                  <article
+                    key={advantage.title}
+                    className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 ${
+                      mounted ? 'animate-fade-in-up' : 'opacity-0'
+                    }`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                      <h3 className="text-base font-semibold text-white">{advantage.title}</h3>
+
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">
+                        {index + 1}
+                      </span>
+                    </div>
+
+                    <p className="text-sm leading-6 text-slate-300">{advantage.description}</p>
+
+                    <ul className="mt-4 space-y-2 text-sm text-slate-200/90">
+                      {advantage.points.map((point) => (
+                        <li key={point}>• {point}</li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1098,29 +1191,35 @@ export default function MACode() {
                 </div>
 
                 <div>
-  <label htmlFor="projectGoal" className="input-label">
-    Objetivo principal do projeto
-  </label>
+                  <label htmlFor="projectGoal" className="input-label">
+                    Objetivo principal do projeto
+                  </label>
 
-  <select
-    id="projectGoal"
-    name="Objetivo principal do projeto"
-    className="input-field"
-    value={form.projectGoal}
-    onChange={(e) => setForm({ ...form, projectGoal: e.target.value })}
-    required
-  >
-    <option value="" disabled>
-      Selecione uma opção
-    </option>
+                  <select
+                    id="projectGoal"
+                    name="Objetivo principal do projeto"
+                    className="input-field"
+                    value={form.projectGoal}
+                    onChange={(e) => setForm({ ...form, projectGoal: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>
+                      Selecione uma opção
+                    </option>
 
-    {projectGoals.map((goal) => (
-      <option key={goal} value={goal}>
-        {goal}
-      </option>
-    ))}
-  </select>
-</div>
+                    {projectGoals.map((goal) => (
+                      <option key={goal} value={goal}>
+                        {goal}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="hasWebsite" className="input-label">
+                    Já tem site?
+                  </label>
+
                   <select
                     id="hasWebsite"
                     name="Já tem site?"
