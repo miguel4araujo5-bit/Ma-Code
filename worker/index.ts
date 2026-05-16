@@ -9,6 +9,7 @@ type ContactBody = {
   phone?: string
   projectType?: string
   hasWebsite?: string
+  pageUrl?: string
   botcheck?: string
 }
 
@@ -129,6 +130,7 @@ export default {
     const phone = cleanText(body.phone || '', 80)
     const projectType = cleanText(body.projectType || '', 120)
     const hasWebsite = cleanText(body.hasWebsite || '', 120)
+    const pageUrl = cleanText(body.pageUrl || url.origin, 300)
     const message = cleanMultilineText(body.message || '', 5000)
 
     if (!name || !email || !message) {
@@ -165,7 +167,7 @@ export default {
       'Mensagem:',
       message,
       '',
-      `Página: ${url.origin}`,
+      `Página de origem: ${pageUrl}`,
       `Data: ${new Date().toISOString()}`
     ].join('\n')
 
@@ -191,7 +193,7 @@ export default {
           project_type: projectType,
           has_website: hasWebsite,
           message: fullMessage,
-          page: url.origin,
+          page: pageUrl,
           timestamp: new Date().toISOString()
         })
       })
