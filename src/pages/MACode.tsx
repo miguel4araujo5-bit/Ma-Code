@@ -492,7 +492,7 @@ export default function MACode() {
     updateCanonical('https://ma-code.pt/')
   }, [])
 
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     setIsSending(true)
