@@ -1,8 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import FeaturedProjects from '../components/FeaturedProjects'
 
-const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
-
 const marqueeItems = [
   'Websites desde 19€/mês',
   'Domínio + Alojamento',
@@ -22,17 +20,20 @@ const proofPoints = [
   {
     value: '19€/mês',
     label: 'website simples',
-    description: 'Opção de entrada para criar uma presença online clara, com domínio e alojamento incluídos.'
+    description:
+      'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'
   },
   {
     value: 'Mobile-first',
     label: 'pensado para telemóvel',
-    description: 'Sites rápidos, fáceis de navegar e preparados para clientes que chegam pelo smartphone.'
+    description:
+      'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'
   },
   {
     value: 'Evolutivo',
     label: 'preparado para crescer',
-    description: 'Comece com um website e evolua para loja, marcações, área admin, automação, IA ou app.'
+    description:
+      'O projeto pode começar simples e evoluir para loja online, marcações, área administrativa, automação, IA ou app.'
   }
 ]
 
@@ -45,7 +46,8 @@ const pathCards = [
     description:
       'Website profissional para apresentar o negócio, explicar serviços, transmitir confiança e facilitar o contacto com potenciais clientes.',
     points: ['Página inicial forte', 'Serviços bem explicados', 'Contactos e WhatsApp'],
-    outcome: 'Ideal para quem quer começar com uma presença online clara, credível e preparada para gerar pedidos.'
+    outcome:
+      'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'
   },
   {
     title: 'Receber contactos, reservas ou encomendas',
@@ -53,9 +55,10 @@ const pathCards = [
     href: '#servicos',
     cta: 'Ver soluções disponíveis',
     description:
-      'Formulários, WhatsApp, loja online ou sistema de marcações para tornar o site mais útil e facilitar a decisão do cliente.',
+      'Formulários, WhatsApp, loja online ou sistema de marcações para transformar visitas em pedidos reais.',
     points: ['Percurso simples', 'Pedido rápido', 'Experiência preparada para telemóvel'],
-    outcome: 'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades.'
+    outcome:
+      'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades.'
   },
   {
     title: 'Organizar processos e poupar tempo',
@@ -65,7 +68,8 @@ const pathCards = [
     description:
       'Áreas administrativas, bases de dados, automações, IA e integrações para reduzir tarefas repetitivas e centralizar informação.',
     points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],
-    outcome: 'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'
+    outcome:
+      'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'
   }
 ]
 
@@ -129,34 +133,41 @@ const serviceCards = [
 const evolutionSteps = [
   {
     title: 'Primeiro: presença profissional',
-    description: 'Um website claro, rápido e credível para apresentar o negócio e receber contactos.'
+    description:
+      'Um website claro, rápido e credível para apresentar o negócio e receber contactos.'
   },
   {
     title: 'Depois: contactos e vendas',
-    description: 'Formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'
+    description:
+      'Formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'
   },
   {
     title: 'Quando fizer sentido: sistema à medida',
-    description: 'Área administrativa, automação, IA, integrações e ferramentas para gerir processos.'
+    description:
+      'Área administrativa, automação, IA, integrações e ferramentas para gerir processos.'
   }
 ]
 
 const processSteps = [
   {
     title: '1. Percebemos o objetivo',
-    description: 'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'
+    description:
+      'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'
   },
   {
     title: '2. Definimos a estrutura',
-    description: 'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'
+    description:
+      'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'
   },
   {
     title: '3. Criamos e afinamos',
-    description: 'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'
+    description:
+      'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'
   },
   {
     title: '4. Publicamos online',
-    description: 'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'
+    description:
+      'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'
   }
 ]
 
@@ -493,24 +504,26 @@ export default function MACode() {
       return
     }
 
+    const fullMessage = [
+      `Tipo de projeto: ${form.projectType || 'Não indicado'}`,
+      `Já tem site?: ${form.hasWebsite || 'Não indicado'}`,
+      `Telefone / WhatsApp: ${form.phone || 'Não indicado'}`,
+      '',
+      'Mensagem:',
+      form.message
+    ].join('\n')
+
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: web3FormsAccessKey,
-          subject: 'Pedido de orçamento - MA-Code',
-          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
-          phone: form.phone || 'Não indicado',
-          'Tipo de projeto': form.projectType,
-          'Já tem site?': form.hasWebsite || 'Não indicado',
-          message: form.message,
-          botcheck: form.botcheck
+          message: fullMessage
         })
       })
 
@@ -626,7 +639,11 @@ export default function MACode() {
               <ServiceMarquee />
             </div>
 
-            <div className={`relative hidden lg:block ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
+            <div
+              className={`relative hidden lg:block ${
+                mounted ? 'animate-fade-in-scale' : 'opacity-0'
+              }`}
+            >
               <div className="hero-panel">
                 <div className="hero-panel__glow" />
 
@@ -934,16 +951,7 @@ export default function MACode() {
             </div>
 
             <div className="form-shell">
-              <form
-                action="https://api.web3forms.com/submit"
-                method="POST"
-                onSubmit={handleSubmit}
-                className="space-y-5"
-              >
-                <input type="hidden" name="access_key" value={web3FormsAccessKey} />
-                <input type="hidden" name="subject" value="Pedido de orçamento - MA-Code" />
-                <input type="hidden" name="from_name" value="MA-Code Website" />
-
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <input
                   type="text"
                   name="botcheck"
