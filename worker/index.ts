@@ -1,16 +1,17 @@
 export interface Env {
   WEB3FORMS_ACCESS_KEY: string
+  CONTACT_ALLOWED_ORIGINS?: string
 }
 
 type ContactBody = {
-  name?: string
-  email?: string
-  message?: string
-  phone?: string
-  projectType?: string
-  hasWebsite?: string
-  pageUrl?: string
-  botcheck?: string
+  name?: unknown
+  email?: unknown
+  message?: unknown
+  phone?: unknown
+  projectType?: unknown
+  hasWebsite?: unknown
+  pageUrl?: unknown
+  botcheck?: unknown
 }
 
 type Web3FormsResponse = {
@@ -18,17 +19,99 @@ type Web3FormsResponse = {
   message?: string
 }
 
-const json = (body: unknown, status = 200) =>
+type HeaderMap = Record<string, string>
+
+const MAX_BODY_SIZE = 25_000
+
+const securityHeaders: HeaderMap = {
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+}
+
+const json = (body: unknown, status = 200, headers: HeaderMap = {}) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff'
+      ...securityHeaders,
+      ...headers
     }
   })
 
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin
+  } catch {
+    return ''
+  }
+}
+
+const getConfiguredOrigins = (env: Env) =>
+  (env.CONTACT_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean)
+
+const isLocalDevelopmentOrigin = (origin: string) => {
+  try {
+    const { hostname } = new URL(origin)
+
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0'
+  } catch {
+    return false
+  }
+}
+
+const isAllowedOrigin = (origin: string | null, requestOrigin: string, env: Env) => {
+  if (!origin) {
+    return true
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin)
+
+  if (!normalizedOrigin) {
+    return false
+  }
+
+  const defaultAllowedOrigins = new Set([
+    requestOrigin,
+    'https://ma-code.pt',
+    'https://www.ma-code.pt'
+  ])
+
+  if (defaultAllowedOrigins.has(normalizedOrigin)) {
+    return true
+  }
+
+  if (isLocalDevelopmentOrigin(normalizedOrigin)) {
+    return true
+  }
+
+  return getConfiguredOrigins(env).includes(normalizedOrigin)
+}
+
+const createCorsHeaders = (origin: string | null): HeaderMap => {
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : ''
+
+  if (!normalizedOrigin) {
+    return {}
+  }
+
+  return {
+    'Access-Control-Allow-Origin': normalizedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin'
+  }
+}
+
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+
+const isContactBody = (value: unknown): value is ContactBody =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const toStringValue = (value: unknown) => (typeof value === 'string' ? value : '')
 
 const cleanText = (value: string, maxLength: number) =>
   value
@@ -47,31 +130,79 @@ const cleanMultilineText = (value: string, maxLength: number) =>
     .trim()
     .slice(0, maxLength)
 
+const cleanPageUrl = (value: unknown, fallback: string) => {
+  const cleaned = cleanText(toStringValue(value), 300)
+
+  if (!cleaned) {
+    return fallback
+  }
+
+  try {
+    const parsedUrl = new URL(cleaned)
+
+    if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+      return parsedUrl.toString().slice(0, 300)
+    }
+
+    return fallback
+  } catch {
+    return fallback
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+    const origin = request.headers.get('origin')
+    const originAllowed = isAllowedOrigin(origin, url.origin, env)
+    const corsHeaders = originAllowed ? createCorsHeaders(origin) : {}
+
+    const respond = (body: unknown, status = 200, headers: HeaderMap = {}) =>
+      json(body, status, {
+        ...corsHeaders,
+        ...headers
+      })
 
     if (url.pathname !== '/api/contact') {
-      return json({ success: false, message: 'Endpoint não encontrado.' }, 404)
+      return respond({ success: false, message: 'Endpoint não encontrado.' }, 404)
+    }
+
+    if (!originAllowed) {
+      return respond({ success: false, message: 'Pedido bloqueado por origem inválida.' }, 403)
     }
 
     if (request.method === 'OPTIONS') {
+      const headers: HeaderMap = {
+        Allow: 'POST, OPTIONS',
+        ...securityHeaders,
+        ...corsHeaders
+      }
+
+      if (origin) {
+        headers['Access-Control-Max-Age'] = '86400'
+      }
+
       return new Response(null, {
         status: 204,
-        headers: {
-          Allow: 'POST, OPTIONS',
-          'Cache-Control': 'no-store',
-          'X-Content-Type-Options': 'nosniff'
-        }
+        headers
       })
     }
 
     if (request.method !== 'POST') {
-      return json({ success: false, message: 'Método não permitido.' }, 405)
+      return respond(
+        {
+          success: false,
+          message: 'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST, OPTIONS'
+        }
+      )
     }
 
     if (!env.WEB3FORMS_ACCESS_KEY?.trim()) {
-      return json(
+      return respond(
         {
           success: false,
           message: 'A configuração do formulário não está disponível neste momento.'
@@ -83,7 +214,7 @@ export default {
     const contentType = request.headers.get('content-type') || ''
 
     if (!contentType.toLowerCase().includes('application/json')) {
-      return json(
+      return respond(
         {
           success: false,
           message: 'Formato de pedido inválido.'
@@ -92,10 +223,11 @@ export default {
       )
     }
 
-    const contentLength = Number(request.headers.get('content-length') || 0)
+    const contentLengthHeader = request.headers.get('content-length')
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0
 
-    if (contentLength > 25_000) {
-      return json(
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_SIZE) {
+      return respond(
         {
           success: false,
           message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.'
@@ -104,12 +236,12 @@ export default {
       )
     }
 
-    let body: ContactBody
+    let rawBody = ''
 
     try {
-      body = (await request.json()) as ContactBody
+      rawBody = await request.text()
     } catch {
-      return json(
+      return respond(
         {
           success: false,
           message: 'Não foi possível ler os dados do formulário. Tente novamente.'
@@ -118,35 +250,71 @@ export default {
       )
     }
 
-    if (body.botcheck?.trim()) {
-      return json({
+    if (rawBody.length > MAX_BODY_SIZE) {
+      return respond(
+        {
+          success: false,
+          message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.'
+        },
+        413
+      )
+    }
+
+    let parsedBody: unknown
+
+    try {
+      parsedBody = JSON.parse(rawBody)
+    } catch {
+      return respond(
+        {
+          success: false,
+          message: 'Não foi possível ler os dados do formulário. Tente novamente.'
+        },
+        400
+      )
+    }
+
+    if (!isContactBody(parsedBody)) {
+      return respond(
+        {
+          success: false,
+          message: 'Os dados do formulário são inválidos.'
+        },
+        400
+      )
+    }
+
+    const body = parsedBody
+
+    if (toStringValue(body.botcheck).trim()) {
+      return respond({
         success: true,
         message: 'Pedido enviado com sucesso.'
       })
     }
 
-    const name = cleanText(body.name || '', 120)
-    const email = cleanText(body.email || '', 180).toLowerCase()
-    const phone = cleanText(body.phone || '', 80)
-    const projectType = cleanText(body.projectType || '', 120)
-    const hasWebsite = cleanText(body.hasWebsite || '', 120)
-    const pageUrl = cleanText(body.pageUrl || url.origin, 300)
-    const message = cleanMultilineText(body.message || '', 5000)
+    const name = cleanText(toStringValue(body.name), 120)
+    const email = cleanText(toStringValue(body.email), 180).toLowerCase()
+    const phone = cleanText(toStringValue(body.phone), 80)
+    const projectType = cleanText(toStringValue(body.projectType), 120)
+    const hasWebsite = cleanText(toStringValue(body.hasWebsite), 120)
+    const pageUrl = cleanPageUrl(body.pageUrl, url.origin)
+    const message = cleanMultilineText(toStringValue(body.message), 5000)
 
     if (!name || !email || !message) {
-      return json({ success: false, message: 'Preencha todos os campos obrigatórios.' }, 400)
+      return respond({ success: false, message: 'Preencha todos os campos obrigatórios.' }, 400)
     }
 
     if (name.length < 2) {
-      return json({ success: false, message: 'Indique um nome válido.' }, 400)
+      return respond({ success: false, message: 'Indique um nome válido.' }, 400)
     }
 
     if (!isValidEmail(email)) {
-      return json({ success: false, message: 'Indique um email válido.' }, 400)
+      return respond({ success: false, message: 'Indique um email válido.' }, 400)
     }
 
     if (message.length < 10) {
-      return json(
+      return respond(
         {
           success: false,
           message: 'Descreva o projeto com um pouco mais de detalhe.'
@@ -154,6 +322,8 @@ export default {
         400
       )
     }
+
+    const timestamp = new Date().toISOString()
 
     const fullMessage = [
       'Novo pedido recebido através do site MA-Code.',
@@ -168,12 +338,13 @@ export default {
       message,
       '',
       `Página de origem: ${pageUrl}`,
-      `Data: ${new Date().toISOString()}`
+      `Data: ${timestamp}`
     ].join('\n')
 
-    const subject = ['Pedido de proposta - MA-Code', projectType || null, name]
-      .filter(Boolean)
-      .join(' | ')
+    const subject = cleanText(
+      ['Pedido de proposta - MA-Code', projectType || null, name].filter(Boolean).join(' | '),
+      180
+    )
 
     try {
       const web3Response = await fetch('https://api.web3forms.com/submit', {
@@ -194,7 +365,7 @@ export default {
           has_website: hasWebsite,
           message: fullMessage,
           page: pageUrl,
-          timestamp: new Date().toISOString()
+          timestamp
         })
       })
 
@@ -203,7 +374,7 @@ export default {
       try {
         data = (await web3Response.json()) as Web3FormsResponse
       } catch {
-        return json(
+        return respond(
           {
             success: false,
             message: 'Não foi possível confirmar o envio do formulário. Tente novamente.'
@@ -213,7 +384,7 @@ export default {
       }
 
       if (!web3Response.ok || !data.success) {
-        return json(
+        return respond(
           {
             success: false,
             message: data.message || 'Não foi possível enviar o pedido. Tente novamente.'
@@ -222,12 +393,12 @@ export default {
         )
       }
 
-      return json({
+      return respond({
         success: true,
         message: 'Pedido enviado com sucesso.'
       })
     } catch {
-      return json(
+      return respond(
         {
           success: false,
           message: 'Erro ao comunicar com o serviço de envio. Tente novamente.'
