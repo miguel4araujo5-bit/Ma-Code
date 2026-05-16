@@ -975,398 +975,6 @@ body {
   }
 }
 
-@media (max-width: 1024px) {
-  .hero-layout {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .hero-copy {
-    max-width: 100%;
-  }
-
-  .hero-title {
-    max-width: 13.5ch;
-  }
-
-  .hero-aside {
-    display: none;
-  }
-
-  .hero-panel {
-    border-radius: 1.6rem;
-    padding: 1rem;
-  }
-
-  .hero-marquee {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    margin-top: 1.5rem;
-    padding: 0.75rem;
-    border-radius: 1.25rem;
-  }
-
-  .hero-marquee__track {
-    display: flex;
-    width: max-content;
-    min-width: max-content;
-  }
-
-  .hero-marquee__item {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-  }
-}
-
-@media (max-width: 768px) {
-  .site-grid {
-    background-size: 34px 34px;
-    opacity: 0.22;
-  }
-
-  .site-noise {
-    opacity: 0.024;
-  }
-
-  .site-bg-orb-one {
-    width: 18rem;
-    height: 18rem;
-    top: -4rem;
-    left: -4rem;
-  }
-
-  .site-bg-orb-two {
-    width: 18rem;
-    height: 18rem;
-    top: 22rem;
-    right: -6rem;
-  }
-
-  .site-bg-orb-three {
-    width: 14rem;
-    height: 14rem;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .brand-mark {
-    @apply px-3.5 py-2.5 text-[11px];
-    gap: 0.65rem;
-    letter-spacing: 0.09em;
-  }
-
-  .brand-mark img {
-    width: 2.45rem;
-    height: 2.45rem;
-  }
-
-  .hero-topline {
-    width: 100%;
-    justify-content: center;
-    padding: 0.8rem 0.95rem;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    gap: 0.45rem;
-    text-align: center;
-  }
-
-  .hero-title {
-    margin-top: 1rem;
-    max-width: 100%;
-    font-size: 2.16rem;
-    line-height: 1.04;
-    letter-spacing: -0.043em;
-    text-wrap: pretty;
-  }
-
-  .hero-price-badge {
-    margin-top: 0.95rem;
-    font-size: 0.91rem;
-  }
-
-  .hero-subtitle {
-    margin-top: 1rem;
-    max-width: 100%;
-    font-size: 0.97rem;
-    line-height: 1.7;
-  }
-
-  .hero-actions {
-    @apply mt-6;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    @apply w-full px-5 py-3.5 text-[12px];
-    letter-spacing: 0.1em;
-    min-height: 3.2rem;
-  }
-
-  .btn-ghost {
-    @apply px-4 py-3 text-[11px];
-    width: auto;
-    min-height: 3rem;
-    flex-shrink: 0;
-    letter-spacing: 0.09em;
-  }
-
-  .hero-mini-points {
-    gap: 0.65rem;
-  }
-
-  .hero-mini-points li {
-    font-size: 13px;
-  }
-
-  .hero-marquee {
-    margin-top: 1.4rem;
-    padding: 0.8rem;
-    border-radius: 1.2rem;
-  }
-
-  .hero-marquee::before,
-  .hero-marquee::after {
-    width: 1.4rem;
-  }
-
-  .hero-marquee__track {
-    display: inline-flex;
-    gap: 0.65rem;
-    width: max-content;
-    min-width: max-content;
-    white-space: nowrap;
-    animation-duration: 20s;
-    -webkit-animation-duration: 20s;
-  }
-
-  .hero-marquee__item {
-    font-size: 10px;
-    padding: 0.68rem 0.82rem;
-    letter-spacing: 0.09em;
-  }
-
-  .section-label {
-    @apply px-3.5 py-2 text-[11px];
-    letter-spacing: 0.16em;
-  }
-
-  .service-card {
-    @apply p-5;
-    border-radius: 1.75rem;
-  }
-
-  .service-card__index {
-    @apply mb-4;
-  }
-
-  .service-card__title {
-    @apply mb-3 text-xl;
-  }
-
-  .service-card__description {
-    @apply text-[15px] leading-7;
-  }
-
-  .highlight-strip {
-    @apply px-5 py-5;
-    border-radius: 1.75rem;
-  }
-
-  .highlight-strip__content p {
-    @apply text-[15px] leading-7;
-  }
-
-  .contact-side-panel,
-  .form-shell {
-    @apply p-5;
-    border-radius: 1.75rem;
-  }
-
-  .contact-side-panel__title {
-    @apply text-[1.9rem];
-    line-height: 1.08;
-  }
-
-  .contact-side-panel__text {
-    @apply text-[15px] leading-7;
-  }
-
-  .contact-metrics {
-    @apply mt-6 gap-3;
-  }
-
-  .metric-card {
-    @apply p-4;
-    border-radius: 1.25rem;
-  }
-
-  .input-label {
-    @apply text-[12px];
-    letter-spacing: 0.12em;
-  }
-
-  .input-field {
-    @apply rounded-[1.1rem] px-4 py-3.5 text-[15px];
-  }
-
-  .input-textarea {
-    min-height: 9rem;
-  }
-
-  .status-message {
-    @apply text-[14px];
-  }
-}
-
-@media (max-width: 480px) {
-  .brand-mark {
-    padding-left: 0.85rem;
-    padding-right: 0.9rem;
-    gap: 0.55rem;
-    font-size: 10px;
-    letter-spacing: 0.07em;
-  }
-
-  .brand-mark img {
-    width: 2.15rem;
-    height: 2.15rem;
-  }
-
-  .hero-topline {
-    font-size: 9px;
-    letter-spacing: 0.055em;
-    line-height: 1.35;
-  }
-
-  .hero-title {
-    font-size: 1.92rem;
-    line-height: 1.04;
-    letter-spacing: -0.043em;
-  }
-
-  .hero-price-badge {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .hero-subtitle {
-    font-size: 0.94rem;
-    line-height: 1.68;
-  }
-
-  .hero-mini-points {
-    gap: 0.5rem;
-  }
-
-  .hero-mini-points li {
-    font-size: 12px;
-    padding: 0.55rem 0.75rem;
-  }
-
-  .hero-marquee {
-    padding: 0.72rem;
-  }
-
-  .hero-marquee::before,
-  .hero-marquee::after {
-    width: 0.9rem;
-  }
-
-  .hero-marquee__track {
-    display: inline-flex;
-    width: max-content;
-    min-width: max-content;
-    white-space: nowrap;
-    animation-duration: 17s;
-    -webkit-animation-duration: 17s;
-  }
-
-  .hero-marquee__item {
-    font-size: 9px;
-    letter-spacing: 0.075em;
-    padding: 0.62rem 0.76rem;
-  }
-
-  .contact-side-panel__title {
-    font-size: 1.7rem;
-  }
-
-  .site-grid {
-    background-size: 28px 28px;
-  }
-}
-
-/* Segurança: impede que a barra rolante dos serviços desapareça por herança, cache de classes ou breakpoints. */
-.hero-marquee {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.hero-marquee__track {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.hero-marquee__item {
-  display: inline-flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  color: #cffafe !important;
-}
-
-/* Correção final mobile:
-   o painel lateral do hero é apenas para desktop.
-   No mobile, o hero deve ficar limpo e não deve mostrar o painel "Plano MA-Code". */
-@media (max-width: 1023px) {
-  .hero-aside {
-    display: none !important;
-  }
-
-  .hero-panel {
-    display: none !important;
-  }
-
-  .site-shell > section:first-of-type header .btn-ghost {
-    display: none !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  .hero-aside {
-    display: block !important;
-  }
-
-  .hero-panel {
-    display: block !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-
-  .site-bg-orb,
-  .btn-shine,
-  .hero-marquee__track {
-    transform: none !important;
-    animation: none !important;
-    -webkit-animation: none !important;
-  }
-}
-
-
 @media (max-width: 1023px) {
   .site-shell > section:first-of-type {
     padding-top: 1rem !important;
@@ -1405,10 +1013,7 @@ body {
     gap: 0 !important;
   }
 
-  .hero-layout > :nth-child(2) {
-    display: none !important;
-  }
-
+  .hero-layout > :nth-child(2),
   .hero-aside,
   .hero-panel,
   .hero-panel *,
@@ -1517,6 +1122,8 @@ body {
     padding: 0.58rem 0 !important;
     border-radius: 1rem !important;
     overflow: hidden !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .hero-marquee::before,
@@ -1533,6 +1140,8 @@ body {
     width: max-content !important;
     min-width: max-content !important;
     white-space: nowrap !important;
+    opacity: 1 !important;
+    visibility: visible !important;
     animation-duration: 18s !important;
     -webkit-animation-duration: 18s !important;
   }
@@ -1546,6 +1155,9 @@ body {
     line-height: 1 !important;
     letter-spacing: 0.055em !important;
     white-space: nowrap !important;
+    color: #cffafe !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .site-shell > section:first-of-type > div > .mt-8.grid {
@@ -1553,17 +1165,138 @@ body {
   }
 }
 
-@media (max-width: 380px) {
+@media (min-width: 1024px) {
+  .hero-aside {
+    display: block !important;
+  }
+
+  .hero-panel {
+    display: block !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-grid {
+    background-size: 34px 34px;
+    opacity: 0.22;
+  }
+
+  .site-noise {
+    opacity: 0.024;
+  }
+
+  .site-bg-orb-one {
+    width: 18rem;
+    height: 18rem;
+    top: -4rem;
+    left: -4rem;
+  }
+
+  .site-bg-orb-two {
+    width: 18rem;
+    height: 18rem;
+    top: 22rem;
+    right: -6rem;
+  }
+
+  .site-bg-orb-three {
+    width: 14rem;
+    height: 14rem;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .section-label {
+    @apply px-3.5 py-2 text-[11px];
+    letter-spacing: 0.16em;
+  }
+
+  .service-card {
+    @apply p-5;
+    border-radius: 1.75rem;
+  }
+
+  .service-card__index {
+    @apply mb-4;
+  }
+
+  .service-card__title {
+    @apply mb-3 text-xl;
+  }
+
+  .service-card__description {
+    @apply text-[15px] leading-7;
+  }
+
+  .highlight-strip {
+    @apply px-5 py-5;
+    border-radius: 1.75rem;
+  }
+
+  .highlight-strip__content p {
+    @apply text-[15px] leading-7;
+  }
+
+  .contact-side-panel,
+  .form-shell {
+    @apply p-5;
+    border-radius: 1.75rem;
+  }
+
+  .contact-side-panel__title {
+    @apply text-[1.9rem];
+    line-height: 1.08;
+  }
+
+  .contact-side-panel__text {
+    @apply text-[15px] leading-7;
+  }
+
+  .contact-metrics {
+    @apply mt-6 gap-3;
+  }
+
+  .metric-card {
+    @apply p-4;
+    border-radius: 1.25rem;
+  }
+
+  .input-label {
+    @apply text-[12px];
+    letter-spacing: 0.12em;
+  }
+
+  .input-field {
+    @apply rounded-[1.1rem] px-4 py-3.5 text-[15px];
+  }
+
+  .input-textarea {
+    min-height: 9rem;
+  }
+
+  .status-message {
+    @apply text-[14px];
+  }
+}
+
+@media (max-width: 480px) {
   .hero-title {
-    font-size: 1.72rem !important;
+    font-size: 1.92rem !important;
+    line-height: 1.04 !important;
   }
 
   .hero-subtitle {
-    font-size: 0.9rem !important;
+    font-size: 0.94rem !important;
+    line-height: 1.68 !important;
+  }
+
+  .hero-mini-points {
+    gap: 0.5rem !important;
   }
 
   .hero-mini-points li {
-    font-size: 0.58rem !important;
+    font-size: 0.6rem !important;
     padding: 0.5rem 0.25rem !important;
   }
 
@@ -1571,5 +1304,33 @@ body {
   .site-shell .ma-service-marquee__item {
     font-size: 0.49rem !important;
     padding: 0.48rem 0.56rem !important;
+  }
+
+  .contact-side-panel__title {
+    font-size: 1.7rem;
+  }
+
+  .site-grid {
+    background-size: 28px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .site-bg-orb,
+  .btn-shine,
+  .hero-marquee__track,
+  .site-shell .ma-service-marquee__track {
+    transform: none !important;
+    animation: none !important;
+    -webkit-animation: none !important;
   }
 }
