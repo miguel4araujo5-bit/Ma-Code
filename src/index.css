@@ -299,7 +299,7 @@ body {
   }
 
   .hero-aside {
-    @apply relative block;
+    @apply relative hidden lg:block;
   }
 
   .btn-primary {
@@ -990,9 +990,7 @@ body {
   }
 
   .hero-aside {
-    display: block;
-    width: 100%;
-    max-width: 100%;
+    display: none;
   }
 
   .hero-panel {
@@ -1302,8 +1300,7 @@ body {
   }
 }
 
-
-/* SeguranÃ§a: impede que a barra rolante dos serviÃ§os desapareÃ§a por heranÃ§a, cache de classes ou breakpoints. */
+/* Segurança: impede que a barra rolante dos serviços desapareça por herança, cache de classes ou breakpoints. */
 .hero-marquee {
   display: block !important;
   opacity: 1 !important;
@@ -1321,6 +1318,33 @@ body {
   opacity: 1 !important;
   visibility: visible !important;
   color: #cffafe !important;
+}
+
+/* Correção final mobile:
+   o painel lateral do hero é apenas para desktop.
+   No mobile, o hero deve ficar limpo e não deve mostrar o painel "Plano MA-Code". */
+@media (max-width: 1023px) {
+  .hero-aside {
+    display: none !important;
+  }
+
+  .hero-panel {
+    display: none !important;
+  }
+
+  .site-shell > section:first-of-type header .btn-ghost {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-aside {
+    display: block !important;
+  }
+
+  .hero-panel {
+    display: block !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
