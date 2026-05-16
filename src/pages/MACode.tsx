@@ -39,34 +39,37 @@ const proofPoints = [
 
 const pathCards = [
   {
-    title: 'Criar presença profissional',
-    eyebrow: 'Website',
-    href: '/criacao-websites',
-    cta: 'Ver criação de websites',
+    title: 'Quero um website profissional',
+    eyebrow: 'Presença online',
+    href: '#orcamento',
+    projectType: 'Website profissional',
+    cta: 'Pedir proposta para website',
     description:
-      'Website profissional para apresentar o negócio, explicar serviços, transmitir confiança e facilitar o contacto com potenciais clientes.',
-    points: ['Página inicial forte', 'Serviços bem explicados', 'Contactos e WhatsApp'],
+      'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',
+    points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],
     outcome:
       'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'
   },
   {
-    title: 'Receber contactos, reservas ou encomendas',
-    eyebrow: 'Conversão',
-    href: '#servicos',
-    cta: 'Ver soluções disponíveis',
+    title: 'Quero vender ou receber marcações',
+    eyebrow: 'Vendas e reservas',
+    href: '#orcamento',
+    projectType: 'Loja online / Sistema de marcações',
+    cta: 'Pedir proposta para vendas ou marcações',
     description:
-      'Formulários, WhatsApp, loja online ou sistema de marcações para transformar visitas em pedidos reais.',
-    points: ['Percurso simples', 'Pedido rápido', 'Experiência preparada para telemóvel'],
+      'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',
+    points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],
     outcome:
-      'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades.'
+      'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'
   },
   {
-    title: 'Organizar processos e poupar tempo',
-    eyebrow: 'Automação e gestão',
-    href: '/automacao-ia',
-    cta: 'Ver automação e IA',
+    title: 'Quero automatizar ou criar um sistema',
+    eyebrow: 'Sistema à medida',
+    href: '#orcamento',
+    projectType: 'Sistema à medida',
+    cta: 'Pedir proposta para sistema à medida',
     description:
-      'Áreas administrativas, bases de dados, automações, IA e integrações para reduzir tarefas repetitivas e centralizar informação.',
+      'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',
     points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],
     outcome:
       'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'
@@ -176,7 +179,9 @@ const projectTypes = [
   'Website profissional',
   'Redesign de website existente',
   'Loja online',
+  'Loja online / Sistema de marcações',
   'Sistema de marcações',
+  'Sistema à medida',
   'Aplicação web',
   'Automação / IA',
   'Integração avançada',
@@ -492,6 +497,13 @@ export default function MACode() {
     updateCanonical('https://ma-code.pt/')
   }, [])
 
+  const selectProjectPath = (projectType: string) => {
+    setForm((current) => ({
+      ...current,
+      projectType
+    }))
+  }
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
@@ -715,18 +727,17 @@ export default function MACode() {
       <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 section-label-wrap">
-            <span className="section-label">Ponto de partida</span>
+            <span className="section-label">Escolha o caminho</span>
           </div>
 
           <div className="mb-8 max-w-3xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Comece com o que precisa agora. Evolua quando o negócio justificar.
+              O que precisa neste momento?
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Nem todos os projetos precisam de começar com uma solução complexa. A MA-Code ajuda a
-              escolher o caminho certo: um website profissional, uma loja online, um sistema de
-              marcações ou uma ferramenta à medida para organizar o trabalho.
+              Escolha o ponto de partida mais próximo do que procura. A proposta fica mais clara,
+              o pedido chega melhor qualificado e o projeto começa pelo nível certo de solução.
             </p>
           </div>
 
@@ -735,6 +746,7 @@ export default function MACode() {
               <a
                 key={card.title}
                 href={card.href}
+                onClick={() => selectProjectPath(card.projectType)}
                 className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
