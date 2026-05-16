@@ -7,7 +7,15 @@ type PortfolioProps = {
 
 type ProjectScreenshot = PortfolioImage
 
-const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
+type PortfolioFormState = {
+  name: string
+  email: string
+  phone: string
+  projectType: string
+  hasWebsite: string
+  message: string
+  botcheck: string
+}
 
 const projectTypes = [
   'Website simples',
@@ -20,6 +28,16 @@ const projectTypes = [
   'Integração avançada',
   'Ainda não sei'
 ]
+
+const emptyForm: PortfolioFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  projectType: '',
+  hasWebsite: '',
+  message: '',
+  botcheck: ''
+}
 
 function getProjectDomain(href: string) {
   try {
@@ -107,16 +125,7 @@ function ProjectImageFrame({
 }
 
 export default function Portfolio({ mounted }: PortfolioProps) {
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    projectType: '',
-    hasWebsite: '',
-    message: '',
-    botcheck: ''
-  })
-
+  const [form, setForm] = useState<PortfolioFormState>(emptyForm)
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -159,6 +168,7 @@ Observações adicionais:`
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
     setIsSending(true)
     setSuccessMessage('')
     setErrorMessage('')
@@ -169,21 +179,18 @@ Observações adicionais:`
     }
 
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: web3FormsAccessKey,
-          subject: 'Pedido de orçamento - MA-Code',
-          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
-          phone: form.phone || 'Não indicado',
-          'Tipo de projeto': form.projectType,
-          'Já tem site?': form.hasWebsite || 'Não indicado',
+          phone: form.phone,
+          projectType: form.projectType,
+          hasWebsite: form.hasWebsite,
           message: form.message,
           botcheck: form.botcheck
         })
@@ -199,18 +206,13 @@ Observações adicionais:`
       }
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        hasWebsite: '',
-        message: '',
-        botcheck: ''
-      })
-    } catch {
-      setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
+      setForm(emptyForm)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível enviar o pedido. Tente novamente.'
+      )
     } finally {
       setIsSending(false)
     }
@@ -508,16 +510,7 @@ Observações adicionais:`
             </div>
 
             <div className="form-shell">
-              <form
-                action="https://api.web3forms.com/submit"
-                method="POST"
-                onSubmit={handleSubmit}
-                className="space-y-5"
-              >
-                <input type="hidden" name="access_key" value={web3FormsAccessKey} />
-                <input type="hidden" name="subject" value="Pedido de orçamento - MA-Code" />
-                <input type="hidden" name="from_name" value="MA-Code Website" />
-
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <input
                   type="text"
                   name="botcheck"
