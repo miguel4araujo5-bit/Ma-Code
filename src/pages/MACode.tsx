@@ -492,7 +492,7 @@ export default function MACode() {
     updateCanonical('https://ma-code.pt/')
   }, [])
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     setIsSending(true)
@@ -504,15 +504,6 @@ export default function MACode() {
       return
     }
 
-    const fullMessage = [
-      `Tipo de projeto: ${form.projectType || 'Não indicado'}`,
-      `Já tem site?: ${form.hasWebsite || 'Não indicado'}`,
-      `Telefone / WhatsApp: ${form.phone || 'Não indicado'}`,
-      '',
-      'Mensagem:',
-      form.message
-    ].join('\n')
-
     try {
       const response = await fetch('/api/contact', {
         method: 'POST',
@@ -523,7 +514,12 @@ export default function MACode() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          message: fullMessage
+          phone: form.phone,
+          projectType: form.projectType,
+          hasWebsite: form.hasWebsite,
+          pageUrl: 'https://ma-code.pt/',
+          message: form.message,
+          botcheck: form.botcheck
         })
       })
 
