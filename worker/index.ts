@@ -21,7 +21,7 @@ type Web3FormsResponse = {
 
 type HeaderMap = Record<string, string>
 
-const MAX_BODY_SIZE = 25_000
+const MAX_BODY_BYTES = 25_000
 
 const securityHeaders: HeaderMap = {
   'Cache-Control': 'no-store',
@@ -112,6 +112,8 @@ const isContactBody = (value: unknown): value is ContactBody =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const toStringValue = (value: unknown) => (typeof value === 'string' ? value : '')
+
+const getByteLength = (value: string) => new TextEncoder().encode(value).byteLength
 
 const cleanText = (value: string, maxLength: number) =>
   value
@@ -226,7 +228,17 @@ export default {
     const contentLengthHeader = request.headers.get('content-length')
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0
 
-    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_SIZE) {
+    if (contentLengthHeader && (!Number.isFinite(contentLength) || contentLength < 0)) {
+      return respond(
+        {
+          success: false,
+          message: 'Formato de pedido inválido.'
+        },
+        400
+      )
+    }
+
+    if (contentLength > MAX_BODY_BYTES) {
       return respond(
         {
           success: false,
@@ -250,7 +262,7 @@ export default {
       )
     }
 
-    if (rawBody.length > MAX_BODY_SIZE) {
+    if (getByteLength(rawBody) > MAX_BODY_BYTES) {
       return respond(
         {
           success: false,
