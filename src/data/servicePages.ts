@@ -203,6 +203,16 @@ export const servicePages: ServicePageData[] = [
         answer:
           'Sim. A estrutura pode ser preparada para crescer com novas páginas, loja online, sistema de marcações, automações, integrações ou área administrativa.',
       },
+      {
+        question: 'Preciso de já ter textos e imagens antes de começar?',
+        answer:
+          'Não obrigatoriamente. Podemos começar pela estrutura do website e ajudar a transformar a informação do negócio em conteúdo claro, profissional e orientado para contacto.',
+      },
+      {
+        question: 'O website pode incluir domínio e alojamento?',
+        answer:
+          'Sim. Quando fizer sentido para o projeto, podemos incluir domínio, alojamento e configuração técnica para que o negócio tenha uma solução mais simples de gerir.',
+      },
     ],
     relatedServices: ['lojas-online', 'sistemas-marcacao', 'automacao-ia'],
   },
@@ -350,6 +360,16 @@ export const servicePages: ServicePageData[] = [
         question: 'A loja fica preparada para SEO?',
         answer:
           'Sim. Podemos estruturar páginas, títulos, descrições, categorias e metadata para criar uma base mais forte para motores de pesquisa.',
+      },
+      {
+        question: 'Posso começar com poucos produtos e crescer depois?',
+        answer:
+          'Sim. A loja pode começar com um catálogo mais simples e evoluir com novas categorias, produtos, métodos de pagamento, automações e área administrativa.',
+      },
+      {
+        question: 'Que informação devo preparar para criar uma loja online?',
+        answer:
+          'O ideal é reunir nomes dos produtos, preços, imagens, descrições, categorias, regras de entrega, métodos de pagamento pretendidos e forma como quer gerir encomendas.',
       },
     ],
     relatedServices: ['criacao-websites', 'automacao-ia', 'sistemas-marcacao'],
@@ -499,6 +519,16 @@ export const servicePages: ServicePageData[] = [
         answer:
           'Podemos preparar mensagens de confirmação, instruções no ecrã, ligação com WhatsApp ou notificações, dependendo da solução pretendida.',
       },
+      {
+        question: 'É possível começar só com pedido de marcação e evoluir depois?',
+        answer:
+          'Sim. O sistema pode começar como um pedido de marcação simples e evoluir para confirmação automática, painel de gestão, notificações, bloqueios de agenda ou regras mais avançadas.',
+      },
+      {
+        question: 'O sistema adapta-se aos horários e serviços do negócio?',
+        answer:
+          'Sim. A estrutura pode ser ajustada à duração dos serviços, horários de funcionamento, pausas, dias indisponíveis, bloqueios manuais e forma de confirmação usada pela equipa.',
+      },
     ],
     relatedServices: ['criacao-websites', 'automacao-ia', 'lojas-online'],
   },
@@ -646,6 +676,16 @@ export const servicePages: ServicePageData[] = [
         question: 'A solução fica personalizada ao meu negócio?',
         answer:
           'Sim. O objetivo é adaptar a automação ao processo real, não aplicar uma solução genérica que depois a equipa não usa.',
+      },
+      {
+        question: 'Como sei se o meu negócio precisa de automação?',
+        answer:
+          'Normalmente há oportunidade de automação quando a equipa repete muitas vezes a mesma tarefa, copia dados entre ferramentas, responde sempre às mesmas perguntas ou perde tempo a organizar informação manualmente.',
+      },
+      {
+        question: 'Podemos começar com uma automação pequena?',
+        answer:
+          'Sim. Muitas soluções começam por uma fase pequena e prática, como automatizar pedidos, organizar respostas, ligar um formulário a uma base de dados ou criar um assistente para perguntas frequentes.',
       },
     ],
     relatedServices: ['criacao-websites', 'lojas-online', 'sistemas-marcacao'],
