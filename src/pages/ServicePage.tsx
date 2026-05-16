@@ -20,7 +20,7 @@ type ContactFormState = {
   botcheck: string
 }
 
-const web3FormsAccessKey = '18547eb2-4deb-4420-b33d-64813f8918e5'
+type ResolvedServicePage = NonNullable<ReturnType<typeof getServicePageBySlug>>
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -83,7 +83,7 @@ function createInitialForm(projectType: string): ContactFormState {
   }
 }
 
-function createServiceSchema(page: NonNullable<ReturnType<typeof getServicePageBySlug>>) {
+function createServiceSchema(page: ResolvedServicePage) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -212,7 +212,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
 
     return page.relatedServices
       .map((relatedSlug) => getServicePageBySlug(relatedSlug))
-      .filter((relatedPage): relatedPage is NonNullable<typeof relatedPage> => Boolean(relatedPage))
+      .filter((relatedPage): relatedPage is ResolvedServicePage => Boolean(relatedPage))
   }, [page])
 
   useEffect(() => {
@@ -272,24 +272,24 @@ export default function ServicePage({ slug }: ServicePageProps) {
     }
 
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: web3FormsAccessKey,
-          subject: `Pedido de orçamento - ${page.label} - MA-Code`,
-          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
-          phone: form.phone || 'Não indicado',
-          'Tipo de projeto': form.projectType,
-          'Já tem site?': form.hasWebsite || 'Não indicado',
-          'Página de origem': page.label,
-          URL: page.seo.canonical,
-          message: form.message,
+          phone: form.phone,
+          projectType: form.projectType,
+          hasWebsite: form.hasWebsite,
+          message: [
+            `Página de origem: ${page.label}`,
+            `URL: ${page.seo.canonical}`,
+            '',
+            form.message
+          ].join('\n'),
           botcheck: form.botcheck
         })
       })
@@ -710,16 +710,7 @@ export default function ServicePage({ slug }: ServicePageProps) {
             </div>
 
             <div className="form-shell">
-              <form
-                action="https://api.web3forms.com/submit"
-                method="POST"
-                onSubmit={handleSubmit}
-                className="space-y-5"
-              >
-                <input type="hidden" name="access_key" value={web3FormsAccessKey} />
-                <input type="hidden" name="subject" value={`Pedido de orçamento - ${page.label} - MA-Code`} />
-                <input type="hidden" name="from_name" value="MA-Code Website" />
-
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <input
                   type="text"
                   name="botcheck"
