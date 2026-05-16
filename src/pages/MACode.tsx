@@ -744,10 +744,11 @@ return (
             key={card.title}
             href={card.href}
             onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
+            aria-current={form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'true' : undefined}
             aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
             className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
-              mounted ? 'animate-fade-in-up' : 'opacity-0'
-            }`}
+              form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'ring-1 ring-cyan-200/45' : ''
+            } ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ animationDelay: `${index * 120}ms` }}
           >
             <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
