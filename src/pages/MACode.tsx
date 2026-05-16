@@ -31,9 +31,9 @@ const proofPoints = [
   },
   {
     value: 'Evolutivo',
-    label: 'preparado para crescer',
+    label: 'sem refazer tudo',
     description:
-      'O projeto pode começar simples e evoluir para loja online, marcações, área administrativa, automação, IA ou app.'
+      'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'
   }
 ]
 
@@ -491,11 +491,11 @@ export default function MACode() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
+    document.title = 'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
 
     updateMeta(
       'description',
-      'Criamos websites profissionais desde 19€/mês para negócios que querem gerar contactos, vender online, receber marcações e evoluir para automação, IA ou sistemas digitais à medida.'
+      'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos, vender online e crescer para marcações, automação, IA ou sistemas digitais à medida.'
     )
 
     updateMeta(
@@ -515,12 +515,12 @@ export default function MACode() {
 
     updatePropertyMeta(
       'og:title',
-      'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
+      'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
     )
 
     updatePropertyMeta(
       'og:description',
-      'Transformamos websites em ferramentas comerciais: presença online profissional, contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
+      'Comece com um website profissional e evolua sem refazer tudo: contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
     )
 
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -535,7 +535,7 @@ export default function MACode() {
 
     updateMeta(
       'twitter:title',
-      'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
+      'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
     )
 
     updateMeta(
@@ -650,20 +650,16 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span className="sm:hidden">Websites que geram contactos</span>
-                <span className="hidden sm:inline">
-                  Websites, lojas online, marcações, automação e aplicações web
-                </span>
+                <span>Começar simples. Crescer sem refazer.</span>
               </div>
 
               <h1 className="hero-title">
                 <span className="sm:hidden">
-                  Transforme o site numa ferramenta para receber contactos.
+                  Website profissional hoje. Base digital para crescer amanhã.
                 </span>
 
                 <span className="hidden sm:inline">
-                  Transforme o seu site numa ferramenta para receber contactos, vender e poupar
-                  tempo.
+                  Websites profissionais que geram contactos hoje e crescem com o negócio amanhã.
                 </span>
               </h1>
 
@@ -674,12 +670,12 @@ export default function MACode() {
               <p className="hero-subtitle">
                 <span className="sm:hidden">
                   Comece com presença online profissional desde 19€/mês e evolua para loja,
-                  marcações, automação ou IA quando o negócio precisar.
+                  marcações, automação ou IA sem refazer tudo.
                 </span>
 
                 <span className="hidden sm:inline">
-                  A MA-Code cria websites e sistemas digitais com foco no que interessa ao negócio:
-                  explicar bem a oferta, gerar confiança, facilitar o contacto e deixar caminho
+                  A MA-Code cria websites e sistemas digitais para negócios que querem começar com
+                  uma presença online clara, gerar confiança, facilitar o contacto e deixar caminho
                   aberto para loja online, marcações, automação, IA e ferramentas internas à medida.
                 </span>
               </p>
@@ -735,7 +731,7 @@ export default function MACode() {
                     <span />
                   </div>
 
-                  <span className="hero-panel__label">Escada de valor MA-Code</span>
+                  <span className="hero-panel__label">Promessa MA-Code</span>
                 </div>
 
                 <div className="hero-panel__content">
@@ -752,7 +748,7 @@ export default function MACode() {
 
                     <div className="hud-card">
                       <span className="hud-card__label">Estratégia</span>
-                      <strong>Começar simples e evoluir com o negócio</strong>
+                      <strong>Crescer por fases, sem refazer tudo</strong>
                     </div>
                   </div>
 
@@ -821,12 +817,13 @@ export default function MACode() {
                   </span>
 
                   <strong className="mt-2 block text-lg font-semibold text-white">
-                    Website simples para começar. Base digital preparada para crescer.
+                    Começar simples. Crescer sem refazer.
                   </strong>
 
                   <p className="mt-3 text-sm leading-6 text-slate-300">
-                    Isto reduz o risco de comprar uma solução barata hoje e ter de refazer tudo
-                    amanhã quando o negócio precisar de mais funcionalidades.
+                    A ideia é simples: criar uma base digital profissional desde o início, para o
+                    negócio poder crescer por fases sem perder tempo, dinheiro ou coerência mais
+                    tarde.
                   </p>
                 </div>
               </div>
