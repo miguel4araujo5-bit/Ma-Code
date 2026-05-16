@@ -491,11 +491,11 @@ export default function MACode() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Criação de Websites, Lojas Online e Sistemas Digitais | MA-Code'
+    document.title = 'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
 
     updateMeta(
       'description',
-      'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples e evoluir para loja online, marcações, automação, IA ou sistema digital à medida.'
+      'Criamos websites profissionais desde 19€/mês para negócios que querem gerar contactos, vender online, receber marcações e evoluir para automação, IA ou sistemas digitais à medida.'
     )
 
     updateMeta(
@@ -515,12 +515,12 @@ export default function MACode() {
 
     updatePropertyMeta(
       'og:title',
-      'Criação de Websites, Lojas Online e Sistemas Digitais | MA-Code'
+      'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
     )
 
     updatePropertyMeta(
       'og:description',
-      'Comece com um website profissional e evolua para loja online, marcações, área administrativa, automação, IA ou sistema digital à medida quando o negócio precisar.'
+      'Transformamos websites em ferramentas comerciais: presença online profissional, contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
     )
 
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -535,12 +535,12 @@ export default function MACode() {
 
     updateMeta(
       'twitter:title',
-      'Criação de Websites, Lojas Online e Sistemas Digitais | MA-Code'
+      'Websites que Geram Contactos, Vendas e Sistemas Digitais | MA-Code'
     )
 
     updateMeta(
       'twitter:description',
-      'Websites profissionais desde 19€/mês, preparados para evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
+      'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
     )
 
     updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
@@ -650,7 +650,7 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span className="sm:hidden">Websites e sistemas digitais</span>
+                <span className="sm:hidden">Websites que geram contactos</span>
                 <span className="hidden sm:inline">
                   Websites, lojas online, marcações, automação e aplicações web
                 </span>
@@ -658,12 +658,12 @@ export default function MACode() {
 
               <h1 className="hero-title">
                 <span className="sm:hidden">
-                  Website hoje. Sistema digital amanhã.
+                  Transforme o site numa ferramenta para receber contactos.
                 </span>
 
                 <span className="hidden sm:inline">
-                  Comece com um website profissional e evolua para um sistema digital completo
-                  quando o negócio precisar.
+                  Transforme o seu site numa ferramenta para receber contactos, vender e poupar
+                  tempo.
                 </span>
               </h1>
 
@@ -673,14 +673,14 @@ export default function MACode() {
 
               <p className="hero-subtitle">
                 <span className="sm:hidden">
-                  Comece com presença online profissional desde 19€/mês e acrescente loja,
-                  marcações, automação ou IA quando fizer sentido.
+                  Comece com presença online profissional desde 19€/mês e evolua para loja,
+                  marcações, automação ou IA quando o negócio precisar.
                 </span>
 
                 <span className="hidden sm:inline">
-                  A MA-Code cria a base digital do negócio e deixa caminho aberto para crescer:
-                  primeiro presença online, depois contactos, vendas, marcações, automação, IA
-                  e ferramentas internas à medida.
+                  A MA-Code cria websites e sistemas digitais com foco no que interessa ao negócio:
+                  explicar bem a oferta, gerar confiança, facilitar o contacto e deixar caminho
+                  aberto para loja online, marcações, automação, IA e ferramentas internas à medida.
                 </span>
               </p>
 
@@ -741,7 +741,7 @@ export default function MACode() {
                 <div className="hero-panel__content">
                   <div className="hud-card hud-card--wide">
                     <span className="hud-card__label">Entrada recomendada</span>
-                    <strong>Website profissional com base preparada para crescer</strong>
+                    <strong>Website que explica, gera confiança e leva ao contacto</strong>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
