@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type MouseEvent } from 'react'
 import FeaturedProjects from '../components/FeaturedProjects'
 
 const marqueeItems = [
@@ -88,6 +88,7 @@ const pathCards = [
     eyebrow: 'Presença online',
     href: '#orcamento',
     projectType: 'Website profissional',
+    projectGoal: 'Receber mais contactos',
     cta: 'Pedir proposta para website',
     description:
       'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',
@@ -100,6 +101,7 @@ const pathCards = [
     eyebrow: 'Vendas e reservas',
     href: '#orcamento',
     projectType: 'Loja online / Sistema de marcações',
+    projectGoal: 'Vender online',
     cta: 'Pedir proposta para vendas ou marcações',
     description:
       'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',
@@ -112,6 +114,7 @@ const pathCards = [
     eyebrow: 'Sistema à medida',
     href: '#orcamento',
     projectType: 'Sistema à medida',
+    projectGoal: 'Automatizar tarefas',
     cta: 'Pedir proposta para sistema à medida',
     description:
       'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',
@@ -553,11 +556,28 @@ export default function MACode() {
     updateCanonical('https://ma-code.pt/')
   }, [])
 
-  const selectProjectPath = (projectType: string) => {
+  const selectProjectPath = (
+    event: MouseEvent<HTMLAnchorElement>,
+    projectType: string,
+    projectGoal: string
+  ) => {
+    event.preventDefault()
+
     setForm((current) => ({
       ...current,
-      projectType
+      projectType,
+      projectGoal
     }))
+
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('orcamento')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    })
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -882,41 +902,64 @@ export default function MACode() {
               <a
                 key={card.title}
                 href={card.href}
-                onClick={() => selectProjectPath(card.projectType)}
-                className={`service-card group ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+                onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
+                aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
+                className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
+                  mounted ? 'animate-fade-in-up' : 'opacity-0'
+                }`}
                 style={{ animationDelay: `${index * 120}ms` }}
               >
-                <div className="service-card__line" />
+                <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
+                <span className="pointer-events-none absolute -right-14 -top-16 size-40 rounded-full bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/20" />
+                <span className="pointer-events-none absolute -bottom-20 left-8 size-32 rounded-full bg-violet-400/10 blur-3xl transition duration-500 group-hover:bg-violet-400/15" />
 
-                <div className="mb-5 flex items-start justify-between gap-4">
-                  <div>
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
-                      {card.eyebrow}
+                <div className="relative z-10 flex h-full w-full flex-col">
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <span className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        {card.eyebrow}
+                      </span>
+
+                      <h3 className="service-card__title">{card.title}</h3>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center shadow-inner shadow-white/5">
+                      <span className="text-[0.58rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Opção
+                      </span>
+
+                      <strong className="mt-1 text-sm font-semibold text-cyan-100">
+                        {String(index + 1).padStart(2, '0')}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p className="service-card__description">{card.description}</p>
+
+                  <ul className="mt-5 grid gap-2.5 text-sm text-slate-200/90">
+                    {card.points.map((point) => (
+                      <li key={point} className="flex gap-2.5">
+                        <span className="mt-2 size-1.5 shrink-0 rounded-full bg-cyan-200 shadow-[0_0_12px_rgba(103,232,249,0.65)]" />
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-5 rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.06] p-4 shadow-inner shadow-cyan-950/20">
+                    <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">
+                      Resultado esperado
                     </span>
 
-                    <h3 className="service-card__title">{card.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-cyan-50/90">{card.outcome}</p>
                   </div>
 
-                  <div className="service-card__index">
-                    {String(index + 1).padStart(2, '0')}
-                  </div>
+                  <span className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15">
+                    <span>{card.cta}</span>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
+                  </span>
                 </div>
-
-                <p className="service-card__description">{card.description}</p>
-
-                <ul className="mt-5 space-y-2 text-sm text-slate-200/90">
-                  {card.points.map((point) => (
-                    <li key={point}>• {point}</li>
-                  ))}
-                </ul>
-
-                <p className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4 text-sm leading-6 text-cyan-50/90">
-                  {card.outcome}
-                </p>
-
-                <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
-                  {card.cta} →
-                </span>
               </a>
             ))}
           </div>
