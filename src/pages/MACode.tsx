@@ -60,6 +60,39 @@ function updateCanonical(href: string) {
   canonical.href = href
 }
 
+type AnalyticsParameters = Record<string, string | number | boolean | undefined>
+
+type AnalyticsWindow = Window & {
+  gtag?: (command: 'event', eventName: string, parameters?: AnalyticsParameters) => void
+  dataLayer?: unknown[]
+}
+
+function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const analyticsWindow = window as AnalyticsWindow
+  const eventParameters = {
+    page_location: window.location.href,
+    page_path: window.location.pathname,
+    page_title: document.title,
+    ...parameters
+  }
+
+  if (typeof analyticsWindow.gtag === 'function') {
+    analyticsWindow.gtag('event', eventName, eventParameters)
+    return
+  }
+
+  if (Array.isArray(analyticsWindow.dataLayer)) {
+    analyticsWindow.dataLayer.push({
+      event: eventName,
+      ...eventParameters
+    })
+  }
+}
+
 function ServiceMarquee() {return (
 <div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
   <style>{`
@@ -412,6 +445,12 @@ updateCanonical('https://ma-code.pt/')
 
 const selectProjectPath = (event: MouseEvent,projectType: string,projectGoal: string) => {event.preventDefault()
 
+trackEvent('select_project_path', {
+  project_type: projectType,
+  project_goal: projectGoal,
+  section: 'path_cards'
+})
+
 setForm((current) => ({
   ...current,
   projectType,
@@ -441,9 +480,21 @@ setSuccessMessage('')
 setErrorMessage('')
 
 if (form.botcheck) {
+  trackEvent('contact_form_blocked', {
+    form_name: 'pedido_proposta',
+    reason: 'botcheck'
+  })
+
   setIsSending(false)
   return
 }
+
+trackEvent('contact_form_submit', {
+  form_name: 'pedido_proposta',
+  project_type: form.projectType || 'not_selected',
+  project_goal: form.projectGoal || 'not_selected',
+  has_website: form.hasWebsite || 'not_selected'
+})
 
 try {
   const response = await fetch('/api/contact', {
@@ -474,6 +525,19 @@ try {
     throw new Error(data.message || 'Erro ao enviar pedido')
   }
 
+  trackEvent('contact_form_success', {
+    form_name: 'pedido_proposta',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
+
+  trackEvent('generate_lead', {
+    form_name: 'pedido_proposta',
+    lead_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected'
+  })
+
   setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
   setForm({
     name: '',
@@ -486,6 +550,13 @@ try {
     botcheck: ''
   })
 } catch {
+  trackEvent('contact_form_error', {
+    form_name: 'pedido_proposta',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
+
   setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
 } finally {
   setIsSending(false)
@@ -509,7 +580,15 @@ return (
           <span>MA-Code.pt</span>
         </a>
 
-        <a href="#orcamento" className="btn-ghost hidden text-sm sm:inline-flex sm:text-base">
+        <a
+          href="#orcamento"
+          className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
+          onClick={() => trackEvent('cta_click', {
+            cta_text: 'Pedir proposta',
+            cta_location: 'header',
+            destination: '#orcamento'
+          })}
+        >
           Pedir proposta
         </a>
       </header>
@@ -549,12 +628,28 @@ return (
           </p>
 
           <div className="hero-actions">
-            <a href="#orcamento" className="btn-primary hightech-button">
+            <a
+              href="#orcamento"
+              className="btn-primary hightech-button"
+              onClick={() => trackEvent('cta_click', {
+                cta_text: 'Receber proposta gratuita',
+                cta_location: 'hero_primary',
+                destination: '#orcamento'
+              })}
+            >
               <span className="btn-shine" />
               <span className="relative z-10">Receber proposta gratuita</span>
             </a>
 
-            <a href="/projetos" className="btn-secondary hightech-button-secondary">
+            <a
+              href="/projetos"
+              className="btn-secondary hightech-button-secondary"
+              onClick={() => trackEvent('cta_click', {
+                cta_text: 'Ver projetos reais',
+                cta_location: 'hero_secondary',
+                destination: '/projetos'
+              })}
+            >
               Ver projetos reais
             </a>
           </div>
@@ -858,6 +953,12 @@ return (
           <a
             key={card.title}
             href={card.href}
+            onClick={() => trackEvent('service_card_click', {
+              service_name: card.title,
+              service_label: card.label,
+              destination: card.href,
+              section: 'services'
+            })}
             className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ animationDelay: `${index * 120}ms` }}
           >
@@ -1027,7 +1128,15 @@ return (
                   name="Tipo de projeto"
                   className="input-field"
                   value={form.projectType}
-                  onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+                  onChange={(e) => {
+                    trackEvent('form_field_select', {
+                      form_name: 'pedido_proposta',
+                      field_name: 'projectType',
+                      selected_value: e.target.value
+                    })
+
+                    setForm({ ...form, projectType: e.target.value })
+                  }}
                   required
                 >
                   <option value="" disabled>
@@ -1053,7 +1162,15 @@ return (
                 name="Objetivo principal do projeto"
                 className="input-field"
                 value={form.projectGoal}
-                onChange={(e) => setForm({ ...form, projectGoal: e.target.value })}
+                onChange={(e) => {
+                  trackEvent('form_field_select', {
+                    form_name: 'pedido_proposta',
+                    field_name: 'projectGoal',
+                    selected_value: e.target.value
+                  })
+
+                  setForm({ ...form, projectGoal: e.target.value })
+                }}
                 required
               >
                 <option value="" disabled>
@@ -1078,7 +1195,15 @@ return (
                 name="Já tem site?"
                 className="input-field"
                 value={form.hasWebsite}
-                onChange={(e) => setForm({ ...form, hasWebsite: e.target.value })}
+                onChange={(e) => {
+                  trackEvent('form_field_select', {
+                    form_name: 'pedido_proposta',
+                    field_name: 'hasWebsite',
+                    selected_value: e.target.value || 'not_selected'
+                  })
+
+                  setForm({ ...form, hasWebsite: e.target.value })
+                }}
               >
                 <option value="">Selecione uma opção</option>
                 <option value="Sim, já tenho site">Sim, já tenho site</option>
