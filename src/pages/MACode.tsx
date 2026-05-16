@@ -563,7 +563,7 @@ export default function MACode() {
               <span>MA-Code.pt</span>
             </a>
 
-            <a href="#orcamento" className="btn-ghost text-sm sm:text-base">
+            <a href="#orcamento" className="btn-ghost hidden text-sm sm:inline-flex sm:text-base">
               Pedir proposta
             </a>
           </header>
@@ -572,12 +572,21 @@ export default function MACode() {
             <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
               <div className="hero-topline">
                 <span className="hero-topline__dot" />
-                <span>Websites, lojas online, marcações, automação e aplicações web</span>
+                <span className="sm:hidden">Websites e sistemas digitais</span>
+                <span className="hidden sm:inline">
+                  Websites, lojas online, marcações, automação e aplicações web
+                </span>
               </div>
 
               <h1 className="hero-title">
-                Criamos websites, lojas online e sistemas digitais para negócios que querem receber
-                mais contactos, vender mais e poupar tempo no dia a dia.
+                <span className="sm:hidden">
+                  Websites, lojas online e sistemas digitais para o seu negócio.
+                </span>
+
+                <span className="hidden sm:inline">
+                  Criamos websites, lojas online e sistemas digitais para negócios que querem
+                  receber mais contactos, vender mais e poupar tempo no dia a dia.
+                </span>
               </h1>
 
               <div className="hero-price-badge">
@@ -585,9 +594,16 @@ export default function MACode() {
               </div>
 
               <p className="hero-subtitle">
-                A MA-Code desenvolve websites profissionais, lojas online, sistemas de marcação,
-                áreas administrativas, automações e soluções com IA. Pode começar com uma presença
-                simples e evoluir para uma ferramenta mais completa quando o negócio precisar.
+                <span className="sm:hidden">
+                  Comece com um website profissional desde 19€/mês e evolua para loja, marcações,
+                  automação ou IA quando fizer sentido.
+                </span>
+
+                <span className="hidden sm:inline">
+                  A MA-Code desenvolve websites profissionais, lojas online, sistemas de marcação,
+                  áreas administrativas, automações e soluções com IA. Pode começar com uma presença
+                  simples e evoluir para uma ferramenta mais completa quando o negócio precisar.
+                </span>
               </p>
 
               <div className="hero-actions">
@@ -610,7 +626,7 @@ export default function MACode() {
               <ServiceMarquee />
             </div>
 
-            <div className={`hero-aside ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
+            <div className={`relative hidden lg:block ${mounted ? 'animate-fade-in-scale' : 'opacity-0'}`}>
               <div className="hero-panel">
                 <div className="hero-panel__glow" />
 
@@ -659,7 +675,7 @@ export default function MACode() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 hidden gap-4 md:grid md:grid-cols-3">
             {proofPoints.map((point, index) => (
               <article
                 key={point.label}
