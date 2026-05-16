@@ -37,6 +37,24 @@ const proofPoints = [
   }
 ]
 
+const valueLadder = [
+  {
+    stage: 'Entrada',
+    title: 'Website profissional',
+    description: 'Presença online clara, domínio, alojamento e contactos preparados desde o início.'
+  },
+  {
+    stage: 'Conversão',
+    title: 'Vendas e marcações',
+    description: 'Formulários, WhatsApp, loja online, reservas e páginas orientadas a pedidos reais.'
+  },
+  {
+    stage: 'Escala',
+    title: 'Sistema digital',
+    description: 'Área administrativa, automação, IA, bases de dados e integrações à medida.'
+  }
+]
+
 const pathCards = [
   {
     title: 'Quero um website profissional',
@@ -135,19 +153,19 @@ const serviceCards = [
 
 const evolutionSteps = [
   {
-    title: 'Primeiro: presença profissional',
+    title: '1. Entrada: website profissional',
     description:
-      'Um website claro, rápido e credível para apresentar o negócio e receber contactos.'
+      'Começa com uma presença online própria, rápida e credível, preparada para receber contactos.'
   },
   {
-    title: 'Depois: contactos e vendas',
+    title: '2. Conversão: vendas e pedidos',
     description:
-      'Formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'
+      'Evolui para formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'
   },
   {
-    title: 'Quando fizer sentido: sistema à medida',
+    title: '3. Escala: sistema digital',
     description:
-      'Área administrativa, automação, IA, integrações e ferramentas para gerir processos.'
+      'Quando o negócio precisar, acrescenta área administrativa, automação, IA, dados e integrações.'
   }
 ]
 
@@ -439,7 +457,7 @@ export default function MACode() {
 
     updateMeta(
       'description',
-      'Criamos websites profissionais, lojas online, sistemas de marcação, aplicações web, áreas administrativas, automação e IA para negócios em Portugal. Websites simples desde 19€/mês.'
+      'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples e evoluir para loja online, marcações, automação, IA ou sistema digital à medida.'
     )
 
     updateMeta(
@@ -464,7 +482,7 @@ export default function MACode() {
 
     updatePropertyMeta(
       'og:description',
-      'Criamos websites, lojas online, sistemas de marcação, aplicações web, áreas administrativas, automação e IA para negócios que querem receber mais contactos, vender mais e poupar tempo.'
+      'Comece com um website profissional e evolua para loja online, marcações, área administrativa, automação, IA ou sistema digital à medida quando o negócio precisar.'
     )
 
     updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -484,7 +502,7 @@ export default function MACode() {
 
     updateMeta(
       'twitter:description',
-      'Websites, lojas online, sistemas de marcação, aplicações web, automação e IA para negócios que querem receber contactos, vender mais e trabalhar com menos esforço manual.'
+      'Websites profissionais desde 19€/mês, preparados para evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
     )
 
     updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
@@ -601,12 +619,12 @@ export default function MACode() {
 
               <h1 className="hero-title">
                 <span className="sm:hidden">
-                  Websites, lojas online e sistemas digitais para o seu negócio.
+                  Website hoje. Sistema digital amanhã.
                 </span>
 
                 <span className="hidden sm:inline">
-                  Criamos websites, lojas online e sistemas digitais para negócios que querem
-                  receber mais contactos, vender mais e poupar tempo no dia a dia.
+                  Comece com um website profissional e evolua para um sistema digital completo
+                  quando o negócio precisar.
                 </span>
               </h1>
 
@@ -616,14 +634,14 @@ export default function MACode() {
 
               <p className="hero-subtitle">
                 <span className="sm:hidden">
-                  Comece com um website profissional desde 19€/mês e evolua para loja, marcações,
-                  automação ou IA quando fizer sentido.
+                  Comece com presença online profissional desde 19€/mês e acrescente loja,
+                  marcações, automação ou IA quando fizer sentido.
                 </span>
 
                 <span className="hidden sm:inline">
-                  A MA-Code desenvolve websites profissionais, lojas online, sistemas de marcação,
-                  áreas administrativas, automações e soluções com IA. Pode começar com uma presença
-                  simples e evoluir para uma ferramenta mais completa quando o negócio precisar.
+                  A MA-Code cria a base digital do negócio e deixa caminho aberto para crescer:
+                  primeiro presença online, depois contactos, vendas, marcações, automação, IA
+                  e ferramentas internas à medida.
                 </span>
               </p>
 
@@ -644,6 +662,22 @@ export default function MACode() {
                 <li>Foco em contactos</li>
               </ul>
 
+              <div className="mt-6 grid gap-3 rounded-3xl border border-cyan-300/15 bg-slate-950/55 p-4 shadow-xl shadow-cyan-950/10 backdrop-blur sm:grid-cols-3">
+                {valueLadder.map((step) => (
+                  <div key={step.stage} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <span className="block text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                      {step.stage}
+                    </span>
+
+                    <strong className="mt-2 block text-sm font-semibold text-white">
+                      {step.title}
+                    </strong>
+
+                    <p className="mt-2 text-xs leading-5 text-slate-300">{step.description}</p>
+                  </div>
+                ))}
+              </div>
+
               <ServiceMarquee />
             </div>
 
@@ -662,13 +696,13 @@ export default function MACode() {
                     <span />
                   </div>
 
-                  <span className="hero-panel__label">Plano MA-Code</span>
+                  <span className="hero-panel__label">Escada de valor MA-Code</span>
                 </div>
 
                 <div className="hero-panel__content">
                   <div className="hud-card hud-card--wide">
                     <span className="hud-card__label">Entrada recomendada</span>
-                    <strong>Website profissional pronto para receber contactos</strong>
+                    <strong>Website profissional com base preparada para crescer</strong>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -678,8 +712,8 @@ export default function MACode() {
                     </div>
 
                     <div className="hud-card">
-                      <span className="hud-card__label">Foco</span>
-                      <strong>Mobile, clareza e conversão</strong>
+                      <span className="hud-card__label">Estratégia</span>
+                      <strong>Começar simples e evoluir com o negócio</strong>
                     </div>
                   </div>
 
@@ -795,13 +829,14 @@ export default function MACode() {
                 <span className="section-label">Do site ao sistema</span>
 
                 <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  O seu site pode ser mais do que uma página bonita.
+                  Um website hoje. Um sistema digital amanhã.
                 </h2>
 
                 <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-                  Um website pode começar por apresentar o negócio e receber contactos. Mais tarde,
-                  pode evoluir para loja online, sistema de marcações, área administrativa,
-                  automações, IA ou integrações com ferramentas que já usa.
+                  A estratégia é simples: começar com uma base profissional que gera confiança e
+                  contactos, sem fechar portas ao crescimento. Quando fizer sentido, essa base pode
+                  evoluir para loja online, marcações, área administrativa, automações, IA ou
+                  integrações com ferramentas que o negócio já usa.
                 </p>
               </div>
 
@@ -842,8 +877,9 @@ export default function MACode() {
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">
-              Criamos desde websites simples até sistemas digitais mais completos, sempre com foco
-              no que o negócio precisa: contactos, vendas, marcações, gestão interna ou automação.
+              Criamos desde websites simples até sistemas digitais completos, com uma lógica de
+              crescimento: começar com presença online, gerar contactos e evoluir para venda,
+              marcações, gestão interna ou automação.
             </p>
           </div>
 
@@ -926,9 +962,9 @@ export default function MACode() {
               <h2 className="contact-side-panel__title">Fale-nos do projeto</h2>
 
               <p className="contact-side-panel__text">
-                Diga-nos o que pretende criar, se já tem site e qual é o principal objetivo.
-                Respondemos com uma proposta ajustada ao tipo de projeto e ao nível de
-                funcionalidade necessário.
+                Diga-nos em que fase está: começar com um website, vender ou receber marcações,
+                ou criar um sistema digital mais completo. Respondemos com uma proposta ajustada
+                ao objetivo comercial e ao nível de funcionalidade necessário.
               </p>
 
               <div className="contact-metrics">
@@ -1084,7 +1120,7 @@ export default function MACode() {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Exemplo: preciso de um website para apresentar o meu negócio, receber contactos por WhatsApp e, mais tarde, talvez evoluir para marcações online ou loja."
+                    placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
                   />
                 </div>
 
