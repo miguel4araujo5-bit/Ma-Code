@@ -376,14 +376,24 @@ body {
   }
 
   .hero-marquee {
-    @apply relative mt-8 overflow-hidden rounded-[1.6rem] border px-4 py-4;
-    border-color: rgba(103, 232, 249, 0.12);
+    position: relative;
+    display: block;
+    width: 100%;
+    min-height: 3.65rem;
+    margin-top: 2rem;
+    overflow: hidden;
+    border-radius: 1.6rem;
+    border: 1px solid rgba(103, 232, 249, 0.12);
+    padding: 0.78rem 0;
     background: linear-gradient(180deg, rgba(7, 14, 23, 0.56), rgba(8, 15, 25, 0.42));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.02),
       0 0 20px rgba(34, 211, 238, 0.03);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+    opacity: 1;
+    visibility: visible;
+    z-index: 3;
     -webkit-transform: translate3d(0, 0, 0);
     transform: translate3d(0, 0, 0);
   }
@@ -412,12 +422,14 @@ body {
   .hero-marquee__track {
     position: relative;
     z-index: 1;
-    display: inline-flex;
+    display: flex !important;
     align-items: center;
     gap: 0.75rem;
     width: max-content;
     min-width: max-content;
     white-space: nowrap;
+    opacity: 1;
+    visibility: visible;
     will-change: transform;
     transform: translate3d(0, 0, 0);
     -webkit-transform: translate3d(0, 0, 0);
@@ -428,12 +440,22 @@ body {
   }
 
   .hero-marquee__item {
-    @apply inline-flex items-center rounded-full border px-4 py-2 text-xs font-medium uppercase text-cyan-100;
-    letter-spacing: 0.15em;
-    white-space: nowrap;
+    display: inline-flex !important;
+    align-items: center;
     flex: 0 0 auto;
+    border-radius: 9999px;
+    border: 1px solid rgba(103, 232, 249, 0.12);
+    padding: 0.62rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #cffafe;
+    white-space: nowrap;
+    opacity: 1;
+    visibility: visible;
     background: rgba(15, 23, 42, 0.66);
-    border-color: rgba(103, 232, 249, 0.12);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.018),
       0 0 12px rgba(34, 211, 238, 0.025);
@@ -1278,6 +1300,27 @@ body {
   .site-grid {
     background-size: 28px 28px;
   }
+}
+
+
+/* SeguranÃ§a: impede que a barra rolante dos serviÃ§os desapareÃ§a por heranÃ§a, cache de classes ou breakpoints. */
+.hero-marquee {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.hero-marquee__track {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.hero-marquee__item {
+  display: inline-flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  color: #cffafe !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
