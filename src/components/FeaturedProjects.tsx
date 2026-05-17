@@ -13,6 +13,21 @@ type ProjectProof = {
   outcome: string
 }
 
+const proofHighlights = [
+  {
+    value: '3 níveis',
+    label: 'presença, conversão e sistema',
+  },
+  {
+    value: 'Projetos reais',
+    label: 'com funcionalidades em produção',
+  },
+  {
+    value: 'Foco prático',
+    label: 'contactos, vendas e organização',
+  },
+]
+
 function getProjectProof(project: PortfolioProject): ProjectProof {
   const value = `${project.slug} ${project.title}`.toLowerCase()
 
@@ -101,6 +116,23 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                   online e sistemas digitais com gestão interna, arquivo, IA, analytics ou
                   integrações.
                 </p>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {proofHighlights.map((item) => (
+                    <div
+                      key={item.value}
+                      className="rounded-2xl border border-white/10 bg-white/[0.035] p-3"
+                    >
+                      <strong className="block text-sm font-semibold text-white">
+                        {item.value}
+                      </strong>
+
+                      <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -154,7 +186,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
 
                       <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/75">
-                          Resultado
+                          Resultado prático
                         </p>
 
                         <p className="mt-2 text-sm font-medium leading-6 text-cyan-50">
@@ -186,12 +218,13 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Ver projetos completos com imagens e funcionalidades
+                  Ver projetos completos com imagens, funcionalidades e valor prático
                 </p>
 
                 <p className="mt-1 text-sm leading-6 text-slate-400">
                   A página de portefólio mostra cada projeto com mais detalhe: contexto,
-                  necessidade do cliente, funcionalidades, valor prático e capturas reais.
+                  necessidade do cliente, funcionalidades, decisões técnicas, valor prático e
+                  capturas reais.
                 </p>
               </div>
 
