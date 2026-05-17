@@ -71,42 +71,42 @@ export const servicePages: ServicePageData[] = [
     seo: {
       title: 'Criação de Websites Profissionais em Portugal | MA-Code',
       description:
-        'Criação de websites profissionais, modernos, rápidos e adaptados a telemóvel para negócios que querem transmitir confiança, captar contactos e crescer online.',
+        'Criação de websites profissionais, rápidos e adaptados a telemóvel para negócios que querem transmitir confiança, receber contactos e crescer online por fases.',
       keywords:
-        'criação de websites, websites profissionais, criação de sites, desenvolvimento web Portugal, sites para empresas, websites responsivos, MA-Code',
+        'criação de websites, criação de sites, websites profissionais, websites para empresas, websites para pequenos negócios, desenvolvimento web Portugal, sites responsivos, site com domínio e alojamento, MA-Code',
       canonical: `${siteUrl}/criacao-websites`,
       ogTitle: 'Criação de Websites Profissionais | MA-Code',
       ogDescription:
-        'Websites modernos, rápidos e preparados para gerar contactos, apresentar serviços e transmitir mais confiança ao seu negócio.',
+        'Websites modernos, rápidos e preparados para apresentar serviços, gerar confiança e transformar visitantes em contactos reais.',
     },
     hero: {
       eyebrow: 'Criação de websites',
       title: 'Websites profissionais para negócios que querem',
-      highlightedTitle: 'ser encontrados e gerar confiança',
+      highlightedTitle: 'ser encontrados, gerar confiança e receber contactos',
       description:
-        'Criamos websites modernos, rápidos e adaptados a telemóvel, pensados para apresentar o seu negócio com clareza, transmitir credibilidade e transformar visitantes em pedidos de contacto.',
-      primaryCta: 'Pedir orçamento',
+        'Criamos websites modernos, rápidos e adaptados a telemóvel, pensados para explicar o seu negócio com clareza, transmitir credibilidade e facilitar o contacto desde o primeiro dia.',
+      primaryCta: 'Pedir proposta',
       secondaryCta: 'Ver projetos',
     },
     stats: [
       {
         value: 'Mobile-first',
-        label: 'Experiência pensada para telemóvel',
+        label: 'Experiência pensada para clientes no telemóvel',
       },
       {
         value: 'SEO base',
-        label: 'Estrutura preparada para Google',
+        label: 'Estrutura preparada para motores de pesquisa',
       },
       {
         value: 'Desde 19€/mês',
-        label: 'Projetos ajustados ao objetivo',
+        label: 'Entrada acessível para presença online profissional',
       },
     ],
     intro: {
       title: 'Um website não deve ser apenas bonito. Deve explicar, orientar e converter.',
       paragraphs: [
         'A presença digital de uma empresa começa muitas vezes pelo website. Quando alguém pesquisa pelo seu negócio, compara serviços ou procura confiança antes de pedir orçamento, o site é uma das primeiras provas de profissionalismo.',
-        'Na MA-Code criamos websites com foco em clareza, velocidade, design responsivo e estrutura comercial. O objetivo é simples: apresentar bem o negócio, facilitar o contacto e criar uma base digital preparada para crescer.',
+        'Na MA-Code criamos websites com foco em clareza, velocidade, design responsivo e estrutura comercial. O objetivo é apresentar bem o negócio, facilitar o contacto e criar uma base digital preparada para crescer com novas páginas, loja online, marcações, automação ou integrações.',
       ],
     },
     idealFor: [
@@ -115,44 +115,50 @@ export const servicePages: ServicePageData[] = [
       'Profissionais independentes que querem transmitir mais credibilidade',
       'Marcas que precisam de renovar um site antigo ou pouco eficaz',
       'Serviços que dependem de pedidos de orçamento, contactos ou marcações',
+      'Projetos que querem começar simples e evoluir sem refazer tudo',
     ],
     benefits: [
       {
         title: 'Imagem mais profissional',
         description:
-          'Um site moderno ajuda o cliente a perceber rapidamente quem é, o que faz e porque deve confiar no seu negócio.',
+          'Um site moderno ajuda o cliente a perceber rapidamente quem é, o que faz, onde atua e porque deve confiar no seu negócio.',
       },
       {
         title: 'Mais pedidos de contacto',
         description:
-          'A estrutura é pensada para guiar o visitante até à ação certa: pedir orçamento, enviar mensagem, telefonar ou consultar serviços.',
+          'A estrutura é pensada para guiar o visitante até à ação certa: pedir orçamento, enviar mensagem, telefonar, consultar serviços ou avançar para uma marcação.',
       },
       {
         title: 'Preparado para mobile',
         description:
-          'A experiência é construída para funcionar bem em telemóvel, tablet e computador, sem perder clareza nem velocidade.',
+          'A experiência é construída para funcionar bem em telemóvel, tablet e computador, com atenção à legibilidade, velocidade e facilidade de contacto.',
       },
       {
-        title: 'Base para SEO',
+        title: 'Base para SEO e crescimento',
         description:
-          'Organizamos títulos, conteúdos, estrutura e metadata para que o site tenha uma base técnica mais forte para motores de pesquisa.',
+          'Organizamos títulos, conteúdos, estrutura e metadata para criar uma base técnica mais forte para pesquisas no Google e respostas em motores de IA.',
       },
     ],
     deliverables: [
       {
         title: 'Página inicial profissional',
         description:
-          'Hero section, apresentação do negócio, serviços principais, argumentos de confiança e chamada para contacto.',
+          'Hero section, apresentação do negócio, serviços principais, argumentos de confiança e chamada clara para contacto.',
       },
       {
         title: 'Páginas de serviços',
         description:
-          'Estrutura preparada para explicar melhor cada serviço e aumentar a relevância para pesquisas específicas.',
+          'Estrutura preparada para explicar melhor cada serviço, aumentar relevância em pesquisas específicas e responder às dúvidas do cliente.',
       },
       {
         title: 'Formulário de contacto',
         description:
           'Formulário simples e direto para receber pedidos de orçamento ou mensagens de potenciais clientes.',
+      },
+      {
+        title: 'Contacto rápido',
+        description:
+          'Botões, links e chamadas à ação preparados para facilitar contacto por email, telefone, WhatsApp ou formulário.',
       },
       {
         title: 'Otimização visual e técnica',
@@ -164,7 +170,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Diagnóstico',
         description:
-          'Percebemos o negócio, o público, os serviços, os objetivos e o tipo de contacto que pretende gerar.',
+          'Percebemos o negócio, o público, os serviços, os objetivos comerciais e o tipo de contacto que pretende gerar.',
       },
       {
         title: 'Estrutura',
@@ -179,14 +185,14 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Publicação',
         description:
-          'Colocamos o site online e deixamos uma base preparada para futuras melhorias, páginas ou integrações.',
+          'Colocamos o site online com a base técnica necessária e deixamos margem para futuras melhorias, páginas ou integrações.',
       },
     ],
     faq: [
       {
         question: 'Quanto custa criar um website profissional?',
         answer:
-          'O valor depende do número de páginas, conteúdos, funcionalidades e nível de personalização. A MA-Code trabalha com soluções ajustadas ao objetivo do projeto, incluindo opções desde 19€/mês.',
+          'O valor depende do número de páginas, conteúdos, funcionalidades e nível de personalização. A MA-Code trabalha com soluções ajustadas ao objetivo do projeto, incluindo opções de website simples desde 19€/mês.',
       },
       {
         question: 'O website fica adaptado a telemóvel?',
@@ -196,7 +202,7 @@ export const servicePages: ServicePageData[] = [
       {
         question: 'Também ajudam com texto e estrutura do site?',
         answer:
-          'Sim. Podemos ajudar a organizar a mensagem, estruturar as secções e criar textos mais claros e orientados para conversão.',
+          'Sim. Podemos ajudar a organizar a mensagem, estruturar as secções e criar textos mais claros, profissionais e orientados para conversão.',
       },
       {
         question: 'O site pode evoluir para loja online ou sistema de marcações?',
@@ -213,6 +219,11 @@ export const servicePages: ServicePageData[] = [
         answer:
           'Sim. Quando fizer sentido para o projeto, podemos incluir domínio, alojamento e configuração técnica para que o negócio tenha uma solução mais simples de gerir.',
       },
+      {
+        question: 'Um website simples chega para começar?',
+        answer:
+          'Em muitos casos, sim. Um website simples bem estruturado pode ser suficiente para apresentar o negócio, criar confiança e receber contactos. Depois, a solução pode evoluir por fases.',
+      },
     ],
     relatedServices: ['lojas-online', 'sistemas-marcacao', 'automacao-ia'],
   },
@@ -224,13 +235,13 @@ export const servicePages: ServicePageData[] = [
     seo: {
       title: 'Criação de Lojas Online em Portugal | E-commerce | MA-Code',
       description:
-        'Criação de lojas online modernas com catálogo, carrinho de compras, checkout, estrutura de produtos e base preparada para pagamentos e gestão de encomendas.',
+        'Criação de lojas online modernas com catálogo, carrinho de compras, checkout, estrutura de produtos e base preparada para encomendas, pagamentos e gestão.',
       keywords:
-        'criação de lojas online, loja online Portugal, e-commerce Portugal, criação ecommerce, loja virtual, carrinho de compras, checkout online, MA-Code',
+        'criação de lojas online, loja online Portugal, e-commerce Portugal, criação ecommerce, loja virtual, catálogo online, carrinho de compras, checkout online, loja online para pequenos negócios, MA-Code',
       canonical: `${siteUrl}/lojas-online`,
       ogTitle: 'Criação de Lojas Online | MA-Code',
       ogDescription:
-        'Lojas online modernas, responsivas e preparadas para vender produtos com catálogo, carrinho, checkout e gestão organizada.',
+        'Lojas online modernas, responsivas e preparadas para apresentar produtos, vender melhor e organizar encomendas.',
     },
     hero: {
       eyebrow: 'Lojas online e e-commerce',
@@ -238,7 +249,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'organizar encomendas',
       description:
         'Desenvolvemos lojas online modernas, responsivas e preparadas para venda direta, com catálogo de produtos, carrinho de compras, checkout estruturado e uma experiência clara para o cliente.',
-      primaryCta: 'Pedir orçamento',
+      primaryCta: 'Pedir proposta',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -259,7 +270,7 @@ export const servicePages: ServicePageData[] = [
       title: 'Uma loja online precisa de mais do que uma montra bonita.',
       paragraphs: [
         'Para vender online, o cliente tem de encontrar facilmente os produtos, compreender a oferta, confiar no processo e concluir a compra sem confusão.',
-        'Na MA-Code criamos lojas online com foco na experiência do utilizador, apresentação profissional dos produtos, navegação clara e estrutura preparada para crescimento.',
+        'Na MA-Code criamos lojas online com foco na experiência do utilizador, apresentação profissional dos produtos, navegação clara e estrutura preparada para crescimento com pagamentos, área administrativa, analytics ou automações.',
       ],
     },
     idealFor: [
@@ -268,12 +279,13 @@ export const servicePages: ServicePageData[] = [
       'Projetos que precisam de catálogo, carrinho e checkout',
       'Empresas que querem organizar encomendas de forma mais profissional',
       'Lojas que querem uma presença digital mais credível e responsiva',
+      'Negócios que querem preparar venda online sem depender apenas de redes sociais',
     ],
     benefits: [
       {
         title: 'Produtos melhor apresentados',
         description:
-          'Organizamos produtos, categorias, imagens, descrições e chamadas à ação para facilitar a decisão de compra.',
+          'Organizamos produtos, categorias, imagens, descrições, preços e chamadas à ação para facilitar a decisão de compra.',
       },
       {
         title: 'Compra mais simples',
@@ -283,12 +295,12 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Gestão mais organizada',
         description:
-          'A loja pode incluir base para acompanhamento de encomendas, estados de pagamento e consulta interna.',
+          'A loja pode incluir base para acompanhamento de encomendas, estados de pagamento, dados do cliente e consulta interna.',
       },
       {
         title: 'Base preparada para crescer',
         description:
-          'A solução pode evoluir com pagamentos online, área administrativa, analytics, automações e integrações externas.',
+          'A solução pode evoluir com pagamentos online, área administrativa, analytics, automações, integrações externas e campanhas.',
       },
     ],
     deliverables: [
@@ -300,7 +312,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Páginas de produto',
         description:
-          'Páginas individuais com informação detalhada, imagens, preço, descrição e botão de compra.',
+          'Páginas individuais com informação detalhada, imagens, preço, descrição, variantes quando necessário e botão de compra.',
       },
       {
         title: 'Carrinho de compras',
@@ -315,29 +327,29 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Área administrativa',
         description:
-          'Quando necessário, criamos uma área privada para consultar e acompanhar encomendas.',
+          'Quando necessário, criamos uma área privada para consultar encomendas, acompanhar estados e gerir informação relevante.',
       },
     ],
     process: [
       {
         title: 'Mapeamento da loja',
         description:
-          'Definimos categorias, tipos de produto, fluxo de compra, necessidades de pagamento e gestão interna.',
+          'Definimos categorias, tipos de produto, fluxo de compra, necessidades de pagamento, entregas e gestão interna.',
       },
       {
         title: 'Estrutura de venda',
         description:
-          'Organizamos páginas, produto, carrinho, checkout e pontos de confiança para orientar o cliente.',
+          'Organizamos páginas, produto, carrinho, checkout e pontos de confiança para orientar o cliente até à encomenda.',
       },
       {
         title: 'Desenvolvimento e testes',
         description:
-          'Criamos a loja, testamos navegação, carrinho, formulários, estados e experiência em mobile.',
+          'Criamos a loja, testamos navegação, carrinho, formulários, estados, checkout e experiência em mobile.',
       },
       {
         title: 'Publicação e evolução',
         description:
-          'Publicamos a loja e deixamos a base preparada para novos produtos, métodos de pagamento e automações.',
+          'Publicamos a loja e deixamos a base preparada para novos produtos, métodos de pagamento, automações e melhorias futuras.',
       },
     ],
     faq: [
@@ -354,7 +366,7 @@ export const servicePages: ServicePageData[] = [
       {
         question: 'Posso gerir encomendas numa área privada?',
         answer:
-          'Sim. Quando o projeto precisa, podemos criar uma área administrativa para consultar encomendas, estados e dados relevantes.',
+          'Sim. Quando o projeto precisa, podemos criar uma área administrativa para consultar encomendas, estados, dados de clientes e informação relevante.',
       },
       {
         question: 'A loja fica preparada para SEO?',
@@ -371,6 +383,11 @@ export const servicePages: ServicePageData[] = [
         answer:
           'O ideal é reunir nomes dos produtos, preços, imagens, descrições, categorias, regras de entrega, métodos de pagamento pretendidos e forma como quer gerir encomendas.',
       },
+      {
+        question: 'A loja online pode funcionar bem em telemóvel?',
+        answer:
+          'Sim. A experiência é pensada para telemóvel, porque muitos clientes descobrem produtos, comparam opções e fazem pedidos diretamente pelo smartphone.',
+      },
     ],
     relatedServices: ['criacao-websites', 'automacao-ia', 'sistemas-marcacao'],
   },
@@ -382,9 +399,9 @@ export const servicePages: ServicePageData[] = [
     seo: {
       title: 'Sistema de Marcações Online para Empresas | MA-Code',
       description:
-        'Criação de sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários, pedidos e agenda.',
+        'Criação de sistemas de marcação online para salões, clínicas, serviços locais e negócios que precisam de organizar horários, pedidos, agenda e disponibilidade.',
       keywords:
-        'sistema de marcações online, agenda online, marcações online, reservas online, sistema de reservas, marcações para salão, marcações para clínica, MA-Code',
+        'sistema de marcações online, agenda online, marcações online, reservas online, sistema de reservas, marcações para salão, marcações para clínica, gestão de agenda online, painel de marcações, MA-Code',
       canonical: `${siteUrl}/sistemas-marcacao`,
       ogTitle: 'Sistemas de Marcação Online | MA-Code',
       ogDescription:
@@ -396,7 +413,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'organização, agenda e menos mensagens perdidas',
       description:
         'Criamos sistemas de marcação online para salões, clínicas, serviços locais e profissionais que precisam de receber pedidos, organizar horários e consultar agenda de forma simples.',
-      primaryCta: 'Pedir orçamento',
+      primaryCta: 'Pedir proposta',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -416,7 +433,7 @@ export const servicePages: ServicePageData[] = [
     intro: {
       title: 'Quando as marcações dependem só de chamadas e mensagens, é fácil perder controlo.',
       paragraphs: [
-        'Muitos negócios recebem pedidos por telefone, WhatsApp, Instagram ou presencialmente. Isso pode funcionar no início, mas torna-se confuso quando há vários horários, serviços, clientes e alterações.',
+        'Muitos negócios recebem pedidos por telefone, WhatsApp, Instagram ou presencialmente. Isso pode funcionar no início, mas torna-se confuso quando há vários horários, serviços, clientes, alterações e confirmações.',
         'Um sistema de marcações online ajuda a centralizar pedidos, reduzir falhas, melhorar a experiência do cliente e dar ao negócio uma imagem mais profissional.',
       ],
     },
@@ -426,27 +443,28 @@ export const servicePages: ServicePageData[] = [
       'Consultores, formadores e prestadores de serviços',
       'Negócios locais que funcionam por horário ou reserva',
       'Empresas que querem reduzir gestão manual de agenda',
+      'Equipas que recebem pedidos por vários canais e precisam de centralizar marcações',
     ],
     benefits: [
       {
         title: 'Pedidos centralizados',
         description:
-          'Os clientes podem pedir marcação através do site, evitando mensagens dispersas e informação perdida.',
+          'Os clientes podem pedir marcação através do site, evitando mensagens dispersas, informação perdida e pedidos difíceis de acompanhar.',
       },
       {
         title: 'Agenda mais clara',
         description:
-          'O negócio passa a ter uma visão mais organizada dos horários, pedidos, bloqueios e disponibilidade.',
+          'O negócio passa a ter uma visão mais organizada dos horários, pedidos, bloqueios, estados e disponibilidade.',
       },
       {
         title: 'Melhor experiência para o cliente',
         description:
-          'O cliente consegue consultar a informação essencial e enviar o pedido sem depender de chamadas demoradas.',
+          'O cliente consegue consultar a informação essencial e enviar o pedido sem depender de chamadas demoradas ou trocas constantes de mensagens.',
       },
       {
         title: 'Menos trabalho manual',
         description:
-          'A gestão fica mais simples, especialmente quando existe painel privado para consultar, confirmar ou acompanhar pedidos.',
+          'A gestão fica mais simples, especialmente quando existe painel privado para consultar, confirmar, bloquear ou acompanhar pedidos.',
       },
     ],
     deliverables: [
@@ -468,7 +486,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Gestão de horários',
         description:
-          'Estrutura para disponibilidade, bloqueios, horários de funcionamento ou regras específicas do negócio.',
+          'Estrutura para disponibilidade, bloqueios, horários de funcionamento, pausas ou regras específicas do negócio.',
       },
       {
         title: 'Notificações e contacto',
@@ -480,12 +498,12 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Levantamento de regras',
         description:
-          'Percebemos horários, serviços, duração das marcações, pausas, bloqueios e forma de confirmação.',
+          'Percebemos horários, serviços, duração das marcações, pausas, bloqueios, dias indisponíveis e forma de confirmação.',
       },
       {
         title: 'Desenho da experiência',
         description:
-          'Criamos um fluxo simples para o cliente pedir marcação e para o negócio consultar os pedidos.',
+          'Criamos um fluxo simples para o cliente pedir marcação e para o negócio consultar, confirmar ou acompanhar os pedidos.',
       },
       {
         title: 'Desenvolvimento do sistema',
@@ -495,7 +513,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Testes e publicação',
         description:
-          'Testamos pedidos, horários, mensagens, mobile e utilização diária antes de colocar online.',
+          'Testamos pedidos, horários, mensagens, estados, mobile e utilização diária antes de colocar online.',
       },
     ],
     faq: [
@@ -529,6 +547,11 @@ export const servicePages: ServicePageData[] = [
         answer:
           'Sim. A estrutura pode ser ajustada à duração dos serviços, horários de funcionamento, pausas, dias indisponíveis, bloqueios manuais e forma de confirmação usada pela equipa.',
       },
+      {
+        question: 'O sistema pode reduzir chamadas e mensagens repetidas?',
+        answer:
+          'Sim. Ao centralizar pedidos e explicar serviços, horários e próximos passos, o sistema reduz parte das mensagens repetidas e ajuda a equipa a gerir melhor a agenda.',
+      },
     ],
     relatedServices: ['criacao-websites', 'automacao-ia', 'lojas-online'],
   },
@@ -540,9 +563,9 @@ export const servicePages: ServicePageData[] = [
     seo: {
       title: 'Automação com IA para Empresas em Portugal | MA-Code',
       description:
-        'Automação com IA, integrações, assistentes digitais, formulários inteligentes e sistemas para reduzir tarefas repetitivas e organizar processos internos.',
+        'Automação com IA, integrações API, assistentes digitais, formulários inteligentes e sistemas internos para reduzir tarefas repetitivas e organizar processos.',
       keywords:
-        'automação com IA, inteligência artificial para empresas, automação de processos, assistente IA, integrações API, automação empresarial, MA-Code',
+        'automação com IA, inteligência artificial para empresas, automação de processos, assistente IA, integrações API, automação empresarial, formulários inteligentes, sistemas internos, dashboards para empresas, MA-Code',
       canonical: `${siteUrl}/automacao-ia`,
       ogTitle: 'Automação e IA para Empresas | MA-Code',
       ogDescription:
@@ -553,8 +576,8 @@ export const servicePages: ServicePageData[] = [
       title: 'Automação com IA para empresas que querem',
       highlightedTitle: 'poupar tempo e trabalhar melhor',
       description:
-        'Criamos soluções digitais com automação, inteligência artificial, integrações API, assistentes e sistemas internos para reduzir tarefas repetitivas e melhorar a organização do negócio.',
-      primaryCta: 'Pedir orçamento',
+        'Criamos soluções digitais com automação, inteligência artificial, integrações API, assistentes e sistemas internos para reduzir tarefas repetitivas, organizar dados e melhorar a operação do negócio.',
+      primaryCta: 'Pedir proposta',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -575,7 +598,7 @@ export const servicePages: ServicePageData[] = [
       title: 'A automação certa não substitui o negócio. Remove trabalho repetitivo.',
       paragraphs: [
         'Muitas empresas perdem tempo com tarefas manuais: copiar dados, responder sempre às mesmas perguntas, organizar pedidos, consultar folhas, enviar mensagens ou atualizar informação em vários sítios.',
-        'A MA-Code cria soluções de automação e IA ajustadas ao processo real do negócio, com foco em poupar tempo, reduzir erros e tornar a operação mais clara.',
+        'A MA-Code cria soluções de automação e IA ajustadas ao processo real do negócio, com foco em poupar tempo, reduzir erros, organizar informação e tornar a operação mais clara.',
       ],
     },
     idealFor: [
@@ -584,6 +607,7 @@ export const servicePages: ServicePageData[] = [
       'Equipas que precisam de integrar ferramentas e bases de dados',
       'Lojas online que querem automatizar partes da operação',
       'Serviços que querem assistentes digitais ou respostas inteligentes',
+      'Negócios que usam folhas de cálculo, emails ou ferramentas dispersas e querem ligar tudo melhor',
     ],
     benefits: [
       {
@@ -638,12 +662,12 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Mapeamento do processo',
         description:
-          'Identificamos onde o negócio perde tempo, onde existem erros e que tarefas fazem sentido automatizar.',
+          'Identificamos onde o negócio perde tempo, onde existem erros, que dados circulam entre ferramentas e que tarefas fazem sentido automatizar.',
       },
       {
         title: 'Desenho da solução',
         description:
-          'Definimos dados, ferramentas, integrações, regras, permissões e resultado esperado.',
+          'Definimos dados, ferramentas, integrações, regras, permissões e resultado esperado antes de desenvolver.',
       },
       {
         title: 'Implementação',
@@ -653,7 +677,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Ajuste e evolução',
         description:
-          'Afinamos o fluxo com base na utilização real e deixamos a solução preparada para crescer.',
+          'Afinamos o fluxo com base na utilização real e deixamos a solução preparada para crescer quando fizer sentido.',
       },
     ],
     faq: [
@@ -686,6 +710,11 @@ export const servicePages: ServicePageData[] = [
         question: 'Podemos começar com uma automação pequena?',
         answer:
           'Sim. Muitas soluções começam por uma fase pequena e prática, como automatizar pedidos, organizar respostas, ligar um formulário a uma base de dados ou criar um assistente para perguntas frequentes.',
+      },
+      {
+        question: 'A automação pode ligar-se a ferramentas que já uso?',
+        answer:
+          'Sim. Dependendo das ferramentas e das permissões disponíveis, é possível ligar websites, formulários, bases de dados, folhas de cálculo, CRM, APIs ou outras plataformas externas.',
       },
     ],
     relatedServices: ['criacao-websites', 'lojas-online', 'sistemas-marcacao'],
