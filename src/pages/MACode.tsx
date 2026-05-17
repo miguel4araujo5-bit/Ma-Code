@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 
+const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
+
+const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
+
 const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
 
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
@@ -148,6 +152,172 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
     event: eventName,
     ...eventParameters
   })
+}
+
+function ServiceMarquee() {
+  return (
+    <div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
+      <style>{`
+.ma-service-marquee {position: relative !important;display: block !important;width: 100% !important;max-width: 100% !important;min-height: 3.8rem !important;margin-top: 1.75rem !important;overflow: hidden !important;border-radius: 1.45rem !important;border: 1px solid rgba(103, 232, 249, 0.16) !important;padding: 0.82rem 0 !important;background:linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.035),0 0 24px rgba(34, 211, 238, 0.045) !important;backdrop-filter: blur(14px);-webkit-backdrop-filter: blur(14px);opacity: 1 !important;visibility: visible !important;z-index: 30 !important;isolation: isolate !important;transform: translate3d(0, 0, 0) !important;-webkit-transform: translate3d(0, 0, 0) !important;}
+
+.ma-service-marquee::before,
+.ma-service-marquee::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ma-service-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(6, 16, 25, 1), transparent);
+}
+
+.ma-service-marquee::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(6, 16, 25, 1), transparent);
+}
+
+.ma-service-marquee__track {
+  position: relative !important;
+  z-index: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  white-space: nowrap !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+  animation: ma-service-marquee-scroll 28s linear infinite;
+  -webkit-animation: ma-service-marquee-scroll 28s linear infinite;
+}
+
+.ma-service-marquee__item {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(103, 232, 249, 0.16) !important;
+  padding: 0.68rem 1rem !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  color: #cffafe !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.13em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.018),
+    0 0 12px rgba(34, 211, 238, 0.035) !important;
+}
+
+@keyframes ma-service-marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-33.333333%, 0, 0);
+    -webkit-transform: translate3d(-33.333333%, 0, 0);
+  }
+}
+
+@-webkit-keyframes ma-service-marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-33.333333%, 0, 0);
+    -webkit-transform: translate3d(-33.333333%, 0, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .ma-service-marquee {
+    min-height: 3.45rem !important;
+    margin-top: 1.35rem !important;
+    border-radius: 1.2rem !important;
+    padding: 0.72rem 0 !important;
+  }
+
+  .ma-service-marquee::before,
+  .ma-service-marquee::after {
+    width: 1.35rem;
+  }
+
+  .ma-service-marquee__track {
+    gap: 0.62rem !important;
+    animation-duration: 20s;
+    -webkit-animation-duration: 20s;
+  }
+
+  .ma-service-marquee__item {
+    padding: 0.62rem 0.78rem !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0.08em !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ma-service-marquee {
+    min-height: 3.25rem !important;
+    margin-top: 1.15rem !important;
+    padding: 0.68rem 0 !important;
+  }
+
+  .ma-service-marquee::before,
+  .ma-service-marquee::after {
+    width: 0.85rem;
+  }
+
+  .ma-service-marquee__track {
+    gap: 0.55rem !important;
+    animation-duration: 17s;
+    -webkit-animation-duration: 17s;
+  }
+
+  .ma-service-marquee__item {
+    padding: 0.58rem 0.72rem !important;
+    font-size: 0.54rem !important;
+    letter-spacing: 0.07em !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-service-marquee__track {
+    animation-duration: 55s !important;
+    -webkit-animation-duration: 55s !important;
+  }
+}
+      `}</style>
+
+      <span className="sr-only">{marqueeItems.join(', ')}</span>
+
+      <div className="ma-service-marquee__track" aria-hidden="true">
+        {marqueeLoopItems.map((item, index) => (
+          <span key={`${item}-${index}`} className="ma-service-marquee__item">
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function DigitalStackVisual() {const stackItems = [{label: 'Website',detail: 'Base clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Automação',detail: 'Menos manual',marker: '03'},{label: 'Sistema',detail: 'Escala digital',marker: '04'}]
@@ -429,6 +599,8 @@ return (
             <li>Mobile-first</li>
             <li>Foco em contactos</li>
           </ul>
+
+          <ServiceMarquee />
         </div>
 
         <div
