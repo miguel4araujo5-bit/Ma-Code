@@ -10,8 +10,6 @@ const proofPoints = [{value: '19€/mês',label: 'website simples',description:'
 
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
-const servicePageLinks = [{title: 'Criação de websites',description: 'Presença online profissional para gerar confiança e contactos.',href: '/criacao-websites'},{title: 'Lojas online',description: 'Catálogo, carrinho, checkout e estrutura para vender online.',href: '/lojas-online'},{title: 'Sistemas de marcação',description: 'Pedidos, horários, agenda e gestão de marcações online.',href: '/sistemas-marcacao'},{title: 'Automação e IA',description: 'Fluxos, integrações e sistemas para reduzir trabalho manual.',href: '/automacao-ia'}]
-
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
@@ -320,117 +318,118 @@ function ServiceMarquee() {
   )
 }
 
-function DigitalStackVisual() {const stackItems = [{label: 'Website',detail: 'Base clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Automação',detail: 'Menos manual',marker: '03'},{label: 'Sistema',detail: 'Escala digital',marker: '04'}]
+function DigitalStackVisual() {
+  const stackItems = [{label: 'Website',detail: 'Presença clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Marcações / vendas',detail: 'Menos atrito',marker: '03'},{label: 'Automação',detail: 'Menos trabalho manual',marker: '04'}]
 
-return (
-<div>
-  <div className="relative z-10 flex items-center justify-between gap-4">
-    <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
-      Mapa visual
-    </span>
+  return (
+    <div>
+      <div className="relative z-10 flex items-center justify-between gap-4">
+        <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+          Crescimento digital
+        </span>
 
-    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
-      Modular
-    </span>
-  </div>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+          Por etapas
+        </span>
+      </div>
 
-  <div className="relative z-10 mt-5 aspect-[16/10] overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/80">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(103,232,249,0.18),transparent_28%),radial-gradient(circle_at_78%_70%,rgba(168,85,247,0.16),transparent_30%)]" />
-    <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.045)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      <div className="relative z-10 mt-5 aspect-[16/10] overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/80">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(103,232,249,0.18),transparent_28%),radial-gradient(circle_at_78%_70%,rgba(168,85,247,0.16),transparent_30%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.045)_1px,transparent_1px)] bg-[size:28px_28px]" />
 
-    <svg
-      className="absolute inset-0 h-full w-full"
-      viewBox="0 0 520 320"
-      role="img"
-      aria-labelledby="digital-stack-title digital-stack-description"
-    >
-      <title id="digital-stack-title">Evolução digital MA-Code</title>
-      <desc id="digital-stack-description">
-        Representação visual da evolução de um website para contactos, automação e sistema digital.
-      </desc>
-      <defs>
-        <linearGradient id="digitalStackLine" x1="52" x2="468" y1="182" y2="92" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#67e8f9" stopOpacity="0.25" />
-          <stop offset="0.5" stopColor="#22d3ee" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#a78bfa" stopOpacity="0.75" />
-        </linearGradient>
-        <linearGradient id="digitalStackCard" x1="0" x2="1" y1="0" y2="1">
-          <stop stopColor="#0f172a" stopOpacity="0.94" />
-          <stop offset="1" stopColor="#083344" stopOpacity="0.78" />
-        </linearGradient>
-        <filter id="digitalStackGlow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="8" result="blur" />
-          <feColorMatrix
-            in="blur"
-            type="matrix"
-            values="0 0 0 0 0.4 0 0 0 0 0.91 0 0 0 0 0.98 0 0 0 0.55 0"
-          />
-          <feBlend in="SourceGraphic" />
-        </filter>
-      </defs>
-
-      <path
-        d="M62 226 C146 150 202 215 282 142 C344 86 394 108 462 66"
-        fill="none"
-        stroke="url(#digitalStackLine)"
-        strokeLinecap="round"
-        strokeWidth="4"
-      />
-      <path
-        d="M70 250 C150 196 212 246 286 188 C350 138 394 160 456 122"
-        fill="none"
-        stroke="#67e8f9"
-        strokeDasharray="8 14"
-        strokeLinecap="round"
-        strokeOpacity="0.22"
-        strokeWidth="2"
-      />
-
-      <g filter="url(#digitalStackGlow)">
-        <circle cx="88" cy="204" r="8" fill="#67e8f9" />
-        <circle cx="222" cy="168" r="8" fill="#22d3ee" />
-        <circle cx="336" cy="112" r="8" fill="#38bdf8" />
-        <circle cx="448" cy="74" r="8" fill="#a78bfa" />
-      </g>
-
-      <g opacity="0.9">
-        <rect x="54" y="66" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
-        <rect x="202" y="34" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
-        <rect x="340" y="128" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#a78bfa" strokeOpacity="0.22" />
-      </g>
-
-      <g opacity="0.52" stroke="#cffafe" strokeLinecap="round" strokeWidth="3">
-        <path d="M78 96 H132" />
-        <path d="M78 116 H152" />
-        <path d="M226 64 H284" />
-        <path d="M226 84 H306" />
-        <path d="M364 158 H426" />
-        <path d="M364 178 H442" />
-      </g>
-    </svg>
-
-    <div className="absolute inset-x-4 bottom-4 grid grid-cols-4 gap-2">
-      {stackItems.map((item) => (
-        <div
-          key={item.label}
-          className="rounded-2xl border border-white/10 bg-slate-950/[0.72] p-3 backdrop-blur"
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 520 320"
+          role="img"
+          aria-labelledby="digital-stack-title digital-stack-description"
         >
-          <span className="block text-[0.58rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">
-            {item.marker}
-          </span>
+          <title id="digital-stack-title">Crescimento digital por etapas MA-Code</title>
+          <desc id="digital-stack-description">
+            Representação visual da evolução de um website simples para contactos, marcações, vendas e automação.
+          </desc>
+          <defs>
+            <linearGradient id="digitalStackLine" x1="52" x2="468" y1="182" y2="92" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#67e8f9" stopOpacity="0.25" />
+              <stop offset="0.5" stopColor="#22d3ee" stopOpacity="0.9" />
+              <stop offset="1" stopColor="#a78bfa" stopOpacity="0.75" />
+            </linearGradient>
+            <linearGradient id="digitalStackCard" x1="0" x2="1" y1="0" y2="1">
+              <stop stopColor="#0f172a" stopOpacity="0.94" />
+              <stop offset="1" stopColor="#083344" stopOpacity="0.78" />
+            </linearGradient>
+            <filter id="digitalStackGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="8" result="blur" />
+              <feColorMatrix
+                in="blur"
+                type="matrix"
+                values="0 0 0 0 0.4 0 0 0 0 0.91 0 0 0 0 0.98 0 0 0 0.55 0"
+              />
+              <feBlend in="SourceGraphic" />
+            </filter>
+          </defs>
 
-          <strong className="mt-1 block text-xs font-semibold text-white">{item.label}</strong>
+          <path
+            d="M62 226 C146 150 202 215 282 142 C344 86 394 108 462 66"
+            fill="none"
+            stroke="url(#digitalStackLine)"
+            strokeLinecap="round"
+            strokeWidth="4"
+          />
+          <path
+            d="M70 250 C150 196 212 246 286 188 C350 138 394 160 456 122"
+            fill="none"
+            stroke="#67e8f9"
+            strokeDasharray="8 14"
+            strokeLinecap="round"
+            strokeOpacity="0.22"
+            strokeWidth="2"
+          />
 
-          <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
-            {item.detail}
-          </span>
+          <g filter="url(#digitalStackGlow)">
+            <circle cx="88" cy="204" r="8" fill="#67e8f9" />
+            <circle cx="222" cy="168" r="8" fill="#22d3ee" />
+            <circle cx="336" cy="112" r="8" fill="#38bdf8" />
+            <circle cx="448" cy="74" r="8" fill="#a78bfa" />
+          </g>
+
+          <g opacity="0.9">
+            <rect x="54" y="66" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
+            <rect x="202" y="34" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
+            <rect x="340" y="128" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#a78bfa" strokeOpacity="0.22" />
+          </g>
+
+          <g opacity="0.52" stroke="#cffafe" strokeLinecap="round" strokeWidth="3">
+            <path d="M78 96 H132" />
+            <path d="M78 116 H152" />
+            <path d="M226 64 H284" />
+            <path d="M226 84 H306" />
+            <path d="M364 158 H426" />
+            <path d="M364 178 H442" />
+          </g>
+        </svg>
+
+        <div className="absolute inset-x-4 bottom-4 grid grid-cols-4 gap-2">
+          {stackItems.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/10 bg-slate-950/[0.72] p-3 backdrop-blur"
+            >
+              <span className="block text-[0.58rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">
+                {item.marker}
+              </span>
+
+              <strong className="mt-1 block text-xs font-semibold text-white">{item.label}</strong>
+
+              <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
+                {item.detail}
+              </span>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
-  </div>
-</div>
-
-)}
+  )
+}
 
 export default function MACode() {
 const [mounted, setMounted] = useState(false)
@@ -623,8 +622,8 @@ return (
 
             <div className="hero-panel__content">
               <div className="hud-card hud-card--wide">
-                <span className="hud-card__label">Ponto de partida</span>
-                <strong>Website claro, profissional e preparado para gerar contacto</strong>
+                <span className="hud-card__label">Comece simples</span>
+                <strong>Website claro, profissional e preparado para gerar contactos</strong>
               </div>
 
               <DigitalStackVisual />
@@ -636,8 +635,8 @@ return (
                 </div>
 
                 <div className="hud-card">
-                  <span className="hud-card__label">Evolução</span>
-                  <strong>Loja, marcações, automação ou sistema</strong>
+                  <span className="hud-card__label">Pode evoluir para</span>
+                  <strong>Loja, marcações, automação ou sistema à medida</strong>
                 </div>
               </div>
             </div>
@@ -759,51 +758,6 @@ return (
             </div>
           </article>
         ))}
-      </div>
-    </div>
-  </section>
-
-  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-    <div className="mx-auto max-w-7xl">
-      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
-        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
-          <div>
-            <span className="section-label">Conteúdo organizado</span>
-
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              A home ficou simples. Os detalhes estão nas páginas certas.
-            </h2>
-
-            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Em vez de concentrar tudo na página inicial, cada área tem uma página própria com
-              informação mais completa. Assim, quem quer decidir rápido encontra o caminho certo
-              e quem precisa de detalhe pode aprofundar.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {servicePageLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-cyan-300/[0.06]"
-                onClick={() => trackEvent('service_page_link_click', {
-                  service_name: link.title,
-                  destination: link.href,
-                  section: 'content_hub'
-                })}
-              >
-                <h3 className="font-semibold text-white">{link.title}</h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-300">{link.description}</p>
-
-                <span className="mt-4 inline-flex text-sm font-semibold text-cyan-200">
-                  Saber mais →
-                </span>
-              </a>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   </section>
