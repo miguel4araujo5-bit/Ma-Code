@@ -85,7 +85,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'ser encontrados, gerar confiança e receber contactos',
       description:
         'Criamos websites modernos, rápidos e adaptados a telemóvel, pensados para explicar o seu negócio com clareza, transmitir credibilidade e facilitar o contacto desde o primeiro dia.',
-      primaryCta: 'Pedir proposta',
+      primaryCta: 'Pedir proposta gratuita',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -106,6 +106,7 @@ export const servicePages: ServicePageData[] = [
       title: 'Um website não deve ser apenas bonito. Deve explicar, orientar e converter.',
       paragraphs: [
         'A presença digital de uma empresa começa muitas vezes pelo website. Quando alguém pesquisa pelo seu negócio, compara serviços ou procura confiança antes de pedir orçamento, o site é uma das primeiras provas de profissionalismo.',
+        'Esta página concentra o detalhe que não precisa de estar todo na homepage: estrutura, benefícios, processo, entregáveis e dúvidas frequentes sobre criação de websites profissionais.',
         'Na MA-Code criamos websites com foco em clareza, velocidade, design responsivo e estrutura comercial. O objetivo é apresentar bem o negócio, facilitar o contacto e criar uma base digital preparada para crescer com novas páginas, loja online, marcações, automação ou integrações.',
       ],
     },
@@ -136,7 +137,7 @@ export const servicePages: ServicePageData[] = [
       {
         title: 'Base para SEO e crescimento',
         description:
-          'Organizamos títulos, conteúdos, estrutura e metadata para criar uma base técnica mais forte para pesquisas no Google e respostas em motores de IA.',
+          'Organizamos títulos, conteúdos, estrutura e metadata para criar uma base técnica mais forte para pesquisas no Google, respostas em motores de IA e crescimento futuro.',
       },
     ],
     deliverables: [
@@ -161,9 +162,9 @@ export const servicePages: ServicePageData[] = [
           'Botões, links e chamadas à ação preparados para facilitar contacto por email, telefone, WhatsApp ou formulário.',
       },
       {
-        title: 'Otimização visual e técnica',
+        title: 'Base preparada para evoluir',
         description:
-          'Design responsivo, carregamento rápido, hierarquia visual clara e compatibilidade com os principais dispositivos.',
+          'Estrutura pensada para permitir futuras páginas, campanhas, loja online, marcações, área administrativa, automações ou integrações.',
       },
     ],
     process: [
@@ -249,7 +250,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'organizar encomendas',
       description:
         'Desenvolvemos lojas online modernas, responsivas e preparadas para venda direta, com catálogo de produtos, carrinho de compras, checkout estruturado e uma experiência clara para o cliente.',
-      primaryCta: 'Pedir proposta',
+      primaryCta: 'Pedir proposta gratuita',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -270,6 +271,7 @@ export const servicePages: ServicePageData[] = [
       title: 'Uma loja online precisa de mais do que uma montra bonita.',
       paragraphs: [
         'Para vender online, o cliente tem de encontrar facilmente os produtos, compreender a oferta, confiar no processo e concluir a compra sem confusão.',
+        'Esta página aprofunda a parte de e-commerce que na homepage aparece apenas como caminho principal: catálogo, produto, carrinho, checkout, gestão e evolução da loja.',
         'Na MA-Code criamos lojas online com foco na experiência do utilizador, apresentação profissional dos produtos, navegação clara e estrutura preparada para crescimento com pagamentos, área administrativa, analytics ou automações.',
       ],
     },
@@ -413,7 +415,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'organização, agenda e menos mensagens perdidas',
       description:
         'Criamos sistemas de marcação online para salões, clínicas, serviços locais e profissionais que precisam de receber pedidos, organizar horários e consultar agenda de forma simples.',
-      primaryCta: 'Pedir proposta',
+      primaryCta: 'Pedir proposta gratuita',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -434,6 +436,7 @@ export const servicePages: ServicePageData[] = [
       title: 'Quando as marcações dependem só de chamadas e mensagens, é fácil perder controlo.',
       paragraphs: [
         'Muitos negócios recebem pedidos por telefone, WhatsApp, Instagram ou presencialmente. Isso pode funcionar no início, mas torna-se confuso quando há vários horários, serviços, clientes, alterações e confirmações.',
+        'Esta página detalha a parte de marcações que agora fica fora da homepage: regras de agenda, pedidos, horários, painel privado, estados e evolução possível do sistema.',
         'Um sistema de marcações online ajuda a centralizar pedidos, reduzir falhas, melhorar a experiência do cliente e dar ao negócio uma imagem mais profissional.',
       ],
     },
@@ -577,7 +580,7 @@ export const servicePages: ServicePageData[] = [
       highlightedTitle: 'poupar tempo e trabalhar melhor',
       description:
         'Criamos soluções digitais com automação, inteligência artificial, integrações API, assistentes e sistemas internos para reduzir tarefas repetitivas, organizar dados e melhorar a operação do negócio.',
-      primaryCta: 'Pedir proposta',
+      primaryCta: 'Pedir proposta gratuita',
       secondaryCta: 'Ver projetos',
     },
     stats: [
@@ -598,6 +601,7 @@ export const servicePages: ServicePageData[] = [
       title: 'A automação certa não substitui o negócio. Remove trabalho repetitivo.',
       paragraphs: [
         'Muitas empresas perdem tempo com tarefas manuais: copiar dados, responder sempre às mesmas perguntas, organizar pedidos, consultar folhas, enviar mensagens ou atualizar informação em vários sítios.',
+        'Esta página concentra o detalhe técnico e operacional que não deve pesar na homepage: automações, IA, integrações, formulários inteligentes, bases de dados e pequenos sistemas internos.',
         'A MA-Code cria soluções de automação e IA ajustadas ao processo real do negócio, com foco em poupar tempo, reduzir erros, organizar informação e tornar a operação mais clara.',
       ],
     },
