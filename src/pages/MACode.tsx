@@ -11,6 +11,8 @@ const proofPoints = [{value: '19€/mês',label: 'website simples',description:'
 
 const valueLadder = [{stage: 'Entrada',title: 'Website profissional',description: 'Presença online clara, domínio, alojamento e contactos preparados desde o início.'},{stage: 'Conversão',title: 'Vendas e marcações',description: 'Formulários, WhatsApp, loja online, reservas e páginas orientadas a pedidos reais.'},{stage: 'Escala',title: 'Sistema digital',description: 'Área administrativa, automação, IA, bases de dados e integrações à medida.'}]
 
+const decisionGuide = [{label: 'Se precisa de presença online',title: 'Comece pelo website',description: 'Ideal para apresentar serviços, criar confiança e receber contactos sem depender apenas das redes sociais.'},{label: 'Se já quer vender ou agendar',title: 'Avance para conversão',description: 'Ideal para loja online, marcações, pedidos rápidos, WhatsApp e fluxos pensados para gerar oportunidades.'},{label: 'Se perde tempo em tarefas manuais',title: 'Crie um sistema à medida',description: 'Ideal para dashboards, áreas administrativas, automação, IA, bases de dados e integrações com ferramentas externas.'}]
+
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
 const serviceCards = [{title: 'Criação de websites profissionais',label: 'Website',href: '/criacao-websites',cta: 'Saber mais',description:'Websites rápidos, modernos e adaptados a telemóvel para apresentar o negócio, gerar confiança e receber mais contactos.',bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']},{title: 'Lojas online / e-commerce',label: 'E-commerce',href: '/lojas-online',cta: 'Saber mais',description:'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender mais.',bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']},{title: 'Sistemas de marcação online',label: 'Agenda',href: '/sistemas-marcacao',cta: 'Saber mais',description:'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de gerir horários, pedidos e disponibilidade.',bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']},{title: 'Áreas administrativas e dashboards',label: 'Admin',href: '#orcamento',cta: 'Pedir proposta',description:'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir pedidos, contas, registos e processos internos.',bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']},{title: 'Automação e IA para negócios',label: 'Automação',href: '/automacao-ia',cta: 'Saber mais',description:'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']},{title: 'Integrações API e sistemas ligados',label: 'Integrações',href: '#orcamento',cta: 'Pedir proposta',description:'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']}]
@@ -22,6 +24,8 @@ const processSteps = [{title: '1. Percebemos o objetivo',description:'Identifica
 const projectTypes = ['Website simples','Website profissional','Redesign de website existente','Loja online','Loja online / Sistema de marcações','Sistema de marcações','Sistema à medida','Aplicação web','Automação / IA','Integração avançada','Ainda não sei']
 
 const projectGoals = ['Receber mais contactos','Vender online','Receber marcações','Organizar processos internos','Automatizar tarefas','Melhorar imagem e confiança','Ainda não sei']
+
+const formAssuranceItems = [{title: 'Sem compromisso',description: 'O primeiro pedido serve para perceber o projeto e indicar o caminho mais adequado.'},{title: 'Resposta mais certeira',description: 'Quanto melhor explicar o objetivo, mais clara fica a proposta e o nível de solução necessário.'},{title: 'Pode começar simples',description: 'Não precisa de pedir tudo de uma vez. A solução pode crescer por fases.'}]
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -857,7 +861,7 @@ return (
       <SectionHeader
         eyebrow="Escolha o caminho"
         title="O que precisa neste momento?"
-        description="Escolha o ponto de partida mais próximo do que procura. A proposta fica mais clara, o pedido chega melhor qualificado e o projeto começa pelo nível certo de solução."
+        description="Escolha o ponto de partida mais próximo do que procura. O formulário fica pré-preenchido, a proposta chega mais bem enquadrada e o projeto começa pelo nível certo de solução."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -919,6 +923,39 @@ return (
             </div>
           </a>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur md:p-6">
+        <div className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
+          <div>
+            <span className="section-label">Guia rápido</span>
+
+            <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
+              Ainda não sabe qual opção escolher?
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Use estes sinais para perceber o ponto de partida. A proposta pode começar simples
+              e evoluir quando o negócio precisar.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {decisionGuide.map((item) => (
+              <article key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <span className="block text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/75">
+                  {item.label}
+                </span>
+
+                <strong className="mt-2 block text-sm font-semibold text-white">
+                  {item.title}
+                </strong>
+
+                <p className="mt-2 text-xs leading-5 text-slate-300">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1062,6 +1099,16 @@ return (
               <span className="metric-card__label">Inclui</span>
               <strong>Domínio + alojamento</strong>
             </div>
+          </div>
+
+          <div className="mt-6 grid gap-3">
+            {formAssuranceItems.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <strong className="block text-sm font-semibold text-white">{item.title}</strong>
+
+                <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
+              </div>
+            ))}
           </div>
 
           <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
