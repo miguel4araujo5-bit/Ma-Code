@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
+import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
 const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
 
@@ -1352,6 +1353,8 @@ return (
                 {errorMessage}
               </div>
             ) : null}
+            
+            <FormPrivacyNotice />
 
             <button
               type="submit"
