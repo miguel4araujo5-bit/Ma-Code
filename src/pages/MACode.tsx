@@ -1,19 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
-import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
 const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
 
-const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
+const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
 const servicePageLinks = [{title: 'Criação de websites',description: 'Presença online profissional para gerar confiança e contactos.',href: '/criacao-websites'},{title: 'Lojas online',description: 'Catálogo, carrinho, checkout e estrutura para vender online.',href: '/lojas-online'},{title: 'Sistemas de marcação',description: 'Pedidos, horários, agenda e gestão de marcações online.',href: '/sistemas-marcacao'},{title: 'Automação e IA',description: 'Fluxos, integrações e sistemas para reduzir trabalho manual.',href: '/automacao-ia'}]
-
-const projectTypes = ['Website simples','Website profissional','Redesign de website existente','Loja online','Loja online / Sistema de marcações','Sistema de marcações','Sistema à medida','Aplicação web','Automação / IA','Integração avançada','Ainda não sei']
-
-const projectGoals = ['Receber mais contactos','Vender online','Receber marcações','Organizar processos internos','Automatizar tarefas','Melhorar imagem e confiança','Ainda não sei']
-
-const formAssuranceItems = [{title: 'Sem compromisso',description: 'O primeiro pedido serve para perceber o projeto e indicar o caminho mais adequado.'},{title: 'Resposta mais certeira',description: 'Quanto melhor explicar o objetivo, mais clara fica a proposta e o nível de solução necessário.'},{title: 'Pode começar simples',description: 'Não precisa de pedir tudo de uma vez. A solução pode crescer por fases.'}]
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -269,13 +262,8 @@ return (
 
 )}
 
-export default function MACode() {const [form, setForm] = useState({name: '',email: '',phone: '',projectType: '',projectGoal: '',hasWebsite: '',message: '',botcheck: ''})
-
-const [isSending, setIsSending] = useState(false)
-const [successMessage, setSuccessMessage] = useState('')
-const [errorMessage, setErrorMessage] = useState('')
+export default function MACode() {
 const [mounted, setMounted] = useState(false)
-const formStartedRef = useRef(false)
 
 useEffect(() => {setMounted(true)
 
@@ -347,143 +335,6 @@ trackEvent('homepage_view', {
 
 }, [])
 
-const trackFormStart = () => {
-  if (formStartedRef.current) {
-    return
-  }
-
-  formStartedRef.current = true
-
-  trackEvent('proposal_form_started', {
-    form_name: 'pedido_proposta',
-    trigger: 'first_form_interaction',
-    project_type: form.projectType || 'not_selected',
-    project_goal: form.projectGoal || 'not_selected',
-    has_website: form.hasWebsite || 'not_selected'
-  })
-}
-
-const selectProjectPath = (event: MouseEvent<HTMLAnchorElement>,projectType: string,projectGoal: string) => {event.preventDefault()
-
-trackEvent('project_path_selected', {
-  project_type: projectType,
-  project_goal: projectGoal,
-  section: 'path_cards'
-})
-
-setForm((current) => ({
-  ...current,
-  projectType,
-  projectGoal
-}))
-
-setSuccessMessage('')
-setErrorMessage('')
-
-window.requestAnimationFrame(() => {
-  document.getElementById('orcamento')?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start'
-  })
-})
-
-}
-
-const handleSubmit = async (e: FormEvent) => {e.preventDefault()
-
-if (isSending) {
-  return
-}
-
-setIsSending(true)
-setSuccessMessage('')
-setErrorMessage('')
-
-if (form.botcheck) {
-  trackEvent('proposal_form_blocked', {
-    form_name: 'pedido_proposta',
-    reason: 'botcheck'
-  })
-
-  setIsSending(false)
-  return
-}
-
-trackEvent('proposal_form_submit_attempt', {
-  form_name: 'pedido_proposta',
-  project_type: form.projectType || 'not_selected',
-  project_goal: form.projectGoal || 'not_selected',
-  has_website: form.hasWebsite || 'not_selected'
-})
-
-try {
-  const response = await fetch('/api/contact', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
-    },
-    body: JSON.stringify({
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      projectType: form.projectType,
-      projectGoal: form.projectGoal,
-      hasWebsite: form.hasWebsite,
-      pageUrl: 'https://ma-code.pt/',
-      message: form.message,
-      botcheck: form.botcheck
-    })
-  })
-
-  const data = (await response.json()) as {
-    success?: boolean
-    message?: string
-  }
-
-  if (!response.ok || !data.success) {
-    throw new Error(data.message || 'Erro ao enviar pedido')
-  }
-
-  trackEvent('proposal_form_submit_success', {
-    form_name: 'pedido_proposta',
-    project_type: form.projectType || 'not_selected',
-    project_goal: form.projectGoal || 'not_selected',
-    has_website: form.hasWebsite || 'not_selected'
-  })
-
-  trackEvent('generate_lead', {
-    form_name: 'pedido_proposta',
-    lead_type: form.projectType || 'not_selected',
-    project_goal: form.projectGoal || 'not_selected'
-  })
-
-  setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-  setForm({
-    name: '',
-    email: '',
-    phone: '',
-    projectType: '',
-    projectGoal: '',
-    hasWebsite: '',
-    message: '',
-    botcheck: ''
-  })
-} catch {
-  trackEvent('proposal_form_submit_error', {
-    form_name: 'pedido_proposta',
-    project_type: form.projectType || 'not_selected',
-    project_goal: form.projectGoal || 'not_selected',
-    has_website: form.hasWebsite || 'not_selected'
-  })
-
-  setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
-} finally {
-  setIsSending(false)
-}
-
-}
-
 return (
 <main>
   <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
@@ -501,12 +352,12 @@ return (
         </a>
 
         <a
-          href="#orcamento"
+          href="/contacto"
           className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
           onClick={() => trackEvent('cta_click', {
             cta_text: 'Pedir proposta',
             cta_location: 'header',
-            destination: '#orcamento'
+            destination: '/contacto'
           })}
         >
           Pedir proposta
@@ -548,12 +399,12 @@ return (
 
           <div className="hero-actions">
             <a
-              href="#orcamento"
+              href="/contacto"
               className="btn-primary hightech-button"
               onClick={() => trackEvent('cta_click', {
                 cta_text: 'Receber proposta gratuita',
                 cta_location: 'hero_primary',
-                destination: '#orcamento'
+                destination: '/contacto'
               })}
             >
               <span className="btn-shine" />
@@ -651,7 +502,7 @@ return (
       <SectionHeader
         eyebrow="Escolha o caminho"
         title="O que precisa neste momento?"
-        description="A home ficou mais simples: escolha o ponto de partida e veja os detalhes nas páginas próprias. Se já sabe o que precisa, peça proposta diretamente."
+        description="Escolha o ponto de partida, veja os detalhes nas páginas próprias ou peça diretamente uma proposta gratuita."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -659,8 +510,8 @@ return (
           <article
             key={card.title}
             className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
-              form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'ring-1 ring-cyan-200/45' : ''
-            } ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+              mounted ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
             style={{ animationDelay: `${index * 120}ms` }}
           >
             <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
@@ -719,9 +570,13 @@ return (
 
               <a
                 href={card.href}
-                onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
-                aria-current={form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'true' : undefined}
-                aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
+                onClick={() => trackEvent('project_path_selected', {
+                  project_type: card.projectType,
+                  project_goal: card.projectGoal,
+                  section: 'path_cards',
+                  destination: card.href
+                })}
+                aria-label={`${card.cta}. Abre a página de contacto para pedir proposta.`}
                 className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15"
               >
                 <span>{card.cta}</span>
@@ -783,263 +638,35 @@ return (
 
   <FeaturedProjects mounted={mounted} />
 
-  <section id="orcamento" className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
+  <section className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
     <div className="mx-auto max-w-7xl">
-      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="contact-side-panel">
-          <span className="section-label">Pedido</span>
+      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <span className="section-label">Próximo passo</span>
 
-          <h2 className="contact-side-panel__title">Explique o projeto em 1 minuto</h2>
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Pronto para perceber o melhor caminho para o seu projeto?
+            </h2>
 
-          <p className="contact-side-panel__text">
-            Diga-nos se precisa de um website, loja online, sistema de marcações, automação ou
-            solução à medida. Respondemos com uma proposta ajustada ao objetivo e ao nível de
-            funcionalidade necessário.
-          </p>
-
-          <div className="contact-metrics">
-            <div className="metric-card">
-              <span className="metric-card__label">Website simples</span>
-              <strong>Desde 19€/mês</strong>
-            </div>
-
-            <div className="metric-card">
-              <span className="metric-card__label">Inclui</span>
-              <strong>Domínio + alojamento</strong>
-            </div>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+              Explique se precisa de website, loja online, marcações, automação ou sistema à
+              medida. A página de contacto tem o formulário completo para pedir proposta gratuita.
+            </p>
           </div>
 
-          <div className="mt-6 grid gap-3">
-            {formAssuranceItems.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <strong className="block text-sm font-semibold text-white">{item.title}</strong>
-
-                <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-shell">
-          <div className="mb-5 rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4 text-sm leading-6 text-slate-200">
-            <strong className="block text-white">Proposta gratuita, sem compromisso.</strong>
-
-            <span className="mt-1 block text-slate-300">
-              Não precisa de ter tudo definido — basta explicar a ideia. Ajudamos a perceber o
-              caminho certo para o seu negócio.
-            </span>
-          </div>
-
-          <form onSubmit={handleSubmit} onFocus={trackFormStart} onChange={trackFormStart} className="space-y-5" aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}>
-            <input
-              type="text"
-              name="botcheck"
-              className="hidden"
-              aria-hidden="true"
-              tabIndex={-1}
-              autoComplete="off"
-              value={form.botcheck}
-              onChange={(e) => setForm({ ...form, botcheck: e.target.value })}
-            />
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="name" className="input-label">
-                  Nome
-                </label>
-
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  className="input-field"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  autoComplete="name"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="input-label">
-                  Email
-                </label>
-
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  className="input-field"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="phone" className="input-label">
-                  Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
-                </label>
-
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  className="input-field"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  autoComplete="tel"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="projectType" className="input-label">
-                  Tipo de projeto
-                </label>
-
-                <select
-                  id="projectType"
-                  name="Tipo de projeto"
-                  className="input-field"
-                  value={form.projectType}
-                  onChange={(e) => {
-                    trackEvent('form_field_select', {
-                      form_name: 'pedido_proposta',
-                      field_name: 'projectType',
-                      selected_value: e.target.value
-                    })
-
-                    setForm({ ...form, projectType: e.target.value })
-                  }}
-                  required
-                >
-                  <option value="" disabled>
-                    Selecione uma opção
-                  </option>
-
-                  {projectTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="projectGoal" className="input-label">
-                Objetivo principal do projeto
-              </label>
-
-              <select
-                id="projectGoal"
-                name="Objetivo principal do projeto"
-                className="input-field"
-                value={form.projectGoal}
-                onChange={(e) => {
-                  trackEvent('form_field_select', {
-                    form_name: 'pedido_proposta',
-                    field_name: 'projectGoal',
-                    selected_value: e.target.value
-                  })
-
-                  setForm({ ...form, projectGoal: e.target.value })
-                }}
-                required
-              >
-                <option value="" disabled>
-                  Selecione uma opção
-                </option>
-
-                {projectGoals.map((goal) => (
-                  <option key={goal} value={goal}>
-                    {goal}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="hasWebsite" className="input-label">
-                Já tem site?
-              </label>
-
-              <select
-                id="hasWebsite"
-                name="Já tem site?"
-                className="input-field"
-                value={form.hasWebsite}
-                onChange={(e) => {
-                  trackEvent('form_field_select', {
-                    form_name: 'pedido_proposta',
-                    field_name: 'hasWebsite',
-                    selected_value: e.target.value || 'not_selected'
-                  })
-
-                  setForm({ ...form, hasWebsite: e.target.value })
-                }}
-              >
-                <option value="">Selecione uma opção</option>
-                <option value="Sim, já tenho site">Sim, já tenho site</option>
-                <option value="Não, quero começar do zero">Não, quero começar do zero</option>
-                <option value="Tenho domínio, mas não tenho site">
-                  Tenho domínio, mas não tenho site
-                </option>
-                <option value="Não tenho a certeza">Não tenho a certeza</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="message" className="input-label">
-                Descreva o projeto
-              </label>
-
-              <textarea
-                id="message"
-                name="message"
-                rows={6}
-                className="input-field input-textarea"
-                value={form.message}
-                onChange={(e) => setForm({ ...form, message: e.target.value })}
-                required
-                placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
-              />
-            </div>
-
-            {successMessage ? (
-              <div
-                id="form-status"
-                className="status-message status-message--success"
-                role="status"
-                aria-live="polite"
-              >
-                {successMessage}
-              </div>
-            ) : null}
-
-            {errorMessage ? (
-              <div id="form-status" className="status-message status-message--error" role="alert" aria-live="assertive">
-                {errorMessage}
-              </div>
-            ) : null}
-            
-            <FormPrivacyNotice />
-
-            <button
-              type="submit"
-              className="btn-primary hightech-button w-full disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={isSending}
-              aria-busy={isSending}
-            >
-              <span className="btn-shine" />
-              <span className="relative z-10">
-                {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
-              </span>
-            </button>
-          </form>
+          <a
+            href="/contacto"
+            className="btn-primary hightech-button"
+            onClick={() => trackEvent('cta_click', {
+              cta_text: 'Pedir proposta gratuita',
+              cta_location: 'homepage_final_cta',
+              destination: '/contacto'
+            })}
+          >
+            <span className="btn-shine" />
+            <span className="relative z-10">Pedir proposta gratuita</span>
+          </a>
         </div>
       </div>
     </div>
