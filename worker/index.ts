@@ -129,6 +129,9 @@ const createCorsHeaders = (origin: string | null): HeaderMap => {
   }
 }
 
+const getWeb3FormsAccessKey = (env: Env) =>
+  (env.WEB3FORMS_ACCESS_KEY || env.WEB3FORMS_KEY || '').trim()
+
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
 const isContactBody = (value: unknown): value is ContactBody =>
@@ -154,9 +157,6 @@ const cleanMultilineText = (value: string, maxLength: number) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim()
     .slice(0, maxLength)
-
-const getWeb3FormsAccessKey = (env: Env) =>
-  (env.WEB3FORMS_KEY || env.WEB3FORMS_ACCESS_KEY || '').trim()
 
 const cleanPageUrl = (value: unknown, fallback: string, env: Env) => {
   const cleaned = cleanText(toStringValue(value), 300)
@@ -188,12 +188,8 @@ export default {
     const origin = request.headers.get('origin')
     const verifiedOrigin = getVerifiedRequestOrigin(request, requestOrigin, env)
     const corsHeaders = origin && verifiedOrigin ? createCorsHeaders(verifiedOrigin) : {}
-
     const respond = (body: unknown, status = 200, headers: HeaderMap = {}) =>
-      json(body, status, {
-        ...corsHeaders,
-        ...headers
-      })
+      json(body, status, { ...corsHeaders, ...headers })
 
     if (url.pathname !== '/api/contact') {
       return respond({ success: false, message: 'Endpoint não encontrado.' }, 404)
@@ -214,33 +210,22 @@ export default {
         headers['Access-Control-Max-Age'] = '86400'
       }
 
-      return new Response(null, {
-        status: 204,
-        headers
-      })
+      return new Response(null, { status: 204, headers })
     }
 
     if (request.method !== 'POST') {
       return respond(
-        {
-          success: false,
-          message: 'Método não permitido.'
-        },
+        { success: false, message: 'Método não permitido.' },
         405,
-        {
-          Allow: 'POST, OPTIONS'
-        }
+        { Allow: 'POST, OPTIONS' }
       )
     }
 
-    const web3FormsAccessKey = getWeb3FormsAccessKey(env)
+    const accessKey = getWeb3FormsAccessKey(env)
 
-    if (!web3FormsAccessKey) {
+    if (!accessKey) {
       return respond(
-        {
-          success: false,
-          message: 'A configuração do formulário não está disponível neste momento.'
-        },
+        { success: false, message: 'A configuração do formulário não está disponível neste momento.' },
         500
       )
     }
@@ -248,34 +233,19 @@ export default {
     const contentType = request.headers.get('content-type') || ''
 
     if (!contentType.toLowerCase().includes('application/json')) {
-      return respond(
-        {
-          success: false,
-          message: 'Formato de pedido inválido.'
-        },
-        415
-      )
+      return respond({ success: false, message: 'Formato de pedido inválido.' }, 415)
     }
 
     const contentLengthHeader = request.headers.get('content-length')
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0
 
     if (contentLengthHeader && (!Number.isFinite(contentLength) || contentLength < 0)) {
-      return respond(
-        {
-          success: false,
-          message: 'Formato de pedido inválido.'
-        },
-        400
-      )
+      return respond({ success: false, message: 'Formato de pedido inválido.' }, 400)
     }
 
     if (contentLength > MAX_BODY_BYTES) {
       return respond(
-        {
-          success: false,
-          message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.'
-        },
+        { success: false, message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.' },
         413
       )
     }
@@ -286,20 +256,14 @@ export default {
       rawBody = await request.text()
     } catch {
       return respond(
-        {
-          success: false,
-          message: 'Não foi possível ler os dados do formulário. Tente novamente.'
-        },
+        { success: false, message: 'Não foi possível ler os dados do formulário. Tente novamente.' },
         400
       )
     }
 
     if (getByteLength(rawBody) > MAX_BODY_BYTES) {
       return respond(
-        {
-          success: false,
-          message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.'
-        },
+        { success: false, message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.' },
         413
       )
     }
@@ -310,31 +274,19 @@ export default {
       parsedBody = JSON.parse(rawBody)
     } catch {
       return respond(
-        {
-          success: false,
-          message: 'Não foi possível ler os dados do formulário. Tente novamente.'
-        },
+        { success: false, message: 'Não foi possível ler os dados do formulário. Tente novamente.' },
         400
       )
     }
 
     if (!isContactBody(parsedBody)) {
-      return respond(
-        {
-          success: false,
-          message: 'Os dados do formulário são inválidos.'
-        },
-        400
-      )
+      return respond({ success: false, message: 'Os dados do formulário são inválidos.' }, 400)
     }
 
     const body = parsedBody
 
     if (toStringValue(body.botcheck).trim()) {
-      return respond({
-        success: true,
-        message: 'Pedido enviado com sucesso.'
-      })
+      return respond({ success: true, message: 'Pedido enviado com sucesso.' })
     }
 
     const name = cleanText(toStringValue(body.name), 120)
@@ -360,10 +312,7 @@ export default {
 
     if (message.length < 10) {
       return respond(
-        {
-          success: false,
-          message: 'Descreva o projeto com um pouco mais de detalhe.'
-        },
+        { success: false, message: 'Descreva o projeto com um pouco mais de detalhe.' },
         400
       )
     }
@@ -388,7 +337,7 @@ export default {
     ].join('\n')
 
     const subject = cleanText(
-      ['Pedido de proposta - MA-Code', projectType || projectGoal || null, name].filter(Boolean).join(' | '),
+      ['Pedido de proposta - MA-Code', projectType || null, name].filter(Boolean).join(' | '),
       180
     )
 
@@ -400,7 +349,7 @@ export default {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: web3FormsAccessKey,
+          access_key: accessKey,
           subject,
           from_name: 'MA-Code Website',
           name,
@@ -422,34 +371,22 @@ export default {
         data = (await web3Response.json()) as Web3FormsResponse
       } catch {
         return respond(
-          {
-            success: false,
-            message: 'Não foi possível confirmar o envio do formulário. Tente novamente.'
-          },
+          { success: false, message: 'Não foi possível confirmar o envio do formulário. Tente novamente.' },
           502
         )
       }
 
       if (!web3Response.ok || !data.success) {
         return respond(
-          {
-            success: false,
-            message: data.message || 'Não foi possível enviar o pedido. Tente novamente.'
-          },
+          { success: false, message: data.message || 'Não foi possível enviar o pedido. Tente novamente.' },
           400
         )
       }
 
-      return respond({
-        success: true,
-        message: 'Pedido enviado com sucesso.'
-      })
+      return respond({ success: true, message: 'Pedido enviado com sucesso.' })
     } catch {
       return respond(
-        {
-          success: false,
-          message: 'Erro ao comunicar com o serviço de envio. Tente novamente.'
-        },
+        { success: false, message: 'Erro ao comunicar com o serviço de envio. Tente novamente.' },
         502
       )
     }
