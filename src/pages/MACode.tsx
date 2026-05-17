@@ -3,23 +3,11 @@ import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
-const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
-
-const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
-
 const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
 
-const valueLadder = [{stage: 'Entrada',title: 'Website profissional',description: 'Presença online clara, domínio, alojamento e contactos preparados desde o início.'},{stage: 'Conversão',title: 'Vendas e marcações',description: 'Formulários, WhatsApp, loja online, reservas e páginas orientadas a pedidos reais.'},{stage: 'Escala',title: 'Sistema digital',description: 'Área administrativa, automação, IA, bases de dados e integrações à medida.'}]
+const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
-const decisionGuide = [{label: 'Se precisa de presença online',title: 'Comece pelo website',description: 'Ideal para apresentar serviços, criar confiança e receber contactos sem depender apenas das redes sociais.'},{label: 'Se já quer vender ou agendar',title: 'Avance para conversão',description: 'Ideal para loja online, marcações, pedidos rápidos, WhatsApp e fluxos pensados para gerar oportunidades.'},{label: 'Se perde tempo em tarefas manuais',title: 'Crie um sistema à medida',description: 'Ideal para dashboards, áreas administrativas, automação, IA, bases de dados e integrações com ferramentas externas.'}]
-
-const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
-
-const serviceCards = [{title: 'Criação de websites profissionais',label: 'Website',href: '/criacao-websites',cta: 'Saber mais',description:'Websites rápidos, modernos e adaptados a telemóvel para apresentar o negócio, gerar confiança e receber mais contactos.',bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']},{title: 'Lojas online / e-commerce',label: 'E-commerce',href: '/lojas-online',cta: 'Saber mais',description:'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender mais.',bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']},{title: 'Sistemas de marcação online',label: 'Agenda',href: '/sistemas-marcacao',cta: 'Saber mais',description:'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de gerir horários, pedidos e disponibilidade.',bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']},{title: 'Áreas administrativas e dashboards',label: 'Admin',href: '#orcamento',cta: 'Pedir proposta',description:'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir pedidos, contas, registos e processos internos.',bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']},{title: 'Automação e IA para negócios',label: 'Automação',href: '/automacao-ia',cta: 'Saber mais',description:'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']},{title: 'Integrações API e sistemas ligados',label: 'Integrações',href: '#orcamento',cta: 'Pedir proposta',description:'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']}]
-
-const evolutionSteps = [{title: '1. Entrada: website profissional',description:'Começa com uma presença online própria, rápida e credível, preparada para receber contactos.'},{title: '2. Conversão: vendas e pedidos',description:'Evolui para formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'},{title: '3. Escala: sistema digital',description:'Quando o negócio precisar, acrescenta área administrativa, automação, IA, dados e integrações.'}]
-
-const processSteps = [{title: '1. Percebemos o objetivo',description:'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'},{title: '2. Definimos a estrutura',description:'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'},{title: '3. Criamos e afinamos',description:'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'},{title: '4. Publicamos online',description:'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'}]
+const servicePageLinks = [{title: 'Criação de websites',description: 'Presença online profissional para gerar confiança e contactos.',href: '/criacao-websites'},{title: 'Lojas online',description: 'Catálogo, carrinho, checkout e estrutura para vender online.',href: '/lojas-online'},{title: 'Sistemas de marcação',description: 'Pedidos, horários, agenda e gestão de marcações online.',href: '/sistemas-marcacao'},{title: 'Automação e IA',description: 'Fluxos, integrações e sistemas para reduzir trabalho manual.',href: '/automacao-ia'}]
 
 const projectTypes = ['Website simples','Website profissional','Redesign de website existente','Loja online','Loja online / Sistema de marcações','Sistema de marcações','Sistema à medida','Aplicação web','Automação / IA','Integração avançada','Ainda não sei']
 
@@ -169,172 +157,6 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
   })
 }
 
-function ServiceMarquee() {return (
-<div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
-  <style>{`
-.ma-service-marquee {position: relative !important;display: block !important;width: 100% !important;max-width: 100% !important;min-height: 3.8rem !important;margin-top: 1.75rem !important;overflow: hidden !important;border-radius: 1.45rem !important;border: 1px solid rgba(103, 232, 249, 0.16) !important;padding: 0.82rem 0 !important;background:linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.035),0 0 24px rgba(34, 211, 238, 0.045) !important;backdrop-filter: blur(14px);-webkit-backdrop-filter: blur(14px);opacity: 1 !important;visibility: visible !important;z-index: 30 !important;isolation: isolate !important;transform: translate3d(0, 0, 0) !important;-webkit-transform: translate3d(0, 0, 0) !important;}
-
-      .ma-service-marquee::before,
-      .ma-service-marquee::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 4rem;
-        z-index: 2;
-        pointer-events: none;
-      }
-
-      .ma-service-marquee::before {
-        left: 0;
-        background: linear-gradient(90deg, rgba(6, 16, 25, 1), transparent);
-      }
-
-      .ma-service-marquee::after {
-        right: 0;
-        background: linear-gradient(270deg, rgba(6, 16, 25, 1), transparent);
-      }
-
-      .ma-service-marquee__track {
-        position: relative !important;
-        z-index: 1 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.75rem !important;
-        width: max-content !important;
-        min-width: max-content !important;
-        white-space: nowrap !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        transform: translate3d(0, 0, 0);
-        -webkit-transform: translate3d(0, 0, 0);
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        will-change: transform;
-        animation: ma-service-marquee-scroll 28s linear infinite;
-        -webkit-animation: ma-service-marquee-scroll 28s linear infinite;
-      }
-
-      .ma-service-marquee__item {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        flex: 0 0 auto !important;
-        border-radius: 9999px !important;
-        border: 1px solid rgba(103, 232, 249, 0.16) !important;
-        padding: 0.68rem 1rem !important;
-        background: rgba(15, 23, 42, 0.72) !important;
-        color: #cffafe !important;
-        font-size: 0.72rem !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
-        letter-spacing: 0.13em !important;
-        text-transform: uppercase !important;
-        white-space: nowrap !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.018),
-          0 0 12px rgba(34, 211, 238, 0.035) !important;
-      }
-
-      @keyframes ma-service-marquee-scroll {
-        0% {
-          transform: translate3d(0, 0, 0);
-          -webkit-transform: translate3d(0, 0, 0);
-        }
-
-        100% {
-          transform: translate3d(-33.333333%, 0, 0);
-          -webkit-transform: translate3d(-33.333333%, 0, 0);
-        }
-      }
-
-      @-webkit-keyframes ma-service-marquee-scroll {
-        0% {
-          transform: translate3d(0, 0, 0);
-          -webkit-transform: translate3d(0, 0, 0);
-        }
-
-        100% {
-          transform: translate3d(-33.333333%, 0, 0);
-          -webkit-transform: translate3d(-33.333333%, 0, 0);
-        }
-      }
-
-      @media (max-width: 768px) {
-        .ma-service-marquee {
-          min-height: 3.45rem !important;
-          margin-top: 1.35rem !important;
-          border-radius: 1.2rem !important;
-          padding: 0.72rem 0 !important;
-        }
-
-        .ma-service-marquee::before,
-        .ma-service-marquee::after {
-          width: 1.35rem;
-        }
-
-        .ma-service-marquee__track {
-          gap: 0.62rem !important;
-          animation-duration: 20s;
-          -webkit-animation-duration: 20s;
-        }
-
-        .ma-service-marquee__item {
-          padding: 0.62rem 0.78rem !important;
-          font-size: 0.58rem !important;
-          letter-spacing: 0.08em !important;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .ma-service-marquee {
-          min-height: 3.25rem !important;
-          margin-top: 1.15rem !important;
-          padding: 0.68rem 0 !important;
-        }
-
-        .ma-service-marquee::before,
-        .ma-service-marquee::after {
-          width: 0.85rem;
-        }
-
-        .ma-service-marquee__track {
-          gap: 0.55rem !important;
-          animation-duration: 17s;
-          -webkit-animation-duration: 17s;
-        }
-
-        .ma-service-marquee__item {
-          padding: 0.58rem 0.72rem !important;
-          font-size: 0.54rem !important;
-          letter-spacing: 0.07em !important;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .ma-service-marquee__track {
-          animation-duration: 55s !important;
-          -webkit-animation-duration: 55s !important;
-        }
-      }
-    `}
-  </style>
-
-  <span className="sr-only">{marqueeItems.join(', ')}</span>
-
-  <div className="ma-service-marquee__track" aria-hidden="true">
-    {marqueeLoopItems.map((item, index) => (
-      <span key={`${item}-${index}`} className="ma-service-marquee__item">
-        {item}
-      </span>
-    ))}
-  </div>
-</div>
-
-)}
-
 function DigitalStackVisual() {const stackItems = [{label: 'Website',detail: 'Base clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Automação',detail: 'Menos manual',marker: '03'},{label: 'Sistema',detail: 'Escala digital',marker: '04'}]
 
 return (
@@ -457,11 +279,11 @@ const formStartedRef = useRef(false)
 
 useEffect(() => {setMounted(true)
 
-document.title = 'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+document.title = 'Websites Simples que Podem Crescer com o Negócio | MA-Code'
 
 updateMeta(
   'description',
-  'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos, vender online e crescer para marcações, automação, IA ou sistemas digitais à medida.'
+  'Websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos e evoluir para loja online, marcações, automação ou sistemas digitais.'
 )
 
 updateMeta(
@@ -481,12 +303,12 @@ updatePropertyMeta('og:url', 'https://ma-code.pt/')
 
 updatePropertyMeta(
   'og:title',
-  'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+  'Websites Simples que Podem Crescer com o Negócio | MA-Code'
 )
 
 updatePropertyMeta(
   'og:description',
-  'Comece com um website profissional e evolua sem refazer tudo: contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
+  'Comece com um website profissional e evolua para loja online, marcações, automação, IA ou sistemas digitais à medida.'
 )
 
 updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -501,12 +323,12 @@ updateMeta('twitter:url', 'https://ma-code.pt/')
 
 updateMeta(
   'twitter:title',
-  'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+  'Websites Simples que Podem Crescer com o Negócio | MA-Code'
 )
 
 updateMeta(
   'twitter:description',
-  'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
+  'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais.'
 )
 
 updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
@@ -541,7 +363,7 @@ const trackFormStart = () => {
   })
 }
 
-const selectProjectPath = (event: MouseEvent,projectType: string,projectGoal: string) => {event.preventDefault()
+const selectProjectPath = (event: MouseEvent<HTMLAnchorElement>,projectType: string,projectGoal: string) => {event.preventDefault()
 
 trackEvent('project_path_selected', {
   project_type: projectType,
@@ -695,16 +517,16 @@ return (
         <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
           <div className="hero-topline">
             <span className="hero-topline__dot" />
-            <span>Começar simples. Crescer sem refazer.</span>
+            <span>Website hoje. Sistema amanhã.</span>
           </div>
 
           <h1 className="hero-title">
             <span className="sm:hidden">
-              Website profissional hoje. Base digital para crescer amanhã.
+              Website profissional para começar simples e crescer depois.
             </span>
 
             <span className="hidden sm:inline">
-              Websites profissionais que geram contactos hoje e crescem com o negócio amanhã.
+              Websites profissionais para começar simples e crescer depois.
             </span>
           </h1>
 
@@ -714,14 +536,13 @@ return (
 
           <p className="hero-subtitle">
             <span className="sm:hidden">
-              Comece com presença online profissional desde 19€/mês e evolua para loja,
-              marcações, automação ou IA sem refazer tudo.
+              Criamos websites, lojas, marcações e automações para negócios que querem gerar contactos e organizar melhor o trabalho.
             </span>
 
             <span className="hidden sm:inline">
-              A MA-Code cria websites e sistemas digitais para negócios que querem começar com
-              uma presença online clara, gerar confiança, facilitar o contacto e deixar caminho
-              aberto para loja online, marcações, automação, IA e ferramentas internas à medida.
+              A MA-Code cria websites e sistemas digitais para negócios que querem gerar contactos,
+              vender, receber marcações ou automatizar processos — começando por uma base simples,
+              clara e preparada para evoluir.
             </span>
           </p>
 
@@ -757,24 +578,6 @@ return (
             <li>Mobile-first</li>
             <li>Foco em contactos</li>
           </ul>
-
-          <div className="mt-6 grid gap-3 rounded-3xl border border-cyan-300/15 bg-slate-950/55 p-4 shadow-xl shadow-cyan-950/10 backdrop-blur sm:grid-cols-3">
-            {valueLadder.map((step) => (
-              <div key={step.stage} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <span className="block text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
-                  {step.stage}
-                </span>
-
-                <strong className="mt-2 block text-sm font-semibold text-white">
-                  {step.title}
-                </strong>
-
-                <p className="mt-2 text-xs leading-5 text-slate-300">{step.description}</p>
-              </div>
-            ))}
-          </div>
-
-          <ServiceMarquee />
         </div>
 
         <div
@@ -792,13 +595,13 @@ return (
                 <span />
               </div>
 
-              <span className="hero-panel__label">Promessa MA-Code</span>
+              <span className="hero-panel__label">MA-Code</span>
             </div>
 
             <div className="hero-panel__content">
               <div className="hud-card hud-card--wide">
-                <span className="hud-card__label">Entrada recomendada</span>
-                <strong>Website que explica, gera confiança e leva ao contacto</strong>
+                <span className="hud-card__label">Ponto de partida</span>
+                <strong>Website claro, profissional e preparado para gerar contacto</strong>
               </div>
 
               <DigitalStackVisual />
@@ -810,21 +613,8 @@ return (
                 </div>
 
                 <div className="hud-card">
-                  <span className="hud-card__label">Estratégia</span>
-                  <strong>Crescer por fases, sem refazer tudo</strong>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-5">
-                <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
-                  Evolução possível
-                </span>
-
-                <div className="grid gap-3 text-sm text-slate-200">
-                  <span>→ Loja online e checkout</span>
-                  <span>→ Sistema de marcações</span>
-                  <span>→ Área administrativa</span>
-                  <span>→ Automação, IA e integrações</span>
+                  <span className="hud-card__label">Evolução</span>
+                  <strong>Loja, marcações, automação ou sistema</strong>
                 </div>
               </div>
             </div>
@@ -861,17 +651,13 @@ return (
       <SectionHeader
         eyebrow="Escolha o caminho"
         title="O que precisa neste momento?"
-        description="Escolha o ponto de partida mais próximo do que procura. O formulário fica pré-preenchido, a proposta chega mais bem enquadrada e o projeto começa pelo nível certo de solução."
+        description="A home ficou mais simples: escolha o ponto de partida e veja os detalhes nas páginas próprias. Se já sabe o que precisa, peça proposta diretamente."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
         {pathCards.map((card, index) => (
-          <a
+          <article
             key={card.title}
-            href={card.href}
-            onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
-            aria-current={form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'true' : undefined}
-            aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
             className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
               form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'ring-1 ring-cyan-200/45' : ''
             } ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
@@ -914,48 +700,38 @@ return (
                 <p className="mt-2 text-sm leading-6 text-cyan-50/90">{card.outcome}</p>
               </div>
 
-              <span className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15">
+              <div className="mt-5 flex flex-wrap gap-2">
+                {card.learnLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 transition duration-300 hover:border-cyan-200/35 hover:bg-cyan-300/10 hover:text-cyan-50"
+                    onClick={() => trackEvent('service_page_link_click', {
+                      service_name: link.label,
+                      destination: link.href,
+                      section: 'path_cards'
+                    })}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+
+              <a
+                href={card.href}
+                onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
+                aria-current={form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'true' : undefined}
+                aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
+                className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15"
+              >
                 <span>{card.cta}</span>
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
                   →
                 </span>
-              </span>
+              </a>
             </div>
-          </a>
+          </article>
         ))}
-      </div>
-
-      <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur md:p-6">
-        <div className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
-          <div>
-            <span className="section-label">Guia rápido</span>
-
-            <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
-              Ainda não sabe qual opção escolher?
-            </h3>
-
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Use estes sinais para perceber o ponto de partida. A proposta pode começar simples
-              e evoluir quando o negócio precisar.
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {decisionGuide.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <span className="block text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/75">
-                  {item.label}
-                </span>
-
-                <strong className="mt-2 block text-sm font-semibold text-white">
-                  {item.title}
-                </strong>
-
-                <p className="mt-2 text-xs leading-5 text-slate-300">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -963,38 +739,41 @@ return (
   <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
     <div className="mx-auto max-w-7xl">
       <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
           <div>
-            <span className="section-label">Do site ao sistema</span>
+            <span className="section-label">Conteúdo organizado</span>
 
             <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Um website hoje. Um sistema digital amanhã.
+              A home ficou simples. Os detalhes estão nas páginas certas.
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              A estratégia é simples: começar com uma base profissional que gera confiança e
-              contactos, sem fechar portas ao crescimento. Quando fizer sentido, essa base pode
-              evoluir para loja online, marcações, área administrativa, automações, IA ou
-              integrações com ferramentas que o negócio já usa.
+              Em vez de concentrar tudo na página inicial, cada área tem uma página própria com
+              informação mais completa. Assim, quem quer decidir rápido encontra o caminho certo
+              e quem precisa de detalhe pode aprofundar.
             </p>
           </div>
 
-          <div className="grid gap-4">
-            {evolutionSteps.map((step, index) => (
-              <article
-                key={step.title}
-                className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+          <div className="grid gap-3 sm:grid-cols-2">
+            {servicePageLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-cyan-300/[0.06]"
+                onClick={() => trackEvent('service_page_link_click', {
+                  service_name: link.title,
+                  destination: link.href,
+                  section: 'content_hub'
+                })}
               >
-                <div className="mb-2 flex items-center gap-3">
-                  <span className="flex size-8 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-sm font-bold text-cyan-100">
-                    {index + 1}
-                  </span>
+                <h3 className="font-semibold text-white">{link.title}</h3>
 
-                  <h3 className="font-semibold text-white">{step.title}</h3>
-                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-300">{link.description}</p>
 
-                <p className="text-sm leading-6 text-slate-300">{step.description}</p>
-              </article>
+                <span className="mt-4 inline-flex text-sm font-semibold text-cyan-200">
+                  Saber mais →
+                </span>
+              </a>
             ))}
           </div>
         </div>
@@ -1004,89 +783,18 @@ return (
 
   <FeaturedProjects mounted={mounted} />
 
-  <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-    <div className="mx-auto max-w-7xl">
-      <SectionHeader
-        eyebrow="Serviços"
-        title="Soluções para apresentar, vender, marcar e organizar"
-        description="Criamos desde websites simples até sistemas digitais completos, com uma lógica de crescimento: começar com presença online, gerar contactos e evoluir para venda, marcações, gestão interna ou automação."
-      />
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {serviceCards.map((card, index) => (
-          <a
-            key={card.title}
-            href={card.href}
-            onClick={() => trackEvent('service_card_click', {
-              service_name: card.title,
-              service_label: card.label,
-              destination: card.href,
-              section: 'services'
-            })}
-            className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-            style={{ animationDelay: `${index * 120}ms` }}
-          >
-            <div className="service-card__line" />
-
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                {card.label}
-              </span>
-
-              <div className="service-card__index">
-                {String(index + 1).padStart(2, '0')}
-              </div>
-            </div>
-
-            <h3 className="service-card__title">{card.title}</h3>
-            <p className="service-card__description">{card.description}</p>
-
-            <FeatureList items={card.bullets} className="mt-5" />
-
-            <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
-              {card.cta} →
-            </span>
-          </a>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-    <div className="mx-auto max-w-7xl">
-      <SectionHeader
-        eyebrow="Processo"
-        title="Um processo simples, sem complicar o cliente"
-        description="O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada, sem linguagem técnica desnecessária nem decisões confusas."
-      />
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {processSteps.map((step, index) => (
-          <article
-            key={step.title}
-            className={`process-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-            style={{ animationDelay: `${index * 120}ms` }}
-          >
-            <h3>{step.title}</h3>
-            <p>{step.description}</p>
-          </article>
-        ))}
-      </div>
-    </div>
-  </section>
-
   <section id="orcamento" className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
     <div className="mx-auto max-w-7xl">
       <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="contact-side-panel">
           <span className="section-label">Pedido</span>
 
-          <h2 className="contact-side-panel__title">Fale-nos do projeto</h2>
+          <h2 className="contact-side-panel__title">Explique o projeto em 1 minuto</h2>
 
           <p className="contact-side-panel__text">
-            Diga-nos em que fase está: começar com um website, vender ou receber marcações,
-            ou criar um sistema digital mais completo. Respondemos com uma proposta ajustada
-            ao objetivo comercial e ao nível de funcionalidade necessário.
+            Diga-nos se precisa de um website, loja online, sistema de marcações, automação ou
+            solução à medida. Respondemos com uma proposta ajustada ao objetivo e ao nível de
+            funcionalidade necessário.
           </p>
 
           <div className="contact-metrics">
@@ -1109,20 +817,6 @@ return (
                 <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
               </div>
             ))}
-          </div>
-
-          <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
-            <p>Para uma resposta mais certeira, indique:</p>
-
-            <ul className="space-y-2 text-slate-200/90">
-              <li>• Que tipo de projeto pretende</li>
-              <li>• Se já tem site ou quer começar do zero</li>
-              <li>• Se precisa de loja, marcações, área administrativa, automação ou IA</li>
-              <li>
-                • Se o objetivo principal é receber contactos, vender, aceitar reservas ou
-                organizar processos
-              </li>
-            </ul>
           </div>
         </div>
 
