@@ -11,8 +11,6 @@ const proofPoints = [{value: '19€/mês',label: 'website simples',description:'
 
 const valueLadder = [{stage: 'Entrada',title: 'Website profissional',description: 'Presença online clara, domínio, alojamento e contactos preparados desde o início.'},{stage: 'Conversão',title: 'Vendas e marcações',description: 'Formulários, WhatsApp, loja online, reservas e páginas orientadas a pedidos reais.'},{stage: 'Escala',title: 'Sistema digital',description: 'Área administrativa, automação, IA, bases de dados e integrações à medida.'}]
 
-const competitiveAdvantages = [{title: 'Mais específico do que um template',description:'A estrutura é pensada para o negócio, os serviços, o cliente ideal e o objetivo comercial, não apenas para preencher um modelo bonito.',points: ['Estrutura à medida', 'Conteúdo orientado ao cliente', 'Percurso claro até ao contacto']},{title: 'Mais evolutivo do que um site fechado',description:'O projeto pode começar com presença online e crescer para loja, marcações, área administrativa, automação, IA ou integrações.',points: ['Base preparada para crescer', 'Menos retrabalho futuro', 'Funcionalidades por fases']},{title: 'Mais próximo do que uma agência distante',description:'A comunicação é direta, simples e focada em resolver o problema real do negócio sem transformar o processo numa complicação.',points: ['Processo claro', 'Decisões objetivas', 'Acompanhamento direto']},{title: 'Mais prático do que só design bonito',description:'O foco não é apenas aparência. É criar uma ferramenta que gere confiança, contactos, pedidos, reservas ou organização interna.',points: ['Foco em conversão', 'Mobile-first', 'Valor comercial']}]
-
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
 const serviceCards = [{title: 'Criação de websites profissionais',label: 'Website',href: '/criacao-websites',cta: 'Saber mais',description:'Websites rápidos, modernos e adaptados a telemóvel para apresentar o negócio, gerar confiança e receber mais contactos.',bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']},{title: 'Lojas online / e-commerce',label: 'E-commerce',href: '/lojas-online',cta: 'Saber mais',description:'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender mais.',bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']},{title: 'Sistemas de marcação online',label: 'Agenda',href: '/sistemas-marcacao',cta: 'Saber mais',description:'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de gerir horários, pedidos e disponibilidade.',bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']},{title: 'Áreas administrativas e dashboards',label: 'Admin',href: '#orcamento',cta: 'Pedir proposta',description:'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir pedidos, contas, registos e processos internos.',bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']},{title: 'Automação e IA para negócios',label: 'Automação',href: '/automacao-ia',cta: 'Saber mais',description:'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']},{title: 'Integrações API e sistemas ligados',label: 'Integrações',href: '#orcamento',cta: 'Pedir proposta',description:'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']}]
@@ -850,73 +848,6 @@ return (
             <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
           </article>
         ))}
-      </div>
-    </div>
-  </section>
-
-  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-    <div className="mx-auto max-w-7xl">
-      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
-        <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
-          <div>
-            <span className="section-label">Diferenciação</span>
-
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Porque escolher a MA-Code em vez de uma solução genérica?
-            </h2>
-
-            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              O mercado tem templates, construtores automáticos, freelancers baratos e agências
-              grandes. A MA-Code posiciona-se entre o simples e o completo: começa com uma
-              presença online acessível, mas prepara o negócio para evoluir para vendas,
-              marcações, automação, IA e sistemas internos quando fizer sentido.
-            </p>
-
-            <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-cyan-300/5 p-5">
-              <span className="block text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
-                Posicionamento
-              </span>
-
-              <strong className="mt-2 block text-lg font-semibold text-white">
-                Começar simples. Crescer sem refazer.
-              </strong>
-
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                A ideia é simples: criar uma base digital profissional desde o início, para o
-                negócio poder crescer por fases sem perder tempo, dinheiro ou coerência mais
-                tarde.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {competitiveAdvantages.map((advantage, index) => (
-              <article
-                key={advantage.title}
-                className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 ${
-                  mounted ? 'animate-fade-in-up' : 'opacity-0'
-                }`}
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <h3 className="text-base font-semibold text-white">{advantage.title}</h3>
-
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">
-                    {index + 1}
-                  </span>
-                </div>
-
-                <p className="text-sm leading-6 text-slate-300">{advantage.description}</p>
-
-                <ul className="mt-4 space-y-2 text-sm text-slate-200/90">
-                  {advantage.points.map((point) => (
-                    <li key={point}>• {point}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   </section>
