@@ -63,6 +63,135 @@ const projectPaths = [
   }
 ]
 
+type ContactFormState = {
+  name: string
+  email: string
+  phone: string
+  projectType: string
+  projectGoal: string
+  hasWebsite: string
+  message: string
+  botcheck: string
+}
+
+type ProjectPrefill = {
+  slug: string
+  label: string
+  projectType: string
+  projectGoal: string
+  description: string
+  placeholder: string
+}
+
+const emptyForm: ContactFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  projectType: '',
+  projectGoal: '',
+  hasWebsite: '',
+  message: '',
+  botcheck: ''
+}
+
+const projectPrefills: Record<string, ProjectPrefill> = {
+  website: {
+    slug: 'website',
+    label: 'Website profissional',
+    projectType: 'Website profissional',
+    projectGoal: 'Receber mais contactos',
+    description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
+    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+  },
+  'website-profissional': {
+    slug: 'website',
+    label: 'Website profissional',
+    projectType: 'Website profissional',
+    projectGoal: 'Receber mais contactos',
+    description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
+    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+  },
+  'criacao-websites': {
+    slug: 'website',
+    label: 'Website profissional',
+    projectType: 'Website profissional',
+    projectGoal: 'Receber mais contactos',
+    description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
+    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+  },
+  'vendas-marcacoes': {
+    slug: 'vendas-marcacoes',
+    label: 'Vendas ou marcações',
+    projectType: 'Loja online / Sistema de marcações',
+    projectGoal: 'Vender online',
+    description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
+    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+  },
+  'loja-marcacoes': {
+    slug: 'vendas-marcacoes',
+    label: 'Vendas ou marcações',
+    projectType: 'Loja online / Sistema de marcações',
+    projectGoal: 'Vender online',
+    description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
+    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+  },
+  'lojas-online': {
+    slug: 'vendas-marcacoes',
+    label: 'Vendas ou marcações',
+    projectType: 'Loja online / Sistema de marcações',
+    projectGoal: 'Vender online',
+    description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
+    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+  },
+  'sistemas-marcacao': {
+    slug: 'vendas-marcacoes',
+    label: 'Vendas ou marcações',
+    projectType: 'Loja online / Sistema de marcações',
+    projectGoal: 'Receber marcações',
+    description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
+    placeholder: 'Exemplo: preciso de receber marcações online, organizar horários, gerir pedidos e facilitar o contacto com clientes.'
+  },
+  'sistema-medida': {
+    slug: 'sistema-medida',
+    label: 'Sistema à medida',
+    projectType: 'Sistema à medida',
+    projectGoal: 'Automatizar tarefas',
+    description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
+    placeholder: 'Exemplo: preciso de uma área administrativa, dashboard, automação, integração com IA, base de dados ou aplicação web personalizada.'
+  },
+  'sistema-a-medida': {
+    slug: 'sistema-medida',
+    label: 'Sistema à medida',
+    projectType: 'Sistema à medida',
+    projectGoal: 'Automatizar tarefas',
+    description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
+    placeholder: 'Exemplo: preciso de uma área administrativa, dashboard, automação, integração com IA, base de dados ou aplicação web personalizada.'
+  },
+  'automacao-ia': {
+    slug: 'sistema-medida',
+    label: 'Sistema à medida',
+    projectType: 'Sistema à medida',
+    projectGoal: 'Automatizar tarefas',
+    description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
+    placeholder: 'Exemplo: preciso de automatizar tarefas, ligar ferramentas, criar uma área administrativa ou desenvolver um sistema à medida.'
+  }
+}
+
+function getProjectPrefillFromUrl() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const selectedType = searchParams.get('tipo') || searchParams.get('project') || searchParams.get('servico')
+
+  if (!selectedType) {
+    return null
+  }
+
+  return projectPrefills[selectedType.trim().toLowerCase()] || null
+}
+
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
@@ -206,17 +335,8 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
 }
 
 export default function ContactPage() {
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    projectType: '',
-    projectGoal: '',
-    hasWebsite: '',
-    message: '',
-    botcheck: ''
-  })
-
+  const [form, setForm] = useState<ContactFormState>(emptyForm)
+  const [selectedProject, setSelectedProject] = useState<ProjectPrefill | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -225,6 +345,18 @@ export default function ContactPage() {
 
   useEffect(() => {
     setMounted(true)
+
+    const projectPrefill = getProjectPrefillFromUrl()
+
+    if (projectPrefill) {
+      setSelectedProject(projectPrefill)
+
+      setForm((currentForm) => ({
+        ...currentForm,
+        projectType: projectPrefill.projectType,
+        projectGoal: projectPrefill.projectGoal
+      }))
+    }
 
     document.title = 'Pedir Proposta Gratuita | Contacto | MA-Code'
 
@@ -289,7 +421,10 @@ export default function ContactPage() {
 
     trackEvent('contact_page_view', {
       page_name: 'contacto',
-      page_type: 'lead_capture'
+      page_type: 'lead_capture',
+      prefilled_project_type: projectPrefill?.projectType || 'not_selected',
+      prefilled_project_goal: projectPrefill?.projectGoal || 'not_selected',
+      prefilled_project_source: projectPrefill?.slug || 'not_selected'
     })
   }, [])
 
@@ -305,7 +440,8 @@ export default function ContactPage() {
       trigger: 'first_form_interaction',
       project_type: form.projectType || 'not_selected',
       project_goal: form.projectGoal || 'not_selected',
-      has_website: form.hasWebsite || 'not_selected'
+      has_website: form.hasWebsite || 'not_selected',
+      prefilled_project_source: selectedProject?.slug || 'not_selected'
     })
   }
 
@@ -334,7 +470,8 @@ export default function ContactPage() {
       form_name: 'pedido_proposta',
       project_type: form.projectType || 'not_selected',
       project_goal: form.projectGoal || 'not_selected',
-      has_website: form.hasWebsite || 'not_selected'
+      has_website: form.hasWebsite || 'not_selected',
+      prefilled_project_source: selectedProject?.slug || 'not_selected'
     })
 
     try {
@@ -351,7 +488,7 @@ export default function ContactPage() {
           projectType: form.projectType,
           projectGoal: form.projectGoal,
           hasWebsite: form.hasWebsite,
-          pageUrl: 'https://ma-code.pt/contacto',
+          pageUrl: typeof window !== 'undefined' ? window.location.href : 'https://ma-code.pt/contacto',
           message: form.message,
           botcheck: form.botcheck
         })
@@ -370,32 +507,27 @@ export default function ContactPage() {
         form_name: 'pedido_proposta',
         project_type: form.projectType || 'not_selected',
         project_goal: form.projectGoal || 'not_selected',
-        has_website: form.hasWebsite || 'not_selected'
+        has_website: form.hasWebsite || 'not_selected',
+        prefilled_project_source: selectedProject?.slug || 'not_selected'
       })
 
       trackEvent('generate_lead', {
         form_name: 'pedido_proposta',
         lead_type: form.projectType || 'not_selected',
-        project_goal: form.projectGoal || 'not_selected'
+        project_goal: form.projectGoal || 'not_selected',
+        prefilled_project_source: selectedProject?.slug || 'not_selected'
       })
 
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        projectGoal: '',
-        hasWebsite: '',
-        message: '',
-        botcheck: ''
-      })
+      setForm(emptyForm)
+      setSelectedProject(null)
     } catch {
       trackEvent('proposal_form_submit_error', {
         form_name: 'pedido_proposta',
         project_type: form.projectType || 'not_selected',
         project_goal: form.projectGoal || 'not_selected',
-        has_website: form.hasWebsite || 'not_selected'
+        has_website: form.hasWebsite || 'not_selected',
+        prefilled_project_source: selectedProject?.slug || 'not_selected'
       })
 
       setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
@@ -493,6 +625,20 @@ export default function ContactPage() {
                   certeira será a resposta.
                 </span>
               </div>
+
+              {selectedProject ? (
+                <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20">
+                  <span className="section-label">Pedido selecionado</span>
+
+                  <strong className="mt-3 block text-base font-semibold text-white">
+                    {selectedProject.label}
+                  </strong>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {selectedProject.description}
+                  </p>
+                </div>
+              ) : null}
 
               <form
                 onSubmit={handleSubmit}
@@ -675,7 +821,11 @@ export default function ContactPage() {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
+                    placeholder={
+                      selectedProject
+                        ? selectedProject.placeholder
+                        : 'Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa.'
+                    }
                   />
                 </div>
 
