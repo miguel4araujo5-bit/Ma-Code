@@ -83,6 +83,11 @@ type ProjectPrefill = {
   message: string
 }
 
+type ContactResponse = {
+  success?: boolean
+  message?: string
+}
+
 const emptyForm: ContactFormState = {
   name: '',
   email: '',
@@ -169,10 +174,10 @@ const projectPrefills: Record<string, ProjectPrefill> = {
   },
   'automacao-ia': {
     slug: 'sistema-medida',
-    label: 'Sistema à medida',
-    projectType: 'Sistema à medida',
+    label: 'Automação e IA',
+    projectType: 'Automação / IA',
     projectGoal: 'Automatizar tarefas',
-    description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
+    description: 'Pré-selecionámos o formulário para automação, IA, integrações ou sistema à medida.',
     message: 'Pretendo pedir proposta para automação, IA ou sistema à medida.\n\nObjetivo principal: automatizar tarefas, ligar ferramentas, reduzir trabalho manual ou criar uma solução digital personalizada.\n\nGostava de perceber a melhor forma de usar automação, integração com IA, dashboard, base de dados ou aplicação web no meu negócio.\n\nDetalhes adicionais: '
   }
 }
@@ -467,6 +472,21 @@ export default function ContactPage() {
       return
     }
 
+    if (form.message.trim().length < 10) {
+      trackEvent('proposal_form_validation_error', {
+        form_name: 'pedido_proposta',
+        reason: 'message_too_short',
+        project_type: form.projectType || 'not_selected',
+        project_goal: form.projectGoal || 'not_selected',
+        has_website: form.hasWebsite || 'not_selected',
+        prefilled_project_source: selectedProject?.slug || 'not_selected'
+      })
+
+      setErrorMessage('Descreva o projeto com um pouco mais de detalhe.')
+      setIsSending(false)
+      return
+    }
+
     trackEvent('proposal_form_submit_attempt', {
       form_name: 'pedido_proposta',
       project_type: form.projectType || 'not_selected',
@@ -495,13 +515,19 @@ export default function ContactPage() {
         })
       })
 
-      const data = (await response.json()) as {
-        success?: boolean
-        message?: string
+      let data: ContactResponse = {}
+
+      try {
+        data = (await response.json()) as ContactResponse
+      } catch {
+        data = {
+          success: false,
+          message: 'Não foi possível confirmar a resposta do servidor. Tente novamente.'
+        }
       }
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Erro ao enviar pedido')
+        throw new Error(data.message || 'Não foi possível enviar o pedido. Tente novamente.')
       }
 
       trackEvent('proposal_form_submit_success', {
@@ -522,16 +548,22 @@ export default function ContactPage() {
       setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
       setForm(emptyForm)
       setSelectedProject(null)
-    } catch {
+    } catch (error) {
+      const readableError =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Não foi possível enviar o pedido. Tente novamente.'
+
       trackEvent('proposal_form_submit_error', {
         form_name: 'pedido_proposta',
         project_type: form.projectType || 'not_selected',
         project_goal: form.projectGoal || 'not_selected',
         has_website: form.hasWebsite || 'not_selected',
-        prefilled_project_source: selectedProject?.slug || 'not_selected'
+        prefilled_project_source: selectedProject?.slug || 'not_selected',
+        error_message: readableError
       })
 
-      setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
+      setErrorMessage(readableError)
     } finally {
       setIsSending(false)
     }
