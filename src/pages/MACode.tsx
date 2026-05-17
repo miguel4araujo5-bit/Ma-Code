@@ -1,131 +1,28 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 
-const proofPoints = [
-  {
-    value: '19€/mês',
-    label: 'website simples',
-    description:
-      'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'
-  },
-  {
-    value: 'Mobile-first',
-    label: 'pensado para telemóvel',
-    description:
-      'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'
-  },
-  {
-    value: 'Evolutivo',
-    label: 'sem refazer tudo',
-    description:
-      'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'
-  }
-]
+const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
 
-const serviceCards = [
-  {
-    title: 'Criação de websites profissionais',
-    label: 'Website',
-    href: '/criacao-websites',
-    cta: 'Ver detalhes',
-    description:
-      'Websites rápidos, modernos e adaptados a telemóvel para apresentar o negócio, gerar confiança e receber mais contactos.',
-    bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']
-  },
-  {
-    title: 'Lojas online / e-commerce',
-    label: 'E-commerce',
-    href: '/lojas-online',
-    cta: 'Ver detalhes',
-    description:
-      'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender mais.',
-    bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']
-  },
-  {
-    title: 'Sistemas de marcação online',
-    label: 'Agenda',
-    href: '/sistemas-marcacao',
-    cta: 'Ver detalhes',
-    description:
-      'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de gerir horários, pedidos e disponibilidade.',
-    bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']
-  },
-  {
-    title: 'Automação e IA para negócios',
-    label: 'Automação',
-    href: '/automacao-ia',
-    cta: 'Ver detalhes',
-    description:
-      'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',
-    bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']
-  },
-  {
-    title: 'Áreas administrativas e dashboards',
-    label: 'Admin',
-    href: '#orcamento',
-    cta: 'Pedir proposta',
-    description:
-      'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir pedidos, contas, registos e processos internos.',
-    bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']
-  },
-  {
-    title: 'Integrações API e sistemas ligados',
-    label: 'Integrações',
-    href: '#orcamento',
-    cta: 'Pedir proposta',
-    description:
-      'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',
-    bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']
-  }
-]
+const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
-const processSteps = [
-  {
-    title: '1. Percebemos o objetivo',
-    description:
-      'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'
-  },
-  {
-    title: '2. Definimos a estrutura',
-    description:
-      'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'
-  },
-  {
-    title: '3. Criamos e afinamos',
-    description:
-      'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'
-  },
-  {
-    title: '4. Publicamos online',
-    description:
-      'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'
-  }
-]
+const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
 
-const projectTypes = [
-  'Website simples',
-  'Website profissional',
-  'Redesign de website existente',
-  'Loja online',
-  'Loja online / Sistema de marcações',
-  'Sistema de marcações',
-  'Sistema à medida',
-  'Aplicação web',
-  'Automação / IA',
-  'Integração avançada',
-  'Ainda não sei'
-]
+const valueLadder = [{stage: 'Entrada',title: 'Website profissional',description: 'Presença online clara, domínio, alojamento e contactos preparados desde o início.'},{stage: 'Conversão',title: 'Vendas e marcações',description: 'Formulários, WhatsApp, loja online, reservas e páginas orientadas a pedidos reais.'},{stage: 'Escala',title: 'Sistema digital',description: 'Área administrativa, automação, IA, bases de dados e integrações à medida.'}]
 
-const projectGoals = [
-  'Receber mais contactos',
-  'Vender online',
-  'Receber marcações',
-  'Organizar processos internos',
-  'Automatizar tarefas',
-  'Melhorar imagem e confiança',
-  'Ainda não sei'
-]
+const competitiveAdvantages = [{title: 'Mais específico do que um template',description:'A estrutura é pensada para o negócio, os serviços, o cliente ideal e o objetivo comercial, não apenas para preencher um modelo bonito.',points: ['Estrutura à medida', 'Conteúdo orientado ao cliente', 'Percurso claro até ao contacto']},{title: 'Mais evolutivo do que um site fechado',description:'O projeto pode começar com presença online e crescer para loja, marcações, área administrativa, automação, IA ou integrações.',points: ['Base preparada para crescer', 'Menos retrabalho futuro', 'Funcionalidades por fases']},{title: 'Mais próximo do que uma agência distante',description:'A comunicação é direta, simples e focada em resolver o problema real do negócio sem transformar o processo numa complicação.',points: ['Processo claro', 'Decisões objetivas', 'Acompanhamento direto']},{title: 'Mais prático do que só design bonito',description:'O foco não é apenas aparência. É criar uma ferramenta que gere confiança, contactos, pedidos, reservas ou organização interna.',points: ['Foco em conversão', 'Mobile-first', 'Valor comercial']}]
+
+const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '#orcamento',projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '#orcamento',projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '#orcamento',projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
+
+const serviceCards = [{title: 'Criação de websites profissionais',label: 'Website',href: '/criacao-websites',cta: 'Saber mais',description:'Websites rápidos, modernos e adaptados a telemóvel para apresentar o negócio, gerar confiança e receber mais contactos.',bullets: ['Imagem profissional', 'SEO base', 'Contacto rápido']},{title: 'Lojas online / e-commerce',label: 'E-commerce',href: '/lojas-online',cta: 'Saber mais',description:'Lojas online com catálogo, carrinho, checkout e estrutura preparada para apresentar produtos, receber encomendas e vender mais.',bullets: ['Produtos organizados', 'Carrinho de compras', 'Checkout preparado']},{title: 'Sistemas de marcação online',label: 'Agenda',href: '/sistemas-marcacao',cta: 'Saber mais',description:'Sistemas de marcação para salões, clínicas, serviços locais e negócios que precisam de gerir horários, pedidos e disponibilidade.',bullets: ['Reservas online', 'Gestão de horários', 'Menos chamadas perdidas']},{title: 'Áreas administrativas e dashboards',label: 'Admin',href: '#orcamento',cta: 'Pedir proposta',description:'Aplicações web, painéis privados, dashboards e ferramentas personalizadas para gerir pedidos, contas, registos e processos internos.',bullets: ['Painéis privados', 'Contas e registos', 'Gestão diária']},{title: 'Automação e IA para negócios',label: 'Automação',href: '/automacao-ia',cta: 'Saber mais',description:'Automação de tarefas, integração de IA, formulários inteligentes e fluxos digitais para reduzir trabalho repetitivo e acelerar respostas.',bullets: ['Respostas automáticas', 'Formulários inteligentes', 'Fluxos mais rápidos']},{title: 'Integrações API e sistemas ligados',label: 'Integrações',href: '#orcamento',cta: 'Pedir proposta',description:'Ligação entre websites, bases de dados, CRM, folhas de cálculo, APIs e ferramentas externas para projetos que precisam de ir além do site.',bullets: ['APIs', 'Bases de dados', 'Ferramentas conectadas']}]
+
+const evolutionSteps = [{title: '1. Entrada: website profissional',description:'Começa com uma presença online própria, rápida e credível, preparada para receber contactos.'},{title: '2. Conversão: vendas e pedidos',description:'Evolui para formulários, WhatsApp, marcações, loja online ou páginas específicas para campanhas.'},{title: '3. Escala: sistema digital',description:'Quando o negócio precisar, acrescenta área administrativa, automação, IA, dados e integrações.'}]
+
+const processSteps = [{title: '1. Percebemos o objetivo',description:'Identificamos o tipo de negócio, o cliente ideal e o que o projeto precisa de resolver.'},{title: '2. Definimos a estrutura',description:'Organizamos páginas, conteúdos, funcionalidades e percurso para o utilizador chegar ao contacto.'},{title: '3. Criamos e afinamos',description:'Desenvolvemos a solução com foco em clareza, performance, mobile e apresentação profissional.'},{title: '4. Publicamos online',description:'Colocamos tudo a funcionar com domínio, alojamento e uma base preparada para evoluir.'}]
+
+const projectTypes = ['Website simples','Website profissional','Redesign de website existente','Loja online','Loja online / Sistema de marcações','Sistema de marcações','Sistema à medida','Aplicação web','Automação / IA','Integração avançada','Ainda não sei']
+
+const projectGoals = ['Receber mais contactos','Vender online','Receber marcações','Organizar processos internos','Automatizar tarefas','Melhorar imagem e confiança','Ainda não sei']
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -200,13 +97,9 @@ function getTrafficAttribution(): AttributionData {
   }
 
   const searchParams = new URLSearchParams(window.location.search)
-  const hasCampaignParams = [
-    'utm_source',
-    'utm_medium',
-    'utm_campaign',
-    'utm_term',
-    'utm_content'
-  ].some((param) => searchParams.has(param))
+  const hasCampaignParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].some((param) =>
+    searchParams.has(param)
+  )
 
   try {
     const storedAttribution = window.sessionStorage.getItem(attributionStorageKey)
@@ -273,166 +166,475 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
   })
 }
 
-function DigitalStackVisual() {
-  const stackItems = [
-    { label: 'Website', detail: 'Base clara', marker: '01' },
-    { label: 'Contactos', detail: 'Pedidos reais', marker: '02' },
-    { label: 'Automação', detail: 'Menos manual', marker: '03' },
-    { label: 'Sistema', detail: 'Escala digital', marker: '04' }
-  ]
+function ServiceMarquee() {return (
+<div className="ma-service-marquee" aria-label="Serviços e soluções da MA-Code">
+  <style>{`
+.ma-service-marquee {position: relative !important;display: block !important;width: 100% !important;max-width: 100% !important;min-height: 3.8rem !important;margin-top: 1.75rem !important;overflow: hidden !important;border-radius: 1.45rem !important;border: 1px solid rgba(103, 232, 249, 0.16) !important;padding: 0.82rem 0 !important;background:linear-gradient(180deg, rgba(7, 14, 23, 0.72), rgba(8, 15, 25, 0.54)) !important;box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.035),0 0 24px rgba(34, 211, 238, 0.045) !important;backdrop-filter: blur(14px);-webkit-backdrop-filter: blur(14px);opacity: 1 !important;visibility: visible !important;z-index: 30 !important;isolation: isolate !important;transform: translate3d(0, 0, 0) !important;-webkit-transform: translate3d(0, 0, 0) !important;}
 
-  return (
-    <div>
-      <div className="relative z-10 flex items-center justify-between gap-4">
-        <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
-          Mapa visual
-        </span>
+      .ma-service-marquee::before,
+      .ma-service-marquee::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 4rem;
+        z-index: 2;
+        pointer-events: none;
+      }
 
-        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
-          Modular
-        </span>
-      </div>
+      .ma-service-marquee::before {
+        left: 0;
+        background: linear-gradient(90deg, rgba(6, 16, 25, 1), transparent);
+      }
 
-      <div className="relative z-10 mt-5 aspect-[16/10] overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/80">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(103,232,249,0.18),transparent_28%),radial-gradient(circle_at_78%_70%,rgba(168,85,247,0.16),transparent_30%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.045)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      .ma-service-marquee::after {
+        right: 0;
+        background: linear-gradient(270deg, rgba(6, 16, 25, 1), transparent);
+      }
 
-        <svg
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 520 320"
-          role="img"
-          aria-labelledby="digital-stack-title digital-stack-description"
+      .ma-service-marquee__track {
+        position: relative !important;
+        z-index: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        width: max-content !important;
+        min-width: max-content !important;
+        white-space: nowrap !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translate3d(0, 0, 0);
+        -webkit-transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        will-change: transform;
+        animation: ma-service-marquee-scroll 28s linear infinite;
+        -webkit-animation: ma-service-marquee-scroll 28s linear infinite;
+      }
+
+      .ma-service-marquee__item {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 auto !important;
+        border-radius: 9999px !important;
+        border: 1px solid rgba(103, 232, 249, 0.16) !important;
+        padding: 0.68rem 1rem !important;
+        background: rgba(15, 23, 42, 0.72) !important;
+        color: #cffafe !important;
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+        letter-spacing: 0.13em !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.018),
+          0 0 12px rgba(34, 211, 238, 0.035) !important;
+      }
+
+      @keyframes ma-service-marquee-scroll {
+        0% {
+          transform: translate3d(0, 0, 0);
+          -webkit-transform: translate3d(0, 0, 0);
+        }
+
+        100% {
+          transform: translate3d(-33.333333%, 0, 0);
+          -webkit-transform: translate3d(-33.333333%, 0, 0);
+        }
+      }
+
+      @-webkit-keyframes ma-service-marquee-scroll {
+        0% {
+          transform: translate3d(0, 0, 0);
+          -webkit-transform: translate3d(0, 0, 0);
+        }
+
+        100% {
+          transform: translate3d(-33.333333%, 0, 0);
+          -webkit-transform: translate3d(-33.333333%, 0, 0);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .ma-service-marquee {
+          min-height: 3.45rem !important;
+          margin-top: 1.35rem !important;
+          border-radius: 1.2rem !important;
+          padding: 0.72rem 0 !important;
+        }
+
+        .ma-service-marquee::before,
+        .ma-service-marquee::after {
+          width: 1.35rem;
+        }
+
+        .ma-service-marquee__track {
+          gap: 0.62rem !important;
+          animation-duration: 20s;
+          -webkit-animation-duration: 20s;
+        }
+
+        .ma-service-marquee__item {
+          padding: 0.62rem 0.78rem !important;
+          font-size: 0.58rem !important;
+          letter-spacing: 0.08em !important;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .ma-service-marquee {
+          min-height: 3.25rem !important;
+          margin-top: 1.15rem !important;
+          padding: 0.68rem 0 !important;
+        }
+
+        .ma-service-marquee::before,
+        .ma-service-marquee::after {
+          width: 0.85rem;
+        }
+
+        .ma-service-marquee__track {
+          gap: 0.55rem !important;
+          animation-duration: 17s;
+          -webkit-animation-duration: 17s;
+        }
+
+        .ma-service-marquee__item {
+          padding: 0.58rem 0.72rem !important;
+          font-size: 0.54rem !important;
+          letter-spacing: 0.07em !important;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ma-service-marquee__track {
+          animation-duration: 55s !important;
+          -webkit-animation-duration: 55s !important;
+        }
+      }
+    `}
+  </style>
+
+  <span className="sr-only">{marqueeItems.join(', ')}</span>
+
+  <div className="ma-service-marquee__track" aria-hidden="true">
+    {marqueeLoopItems.map((item, index) => (
+      <span key={`${item}-${index}`} className="ma-service-marquee__item">
+        {item}
+      </span>
+    ))}
+  </div>
+</div>
+
+)}
+
+function DigitalStackVisual() {const stackItems = [{label: 'Website',detail: 'Base clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Automação',detail: 'Menos manual',marker: '03'},{label: 'Sistema',detail: 'Escala digital',marker: '04'}]
+
+return (
+<div>
+  <div className="relative z-10 flex items-center justify-between gap-4">
+    <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+      Mapa visual
+    </span>
+
+    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+      Modular
+    </span>
+  </div>
+
+  <div className="relative z-10 mt-5 aspect-[16/10] overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/80">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(103,232,249,0.18),transparent_28%),radial-gradient(circle_at_78%_70%,rgba(168,85,247,0.16),transparent_30%)]" />
+    <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.045)_1px,transparent_1px)] bg-[size:28px_28px]" />
+
+    <svg
+      className="absolute inset-0 h-full w-full"
+      viewBox="0 0 520 320"
+      role="img"
+      aria-labelledby="digital-stack-title digital-stack-description"
+    >
+      <title id="digital-stack-title">Evolução digital MA-Code</title>
+      <desc id="digital-stack-description">
+        Representação visual da evolução de um website para contactos, automação e sistema digital.
+      </desc>
+      <defs>
+        <linearGradient id="digitalStackLine" x1="52" x2="468" y1="182" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#67e8f9" stopOpacity="0.25" />
+          <stop offset="0.5" stopColor="#22d3ee" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#a78bfa" stopOpacity="0.75" />
+        </linearGradient>
+        <linearGradient id="digitalStackCard" x1="0" x2="1" y1="0" y2="1">
+          <stop stopColor="#0f172a" stopOpacity="0.94" />
+          <stop offset="1" stopColor="#083344" stopOpacity="0.78" />
+        </linearGradient>
+        <filter id="digitalStackGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="8" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="0 0 0 0 0.4 0 0 0 0 0.91 0 0 0 0 0.98 0 0 0 0.55 0"
+          />
+          <feBlend in="SourceGraphic" />
+        </filter>
+      </defs>
+
+      <path
+        d="M62 226 C146 150 202 215 282 142 C344 86 394 108 462 66"
+        fill="none"
+        stroke="url(#digitalStackLine)"
+        strokeLinecap="round"
+        strokeWidth="4"
+      />
+      <path
+        d="M70 250 C150 196 212 246 286 188 C350 138 394 160 456 122"
+        fill="none"
+        stroke="#67e8f9"
+        strokeDasharray="8 14"
+        strokeLinecap="round"
+        strokeOpacity="0.22"
+        strokeWidth="2"
+      />
+
+      <g filter="url(#digitalStackGlow)">
+        <circle cx="88" cy="204" r="8" fill="#67e8f9" />
+        <circle cx="222" cy="168" r="8" fill="#22d3ee" />
+        <circle cx="336" cy="112" r="8" fill="#38bdf8" />
+        <circle cx="448" cy="74" r="8" fill="#a78bfa" />
+      </g>
+
+      <g opacity="0.9">
+        <rect x="54" y="66" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
+        <rect x="202" y="34" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
+        <rect x="340" y="128" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#a78bfa" strokeOpacity="0.22" />
+      </g>
+
+      <g opacity="0.52" stroke="#cffafe" strokeLinecap="round" strokeWidth="3">
+        <path d="M78 96 H132" />
+        <path d="M78 116 H152" />
+        <path d="M226 64 H284" />
+        <path d="M226 84 H306" />
+        <path d="M364 158 H426" />
+        <path d="M364 178 H442" />
+      </g>
+    </svg>
+
+    <div className="absolute inset-x-4 bottom-4 grid grid-cols-4 gap-2">
+      {stackItems.map((item) => (
+        <div
+          key={item.label}
+          className="rounded-2xl border border-white/10 bg-slate-950/[0.72] p-3 backdrop-blur"
         >
-          <title id="digital-stack-title">Evolução digital MA-Code</title>
-          <desc id="digital-stack-description">
-            Representação visual da evolução de um website para contactos, automação e sistema digital.
-          </desc>
+          <span className="block text-[0.58rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">
+            {item.marker}
+          </span>
 
-          <defs>
-            <linearGradient
-              id="digitalStackLine"
-              x1="52"
-              x2="468"
-              y1="182"
-              y2="92"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop stopColor="#67e8f9" stopOpacity="0.25" />
-              <stop offset="0.5" stopColor="#22d3ee" stopOpacity="0.9" />
-              <stop offset="1" stopColor="#a78bfa" stopOpacity="0.75" />
-            </linearGradient>
+          <strong className="mt-1 block text-xs font-semibold text-white">{item.label}</strong>
 
-            <linearGradient id="digitalStackCard" x1="0" x2="1" y1="0" y2="1">
-              <stop stopColor="#0f172a" stopOpacity="0.94" />
-              <stop offset="1" stopColor="#083344" stopOpacity="0.78" />
-            </linearGradient>
-
-            <filter id="digitalStackGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="8" result="blur" />
-              <feColorMatrix
-                in="blur"
-                type="matrix"
-                values="0 0 0 0 0.4 0 0 0 0 0.91 0 0 0 0 0.98 0 0 0 0.55 0"
-              />
-              <feBlend in="SourceGraphic" />
-            </filter>
-          </defs>
-
-          <path
-            d="M62 226 C146 150 202 215 282 142 C344 86 394 108 462 66"
-            fill="none"
-            stroke="url(#digitalStackLine)"
-            strokeLinecap="round"
-            strokeWidth="4"
-          />
-
-          <path
-            d="M70 250 C150 196 212 246 286 188 C350 138 394 160 456 122"
-            fill="none"
-            stroke="#67e8f9"
-            strokeDasharray="8 14"
-            strokeLinecap="round"
-            strokeOpacity="0.22"
-            strokeWidth="2"
-          />
-
-          <g filter="url(#digitalStackGlow)">
-            <circle cx="88" cy="204" r="8" fill="#67e8f9" />
-            <circle cx="222" cy="168" r="8" fill="#22d3ee" />
-            <circle cx="336" cy="112" r="8" fill="#38bdf8" />
-            <circle cx="448" cy="74" r="8" fill="#a78bfa" />
-          </g>
-
-          <g opacity="0.9">
-            <rect
-              x="54"
-              y="66"
-              width="126"
-              height="82"
-              rx="18"
-              fill="url(#digitalStackCard)"
-              stroke="#67e8f9"
-              strokeOpacity="0.18"
-            />
-            <rect
-              x="202"
-              y="34"
-              width="126"
-              height="82"
-              rx="18"
-              fill="url(#digitalStackCard)"
-              stroke="#67e8f9"
-              strokeOpacity="0.18"
-            />
-            <rect
-              x="340"
-              y="128"
-              width="126"
-              height="82"
-              rx="18"
-              fill="url(#digitalStackCard)"
-              stroke="#a78bfa"
-              strokeOpacity="0.22"
-            />
-          </g>
-
-          <g opacity="0.52" stroke="#cffafe" strokeLinecap="round" strokeWidth="3">
-            <path d="M78 96 H132" />
-            <path d="M78 116 H152" />
-            <path d="M226 64 H284" />
-            <path d="M226 84 H306" />
-            <path d="M364 158 H426" />
-            <path d="M364 178 H442" />
-          </g>
-        </svg>
-
-        <div className="absolute inset-x-4 bottom-4 grid grid-cols-4 gap-2">
-          {stackItems.map((item) => (
-            <div
-              key={item.label}
-              className="rounded-2xl border border-white/10 bg-slate-950/[0.72] p-3 backdrop-blur"
-            >
-              <span className="block text-[0.58rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">
-                {item.marker}
-              </span>
-
-              <strong className="mt-1 block text-xs font-semibold text-white">
-                {item.label}
-              </strong>
-
-              <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
-                {item.detail}
-              </span>
-            </div>
-          ))}
+          <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
+            {item.detail}
+          </span>
         </div>
-      </div>
+      ))}
     </div>
-  )
+  </div>
+</div>
+
+)}
+
+export default function MACode() {const [form, setForm] = useState({name: '',email: '',phone: '',projectType: '',projectGoal: '',hasWebsite: '',message: '',botcheck: ''})
+
+const [isSending, setIsSending] = useState(false)
+const [successMessage, setSuccessMessage] = useState('')
+const [errorMessage, setErrorMessage] = useState('')
+const [mounted, setMounted] = useState(false)
+const formStartedRef = useRef(false)
+
+useEffect(() => {setMounted(true)
+
+document.title = 'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+
+updateMeta(
+  'description',
+  'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos, vender online e crescer para marcações, automação, IA ou sistemas digitais à medida.'
+)
+
+updateMeta(
+  'keywords',
+  'criação de websites, websites profissionais, websites para negócios, lojas online, desenvolvimento web Portugal, sistema de marcações, aplicações web, automação, integração de IA, CRM, bases de dados, MA-Code'
+)
+
+updateMeta(
+  'robots',
+  'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+)
+
+updatePropertyMeta('og:type', 'website')
+updatePropertyMeta('og:locale', 'pt_PT')
+updatePropertyMeta('og:site_name', 'MA-Code')
+updatePropertyMeta('og:url', 'https://ma-code.pt/')
+
+updatePropertyMeta(
+  'og:title',
+  'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+)
+
+updatePropertyMeta(
+  'og:description',
+  'Comece com um website profissional e evolua sem refazer tudo: contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
+)
+
+updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
+
+updatePropertyMeta(
+  'og:image:alt',
+  'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+)
+
+updateMeta('twitter:card', 'summary_large_image')
+updateMeta('twitter:url', 'https://ma-code.pt/')
+
+updateMeta(
+  'twitter:title',
+  'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+)
+
+updateMeta(
+  'twitter:description',
+  'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
+)
+
+updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
+
+updateMeta(
+  'twitter:image:alt',
+  'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+)
+
+updateCanonical('https://ma-code.pt/')
+
+trackEvent('homepage_view', {
+  page_name: 'homepage',
+  page_type: 'landing_page'
+})
+
+}, [])
+
+const trackFormStart = () => {
+  if (formStartedRef.current) {
+    return
+  }
+
+  formStartedRef.current = true
+
+  trackEvent('proposal_form_started', {
+    form_name: 'pedido_proposta',
+    trigger: 'first_form_interaction',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
 }
 
-export default function MACode() {
-  const [form, setForm] = useState({
+const selectProjectPath = (event: MouseEvent,projectType: string,projectGoal: string) => {event.preventDefault()
+
+trackEvent('project_path_selected', {
+  project_type: projectType,
+  project_goal: projectGoal,
+  section: 'path_cards'
+})
+
+setForm((current) => ({
+  ...current,
+  projectType,
+  projectGoal
+}))
+
+setSuccessMessage('')
+setErrorMessage('')
+
+window.requestAnimationFrame(() => {
+  document.getElementById('orcamento')?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  })
+})
+
+}
+
+const handleSubmit = async (e: FormEvent) => {e.preventDefault()
+
+if (isSending) {
+  return
+}
+
+setIsSending(true)
+setSuccessMessage('')
+setErrorMessage('')
+
+if (form.botcheck) {
+  trackEvent('proposal_form_blocked', {
+    form_name: 'pedido_proposta',
+    reason: 'botcheck'
+  })
+
+  setIsSending(false)
+  return
+}
+
+trackEvent('proposal_form_submit_attempt', {
+  form_name: 'pedido_proposta',
+  project_type: form.projectType || 'not_selected',
+  project_goal: form.projectGoal || 'not_selected',
+  has_website: form.hasWebsite || 'not_selected'
+})
+
+try {
+  const response = await fetch('/api/contact', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify({
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      projectType: form.projectType,
+      projectGoal: form.projectGoal,
+      hasWebsite: form.hasWebsite,
+      pageUrl: 'https://ma-code.pt/',
+      message: form.message,
+      botcheck: form.botcheck
+    })
+  })
+
+  const data = (await response.json()) as {
+    success?: boolean
+    message?: string
+  }
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || 'Erro ao enviar pedido')
+  }
+
+  trackEvent('proposal_form_submit_success', {
+    form_name: 'pedido_proposta',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
+
+  trackEvent('generate_lead', {
+    form_name: 'pedido_proposta',
+    lead_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected'
+  })
+
+  setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
+  setForm({
     name: '',
     email: '',
     phone: '',
@@ -442,718 +644,731 @@ export default function MACode() {
     message: '',
     botcheck: ''
   })
+} catch {
+  trackEvent('proposal_form_submit_error', {
+    form_name: 'pedido_proposta',
+    project_type: form.projectType || 'not_selected',
+    project_goal: form.projectGoal || 'not_selected',
+    has_website: form.hasWebsite || 'not_selected'
+  })
 
-  const [isSending, setIsSending] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [mounted, setMounted] = useState(false)
-  const formStartedRef = useRef(false)
+  setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
+} finally {
+  setIsSending(false)
+}
 
-  useEffect(() => {
-    setMounted(true)
+}
 
-    document.title = 'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
+return (
+<main>
+  <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
+    <div className="mx-auto max-w-7xl">
+      <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
+        <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
+          <img
+            src="/ma-code.png"
+            alt="MA-Code.pt"
+            className="shrink-0 object-contain"
+            loading="eager"
+            decoding="async"
+          />
+          <span>MA-Code.pt</span>
+        </a>
 
-    updateMeta(
-      'description',
-      'Criamos websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos, vender online e crescer para marcações, automação, IA ou sistemas digitais à medida.'
-    )
+        <a
+          href="#orcamento"
+          className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
+          onClick={() => trackEvent('cta_click', {
+            cta_text: 'Pedir proposta',
+            cta_location: 'header',
+            destination: '#orcamento'
+          })}
+        >
+          Pedir proposta
+        </a>
+      </header>
 
-    updateMeta(
-      'keywords',
-      'criação de websites, websites profissionais, websites para negócios, lojas online, desenvolvimento web Portugal, sistema de marcações, aplicações web, automação, integração de IA, CRM, bases de dados, MA-Code'
-    )
+      <div className="hero-layout">
+        <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
+          <div className="hero-topline">
+            <span className="hero-topline__dot" />
+            <span>Começar simples. Crescer sem refazer.</span>
+          </div>
 
-    updateMeta(
-      'robots',
-      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
-    )
+          <h1 className="hero-title">
+            <span className="sm:hidden">
+              Website profissional hoje. Base digital para crescer amanhã.
+            </span>
 
-    updatePropertyMeta('og:type', 'website')
-    updatePropertyMeta('og:locale', 'pt_PT')
-    updatePropertyMeta('og:site_name', 'MA-Code')
-    updatePropertyMeta('og:url', 'https://ma-code.pt/')
+            <span className="hidden sm:inline">
+              Websites profissionais que geram contactos hoje e crescem com o negócio amanhã.
+            </span>
+          </h1>
 
-    updatePropertyMeta(
-      'og:title',
-      'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
-    )
+          <div className="hero-price-badge">
+            Websites simples desde 19€/mês · domínio + alojamento incluídos
+          </div>
 
-    updatePropertyMeta(
-      'og:description',
-      'Comece com um website profissional e evolua sem refazer tudo: contactos, vendas, marcações, automação, IA e sistemas digitais à medida.'
-    )
+          <p className="hero-subtitle">
+            <span className="sm:hidden">
+              Comece com presença online profissional desde 19€/mês e evolua para loja,
+              marcações, automação ou IA sem refazer tudo.
+            </span>
 
-    updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
+            <span className="hidden sm:inline">
+              A MA-Code cria websites e sistemas digitais para negócios que querem começar com
+              uma presença online clara, gerar confiança, facilitar o contacto e deixar caminho
+              aberto para loja online, marcações, automação, IA e ferramentas internas à medida.
+            </span>
+          </p>
 
-    updatePropertyMeta(
-      'og:image:alt',
-      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
-    )
-
-    updateMeta('twitter:card', 'summary_large_image')
-    updateMeta('twitter:url', 'https://ma-code.pt/')
-
-    updateMeta(
-      'twitter:title',
-      'Websites que Geram Contactos e Crescem com o Negócio | MA-Code'
-    )
-
-    updateMeta(
-      'twitter:description',
-      'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais à medida.'
-    )
-
-    updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
-
-    updateMeta(
-      'twitter:image:alt',
-      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
-    )
-
-    updateCanonical('https://ma-code.pt/')
-
-    trackEvent('homepage_view', {
-      page_name: 'homepage',
-      page_type: 'landing_page'
-    })
-  }, [])
-
-  const trackFormStart = () => {
-    if (formStartedRef.current) {
-      return
-    }
-
-    formStartedRef.current = true
-
-    trackEvent('proposal_form_started', {
-      form_name: 'pedido_proposta',
-      trigger: 'first_form_interaction',
-      project_type: form.projectType || 'not_selected',
-      project_goal: form.projectGoal || 'not_selected',
-      has_website: form.hasWebsite || 'not_selected'
-    })
-  }
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-
-    if (isSending) {
-      return
-    }
-
-    setIsSending(true)
-    setSuccessMessage('')
-    setErrorMessage('')
-
-    if (form.botcheck) {
-      trackEvent('proposal_form_blocked', {
-        form_name: 'pedido_proposta',
-        reason: 'botcheck'
-      })
-
-      setIsSending(false)
-      return
-    }
-
-    trackEvent('proposal_form_submit_attempt', {
-      form_name: 'pedido_proposta',
-      project_type: form.projectType || 'not_selected',
-      project_goal: form.projectGoal || 'not_selected',
-      has_website: form.hasWebsite || 'not_selected'
-    })
-
-    try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          projectType: form.projectType,
-          projectGoal: form.projectGoal,
-          hasWebsite: form.hasWebsite,
-          pageUrl: 'https://ma-code.pt/',
-          message: form.message,
-          botcheck: form.botcheck
-        })
-      })
-
-      const data = (await response.json()) as {
-        success?: boolean
-        message?: string
-      }
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Erro ao enviar pedido')
-      }
-
-      trackEvent('proposal_form_submit_success', {
-        form_name: 'pedido_proposta',
-        project_type: form.projectType || 'not_selected',
-        project_goal: form.projectGoal || 'not_selected',
-        has_website: form.hasWebsite || 'not_selected'
-      })
-
-      trackEvent('generate_lead', {
-        form_name: 'pedido_proposta',
-        lead_type: form.projectType || 'not_selected',
-        project_goal: form.projectGoal || 'not_selected'
-      })
-
-      setSuccessMessage('Pedido enviado com sucesso. Entraremos em contacto em breve.')
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        projectGoal: '',
-        hasWebsite: '',
-        message: '',
-        botcheck: ''
-      })
-    } catch {
-      trackEvent('proposal_form_submit_error', {
-        form_name: 'pedido_proposta',
-        project_type: form.projectType || 'not_selected',
-        project_goal: form.projectGoal || 'not_selected',
-        has_website: form.hasWebsite || 'not_selected'
-      })
-
-      setErrorMessage('Não foi possível enviar o pedido. Tente novamente.')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  return (
-    <main>
-      <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
-            <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
-              <img
-                src="/ma-code.png"
-                alt="MA-Code.pt"
-                className="shrink-0 object-contain"
-                loading="eager"
-                decoding="async"
-              />
-              <span>MA-Code.pt</span>
+          <div className="hero-actions">
+            <a
+              href="#orcamento"
+              className="btn-primary hightech-button"
+              onClick={() => trackEvent('cta_click', {
+                cta_text: 'Receber proposta gratuita',
+                cta_location: 'hero_primary',
+                destination: '#orcamento'
+              })}
+            >
+              <span className="btn-shine" />
+              <span className="relative z-10">Receber proposta gratuita</span>
             </a>
 
             <a
-              href="#orcamento"
-              className="btn-ghost text-sm sm:text-base"
-              onClick={() =>
-                trackEvent('cta_click', {
-                  cta_text: 'Pedir proposta',
-                  cta_location: 'header',
-                  destination: '#orcamento'
-                })
-              }
+              href="/projetos"
+              className="btn-secondary hightech-button-secondary"
+              onClick={() => trackEvent('cta_click', {
+                cta_text: 'Ver projetos reais',
+                cta_location: 'hero_secondary',
+                destination: '/projetos'
+              })}
             >
-              Pedir proposta
+              Ver projetos reais
             </a>
-          </header>
+          </div>
 
-          <div className="hero-layout">
-            <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
-              <div className="hero-topline">
-                <span className="hero-topline__dot" />
-                <span>Começar simples. Crescer sem refazer.</span>
+          <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
+            <li>Domínio + alojamento</li>
+            <li>Mobile-first</li>
+            <li>Foco em contactos</li>
+          </ul>
+
+          <div className="mt-6 grid gap-3 rounded-3xl border border-cyan-300/15 bg-slate-950/55 p-4 shadow-xl shadow-cyan-950/10 backdrop-blur sm:grid-cols-3">
+            {valueLadder.map((step) => (
+              <div key={step.stage} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <span className="block text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                  {step.stage}
+                </span>
+
+                <strong className="mt-2 block text-sm font-semibold text-white">
+                  {step.title}
+                </strong>
+
+                <p className="mt-2 text-xs leading-5 text-slate-300">{step.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <ServiceMarquee />
+        </div>
+
+        <div
+          className={`relative hidden lg:block ${
+            mounted ? 'animate-fade-in-scale' : 'opacity-0'
+          }`}
+        >
+          <div className="hero-panel">
+            <div className="hero-panel__glow" />
+
+            <div className="hero-panel__header">
+              <div className="hero-panel__dots">
+                <span />
+                <span />
+                <span />
               </div>
 
-              <h1 className="hero-title">
-                <span className="sm:hidden">
-                  Website profissional hoje. Base digital para crescer amanhã.
-                </span>
-
-                <span className="hidden sm:inline">
-                  Websites profissionais que geram contactos hoje e crescem com o negócio amanhã.
-                </span>
-              </h1>
-
-              <div className="hero-price-badge">
-                Websites simples desde 19€/mês · domínio + alojamento incluídos
-              </div>
-
-              <p className="hero-subtitle">
-                <span className="sm:hidden">
-                  Comece com presença online profissional desde 19€/mês e evolua para loja,
-                  marcações, automação ou IA sem refazer tudo.
-                </span>
-
-                <span className="hidden sm:inline">
-                  A MA-Code cria websites e sistemas digitais para negócios que querem começar com
-                  uma presença online clara, gerar confiança, facilitar o contacto e deixar caminho
-                  aberto para loja online, marcações, automação, IA e ferramentas internas à medida.
-                </span>
-              </p>
-
-              <div className="hero-actions">
-                <a
-                  href="#orcamento"
-                  className="btn-primary hightech-button"
-                  onClick={() =>
-                    trackEvent('cta_click', {
-                      cta_text: 'Receber proposta gratuita',
-                      cta_location: 'hero_primary',
-                      destination: '#orcamento'
-                    })
-                  }
-                >
-                  <span className="btn-shine" />
-                  <span className="relative z-10">Receber proposta gratuita</span>
-                </a>
-
-                <a
-                  href="/projetos"
-                  className="btn-secondary hightech-button-secondary"
-                  onClick={() =>
-                    trackEvent('cta_click', {
-                      cta_text: 'Ver projetos reais',
-                      cta_location: 'hero_secondary',
-                      destination: '/projetos'
-                    })
-                  }
-                >
-                  Ver projetos reais
-                </a>
-              </div>
-
-              <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
-                <li>Domínio + alojamento</li>
-                <li>Mobile-first</li>
-                <li>Foco em contactos</li>
-              </ul>
+              <span className="hero-panel__label">Promessa MA-Code</span>
             </div>
 
-            <div
-              className={`relative hidden lg:block ${
-                mounted ? 'animate-fade-in-scale' : 'opacity-0'
-              }`}
-            >
-              <div className="hero-panel">
-                <div className="hero-panel__glow" />
+            <div className="hero-panel__content">
+              <div className="hud-card hud-card--wide">
+                <span className="hud-card__label">Entrada recomendada</span>
+                <strong>Website que explica, gera confiança e leva ao contacto</strong>
+              </div>
 
-                <div className="hero-panel__header">
-                  <div className="hero-panel__dots">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
+              <DigitalStackVisual />
 
-                  <span className="hero-panel__label">Promessa MA-Code</span>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="hud-card">
+                  <span className="hud-card__label">Inclui</span>
+                  <strong>Domínio + alojamento</strong>
                 </div>
 
-                <div className="hero-panel__content">
-                  <div className="hud-card hud-card--wide">
-                    <span className="hud-card__label">Entrada recomendada</span>
-                    <strong>Website que explica, gera confiança e leva ao contacto</strong>
-                  </div>
+                <div className="hud-card">
+                  <span className="hud-card__label">Estratégia</span>
+                  <strong>Crescer por fases, sem refazer tudo</strong>
+                </div>
+              </div>
 
-                  <DigitalStackVisual />
+              <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-5">
+                <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+                  Evolução possível
+                </span>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="hud-card">
-                      <span className="hud-card__label">Inclui</span>
-                      <strong>Domínio + alojamento</strong>
-                    </div>
-
-                    <div className="hud-card">
-                      <span className="hud-card__label">Estratégia</span>
-                      <strong>Crescer por fases, sem refazer tudo</strong>
-                    </div>
-                  </div>
-
-                  <a
-                    href="#servicos"
-                    className="btn-secondary hightech-button-secondary justify-center"
-                    onClick={() =>
-                      trackEvent('cta_click', {
-                        cta_text: 'Escolher serviço',
-                        cta_location: 'hero_panel',
-                        destination: '#servicos'
-                      })
-                    }
-                  >
-                    Escolher serviço
-                  </a>
+                <div className="grid gap-3 text-sm text-slate-200">
+                  <span>→ Loja online e checkout</span>
+                  <span>→ Sistema de marcações</span>
+                  <span>→ Área administrativa</span>
+                  <span>→ Automação, IA e integrações</span>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="mt-8 hidden gap-4 md:grid md:grid-cols-3">
-            {proofPoints.map((point, index) => (
+      <div className="mt-8 hidden gap-4 md:grid md:grid-cols-3">
+        {proofPoints.map((point, index) => (
+          <article
+            key={point.label}
+            className={`rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur ${
+              mounted ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <strong className="block text-xl font-semibold tracking-tight text-white">
+              {point.value}
+            </strong>
+
+            <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+              {point.label}
+            </span>
+
+            <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <div className="mx-auto max-w-7xl">
+      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+        <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+          <div>
+            <span className="section-label">Diferenciação</span>
+
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Porque escolher a MA-Code em vez de uma solução genérica?
+            </h2>
+
+            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
+              O mercado tem templates, construtores automáticos, freelancers baratos e agências
+              grandes. A MA-Code posiciona-se entre o simples e o completo: começa com uma
+              presença online acessível, mas prepara o negócio para evoluir para vendas,
+              marcações, automação, IA e sistemas internos quando fizer sentido.
+            </p>
+
+            <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-cyan-300/5 p-5">
+              <span className="block text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">
+                Posicionamento
+              </span>
+
+              <strong className="mt-2 block text-lg font-semibold text-white">
+                Começar simples. Crescer sem refazer.
+              </strong>
+
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                A ideia é simples: criar uma base digital profissional desde o início, para o
+                negócio poder crescer por fases sem perder tempo, dinheiro ou coerência mais
+                tarde.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {competitiveAdvantages.map((advantage, index) => (
               <article
-                key={point.label}
-                className={`rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur ${
+                key={advantage.title}
+                className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 ${
                   mounted ? 'animate-fade-in-up' : 'opacity-0'
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <strong className="block text-xl font-semibold tracking-tight text-white">
-                  {point.value}
-                </strong>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h3 className="text-base font-semibold text-white">{advantage.title}</h3>
 
-                <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
-                  {point.label}
-                </span>
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">
+                    {index + 1}
+                  </span>
+                </div>
 
-                <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
+                <p className="text-sm leading-6 text-slate-300">{advantage.description}</p>
+
+                <ul className="mt-4 space-y-2 text-sm text-slate-200/90">
+                  {advantage.points.map((point) => (
+                    <li key={point}>• {point}</li>
+                  ))}
+                </ul>
               </article>
             ))}
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  </section>
 
-      <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeader
-            eyebrow="Serviços"
-            title="Escolha o tipo de projeto"
-            description="A homepage fica direta. Os detalhes vivem nas páginas próprias de cada serviço, com informação mais completa para quem quiser aprofundar."
-          />
+  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <div className="mx-auto max-w-7xl">
+      <SectionHeader
+        eyebrow="Escolha o caminho"
+        title="O que precisa neste momento?"
+        description="Escolha o ponto de partida mais próximo do que procura. A proposta fica mais clara, o pedido chega melhor qualificado e o projeto começa pelo nível certo de solução."
+      />
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {serviceCards.map((card, index) => (
-              <a
-                key={card.title}
-                href={card.href}
-                onClick={() =>
-                  trackEvent('service_card_click', {
-                    service_name: card.title,
-                    service_label: card.label,
-                    destination: card.href,
-                    section: 'services'
-                  })
-                }
-                className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-                style={{ animationDelay: `${index * 90}ms` }}
-              >
-                <div className="service-card__line" />
+      <div className="grid gap-6 md:grid-cols-3">
+        {pathCards.map((card, index) => (
+          <a
+            key={card.title}
+            href={card.href}
+            onClick={(event) => selectProjectPath(event, card.projectType, card.projectGoal)}
+            aria-current={form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'true' : undefined}
+            aria-label={`${card.cta}. Preenche automaticamente o pedido no formulário.`}
+            className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
+              form.projectType === card.projectType && form.projectGoal === card.projectGoal ? 'ring-1 ring-cyan-200/45' : ''
+            } ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+            style={{ animationDelay: `${index * 120}ms` }}
+          >
+            <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
+            <span className="pointer-events-none absolute -right-14 -top-16 size-40 rounded-full bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/20" />
+            <span className="pointer-events-none absolute -bottom-20 left-8 size-32 rounded-full bg-violet-400/10 blur-3xl transition duration-500 group-hover:bg-violet-400/15" />
 
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                    {card.label}
+            <div className="relative z-10 flex h-full w-full flex-col">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <span className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                    {card.eyebrow}
                   </span>
 
-                  <div className="service-card__index">
-                    {String(index + 1).padStart(2, '0')}
-                  </div>
+                  <h3 className="service-card__title">{card.title}</h3>
                 </div>
 
-                <h3 className="service-card__title">{card.title}</h3>
-                <p className="service-card__description">{card.description}</p>
+                <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center shadow-inner shadow-white/5">
+                  <span className="text-[0.58rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Opção
+                  </span>
 
-                <FeatureList items={card.bullets} className="mt-5" />
+                  <strong className="mt-1 text-sm font-semibold text-cyan-100">
+                    {String(index + 1).padStart(2, '0')}
+                  </strong>
+                </div>
+              </div>
 
-                <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
-                  {card.cta} →
+              <p className="service-card__description">{card.description}</p>
+
+              <FeatureList items={card.points} className="mt-5" />
+
+              <div className="mt-5 rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.06] p-4 shadow-inner shadow-cyan-950/20">
+                <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">
+                  Resultado esperado
                 </span>
-              </a>
-            ))}
+
+                <p className="mt-2 text-sm leading-6 text-cyan-50/90">{card.outcome}</p>
+              </div>
+
+              <span className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15">
+                <span>{card.cta}</span>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <div className="mx-auto max-w-7xl">
+      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <span className="section-label">Do site ao sistema</span>
+
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Um website hoje. Um sistema digital amanhã.
+            </h2>
+
+            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
+              A estratégia é simples: começar com uma base profissional que gera confiança e
+              contactos, sem fechar portas ao crescimento. Quando fizer sentido, essa base pode
+              evoluir para loja online, marcações, área administrativa, automações, IA ou
+              integrações com ferramentas que o negócio já usa.
+            </p>
           </div>
-        </div>
-      </section>
 
-      <FeaturedProjects mounted={mounted} />
-
-      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeader
-            eyebrow="Processo"
-            title="Um processo simples, sem complicar o cliente"
-            description="Da ideia à publicação, o objetivo é transformar o projeto numa solução clara, funcional e pronta a ser usada."
-          />
-
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {processSteps.map((step, index) => (
+          <div className="grid gap-4">
+            {evolutionSteps.map((step, index) => (
               <article
                 key={step.title}
-                className={`process-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
-                style={{ animationDelay: `${index * 120}ms` }}
+                className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
               >
-                <h3>{step.title}</h3>
-                <p>{step.description}</p>
+                <div className="mb-2 flex items-center gap-3">
+                  <span className="flex size-8 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-sm font-bold text-cyan-100">
+                    {index + 1}
+                  </span>
+
+                  <h3 className="font-semibold text-white">{step.title}</h3>
+                </div>
+
+                <p className="text-sm leading-6 text-slate-300">{step.description}</p>
               </article>
             ))}
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  </section>
 
-      <section id="orcamento" className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="contact-side-panel">
-              <span className="section-label">Pedido</span>
+  <FeaturedProjects mounted={mounted} />
 
-              <h2 className="contact-side-panel__title">Fale-nos do projeto</h2>
+  <section id="servicos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <div className="mx-auto max-w-7xl">
+      <SectionHeader
+        eyebrow="Serviços"
+        title="Soluções para apresentar, vender, marcar e organizar"
+        description="Criamos desde websites simples até sistemas digitais completos, com uma lógica de crescimento: começar com presença online, gerar contactos e evoluir para venda, marcações, gestão interna ou automação."
+      />
 
-              <p className="contact-side-panel__text">
-                Diga-nos em que fase está: começar com um website, vender ou receber marcações,
-                ou criar um sistema digital mais completo. Respondemos com uma proposta ajustada
-                ao objetivo comercial e ao nível de funcionalidade necessário.
-              </p>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {serviceCards.map((card, index) => (
+          <a
+            key={card.title}
+            href={card.href}
+            onClick={() => trackEvent('service_card_click', {
+              service_name: card.title,
+              service_label: card.label,
+              destination: card.href,
+              section: 'services'
+            })}
+            className={`service-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+            style={{ animationDelay: `${index * 120}ms` }}
+          >
+            <div className="service-card__line" />
 
-              <div className="contact-metrics">
-                <div className="metric-card">
-                  <span className="metric-card__label">Website simples</span>
-                  <strong>Desde 19€/mês</strong>
-                </div>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                {card.label}
+              </span>
 
-                <div className="metric-card">
-                  <span className="metric-card__label">Inclui</span>
-                  <strong>Domínio + alojamento</strong>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
-                <p>Para uma resposta mais certeira, indique:</p>
-
-                <ul className="space-y-2 text-slate-200/90">
-                  <li>• Que tipo de projeto pretende</li>
-                  <li>• Se já tem site ou quer começar do zero</li>
-                  <li>• Se precisa de loja, marcações, área administrativa, automação ou IA</li>
-                  <li>
-                    • Se o objetivo principal é receber contactos, vender, aceitar reservas ou
-                    organizar processos
-                  </li>
-                </ul>
+              <div className="service-card__index">
+                {String(index + 1).padStart(2, '0')}
               </div>
             </div>
 
-            <div className="form-shell">
-              <form
-                onSubmit={handleSubmit}
-                onFocus={trackFormStart}
-                onChange={trackFormStart}
-                className="space-y-5"
-                aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}
-              >
-                <input
-                  type="text"
-                  name="botcheck"
-                  className="hidden"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  value={form.botcheck}
-                  onChange={(e) => setForm({ ...form, botcheck: e.target.value })}
-                />
+            <h3 className="service-card__title">{card.title}</h3>
+            <p className="service-card__description">{card.description}</p>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="name" className="input-label">
-                      Nome
-                    </label>
+            <FeatureList items={card.bullets} className="mt-5" />
 
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      className="input-field"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      required
-                      autoComplete="name"
-                    />
-                  </div>
+            <span className="mt-6 inline-flex text-sm font-semibold text-cyan-200">
+              {card.cta} →
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
 
-                  <div>
-                    <label htmlFor="email" className="input-label">
-                      Email
-                    </label>
+  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <div className="mx-auto max-w-7xl">
+      <SectionHeader
+        eyebrow="Processo"
+        title="Um processo simples, sem complicar o cliente"
+        description="O objetivo é transformar a ideia numa solução clara, funcional e pronta a ser usada, sem linguagem técnica desnecessária nem decisões confusas."
+      />
 
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      className="input-field"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      required
-                      autoComplete="email"
-                    />
-                  </div>
-                </div>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {processSteps.map((step, index) => (
+          <article
+            key={step.title}
+            className={`process-card ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}
+            style={{ animationDelay: `${index * 120}ms` }}
+          >
+            <h3>{step.title}</h3>
+            <p>{step.description}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="phone" className="input-label">
-                      Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
-                    </label>
+  <section id="orcamento" className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
+    <div className="mx-auto max-w-7xl">
+      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="contact-side-panel">
+          <span className="section-label">Pedido</span>
 
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      className="input-field"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      autoComplete="tel"
-                    />
-                  </div>
+          <h2 className="contact-side-panel__title">Fale-nos do projeto</h2>
 
-                  <div>
-                    <label htmlFor="projectType" className="input-label">
-                      Tipo de projeto
-                    </label>
+          <p className="contact-side-panel__text">
+            Diga-nos em que fase está: começar com um website, vender ou receber marcações,
+            ou criar um sistema digital mais completo. Respondemos com uma proposta ajustada
+            ao objetivo comercial e ao nível de funcionalidade necessário.
+          </p>
 
-                    <select
-                      id="projectType"
-                      name="Tipo de projeto"
-                      className="input-field"
-                      value={form.projectType}
-                      onChange={(e) => {
-                        trackEvent('form_field_select', {
-                          form_name: 'pedido_proposta',
-                          field_name: 'projectType',
-                          selected_value: e.target.value
-                        })
+          <div className="contact-metrics">
+            <div className="metric-card">
+              <span className="metric-card__label">Website simples</span>
+              <strong>Desde 19€/mês</strong>
+            </div>
 
-                        setForm({ ...form, projectType: e.target.value })
-                      }}
-                      required
-                    >
-                      <option value="" disabled>
-                        Selecione uma opção
-                      </option>
-
-                      {projectTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="projectGoal" className="input-label">
-                    Objetivo principal do projeto
-                  </label>
-
-                  <select
-                    id="projectGoal"
-                    name="Objetivo principal do projeto"
-                    className="input-field"
-                    value={form.projectGoal}
-                    onChange={(e) => {
-                      trackEvent('form_field_select', {
-                        form_name: 'pedido_proposta',
-                        field_name: 'projectGoal',
-                        selected_value: e.target.value
-                      })
-
-                      setForm({ ...form, projectGoal: e.target.value })
-                    }}
-                    required
-                  >
-                    <option value="" disabled>
-                      Selecione uma opção
-                    </option>
-
-                    {projectGoals.map((goal) => (
-                      <option key={goal} value={goal}>
-                        {goal}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="hasWebsite" className="input-label">
-                    Já tem site?
-                  </label>
-
-                  <select
-                    id="hasWebsite"
-                    name="Já tem site?"
-                    className="input-field"
-                    value={form.hasWebsite}
-                    onChange={(e) => {
-                      trackEvent('form_field_select', {
-                        form_name: 'pedido_proposta',
-                        field_name: 'hasWebsite',
-                        selected_value: e.target.value || 'not_selected'
-                      })
-
-                      setForm({ ...form, hasWebsite: e.target.value })
-                    }}
-                  >
-                    <option value="">Selecione uma opção</option>
-                    <option value="Sim, já tenho site">Sim, já tenho site</option>
-                    <option value="Não, quero começar do zero">Não, quero começar do zero</option>
-                    <option value="Tenho domínio, mas não tenho site">
-                      Tenho domínio, mas não tenho site
-                    </option>
-                    <option value="Não tenho a certeza">Não tenho a certeza</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="input-label">
-                    Descreva o projeto
-                  </label>
-
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={6}
-                    className="input-field input-textarea"
-                    value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    required
-                    placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
-                  />
-                </div>
-
-                {successMessage ? (
-                  <div
-                    id="form-status"
-                    className="status-message status-message--success"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {successMessage}
-                  </div>
-                ) : null}
-
-                {errorMessage ? (
-                  <div
-                    id="form-status"
-                    className="status-message status-message--error"
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {errorMessage}
-                  </div>
-                ) : null}
-
-                <button
-                  type="submit"
-                  className="btn-primary hightech-button w-full disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={isSending}
-                  aria-busy={isSending}
-                >
-                  <span className="btn-shine" />
-
-                  <span className="relative z-10">
-                    {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
-                  </span>
-                </button>
-              </form>
+            <div className="metric-card">
+              <span className="metric-card__label">Inclui</span>
+              <strong>Domínio + alojamento</strong>
             </div>
           </div>
+
+          <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
+            <p>Para uma resposta mais certeira, indique:</p>
+
+            <ul className="space-y-2 text-slate-200/90">
+              <li>• Que tipo de projeto pretende</li>
+              <li>• Se já tem site ou quer começar do zero</li>
+              <li>• Se precisa de loja, marcações, área administrativa, automação ou IA</li>
+              <li>
+                • Se o objetivo principal é receber contactos, vender, aceitar reservas ou
+                organizar processos
+              </li>
+            </ul>
+          </div>
         </div>
-      </section>
-    </main>
-  )
-}
+
+        <div className="form-shell">
+          <div className="mb-5 rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4 text-sm leading-6 text-slate-200">
+            <strong className="block text-white">Proposta gratuita, sem compromisso.</strong>
+
+            <span className="mt-1 block text-slate-300">
+              Não precisa de ter tudo definido — basta explicar a ideia. Ajudamos a perceber o
+              caminho certo para o seu negócio.
+            </span>
+          </div>
+
+          <form onSubmit={handleSubmit} onFocus={trackFormStart} onChange={trackFormStart} className="space-y-5" aria-describedby={successMessage || errorMessage ? 'form-status' : undefined}>
+            <input
+              type="text"
+              name="botcheck"
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.botcheck}
+              onChange={(e) => setForm({ ...form, botcheck: e.target.value })}
+            />
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <label htmlFor="name" className="input-label">
+                  Nome
+                </label>
+
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  className="input-field"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  autoComplete="name"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="input-label">
+                  Email
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className="input-field"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <label htmlFor="phone" className="input-label">
+                  Telefone / WhatsApp <span className="text-slate-500">(opcional)</span>
+                </label>
+
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  className="input-field"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  autoComplete="tel"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="projectType" className="input-label">
+                  Tipo de projeto
+                </label>
+
+                <select
+                  id="projectType"
+                  name="Tipo de projeto"
+                  className="input-field"
+                  value={form.projectType}
+                  onChange={(e) => {
+                    trackEvent('form_field_select', {
+                      form_name: 'pedido_proposta',
+                      field_name: 'projectType',
+                      selected_value: e.target.value
+                    })
+
+                    setForm({ ...form, projectType: e.target.value })
+                  }}
+                  required
+                >
+                  <option value="" disabled>
+                    Selecione uma opção
+                  </option>
+
+                  {projectTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="projectGoal" className="input-label">
+                Objetivo principal do projeto
+              </label>
+
+              <select
+                id="projectGoal"
+                name="Objetivo principal do projeto"
+                className="input-field"
+                value={form.projectGoal}
+                onChange={(e) => {
+                  trackEvent('form_field_select', {
+                    form_name: 'pedido_proposta',
+                    field_name: 'projectGoal',
+                    selected_value: e.target.value
+                  })
+
+                  setForm({ ...form, projectGoal: e.target.value })
+                }}
+                required
+              >
+                <option value="" disabled>
+                  Selecione uma opção
+                </option>
+
+                {projectGoals.map((goal) => (
+                  <option key={goal} value={goal}>
+                    {goal}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="hasWebsite" className="input-label">
+                Já tem site?
+              </label>
+
+              <select
+                id="hasWebsite"
+                name="Já tem site?"
+                className="input-field"
+                value={form.hasWebsite}
+                onChange={(e) => {
+                  trackEvent('form_field_select', {
+                    form_name: 'pedido_proposta',
+                    field_name: 'hasWebsite',
+                    selected_value: e.target.value || 'not_selected'
+                  })
+
+                  setForm({ ...form, hasWebsite: e.target.value })
+                }}
+              >
+                <option value="">Selecione uma opção</option>
+                <option value="Sim, já tenho site">Sim, já tenho site</option>
+                <option value="Não, quero começar do zero">Não, quero começar do zero</option>
+                <option value="Tenho domínio, mas não tenho site">
+                  Tenho domínio, mas não tenho site
+                </option>
+                <option value="Não tenho a certeza">Não tenho a certeza</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="message" className="input-label">
+                Descreva o projeto
+              </label>
+
+              <textarea
+                id="message"
+                name="message"
+                rows={6}
+                className="input-field input-textarea"
+                value={form.message}
+                onChange={(e) => setForm({ ...form, message: e.target.value })}
+                required
+                placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
+              />
+            </div>
+
+            {successMessage ? (
+              <div
+                id="form-status"
+                className="status-message status-message--success"
+                role="status"
+                aria-live="polite"
+              >
+                {successMessage}
+              </div>
+            ) : null}
+
+            {errorMessage ? (
+              <div id="form-status" className="status-message status-message--error" role="alert" aria-live="assertive">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              className="btn-primary hightech-button w-full disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isSending}
+              aria-busy={isSending}
+            >
+              <span className="btn-shine" />
+              <span className="relative z-10">
+                {isSending ? 'A enviar...' : 'Receber proposta gratuita'}
+              </span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+)}
