@@ -236,6 +236,7 @@ export default {
       return respond({ success: false, message: 'Formato de pedido inválido.' }, 415)
     }
 
+    
     const contentLengthHeader = request.headers.get('content-length')
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0
 
