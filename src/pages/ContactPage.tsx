@@ -80,7 +80,7 @@ type ProjectPrefill = {
   projectType: string
   projectGoal: string
   description: string
-  placeholder: string
+  message: string
 }
 
 const emptyForm: ContactFormState = {
@@ -101,7 +101,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Website profissional',
     projectGoal: 'Receber mais contactos',
     description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
-    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+    message: 'Pretendo pedir proposta para um website profissional.\n\nObjetivo principal: apresentar o negócio, explicar serviços e receber mais contactos.\n\nGostava que o website fosse claro, profissional, preparado para telemóvel e com contacto fácil por WhatsApp, email ou formulário.\n\nDetalhes adicionais: '
   },
   'website-profissional': {
     slug: 'website',
@@ -109,7 +109,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Website profissional',
     projectGoal: 'Receber mais contactos',
     description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
-    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+    message: 'Pretendo pedir proposta para um website profissional.\n\nObjetivo principal: apresentar o negócio, explicar serviços e receber mais contactos.\n\nGostava que o website fosse claro, profissional, preparado para telemóvel e com contacto fácil por WhatsApp, email ou formulário.\n\nDetalhes adicionais: '
   },
   'criacao-websites': {
     slug: 'website',
@@ -117,7 +117,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Website profissional',
     projectGoal: 'Receber mais contactos',
     description: 'Pré-selecionámos o formulário para um website profissional focado em presença online, confiança e contactos.',
-    placeholder: 'Exemplo: preciso de um website para apresentar o meu negócio, explicar serviços e receber contactos por WhatsApp, email ou formulário.'
+    message: 'Pretendo pedir proposta para um website profissional.\n\nObjetivo principal: apresentar o negócio, explicar serviços e receber mais contactos.\n\nGostava que o website fosse claro, profissional, preparado para telemóvel e com contacto fácil por WhatsApp, email ou formulário.\n\nDetalhes adicionais: '
   },
   'vendas-marcacoes': {
     slug: 'vendas-marcacoes',
@@ -125,7 +125,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Loja online / Sistema de marcações',
     projectGoal: 'Vender online',
     description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
-    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+    message: 'Pretendo pedir proposta para uma solução de vendas ou marcações online.\n\nObjetivo principal: vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.\n\nGostava que a solução fosse simples para o cliente usar no telemóvel e fácil de gerir no dia a dia.\n\nDetalhes adicionais: '
   },
   'loja-marcacoes': {
     slug: 'vendas-marcacoes',
@@ -133,7 +133,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Loja online / Sistema de marcações',
     projectGoal: 'Vender online',
     description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
-    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+    message: 'Pretendo pedir proposta para uma solução de vendas ou marcações online.\n\nObjetivo principal: vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.\n\nGostava que a solução fosse simples para o cliente usar no telemóvel e fácil de gerir no dia a dia.\n\nDetalhes adicionais: '
   },
   'lojas-online': {
     slug: 'vendas-marcacoes',
@@ -141,7 +141,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Loja online / Sistema de marcações',
     projectGoal: 'Vender online',
     description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
-    placeholder: 'Exemplo: preciso de vender online, receber encomendas, aceitar reservas ou organizar marcações através do site.'
+    message: 'Pretendo pedir proposta para uma loja online.\n\nObjetivo principal: vender produtos online com catálogo, carrinho, checkout e uma experiência simples para o cliente.\n\nGostava que a loja fosse preparada para telemóvel e fácil de gerir.\n\nDetalhes adicionais: '
   },
   'sistemas-marcacao': {
     slug: 'vendas-marcacoes',
@@ -149,7 +149,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Loja online / Sistema de marcações',
     projectGoal: 'Receber marcações',
     description: 'Pré-selecionámos o formulário para loja online, reservas, pedidos ou sistema de marcações.',
-    placeholder: 'Exemplo: preciso de receber marcações online, organizar horários, gerir pedidos e facilitar o contacto com clientes.'
+    message: 'Pretendo pedir proposta para um sistema de marcações online.\n\nObjetivo principal: receber marcações, organizar horários e facilitar pedidos de clientes através do site.\n\nGostava que o processo fosse simples para o cliente e fácil de gerir internamente.\n\nDetalhes adicionais: '
   },
   'sistema-medida': {
     slug: 'sistema-medida',
@@ -157,7 +157,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Sistema à medida',
     projectGoal: 'Automatizar tarefas',
     description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
-    placeholder: 'Exemplo: preciso de uma área administrativa, dashboard, automação, integração com IA, base de dados ou aplicação web personalizada.'
+    message: 'Pretendo pedir proposta para um sistema à medida.\n\nObjetivo principal: reduzir trabalho manual, organizar processos internos ou criar uma ferramenta própria para o negócio.\n\nGostava de perceber a melhor solução para uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.\n\nDetalhes adicionais: '
   },
   'sistema-a-medida': {
     slug: 'sistema-medida',
@@ -165,7 +165,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Sistema à medida',
     projectGoal: 'Automatizar tarefas',
     description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
-    placeholder: 'Exemplo: preciso de uma área administrativa, dashboard, automação, integração com IA, base de dados ou aplicação web personalizada.'
+    message: 'Pretendo pedir proposta para um sistema à medida.\n\nObjetivo principal: reduzir trabalho manual, organizar processos internos ou criar uma ferramenta própria para o negócio.\n\nGostava de perceber a melhor solução para uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.\n\nDetalhes adicionais: '
   },
   'automacao-ia': {
     slug: 'sistema-medida',
@@ -173,7 +173,7 @@ const projectPrefills: Record<string, ProjectPrefill> = {
     projectType: 'Sistema à medida',
     projectGoal: 'Automatizar tarefas',
     description: 'Pré-selecionámos o formulário para sistema à medida, área administrativa, automação, IA ou integração avançada.',
-    placeholder: 'Exemplo: preciso de automatizar tarefas, ligar ferramentas, criar uma área administrativa ou desenvolver um sistema à medida.'
+    message: 'Pretendo pedir proposta para automação, IA ou sistema à medida.\n\nObjetivo principal: automatizar tarefas, ligar ferramentas, reduzir trabalho manual ou criar uma solução digital personalizada.\n\nGostava de perceber a melhor forma de usar automação, integração com IA, dashboard, base de dados ou aplicação web no meu negócio.\n\nDetalhes adicionais: '
   }
 }
 
@@ -354,7 +354,8 @@ export default function ContactPage() {
       setForm((currentForm) => ({
         ...currentForm,
         projectType: projectPrefill.projectType,
-        projectGoal: projectPrefill.projectGoal
+        projectGoal: projectPrefill.projectGoal,
+        message: currentForm.message || projectPrefill.message
       }))
     }
 
@@ -821,11 +822,7 @@ export default function ContactPage() {
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     required
-                    placeholder={
-                      selectedProject
-                        ? selectedProject.placeholder
-                        : 'Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa.'
-                    }
+                    placeholder="Exemplo: preciso de começar com um website para apresentar o meu negócio e receber contactos por WhatsApp. Mais tarde, talvez queira evoluir para marcações online, loja ou área administrativa."
                   />
                 </div>
 
