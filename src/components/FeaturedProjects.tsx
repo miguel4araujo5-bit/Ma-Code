@@ -13,21 +13,6 @@ type ProjectProof = {
   outcome: string
 }
 
-const proofHighlights = [
-  {
-    value: '3 níveis',
-    label: 'presença, conversão e sistema',
-  },
-  {
-    value: 'Projetos reais',
-    label: 'com funcionalidades em produção',
-  },
-  {
-    value: 'Foco prático',
-    label: 'contactos, vendas e organização',
-  },
-]
-
 function getProjectProof(project: PortfolioProject): ProjectProof {
   const value = `${project.slug} ${project.title}`.toLowerCase()
 
@@ -35,7 +20,7 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Marcações + Área Admin',
       description:
-        'Website com marcações online, agenda privada, gestão de horários, cálculo diário de serviços e contacto rápido com clientes.',
+        'Website com marcações online, agenda privada, gestão de horários e contacto rápido com clientes.',
       tags: ['Website', 'Marcações', 'Admin'],
       outcome: 'Menos mensagens soltas. Mais marcações organizadas.'
     }
@@ -45,7 +30,7 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Loja Online + IA',
       description:
-        'E-commerce com catálogo, carrinho, checkout, consentimento de cookies, analytics, assistente IA e backoffice de encomendas.',
+        'E-commerce com catálogo, carrinho, checkout, analytics, assistente IA e backoffice de encomendas.',
       tags: ['E-commerce', 'IA', 'Backoffice'],
       outcome: 'Loja online preparada para vender, medir e gerir.'
     }
@@ -55,7 +40,7 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
     return {
       label: 'Arquivo Digital + PWA',
       description:
-        'Plataforma web/PWA para organizar programas, episódios e conteúdos áudio, reaproveitando dados existentes no Google Drive da escola.',
+        'Plataforma web/PWA para organizar programas, episódios e conteúdos áudio de forma acessível.',
       tags: ['PWA', 'Arquivo', 'Google Drive'],
       outcome: 'Arquivo mais acessível, organizado e fácil de consultar.'
     }
@@ -89,50 +74,23 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
           </div>
 
           <div className="relative z-10">
-            <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
               <div>
                 <div className="mb-5 section-label-wrap">
                   <span className="section-label">Projetos reais</span>
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
-                  Não mostramos apenas design. Mostramos soluções a funcionar.
+                  Soluções reais, já aplicadas em negócios e projetos concretos.
                 </h2>
-
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Websites, lojas online, sistemas de marcação, áreas administrativas e plataformas
-                  digitais criadas para resolver necessidades concretas: receber contactos, vender,
-                  organizar processos e poupar tempo no dia a dia.
-                </p>
               </div>
 
               <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                  Prova de capacidade
+                <p className="text-sm leading-7 text-slate-300">
+                  Uma amostra curta do que a MA-Code desenvolve: websites, lojas online,
+                  marcações, áreas administrativas, PWA, IA e sistemas digitais preparados para
+                  resolver problemas reais.
                 </p>
-
-                <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Estes projetos mostram três níveis de trabalho: presença profissional, conversão
-                  online e sistemas digitais com gestão interna, arquivo, IA, analytics ou
-                  integrações.
-                </p>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {proofHighlights.map((item) => (
-                    <div
-                      key={item.value}
-                      className="rounded-2xl border border-white/10 bg-white/[0.035] p-3"
-                    >
-                      <strong className="block text-sm font-semibold text-white">
-                        {item.value}
-                      </strong>
-
-                      <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -141,7 +99,6 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 const featuredImage = project.images[0]
                 const proof = getProjectProof(project)
                 const firstBusinessValue = project.businessValue[0]
-                const firstHighlight = project.highlights[0]
 
                 return (
                   <article
@@ -186,7 +143,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
 
                       <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/75">
-                          Resultado prático
+                          Resultado
                         </p>
 
                         <p className="mt-2 text-sm font-medium leading-6 text-cyan-50">
@@ -194,10 +151,11 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                         </p>
                       </div>
 
-                      <div className="mt-4 space-y-2 text-xs leading-5 text-slate-400">
-                        {firstHighlight ? <p>• {firstHighlight}</p> : null}
-                        {firstBusinessValue ? <p>• {firstBusinessValue}</p> : null}
-                      </div>
+                      {firstBusinessValue ? (
+                        <p className="mt-4 text-xs leading-5 text-slate-400">
+                          • {firstBusinessValue}
+                        </p>
+                      ) : null}
 
                       <div className="mt-4 flex flex-wrap gap-2">
                         {proof.tags.map((tag) => (
@@ -218,18 +176,17 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Ver projetos completos com imagens, funcionalidades e valor prático
+                  Ver portefólio completo
                 </p>
 
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  A página de portefólio mostra cada projeto com mais detalhe: contexto,
-                  necessidade do cliente, funcionalidades, decisões técnicas, valor prático e
-                  capturas reais.
+                  Na página de projetos encontra mais detalhe sobre contexto, funcionalidades,
+                  valor prático e capturas reais.
                 </p>
               </div>
 
               <span className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-cyan-200/50 group-hover:bg-cyan-300/15">
-                Ver página de projetos
+                Ver projetos
                 <span aria-hidden="true">→</span>
               </span>
             </div>
