@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 
-const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Projetos à Medida']
+const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Performance e SEO','Integração Blockchain','Projetos Crypto','Apps PWA','Inteligência Artificial','Projetos à Medida']
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
