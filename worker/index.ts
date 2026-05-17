@@ -1,5 +1,6 @@
 export interface Env {
-  WEB3FORMS_ACCESS_KEY: string
+  WEB3FORMS_ACCESS_KEY?: string
+  WEB3FORMS_KEY?: string
   CONTACT_ALLOWED_ORIGINS?: string
 }
 
@@ -9,6 +10,7 @@ type ContactBody = {
   message?: unknown
   phone?: unknown
   projectType?: unknown
+  projectGoal?: unknown
   hasWebsite?: unknown
   pageUrl?: unknown
   botcheck?: unknown
@@ -153,6 +155,9 @@ const cleanMultilineText = (value: string, maxLength: number) =>
     .trim()
     .slice(0, maxLength)
 
+const getWeb3FormsAccessKey = (env: Env) =>
+  (env.WEB3FORMS_KEY || env.WEB3FORMS_ACCESS_KEY || '').trim()
+
 const cleanPageUrl = (value: unknown, fallback: string, env: Env) => {
   const cleaned = cleanText(toStringValue(value), 300)
 
@@ -228,7 +233,9 @@ export default {
       )
     }
 
-    if (!env.WEB3FORMS_ACCESS_KEY?.trim()) {
+    const web3FormsAccessKey = getWeb3FormsAccessKey(env)
+
+    if (!web3FormsAccessKey) {
       return respond(
         {
           success: false,
@@ -334,6 +341,7 @@ export default {
     const email = cleanText(toStringValue(body.email), 180).toLowerCase()
     const phone = cleanText(toStringValue(body.phone), 80)
     const projectType = cleanText(toStringValue(body.projectType), 120)
+    const projectGoal = cleanText(toStringValue(body.projectGoal), 120)
     const hasWebsite = cleanText(toStringValue(body.hasWebsite), 120)
     const pageUrl = cleanPageUrl(body.pageUrl, requestOrigin, env)
     const message = cleanMultilineText(toStringValue(body.message), 5000)
@@ -369,6 +377,7 @@ export default {
       `Email: ${email}`,
       phone ? `Telefone/WhatsApp: ${phone}` : 'Telefone/WhatsApp: não indicado',
       projectType ? `Tipo de projeto: ${projectType}` : 'Tipo de projeto: não indicado',
+      projectGoal ? `Objetivo principal: ${projectGoal}` : 'Objetivo principal: não indicado',
       hasWebsite ? `Já tem site: ${hasWebsite}` : 'Já tem site: não indicado',
       '',
       'Mensagem:',
@@ -379,7 +388,7 @@ export default {
     ].join('\n')
 
     const subject = cleanText(
-      ['Pedido de proposta - MA-Code', projectType || null, name].filter(Boolean).join(' | '),
+      ['Pedido de proposta - MA-Code', projectType || projectGoal || null, name].filter(Boolean).join(' | '),
       180
     )
 
@@ -391,7 +400,7 @@ export default {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: env.WEB3FORMS_ACCESS_KEY,
+          access_key: web3FormsAccessKey,
           subject,
           from_name: 'MA-Code Website',
           name,
@@ -399,6 +408,7 @@ export default {
           replyto: email,
           phone,
           project_type: projectType,
+          project_goal: projectGoal,
           has_website: hasWebsite,
           message: fullMessage,
           page: pageUrl,
