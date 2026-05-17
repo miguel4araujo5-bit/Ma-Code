@@ -8,9 +8,6 @@ type PortfolioProject = (typeof portfolioProjects)[number]
 
 type ProjectProof = {
   label: string
-  description: string
-  tags: string[]
-  outcome: string
 }
 
 function getProjectProof(project: PortfolioProject): ProjectProof {
@@ -18,40 +15,24 @@ function getProjectProof(project: PortfolioProject): ProjectProof {
 
   if (value.includes('rosa')) {
     return {
-      label: 'Marcações + Área Admin',
-      description:
-        'Website com marcações online, agenda privada, gestão de horários e contacto rápido com clientes.',
-      tags: ['Website', 'Marcações', 'Admin'],
-      outcome: 'Menos mensagens soltas. Mais marcações organizadas.'
+      label: 'Marcações + Área Admin'
     }
   }
 
   if (value.includes('porto') || value.includes('exotico') || value.includes('exótico')) {
     return {
-      label: 'Loja Online + IA',
-      description:
-        'E-commerce com catálogo, carrinho, checkout, analytics, assistente IA e backoffice de encomendas.',
-      tags: ['E-commerce', 'IA', 'Backoffice'],
-      outcome: 'Loja online preparada para vender, medir e gerir.'
+      label: 'Loja Online + IA'
     }
   }
 
   if (value.includes('reo')) {
     return {
-      label: 'Arquivo Digital + PWA',
-      description:
-        'Plataforma web/PWA para organizar programas, episódios e conteúdos áudio de forma acessível.',
-      tags: ['PWA', 'Arquivo', 'Google Drive'],
-      outcome: 'Arquivo mais acessível, organizado e fácil de consultar.'
+      label: 'Arquivo Digital + PWA'
     }
   }
 
   return {
-    label: 'Projeto Digital',
-    description:
-      'Solução web criada à medida, com foco em apresentação profissional, estrutura clara e utilização simples.',
-    tags: ['Website', 'UX', 'Mobile'],
-    outcome: 'Uma solução ajustada ao objetivo do projeto.'
+    label: 'Projeto Digital'
   }
 }
 
@@ -74,22 +55,21 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
           </div>
 
           <div className="relative z-10">
-            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
               <div>
                 <div className="mb-5 section-label-wrap">
                   <span className="section-label">Projetos reais</span>
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
-                  Soluções reais, já aplicadas em negócios e projetos concretos.
+                  Veja uma amostra. O detalhe está no portefólio.
                 </h2>
               </div>
 
               <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-5">
                 <p className="text-sm leading-7 text-slate-300">
-                  Uma amostra curta do que a MA-Code desenvolve: websites, lojas online,
-                  marcações, áreas administrativas, PWA, IA e sistemas digitais preparados para
-                  resolver problemas reais.
+                  Três exemplos rápidos de soluções já criadas: arquivo digital, marcações online
+                  e loja online com IA.
                 </p>
               </div>
             </div>
@@ -98,7 +78,6 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
               {featuredProjects.map((project, index) => {
                 const featuredImage = project.images[0]
                 const proof = getProjectProof(project)
-                const firstBusinessValue = project.businessValue[0]
 
                 return (
                   <article
@@ -133,39 +112,10 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                             {project.title}
                           </h3>
 
-                          <p className="mt-1 text-xs font-medium text-cyan-100">{proof.label}</p>
+                          <p className="mt-1 text-sm font-medium text-cyan-100">
+                            {proof.label}
+                          </p>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="relative z-10 px-2 pb-2 pt-4">
-                      <p className="text-sm leading-6 text-slate-300">{proof.description}</p>
-
-                      <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/75">
-                          Resultado
-                        </p>
-
-                        <p className="mt-2 text-sm font-medium leading-6 text-cyan-50">
-                          {proof.outcome}
-                        </p>
-                      </div>
-
-                      {firstBusinessValue ? (
-                        <p className="mt-4 text-xs leading-5 text-slate-400">
-                          • {firstBusinessValue}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {proof.tags.map((tag) => (
-                          <span
-                            key={`${project.slug}-${tag}`}
-                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-200"
-                          >
-                            {tag}
-                          </span>
-                        ))}
                       </div>
                     </div>
                   </article>
@@ -176,12 +126,12 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Ver portefólio completo
+                  Ver projetos completos
                 </p>
 
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  Na página de projetos encontra mais detalhe sobre contexto, funcionalidades,
-                  valor prático e capturas reais.
+                  No portefólio encontra contexto, funcionalidades, capturas reais e valor prático
+                  de cada projeto.
                 </p>
               </div>
 
