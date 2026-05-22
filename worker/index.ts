@@ -30,7 +30,7 @@ const securityHeaders: HeaderMap = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'X-Robots-Tag': 'noindex, nofollow'
+  'X-Robots-Tag': 'noindex, nofollow',
 }
 
 const json = (body: unknown, status = 200, headers: HeaderMap = {}) =>
@@ -39,8 +39,8 @@ const json = (body: unknown, status = 200, headers: HeaderMap = {}) =>
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       ...securityHeaders,
-      ...headers
-    }
+      ...headers,
+    },
   })
 
 const normalizeOrigin = (value: string) => {
@@ -125,7 +125,7 @@ const createCorsHeaders = (origin: string | null): HeaderMap => {
     'Access-Control-Allow-Origin': normalizedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
-    Vary: 'Origin'
+    Vary: 'Origin',
   }
 }
 
@@ -181,6 +181,26 @@ const cleanPageUrl = (value: unknown, fallback: string, env: Env) => {
   }
 }
 
+const parseWeb3FormsResponse = (text: string): Web3FormsResponse => {
+  if (!text.trim()) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(text) as Web3FormsResponse
+  } catch {
+    return {}
+  }
+}
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return String(error)
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -188,6 +208,7 @@ export default {
     const origin = request.headers.get('origin')
     const verifiedOrigin = getVerifiedRequestOrigin(request, requestOrigin, env)
     const corsHeaders = origin && verifiedOrigin ? createCorsHeaders(verifiedOrigin) : {}
+
     const respond = (body: unknown, status = 200, headers: HeaderMap = {}) =>
       json(body, status, { ...corsHeaders, ...headers })
 
@@ -203,7 +224,7 @@ export default {
       const headers: HeaderMap = {
         Allow: 'POST, OPTIONS',
         ...securityHeaders,
-        ...corsHeaders
+        ...corsHeaders,
       }
 
       if (origin) {
@@ -217,7 +238,7 @@ export default {
       return respond(
         { success: false, message: 'Método não permitido.' },
         405,
-        { Allow: 'POST, OPTIONS' }
+        { Allow: 'POST, OPTIONS' },
       )
     }
 
@@ -226,7 +247,7 @@ export default {
     if (!accessKey) {
       return respond(
         { success: false, message: 'A configuração do formulário não está disponível neste momento.' },
-        500
+        500,
       )
     }
 
@@ -236,7 +257,6 @@ export default {
       return respond({ success: false, message: 'Formato de pedido inválido.' }, 415)
     }
 
-    
     const contentLengthHeader = request.headers.get('content-length')
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0
 
@@ -247,7 +267,7 @@ export default {
     if (contentLength > MAX_BODY_BYTES) {
       return respond(
         { success: false, message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.' },
-        413
+        413,
       )
     }
 
@@ -258,14 +278,14 @@ export default {
     } catch {
       return respond(
         { success: false, message: 'Não foi possível ler os dados do formulário. Tente novamente.' },
-        400
+        400,
       )
     }
 
     if (getByteLength(rawBody) > MAX_BODY_BYTES) {
       return respond(
         { success: false, message: 'O pedido é demasiado longo. Reduza a mensagem e tente novamente.' },
-        413
+        413,
       )
     }
 
@@ -276,7 +296,7 @@ export default {
     } catch {
       return respond(
         { success: false, message: 'Não foi possível ler os dados do formulário. Tente novamente.' },
-        400
+        400,
       )
     }
 
@@ -314,7 +334,7 @@ export default {
     if (message.length < 10) {
       return respond(
         { success: false, message: 'Descreva o projeto com um pouco mais de detalhe.' },
-        400
+        400,
       )
     }
 
@@ -334,12 +354,12 @@ export default {
       message,
       '',
       `Página de origem: ${pageUrl}`,
-      `Data: ${timestamp}`
+      `Data: ${timestamp}`,
     ].join('\n')
 
     const subject = cleanText(
       ['Pedido de proposta - MA-Code', projectType || null, name].filter(Boolean).join(' | '),
-      180
+      180,
     )
 
     try {
@@ -347,7 +367,7 @@ export default {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json'
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           access_key: accessKey,
@@ -362,34 +382,38 @@ export default {
           has_website: hasWebsite,
           message: fullMessage,
           page: pageUrl,
-          timestamp
-        })
+          timestamp,
+        }),
       })
 
-      let data: Web3FormsResponse = {}
-
-      try {
-        data = (await web3Response.json()) as Web3FormsResponse
-      } catch {
-        return respond(
-          { success: false, message: 'Não foi possível confirmar o envio do formulário. Tente novamente.' },
-          502
-        )
-      }
+      const web3Text = await web3Response.text()
+      const data = parseWeb3FormsResponse(web3Text)
 
       if (!web3Response.ok || !data.success) {
+        console.error('Web3Forms rejected contact form request', {
+          status: web3Response.status,
+          statusText: web3Response.statusText,
+          contentType: web3Response.headers.get('content-type'),
+          web3Message: data.message || '',
+          responsePreview: web3Text.slice(0, 300),
+        })
+
         return respond(
           { success: false, message: data.message || 'Não foi possível enviar o pedido. Tente novamente.' },
-          400
+          web3Response.status >= 500 ? 502 : 400,
         )
       }
 
       return respond({ success: true, message: 'Pedido enviado com sucesso.' })
-    } catch {
+    } catch (error) {
+      console.error('Web3Forms fetch failed', {
+        message: getErrorMessage(error),
+      })
+
       return respond(
         { success: false, message: 'Erro ao comunicar com o serviço de envio. Tente novamente.' },
-        502
+        502,
       )
     }
-  }
+  },
 }
