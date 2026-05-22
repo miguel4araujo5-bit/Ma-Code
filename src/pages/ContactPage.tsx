@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
+const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit'
+const WEB3FORMS_ACCESS_KEY = String(import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '').trim()
+
 const projectTypes = [
   'Website simples',
   'Website profissional',
@@ -339,6 +342,29 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
   })
 }
 
+function getWeb3FormsAccessKey() {
+  return WEB3FORMS_ACCESS_KEY
+}
+
+function buildSubmissionMessage(form: ContactFormState, pageUrl: string, timestamp: string) {
+  return [
+    'Novo pedido recebido através do site MA-Code.',
+    '',
+    `Nome: ${form.name}`,
+    `Email: ${form.email}`,
+    form.phone ? `Telefone/WhatsApp: ${form.phone}` : 'Telefone/WhatsApp: não indicado',
+    form.projectType ? `Tipo de projeto: ${form.projectType}` : 'Tipo de projeto: não indicado',
+    form.projectGoal ? `Objetivo principal: ${form.projectGoal}` : 'Objetivo principal: não indicado',
+    form.hasWebsite ? `Já tem site: ${form.hasWebsite}` : 'Já tem site: não indicado',
+    '',
+    'Mensagem:',
+    form.message,
+    '',
+    `Página de origem: ${pageUrl}`,
+    `Data: ${timestamp}`
+  ].join('\n')
+}
+
 export default function ContactPage() {
   const [form, setForm] = useState<ContactFormState>(emptyForm)
   const [selectedProject, setSelectedProject] = useState<ProjectPrefill | null>(null)
@@ -487,6 +513,19 @@ export default function ContactPage() {
       return
     }
 
+    const accessKey = getWeb3FormsAccessKey()
+
+    if (!accessKey) {
+      trackEvent('proposal_form_configuration_error', {
+        form_name: 'pedido_proposta',
+        reason: 'missing_web3forms_access_key'
+      })
+
+      setErrorMessage('A configuração do formulário não está disponível neste momento.')
+      setIsSending(false)
+      return
+    }
+
     trackEvent('proposal_form_submit_attempt', {
       form_name: 'pedido_proposta',
       project_type: form.projectType || 'not_selected',
@@ -495,23 +534,36 @@ export default function ContactPage() {
       prefilled_project_source: selectedProject?.slug || 'not_selected'
     })
 
+    const pageUrl = typeof window !== 'undefined' ? window.location.href : 'https://ma-code.pt/contacto'
+    const timestamp = new Date().toISOString()
+    const submissionMessage = buildSubmissionMessage(form, pageUrl, timestamp)
+    const subject = ['Pedido de proposta - MA-Code', form.projectType || null, form.name]
+      .filter(Boolean)
+      .join(' | ')
+
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetch(WEB3FORMS_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
+          access_key: accessKey,
+          subject,
+          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
+          replyto: form.email,
           phone: form.phone,
-          projectType: form.projectType,
-          projectGoal: form.projectGoal,
-          hasWebsite: form.hasWebsite,
-          pageUrl: typeof window !== 'undefined' ? window.location.href : 'https://ma-code.pt/contacto',
-          message: form.message,
-          botcheck: form.botcheck
+          project_type: form.projectType,
+          project_goal: form.projectGoal,
+          has_website: form.hasWebsite,
+          page: pageUrl,
+          timestamp,
+          message: submissionMessage,
+          botcheck: form.botcheck,
+          ...getTrafficAttribution()
         })
       })
 
