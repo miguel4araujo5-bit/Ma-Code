@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
 const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit'
-const WEB3FORMS_ACCESS_KEY = String(import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '').trim()
+const WEB3FORMS_ACCESS_KEY = String(
+  import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || import.meta.env.VITE_WEB3FORMS_KEY || ''
+).trim()
 
 const projectTypes = [
   'Website simples',
