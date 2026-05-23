@@ -69,151 +69,131 @@ export const servicePages: ServicePageData[] = [
     label: 'Criação de Websites Profissionais',
     shortLabel: 'Websites',
     seo: {
-      title: 'Criação de Websites Profissionais em Portugal | MA-Code',
+      title: 'Criação de Websites desde 19€/mês | MA-Code',
       description:
-        'Criação de websites profissionais, rápidos e adaptados a telemóvel para negócios que querem transmitir confiança, receber contactos e crescer online por fases.',
+        'Criação de websites profissionais desde 19€/mês, com domínio e alojamento, design mobile-first, SEO base e estrutura preparada para gerar contactos.',
       keywords:
-        'criação de websites, criação de sites, websites profissionais, websites para empresas, websites para pequenos negócios, desenvolvimento web Portugal, sites responsivos, site com domínio e alojamento, MA-Code',
+        'criação de websites, criação de sites, websites profissionais, websites desde 19€/mês, site com domínio e alojamento, websites para empresas, websites para pequenos negócios, desenvolvimento web Portugal, sites responsivos, site profissional para negócio, MA-Code',
       canonical: `${siteUrl}/criacao-websites`,
-      ogTitle: 'Criação de Websites Profissionais | MA-Code',
+      ogTitle: 'Criação de Websites Profissionais desde 19€/mês | MA-Code',
       ogDescription:
-        'Websites modernos, rápidos e preparados para apresentar serviços, gerar confiança e transformar visitantes em contactos reais.',
+        'Websites profissionais para negócios que querem começar simples, transmitir confiança, receber contactos e crescer online por fases.',
     },
     hero: {
-      eyebrow: 'Criação de websites',
-      title: 'Websites profissionais para negócios que querem',
-      highlightedTitle: 'ser encontrados, gerar confiança e receber contactos',
+      eyebrow: 'Criação de websites profissionais',
+      title: 'Websites desde 19€/mês para negócios que querem',
+      highlightedTitle: 'parecer mais profissionais e receber mais contactos',
       description:
-        'Criamos websites modernos, rápidos e adaptados a telemóvel, pensados para explicar o seu negócio com clareza, transmitir credibilidade e facilitar o contacto desde o primeiro dia.',
+        'Criamos websites modernos, rápidos e adaptados a telemóvel, com domínio e alojamento quando necessário, pensados para explicar o seu negócio com clareza, transmitir confiança e facilitar pedidos de contacto desde o primeiro dia.',
       primaryCta: 'Pedir proposta gratuita',
       secondaryCta: 'Ver projetos',
     },
     stats: [
       {
-        value: 'Mobile-first',
-        label: 'Experiência pensada para clientes no telemóvel',
-      },
-      {
-        value: 'SEO base',
-        label: 'Estrutura preparada para motores de pesquisa',
-      },
-      {
         value: 'Desde 19€/mês',
         label: 'Entrada acessível para presença online profissional',
       },
+      {
+        value: 'Domínio + alojamento',
+        label: 'Solução simples para começar sem complicar',
+      },
+      {
+        value: 'Mobile-first',
+        label: 'Experiência pensada para clientes no telemóvel',
+      },
     ],
     intro: {
-      title: 'Um website não deve ser apenas bonito. Deve explicar, orientar e converter.',
+      title: 'Um website profissional deve explicar o negócio, criar confiança e gerar contactos.',
       paragraphs: [
-        'A presença digital de uma empresa começa muitas vezes pelo website. Quando alguém pesquisa pelo seu negócio, compara serviços ou procura confiança antes de pedir orçamento, o site é uma das primeiras provas de profissionalismo.',
-        'Esta página concentra o detalhe que não precisa de estar todo na homepage: estrutura, benefícios, processo, entregáveis e dúvidas frequentes sobre criação de websites profissionais.',
-        'Na MA-Code criamos websites com foco em clareza, velocidade, design responsivo e estrutura comercial. O objetivo é apresentar bem o negócio, facilitar o contacto e criar uma base digital preparada para crescer com novas páginas, loja online, marcações, automação ou integrações.',
+        'Ter um website já não é apenas uma questão de imagem. Quando um cliente procura uma empresa, compara serviços ou decide se deve pedir orçamento, o site funciona como uma prova de confiança.',
+        'Na MA-Code criamos websites profissionais para negócios que querem começar de forma simples, com uma presença online clara, rápida, adaptada a telemóvel e preparada para receber contactos.',
+        'O objetivo não é encher a página com texto desnecessário. É construir uma base digital bem organizada, com informação útil, chamadas à ação claras e estrutura preparada para crescer para novas páginas, loja online, marcações, automação, IA ou sistemas à medida.',
       ],
     },
     idealFor: [
-      'Empresas que precisam de um website institucional profissional',
-      'Negócios locais que querem aparecer melhor online',
+      'Negócios que ainda não têm website e querem começar de forma profissional',
+      'Empresas que dependem de pedidos de contacto, orçamento ou marcação',
       'Profissionais independentes que querem transmitir mais credibilidade',
-      'Marcas que precisam de renovar um site antigo ou pouco eficaz',
-      'Serviços que dependem de pedidos de orçamento, contactos ou marcações',
-      'Projetos que querem começar simples e evoluir sem refazer tudo',
+      'Marcas com site antigo, confuso, lento ou pouco adaptado a telemóvel',
+      'Negócios locais que querem uma presença online mais clara e confiável',
+      'Projetos que querem começar simples e evoluir por fases sem refazer tudo',
     ],
     benefits: [
       {
-        title: 'Imagem mais profissional',
+        title: 'Mais confiança desde o primeiro contacto',
         description:
-          'Um site moderno ajuda o cliente a perceber rapidamente quem é, o que faz, onde atua e porque deve confiar no seu negócio.',
+          'Um website bem estruturado ajuda o cliente a perceber quem é, o que faz, que serviços oferece e porque deve confiar no seu negócio.',
       },
       {
-        title: 'Mais pedidos de contacto',
+        title: 'Mais pedidos de proposta ou contacto',
         description:
-          'A estrutura é pensada para guiar o visitante até à ação certa: pedir orçamento, enviar mensagem, telefonar, consultar serviços ou avançar para uma marcação.',
+          'A página é organizada para orientar o visitante até à ação certa: pedir orçamento, enviar mensagem, telefonar, consultar serviços ou avançar para uma marcação.',
       },
       {
-        title: 'Preparado para mobile',
+        title: 'Experiência preparada para telemóvel',
         description:
-          'A experiência é construída para funcionar bem em telemóvel, tablet e computador, com atenção à legibilidade, velocidade e facilidade de contacto.',
+          'A maioria dos clientes chega pelo smartphone. Por isso, o website é pensado para leitura rápida, navegação simples, botões claros e contacto fácil em ecrãs pequenos.',
       },
       {
-        title: 'Base para SEO e crescimento',
+        title: 'Base preparada para SEO e crescimento',
         description:
-          'Organizamos títulos, conteúdos, estrutura e metadata para criar uma base técnica mais forte para pesquisas no Google, respostas em motores de IA e crescimento futuro.',
+          'Estruturamos títulos, conteúdos, metadata e páginas com uma base técnica mais sólida para motores de pesquisa, partilhas e crescimento futuro.',
       },
     ],
     deliverables: [
       {
         title: 'Página inicial profissional',
         description:
-          'Hero section, apresentação do negócio, serviços principais, argumentos de confiança e chamada clara para contacto.',
+          'Estrutura com apresentação clara do negócio, serviços principais, argumentos de confiança e chamada direta para contacto.',
       },
       {
-        title: 'Páginas de serviços',
+        title: 'Textos e estrutura comercial',
         description:
-          'Estrutura preparada para explicar melhor cada serviço, aumentar relevância em pesquisas específicas e responder às dúvidas do cliente.',
+          'Organização das mensagens principais para explicar o que faz, para quem trabalha e porque o cliente deve entrar em contacto.',
       },
       {
         title: 'Formulário de contacto',
         description:
-          'Formulário simples e direto para receber pedidos de orçamento ou mensagens de potenciais clientes.',
+          'Formulário simples para receber pedidos de proposta, mensagens de potenciais clientes ou informações sobre novos projetos.',
       },
       {
         title: 'Contacto rápido',
         description:
-          'Botões, links e chamadas à ação preparados para facilitar contacto por email, telefone, WhatsApp ou formulário.',
+          'Botões e chamadas à ação preparados para facilitar contacto por formulário, email, telefone ou WhatsApp, conforme o objetivo do negócio.',
       },
       {
-        title: 'Base preparada para evoluir',
+        title: 'Domínio, alojamento e base técnica',
         description:
-          'Estrutura pensada para permitir futuras páginas, campanhas, loja online, marcações, área administrativa, automações ou integrações.',
+          'Quando fizer sentido, o website pode incluir domínio, alojamento, configuração técnica, SEO base e estrutura preparada para evoluir.',
       },
     ],
     process: [
       {
-        title: 'Diagnóstico',
+        title: 'Percebemos o objetivo',
         description:
-          'Percebemos o negócio, o público, os serviços, os objetivos comerciais e o tipo de contacto que pretende gerar.',
+          'Começamos por perceber o negócio, os serviços, o público e o tipo de contacto que quer gerar: pedidos de orçamento, chamadas, mensagens ou marcações.',
       },
       {
-        title: 'Estrutura',
+        title: 'Definimos a estrutura',
         description:
-          'Organizamos as secções, mensagens, páginas e percurso do utilizador antes de avançar para o desenvolvimento.',
+          'Organizamos as secções, páginas, mensagens principais e percurso do utilizador antes de avançar para o desenvolvimento.',
       },
       {
-        title: 'Desenvolvimento',
+        title: 'Criamos o website',
         description:
-          'Criamos o website com foco em performance, experiência mobile, SEO base e apresentação profissional.',
+          'Desenvolvemos o site com foco em design profissional, performance, experiência mobile, SEO base e facilidade de contacto.',
       },
       {
-        title: 'Publicação',
+        title: 'Publicamos e deixamos margem para crescer',
         description:
-          'Colocamos o site online com a base técnica necessária e deixamos margem para futuras melhorias, páginas ou integrações.',
+          'Colocamos o website online e deixamos a estrutura preparada para futuras páginas, loja online, marcações, automações ou integrações.',
       },
     ],
     faq: [
       {
         question: 'Quanto custa criar um website profissional?',
         answer:
-          'O valor depende do número de páginas, conteúdos, funcionalidades e nível de personalização. A MA-Code trabalha com soluções ajustadas ao objetivo do projeto, incluindo opções de website simples desde 19€/mês.',
-      },
-      {
-        question: 'O website fica adaptado a telemóvel?',
-        answer:
-          'Sim. Todos os websites são pensados para funcionar bem em telemóvel, tablet e computador, com atenção à velocidade, legibilidade e facilidade de contacto.',
-      },
-      {
-        question: 'Também ajudam com texto e estrutura do site?',
-        answer:
-          'Sim. Podemos ajudar a organizar a mensagem, estruturar as secções e criar textos mais claros, profissionais e orientados para conversão.',
-      },
-      {
-        question: 'O site pode evoluir para loja online ou sistema de marcações?',
-        answer:
-          'Sim. A estrutura pode ser preparada para crescer com novas páginas, loja online, sistema de marcações, automações, integrações ou área administrativa.',
-      },
-      {
-        question: 'Preciso de já ter textos e imagens antes de começar?',
-        answer:
-          'Não obrigatoriamente. Podemos começar pela estrutura do website e ajudar a transformar a informação do negócio em conteúdo claro, profissional e orientado para contacto.',
+          'Depende do número de páginas, conteúdos, funcionalidades e nível de personalização. Para negócios que querem começar simples, a MA-Code tem opções de website profissional desde 19€/mês.',
       },
       {
         question: 'O website pode incluir domínio e alojamento?',
@@ -221,9 +201,29 @@ export const servicePages: ServicePageData[] = [
           'Sim. Quando fizer sentido para o projeto, podemos incluir domínio, alojamento e configuração técnica para que o negócio tenha uma solução mais simples de gerir.',
       },
       {
+        question: 'O website fica adaptado a telemóvel?',
+        answer:
+          'Sim. Todos os websites são pensados para funcionar bem em telemóvel, tablet e computador, com atenção à velocidade, legibilidade, navegação e facilidade de contacto.',
+      },
+      {
+        question: 'Também ajudam com os textos do website?',
+        answer:
+          'Sim. Podemos ajudar a organizar a mensagem, estruturar as secções e criar textos mais claros, profissionais e orientados para conversão.',
+      },
+      {
+        question: 'Preciso de já ter tudo preparado antes de pedir proposta?',
+        answer:
+          'Não. Pode enviar apenas uma ideia geral do que precisa. Ajudamos a perceber se faz sentido começar por um website simples, uma página mais completa ou uma estrutura preparada para crescer.',
+      },
+      {
+        question: 'O website pode evoluir para loja online ou sistema de marcações?',
+        answer:
+          'Sim. A estrutura pode ser preparada para crescer com novas páginas, loja online, sistema de marcações, automações, integrações, IA ou área administrativa.',
+      },
+      {
         question: 'Um website simples chega para começar?',
         answer:
-          'Em muitos casos, sim. Um website simples bem estruturado pode ser suficiente para apresentar o negócio, criar confiança e receber contactos. Depois, a solução pode evoluir por fases.',
+          'Em muitos casos, sim. Um website simples, rápido e bem estruturado pode ser suficiente para apresentar o negócio, criar confiança e receber contactos. Depois, a solução pode evoluir por fases.',
       },
     ],
     relatedServices: ['lojas-online', 'sistemas-marcacao', 'automacao-ia'],
