@@ -6,9 +6,12 @@ const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
-const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Uma entrada acessível para negócios que precisam de presença online profissional, domínio e alojamento incluídos.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura preparada para clientes que chegam pelo smartphone e precisam de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'O projeto pode começar simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
+const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Entrada acessível para ter presença online profissional, domínio e alojamento incluídos, sem complicar o arranque.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura clara para quem chega pelo smartphone e precisa de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'Pode começar com um website simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
 
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto?tipo=website',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto?tipo=vendas-marcacoes',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto?tipo=sistema-medida',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
+
+const proposalSteps = [{number: '01',title: 'Conta-nos o essencial',description:'Diz-nos se precisas de website, loja online, marcações, automação ou se ainda não sabes exatamente qual é o melhor caminho.'},{number: '02',title: 'Analisamos o objetivo',description:'Percebemos o tipo de negócio, o que já existe e qual é a forma mais simples de gerar contactos, vendas ou organização.'},{number: '03',title: 'Recebes uma proposta clara',description:'Enviamos uma proposta gratuita, sem compromisso, com o ponto de partida recomendado e possibilidade de evolução por fases.'},{number: '04',title: 'Avançamos com segurança',description:'Se fizer sentido, começamos pelo essencial e deixamos a estrutura preparada para crescer sem refazer tudo do zero.'}]
+
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -436,11 +439,11 @@ const [mounted, setMounted] = useState(false)
 
 useEffect(() => {setMounted(true)
 
-document.title = 'Websites Simples que Podem Crescer com o Negócio | MA-Code'
+document.title = 'Websites Profissionais desde 19€/mês | MA-Code'
 
 updateMeta(
   'description',
-  'Websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos e evoluir para loja online, marcações, automação ou sistemas digitais.'
+  'Websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos e evoluir para loja online, marcações, automação, IA ou sistemas digitais.'
 )
 
 updateMeta(
@@ -460,12 +463,12 @@ updatePropertyMeta('og:url', 'https://ma-code.pt/')
 
 updatePropertyMeta(
   'og:title',
-  'Websites Simples que Podem Crescer com o Negócio | MA-Code'
+  'Websites Profissionais desde 19€/mês | MA-Code'
 )
 
 updatePropertyMeta(
   'og:description',
-  'Comece com um website profissional e evolua para loja online, marcações, automação, IA ou sistemas digitais à medida.'
+  'Comece com um website profissional desde 19€/mês e evolua para loja online, marcações, automação, IA ou sistemas digitais à medida.'
 )
 
 updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
@@ -480,7 +483,7 @@ updateMeta('twitter:url', 'https://ma-code.pt/')
 
 updateMeta(
   'twitter:title',
-  'Websites Simples que Podem Crescer com o Negócio | MA-Code'
+  'Websites Profissionais desde 19€/mês | MA-Code'
 )
 
 updateMeta(
@@ -524,12 +527,12 @@ return (
           href="/contacto"
           className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
           onClick={() => trackEvent('cta_click', {
-            cta_text: 'Pedir proposta',
+            cta_text: 'Pedir proposta gratuita',
             cta_location: 'header',
             destination: '/contacto'
           })}
         >
-          Pedir proposta
+          Pedir proposta gratuita
         </a>
       </header>
 
@@ -542,25 +545,25 @@ return (
 
           <h1 className="hero-title">
             <span className="sm:hidden">
-              Website profissional para começar simples e crescer depois.
+              Websites desde 19€/mês para começar simples e crescer depois.
             </span>
 
             <span className="hidden sm:inline">
-              Websites profissionais para começar simples e crescer depois.
+              Websites profissionais desde 19€/mês para começar simples e crescer depois.
             </span>
           </h1>
 
           <div className="hero-price-badge">
-            Websites simples desde 19€/mês · domínio + alojamento incluídos
+            Desde 19€/mês · domínio + alojamento incluídos · proposta gratuita
           </div>
 
           <p className="hero-subtitle">
             <span className="sm:hidden">
-              Criamos websites, lojas, marcações e automações para negócios que querem gerar contactos e organizar melhor o trabalho.
+              Criamos websites, lojas, marcações e automações para negócios que querem gerar contactos sem complicar o arranque.
             </span>
 
             <span className="hidden sm:inline">
-              A MA-Code cria websites e sistemas digitais para negócios que querem gerar contactos,
+              Criamos websites e sistemas digitais para negócios que querem gerar contactos,
               vender, receber marcações ou automatizar processos — começando por uma base simples,
               clara e preparada para evoluir.
             </span>
@@ -571,13 +574,13 @@ return (
               href="/contacto"
               className="btn-primary hightech-button"
               onClick={() => trackEvent('cta_click', {
-                cta_text: 'Receber proposta gratuita',
+                cta_text: 'Pedir proposta gratuita',
                 cta_location: 'hero_primary',
                 destination: '/contacto'
               })}
             >
               <span className="btn-shine" />
-              <span className="relative z-10">Receber proposta gratuita</span>
+              <span className="relative z-10">Pedir proposta gratuita</span>
             </a>
 
             <a
@@ -593,10 +596,14 @@ return (
             </a>
           </div>
 
+          <p className="mt-4 max-w-xl text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70 sm:text-sm">
+            Proposta gratuita · Sem compromisso · Pode começar simples
+          </p>
+
           <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
             <li>Domínio + alojamento</li>
             <li>Mobile-first</li>
-            <li>Foco em contactos</li>
+            <li>Pode evoluir por fases</li>
           </ul>
 
           <ServiceMarquee />
@@ -673,7 +680,7 @@ return (
       <SectionHeader
         eyebrow="Escolha o caminho"
         title="O que precisa neste momento?"
-        description="Escolha o ponto de partida, veja os detalhes nas páginas próprias ou peça diretamente uma proposta gratuita."
+        description="Escolha o ponto de partida. Pode ver os detalhes nas páginas próprias ou pedir proposta gratuita diretamente."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -762,6 +769,46 @@ return (
     </div>
   </section>
 
+  <section className="px-5 pb-10 sm:px-6 md:px-10 md:pb-16">
+    <div className="mx-auto max-w-7xl">
+      <div className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/65 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.4fr] lg:items-start">
+          <div>
+            <span className="section-label">Depois do pedido</span>
+
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              Não precisa de saber exatamente o que pedir.
+            </h2>
+
+            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
+              Basta explicar o objetivo. Ajudamos a perceber se faz mais sentido começar por um
+              website simples, loja online, sistema de marcações, automação ou solução à medida.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {proposalSteps.map((step) => (
+              <article
+                key={step.number}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-inner shadow-white/5"
+              >
+                <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-semibold text-cyan-100">
+                  {step.number}
+                </span>
+
+                <h3 className="mt-4 text-base font-semibold tracking-tight text-white">
+                  {step.title}
+                </h3>
+
+                <p className="mt-3 text-sm leading-6 text-slate-300">{step.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <FeaturedProjects mounted={mounted} />
 
   <section className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
@@ -776,8 +823,8 @@ return (
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Explique se precisa de website, loja online, marcações, automação ou sistema à
-              medida. A página de contacto tem o formulário completo para pedir proposta gratuita.
+              Explique o que precisa ou o problema que quer resolver. A proposta é gratuita,
+              sem compromisso, e pode começar por uma solução simples preparada para crescer.
             </p>
           </div>
 
