@@ -6,11 +6,7 @@ const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites
 
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
 
-const proofPoints = [{value: '19€/mês',label: 'website simples',description:'Entrada acessível para ter presença online profissional, domínio e alojamento incluídos, sem complicar o arranque.'},{value: 'Mobile-first',label: 'pensado para telemóvel',description:'Estrutura clara para quem chega pelo smartphone e precisa de perceber rapidamente o que fazer.'},{value: 'Evolutivo',label: 'sem refazer tudo',description:'Pode começar com um website simples e crescer para loja online, marcações, área administrativa, automação, IA ou app.'}]
-
-const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto?tipo=website',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto?tipo=vendas-marcacoes',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto?tipo=sistema-medida',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
-
-
+const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto?tipo=website',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp']},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto?tipo=vendas-marcacoes',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel']},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto?tipo=sistema-medida',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados']}]
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
@@ -649,28 +645,6 @@ return (
           </div>
         </div>
       </div>
-
-      <div className="mt-8 hidden gap-4 md:grid md:grid-cols-3">
-        {proofPoints.map((point, index) => (
-          <article
-            key={point.label}
-            className={`rounded-3xl border border-cyan-300/15 bg-slate-950/60 p-5 shadow-xl shadow-cyan-950/10 backdrop-blur ${
-              mounted ? 'animate-fade-in-up' : 'opacity-0'
-            }`}
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <strong className="block text-xl font-semibold tracking-tight text-white">
-              {point.value}
-            </strong>
-
-            <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
-              {point.label}
-            </span>
-
-            <p className="mt-3 text-sm leading-6 text-slate-300">{point.description}</p>
-          </article>
-        ))}
-      </div>
     </div>
   </section>
 
@@ -720,14 +694,6 @@ return (
 
               <FeatureList items={card.points} className="mt-5" />
 
-              <div className="mt-5 rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.06] p-4 shadow-inner shadow-cyan-950/20">
-                <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">
-                  Resultado esperado
-                </span>
-
-                <p className="mt-2 text-sm leading-6 text-cyan-50/90">{card.outcome}</p>
-              </div>
-
               <div className="mt-5 flex flex-wrap gap-2">
                 {card.learnLinks.map((link) => (
                   <a
@@ -767,8 +733,6 @@ return (
       </div>
     </div>
   </section>
-
-  
 
   <FeaturedProjects mounted={mounted} />
 
