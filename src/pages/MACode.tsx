@@ -10,7 +10,6 @@ const proofPoints = [{value: '19€/mês',label: 'website simples',description:'
 
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto?tipo=website',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp'],outcome:'Ideal para quem quer deixar de depender apenas das redes sociais e ter uma base própria, clara e credível.'},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto?tipo=vendas-marcacoes',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel'],outcome:'Ideal para negócios que querem deixar de ter apenas uma montra online e passar a gerar oportunidades concretas.'},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto?tipo=sistema-medida',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados'],outcome:'Ideal para negócios que precisam de mais controlo, menos trabalho manual e ferramentas feitas à medida.'}]
 
-const proposalSteps = [{number: '01',title: 'Explique-nos o essencial',description:'Indique se precisa de website, loja online, marcações, automação ou se ainda não sabe exatamente qual é o melhor caminho.'},{number: '02',title: 'Analisamos o objetivo',description:'Percebemos o tipo de negócio, o que já existe e qual é a forma mais simples de gerar contactos, vendas ou organização.'},{number: '03',title: 'Recebe uma proposta clara',description:'Enviamos uma proposta gratuita, sem compromisso, com o ponto de partida recomendado e possibilidade de evolução por fases.'},{number: '04',title: 'Avançamos com segurança',description:'Se fizer sentido, começamos pelo essencial e deixamos a estrutura preparada para crescer sem refazer tudo do zero.'}]
 
 
 function updateMeta(name: string, content: string) {
@@ -769,45 +768,7 @@ return (
     </div>
   </section>
 
-  <section className="px-5 pb-10 sm:px-6 md:px-10 md:pb-16">
-    <div className="mx-auto max-w-7xl">
-      <div className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/65 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.4fr] lg:items-start">
-          <div>
-            <span className="section-label">Depois do pedido</span>
-
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Não precisa de saber exatamente o que pedir.
-            </h2>
-
-            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Basta explicar o objetivo. Ajudamos a perceber se faz mais sentido começar por um
-              website simples, loja online, sistema de marcações, automação ou solução à medida.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {proposalSteps.map((step) => (
-              <article
-                key={step.number}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-inner shadow-white/5"
-              >
-                <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-sm font-semibold text-cyan-100">
-                  {step.number}
-                </span>
-
-                <h3 className="mt-4 text-base font-semibold tracking-tight text-white">
-                  {step.title}
-                </h3>
-
-                <p className="mt-3 text-sm leading-6 text-slate-300">{step.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+  
 
   <FeaturedProjects mounted={mounted} />
 
