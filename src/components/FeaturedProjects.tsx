@@ -30,7 +30,7 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  Portefólio.
+                  Veja aqui uma amostra do nosso Portefólio.
                 </h2>
               </div>
 
