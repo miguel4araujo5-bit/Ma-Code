@@ -54,40 +54,50 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
             <div className="absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
           </div>
 
-          <div className="relative z-10">
-            <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
-              <div>
-                <div className="mb-5 section-label-wrap">
-                  <span className="section-label">Projetos reais</span>
-                </div>
-
-                <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
-                  Veja uma amostra. O detalhe está no portefólio.
-                </h2>
+          <div className="relative z-10 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <div className="mb-5 section-label-wrap">
+                <span className="section-label">Projetos reais</span>
               </div>
 
-              <div className="rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-5">
-                <p className="text-sm leading-7 text-slate-300">
-                  Três exemplos rápidos de soluções já criadas: arquivo digital, marcações online
-                  e loja online com IA.
-                </p>
+              <h2 className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
+                Uma amostra rápida. O detalhe está no portefólio.
+              </h2>
+
+              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 md:text-base">
+                Veja exemplos reais de soluções já criadas pela MA-Code. Na página de projetos
+                encontra as imagens completas, funcionalidades e contexto de cada trabalho.
+              </p>
+
+              <div className="mt-7 inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-cyan-200/50 group-hover:bg-cyan-300/15">
+                Ver projetos completos
+                <span aria-hidden="true">→</span>
               </div>
             </div>
 
-            <div className="mt-8 grid gap-5 md:grid-cols-3">
-              {featuredProjects.map((project, index) => {
-                const featuredImage = project.images[0]
-                const proof = getProjectProof(project)
+            <div className="relative overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-3 shadow-2xl shadow-sky-950/20 sm:p-4">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-300/10 via-transparent to-blue-500/10 opacity-70" />
 
-                return (
-                  <article
-                    key={project.slug}
-                    className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-sky-950/20 transition duration-300 group-hover:border-cyan-200/20"
-                  >
-                    <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
-                      <div className="pointer-events-none absolute left-1/2 top-2 z-20 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/20" />
+              <div className="relative grid gap-3 md:grid-cols-[1.15fr_0.85fr]">
+                {featuredProjects.map((project, index) => {
+                  const featuredImage = project.images[0]
+                  const proof = getProjectProof(project)
+                  const isMainProject = index === 0
 
-                      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[1.45rem] bg-slate-950">
+                  return (
+                    <article
+                      key={project.slug}
+                      className={`relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black ${
+                        isMainProject ? 'md:row-span-2' : ''
+                      }`}
+                    >
+                      <div
+                        className={`relative w-full overflow-hidden rounded-[1.45rem] bg-slate-950 ${
+                          isMainProject
+                            ? 'aspect-[16/11] md:h-full md:min-h-[18rem]'
+                            : 'aspect-[16/9] md:min-h-[8.5rem]'
+                        }`}
+                      >
                         {featuredImage ? (
                           <img
                             src={featuredImage.src}
@@ -101,44 +111,34 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
                           />
                         ) : null}
 
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/95 via-black/55 to-transparent" />
 
-                        <div className="absolute bottom-4 left-4 right-4 z-20">
-                          <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
+                        <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
+                          <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80 sm:text-[10px]">
                             Projeto 0{index + 1}
                           </span>
 
-                          <h3 className="mt-1 text-base font-semibold text-white">
+                          <h3 className="mt-1 line-clamp-2 text-sm font-semibold text-white sm:text-base">
                             {project.title}
                           </h3>
 
-                          <p className="mt-1 text-sm font-medium text-cyan-100">
+                          <p className="mt-1 text-xs font-medium text-cyan-100 sm:text-sm">
                             {proof.label}
                           </p>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-
-            <div className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  Ver projetos completos
-                </p>
-
-                <p className="mt-1 text-sm leading-6 text-slate-400">
-                  No portefólio encontra contexto, funcionalidades, capturas reais e valor prático
-                  de cada projeto.
-                </p>
+                    </article>
+                  )
+                })}
               </div>
 
-              <span className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-cyan-200/50 group-hover:bg-cyan-300/15">
-                Ver projetos
-                <span aria-hidden="true">→</span>
-              </span>
+              <div className="relative mt-3 flex flex-col gap-2 rounded-[1.4rem] border border-white/10 bg-white/[0.035] px-4 py-3 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+                <span>3 projetos em destaque</span>
+
+                <span className="font-semibold text-cyan-100">
+                  Abrir portefólio →
+                </span>
+              </div>
             </div>
           </div>
         </a>
