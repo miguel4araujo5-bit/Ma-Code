@@ -195,15 +195,15 @@ function PdfHeroIcon() {
         <div className="relative aspect-[4/5] rounded-[1.55rem] border border-cyan-200/35 bg-cyan-300/[0.06] p-5 shadow-inner shadow-cyan-200/10">
           <div className="absolute right-5 top-5 h-12 w-12 rounded-bl-3xl border-b border-l border-cyan-200/30 bg-cyan-200/10" />
 
-          <div className="flex h-full flex-col items-center justify-end text-center">
-  <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-    MA
-  </span>
+          <div className="flex h-full items-end justify-center gap-3 text-center">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
+              MA
+            </span>
 
-  <span className="text-5xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(103,232,249,0.35)]">
-    PDF
-  </span>
-</div>
+            <span className="text-5xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(103,232,249,0.35)]">
+              PDF
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -342,7 +342,7 @@ export default function MAPdfPage() {
       <div className="site-grid" />
       <div className="site-noise" />
 
-      <section className="relative z-10 overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
+      <section className="relative z-10 overflow-hidden px-5 pb-10 pt-6 sm:px-6 md:px-10 md:pb-12 md:pt-8">
         <div className="mx-auto max-w-7xl">
           <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
             <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
@@ -413,20 +413,6 @@ export default function MAPdfPage() {
                   Seguro e privado
                 </span>
               </div>
-
-              <div className="hero-actions">
-                <a href="#ferramentas" className="btn-primary hightech-button">
-                  <span className="btn-shine" />
-                  <span className="relative z-10">Ver ferramentas</span>
-                </a>
-
-                <a
-                  href="/contacto?tipo=ma-pdf"
-                  className="btn-secondary hightech-button-secondary"
-                >
-                  Pedir acesso antecipado
-                </a>
-              </div>
             </div>
           </div>
         </div>
@@ -434,19 +420,6 @@ export default function MAPdfPage() {
 
       <section id="ferramentas" className="relative z-10 px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8 max-w-4xl">
-            <span className="section-label">Todas as ferramentas</span>
-
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-4xl">
-              Uma app PDF para operações rápidas do dia a dia.
-            </h2>
-
-            <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              A primeira versão do MA PDF pode começar com as ferramentas mais procuradas e evoluir
-              depois para OCR, histórico, pacotes pagos, conta de utilizador e área administrativa.
-            </p>
-          </div>
-
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {groupedTools.map((tool, index) => (
               <div
