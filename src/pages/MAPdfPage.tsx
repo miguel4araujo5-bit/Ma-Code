@@ -195,15 +195,15 @@ function PdfHeroIcon() {
         <div className="relative aspect-[4/5] rounded-[1.55rem] border border-cyan-200/35 bg-cyan-300/[0.06] p-5 shadow-inner shadow-cyan-200/10">
           <div className="absolute right-5 top-5 h-12 w-12 rounded-bl-3xl border-b border-l border-cyan-200/30 bg-cyan-200/10" />
 
-          <div className="flex h-full flex-col justify-end">
-            <span className="text-5xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(103,232,249,0.35)]">
-              PDF
-            </span>
+          <div className="flex h-full flex-col items-center justify-end text-center">
+  <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
+    MA
+  </span>
 
-            <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-              MA PDF
-            </span>
-          </div>
+  <span className="text-5xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(103,232,249,0.35)]">
+    PDF
+  </span>
+</div>
         </div>
       </div>
     </div>
