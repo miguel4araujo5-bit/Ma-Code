@@ -110,15 +110,6 @@ const pdfTools: PdfTool[] = [
   }
 ]
 
-const productHighlights = [
-  'Pagamento por MB WAY',
-  'Sem mensalidades obrigatórias',
-  'Ferramentas rápidas',
-  'Pensado para uso pontual',
-  'Interface simples',
-  'Mais barato que subscrições tradicionais'
-]
-
 const roadmapItems = [
   {
     title: 'Primeira versão',
@@ -210,7 +201,7 @@ function PdfHeroIcon() {
             </span>
 
             <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-              MA
+              MA PDF
             </span>
           </div>
         </div>
@@ -366,7 +357,10 @@ export default function MAPdfPage() {
             </a>
 
             <div className="hidden items-center gap-3 sm:flex">
-              <a href="/produtos" className="text-sm font-semibold text-slate-300 transition hover:text-white">
+              <a
+                href="/produtos"
+                className="text-sm font-semibold text-slate-300 transition hover:text-white"
+              >
                 Produtos
               </a>
 
@@ -426,27 +420,13 @@ export default function MAPdfPage() {
                   <span className="relative z-10">Ver ferramentas</span>
                 </a>
 
-                <a href="/contacto?tipo=ma-pdf" className="btn-secondary hightech-button-secondary">
+                <a
+                  href="/contacto?tipo=ma-pdf"
+                  className="btn-secondary hightech-button-secondary"
+                >
                   Pedir acesso antecipado
                 </a>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative z-10 px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-6">
-            <div className="flex flex-wrap gap-3">
-              {productHighlights.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.13em] text-slate-200"
-                >
-                  {item}
-                </span>
-              ))}
             </div>
           </div>
         </div>
