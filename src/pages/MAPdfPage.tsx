@@ -262,6 +262,13 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+
+  return copy.buffer
+}
+
 function sanitizeFileName(name: string) {
   return name
     .replace(/\.pdf$/i, '')
@@ -529,6 +536,7 @@ function UploadZone({ multiple, inputRef, onFiles }: UploadZoneProps) {
         className="btn-primary hightech-button mt-6"
       >
         <span className="btn-shine" />
+
         <span className="relative z-10">
           {multiple ? 'Escolher ficheiros PDF' : 'Escolher ficheiro PDF'}
         </span>
@@ -1033,7 +1041,7 @@ export default function MAPdfPage() {
       objectsPerTick: 30
     })
 
-    const blob = new Blob([mergedBytes], {
+    const blob = new Blob([bytesToArrayBuffer(mergedBytes)], {
       type: 'application/pdf'
     })
 
@@ -1071,7 +1079,7 @@ export default function MAPdfPage() {
       objectsPerTick: 30
     })
 
-    const blob = new Blob([outputBytes], {
+    const blob = new Blob([bytesToArrayBuffer(outputBytes)], {
       type: 'application/pdf'
     })
 
@@ -1127,7 +1135,7 @@ export default function MAPdfPage() {
       level: 6
     })
 
-    const blob = new Blob([zipBytes], {
+    const blob = new Blob([bytesToArrayBuffer(zipBytes)], {
       type: 'application/zip'
     })
 
@@ -1190,9 +1198,12 @@ export default function MAPdfPage() {
       objectsPerTick: 20
     })
 
-    const optimizedBlob = new Blob([optimizedBytes], {
-      type: 'application/pdf'
-    })
+    const optimizedBlob = new Blob(
+      [bytesToArrayBuffer(optimizedBytes)],
+      {
+        type: 'application/pdf'
+      }
+    )
 
     const baseName = sanitizeFileName(selected.file.name)
 
@@ -1293,6 +1304,7 @@ export default function MAPdfPage() {
                 loading="eager"
                 decoding="async"
               />
+
               <span>MA-Code.pt</span>
             </a>
 
@@ -1416,7 +1428,9 @@ export default function MAPdfPage() {
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-4">
                   <div
-                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${accentClasses[activeToolData?.accent || 'cyan']}`}
+                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${
+                      accentClasses[activeToolData?.accent || 'cyan']
+                    }`}
                   >
                     {activeToolData?.badge}
                   </div>
@@ -1598,6 +1612,7 @@ export default function MAPdfPage() {
                   aria-busy={isProcessing}
                 >
                   <span className="btn-shine" />
+
                   <span className="relative z-10">
                     {isProcessing ? 'A processar...' : buttonText}
                   </span>
@@ -1636,7 +1651,9 @@ export default function MAPdfPage() {
               <div className="relative z-10">
                 <span className="service-card__index">02</span>
 
-                <h2 className="service-card__title">Sem conta obrigatória</h2>
+                <h2 className="service-card__title">
+                  Sem conta obrigatória
+                </h2>
 
                 <p className="service-card__description">
                   Pode utilizar as ferramentas disponíveis sem criar conta,
@@ -1651,7 +1668,9 @@ export default function MAPdfPage() {
               <div className="relative z-10">
                 <span className="service-card__index">03</span>
 
-                <h2 className="service-card__title">Apoio voluntário</h2>
+                <h2 className="service-card__title">
+                  Apoio voluntário
+                </h2>
 
                 <p className="service-card__description">
                   O acesso é gratuito. Quem considerar a ferramenta útil pode
