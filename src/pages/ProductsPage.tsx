@@ -30,7 +30,7 @@ const products: ProductCard[] = [
     eyebrow: 'Carteira digital',
     description:
       'Guarde endereços públicos, dê nomes às carteiras, acompanhe saldos e consulte histórico sem nunca pedir seed phrase ou chaves privadas.',
-    href: '/contacto?tipo=ma-carteira',
+    href: '/produtos/ma-carteira',
     status: 'Em desenvolvimento',
     badge: 'WAL',
     highlights: ['Watch wallet', 'Histórico', 'Endereços nomeados', 'Seguro']
@@ -105,7 +105,7 @@ function ProductCardItem({
   index: number
   mounted: boolean
 }) {
-  const isMainProduct = product.name === 'MA PDF'
+  const opensProduct = product.name === 'MA PDF' || product.name === 'MA Carteira'
 
   return (
     <article
@@ -133,7 +133,9 @@ function ProductCardItem({
           </div>
         </div>
 
-        <p className="text-sm leading-7 text-slate-300 md:text-base">{product.description}</p>
+        <p className="text-sm leading-7 text-slate-300 md:text-base">
+          {product.description}
+        </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
           {product.highlights.map((highlight) => (
@@ -155,12 +157,12 @@ function ProductCardItem({
         <a
           href={product.href}
           className={`mt-7 inline-flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-semibold transition duration-300 ${
-            isMainProduct
+            opensProduct
               ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15'
               : 'border-white/10 bg-white/[0.04] text-slate-200 group-hover:border-cyan-200/30 group-hover:bg-cyan-300/[0.06]'
           }`}
         >
-          <span>{isMainProduct ? 'Abrir produto' : 'Saber mais'}</span>
+          <span>{opensProduct ? 'Abrir produto' : 'Saber mais'}</span>
 
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
             →
@@ -199,20 +201,24 @@ export default function ProductsPage() {
     updatePropertyMeta('og:site_name', 'MA-Code')
     updatePropertyMeta('og:url', `${siteUrl}/produtos`)
     updatePropertyMeta('og:title', 'Produtos MA-Code | Apps e ferramentas digitais')
+
     updatePropertyMeta(
       'og:description',
       'Produtos próprios da MA-Code: ferramentas PDF, carteira digital e futuras apps web com foco em simplicidade, utilidade e pagamentos adaptados a Portugal.'
     )
+
     updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
     updatePropertyMeta('og:image:alt', 'Produtos MA-Code')
 
     updateMeta('twitter:card', 'summary_large_image')
     updateMeta('twitter:url', `${siteUrl}/produtos`)
     updateMeta('twitter:title', 'Produtos MA-Code | Apps e ferramentas digitais')
+
     updateMeta(
       'twitter:description',
       'Produtos próprios da MA-Code: MA PDF, MA Carteira e futuras ferramentas digitais.'
     )
+
     updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
     updateMeta('twitter:image:alt', 'Produtos MA-Code')
 
@@ -273,11 +279,15 @@ export default function ProductsPage() {
                 loading="eager"
                 decoding="async"
               />
+
               <span>MA-Code.pt</span>
             </a>
 
             <div className="hidden items-center gap-5 lg:flex">
-              <a href="/" className="text-sm font-semibold text-slate-300 transition hover:text-white">
+              <a
+                href="/"
+                className="text-sm font-semibold text-slate-300 transition hover:text-white"
+              >
                 Início
               </a>
 
@@ -309,8 +319,8 @@ export default function ProductsPage() {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-              Esta área reúne produtos próprios da MA-Code. Começamos pelo MA PDF e deixamos a
-              estrutura preparada para acrescentar novos produtos, como carteira digital,
+              Esta área reúne produtos próprios da MA-Code. Começamos pelo MA PDF e deixamos
+              a estrutura preparada para acrescentar novos produtos, como carteira digital,
               automações, ferramentas para negócios e apps web com pagamento simples.
             </p>
 
@@ -320,7 +330,10 @@ export default function ProductsPage() {
                 <span className="relative z-10">Ver produtos</span>
               </a>
 
-              <a href="/contacto?tipo=produto-ma-code" className="btn-secondary hightech-button-secondary">
+              <a
+                href="/contacto?tipo=produto-ma-code"
+                className="btn-secondary hightech-button-secondary"
+              >
                 Sugerir produto
               </a>
             </div>
@@ -328,7 +341,10 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      <section id="produtos" className="relative z-10 px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+      <section
+        id="produtos"
+        className="relative z-10 px-5 pb-8 sm:px-6 md:px-10 md:pb-14"
+      >
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 max-w-4xl">
             <span className="section-label">Catálogo</span>
@@ -338,8 +354,9 @@ export default function ProductsPage() {
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Cada produto terá a sua própria página dentro de /produtos. Assim, a estrutura fica
-              limpa, organizada e preparada para SEO quando forem adicionadas novas ferramentas.
+              Cada produto terá a sua própria página dentro de /produtos. Assim, a estrutura
+              fica limpa, organizada e preparada para SEO quando forem adicionadas novas
+              ferramentas.
             </p>
           </div>
 
@@ -368,12 +385,15 @@ export default function ProductsPage() {
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Quando houver outro produto, basta criar nova página como /produtos/nomedoproduto
-                  e acrescentar o cartão nesta página de catálogo.
+                  Quando houver outro produto, basta criar nova página como
+                  /produtos/nomedoproduto e acrescentar o cartão nesta página de catálogo.
                 </p>
               </div>
 
-              <a href="/contacto?tipo=produto-ma-code" className="btn-primary hightech-button">
+              <a
+                href="/contacto?tipo=produto-ma-code"
+                className="btn-primary hightech-button"
+              >
                 <span className="btn-shine" />
                 <span className="relative z-10">Falar sobre produto</span>
               </a>
