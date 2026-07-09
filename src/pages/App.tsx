@@ -2,12 +2,14 @@ import MACode from './MACode'
 import PortfolioPage from './PortfolioPage'
 import ServicePage from './ServicePage'
 import ContactPage from './ContactPage'
+import ProductsPage from './ProductsPage'
 import { getServicePageByPath, type ServicePageSlug } from '../data/servicePages'
 
 type AppPage =
   | { type: 'home' }
   | { type: 'portfolio' }
   | { type: 'contact' }
+  | { type: 'products' }
   | { type: 'service'; slug: ServicePageSlug }
 
 function getPageFromPath(): AppPage {
@@ -19,6 +21,10 @@ function getPageFromPath(): AppPage {
 
   if (path === '/contacto') {
     return { type: 'contact' }
+  }
+
+  if (path === '/produtos' || path === '/produtos/ma-pdf') {
+    return { type: 'products' }
   }
 
   const servicePage = getServicePageByPath(path)
@@ -46,6 +52,10 @@ export default function App() {
 
   if (page.type === 'service') {
     return <ServicePage slug={page.slug} />
+  }
+
+  if (page.type === 'products') {
+    return <ProductsPage />
   }
 
   return <MACode />
