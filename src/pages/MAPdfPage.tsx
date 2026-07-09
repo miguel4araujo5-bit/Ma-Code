@@ -210,7 +210,7 @@ function PdfHeroIcon() {
             </span>
 
             <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-              MA Tools
+              MA
             </span>
           </div>
         </div>
