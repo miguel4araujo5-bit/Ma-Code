@@ -11,16 +11,7 @@ import { PDFDocument } from 'pdf-lib'
 
 const siteUrl = 'https://ma-code.pt'
 
-/*
- * Coloque aqui o número MB WAY que pretende apresentar.
- *
- * Exemplo:
- * const MBWAY_NUMBER = '912345678'
- *
- * Enquanto estiver vazio, a aplicação apresenta que o apoio
- * por MB WAY ficará disponível brevemente.
- */
-const MBWAY_NUMBER = ''
+const MBWAY_NUMBER = '936840619'
 
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
 
