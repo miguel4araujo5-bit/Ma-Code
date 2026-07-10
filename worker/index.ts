@@ -12,6 +12,12 @@ import {
   getMaCarteiraTransactions
 } from './maCarteiraTransactions'
 
+import {
+  MA_CARTEIRA_PRICES_PATH,
+  MaCarteiraPricesError,
+  getMaCarteiraPriceHistory
+} from './maCarteiraPrices'
+
 export interface Env {
   WEB3FORMS_ACCESS_KEY?: string
   WEB3FORMS_KEY?: string
@@ -41,6 +47,7 @@ type ApiRoute =
   | 'contact'
   | 'ma-carteira-chains'
   | 'ma-carteira-transactions'
+  | 'ma-carteira-prices'
   | 'not-found'
 
 const CONTACT_PATH = '/api/contact'
@@ -263,6 +270,13 @@ const getRoute = (
     return 'ma-carteira-transactions'
   }
 
+  if (
+    pathname ===
+    MA_CARTEIRA_PRICES_PATH
+  ) {
+    return 'ma-carteira-prices'
+  }
+
   return 'not-found'
 }
 
@@ -277,7 +291,9 @@ const getAllowedMethods = (
     route ===
       'ma-carteira-chains' ||
     route ===
-      'ma-carteira-transactions'
+      'ma-carteira-transactions' ||
+    route ===
+      'ma-carteira-prices'
   ) {
     return 'GET, OPTIONS'
   }
@@ -623,6 +639,84 @@ const handleTransactionsRequest =
           success: false,
           message:
             'Não foi possível consultar as transações.'
+        },
+        500
+      )
+    }
+  }
+
+const handlePricesRequest =
+  async (
+    request: Request,
+    url: URL,
+    respond: (
+      body: unknown,
+      status?: number,
+      headers?: HeaderMap
+    ) => Response
+  ) => {
+    if (
+      request.method !== 'GET'
+    ) {
+      return respond(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'GET, OPTIONS'
+        }
+      )
+    }
+
+    try {
+      const result =
+        await getMaCarteiraPriceHistory(
+          url
+        )
+
+      return respond(
+        {
+          success: true,
+          ...result
+        },
+        200,
+        {
+          'Cache-Control':
+            'public, max-age=60, s-maxage=60'
+        }
+      )
+    } catch (error) {
+      if (
+        error instanceof
+        MaCarteiraPricesError
+      ) {
+        return respond(
+          {
+            success: false,
+            message: error.message
+          },
+          error.status
+        )
+      }
+
+      console.error(
+        'MA-Carteira prices request failed',
+        {
+          message:
+            getErrorMessage(
+              error
+            )
+        }
+      )
+
+      return respond(
+        {
+          success: false,
+          message:
+            'Não foi possível consultar o histórico de preço.'
         },
         500
       )
@@ -1223,6 +1317,17 @@ export default {
       'ma-carteira-transactions'
     ) {
       return handleTransactionsRequest(
+        request,
+        url,
+        respond
+      )
+    }
+
+    if (
+      route ===
+      'ma-carteira-prices'
+    ) {
+      return handlePricesRequest(
         request,
         url,
         respond
