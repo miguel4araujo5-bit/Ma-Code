@@ -28,6 +28,8 @@ import {
 
 import { convertJpgToPdf } from '../../lib/maPdf/jpgToPdf'
 import { mergePdfFiles } from '../../lib/maPdf/mergePdf'
+import { convertPdfToDoc } from '../../lib/maPdf/pdfToDoc'
+import { convertPdfToExcel } from '../../lib/maPdf/pdfToExcel'
 import { convertPdfToJpg } from '../../lib/maPdf/pdfToJpg'
 import { convertPdfToWord } from '../../lib/maPdf/pdfToWord'
 
@@ -76,12 +78,17 @@ const DEFAULT_WATERMARK_FONT_SIZE = 48
 const DEFAULT_WATERMARK_OPACITY = 0.18
 const DEFAULT_WATERMARK_ROTATION = 45
 
-const DEFAULT_SIGNATURE_PAGE_MODE: SignaturePageMode = 'last'
-const DEFAULT_SIGNATURE_POSITION: SignaturePosition = 'bottom-right'
+const DEFAULT_SIGNATURE_PAGE_MODE: SignaturePageMode =
+  'last'
+
+const DEFAULT_SIGNATURE_POSITION: SignaturePosition =
+  'bottom-right'
+
 const DEFAULT_SIGNATURE_WIDTH = 150
 const DEFAULT_SIGNATURE_OPACITY = 1
 
-const MAX_SIGNATURE_SIZE_BYTES = 10 * 1024 * 1024
+const MAX_SIGNATURE_SIZE_BYTES =
+  10 * 1024 * 1024
 
 const DOCX_MIME_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -125,48 +132,82 @@ export default function PdfWorkbench({
   const [watermarkText, setWatermarkText] =
     useState(DEFAULT_WATERMARK_TEXT)
 
-  const [watermarkPosition, setWatermarkPosition] =
-    useState<WatermarkPosition>('center')
+  const [
+    watermarkPosition,
+    setWatermarkPosition
+  ] = useState<WatermarkPosition>(
+    'center'
+  )
 
-  const [watermarkFontSize, setWatermarkFontSize] =
-    useState(DEFAULT_WATERMARK_FONT_SIZE)
+  const [
+    watermarkFontSize,
+    setWatermarkFontSize
+  ] = useState(
+    DEFAULT_WATERMARK_FONT_SIZE
+  )
 
-  const [watermarkOpacity, setWatermarkOpacity] =
-    useState(DEFAULT_WATERMARK_OPACITY)
+  const [
+    watermarkOpacity,
+    setWatermarkOpacity
+  ] = useState(
+    DEFAULT_WATERMARK_OPACITY
+  )
 
-  const [watermarkRotation, setWatermarkRotation] =
-    useState(DEFAULT_WATERMARK_ROTATION)
+  const [
+    watermarkRotation,
+    setWatermarkRotation
+  ] = useState(
+    DEFAULT_WATERMARK_ROTATION
+  )
 
   const [signatureFile, setSignatureFile] =
     useState<File | null>(null)
 
-  const [signaturePageMode, setSignaturePageMode] =
-    useState<SignaturePageMode>(
-      DEFAULT_SIGNATURE_PAGE_MODE
-    )
+  const [
+    signaturePageMode,
+    setSignaturePageMode
+  ] = useState<SignaturePageMode>(
+    DEFAULT_SIGNATURE_PAGE_MODE
+  )
 
-  const [signaturePageNumber, setSignaturePageNumber] =
-    useState(1)
+  const [
+    signaturePageNumber,
+    setSignaturePageNumber
+  ] = useState(1)
 
-  const [signaturePosition, setSignaturePosition] =
-    useState<SignaturePosition>(
-      DEFAULT_SIGNATURE_POSITION
-    )
+  const [
+    signaturePosition,
+    setSignaturePosition
+  ] = useState<SignaturePosition>(
+    DEFAULT_SIGNATURE_POSITION
+  )
 
-  const [signatureWidth, setSignatureWidth] =
-    useState(DEFAULT_SIGNATURE_WIDTH)
+  const [
+    signatureWidth,
+    setSignatureWidth
+  ] = useState(
+    DEFAULT_SIGNATURE_WIDTH
+  )
 
-  const [signatureOpacity, setSignatureOpacity] =
-    useState(DEFAULT_SIGNATURE_OPACITY)
+  const [
+    signatureOpacity,
+    setSignatureOpacity
+  ] = useState(
+    DEFAULT_SIGNATURE_OPACITY
+  )
 
   const [isProcessing, setIsProcessing] =
     useState(false)
 
-  const [progressMessage, setProgressMessage] =
-    useState('')
+  const [
+    progressMessage,
+    setProgressMessage
+  ] = useState('')
 
-  const [errorMessage, setErrorMessage] =
-    useState('')
+  const [
+    errorMessage,
+    setErrorMessage
+  ] = useState('')
 
   const [result, setResult] =
     useState<ResultData | null>(null)
@@ -216,7 +257,6 @@ export default function PdfWorkbench({
   const resetToolOptions = () => {
     setSplitMode('ranges')
     setSplitRanges('1-3')
-
     setJpgQuality('standard')
     setEditElements([])
 
@@ -530,6 +570,22 @@ export default function PdfWorkbench({
               setProgressMessage
             )
         } else if (
+          activeTool === 'pdfToDoc'
+        ) {
+          generatedResult =
+            await convertPdfToDoc(
+              selectedFiles[0],
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'pdfToExcel'
+        ) {
+          generatedResult =
+            await convertPdfToExcel(
+              selectedFiles[0],
+              setProgressMessage
+            )
+        } else if (
           activeTool === 'pdfToJpg'
         ) {
           generatedResult =
@@ -668,7 +724,8 @@ export default function PdfWorkbench({
             editElements.length > 0
           : activeTool === 'watermark'
             ? selectedFiles.length === 1 &&
-              watermarkText.trim().length > 0
+              watermarkText.trim().length >
+                0
             : activeTool === 'sign'
               ? selectedFiles.length === 1 &&
                 signatureFile !== null
@@ -687,17 +744,27 @@ export default function PdfWorkbench({
             ? 'Converter PDF para Word'
             : activeTool === 'wordToPdf'
               ? 'Converter Word para PDF'
-              : activeTool === 'pdfToJpg'
-                ? 'Converter PDF para JPG'
-                : activeTool === 'jpgToPdf'
-                  ? 'Converter imagens para PDF'
-                  : activeTool === 'editPdf'
-                    ? 'Criar PDF editado'
-                    : activeTool === 'watermark'
-                      ? 'Adicionar marca de água'
-                      : activeTool === 'sign'
-                        ? 'Assinar documento PDF'
-                        : 'Processar documento'
+              : activeTool === 'pdfToDoc'
+                ? 'Converter PDF para DOC'
+                : activeTool ===
+                    'pdfToExcel'
+                  ? 'Converter PDF para Excel'
+                  : activeTool ===
+                      'pdfToJpg'
+                    ? 'Converter PDF para JPG'
+                    : activeTool ===
+                        'jpgToPdf'
+                      ? 'Converter imagens para PDF'
+                      : activeTool ===
+                          'editPdf'
+                        ? 'Criar PDF editado'
+                        : activeTool ===
+                            'watermark'
+                          ? 'Adicionar marca de água'
+                          : activeTool ===
+                              'sign'
+                            ? 'Assinar documento PDF'
+                            : 'Processar documento'
 
   return (
     <section
@@ -852,6 +919,31 @@ export default function PdfWorkbench({
                 básica. Tabelas complexas,
                 imagens e paginação podem
                 apresentar diferenças.
+              </div>
+            ) : null}
+
+            {activeTool === 'pdfToDoc' &&
+            selectedFiles.length === 1 ? (
+              <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
+                O texto selecionável será
+                extraído para um ficheiro DOC
+                editável e compatível com o
+                Microsoft Word. PDFs apenas
+                com imagem podem necessitar
+                de OCR.
+              </div>
+            ) : null}
+
+            {activeTool === 'pdfToExcel' &&
+            selectedFiles.length === 1 ? (
+              <div className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] p-4 text-sm leading-6 text-emerald-50/85">
+                Cada página do PDF será criada
+                como uma folha do Excel. O
+                conversor tenta separar linhas
+                e colunas a partir da posição
+                do texto selecionável; tabelas
+                complexas podem precisar de
+                pequenos ajustes.
               </div>
             ) : null}
 
