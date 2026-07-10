@@ -18,23 +18,29 @@ type PriceChartProps = {
   loading?: boolean
   error?: string | null
   className?: string
-  onPeriodChange?: (period: PricePeriod) => void
+  onPeriodChange?: (
+    period: PricePeriod
+  ) => void
   onRetry?: () => void
 }
 
 type ChartPoint = TokenPricePoint & {
+  time: number
   x: number
   y: number
 }
 
 const CHART_WIDTH = 720
-const CHART_HEIGHT = 230
-const PADDING_LEFT = 18
-const PADDING_RIGHT = 18
-const PADDING_TOP = 20
-const PADDING_BOTTOM = 34
+const CHART_HEIGHT = 250
 
-const formatUsd = (value: number) => {
+const PADDING_LEFT = 20
+const PADDING_RIGHT = 20
+const PADDING_TOP = 22
+const PADDING_BOTTOM = 42
+
+const formatUsd = (
+  value: number
+) => {
   const absolute = Math.abs(value)
 
   if (!Number.isFinite(value)) {
@@ -54,15 +60,23 @@ const formatUsd = (value: number) => {
           ? 6
           : 10
 
-  return new Intl.NumberFormat('pt-PT', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: absolute >= 1 ? 2 : 0,
-    maximumFractionDigits
-  }).format(value)
+  return new Intl.NumberFormat(
+    'pt-PT',
+    {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits:
+        absolute >= 1
+          ? 2
+          : 0,
+      maximumFractionDigits
+    }
+  ).format(value)
 }
 
-const formatCompactUsd = (value: number) => {
+const formatCompactUsd = (
+  value: number
+) => {
   if (!Number.isFinite(value)) {
     return '—'
   }
@@ -71,19 +85,27 @@ const formatCompactUsd = (value: number) => {
     return formatUsd(value)
   }
 
-  return new Intl.NumberFormat('pt-PT', {
-    style: 'currency',
-    currency: 'USD',
-    notation: 'compact',
-    maximumFractionDigits: 2
-  }).format(value)
+  return new Intl.NumberFormat(
+    'pt-PT',
+    {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 2
+    }
+  ).format(value)
 }
 
-const formatPercentage = (value: number) =>
-  `${value >= 0 ? '+' : ''}${new Intl.NumberFormat('pt-PT', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value)}%`
+const formatPercentage = (
+  value: number
+) =>
+  `${value >= 0 ? '+' : ''}${new Intl.NumberFormat(
+    'pt-PT',
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  ).format(value)}%`
 
 const formatPointDate = (
   timestamp: string,
@@ -103,22 +125,28 @@ const formatPointDate = (
       period === '7D'
     )
   ) {
-    return new Intl.DateTimeFormat('pt-PT', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date)
+    return new Intl.DateTimeFormat(
+      'pt-PT',
+      {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    ).format(date)
   }
 
-  return new Intl.DateTimeFormat('pt-PT', {
-    day: '2-digit',
-    month: 'short',
-    year:
-      period === '1A'
-        ? '2-digit'
-        : undefined
-  }).format(date)
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      day: '2-digit',
+      month: 'short',
+      year:
+        period === '1A'
+          ? '2-digit'
+          : undefined
+    }
+  ).format(date)
 }
 
 const getGridLines = () => [
@@ -128,6 +156,83 @@ const getGridLines = () => [
   0.75,
   1
 ]
+
+const cleanPoints = (
+  points: TokenPricePoint[]
+) => {
+  const byTimestamp = new Map<
+    number,
+    TokenPricePoint
+  >()
+
+  points.forEach((point) => {
+    const time = new Date(
+      point.timestamp
+    ).getTime()
+
+    if (
+      !Number.isFinite(time) ||
+      !Number.isFinite(point.open) ||
+      !Number.isFinite(point.high) ||
+      !Number.isFinite(point.low) ||
+      !Number.isFinite(point.close) ||
+      point.open <= 0 ||
+      point.high <= 0 ||
+      point.low <= 0 ||
+      point.close <= 0
+    ) {
+      return
+    }
+
+    byTimestamp.set(
+      time,
+      {
+        ...point,
+
+        timestamp: new Date(
+          time
+        ).toISOString(),
+
+        high: Math.max(
+          point.open,
+          point.high,
+          point.low,
+          point.close
+        ),
+
+        low: Math.min(
+          point.open,
+          point.high,
+          point.low,
+          point.close
+        ),
+
+        volume:
+          Number.isFinite(
+            point.volume
+          ) &&
+          point.volume > 0
+            ? point.volume
+            : 0
+      }
+    )
+  })
+
+  return [
+    ...byTimestamp.entries()
+  ]
+    .sort(
+      (
+        [firstTimestamp],
+        [secondTimestamp]
+      ) =>
+        firstTimestamp -
+        secondTimestamp
+    )
+    .map(
+      ([, point]) => point
+    )
+}
 
 export default function PriceChart({
   history,
@@ -139,20 +244,44 @@ export default function PriceChart({
   onRetry
 }: PriceChartProps) {
   const gradientId =
-    useId().replace(/:/g, '')
+    useId().replace(
+      /:/g,
+      ''
+    )
 
   const [
     activeIndex,
     setActiveIndex
-  ] = useState<number | null>(null)
+  ] = useState<number | null>(
+    null
+  )
 
   const chart = useMemo(() => {
-    const source =
+    const source = cleanPoints(
       history?.points || []
+    )
 
     if (!source.length) {
       return null
     }
+
+    const times = source.map(
+      (point) =>
+        new Date(
+          point.timestamp
+        ).getTime()
+    )
+
+    const firstTime =
+      Math.min(...times)
+
+    const lastTime =
+      Math.max(...times)
+
+    const timeRange = Math.max(
+      lastTime - firstTime,
+      1
+    )
 
     const values = source.flatMap(
       (point) => [
@@ -170,7 +299,7 @@ export default function PriceChart({
     const rawRange =
       rawMax - rawMin
 
-    const padding =
+    const pricePadding =
       rawRange > 0
         ? rawRange * 0.08
         : Math.max(
@@ -178,20 +307,18 @@ export default function PriceChart({
             0.0000000001
           )
 
-    const minimum =
-      Math.max(
-        0,
-        rawMin - padding
-      )
+    const minimum = Math.max(
+      0,
+      rawMin - pricePadding
+    )
 
     const maximum =
-      rawMax + padding
+      rawMax + pricePadding
 
-    const range =
-      Math.max(
-        maximum - minimum,
-        0.0000000001
-      )
+    const priceRange = Math.max(
+      maximum - minimum,
+      0.0000000001
+    )
 
     const drawableWidth =
       CHART_WIDTH -
@@ -204,27 +331,28 @@ export default function PriceChart({
       PADDING_BOTTOM
 
     const points: ChartPoint[] =
-      source.map(
-        (
-          point,
-          index
-        ) => ({
+      source.map((point) => {
+        const time = new Date(
+          point.timestamp
+        ).getTime()
+
+        const timePosition =
+          source.length === 1
+            ? 0.5
+            : (
+                time -
+                firstTime
+              ) /
+              timeRange
+
+        return {
           ...point,
+          time,
 
           x:
             PADDING_LEFT +
-            (
-              source.length === 1
-                ? drawableWidth / 2
-                : (
-                    index /
-                    (
-                      source.length -
-                      1
-                    )
-                  ) *
-                  drawableWidth
-            ),
+            timePosition *
+              drawableWidth,
 
           y:
             PADDING_TOP +
@@ -234,26 +362,25 @@ export default function PriceChart({
                 point.close -
                 minimum
               ) /
-              range
+              priceRange
             ) *
             drawableHeight
-        })
-      )
+        }
+      })
 
-    const linePath =
-      points
-        .map(
-          (
-            point,
-            index
-          ) =>
-            `${
-              index === 0
-                ? 'M'
-                : 'L'
-            } ${point.x} ${point.y}`
-        )
-        .join(' ')
+    const linePath = points
+      .map(
+        (
+          point,
+          index
+        ) =>
+          `${
+            index === 0
+              ? 'M'
+              : 'L'
+          } ${point.x} ${point.y}`
+      )
+      .join(' ')
 
     const areaPath = [
       `M ${points[0].x} ${
@@ -300,9 +427,7 @@ export default function PriceChart({
     event:
       ReactPointerEvent<SVGSVGElement>
   ) => {
-    if (
-      !chart?.points.length
-    ) {
+    if (!chart?.points.length) {
       return
     }
 
@@ -320,34 +445,37 @@ export default function PriceChart({
       ) *
       CHART_WIDTH
 
-    const drawableWidth =
-      CHART_WIDTH -
-      PADDING_LEFT -
-      PADDING_RIGHT
+    let closestIndex = 0
+    let closestDistance =
+      Number.POSITIVE_INFINITY
 
-    const ratio =
-      Math.max(
-        0,
-        Math.min(
-          1,
-          (
-            relativeX -
-            PADDING_LEFT
-          ) /
-          drawableWidth
-        )
-      )
+    chart.points.forEach(
+      (
+        point,
+        index
+      ) => {
+        const distance =
+          Math.abs(
+            point.x -
+            relativeX
+          )
 
-    const index =
-      Math.round(
-        ratio *
-        (
-          chart.points.length -
-          1
-        )
-      )
+        if (
+          distance <
+          closestDistance
+        ) {
+          closestDistance =
+            distance
 
-    setActiveIndex(index)
+          closestIndex =
+            index
+        }
+      }
+    )
+
+    setActiveIndex(
+      closestIndex
+    )
   }
 
   const isPositive =
@@ -356,6 +484,33 @@ export default function PriceChart({
         ?.changePercentage ||
       0
     ) >= 0
+
+  const currentPrice =
+    chart?.points[
+      chart.points.length - 1
+    ]?.close ||
+    history?.currentPriceUsd ||
+    0
+
+  const firstPoint =
+    chart?.points[0] || null
+
+  const middlePoint =
+    chart?.points[
+      Math.floor(
+        (
+          chart.points.length -
+          1
+        ) /
+        2
+      )
+    ] || null
+
+  const lastPoint =
+    chart?.points[
+      chart.points.length -
+      1
+    ] || null
 
   return (
     <section
@@ -372,7 +527,7 @@ export default function PriceChart({
             <strong className="break-all text-2xl font-black tracking-tight text-white sm:text-3xl">
               {history
                 ? formatUsd(
-                    history.currentPriceUsd
+                    currentPrice
                   )
                 : '—'}
             </strong>
@@ -473,7 +628,7 @@ export default function PriceChart({
               <svg
                 viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
                 role="img"
-                aria-label={`Gráfico de preço de ${history.symbol} no período ${period}`}
+                aria-label={`Gráfico cronológico de preço de ${history.symbol} no período ${period}`}
                 className="h-auto w-full touch-none overflow-visible"
                 onPointerMove={
                   handlePointerMove
@@ -509,15 +664,19 @@ export default function PriceChart({
                     const y =
                       PADDING_TOP +
                       position *
-                      chart.drawableHeight
+                        (
+                          CHART_HEIGHT -
+                          PADDING_TOP -
+                          PADDING_BOTTOM
+                        )
 
                     const value =
                       chart.maximum -
                       position *
-                      (
-                        chart.maximum -
-                        chart.minimum
-                      )
+                        (
+                          chart.maximum -
+                          chart.minimum
+                        )
 
                     return (
                       <g key={position}>
@@ -539,15 +698,14 @@ export default function PriceChart({
                         {(
                           position === 0 ||
                           position === 1
-                        ) && (
+                        ) ? (
                           <text
                             x={
                               CHART_WIDTH -
                               PADDING_RIGHT
                             }
                             y={
-                              position ===
-                              0
+                              position === 0
                                 ? y + 12
                                 : y - 7
                             }
@@ -559,7 +717,7 @@ export default function PriceChart({
                               value
                             )}
                           </text>
-                        )}
+                        ) : null}
                       </g>
                     )
                   }
@@ -616,78 +774,65 @@ export default function PriceChart({
                   </g>
                 ) : null}
 
-                {chart.points.length ? (
-                  <>
-                    <text
-                      x={
-                        PADDING_LEFT
-                      }
-                      y={
-                        CHART_HEIGHT -
-                        8
-                      }
-                      fill="rgb(100 116 139)"
-                      fontSize="11"
-                    >
-                      {formatPointDate(
-                        chart.points[0]
-                          .timestamp,
-                        period
-                      )}
-                    </text>
+                {firstPoint ? (
+                  <text
+                    x={
+                      PADDING_LEFT
+                    }
+                    y={
+                      CHART_HEIGHT -
+                      8
+                    }
+                    fill="rgb(100 116 139)"
+                    fontSize="11"
+                  >
+                    {formatPointDate(
+                      firstPoint.timestamp,
+                      period
+                    )}
+                  </text>
+                ) : null}
 
-                    <text
-                      x={
-                        CHART_WIDTH /
-                        2
-                      }
-                      y={
-                        CHART_HEIGHT -
-                        8
-                      }
-                      textAnchor="middle"
-                      fill="rgb(100 116 139)"
-                      fontSize="11"
-                    >
-                      {formatPointDate(
-                        chart.points[
-                          Math.floor(
-                            (
-                              chart
-                                .points
-                                .length -
-                              1
-                            ) /
-                            2
-                          )
-                        ].timestamp,
-                        period
-                      )}
-                    </text>
+                {middlePoint ? (
+                  <text
+                    x={
+                      CHART_WIDTH /
+                      2
+                    }
+                    y={
+                      CHART_HEIGHT -
+                      8
+                    }
+                    textAnchor="middle"
+                    fill="rgb(100 116 139)"
+                    fontSize="11"
+                  >
+                    {formatPointDate(
+                      middlePoint.timestamp,
+                      period
+                    )}
+                  </text>
+                ) : null}
 
-                    <text
-                      x={
-                        CHART_WIDTH -
-                        PADDING_RIGHT
-                      }
-                      y={
-                        CHART_HEIGHT -
-                        8
-                      }
-                      textAnchor="end"
-                      fill="rgb(100 116 139)"
-                      fontSize="11"
-                    >
-                      {formatPointDate(
-                        chart.points[
-                          chart.points
-                            .length -
-                          1
-                        ].timestamp,
-                        period
-                      )}
-                    </text>
-                  </>
+                {lastPoint ? (
+                  <text
+                    x={
+                      CHART_WIDTH -
+                      PADDING_RIGHT
+                    }
+                    y={
+                      CHART_HEIGHT -
+                      8
+                    }
+                    textAnchor="end"
+                    fill="rgb(100 116 139)"
+                    fontSize="11"
+                  >
+                    {formatPointDate(
+                      lastPoint.timestamp,
+                      period
+                    )}
+                  </text>
                 ) : null}
               </svg>
 
@@ -792,6 +937,10 @@ export default function PriceChart({
           )}
         </div>
       ) : null}
+
+      <p className="border-t border-white/10 px-4 py-3 text-[0.68rem] leading-5 text-slate-600 sm:px-5">
+        Os pontos são ordenados pela data real de cada vela. O preço apresentado corresponde ao contrato selecionado, em USD.
+      </p>
     </section>
   )
 }
