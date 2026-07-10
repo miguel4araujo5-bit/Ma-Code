@@ -6,7 +6,12 @@ export type ToolAccent =
   | 'amber'
   | 'orange'
 
-export type ActiveTool = 'merge' | 'split' | 'compress' | 'pdfToJpg'
+export type ActiveTool =
+  | 'merge'
+  | 'split'
+  | 'compress'
+  | 'pdfToJpg'
+  | 'jpgToPdf'
 
 export type PdfTool = {
   id: string
