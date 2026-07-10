@@ -1,9 +1,11 @@
 import { PDFDocument } from 'pdf-lib'
+
 import type {
   ProgressCallback,
   ResultData,
   SelectedPdf
 } from '../../types/maPdf'
+
 import { bytesToArrayBuffer } from './fileUtils'
 
 const A4_SHORT_SIDE = 595.28
@@ -59,7 +61,10 @@ export async function convertJpgToPdf(
     const drawWidth = imageSize.width * scale
     const drawHeight = imageSize.height * scale
 
-    const page = pdfDocument.addPage([pageWidth, pageHeight])
+    const page = pdfDocument.addPage([
+      pageWidth,
+      pageHeight
+    ])
 
     page.drawImage(image, {
       x: (pageWidth - drawWidth) / 2,
@@ -77,9 +82,12 @@ export async function convertJpgToPdf(
     objectsPerTick: 20
   })
 
-  const blob = new Blob([bytesToArrayBuffer(pdfBytes)], {
-    type: 'application/pdf'
-  })
+  const blob = new Blob(
+    [bytesToArrayBuffer(pdfBytes)],
+    {
+      type: 'application/pdf'
+    }
+  )
 
   const originalSize = selectedFiles.reduce(
     (total, selected) => total + selected.file.size,
