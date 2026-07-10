@@ -8,8 +8,10 @@ import {
 import {
   createFileId,
   formatFileSize,
+  isJpgFile,
   isPdfFile
 } from '../../lib/maPdf/fileUtils'
+import { convertJpgToPdf } from '../../lib/maPdf/jpgToPdf'
 import { mergePdfFiles } from '../../lib/maPdf/mergePdf'
 import { convertPdfToJpg } from '../../lib/maPdf/pdfToJpg'
 import { splitPdfFile } from '../../lib/maPdf/splitPdf'
@@ -21,6 +23,7 @@ import type {
   SplitMode
 } from '../../types/maPdf'
 import CompressInfo from './CompressInfo'
+import JpgToPdfInfo from './JpgToPdfInfo'
 import PdfToJpgOptions from './PdfToJpgOptions'
 import ResultCard from './ResultCard'
 import SelectedFilesList from './SelectedFilesList'
@@ -57,6 +60,13 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
     [selectedFiles]
   )
 
+  const acceptsImages = activeTool === 'jpgToPdf'
+
+  const acceptsMultipleFiles =
+    activeTool === 'merge' || activeTool === 'jpgToPdf'
+
+  const allowsReorder = acceptsMultipleFiles
+
   const clearOperation = () => {
     setSelectedFiles([])
     setSplitMode('ranges')
@@ -72,11 +82,15 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
     setProgressMessage('')
     setResult(null)
 
-    const invalidFile = files.find((file) => !isPdfFile(file))
+    const invalidFile = files.find((file) =>
+      acceptsImages ? !isJpgFile(file) : !isPdfFile(file)
+    )
 
     if (invalidFile) {
       setErrorMessage(
-        `O ficheiro "${invalidFile.name}" não parece ser um documento PDF.`
+        acceptsImages
+          ? `O ficheiro "${invalidFile.name}" não parece ser uma imagem JPG.`
+          : `O ficheiro "${invalidFile.name}" não parece ser um documento PDF.`
       )
       return
     }
@@ -92,10 +106,12 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
       return
     }
 
-    const acceptedFiles = activeTool === 'merge' ? files : files.slice(0, 1)
+    const acceptedFiles = acceptsMultipleFiles
+      ? files
+      : files.slice(0, 1)
 
     setSelectedFiles((currentFiles) => {
-      if (activeTool !== 'merge') {
+      if (!acceptsMultipleFiles) {
         const file = acceptedFiles[0]
 
         return file
@@ -135,6 +151,7 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
     setSelectedFiles((currentFiles) =>
       currentFiles.filter((item) => item.id !== id)
     )
+
     setResult(null)
     setProgressMessage('')
     setErrorMessage('')
@@ -150,6 +167,7 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
 
       const reordered = [...currentFiles]
       const [movedItem] = reordered.splice(index, 1)
+
       reordered.splice(destination, 0, movedItem)
 
       return reordered
@@ -185,10 +203,15 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           selectedFiles[0],
           setProgressMessage
         )
-      } else {
+      } else if (activeTool === 'pdfToJpg') {
         generatedResult = await convertPdfToJpg(
           selectedFiles[0],
           jpgQuality,
+          setProgressMessage
+        )
+      } else {
+        generatedResult = await convertJpgToPdf(
+          selectedFiles,
           setProgressMessage
         )
       }
@@ -210,6 +233,10 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
         setErrorMessage(
           'Este PDF está protegido por palavra-passe. Remova a proteção antes de utilizar a ferramenta.'
         )
+      } else if (activeTool === 'jpgToPdf') {
+        setErrorMessage(
+          'Não foi possível ler uma das imagens. Confirme que todos os ficheiros são JPG ou JPEG válidos.'
+        )
       } else {
         setErrorMessage(message)
       }
@@ -223,7 +250,9 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
   const canProcess =
     activeTool === 'merge'
       ? selectedFiles.length >= 2
-      : selectedFiles.length === 1
+      : activeTool === 'jpgToPdf'
+        ? selectedFiles.length >= 1
+        : selectedFiles.length === 1
 
   const buttonText =
     activeTool === 'merge'
@@ -234,7 +263,9 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           : 'Extrair páginas selecionadas'
         : activeTool === 'compress'
           ? 'Otimizar PDF'
-          : 'Converter PDF para JPG'
+          : activeTool === 'pdfToJpg'
+            ? 'Converter PDF para JPG'
+            : 'Converter imagens para PDF'
 
   return (
     <section
@@ -277,14 +308,16 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
 
           <div className="p-5 md:p-7">
             <UploadZone
-              multiple={activeTool === 'merge'}
+              multiple={acceptsMultipleFiles}
+              fileType={acceptsImages ? 'jpg' : 'pdf'}
               inputRef={fileInputRef}
               onFiles={addFiles}
             />
 
             <SelectedFilesList
               files={selectedFiles}
-              allowReorder={activeTool === 'merge'}
+              allowReorder={allowsReorder}
+              fileBadge={acceptsImages ? 'JPG' : 'PDF'}
               onRemove={removeFile}
               onMove={moveFile}
             />
@@ -314,6 +347,10 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
                 jpgQuality={jpgQuality}
                 onQualityChange={setJpgQuality}
               />
+            ) : null}
+
+            {activeTool === 'jpgToPdf' && selectedFiles.length > 0 ? (
+              <JpgToPdfInfo />
             ) : null}
 
             {selectedFiles.length > 0 ? (
