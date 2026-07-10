@@ -1,8 +1,23 @@
-export const MA_CARTEIRA_URL = 'https://ma-code.pt/produtos/ma-carteira'
-export const PULSECHAIN_EXPLORER = 'https://scan.pulsechain.com/address'
+import {
+  DEFAULT_CHAIN_ID,
+  createWalletStorageKey,
+  getChainConfig,
+  getExplorerAddressUrl,
+  getExplorerApiUrl,
+  getExplorerTokenUrl,
+  getExplorerTransactionUrl,
+  getPrimaryRpcUrl,
+  isSupportedChainId,
+  parseWalletStorageKey,
+  type ChainId
+} from './maCarteiraChains'
 
-const RPC_URL = 'https://rpc.pulsechain.com'
-const EXPLORER_API_URL = 'https://api.scan.pulsechain.com/api'
+export const MA_CARTEIRA_URL = 'https://ma-code.pt/produtos/ma-carteira'
+
+const DEFAULT_CHAIN = getChainConfig(DEFAULT_CHAIN_ID)
+
+export const PULSECHAIN_EXPLORER = DEFAULT_CHAIN.explorer.addressUrl
+
 const MAX_HISTORY = 120
 
 const keys = {
@@ -21,6 +36,7 @@ export type Wallet = {
   name: string
   createdAt: string
   pinned: boolean
+  chainId?: ChainId
 }
 
 export type PulseToken = {
@@ -34,6 +50,7 @@ export type PulseToken = {
 }
 
 export type WalletData = {
+  chainId: ChainId
   plsBalance: string | null
   tokens: PulseToken[]
   loading: boolean
@@ -43,6 +60,7 @@ export type WalletData = {
 
 export type Snapshot = {
   id: string
+  chainId: ChainId
   address: string
   walletName: string
   timestamp: string
@@ -66,7 +84,10 @@ export type StoredState = {
   history: HistoryMap
 }
 
-const emptyData = (): WalletData => ({
+const emptyData = (
+  chainId: ChainId = DEFAULT_CHAIN_ID
+): WalletData => ({
+  chainId,
   plsBalance: null,
   tokens: [],
   loading: false,
@@ -96,10 +117,52 @@ export const normalizeAddress = (value: string) => {
 export const isValidAddress = (value: string) =>
   /^0x[a-fA-F0-9]{40}$/.test(value)
 
-export const addressKey = (value: string) => value.toLowerCase()
+export const addressKey = (
+  value: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) =>
+  createWalletStorageKey(
+    chainId,
+    normalizeAddress(value)
+  )
 
 export const shortAddress = (value: string) =>
   `${value.slice(0, 6)}…${value.slice(-4)}`
+
+export const getWalletChainId = (
+  wallet: Pick<Wallet, 'chainId'>
+): ChainId => wallet.chainId || DEFAULT_CHAIN_ID
+
+export const getWalletExplorerUrl = (
+  wallet: Pick<Wallet, 'address' | 'chainId'>
+) =>
+  getExplorerAddressUrl(
+    wallet.address,
+    getWalletChainId(wallet)
+  )
+
+export const getAddressExplorerUrl = (
+  address: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) => getExplorerAddressUrl(address, chainId)
+
+export const getTransactionExplorerUrl = (
+  transactionHash: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) =>
+  getExplorerTransactionUrl(
+    transactionHash,
+    chainId
+  )
+
+export const getTokenExplorerUrl = (
+  contractAddress: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) =>
+  getExplorerTokenUrl(
+    contractAddress,
+    chainId
+  )
 
 const cleanWallets = (value: unknown): Wallet[] => {
   if (!Array.isArray(value)) {
@@ -117,6 +180,12 @@ const cleanWallets = (value: unknown): Wallet[] => {
       return []
     }
 
+    const chainId =
+      typeof item.chainId === 'string' &&
+      isSupportedChainId(item.chainId)
+        ? item.chainId
+        : DEFAULT_CHAIN_ID
+
     return [
       {
         address,
@@ -128,7 +197,8 @@ const cleanWallets = (value: unknown): Wallet[] => {
           typeof item.createdAt === 'string'
             ? item.createdAt
             : new Date().toISOString(),
-        pinned: Boolean(item.pinned)
+        pinned: Boolean(item.pinned),
+        chainId
       }
     ]
   })
@@ -145,10 +215,19 @@ const cleanData = (value: unknown): WalletDataMap => {
         return []
       }
 
+      const parsedKey = parseWalletStorageKey(key)
+
+      const chainId =
+        typeof item.chainId === 'string' &&
+        isSupportedChainId(item.chainId)
+          ? item.chainId
+          : parsedKey.chainId
+
       return [
         [
-          addressKey(key),
+          addressKey(parsedKey.address, chainId),
           {
+            chainId,
             plsBalance:
               typeof item.plsBalance === 'string'
                 ? item.plsBalance
@@ -183,6 +262,16 @@ const cleanHistory = (value: unknown): HistoryMap => {
         return []
       }
 
+      const parsedKey = parseWalletStorageKey(key)
+      const firstSnapshot = list.find(isRecord)
+
+      const chainId =
+        firstSnapshot &&
+        typeof firstSnapshot.chainId === 'string' &&
+        isSupportedChainId(firstSnapshot.chainId)
+          ? firstSnapshot.chainId
+          : parsedKey.chainId
+
       const snapshots = list
         .flatMap((item): Snapshot[] => {
           if (
@@ -193,20 +282,27 @@ const cleanHistory = (value: unknown): HistoryMap => {
             return []
           }
 
+          const snapshotChainId =
+            typeof item.chainId === 'string' &&
+            isSupportedChainId(item.chainId)
+              ? item.chainId
+              : chainId
+
           return [
             {
               id:
                 typeof item.id === 'string'
                   ? item.id
                   : crypto.randomUUID(),
+              chainId: snapshotChainId,
               address:
                 typeof item.address === 'string'
                   ? item.address
-                  : key,
+                  : parsedKey.address,
               walletName:
                 typeof item.walletName === 'string'
                   ? item.walletName
-                  : shortAddress(key),
+                  : shortAddress(parsedKey.address),
               timestamp: item.timestamp,
               plsBalance: item.plsBalance,
               tokenCount:
@@ -222,7 +318,15 @@ const cleanHistory = (value: unknown): HistoryMap => {
         .slice(0, MAX_HISTORY)
 
       return snapshots.length
-        ? [[addressKey(key), snapshots]]
+        ? [
+            [
+              addressKey(
+                parsedKey.address,
+                chainId
+              ),
+              snapshots
+            ]
+          ]
         : []
     })
   )
@@ -252,11 +356,22 @@ export function loadState(): StoredState {
     )
   }
 
-  const currentData = cleanData(readJson(keys.data))
-  const oldData = cleanData(readJson(keys.pulsefolioData))
-  const legacyData = cleanData(readJson(keys.legacyData))
+  const currentData = cleanData(
+    readJson(keys.data)
+  )
 
-  const currentHistory = cleanHistory(readJson(keys.history))
+  const oldData = cleanData(
+    readJson(keys.pulsefolioData)
+  )
+
+  const legacyData = cleanData(
+    readJson(keys.legacyData)
+  )
+
+  const currentHistory = cleanHistory(
+    readJson(keys.history)
+  )
+
   const oldHistory = cleanHistory(
     readJson(keys.pulsefolioHistory)
   )
@@ -286,9 +401,12 @@ export function saveState({
   localStorage.setItem(
     keys.portfolio,
     JSON.stringify({
-      version: 1,
+      version: 2,
       updatedAt: new Date().toISOString(),
-      wallets
+      wallets: wallets.map((wallet) => ({
+        ...wallet,
+        chainId: getWalletChainId(wallet)
+      }))
     })
   )
 
@@ -332,11 +450,15 @@ export function formatBalance(
       .padStart(decimals, '0')
       .replace(/0+$/, '')
 
-    fraction = fraction.slice(0, maxFraction)
+    fraction = fraction.slice(
+      0,
+      maxFraction
+    )
 
-    const formattedWhole = new Intl.NumberFormat(
-      'pt-PT'
-    ).format(whole)
+    const formattedWhole =
+      new Intl.NumberFormat(
+        'pt-PT'
+      ).format(whole)
 
     return fraction
       ? `${formattedWhole},${fraction}`
@@ -346,7 +468,9 @@ export function formatBalance(
   }
 }
 
-export function formatDateTime(value: string | null) {
+export function formatDateTime(
+  value: string | null
+) {
   if (!value) {
     return 'Nunca'
   }
@@ -359,12 +483,23 @@ export function formatDateTime(value: string | null) {
 
 const tokenValue = (token: PulseToken) => {
   try {
-    const decimals = Number(token.decimals ?? 18)
-    const balance = BigInt(token.balance ?? '0')
+    const decimals = Number(
+      token.decimals ?? 18
+    )
+
+    const balance = BigInt(
+      token.balance ?? '0'
+    )
 
     return (
       balance /
-      10n ** BigInt(Math.max(0, decimals - 6))
+      10n **
+        BigInt(
+          Math.max(
+            0,
+            decimals - 6
+          )
+        )
     )
   } catch {
     return 0n
@@ -372,9 +507,16 @@ const tokenValue = (token: PulseToken) => {
 }
 
 export async function fetchWallet(
-  address: string
+  address: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
 ): Promise<WalletData> {
-  const rpcPromise = fetch(RPC_URL, {
+  const chain = getChainConfig(chainId)
+  const rpcUrl = getPrimaryRpcUrl(chainId)
+
+  const explorerApiUrl =
+    getExplorerApiUrl(chainId)
+
+  const rpcPromise = fetch(rpcUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -388,7 +530,7 @@ export async function fetchWallet(
   }).then(async (response) => {
     if (!response.ok) {
       throw new Error(
-        'Erro ao consultar o saldo PLS.'
+        `Erro ao consultar o saldo ${chain.nativeCurrency.symbol}.`
       )
     }
 
@@ -402,7 +544,7 @@ export async function fetchWallet(
     if (data.error || !data.result) {
       throw new Error(
         data.error?.message ||
-          'Saldo PLS indisponível.'
+          `Saldo ${chain.nativeCurrency.symbol} indisponível.`
       )
     }
 
@@ -410,13 +552,13 @@ export async function fetchWallet(
   })
 
   const tokenPromise = fetch(
-    `${EXPLORER_API_URL}?module=account&action=tokenlist&address=${encodeURIComponent(
+    `${explorerApiUrl}?module=account&action=tokenlist&address=${encodeURIComponent(
       address
     )}`
   ).then(async (response) => {
     if (!response.ok) {
       throw new Error(
-        'Erro ao consultar tokens.'
+        `Erro ao consultar tokens em ${chain.name}.`
       )
     }
 
@@ -455,6 +597,7 @@ export async function fetchWallet(
     ])
 
   return {
+    chainId,
     plsBalance,
     tokens,
     loading: false,
@@ -467,8 +610,12 @@ export function createSnapshot(
   wallet: Wallet,
   data: WalletData
 ): Snapshot {
+  const chainId =
+    getWalletChainId(wallet)
+
   return {
     id: crypto.randomUUID(),
+    chainId,
     address: wallet.address,
     walletName: wallet.name,
     timestamp: new Date().toISOString(),
@@ -497,12 +644,18 @@ export function addSnapshot(
   wallet: Wallet,
   data: WalletData
 ): HistoryMap {
-  const key = addressKey(wallet.address)
+  const key = addressKey(
+    wallet.address,
+    getWalletChainId(wallet)
+  )
 
   return {
     ...history,
     [key]: [
-      createSnapshot(wallet, data),
+      createSnapshot(
+        wallet,
+        data
+      ),
       ...(history[key] || [])
     ].slice(0, MAX_HISTORY)
   }
@@ -516,7 +669,7 @@ export function exportState(
       JSON.stringify(
         {
           app: 'MA-Carteira',
-          version: 1,
+          version: 2,
           exportedAt:
             new Date().toISOString(),
           ...state
@@ -530,10 +683,14 @@ export function exportState(
     }
   )
 
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
+  const url =
+    URL.createObjectURL(blob)
+
+  const link =
+    document.createElement('a')
 
   link.href = url
+
   link.download = `ma-carteira-${new Date()
     .toISOString()
     .slice(0, 10)}.json`
@@ -561,18 +718,33 @@ export async function importState(
     )
   }
 
+  const currentWallets =
+    current.wallets.map(
+      (wallet) => ({
+        ...wallet,
+        chainId:
+          getWalletChainId(wallet)
+      })
+    )
+
   const existing = new Set(
-    current.wallets.map((wallet) =>
-      addressKey(wallet.address)
+    currentWallets.map((wallet) =>
+      addressKey(
+        wallet.address,
+        getWalletChainId(wallet)
+      )
     )
   )
 
   const wallets = [
-    ...current.wallets,
+    ...currentWallets,
     ...incomingWallets.filter(
       (wallet) =>
         !existing.has(
-          addressKey(wallet.address)
+          addressKey(
+            wallet.address,
+            getWalletChainId(wallet)
+          )
         )
     )
   ]
@@ -580,11 +752,15 @@ export async function importState(
   return {
     wallets,
     walletData: {
-      ...cleanData(parsed.walletData),
+      ...cleanData(
+        parsed.walletData
+      ),
       ...current.walletData
     },
     history: {
-      ...cleanHistory(parsed.history),
+      ...cleanHistory(
+        parsed.history
+      ),
       ...current.history
     }
   }
@@ -603,9 +779,17 @@ export function setPageMetadata() {
       )
 
     if (!element) {
-      element = document.createElement('meta')
-      element.setAttribute(attr, key)
-      document.head.appendChild(element)
+      element =
+        document.createElement('meta')
+
+      element.setAttribute(
+        attr,
+        key
+      )
+
+      document.head.appendChild(
+        element
+      )
     }
 
     element.content = content
@@ -714,12 +898,18 @@ export function setPageMetadata() {
     )
 
   if (!canonical) {
-    canonical = document.createElement('link')
+    canonical =
+      document.createElement('link')
+
     canonical.rel = 'canonical'
-    document.head.appendChild(canonical)
+
+    document.head.appendChild(
+      canonical
+    )
   }
 
-  canonical.href = MA_CARTEIRA_URL
+  canonical.href =
+    MA_CARTEIRA_URL
 
   let schema =
     document.querySelector<HTMLScriptElement>(
@@ -727,34 +917,54 @@ export function setPageMetadata() {
     )
 
   if (!schema) {
-    schema = document.createElement('script')
-    schema.type = 'application/ld+json'
-    schema.dataset.schemaId = 'ma-carteira'
-    document.head.appendChild(schema)
+    schema =
+      document.createElement('script')
+
+    schema.type =
+      'application/ld+json'
+
+    schema.dataset.schemaId =
+      'ma-carteira'
+
+    document.head.appendChild(
+      schema
+    )
   }
 
-  schema.textContent = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'MA-Carteira',
-    applicationCategory:
-      'FinanceApplication',
-    operatingSystem: 'Web',
-    url: MA_CARTEIRA_URL,
-    description,
-    creator: {
-      '@type': 'Organization',
-      name: 'MA-Code',
-      url: 'https://ma-code.pt'
-    },
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'EUR',
-      description:
-        'Funcionalidades locais gratuitas; conta cloud em preparação.'
-    }
-  })
+  schema.textContent =
+    JSON.stringify({
+      '@context':
+        'https://schema.org',
+      '@type':
+        'SoftwareApplication',
+      name:
+        'MA-Carteira',
+      applicationCategory:
+        'FinanceApplication',
+      operatingSystem:
+        'Web',
+      url:
+        MA_CARTEIRA_URL,
+      description,
+      creator: {
+        '@type':
+          'Organization',
+        name:
+          'MA-Code',
+        url:
+          'https://ma-code.pt'
+      },
+      offers: {
+        '@type':
+          'Offer',
+        price:
+          '0',
+        priceCurrency:
+          'EUR',
+        description:
+          'Funcionalidades locais gratuitas; conta cloud em preparação.'
+      }
+    })
 }
 
 export { emptyData }
