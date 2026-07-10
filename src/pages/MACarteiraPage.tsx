@@ -8,7 +8,6 @@ import {
 } from 'react'
 
 import {
-  PULSECHAIN_EXPLORER,
   addSnapshot,
   addressKey,
   clearStoredState,
@@ -17,6 +16,9 @@ import {
   fetchWallet,
   formatBalance,
   formatDateTime,
+  getTokenExplorerUrl,
+  getWalletChainId,
+  getWalletExplorerUrl,
   importState,
   isValidAddress,
   loadState,
@@ -30,18 +32,38 @@ import {
   type WalletDataMap
 } from '../lib/maCarteira'
 
+import {
+  DEFAULT_CHAIN_ID,
+  type ChainId
+} from '../lib/maCarteiraChains'
+
+import TokenPricePanel from '../components/ma-carteira/TokenPricePanel'
+
 type Toast = {
   message: string
   error?: boolean
 } | null
 
+type SelectedTokenPrice = {
+  chainId: ChainId
+  contractAddress: string
+  symbol: string
+  name: string
+}
+
 const actionButton =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
 
 function TokenList({
-  tokens
+  tokens,
+  chainId,
+  onOpenPrice
 }: {
   tokens: PulseToken[]
+  chainId: ChainId
+  onOpenPrice: (
+    token: SelectedTokenPrice
+  ) => void
 }) {
   if (!tokens.length) {
     return (
@@ -79,22 +101,56 @@ function TokenList({
           </>
         )
 
-        return contract ? (
-          <a
-            key={`${contract}-${index}`}
-            href={`${PULSECHAIN_EXPLORER}/${contract}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-between gap-4 rounded-2xl px-3 py-2.5 transition hover:bg-white/[0.05]"
-          >
-            {content}
-          </a>
-        ) : (
+        if (!contract) {
+          return (
+            <div
+              key={`${token.symbol}-${index}`}
+              className="flex items-center justify-between gap-4 rounded-2xl px-3 py-2.5"
+            >
+              {content}
+            </div>
+          )
+        }
+
+        return (
           <div
-            key={`${token.symbol}-${index}`}
-            className="flex items-center justify-between gap-4 rounded-2xl px-3 py-2.5"
+            key={`${contract}-${index}`}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl px-3 py-2.5 transition hover:bg-white/[0.05]"
           >
-            {content}
+            <a
+              href={getTokenExplorerUrl(
+                contract,
+                chainId
+              )}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="flex min-w-0 items-center justify-between gap-4"
+              title="Abrir token no explorador"
+            >
+              {content}
+            </a>
+
+            <button
+              type="button"
+              onClick={() =>
+                onOpenPrice({
+                  chainId,
+                  contractAddress: contract,
+                  symbol:
+                    token.symbol || 'TOKEN',
+                  name:
+                    token.name ||
+                    token.symbol ||
+                    'Token'
+                })
+              }
+              className="min-h-9 shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 text-xs font-bold text-emerald-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/15 hover:text-white"
+              aria-label={`Ver gráfico de preço de ${
+                token.symbol || 'token'
+              }`}
+            >
+              Gráfico
+            </button>
           </div>
         )
       })}
@@ -135,6 +191,13 @@ export default function MACarteiraPage() {
   const [toast, setToast] =
     useState<Toast>(null)
 
+  const [
+    selectedTokenPrice,
+    setSelectedTokenPrice
+  ] = useState<SelectedTokenPrice | null>(
+    null
+  )
+
   const autoRefreshStarted = useRef(false)
 
   const importInput =
@@ -151,6 +214,40 @@ export default function MACarteiraPage() {
       history
     })
   }, [wallets, walletData, history])
+
+  useEffect(() => {
+    if (
+      !selectedHistory &&
+      !selectedTokenPrice
+    ) {
+      return
+    }
+
+    const handleKeyDown = (
+      event: KeyboardEvent
+    ) => {
+      if (event.key !== 'Escape') {
+        return
+      }
+
+      setSelectedHistory(null)
+      setSelectedTokenPrice(null)
+    }
+
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    )
+
+    return () =>
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      )
+  }, [
+    selectedHistory,
+    selectedTokenPrice
+  ])
 
   useEffect(() => {
     if (!toast) {
@@ -183,10 +280,12 @@ export default function MACarteiraPage() {
     if (!addresses.length) {
       return
     }
-    
-const keys = new Set(
-  addresses.map((address) => addressKey(address))
-)
+
+    const keys = new Set(
+      addresses.map((address) =>
+        addressKey(address)
+      )
+    )
 
     setWalletData((current) =>
       Object.fromEntries(
@@ -421,6 +520,7 @@ const keys = new Set(
 
     const wallet: Wallet = {
       address,
+      chainId: DEFAULT_CHAIN_ID,
       name:
         walletName.trim().slice(0, 40) ||
         `Carteira ${wallets.length + 1}`,
@@ -589,8 +689,10 @@ const keys = new Set(
   const selectedWallet = selectedHistory
     ? wallets.find(
         (wallet) =>
-          addressKey(wallet.address) ===
-          selectedHistory
+          addressKey(
+            wallet.address,
+            getWalletChainId(wallet)
+          ) === selectedHistory
       )
     : null
 
@@ -966,8 +1068,12 @@ const keys = new Set(
               <div className="grid gap-5 lg:grid-cols-2">
                 {filteredWallets.map(
                   (wallet) => {
+                    const chainId =
+                      getWalletChainId(wallet)
+
                     const key = addressKey(
-                      wallet.address
+                      wallet.address,
+                      chainId
                     )
 
                     const data =
@@ -1153,6 +1259,10 @@ const keys = new Set(
                           ) : (
                             <TokenList
                               tokens={data.tokens}
+                              chainId={chainId}
+                              onOpenPrice={
+                                setSelectedTokenPrice
+                              }
                             />
                           )}
                         </div>
@@ -1167,9 +1277,11 @@ const keys = new Set(
                           </span>
 
                           <a
-                            href={`${PULSECHAIN_EXPLORER}/${wallet.address}`}
+                            href={getWalletExplorerUrl(
+                              wallet
+                            )}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noreferrer noopener"
                             className="font-semibold text-emerald-300 hover:text-emerald-200"
                           >
                             Explorador ↗
@@ -1201,6 +1313,39 @@ const keys = new Set(
           </footer>
         </div>
       </section>
+
+      {selectedTokenPrice ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Gráfico de preço de ${selectedTokenPrice.symbol}`}
+          onMouseDown={(event) =>
+            event.currentTarget === event.target &&
+            setSelectedTokenPrice(null)
+          }
+        >
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto">
+            <TokenPricePanel
+              contractAddress={
+                selectedTokenPrice.contractAddress
+              }
+              chainId={
+                selectedTokenPrice.chainId
+              }
+              tokenSymbol={
+                selectedTokenPrice.symbol
+              }
+              tokenName={
+                selectedTokenPrice.name
+              }
+              onClose={() =>
+                setSelectedTokenPrice(null)
+              }
+            />
+          </div>
+        </div>
+      ) : null}
 
       {selectedHistory ? (
         <div
