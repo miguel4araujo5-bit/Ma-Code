@@ -7,7 +7,11 @@ import {
   type DragEvent
 } from 'react'
 import { zipSync } from 'fflate'
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { PDFDocument } from 'pdf-lib'
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 const siteUrl = 'https://ma-code.pt'
 
@@ -15,9 +19,13 @@ const MBWAY_NUMBER = '936840619'
 
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
 
+const MAX_JPG_CANVAS_DIMENSION = 8192
+
+const MAX_JPG_CANVAS_PIXELS = 32_000_000
+
 type ToolAccent = 'cyan' | 'blue' | 'violet' | 'emerald' | 'amber' | 'orange'
 
-type ActiveTool = 'merge' | 'split' | 'compress'
+type ActiveTool = 'merge' | 'split' | 'compress' | 'pdfToJpg'
 
 type PdfTool = {
   id: string
@@ -43,6 +51,8 @@ type ResultData = {
 }
 
 type SplitMode = 'ranges' | 'individual'
+
+type JpgQuality = 'standard' | 'high'
 
 const pdfTools: PdfTool[] = [
   {
@@ -107,10 +117,11 @@ const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-jpg',
     title: 'PDF para JPG',
-    description: 'Extraia imagens ou converta páginas PDF para JPG.',
+    description: 'Converta cada página do PDF numa imagem JPG.',
     badge: 'JPG',
     accent: 'amber',
-    available: false
+    activeTool: 'pdfToJpg',
+    available: true
   },
   {
     id: 'jpg-para-pdf',
@@ -284,6 +295,40 @@ function isPdfFile(file: File) {
     file.type === 'application/pdf' ||
     file.name.toLowerCase().endsWith('.pdf')
   )
+}
+
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Não foi possível criar a imagem JPG.'))
+          return
+        }
+
+        resolve(blob)
+      },
+      'image/jpeg',
+      quality
+    )
+  })
+}
+
+async function blobToUint8Array(blob: Blob) {
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+function getSafeJpgScale(width: number, height: number, desiredScale: number) {
+  const dimensionScale = Math.min(
+    MAX_JPG_CANVAS_DIMENSION / width,
+    MAX_JPG_CANVAS_DIMENSION / height
+  )
+
+  const pixelScale = Math.sqrt(
+    MAX_JPG_CANVAS_PIXELS / Math.max(width * height, 1)
+  )
+
+  return Math.max(0.5, Math.min(desiredScale, dimensionScale, pixelScale))
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -775,6 +820,7 @@ export default function MAPdfPage() {
   const [selectedFiles, setSelectedFiles] = useState<SelectedPdf[]>([])
   const [splitMode, setSplitMode] = useState<SplitMode>('ranges')
   const [splitRanges, setSplitRanges] = useState('1-3')
+  const [jpgQuality, setJpgQuality] = useState<JpgQuality>('standard')
   const [isProcessing, setIsProcessing] = useState(false)
   const [progressMessage, setProgressMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -797,16 +843,17 @@ export default function MAPdfPage() {
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'MA PDF | Juntar, dividir e comprimir PDF gratuitamente'
+    document.title =
+      'MA PDF | Juntar, dividir, comprimir e converter PDF para JPG'
 
     updateMeta(
       'description',
-      'Junte, divida e comprima documentos PDF gratuitamente no navegador. Os ficheiros permanecem no seu dispositivo e não são enviados para servidores.'
+      'Junte, divida, comprima e converta documentos PDF para JPG gratuitamente no navegador. Os ficheiros permanecem no seu dispositivo e não são enviados para servidores.'
     )
 
     updateMeta(
       'keywords',
-      'MA PDF, juntar PDF, dividir PDF, comprimir PDF, ferramentas PDF grátis, PDF online, PDF privado, MA-Code'
+      'MA PDF, juntar PDF, dividir PDF, comprimir PDF, PDF para JPG, converter PDF em imagem, ferramentas PDF grátis, PDF online, PDF privado, MA-Code'
     )
 
     updateMeta(
@@ -820,11 +867,11 @@ export default function MAPdfPage() {
     updatePropertyMeta('og:url', `${siteUrl}/produtos/mapdf`)
     updatePropertyMeta(
       'og:title',
-      'MA PDF | Juntar, dividir e comprimir PDF gratuitamente'
+      'MA PDF | Juntar, dividir, comprimir e converter PDF para JPG'
     )
     updatePropertyMeta(
       'og:description',
-      'Ferramentas PDF gratuitas e privadas. Junte, divida e otimize ficheiros diretamente no navegador.'
+      'Ferramentas PDF gratuitas e privadas. Junte, divida, otimize e converta páginas PDF para JPG diretamente no navegador.'
     )
     updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
     updatePropertyMeta('og:image:alt', 'MA PDF - ferramentas PDF da MA-Code')
@@ -833,11 +880,11 @@ export default function MAPdfPage() {
     updateMeta('twitter:url', `${siteUrl}/produtos/mapdf`)
     updateMeta(
       'twitter:title',
-      'MA PDF | Juntar, dividir e comprimir PDF gratuitamente'
+      'MA PDF | Juntar, dividir, comprimir e converter PDF para JPG'
     )
     updateMeta(
       'twitter:description',
-      'Ferramentas PDF gratuitas que processam os documentos diretamente no navegador.'
+      'Ferramentas PDF gratuitas que juntam, dividem, otimizam e convertem documentos para JPG diretamente no navegador.'
     )
     updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
     updateMeta('twitter:image:alt', 'MA PDF - ferramentas PDF da MA-Code')
@@ -850,11 +897,11 @@ export default function MAPdfPage() {
         {
           '@type': 'WebPage',
           '@id': `${siteUrl}/produtos/mapdf#webpage`,
-          name: 'MA PDF | Juntar, dividir e comprimir PDF gratuitamente',
+          name: 'MA PDF | Juntar, dividir, comprimir e converter PDF para JPG',
           url: `${siteUrl}/produtos/mapdf`,
           inLanguage: 'pt-PT',
           description:
-            'Ferramentas PDF gratuitas para juntar, dividir e otimizar documentos diretamente no navegador.',
+            'Ferramentas PDF gratuitas para juntar, dividir, otimizar e converter documentos para JPG diretamente no navegador.',
           isPartOf: {
             '@id': `${siteUrl}/#website`
           }
@@ -867,7 +914,7 @@ export default function MAPdfPage() {
           operatingSystem: 'Web',
           url: `${siteUrl}/produtos/mapdf`,
           description:
-            'Ferramentas PDF gratuitas para juntar, dividir e otimizar documentos sem enviar os ficheiros para servidores.',
+            'Ferramentas PDF gratuitas para juntar, dividir, otimizar e converter páginas PDF para JPG sem enviar os ficheiros para servidores.',
           offers: {
             '@type': 'Offer',
             price: '0',
@@ -877,6 +924,7 @@ export default function MAPdfPage() {
             'Juntar ficheiros PDF',
             'Dividir PDF por páginas ou intervalos',
             'Otimizar a estrutura de ficheiros PDF',
+            'Converter páginas PDF para imagens JPG',
             'Processamento local no navegador'
           ],
           creator: {
@@ -893,6 +941,7 @@ export default function MAPdfPage() {
     setSelectedFiles([])
     setSplitMode('ranges')
     setSplitRanges('1-3')
+    setJpgQuality('standard')
     setProgressMessage('')
     setErrorMessage('')
     setResult(null)
@@ -1220,6 +1269,120 @@ export default function MAPdfPage() {
     }
   }
 
+  const processPdfToJpg = async () => {
+    const selected = selectedFiles[0]
+
+    if (!selected) {
+      throw new Error('Escolha um ficheiro PDF para converter para JPG.')
+    }
+
+    setProgressMessage('A preparar o conversor de PDF para JPG...')
+
+    const data = new Uint8Array(await selected.file.arrayBuffer())
+    const loadingTask = getDocument({ data })
+
+    try {
+      const pdfDocument = await loadingTask.promise
+      const pageCount = pdfDocument.numPages
+
+      if (pageCount === 0) {
+        throw new Error('O documento não contém páginas.')
+      }
+
+      const desiredScale = jpgQuality === 'high' ? 2.5 : 1.75
+      const jpegQuality = jpgQuality === 'high' ? 0.94 : 0.86
+      const baseName = sanitizeFileName(selected.file.name)
+      const zipFiles: Record<string, Uint8Array> = {}
+      let singlePageBlob: Blob | null = null
+
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        setProgressMessage(
+          `A converter página ${pageNumber} de ${pageCount} para JPG...`
+        )
+
+        const page = await pdfDocument.getPage(pageNumber)
+        const baseViewport = page.getViewport({ scale: 1 })
+        const safeScale = getSafeJpgScale(
+          baseViewport.width,
+          baseViewport.height,
+          desiredScale
+        )
+        const viewport = page.getViewport({ scale: safeScale })
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d', {
+          alpha: false
+        })
+
+        if (!context) {
+          throw new Error(
+            'O navegador não conseguiu preparar a imagem desta página.'
+          )
+        }
+
+        canvas.width = Math.max(1, Math.ceil(viewport.width))
+        canvas.height = Math.max(1, Math.ceil(viewport.height))
+
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+          background: 'rgb(255, 255, 255)'
+        }).promise
+
+        const jpgBlob = await canvasToJpegBlob(canvas, jpegQuality)
+        const pageNumberText = String(pageNumber).padStart(
+          String(pageCount).length,
+          '0'
+        )
+        const jpgFileName = `${baseName}-pagina-${pageNumberText}.jpg`
+
+        if (pageCount === 1) {
+          singlePageBlob = jpgBlob
+        } else {
+          zipFiles[jpgFileName] = await blobToUint8Array(jpgBlob)
+        }
+
+        page.cleanup()
+        canvas.width = 1
+        canvas.height = 1
+      }
+
+      if (pageCount === 1 && singlePageBlob) {
+        return {
+          fileName: `${baseName}-pagina-1.jpg`,
+          blob: singlePageBlob,
+          originalSize: selected.file.size,
+          finalSize: singlePageBlob.size,
+          message: 'A página do PDF foi convertida para uma imagem JPG.'
+        }
+      }
+
+      setProgressMessage('A criar o ficheiro ZIP com as imagens JPG...')
+
+      const zipBytes = zipSync(zipFiles, {
+        level: 0
+      })
+
+      const blob = new Blob([bytesToArrayBuffer(zipBytes)], {
+        type: 'application/zip'
+      })
+
+      return {
+        fileName: `${baseName}-paginas-jpg.zip`,
+        blob,
+        originalSize: selected.file.size,
+        finalSize: blob.size,
+        message: `${pageCount} páginas foram convertidas para JPG e organizadas num ficheiro ZIP.`
+      }
+    } finally {
+      try {
+        await loadingTask.destroy()
+      } catch {
+        // O resultado já foi criado; a limpeza do worker não deve bloquear o download.
+      }
+    }
+  }
+
   const processCurrentTool = async () => {
     if (isProcessing) {
       return
@@ -1236,8 +1399,10 @@ export default function MAPdfPage() {
         generatedResult = await processMerge()
       } else if (activeTool === 'split') {
         generatedResult = await processSplit()
-      } else {
+      } else if (activeTool === 'compress') {
         generatedResult = await processCompress()
+      } else {
+        generatedResult = await processPdfToJpg()
       }
 
       setResult(generatedResult)
@@ -1279,7 +1444,9 @@ export default function MAPdfPage() {
         ? splitMode === 'individual'
           ? 'Separar todas as páginas'
           : 'Extrair páginas selecionadas'
-        : 'Otimizar PDF'
+        : activeTool === 'compress'
+          ? 'Otimizar PDF'
+          : 'Converter PDF para JPG'
 
   return (
     <main className="site-shell">
@@ -1343,9 +1510,9 @@ export default function MAPdfPage() {
               </h1>
 
               <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-                Junte, divida e otimize documentos PDF diretamente no navegador.
-                Os seus ficheiros permanecem no seu dispositivo e nunca são
-                enviados para os nossos servidores.
+                Junte, divida, otimize e converta documentos PDF para JPG
+                diretamente no navegador. Os seus ficheiros permanecem no seu
+                dispositivo e nunca são enviados para os nossos servidores.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -1396,8 +1563,8 @@ export default function MAPdfPage() {
             </h2>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              As três primeiras ferramentas já estão disponíveis. As restantes
-              serão adicionadas progressivamente.
+              Quatro ferramentas já estão disponíveis. As restantes serão
+              adicionadas progressivamente.
             </p>
           </div>
 
@@ -1555,6 +1722,57 @@ export default function MAPdfPage() {
                     elimina armazenamento ineficiente. Documentos compostos por
                     fotografias já comprimidas podem não apresentar uma redução
                     significativa sem diminuir a qualidade das imagens.
+                  </p>
+                </div>
+              ) : null}
+
+              {activeTool === 'pdfToJpg' && selectedFiles.length === 1 ? (
+                <div className="mt-6 rounded-[1.6rem] border border-amber-300/20 bg-amber-300/[0.06] p-5">
+                  <span className="input-label">Qualidade das imagens JPG</span>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setJpgQuality('standard')}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        jpgQuality === 'standard'
+                          ? 'border-amber-200/40 bg-amber-300/10'
+                          : 'border-white/10 bg-white/[0.03] hover:border-amber-200/25'
+                      }`}
+                    >
+                      <strong className="block text-sm text-white">
+                        Qualidade normal
+                      </strong>
+
+                      <span className="mt-2 block text-xs leading-5 text-slate-400">
+                        Boa definição e ficheiros mais leves para enviar ou
+                        publicar.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setJpgQuality('high')}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        jpgQuality === 'high'
+                          ? 'border-amber-200/40 bg-amber-300/10'
+                          : 'border-white/10 bg-white/[0.03] hover:border-amber-200/25'
+                      }`}
+                    >
+                      <strong className="block text-sm text-white">
+                        Alta qualidade
+                      </strong>
+
+                      <span className="mt-2 block text-xs leading-5 text-slate-400">
+                        Mais resolução para impressão, arquivo ou detalhe visual.
+                      </span>
+                    </button>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-5 text-slate-400">
+                    Um PDF com uma página gera um JPG. Documentos com várias
+                    páginas são entregues num ficheiro ZIP com uma imagem por
+                    página.
                   </p>
                 </div>
               ) : null}
