@@ -8,9 +8,16 @@ import {
 export const MA_CARTEIRA_PRICES_PATH =
   '/api/ma-carteira/token-price-history'
 
-export const PRICE_PERIODS = ['24H', '7D', '30D', '90D', '1A'] as const
+export const PRICE_PERIODS = [
+  '24H',
+  '7D',
+  '30D',
+  '90D',
+  '1A'
+] as const
 
-export type PricePeriod = (typeof PRICE_PERIODS)[number]
+export type PricePeriod =
+  (typeof PRICE_PERIODS)[number]
 
 export type MaCarteiraPricePoint = {
   timestamp: string
@@ -40,7 +47,8 @@ export type MaCarteiraPriceHistory = {
   points: MaCarteiraPricePoint[]
 }
 
-type UnknownRecord = Record<string, unknown>
+type UnknownRecord =
+  Record<string, unknown>
 
 type PeriodConfig = {
   timeframe: 'hour' | 'day'
@@ -54,33 +62,49 @@ type PoolSelection = {
   poolAddress: string
 }
 
+type OhlcvResult = {
+  points: MaCarteiraPricePoint[]
+  baseAddress: string
+  quoteAddress: string
+}
+
 const GECKOTERMINAL_API =
   'https://api.geckoterminal.com/api/v2'
 
-const GECKOTERMINAL_VERSION = '20230203'
-const REQUEST_TIMEOUT_MS = 15_000
+const GECKOTERMINAL_VERSION =
+  '20230203'
 
-const PERIOD_CONFIG: Record<PricePeriod, PeriodConfig> = {
+const REQUEST_TIMEOUT_MS =
+  15_000
+
+const PERIOD_CONFIG: Record<
+  PricePeriod,
+  PeriodConfig
+> = {
   '24H': {
     timeframe: 'hour',
     aggregate: 1,
     limit: 24
   },
+
   '7D': {
     timeframe: 'hour',
     aggregate: 4,
     limit: 42
   },
+
   '30D': {
     timeframe: 'day',
     aggregate: 1,
     limit: 30
   },
+
   '90D': {
     timeframe: 'day',
     aggregate: 1,
     limit: 90
   },
+
   '1A': {
     timeframe: 'day',
     aggregate: 1,
@@ -88,7 +112,8 @@ const PERIOD_CONFIG: Record<PricePeriod, PeriodConfig> = {
   }
 }
 
-export class MaCarteiraPricesError extends Error {
+export class MaCarteiraPricesError
+  extends Error {
   status: number
 
   constructor(
@@ -97,7 +122,9 @@ export class MaCarteiraPricesError extends Error {
   ) {
     super(message)
 
-    this.name = 'MaCarteiraPricesError'
+    this.name =
+      'MaCarteiraPricesError'
+
     this.status = status
   }
 }
@@ -109,12 +136,16 @@ const isRecord = (
   value !== null &&
   !Array.isArray(value)
 
-const asRecord = (value: unknown) =>
+const asRecord = (
+  value: unknown
+) =>
   isRecord(value)
     ? value
     : null
 
-const toStringValue = (value: unknown) => {
+const toStringValue = (
+  value: unknown
+) => {
   if (typeof value === 'string') {
     return value
   }
@@ -134,7 +165,9 @@ const readString = (
   key: string
 ) =>
   record
-    ? toStringValue(record[key]).trim()
+    ? toStringValue(
+        record[key]
+      ).trim()
     : ''
 
 const readNumber = (
@@ -151,26 +184,41 @@ const readNumber = (
     : fallback
 }
 
-const normalizeAddress = (value: string) => {
+const normalizeAddress = (
+  value: string
+) => {
   const clean = value.trim()
 
-  return clean && !clean.startsWith('0x')
+  return (
+    clean &&
+    !clean.startsWith('0x')
+  )
     ? `0x${clean}`
     : clean
 }
 
-const isValidEvmAddress = (value: string) =>
-  /^0x[a-fA-F0-9]{40}$/.test(value)
+const isValidEvmAddress = (
+  value: string
+) =>
+  /^0x[a-fA-F0-9]{40}$/.test(
+    value
+  )
 
 const getRequestedChainId = (
   url: URL
 ): ChainId => {
   const requested = (
-    url.searchParams.get('chainId') ||
+    url.searchParams.get(
+      'chainId'
+    ) ||
     DEFAULT_CHAIN_ID
   ).trim()
 
-  if (!isSupportedChainId(requested)) {
+  if (
+    !isSupportedChainId(
+      requested
+    )
+  ) {
     throw new MaCarteiraPricesError(
       'A rede indicada ainda não é suportada.',
       400
@@ -184,7 +232,9 @@ const getRequestedPeriod = (
   url: URL
 ): PricePeriod => {
   const requested = (
-    url.searchParams.get('period') ||
+    url.searchParams.get(
+      'period'
+    ) ||
     '7D'
   ).toUpperCase()
 
@@ -205,7 +255,8 @@ const getRequestedPeriod = (
 const fetchJson = async (
   url: string
 ): Promise<unknown> => {
-  const controller = new AbortController()
+  const controller =
+    new AbortController()
 
   const timer = setTimeout(
     () => controller.abort(),
@@ -213,22 +264,31 @@ const fetchJson = async (
   )
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        Accept:
-          `application/json;version=${GECKOTERMINAL_VERSION}`
-      },
-      signal: controller.signal
-    })
+    const response = await fetch(
+      url,
+      {
+        headers: {
+          Accept:
+            `application/json;version=${GECKOTERMINAL_VERSION}`
+        },
 
-    if (response.status === 404) {
+        signal:
+          controller.signal
+      }
+    )
+
+    if (
+      response.status === 404
+    ) {
       throw new MaCarteiraPricesError(
         'Não foi encontrado um mercado com preço para este token.',
         404
       )
     }
 
-    if (response.status === 429) {
+    if (
+      response.status === 429
+    ) {
       throw new MaCarteiraPricesError(
         'O serviço de preços atingiu temporariamente o limite de pedidos. Tente novamente dentro de alguns segundos.',
         429
@@ -259,8 +319,9 @@ const fetchJson = async (
     }
 
     if (
-      error instanceof DOMException &&
-      error.name === 'AbortError'
+      error instanceof Error &&
+      error.name ===
+        'AbortError'
     ) {
       throw new MaCarteiraPricesError(
         'O serviço de preços demorou demasiado tempo a responder.',
@@ -280,8 +341,30 @@ const fetchJson = async (
 const getResourceAddress = (
   value: unknown
 ) => {
-  const record = asRecord(value)
-  const id = readString(record, 'id')
+  const record =
+    asRecord(value)
+
+  const attributes =
+    asRecord(
+      record?.attributes
+    )
+
+  const attributeAddress =
+    readString(
+      attributes,
+      'address'
+    )
+
+  if (attributeAddress) {
+    return attributeAddress
+      .toLowerCase()
+  }
+
+  const id =
+    readString(
+      record,
+      'id'
+    )
 
   if (!id) {
     return ''
@@ -292,7 +375,9 @@ const getResourceAddress = (
 
   return (
     separatorIndex >= 0
-      ? id.slice(separatorIndex + 1)
+      ? id.slice(
+          separatorIndex + 1
+        )
       : id
   ).toLowerCase()
 }
@@ -302,11 +387,15 @@ const getRelationshipAddress = (
   relationship: string
 ) => {
   const relationships =
-    asRecord(pool.relationships)
+    asRecord(
+      pool.relationships
+    )
 
   const relationshipRecord =
     asRecord(
-      relationships?.[relationship]
+      relationships?.[
+        relationship
+      ]
     )
 
   return getResourceAddress(
@@ -318,7 +407,9 @@ const getPoolAddress = (
   pool: UnknownRecord
 ) => {
   const attributes =
-    asRecord(pool.attributes)
+    asRecord(
+      pool.attributes
+    )
 
   const address =
     readString(
@@ -330,14 +421,18 @@ const getPoolAddress = (
     return address
   }
 
-  return getResourceAddress(pool)
+  return getResourceAddress(
+    pool
+  )
 }
 
 const getPoolScore = (
   pool: UnknownRecord
 ) => {
   const attributes =
-    asRecord(pool.attributes)
+    asRecord(
+      pool.attributes
+    )
 
   const volume =
     asRecord(
@@ -346,12 +441,20 @@ const getPoolScore = (
 
   const liquidity =
     readNumber(
-      attributes?.reserve_in_usd
+      attributes
+        ?.reserve_in_usd
     )
 
   const volume24h =
-    readNumber(volume?.h24)
+    readNumber(
+      volume?.h24
+    )
 
+  /*
+   * A liquidez é o fator principal.
+   * O volume de 24 horas funciona
+   * como critério de desempate.
+   */
   return (
     liquidity * 1000 +
     volume24h
@@ -385,7 +488,9 @@ const selectPool = (
             )
 
           const poolAddress =
-            getPoolAddress(pool)
+            getPoolAddress(
+              pool
+            )
 
           if (!poolAddress) {
             return []
@@ -398,7 +503,8 @@ const selectPool = (
             return [
               {
                 pool,
-                tokenSide: 'base',
+                tokenSide:
+                  'base',
                 poolAddress
               }
             ]
@@ -411,7 +517,8 @@ const selectPool = (
             return [
               {
                 pool,
-                tokenSide: 'quote',
+                tokenSide:
+                  'quote',
                 poolAddress
               }
             ]
@@ -421,7 +528,10 @@ const selectPool = (
         }
       )
       .sort(
-        (first, second) =>
+        (
+          first,
+          second
+        ) =>
           getPoolScore(
             second.pool
           ) -
@@ -456,11 +566,15 @@ const findIncludedToken = (
           )
 
         const address =
-          readString(
-            attributes,
-            'address'
-          ).toLowerCase() ||
-          getResourceAddress(item)
+          (
+            readString(
+              attributes,
+              'address'
+            ) ||
+            getResourceAddress(
+              item
+            )
+          ).toLowerCase()
 
         return (
           address ===
@@ -470,101 +584,190 @@ const findIncludedToken = (
   )
 }
 
+const getOhlcvMetaAddress = (
+  response: UnknownRecord,
+  side: 'base' | 'quote'
+) => {
+  const meta =
+    asRecord(
+      response.meta
+    )
+
+  const token =
+    asRecord(
+      meta?.[side]
+    )
+
+  return readString(
+    token,
+    'address'
+  ).toLowerCase()
+}
+
 const normalizePricePoints = (
   response: unknown
-): MaCarteiraPricePoint[] => {
+): OhlcvResult => {
   const root =
     asRecord(response)
 
   const data =
-    asRecord(root?.data)
+    asRecord(
+      root?.data
+    )
 
   const attributes =
-    asRecord(data?.attributes)
+    asRecord(
+      data?.attributes
+    )
 
   const rows =
     attributes?.ohlcv_list
 
   if (!Array.isArray(rows)) {
-    return []
+    return {
+      points: [],
+      baseAddress: '',
+      quoteAddress: ''
+    }
   }
 
-  return rows
-    .flatMap(
-      (
-        row
-      ): MaCarteiraPricePoint[] => {
-        if (
-          !Array.isArray(row) ||
-          row.length < 6
-        ) {
-          return []
-        }
+  const byTimestamp =
+    new Map<
+      number,
+      MaCarteiraPricePoint
+    >()
 
-        const timestamp =
-          readNumber(row[0])
+  rows.forEach((row) => {
+    if (
+      !Array.isArray(row) ||
+      row.length < 6
+    ) {
+      return
+    }
 
-        const open =
-          readNumber(
-            row[1],
-            Number.NaN
-          )
+    /*
+     * GeckoTerminal:
+     * [
+     *   timestamp,
+     *   open,
+     *   high,
+     *   low,
+     *   close,
+     *   volume
+     * ]
+     */
+    const timestamp =
+      readNumber(row[0])
 
-        const high =
-          readNumber(
-            row[2],
-            Number.NaN
-          )
+    const open =
+      readNumber(
+        row[1],
+        Number.NaN
+      )
 
-        const low =
-          readNumber(
-            row[3],
-            Number.NaN
-          )
+    const high =
+      readNumber(
+        row[2],
+        Number.NaN
+      )
 
-        const close =
-          readNumber(
-            row[4],
-            Number.NaN
-          )
+    const low =
+      readNumber(
+        row[3],
+        Number.NaN
+      )
 
-        const volume =
-          readNumber(row[5])
+    const close =
+      readNumber(
+        row[4],
+        Number.NaN
+      )
 
-        if (
-          !timestamp ||
-          !Number.isFinite(open) ||
-          !Number.isFinite(high) ||
-          !Number.isFinite(low) ||
-          !Number.isFinite(close)
-        ) {
-          return []
-        }
+    const volume =
+      readNumber(
+        row[5]
+      )
 
-        return [
-          {
-            timestamp:
-              new Date(
-                timestamp * 1000
-              ).toISOString(),
-            open,
-            high,
-            low,
-            close,
+    if (
+      timestamp <= 0 ||
+      !Number.isFinite(open) ||
+      !Number.isFinite(high) ||
+      !Number.isFinite(low) ||
+      !Number.isFinite(close) ||
+      open <= 0 ||
+      high <= 0 ||
+      low <= 0 ||
+      close <= 0
+    ) {
+      return
+    }
+
+    byTimestamp.set(
+      timestamp,
+      {
+        timestamp:
+          new Date(
+            timestamp * 1000
+          ).toISOString(),
+
+        open,
+
+        high: Math.max(
+          open,
+          high,
+          low,
+          close
+        ),
+
+        low: Math.min(
+          open,
+          high,
+          low,
+          close
+        ),
+
+        close,
+
+        volume:
+          Number.isFinite(
             volume
-          }
-        ]
+          ) &&
+          volume > 0
+            ? volume
+            : 0
       }
     )
-    .sort(
-      (first, second) =>
-        new Date(
-          first.timestamp
-        ).getTime() -
-        new Date(
-          second.timestamp
-        ).getTime()
-    )
+  })
+
+  return {
+    points: [
+      ...byTimestamp.entries()
+    ]
+      .sort(
+        (
+          [firstTimestamp],
+          [secondTimestamp]
+        ) =>
+          firstTimestamp -
+          secondTimestamp
+      )
+      .map(
+        ([, point]) =>
+          point
+      ),
+
+    baseAddress:
+      getOhlcvMetaAddress(
+        root || {},
+        'base'
+      ),
+
+    quoteAddress:
+      getOhlcvMetaAddress(
+        root || {},
+        'quote'
+      )
+  }
 }
 
 const getTokenMetadata = (
@@ -581,11 +784,14 @@ const getTokenMetadata = (
 
   const includedAttributes =
     asRecord(
-      includedToken?.attributes
+      includedToken
+        ?.attributes
     )
 
   const poolAttributes =
-    asRecord(pool.attributes)
+    asRecord(
+      pool.attributes
+    )
 
   const poolName =
     readString(
@@ -603,27 +809,24 @@ const getTokenMetadata = (
       ]
       ?.trim()
 
+  const symbol =
+    readString(
+      includedAttributes,
+      'symbol'
+    ) ||
+    fallbackSymbol ||
+    'TOKEN'
+
+  const name =
+    readString(
+      includedAttributes,
+      'name'
+    ) ||
+    symbol
+
   return {
-    symbol:
-      readString(
-        includedAttributes,
-        'symbol'
-      ) ||
-      fallbackSymbol ||
-      'TOKEN',
-
-    name:
-      readString(
-        includedAttributes,
-        'name'
-      ) ||
-      readString(
-        includedAttributes,
-        'symbol'
-      ) ||
-      fallbackSymbol ||
-      'Token',
-
+    symbol,
+    name,
     poolName,
 
     liquidityUsd:
@@ -634,17 +837,153 @@ const getTokenMetadata = (
   }
 }
 
+const fetchCorrectTokenOhlcv =
+  async (
+    networkId: string,
+    selectedPool: PoolSelection,
+    contractAddress: string,
+    config: PeriodConfig
+  ): Promise<OhlcvResult> => {
+    /*
+     * Primeiro pedimos explicitamente o
+     * contrato selecionado.
+     *
+     * O base/quote fica apenas como fallback
+     * para compatibilidade com respostas
+     * antigas do serviço.
+     */
+    const tokenSelectors = [
+      contractAddress,
+      selectedPool.tokenSide
+    ]
+
+    let lastResponse:
+      | OhlcvResult
+      | null = null
+
+    for (
+      const tokenSelector of
+      tokenSelectors
+    ) {
+      const ohlcvUrl =
+        new URL(
+          `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
+            networkId
+          )}/pools/${encodeURIComponent(
+            selectedPool
+              .poolAddress
+          )}/ohlcv/${config.timeframe}`
+        )
+
+      ohlcvUrl.searchParams.set(
+        'aggregate',
+        String(
+          config.aggregate
+        )
+      )
+
+      ohlcvUrl.searchParams.set(
+        'limit',
+        String(
+          config.limit
+        )
+      )
+
+      ohlcvUrl.searchParams.set(
+        'currency',
+        'usd'
+      )
+
+      ohlcvUrl.searchParams.set(
+        'token',
+        tokenSelector
+      )
+
+      ohlcvUrl.searchParams.set(
+        'include_empty_intervals',
+        'true'
+      )
+
+      const response =
+        await fetchJson(
+          ohlcvUrl.toString()
+        )
+
+      const normalized =
+        normalizePricePoints(
+          response
+        )
+
+      lastResponse =
+        normalized
+
+      if (
+        !normalized
+          .points.length
+      ) {
+        continue
+      }
+
+      const requested =
+        contractAddress
+          .toLowerCase()
+
+      /*
+       * Quando a resposta inclui meta.base,
+       * confirmamos que corresponde ao
+       * contrato selecionado.
+       *
+       * Assim evitamos mostrar o gráfico
+       * do outro ativo da pool.
+       */
+      if (
+        !normalized
+          .baseAddress ||
+        normalized
+          .baseAddress ===
+          requested
+      ) {
+        return normalized
+      }
+    }
+
+    /*
+     * Algumas respostas antigas podem não
+     * incluir metadata. Nesse caso aceitamos
+     * apenas uma resposta com pontos válidos.
+     */
+    if (
+      lastResponse
+        ?.points.length &&
+      !lastResponse
+        .baseAddress
+    ) {
+      return lastResponse
+    }
+
+    throw new MaCarteiraPricesError(
+      'O serviço de preços devolveu dados do ativo oposto da pool. Tente novamente mais tarde.',
+      502
+    )
+  }
+
 export async function getMaCarteiraPriceHistory(
   url: URL
 ): Promise<MaCarteiraPriceHistory> {
   const chainId =
-    getRequestedChainId(url)
+    getRequestedChainId(
+      url
+    )
 
   const chain =
-    getChainConfig(chainId)
+    getChainConfig(
+      chainId
+    )
 
   const period =
-    getRequestedPeriod(url)
+    getRequestedPeriod(
+      url
+    )
 
   const contractAddress =
     normalizeAddress(
@@ -658,7 +997,8 @@ export async function getMaCarteiraPriceHistory(
     )
 
   if (
-    chain.status !== 'active'
+    chain.status !==
+    'active'
   ) {
     throw new MaCarteiraPricesError(
       `${chain.name} ainda não está ativa na MA-Carteira.`,
@@ -698,13 +1038,14 @@ export async function getMaCarteiraPriceHistory(
   const networkId =
     chain.price.networkId
 
-  const poolsUrl = new URL(
-    `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
-      networkId
-    )}/tokens/${encodeURIComponent(
-      contractAddress
-    )}/pools`
-  )
+  const poolsUrl =
+    new URL(
+      `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
+        networkId
+      )}/tokens/${encodeURIComponent(
+        contractAddress
+      )}/pools`
+    )
 
   poolsUrl.searchParams.set(
     'page',
@@ -752,9 +1093,9 @@ export async function getMaCarteiraPriceHistory(
   }
 
   if (
-    chain.evm &&
     !isValidEvmAddress(
-      selectedPool.poolAddress
+      selectedPool
+        .poolAddress
     )
   ) {
     throw new MaCarteiraPricesError(
@@ -764,50 +1105,20 @@ export async function getMaCarteiraPriceHistory(
   }
 
   const config =
-    PERIOD_CONFIG[period]
+    PERIOD_CONFIG[
+      period
+    ]
 
-  const ohlcvUrl = new URL(
-    `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
-      networkId
-    )}/pools/${encodeURIComponent(
-      selectedPool.poolAddress
-    )}/ohlcv/${config.timeframe}`
-  )
-
-  ohlcvUrl.searchParams.set(
-    'aggregate',
-    String(config.aggregate)
-  )
-
-  ohlcvUrl.searchParams.set(
-    'limit',
-    String(config.limit)
-  )
-
-  ohlcvUrl.searchParams.set(
-    'currency',
-    'usd'
-  )
-
-  ohlcvUrl.searchParams.set(
-    'token',
-    selectedPool.tokenSide
-  )
-
-  ohlcvUrl.searchParams.set(
-    'include_empty_intervals',
-    'true'
-  )
-
-  const ohlcvResponse =
-    await fetchJson(
-      ohlcvUrl.toString()
+  const ohlcv =
+    await fetchCorrectTokenOhlcv(
+      networkId,
+      selectedPool,
+      contractAddress,
+      config
     )
 
   const points =
-    normalizePricePoints(
-      ohlcvResponse
-    )
+    ohlcv.points
 
   if (!points.length) {
     throw new MaCarteiraPricesError(
@@ -824,6 +1135,10 @@ export async function getMaCarteiraPriceHistory(
       selectedPool.tokenSide
     )
 
+  /*
+   * Os pontos já estão ordenados do
+   * mais antigo para o mais recente.
+   */
   const firstPrice =
     points[0].open
 
@@ -833,57 +1148,81 @@ export async function getMaCarteiraPriceHistory(
     ].close
 
   const changePercentage =
-    firstPrice
+    firstPrice > 0
       ? (
           (
             currentPrice -
             firstPrice
           ) /
           firstPrice
-        ) * 100
+        ) *
+        100
       : 0
+
+  const highUsd =
+    Math.max(
+      ...points.map(
+        (point) =>
+          point.high
+      )
+    )
+
+  const lowUsd =
+    Math.min(
+      ...points.map(
+        (point) =>
+          point.low
+      )
+    )
+
+  const volumeUsd =
+    points.reduce(
+      (
+        total,
+        point
+      ) =>
+        total +
+        point.volume,
+      0
+    )
 
   return {
     chainId,
     networkId,
     contractAddress,
+
     symbol:
       metadata.symbol,
+
     name:
       metadata.name,
+
     period,
+
     poolAddress:
-      selectedPool.poolAddress,
+      selectedPool
+        .poolAddress,
+
     poolName:
       metadata.poolName,
+
     currentPriceUsd:
       currentPrice,
+
     changePercentage,
-    highUsd:
-      Math.max(
-        ...points.map(
-          (point) =>
-            point.high
-        )
-      ),
-    lowUsd:
-      Math.min(
-        ...points.map(
-          (point) =>
-            point.low
-        )
-      ),
-    volumeUsd:
-      points.reduce(
-        (total, point) =>
-          total +
-          point.volume,
-        0
-      ),
+
+    highUsd,
+    lowUsd,
+    volumeUsd,
+
     liquidityUsd:
-      metadata.liquidityUsd,
+      metadata
+        .liquidityUsd,
+
     fetchedAt:
-      new Date().toISOString(),
+      new Date()
+        .toISOString(),
+
     points
   }
 }
