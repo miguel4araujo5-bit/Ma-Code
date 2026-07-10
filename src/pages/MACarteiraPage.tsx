@@ -68,7 +68,7 @@ function TokenList({
   if (!tokens.length) {
     return (
       <p className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-400">
-        Sem tokens ERC-20 com saldo.
+        Não foram encontrados tokens ERC-20 com saldo.
       </p>
     )
   }
@@ -149,7 +149,7 @@ function TokenList({
                 token.symbol || 'token'
               }`}
             >
-              Gráfico
+              Ver gráfico
             </button>
           </div>
         )
@@ -326,7 +326,7 @@ export default function MACarteiraPage() {
             error:
               error instanceof Error
                 ? error.message
-                : 'Não foi possível atualizar esta carteira.'
+                : 'Não foi possível atualizar este endereço.'
           }
         }
       })
@@ -385,7 +385,7 @@ export default function MACarteiraPage() {
       results.some((result) => result.error)
     ) {
       showToast(
-        'Algumas carteiras não puderam ser atualizadas.',
+        'Alguns endereços não puderam ser atualizados.',
         true
       )
     }
@@ -523,7 +523,7 @@ export default function MACarteiraPage() {
       chainId: DEFAULT_CHAIN_ID,
       name:
         walletName.trim().slice(0, 40) ||
-        `Carteira ${wallets.length + 1}`,
+        `Endereço ${wallets.length + 1}`,
       createdAt:
         new Date().toISOString(),
       pinned: false
@@ -550,13 +550,13 @@ export default function MACarteiraPage() {
       [...wallets, wallet]
     )
 
-    showToast('Carteira adicionada.')
+    showToast('Endereço adicionado.')
   }
 
   const renameWallet = (wallet: Wallet) => {
     const name = window
       .prompt(
-        'Nome da carteira:',
+        'Nome do endereço:',
         wallet.name
       )
       ?.trim()
@@ -605,13 +605,13 @@ export default function MACarteiraPage() {
       return next
     })
 
-    showToast('Carteira removida.')
+    showToast('Endereço removido.')
   }
 
   const clearAll = () => {
     if (
       !window.confirm(
-        'Apagar todas as carteiras, saldos e histórico guardados neste dispositivo?'
+        'Apagar todos os endereços, saldos e registos guardados neste dispositivo?'
       )
     ) {
       return
@@ -749,29 +749,31 @@ export default function MACarteiraPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
 
                 <span>
-                  Produto MA-Code · Dados públicos
-                  PulseChain
+                  Produto MA-Code · Painel de
+                  endereços PulseChain
                 </span>
               </div>
 
               <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                Acompanhe as suas carteiras na{' '}
+                Todos os seus endereços PulseChain,{' '}
                 <span className="bg-gradient-to-r from-emerald-200 via-cyan-200 to-sky-300 bg-clip-text text-transparent">
-                  MA-Carteira
+                  organizados num só portefólio
                 </span>
                 .
               </h1>
 
               <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-                Guarde endereços públicos PulseChain
-                com nomes personalizados, consulte PLS
-                e tokens ERC-20 e mantenha um
-                histórico local de cada atualização.
+                Adicione endereços públicos, atribua
+                um nome a cada um e consulte os
+                respetivos portefólios: saldo de PLS,
+                tokens ERC-20, gráficos de preço
+                disponíveis e registos das
+                atualizações anteriores.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
                 <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-emerald-100">
-                  Sem seed phrase
+                  Apenas leitura
                 </span>
 
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-slate-200">
@@ -779,7 +781,7 @@ export default function MACarteiraPage() {
                 </span>
 
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-slate-200">
-                  Dados guardados localmente
+                  Dados guardados neste dispositivo
                 </span>
               </div>
             </div>
@@ -810,16 +812,16 @@ export default function MACarteiraPage() {
 
           <section
             className="mb-6 grid gap-4 md:grid-cols-3"
-            aria-label="Resumo do portefólio"
+            aria-label="Resumo do portefólio consolidado"
           >
             {[
               [
-                'Carteiras',
+                'Endereços',
                 wallets.length.toString(),
-                'Guardadas neste dispositivo'
+                'Endereços monitorizados'
               ],
               [
-                'Total PLS',
+                'PLS total',
                 totalPls
                   ? formatBalance(
                       totalPls,
@@ -827,12 +829,12 @@ export default function MACarteiraPage() {
                       2
                     )
                   : '—',
-                'Últimos saldos atualizados'
+                'Soma dos últimos saldos consultados'
               ],
               [
-                'Histórico',
+                'Registos de saldo',
                 snapshotCount.toString(),
-                'Registos locais guardados'
+                'Atualizações guardadas'
               ]
             ].map(
               ([
@@ -864,13 +866,25 @@ export default function MACarteiraPage() {
             onSubmit={handleAddWallet}
             className="mb-6 rounded-[2rem] border border-emerald-300/15 bg-slate-950/65 p-5 shadow-2xl shadow-black/20 backdrop-blur md:p-6"
           >
+            <div className="mb-5">
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200">
+                Adicionar um endereço
+              </span>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Dê um nome ao endereço para o
+                identificar facilmente no seu
+                portefólio.
+              </p>
+            </div>
+
             <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
               <div>
                 <label
                   htmlFor="wallet-name"
                   className="input-label"
                 >
-                  Nome da carteira
+                  Nome para identificar
                 </label>
 
                 <input
@@ -917,26 +931,31 @@ export default function MACarteiraPage() {
                 <span className="btn-shine" />
 
                 <span className="relative z-10">
-                  + Adicionar carteira
+                  + Adicionar endereço
                 </span>
               </button>
             </div>
 
             <p className="mt-4 text-xs leading-6 text-slate-500">
-              A aplicação consulta apenas informação
-              pública. Nunca introduza uma seed
-              phrase, chave privada ou palavra-passe.
+              Só precisa de introduzir um endereço
+              público. A MA-Carteira nunca pede seed
+              phrase, chave privada, palavra-passe ou
+              autorização para movimentar fundos.
             </p>
           </form>
 
           <section className="mb-6 rounded-[2rem] border border-white/10 bg-slate-950/55 p-5 backdrop-blur">
+            <h2 className="mb-4 text-lg font-semibold text-white">
+              Os seus endereços
+            </h2>
+
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="relative w-full xl:max-w-md">
                 <label
                   htmlFor="wallet-search"
                   className="sr-only"
                 >
-                  Pesquisar carteiras
+                  Pesquisar endereços
                 </label>
 
                 <input
@@ -967,7 +986,7 @@ export default function MACarteiraPage() {
                     )
                   }
                 >
-                  ↻ Atualizar todas
+                  ↻ Atualizar todos
                 </button>
 
                 <button
@@ -982,7 +1001,7 @@ export default function MACarteiraPage() {
                     })
                   }
                 >
-                  ⇩ Exportar
+                  ⇩ Exportar dados
                 </button>
 
                 <button
@@ -992,7 +1011,7 @@ export default function MACarteiraPage() {
                     importInput.current?.click()
                   }
                 >
-                  ⇧ Importar
+                  ⇧ Importar dados
                 </button>
 
                 <button
@@ -1001,7 +1020,7 @@ export default function MACarteiraPage() {
                   disabled={!wallets.length}
                   onClick={clearAll}
                 >
-                  × Limpar
+                  × Limpar tudo
                 </button>
 
                 <input
@@ -1019,22 +1038,22 @@ export default function MACarteiraPage() {
             <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200">
-                  Conta cloud em preparação
+                  Em breve · Conta MA
                 </span>
 
                 <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-                  Login, sincronização entre
-                  dispositivos e acesso por 1 € via
-                  MB WAY.
+                  Consulte os seus endereços em
+                  qualquer dispositivo.
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
-                  A versão atual funciona localmente
-                  e gratuitamente. O pagamento e a
-                  conta cloud só serão ativados
-                  quando o backend e a confirmação
-                  segura do pagamento estiverem
-                  concluídos.
+                  Estamos a preparar login e
+                  sincronização cloud com acesso por
+                  1 € via MB WAY. Até essa
+                  funcionalidade estar disponível, a
+                  MA-Carteira continua gratuita e
+                  guarda os endereços, saldos e
+                  registos apenas neste dispositivo.
                 </p>
               </div>
 
@@ -1042,7 +1061,7 @@ export default function MACarteiraPage() {
                 href="/contacto?tipo=ma-carteira"
                 className={actionButton}
               >
-                Receber novidades
+                Avisar-me quando estiver disponível
               </a>
             </div>
           </section>
@@ -1055,13 +1074,16 @@ export default function MACarteiraPage() {
                 </div>
 
                 <h2 className="mt-4 text-2xl font-semibold text-white">
-                  Ainda não existem carteiras.
+                  Comece pelo seu primeiro endereço.
                 </h2>
 
                 <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-slate-400">
-                  Adicione acima um endereço público
-                  PulseChain e atribua-lhe um nome
-                  para começar.
+                  Adicione um endereço público
+                  PulseChain e atribua-lhe um nome. A
+                  MA-Carteira consulta o saldo de
+                  PLS, identifica os tokens ERC-20 e
+                  guarda um novo registo sempre que
+                  atualizar os dados.
                 </p>
               </div>
             ) : filteredWallets.length ? (
@@ -1111,6 +1133,8 @@ export default function MACarteiraPage() {
                                   )
                                 }
                                 className="mt-1 flex items-center gap-2 font-mono text-sm text-emerald-300 transition hover:text-emerald-200"
+                                title="Copiar endereço"
+                                aria-label={`Copiar endereço ${wallet.name}`}
                               >
                                 {shortAddress(
                                   wallet.address
@@ -1125,8 +1149,8 @@ export default function MACarteiraPage() {
                             <div className="flex shrink-0 gap-1">
                               <button
                                 type="button"
-                                title="Fixar"
-                                aria-label="Fixar carteira"
+                                title="Fixar endereço"
+                                aria-label="Fixar endereço"
                                 className="h-9 w-9 rounded-xl text-slate-400 transition hover:bg-white/10 hover:text-amber-300"
                                 onClick={() =>
                                   setWallets(
@@ -1150,8 +1174,8 @@ export default function MACarteiraPage() {
 
                               <button
                                 type="button"
-                                title="Mudar nome"
-                                aria-label="Mudar nome"
+                                title="Editar nome"
+                                aria-label="Editar nome do endereço"
                                 className="h-9 w-9 rounded-xl text-slate-400 transition hover:bg-white/10 hover:text-emerald-200"
                                 onClick={() =>
                                   renameWallet(
@@ -1164,8 +1188,8 @@ export default function MACarteiraPage() {
 
                               <button
                                 type="button"
-                                title="Atualizar"
-                                aria-label="Atualizar carteira"
+                                title="Atualizar endereço"
+                                aria-label="Atualizar endereço"
                                 disabled={data.loading}
                                 className="h-9 w-9 rounded-xl text-emerald-300 transition hover:bg-white/10 disabled:opacity-40"
                                 onClick={() =>
@@ -1181,8 +1205,8 @@ export default function MACarteiraPage() {
 
                               <button
                                 type="button"
-                                title="Remover"
-                                aria-label="Remover carteira"
+                                title="Remover endereço"
+                                aria-label="Remover endereço"
                                 className="h-9 w-9 rounded-xl text-red-300/80 transition hover:bg-red-400/10 hover:text-red-200"
                                 onClick={() =>
                                   removeWallet(
@@ -1222,7 +1246,7 @@ export default function MACarteiraPage() {
                             <div className="text-right text-xs text-slate-500">
                               <span className="block">
                                 {snapshots.length}{' '}
-                                registos
+                                registos de saldo
                               </span>
 
                               <button
@@ -1234,7 +1258,7 @@ export default function MACarteiraPage() {
                                   )
                                 }
                               >
-                                Ver histórico
+                                Ver registos
                               </button>
                             </div>
                           </div>
@@ -1246,7 +1270,7 @@ export default function MACarteiraPage() {
                           ) : null}
 
                           <h4 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">
-                            Tokens ERC-20 (
+                            Tokens ERC-20 encontrados (
                             {data.tokens.length})
                           </h4>
 
@@ -1270,7 +1294,7 @@ export default function MACarteiraPage() {
                         <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-black/10 px-5 py-3 text-xs text-slate-500">
                           <span>
                             {data.lastUpdated
-                              ? `Atualizado: ${formatDateTime(
+                              ? `Última atualização: ${formatDateTime(
                                   data.lastUpdated
                                 )}`
                               : 'Ainda não atualizado'}
@@ -1284,7 +1308,7 @@ export default function MACarteiraPage() {
                             rel="noreferrer noopener"
                             className="font-semibold text-emerald-300 hover:text-emerald-200"
                           >
-                            Explorador ↗
+                            Ver no explorador ↗
                           </a>
                         </div>
                       </article>
@@ -1294,7 +1318,7 @@ export default function MACarteiraPage() {
               </div>
             ) : (
               <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-slate-400">
-                Nenhuma carteira corresponde à
+                Nenhum endereço corresponde à
                 pesquisa.
               </div>
             )}
@@ -1302,9 +1326,10 @@ export default function MACarteiraPage() {
 
           <footer className="mt-12 border-t border-white/10 pt-7 text-center text-xs leading-6 text-slate-500">
             <p>
-              MA-Carteira consulta dados públicos da
-              PulseChain. Não é uma carteira de
-              custódia e não executa transações.
+              A MA-Carteira utiliza exclusivamente
+              informação pública da PulseChain. Não
+              guarda chaves, não movimenta fundos e
+              não executa transações.
             </p>
 
             <p>
@@ -1362,7 +1387,7 @@ export default function MACarteiraPage() {
             <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
               <div>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">
-                  Histórico local
+                  Registos de saldo
                 </span>
 
                 <h2
@@ -1370,8 +1395,13 @@ export default function MACarteiraPage() {
                   className="mt-1 text-2xl font-semibold text-white"
                 >
                   {selectedWallet?.name ||
-                    'Carteira'}
+                    'Endereço'}
                 </h2>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Saldos registados nas diferentes
+                  atualizações deste endereço.
+                </p>
               </div>
 
               <button
@@ -1380,7 +1410,7 @@ export default function MACarteiraPage() {
                 onClick={() =>
                   setSelectedHistory(null)
                 }
-                aria-label="Fechar histórico"
+                aria-label="Fechar registos de saldo"
               >
                 ×
               </button>
@@ -1426,7 +1456,7 @@ export default function MACarteiraPage() {
 
                       <div className="mt-4 border-t border-white/10 pt-3">
                         <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                          Tokens guardados (
+                          Tokens registados (
                           {snapshot.tokenCount})
                         </p>
 
@@ -1468,8 +1498,8 @@ export default function MACarteiraPage() {
                 )
               ) : (
                 <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-400">
-                  Ainda não existe histórico.
-                  Atualize esta carteira para criar o
+                  Ainda não existem registos de saldo.
+                  Atualize este endereço para criar o
                   primeiro registo.
                 </p>
               )}
