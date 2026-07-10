@@ -121,17 +121,19 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'assinar-pdf',
     title: 'Assinar PDF',
-    description: 'Assine documentos PDF de forma eletrónica rápida e segura.',
+    description: 'Adicione uma imagem da sua assinatura ao documento PDF.',
     badge: 'SIG',
     accent: 'cyan',
-    available: false
+    activeTool: 'sign',
+    available: true
   },
   {
     id: 'marca-de-agua',
     title: 'Marca de água',
-    description: 'Adicione marcas de água de texto ou imagem aos seus PDF.',
+    description: 'Adicione uma marca de água de texto às páginas do seu PDF.',
     badge: 'WM',
     accent: 'violet',
-    available: false
+    activeTool: 'watermark',
+    available: true
   }
 ]
