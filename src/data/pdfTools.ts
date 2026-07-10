@@ -72,10 +72,11 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'jpg-para-pdf',
     title: 'JPG para PDF',
-    description: 'Converta imagens JPG para um PDF organizado.',
+    description: 'Converta uma ou várias imagens JPG num PDF organizado.',
     badge: 'IMG',
     accent: 'amber',
-    available: false
+    activeTool: 'jpgToPdf',
+    available: true
   },
   {
     id: 'pdf-para-excel',
