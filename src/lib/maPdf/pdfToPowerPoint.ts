@@ -48,10 +48,13 @@ function getContainedPlacement(
     imageWidth / imageHeight
 
   const slideRatio =
-    SLIDE_WIDTH / SLIDE_HEIGHT
+    SLIDE_WIDTH /
+    SLIDE_HEIGHT
 
   if (imageRatio >= slideRatio) {
-    const width = SLIDE_WIDTH
+    const width =
+      SLIDE_WIDTH
+
     const height =
       width / imageRatio
 
@@ -66,7 +69,9 @@ function getContainedPlacement(
     }
   }
 
-  const height = SLIDE_HEIGHT
+  const height =
+    SLIDE_HEIGHT
+
   const width =
     height * imageRatio
 
@@ -81,7 +86,9 @@ function getContainedPlacement(
   }
 }
 
-function toBlob(value: unknown) {
+function toBlob(
+  value: unknown
+) {
   if (value instanceof Blob) {
     return value
   }
@@ -89,12 +96,17 @@ function toBlob(value: unknown) {
   if (
     value instanceof ArrayBuffer
   ) {
-    return new Blob([value], {
-      type: PPTX_MIME_TYPE
-    })
+    return new Blob(
+      [value],
+      {
+        type: PPTX_MIME_TYPE
+      }
+    )
   }
 
-  if (ArrayBuffer.isView(value)) {
+  if (
+    ArrayBuffer.isView(value)
+  ) {
     const view =
       value as ArrayBufferView
 
@@ -125,8 +137,11 @@ function toBlob(value: unknown) {
 }
 
 export async function convertPdfToPowerPoint(
-  selected: SelectedPdf | undefined,
-  onProgress: ProgressCallback
+  selected:
+    | SelectedPdf
+    | undefined,
+  onProgress:
+    ProgressCallback
 ): Promise<ResultData> {
   if (!selected) {
     throw new Error(
@@ -138,12 +153,15 @@ export async function convertPdfToPowerPoint(
     'A preparar a conversão para PowerPoint...'
   )
 
-  const data = new Uint8Array(
-    await selected.file.arrayBuffer()
-  )
+  const data =
+    new Uint8Array(
+      await selected.file.arrayBuffer()
+    )
 
   const loadingTask =
-    getDocument({ data })
+    getDocument({
+      data
+    })
 
   try {
     const pdfDocument =
@@ -176,9 +194,6 @@ export async function convertPdfToPowerPoint(
       getBaseName(
         selected.file.name
       )
-
-    presentation.lang =
-      'pt-PT'
 
     for (
       let pageNumber = 1;
@@ -231,23 +246,26 @@ export async function convertPdfToPowerPoint(
         )
       }
 
-      canvas.width = Math.max(
-        1,
-        Math.ceil(
-          viewport.width
+      canvas.width =
+        Math.max(
+          1,
+          Math.ceil(
+            viewport.width
+          )
         )
-      )
 
-      canvas.height = Math.max(
-        1,
-        Math.ceil(
-          viewport.height
+      canvas.height =
+        Math.max(
+          1,
+          Math.ceil(
+            viewport.height
+          )
         )
-      )
 
       await page.render({
         canvas,
-        canvasContext: context,
+        canvasContext:
+          context,
         viewport,
         background:
           'rgb(255, 255, 255)'
@@ -295,7 +313,8 @@ export async function convertPdfToPowerPoint(
         outputType: 'blob'
       })
 
-    const blob = toBlob(output)
+    const blob =
+      toBlob(output)
 
     return {
       fileName: `${getBaseName(
@@ -304,7 +323,8 @@ export async function convertPdfToPowerPoint(
       blob,
       originalSize:
         selected.file.size,
-      finalSize: blob.size,
+      finalSize:
+        blob.size,
       message: `${pdfDocument.numPages} página${
         pdfDocument.numPages === 1
           ? ''
@@ -319,8 +339,8 @@ export async function convertPdfToPowerPoint(
     try {
       await loadingTask.destroy()
     } catch {
-      // A limpeza do worker não deve
-      // impedir a entrega do resultado.
+      // A limpeza do worker
+      // não deve impedir o resultado.
     }
   }
 }
