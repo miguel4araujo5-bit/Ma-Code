@@ -5,7 +5,10 @@ import {
   type RefObject
 } from 'react'
 
-type UploadFileType = 'pdf' | 'jpg'
+type UploadFileType =
+  | 'pdf'
+  | 'jpg'
+  | 'docx'
 
 type UploadZoneProps = {
   multiple: boolean
@@ -14,71 +17,137 @@ type UploadZoneProps = {
   onFiles: (files: File[]) => void
 }
 
+type UploadFileConfig = {
+  acceptedTypes: string
+  singularDropLabel: string
+  pluralDropLabel: string
+  singularButtonLabel: string
+  pluralButtonLabel: string
+}
+
+const uploadFileConfigs: Record<
+  UploadFileType,
+  UploadFileConfig
+> = {
+  pdf: {
+    acceptedTypes:
+      '.pdf,application/pdf',
+    singularDropLabel:
+      'o ficheiro PDF',
+    pluralDropLabel:
+      'os ficheiros PDF',
+    singularButtonLabel:
+      'ficheiro PDF',
+    pluralButtonLabel:
+      'ficheiros PDF'
+  },
+
+  jpg: {
+    acceptedTypes:
+      '.jpg,.jpeg,image/jpeg',
+    singularDropLabel:
+      'a imagem JPG',
+    pluralDropLabel:
+      'as imagens JPG',
+    singularButtonLabel:
+      'imagem JPG',
+    pluralButtonLabel:
+      'imagens JPG'
+  },
+
+  docx: {
+    acceptedTypes:
+      '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    singularDropLabel:
+      'o documento Word',
+    pluralDropLabel:
+      'os documentos Word',
+    singularButtonLabel:
+      'documento Word',
+    pluralButtonLabel:
+      'documentos Word'
+  }
+}
+
 export default function UploadZone({
   multiple,
   fileType,
   inputRef,
   onFiles
 }: UploadZoneProps) {
-  const [isDragging, setIsDragging] = useState(false)
+  const [isDragging, setIsDragging] =
+    useState(false)
 
-  const isJpgUpload = fileType === 'jpg'
+  const {
+    acceptedTypes,
+    singularDropLabel,
+    pluralDropLabel,
+    singularButtonLabel,
+    pluralButtonLabel
+  } = uploadFileConfigs[fileType]
 
-  const acceptedTypes = isJpgUpload
-    ? '.jpg,.jpeg,image/jpeg'
-    : '.pdf,application/pdf'
-
-  const singularDropLabel = isJpgUpload
-    ? 'a imagem JPG'
-    : 'o ficheiro PDF'
-
-  const pluralDropLabel = isJpgUpload
-    ? 'as imagens JPG'
-    : 'os ficheiros PDF'
-
-  const singularButtonLabel = isJpgUpload
-    ? 'imagem JPG'
-    : 'ficheiro PDF'
-
-  const pluralButtonLabel = isJpgUpload
-    ? 'imagens JPG'
-    : 'ficheiros PDF'
-
-  const processFileList = (fileList: FileList | null) => {
+  const processFileList = (
+    fileList: FileList | null
+  ) => {
     if (!fileList) {
       return
     }
 
-    onFiles(Array.from(fileList))
+    onFiles(
+      Array.from(fileList)
+    )
   }
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    processFileList(event.target.files)
+  const handleInputChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    processFileList(
+      event.target.files
+    )
+
     event.target.value = ''
   }
 
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (
+    event: DragEvent<HTMLDivElement>
+  ) => {
     event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
+
+    event.dataTransfer.dropEffect =
+      'copy'
+
     setIsDragging(true)
   }
 
-  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (
+    event: DragEvent<HTMLDivElement>
+  ) => {
     event.preventDefault()
     setIsDragging(false)
   }
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (
+    event: DragEvent<HTMLDivElement>
+  ) => {
     event.preventDefault()
     setIsDragging(false)
-    processFileList(event.dataTransfer.files)
+
+    processFileList(
+      event.dataTransfer.files
+    )
   }
 
   return (
     <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragOver={
+        handleDragOver
+      }
+      onDragLeave={
+        handleDragLeave
+      }
+      onDrop={
+        handleDrop
+      }
       className={`rounded-[2rem] border-2 border-dashed p-6 text-center transition md:p-10 ${
         isDragging
           ? 'border-cyan-200 bg-cyan-300/[0.12]'
@@ -86,11 +155,19 @@ export default function UploadZone({
       }`}
     >
       <input
-        ref={inputRef}
+        ref={
+          inputRef
+        }
         type="file"
-        accept={acceptedTypes}
-        multiple={multiple}
-        onChange={handleInputChange}
+        accept={
+          acceptedTypes
+        }
+        multiple={
+          multiple
+        }
+        onChange={
+          handleInputChange
+        }
         className="hidden"
       />
 
@@ -99,17 +176,23 @@ export default function UploadZone({
       </div>
 
       <h3 className="mt-5 text-xl font-semibold text-white">
-        Arraste {multiple ? pluralDropLabel : singularDropLabel} para aqui
+        Arraste{' '}
+        {multiple
+          ? pluralDropLabel
+          : singularDropLabel}{' '}
+        para aqui
       </h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        O processamento acontece no seu navegador. Os ficheiros não são enviados
-        para servidores.
+        O processamento acontece no seu navegador.
+        Os ficheiros não são enviados para servidores.
       </p>
 
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
+        onClick={() =>
+          inputRef.current?.click()
+        }
         className="btn-primary hightech-button mt-6"
       >
         <span className="btn-shine" />
