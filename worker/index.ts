@@ -6,6 +6,12 @@ import {
   type ChainId
 } from '../src/lib/maCarteiraChains'
 
+import {
+  MA_CARTEIRA_TRANSACTIONS_PATH,
+  MaCarteiraTransactionsError,
+  getMaCarteiraTransactions
+} from './maCarteiraTransactions'
+
 export interface Env {
   WEB3FORMS_ACCESS_KEY?: string
   WEB3FORMS_KEY?: string
@@ -34,6 +40,7 @@ type HeaderMap = Record<string, string>
 type ApiRoute =
   | 'contact'
   | 'ma-carteira-chains'
+  | 'ma-carteira-transactions'
   | 'not-found'
 
 const CONTACT_PATH = '/api/contact'
@@ -249,6 +256,13 @@ const getRoute = (
     return 'ma-carteira-chains'
   }
 
+  if (
+    pathname ===
+    MA_CARTEIRA_TRANSACTIONS_PATH
+  ) {
+    return 'ma-carteira-transactions'
+  }
+
   return 'not-found'
 }
 
@@ -261,7 +275,9 @@ const getAllowedMethods = (
 
   if (
     route ===
-    'ma-carteira-chains'
+      'ma-carteira-chains' ||
+    route ===
+      'ma-carteira-transactions'
   ) {
     return 'GET, OPTIONS'
   }
@@ -534,6 +550,84 @@ const handleChainsRequest = (
     }
   )
 }
+
+const handleTransactionsRequest =
+  async (
+    request: Request,
+    url: URL,
+    respond: (
+      body: unknown,
+      status?: number,
+      headers?: HeaderMap
+    ) => Response
+  ) => {
+    if (
+      request.method !== 'GET'
+    ) {
+      return respond(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'GET, OPTIONS'
+        }
+      )
+    }
+
+    try {
+      const result =
+        await getMaCarteiraTransactions(
+          url
+        )
+
+      return respond(
+        {
+          success: true,
+          ...result
+        },
+        200,
+        {
+          'Cache-Control':
+            'public, max-age=20, s-maxage=20'
+        }
+      )
+    } catch (error) {
+      if (
+        error instanceof
+        MaCarteiraTransactionsError
+      ) {
+        return respond(
+          {
+            success: false,
+            message: error.message
+          },
+          error.status
+        )
+      }
+
+      console.error(
+        'MA-Carteira transactions request failed',
+        {
+          message:
+            getErrorMessage(
+              error
+            )
+        }
+      )
+
+      return respond(
+        {
+          success: false,
+          message:
+            'Não foi possível consultar as transações.'
+        },
+        500
+      )
+    }
+  }
 
 const handleContactRequest =
   async (
@@ -1118,6 +1212,17 @@ export default {
       'ma-carteira-chains'
     ) {
       return handleChainsRequest(
+        request,
+        url,
+        respond
+      )
+    }
+
+    if (
+      route ===
+      'ma-carteira-transactions'
+    ) {
+      return handleTransactionsRequest(
         request,
         url,
         respond
