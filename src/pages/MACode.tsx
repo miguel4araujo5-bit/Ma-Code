@@ -564,7 +564,7 @@ return (
             </span>
           </p>
 
-          <div className="hero-actions">
+          <div className="hero-actions flex-wrap">
             <a
               href="/contacto"
               className="btn-primary hightech-button"
@@ -588,6 +588,18 @@ return (
               })}
             >
               Ver projetos reais
+            </a>
+
+            <a
+              href="/produtos"
+              className="btn-secondary hightech-button-secondary"
+              onClick={() => trackEvent('cta_click', {
+                cta_text: 'Ver produtos',
+                cta_location: 'hero_products',
+                destination: '/produtos'
+              })}
+            >
+              Ver produtos
             </a>
           </div>
 
