@@ -31,8 +31,7 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-word',
     title: 'PDF para Word',
-    description:
-      'Extraia o texto selecionável do PDF para um documento Word editável.',
+    description: 'Converta PDF para documentos Word editáveis.',
     badge: 'W',
     accent: 'blue',
     activeTool: 'pdfToWord',
@@ -41,8 +40,7 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'word-para-pdf',
     title: 'Word para PDF',
-    description:
-      'Converta documentos Word DOCX para PDF diretamente no navegador.',
+    description: 'Converta documentos Word de forma rápida para PDF.',
     badge: 'W→',
     accent: 'blue',
     activeTool: 'wordToPdf',
@@ -51,8 +49,7 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-doc',
     title: 'PDF para DOC',
-    description:
-      'Extraia o texto selecionável do PDF para um ficheiro DOC editável.',
+    description: 'Extraia texto de PDF para ficheiros DOC editáveis.',
     badge: 'DOC',
     accent: 'blue',
     activeTool: 'pdfToDoc',
@@ -87,8 +84,7 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-excel',
     title: 'PDF para Excel',
-    description:
-      'Extraia linhas e tabelas simples do PDF para um ficheiro Excel editável.',
+    description: 'Converta linhas e tabelas de PDF para folhas Excel editáveis.',
     badge: 'XLS',
     accent: 'emerald',
     activeTool: 'pdfToExcel',
@@ -121,8 +117,7 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'editar-pdf',
     title: 'Editar PDF',
-    description:
-      'Adicione texto, imagens, retângulos e linhas sobre as páginas do PDF.',
+    description: 'Adicione texto, imagens, formas e anotações com facilidade.',
     badge: '✎',
     accent: 'violet',
     activeTool: 'editPdf',
