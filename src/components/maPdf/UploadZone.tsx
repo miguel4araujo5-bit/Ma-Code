@@ -5,18 +5,44 @@ import {
   type RefObject
 } from 'react'
 
+type UploadFileType = 'pdf' | 'jpg'
+
 type UploadZoneProps = {
   multiple: boolean
+  fileType: UploadFileType
   inputRef: RefObject<HTMLInputElement | null>
   onFiles: (files: File[]) => void
 }
 
 export default function UploadZone({
   multiple,
+  fileType,
   inputRef,
   onFiles
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
+
+  const isJpgUpload = fileType === 'jpg'
+
+  const acceptedTypes = isJpgUpload
+    ? '.jpg,.jpeg,image/jpeg'
+    : '.pdf,application/pdf'
+
+  const singularDropLabel = isJpgUpload
+    ? 'a imagem JPG'
+    : 'o ficheiro PDF'
+
+  const pluralDropLabel = isJpgUpload
+    ? 'as imagens JPG'
+    : 'os ficheiros PDF'
+
+  const singularButtonLabel = isJpgUpload
+    ? 'imagem JPG'
+    : 'ficheiro PDF'
+
+  const pluralButtonLabel = isJpgUpload
+    ? 'imagens JPG'
+    : 'ficheiros PDF'
 
   const processFileList = (fileList: FileList | null) => {
     if (!fileList) {
@@ -62,7 +88,7 @@ export default function UploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,application/pdf"
+        accept={acceptedTypes}
         multiple={multiple}
         onChange={handleInputChange}
         className="hidden"
@@ -73,7 +99,7 @@ export default function UploadZone({
       </div>
 
       <h3 className="mt-5 text-xl font-semibold text-white">
-        Arraste {multiple ? 'os ficheiros PDF' : 'o ficheiro PDF'} para aqui
+        Arraste {multiple ? pluralDropLabel : singularDropLabel} para aqui
       </h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -89,7 +115,9 @@ export default function UploadZone({
         <span className="btn-shine" />
 
         <span className="relative z-10">
-          {multiple ? 'Escolher ficheiros PDF' : 'Escolher ficheiro PDF'}
+          {multiple
+            ? `Escolher ${pluralButtonLabel}`
+            : `Escolher ${singularButtonLabel}`}
         </span>
       </button>
 
