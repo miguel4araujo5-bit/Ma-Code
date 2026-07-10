@@ -28,7 +28,7 @@ export function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 export function sanitizeFileName(name: string) {
   return name
-    .replace(/\.pdf$/i, '')
+    .replace(/\.(pdf|jpe?g)$/i, '')
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
@@ -40,6 +40,13 @@ export function isPdfFile(file: File) {
   return (
     file.type === 'application/pdf' ||
     file.name.toLowerCase().endsWith('.pdf')
+  )
+}
+
+export function isJpgFile(file: File) {
+  return (
+    file.type === 'image/jpeg' ||
+    /\.jpe?g$/i.test(file.name)
   )
 }
 
