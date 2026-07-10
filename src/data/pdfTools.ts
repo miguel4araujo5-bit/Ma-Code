@@ -41,10 +41,12 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'word-para-pdf',
     title: 'Word para PDF',
-    description: 'Converta documentos Word de forma rápida para PDF.',
+    description:
+      'Converta documentos Word DOCX para PDF diretamente no navegador.',
     badge: 'W→',
     accent: 'blue',
-    available: false
+    activeTool: 'wordToPdf',
+    available: true
   },
   {
     id: 'pdf-para-doc',
@@ -119,10 +121,12 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'editar-pdf',
     title: 'Editar PDF',
-    description: 'Adicione texto, imagens, formas e anotações com facilidade.',
+    description:
+      'Adicione texto, imagens, retângulos e linhas sobre as páginas do PDF.',
     badge: '✎',
     accent: 'violet',
-    available: false
+    activeTool: 'editPdf',
+    available: true
   },
   {
     id: 'assinar-pdf',
