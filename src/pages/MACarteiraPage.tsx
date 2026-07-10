@@ -183,10 +183,10 @@ export default function MACarteiraPage() {
     if (!addresses.length) {
       return
     }
-
-    const keys = new Set(
-      addresses.map(addressKey)
-    )
+    
+const keys = new Set(
+  addresses.map((address) => addressKey(address))
+)
 
     setWalletData((current) =>
       Object.fromEntries(
