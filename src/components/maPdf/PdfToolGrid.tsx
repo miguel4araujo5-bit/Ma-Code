@@ -102,7 +102,7 @@ export default function PdfToolGrid({
           </h2>
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-            Quatro ferramentas já estão disponíveis. As restantes serão
+            Cinco ferramentas já estão disponíveis. As restantes serão
             adicionadas progressivamente.
           </p>
         </div>
