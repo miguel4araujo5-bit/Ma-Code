@@ -87,8 +87,8 @@ export default function PdfHero({ mounted }: PdfHeroProps) {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-              Junte, divida, otimize e converta documentos PDF para JPG
-              diretamente no navegador. Os seus ficheiros permanecem no seu
+              Junte, divida, otimize e converta PDF para JPG ou imagens JPG para
+              PDF diretamente no navegador. Os seus ficheiros permanecem no seu
               dispositivo e nunca são enviados para os nossos servidores.
             </p>
 
