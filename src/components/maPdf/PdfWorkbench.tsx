@@ -1,4 +1,6 @@
-import {:contentReference[oaicite:1]{index=1}o,
+import {
+  useEffect,
+  useMemo,
   useRef,
   useState
 } from 'react'
@@ -23,6 +25,7 @@ import {
   editPdf,
   type PdfEditElement
 } from '../../lib/maPdf/editPdf'
+
 import { convertJpgToPdf } from '../../lib/maPdf/jpgToPdf'
 import { mergePdfFiles } from '../../lib/maPdf/mergePdf'
 import { convertPdfToJpg } from '../../lib/maPdf/pdfToJpg'
@@ -104,10 +107,14 @@ function isDocxFile(file: File) {
 export default function PdfWorkbench({
   activeTool
 }: PdfWorkbenchProps) {
-  const [selectedFiles, setSelectedFiles] = useState<SelectedPdf[]>([])
+  const [selectedFiles, setSelectedFiles] =
+    useState<SelectedPdf[]>([])
 
-  const [splitMode, setSplitMode] = useState<SplitMode>('ranges')
-  const [splitRanges, setSplitRanges] = useState('1-3')
+  const [splitMode, setSplitMode] =
+    useState<SplitMode>('ranges')
+
+  const [splitRanges, setSplitRanges] =
+    useState('1-3')
 
   const [jpgQuality, setJpgQuality] =
     useState<JpgQuality>('standard')
@@ -115,24 +122,20 @@ export default function PdfWorkbench({
   const [editElements, setEditElements] =
     useState<PdfEditElement[]>([])
 
-  const [watermarkText, setWatermarkText] = useState(
-    DEFAULT_WATERMARK_TEXT
-  )
+  const [watermarkText, setWatermarkText] =
+    useState(DEFAULT_WATERMARK_TEXT)
 
   const [watermarkPosition, setWatermarkPosition] =
     useState<WatermarkPosition>('center')
 
-  const [watermarkFontSize, setWatermarkFontSize] = useState(
-    DEFAULT_WATERMARK_FONT_SIZE
-  )
+  const [watermarkFontSize, setWatermarkFontSize] =
+    useState(DEFAULT_WATERMARK_FONT_SIZE)
 
-  const [watermarkOpacity, setWatermarkOpacity] = useState(
-    DEFAULT_WATERMARK_OPACITY
-  )
+  const [watermarkOpacity, setWatermarkOpacity] =
+    useState(DEFAULT_WATERMARK_OPACITY)
 
-  const [watermarkRotation, setWatermarkRotation] = useState(
-    DEFAULT_WATERMARK_ROTATION
-  )
+  const [watermarkRotation, setWatermarkRotation] =
+    useState(DEFAULT_WATERMARK_ROTATION)
 
   const [signatureFile, setSignatureFile] =
     useState<File | null>(null)
@@ -142,32 +145,40 @@ export default function PdfWorkbench({
       DEFAULT_SIGNATURE_PAGE_MODE
     )
 
-  const [signaturePageNumber, setSignaturePageNumber] = useState(1)
+  const [signaturePageNumber, setSignaturePageNumber] =
+    useState(1)
 
   const [signaturePosition, setSignaturePosition] =
     useState<SignaturePosition>(
       DEFAULT_SIGNATURE_POSITION
     )
 
-  const [signatureWidth, setSignatureWidth] = useState(
-    DEFAULT_SIGNATURE_WIDTH
-  )
+  const [signatureWidth, setSignatureWidth] =
+    useState(DEFAULT_SIGNATURE_WIDTH)
 
-  const [signatureOpacity, setSignatureOpacity] = useState(
-    DEFAULT_SIGNATURE_OPACITY
-  )
+  const [signatureOpacity, setSignatureOpacity] =
+    useState(DEFAULT_SIGNATURE_OPACITY)
 
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [progressMessage, setProgressMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [result, setResult] = useState<ResultData | null>(null)
+  const [isProcessing, setIsProcessing] =
+    useState(false)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [progressMessage, setProgressMessage] =
+    useState('')
+
+  const [errorMessage, setErrorMessage] =
+    useState('')
+
+  const [result, setResult] =
+    useState<ResultData | null>(null)
+
+  const fileInputRef =
+    useRef<HTMLInputElement>(null)
 
   const activeToolData = useMemo(
     () =>
       pdfTools.find(
-        (tool) => tool.activeTool === activeTool
+        (tool) =>
+          tool.activeTool === activeTool
       ),
     [activeTool]
   )
@@ -270,24 +281,27 @@ export default function PdfWorkbench({
     setProgressMessage('')
     setResult(null)
 
-    const invalidFile = files.find((file) => {
-      if (acceptsImages) {
-        return !isJpgFile(file)
-      }
+    const invalidFile = files.find(
+      (file) => {
+        if (acceptsImages) {
+          return !isJpgFile(file)
+        }
 
-      if (acceptsWordDocument) {
-        return !isDocxFile(file)
-      }
+        if (acceptsWordDocument) {
+          return !isDocxFile(file)
+        }
 
-      return !isPdfFile(file)
-    })
+        return !isPdfFile(file)
+      }
+    )
 
     if (invalidFile) {
-      const expectedFileMessage = acceptsImages
-        ? 'uma imagem JPG ou JPEG'
-        : acceptsWordDocument
-          ? 'um documento Word no formato DOCX'
-          : 'um documento PDF'
+      const expectedFileMessage =
+        acceptsImages
+          ? 'uma imagem JPG ou JPEG'
+          : acceptsWordDocument
+            ? 'um documento Word no formato DOCX'
+            : 'um documento PDF'
 
       setErrorMessage(
         `O ficheiro "${invalidFile.name}" não parece ser ${expectedFileMessage}.`
@@ -314,51 +328,58 @@ export default function PdfWorkbench({
         ? files
         : files.slice(0, 1)
 
-    setSelectedFiles((currentFiles) => {
-      if (!acceptsMultipleFiles) {
-        const file = acceptedFiles[0]
+    setSelectedFiles(
+      (currentFiles) => {
+        if (!acceptsMultipleFiles) {
+          const file =
+            acceptedFiles[0]
 
-        return file
-          ? [
-              {
-                id: createFileId(file),
-                file
-              }
-            ]
-          : currentFiles
-      }
+          return file
+            ? [
+                {
+                  id: createFileId(file),
+                  file
+                }
+              ]
+            : currentFiles
+        }
 
-      const existingSignatures = new Set(
-        currentFiles.map(
-          (item) =>
-            `${item.file.name}-${item.file.size}-${item.file.lastModified}`
-        )
-      )
-
-      const newFiles = acceptedFiles
-        .filter(
-          (file) =>
-            !existingSignatures.has(
-              `${file.name}-${file.size}-${file.lastModified}`
+        const existingSignatures =
+          new Set(
+            currentFiles.map(
+              (item) =>
+                `${item.file.name}-${item.file.size}-${item.file.lastModified}`
             )
-        )
-        .map((file) => ({
-          id: createFileId(file),
-          file
-        }))
+          )
 
-      return [
-        ...currentFiles,
-        ...newFiles
-      ]
-    })
+        const newFiles =
+          acceptedFiles
+            .filter(
+              (file) =>
+                !existingSignatures.has(
+                  `${file.name}-${file.size}-${file.lastModified}`
+                )
+            )
+            .map((file) => ({
+              id: createFileId(file),
+              file
+            }))
+
+        return [
+          ...currentFiles,
+          ...newFiles
+        ]
+      }
+    )
   }
 
   const removeFile = (id: string) => {
-    setSelectedFiles((currentFiles) =>
-      currentFiles.filter(
-        (item) => item.id !== id
-      )
+    setSelectedFiles(
+      (currentFiles) =>
+        currentFiles.filter(
+          (item) =>
+            item.id !== id
+        )
     )
 
     setResult(null)
@@ -370,32 +391,38 @@ export default function PdfWorkbench({
     index: number,
     direction: -1 | 1
   ) => {
-    setSelectedFiles((currentFiles) => {
-      const destination =
-        index + direction
+    setSelectedFiles(
+      (currentFiles) => {
+        const destination =
+          index + direction
 
-      if (
-        destination < 0 ||
-        destination >= currentFiles.length
-      ) {
-        return currentFiles
+        if (
+          destination < 0 ||
+          destination >=
+            currentFiles.length
+        ) {
+          return currentFiles
+        }
+
+        const reordered = [
+          ...currentFiles
+        ]
+
+        const [movedItem] =
+          reordered.splice(
+            index,
+            1
+          )
+
+        reordered.splice(
+          destination,
+          0,
+          movedItem
+        )
+
+        return reordered
       }
-
-      const reordered = [
-        ...currentFiles
-      ]
-
-      const [movedItem] =
-        reordered.splice(index, 1)
-
-      reordered.splice(
-        destination,
-        0,
-        movedItem
-      )
-
-      return reordered
-    })
+    )
   }
 
   const handleSignatureFileChange = (
@@ -446,157 +473,190 @@ export default function PdfWorkbench({
     setSignatureFile(file)
   }
 
-  const processCurrentTool = async () => {
-    if (isProcessing) {
-      return
-    }
+  const processCurrentTool =
+    async () => {
+      if (isProcessing) {
+        return
+      }
 
-    setIsProcessing(true)
-    setErrorMessage('')
-    setProgressMessage('')
-    setResult(null)
+      setIsProcessing(true)
+      setErrorMessage('')
+      setProgressMessage('')
+      setResult(null)
 
-    try {
-      let generatedResult: ResultData
+      try {
+        let generatedResult: ResultData
 
-      if (activeTool === 'merge') {
-        generatedResult =
-          await mergePdfFiles(
-            selectedFiles,
-            setProgressMessage
-          )
-      } else if (activeTool === 'split') {
-        generatedResult =
-          await splitPdfFile(
-            selectedFiles[0],
-            splitMode,
-            splitRanges,
-            setProgressMessage
-          )
-      } else if (activeTool === 'compress') {
-        generatedResult =
-          await compressPdfFile(
-            selectedFiles[0],
-            setProgressMessage
-          )
-      } else if (activeTool === 'pdfToWord') {
-        generatedResult =
-          await convertPdfToWord(
-            selectedFiles[0],
-            setProgressMessage
-          )
-      } else if (activeTool === 'wordToPdf') {
-        generatedResult =
-          await convertWordToPdf(
-            selectedFiles[0],
-            setProgressMessage
-          )
-      } else if (activeTool === 'pdfToJpg') {
-        generatedResult =
-          await convertPdfToJpg(
-            selectedFiles[0],
-            jpgQuality,
-            setProgressMessage
-          )
-      } else if (activeTool === 'jpgToPdf') {
-        generatedResult =
-          await convertJpgToPdf(
-            selectedFiles,
-            setProgressMessage
-          )
-      } else if (activeTool === 'editPdf') {
-        generatedResult =
-          await editPdf(
-            selectedFiles[0],
-            {
-              elements: editElements
-            },
-            setProgressMessage
-          )
-      } else if (activeTool === 'watermark') {
-        generatedResult =
-          await addWatermarkToPdf(
-            selectedFiles[0],
-            {
-              text: watermarkText,
-              position: watermarkPosition,
-              fontSize: watermarkFontSize,
-              opacity: watermarkOpacity,
-              rotation: watermarkRotation
-            },
-            setProgressMessage
-          )
-      } else if (activeTool === 'sign') {
-        if (!signatureFile) {
+        if (
+          activeTool === 'merge'
+        ) {
+          generatedResult =
+            await mergePdfFiles(
+              selectedFiles,
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'split'
+        ) {
+          generatedResult =
+            await splitPdfFile(
+              selectedFiles[0],
+              splitMode,
+              splitRanges,
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'compress'
+        ) {
+          generatedResult =
+            await compressPdfFile(
+              selectedFiles[0],
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'pdfToWord'
+        ) {
+          generatedResult =
+            await convertPdfToWord(
+              selectedFiles[0],
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'wordToPdf'
+        ) {
+          generatedResult =
+            await convertWordToPdf(
+              selectedFiles[0],
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'pdfToJpg'
+        ) {
+          generatedResult =
+            await convertPdfToJpg(
+              selectedFiles[0],
+              jpgQuality,
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'jpgToPdf'
+        ) {
+          generatedResult =
+            await convertJpgToPdf(
+              selectedFiles,
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'editPdf'
+        ) {
+          generatedResult =
+            await editPdf(
+              selectedFiles[0],
+              {
+                elements:
+                  editElements
+              },
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'watermark'
+        ) {
+          generatedResult =
+            await addWatermarkToPdf(
+              selectedFiles[0],
+              {
+                text:
+                  watermarkText,
+                position:
+                  watermarkPosition,
+                fontSize:
+                  watermarkFontSize,
+                opacity:
+                  watermarkOpacity,
+                rotation:
+                  watermarkRotation
+              },
+              setProgressMessage
+            )
+        } else if (
+          activeTool === 'sign'
+        ) {
+          if (!signatureFile) {
+            throw new Error(
+              'Escolha uma imagem PNG, JPG ou JPEG com a assinatura.'
+            )
+          }
+
+          generatedResult =
+            await signPdf(
+              selectedFiles[0],
+              {
+                signatureFile,
+                page:
+                  signaturePageMode ===
+                  'custom'
+                    ? signaturePageNumber
+                    : signaturePageMode,
+                position:
+                  signaturePosition,
+                width:
+                  signatureWidth,
+                opacity:
+                  signatureOpacity
+              },
+              setProgressMessage
+            )
+        } else {
           throw new Error(
-            'Escolha uma imagem PNG, JPG ou JPEG com a assinatura.'
+            'Esta ferramenta ainda não está disponível.'
           )
         }
 
-        generatedResult =
-          await signPdf(
-            selectedFiles[0],
-            {
-              signatureFile,
-              page:
-                signaturePageMode === 'custom'
-                  ? signaturePageNumber
-                  : signaturePageMode,
-              position: signaturePosition,
-              width: signatureWidth,
-              opacity: signatureOpacity
-            },
-            setProgressMessage
+        setResult(
+          generatedResult
+        )
+
+        setProgressMessage(
+          'Processamento concluído.'
+        )
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível processar este documento.'
+
+        const normalizedMessage =
+          message.toLowerCase()
+
+        if (
+          normalizedMessage.includes(
+            'encrypted'
+          ) ||
+          normalizedMessage.includes(
+            'password'
+          ) ||
+          normalizedMessage.includes(
+            'palavra-passe'
           )
-      } else {
-        throw new Error(
-          'Esta ferramenta ainda não está disponível.'
-        )
+        ) {
+          setErrorMessage(
+            'Este PDF está protegido por palavra-passe. Remova a proteção antes de utilizar a ferramenta.'
+          )
+        } else if (
+          activeTool === 'jpgToPdf'
+        ) {
+          setErrorMessage(
+            'Não foi possível ler uma das imagens. Confirme que todos os ficheiros são JPG ou JPEG válidos.'
+          )
+        } else {
+          setErrorMessage(message)
+        }
+
+        setProgressMessage('')
+      } finally {
+        setIsProcessing(false)
       }
-
-      setResult(generatedResult)
-
-      setProgressMessage(
-        'Processamento concluído.'
-      )
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível processar este documento.'
-
-      const normalizedMessage =
-        message.toLowerCase()
-
-      if (
-        normalizedMessage.includes(
-          'encrypted'
-        ) ||
-        normalizedMessage.includes(
-          'password'
-        ) ||
-        normalizedMessage.includes(
-          'palavra-passe'
-        )
-      ) {
-        setErrorMessage(
-          'Este PDF está protegido por palavra-passe. Remova a proteção antes de utilizar a ferramenta.'
-        )
-      } else if (
-        activeTool === 'jpgToPdf'
-      ) {
-        setErrorMessage(
-          'Não foi possível ler uma das imagens. Confirme que todos os ficheiros são JPG ou JPEG válidos.'
-        )
-      } else {
-        setErrorMessage(message)
-      }
-
-      setProgressMessage('')
-    } finally {
-      setIsProcessing(false)
     }
-  }
 
   const canProcess =
     activeTool === 'merge'
@@ -686,15 +746,27 @@ export default function PdfWorkbench({
 
           <div className="p-5 md:p-7">
             <UploadZone
-              multiple={acceptsMultipleFiles}
-              fileType={uploadFileType}
-              inputRef={fileInputRef}
-              onFiles={addFiles}
+              multiple={
+                acceptsMultipleFiles
+              }
+              fileType={
+                uploadFileType
+              }
+              inputRef={
+                fileInputRef
+              }
+              onFiles={
+                addFiles
+              }
             />
 
             <SelectedFilesList
-              files={selectedFiles}
-              allowReorder={allowsReorder}
+              files={
+                selectedFiles
+              }
+              allowReorder={
+                allowsReorder
+              }
               fileBadge={
                 acceptsImages
                   ? 'JPG'
@@ -702,8 +774,12 @@ export default function PdfWorkbench({
                     ? 'DOCX'
                     : 'PDF'
               }
-              onRemove={removeFile}
-              onMove={moveFile}
+              onRemove={
+                removeFile
+              }
+              onMove={
+                moveFile
+              }
             />
 
             {activeTool === 'merge' &&
@@ -719,9 +795,15 @@ export default function PdfWorkbench({
             {activeTool === 'split' &&
             selectedFiles.length === 1 ? (
               <SplitOptions
-                splitMode={splitMode}
-                splitRanges={splitRanges}
-                onModeChange={setSplitMode}
+                splitMode={
+                  splitMode
+                }
+                splitRanges={
+                  splitRanges
+                }
+                onModeChange={
+                  setSplitMode
+                }
                 onRangesChange={
                   setSplitRanges
                 }
@@ -736,7 +818,9 @@ export default function PdfWorkbench({
             {activeTool === 'pdfToJpg' &&
             selectedFiles.length === 1 ? (
               <PdfToJpgOptions
-                jpgQuality={jpgQuality}
+                jpgQuality={
+                  jpgQuality
+                }
                 onQualityChange={
                   setJpgQuality
                 }
@@ -751,8 +835,10 @@ export default function PdfWorkbench({
             {activeTool === 'pdfToWord' &&
             selectedFiles.length === 1 ? (
               <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
-                O texto selecionável será extraído para um ficheiro DOCX
-                editável. PDFs digitalizados apenas como imagem podem
+                O texto selecionável será
+                extraído para um ficheiro DOCX
+                editável. PDFs digitalizados
+                apenas como imagem podem
                 necessitar de OCR.
               </div>
             ) : null}
@@ -760,24 +846,33 @@ export default function PdfWorkbench({
             {activeTool === 'wordToPdf' &&
             selectedFiles.length === 1 ? (
               <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
-                O conversor aceita documentos DOCX e preserva texto,
-                parágrafos e formatação básica. Tabelas complexas, imagens e
-                paginação podem apresentar diferenças.
+                O conversor aceita documentos
+                DOCX e preserva texto,
+                parágrafos e formatação
+                básica. Tabelas complexas,
+                imagens e paginação podem
+                apresentar diferenças.
               </div>
             ) : null}
 
             {activeTool === 'editPdf' &&
             selectedFiles.length === 1 ? (
               <EditPdfOptions
-                elements={editElements}
-                onElementsChange={setEditElements}
+                elements={
+                  editElements
+                }
+                onElementsChange={
+                  setEditElements
+                }
               />
             ) : null}
 
             {activeTool === 'watermark' &&
             selectedFiles.length === 1 ? (
               <WatermarkOptions
-                text={watermarkText}
+                text={
+                  watermarkText
+                }
                 position={
                   watermarkPosition
                 }
@@ -925,7 +1020,9 @@ export default function PdfWorkbench({
               </button>
             ) : (
               <ResultCard
-                result={result}
+                result={
+                  result
+                }
                 onReset={
                   clearOperation
                 }
