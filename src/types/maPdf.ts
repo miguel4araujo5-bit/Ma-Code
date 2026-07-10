@@ -12,6 +12,8 @@ export type ActiveTool =
   | 'compress'
   | 'pdfToJpg'
   | 'jpgToPdf'
+  | 'watermark'
+  | 'sign'
 
 export type PdfTool = {
   id: string
@@ -36,8 +38,14 @@ export type ResultData = {
   message: string
 }
 
-export type SplitMode = 'ranges' | 'individual'
+export type SplitMode =
+  | 'ranges'
+  | 'individual'
 
-export type JpgQuality = 'standard' | 'high'
+export type JpgQuality =
+  | 'standard'
+  | 'high'
 
-export type ProgressCallback = (message: string) => void
+export type ProgressCallback = (
+  message: string
+) => void
