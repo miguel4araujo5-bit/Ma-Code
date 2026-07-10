@@ -1,7 +1,9 @@
 import { siteUrl } from './constants'
 
 function updateMeta(name: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+  let meta = document.querySelector<HTMLMetaElement>(
+    `meta[name="${name}"]`
+  )
 
   if (!meta) {
     meta = document.createElement('meta')
@@ -57,18 +59,22 @@ function updateStructuredData(id: string, data: unknown) {
 
 export function setupMaPdfSeo() {
   const pageUrl = `${siteUrl}/produtos/mapdf`
+
   const title =
-    'MA PDF | Juntar, dividir, comprimir e converter PDF para JPG'
+    'MA PDF | Juntar, dividir, comprimir e converter PDF e JPG'
+
   const description =
-    'Junte, divida, comprima e converta documentos PDF para JPG gratuitamente no navegador. Os ficheiros permanecem no seu dispositivo e não são enviados para servidores.'
+    'Junte, divida e comprima PDF, converta PDF para JPG e imagens JPG para PDF gratuitamente no navegador. Os ficheiros permanecem no seu dispositivo.'
 
   document.title = title
 
   updateMeta('description', description)
+
   updateMeta(
     'keywords',
-    'MA PDF, juntar PDF, dividir PDF, comprimir PDF, PDF para JPG, converter PDF em imagem, ferramentas PDF grátis, PDF online, PDF privado, MA-Code'
+    'MA PDF, juntar PDF, dividir PDF, comprimir PDF, PDF para JPG, JPG para PDF, converter imagens para PDF, ferramentas PDF grátis, PDF privado, MA-Code'
   )
+
   updateMeta(
     'robots',
     'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
@@ -79,22 +85,34 @@ export function setupMaPdfSeo() {
   updatePropertyMeta('og:site_name', 'MA-Code')
   updatePropertyMeta('og:url', pageUrl)
   updatePropertyMeta('og:title', title)
+
   updatePropertyMeta(
     'og:description',
-    'Ferramentas PDF gratuitas e privadas. Junte, divida, otimize e converta páginas PDF para JPG diretamente no navegador.'
+    'Ferramentas gratuitas e privadas para juntar, dividir, otimizar e converter ficheiros PDF e JPG diretamente no navegador.'
   )
+
   updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
-  updatePropertyMeta('og:image:alt', 'MA PDF - ferramentas PDF da MA-Code')
+
+  updatePropertyMeta(
+    'og:image:alt',
+    'MA PDF - ferramentas PDF da MA-Code'
+  )
 
   updateMeta('twitter:card', 'summary_large_image')
   updateMeta('twitter:url', pageUrl)
   updateMeta('twitter:title', title)
+
   updateMeta(
     'twitter:description',
-    'Ferramentas PDF gratuitas que juntam, dividem, otimizam e convertem documentos para JPG diretamente no navegador.'
+    'Ferramentas gratuitas para juntar, dividir, otimizar e converter PDF para JPG ou JPG para PDF no navegador.'
   )
+
   updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
-  updateMeta('twitter:image:alt', 'MA PDF - ferramentas PDF da MA-Code')
+
+  updateMeta(
+    'twitter:image:alt',
+    'MA PDF - ferramentas PDF da MA-Code'
+  )
 
   updateCanonical(pageUrl)
 
@@ -107,8 +125,7 @@ export function setupMaPdfSeo() {
         name: title,
         url: pageUrl,
         inLanguage: 'pt-PT',
-        description:
-          'Ferramentas PDF gratuitas para juntar, dividir, otimizar e converter documentos para JPG diretamente no navegador.',
+        description,
         isPartOf: {
           '@id': `${siteUrl}/#website`
         }
@@ -121,7 +138,7 @@ export function setupMaPdfSeo() {
         operatingSystem: 'Web',
         url: pageUrl,
         description:
-          'Ferramentas PDF gratuitas para juntar, dividir, otimizar e converter páginas PDF para JPG sem enviar os ficheiros para servidores.',
+          'Ferramentas gratuitas para juntar, dividir, otimizar e converter ficheiros PDF e JPG sem enviar documentos para servidores.',
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -132,6 +149,7 @@ export function setupMaPdfSeo() {
           'Dividir PDF por páginas ou intervalos',
           'Otimizar a estrutura de ficheiros PDF',
           'Converter páginas PDF para imagens JPG',
+          'Converter uma ou várias imagens JPG para PDF',
           'Processamento local no navegador'
         ],
         creator: {
