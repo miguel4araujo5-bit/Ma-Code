@@ -192,7 +192,7 @@ const cleanWallets = (value: unknown): Wallet[] => {
         name:
           typeof item.name === 'string' && item.name.trim()
             ? item.name.trim().slice(0, 40)
-            : `Carteira ${index + 1}`,
+            : `Endereço ${index + 1}`,
         createdAt:
           typeof item.createdAt === 'string'
             ? item.createdAt
@@ -351,7 +351,7 @@ export function loadState(): StoredState {
     wallets = cleanWallets(
       legacyWallets.map((address, index) => ({
         address,
-        name: `Carteira ${index + 1}`
+        name: `Endereço ${index + 1}`
       }))
     )
   }
@@ -714,7 +714,7 @@ export async function importState(
 
   if (!incomingWallets.length) {
     throw new Error(
-      'O ficheiro não contém carteiras válidas.'
+      'O ficheiro não contém endereços válidos.'
     )
   }
 
@@ -796,10 +796,10 @@ export function setPageMetadata() {
   }
 
   document.title =
-    'MA-Carteira | Portefólio PulseChain | MA-Code'
+    'MA-Carteira | Endereços e Portefólios PulseChain | MA-Code'
 
   const description =
-    'Acompanhe endereços públicos PulseChain, saldos PLS, tokens ERC-20 e histórico local, sem ligar a carteira nem partilhar chaves privadas.'
+    'Organize endereços públicos PulseChain num só portefólio, consulte saldos de PLS, tokens ERC-20, gráficos de preço e registos de saldo, sem ligar a carteira.'
 
   setMeta(
     'meta[name="description"]',
@@ -812,7 +812,7 @@ export function setPageMetadata() {
     'meta[name="keywords"]',
     'name',
     'keywords',
-    'MA-Carteira, PulseChain, carteira PulseChain, portefólio crypto, saldo PLS, tokens ERC-20, MA-Code'
+    'MA-Carteira, PulseChain, endereços PulseChain, portefólio PulseChain, explorador PulseChain, saldo PLS, tokens ERC-20, gráficos de preço, MA-Code'
   )
 
   setMeta(
@@ -847,7 +847,7 @@ export function setPageMetadata() {
     'meta[property="og:title"]',
     'property',
     'og:title',
-    'MA-Carteira | Portefólio PulseChain'
+    'MA-Carteira | Endereços e Portefólios PulseChain'
   )
 
   setMeta(
@@ -875,7 +875,7 @@ export function setPageMetadata() {
     'meta[name="twitter:title"]',
     'name',
     'twitter:title',
-    'MA-Carteira | Portefólio PulseChain'
+    'MA-Carteira | Endereços e Portefólios PulseChain'
   )
 
   setMeta(
@@ -962,7 +962,7 @@ export function setPageMetadata() {
         priceCurrency:
           'EUR',
         description:
-          'Funcionalidades locais gratuitas; conta cloud em preparação.'
+          'Consulta local gratuita; Conta MA com sincronização cloud em preparação.'
       }
     })
 }
