@@ -31,10 +31,12 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-word',
     title: 'PDF para Word',
-    description: 'Converta PDF para documentos Word editáveis.',
+    description:
+      'Extraia o texto selecionável do PDF para um documento Word editável.',
     badge: 'W',
     accent: 'blue',
-    available: false
+    activeTool: 'pdfToWord',
+    available: true
   },
   {
     id: 'word-para-pdf',
@@ -47,10 +49,12 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-doc',
     title: 'PDF para DOC',
-    description: 'Extraia texto de PDF para ficheiros DOC editáveis.',
+    description:
+      'Extraia o texto selecionável do PDF para um ficheiro DOC editável.',
     badge: 'DOC',
     accent: 'blue',
-    available: false
+    activeTool: 'pdfToDoc',
+    available: true
   },
   {
     id: 'doc-para-pdf',
@@ -81,10 +85,12 @@ export const pdfTools: PdfTool[] = [
   {
     id: 'pdf-para-excel',
     title: 'PDF para Excel',
-    description: 'Converta tabelas de PDF para ficheiros Excel editáveis.',
+    description:
+      'Extraia linhas e tabelas simples do PDF para um ficheiro Excel editável.',
     badge: 'XLS',
     accent: 'emerald',
-    available: false
+    activeTool: 'pdfToExcel',
+    available: true
   },
   {
     id: 'excel-para-pdf',
