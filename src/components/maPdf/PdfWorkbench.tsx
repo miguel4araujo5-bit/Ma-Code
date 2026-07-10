@@ -1,20 +1,42 @@
-import { useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
+
 import { pdfTools } from '../../data/pdfTools'
+
 import { compressPdfFile } from '../../lib/maPdf/compressPdf'
+
 import {
   accentClasses,
   MAX_FILE_SIZE_BYTES
 } from '../../lib/maPdf/constants'
+
 import {
   createFileId,
   formatFileSize,
   isJpgFile,
   isPdfFile
 } from '../../lib/maPdf/fileUtils'
+
 import { convertJpgToPdf } from '../../lib/maPdf/jpgToPdf'
 import { mergePdfFiles } from '../../lib/maPdf/mergePdf'
 import { convertPdfToJpg } from '../../lib/maPdf/pdfToJpg'
+
+import {
+  signPdf,
+  type SignaturePosition
+} from '../../lib/maPdf/signPdf'
+
 import { splitPdfFile } from '../../lib/maPdf/splitPdf'
+
+import {
+  addWatermarkToPdf,
+  type WatermarkPosition
+} from '../../lib/maPdf/watermarkPdf'
+
 import type {
   ActiveTool,
   JpgQuality,
@@ -22,23 +44,101 @@ import type {
   SelectedPdf,
   SplitMode
 } from '../../types/maPdf'
+
 import CompressInfo from './CompressInfo'
 import JpgToPdfInfo from './JpgToPdfInfo'
 import PdfToJpgOptions from './PdfToJpgOptions'
 import ResultCard from './ResultCard'
 import SelectedFilesList from './SelectedFilesList'
+
+import SignatureOptions, {
+  type SignaturePageMode
+} from './SignatureOptions'
+
 import SplitOptions from './SplitOptions'
 import UploadZone from './UploadZone'
+import WatermarkOptions from './WatermarkOptions'
 
 type PdfWorkbenchProps = {
   activeTool: ActiveTool
 }
 
-export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
+const DEFAULT_WATERMARK_TEXT = 'CONFIDENCIAL'
+const DEFAULT_WATERMARK_FONT_SIZE = 48
+const DEFAULT_WATERMARK_OPACITY = 0.18
+const DEFAULT_WATERMARK_ROTATION = 45
+
+const DEFAULT_SIGNATURE_PAGE_MODE: SignaturePageMode = 'last'
+const DEFAULT_SIGNATURE_POSITION: SignaturePosition = 'bottom-right'
+const DEFAULT_SIGNATURE_WIDTH = 150
+const DEFAULT_SIGNATURE_OPACITY = 1
+
+const MAX_SIGNATURE_SIZE_BYTES = 10 * 1024 * 1024
+
+function isPngFile(file: File) {
+  return (
+    file.type === 'image/png' ||
+    file.name.toLowerCase().endsWith('.png')
+  )
+}
+
+function isSignatureImage(file: File) {
+  return isPngFile(file) || isJpgFile(file)
+}
+
+export default function PdfWorkbench({
+  activeTool
+}: PdfWorkbenchProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedPdf[]>([])
+
   const [splitMode, setSplitMode] = useState<SplitMode>('ranges')
   const [splitRanges, setSplitRanges] = useState('1-3')
-  const [jpgQuality, setJpgQuality] = useState<JpgQuality>('standard')
+
+  const [jpgQuality, setJpgQuality] =
+    useState<JpgQuality>('standard')
+
+  const [watermarkText, setWatermarkText] = useState(
+    DEFAULT_WATERMARK_TEXT
+  )
+
+  const [watermarkPosition, setWatermarkPosition] =
+    useState<WatermarkPosition>('center')
+
+  const [watermarkFontSize, setWatermarkFontSize] = useState(
+    DEFAULT_WATERMARK_FONT_SIZE
+  )
+
+  const [watermarkOpacity, setWatermarkOpacity] = useState(
+    DEFAULT_WATERMARK_OPACITY
+  )
+
+  const [watermarkRotation, setWatermarkRotation] = useState(
+    DEFAULT_WATERMARK_ROTATION
+  )
+
+  const [signatureFile, setSignatureFile] =
+    useState<File | null>(null)
+
+  const [signaturePageMode, setSignaturePageMode] =
+    useState<SignaturePageMode>(
+      DEFAULT_SIGNATURE_PAGE_MODE
+    )
+
+  const [signaturePageNumber, setSignaturePageNumber] = useState(1)
+
+  const [signaturePosition, setSignaturePosition] =
+    useState<SignaturePosition>(
+      DEFAULT_SIGNATURE_POSITION
+    )
+
+  const [signatureWidth, setSignatureWidth] = useState(
+    DEFAULT_SIGNATURE_WIDTH
+  )
+
+  const [signatureOpacity, setSignatureOpacity] = useState(
+    DEFAULT_SIGNATURE_OPACITY
+  )
+
   const [isProcessing, setIsProcessing] = useState(false)
   const [progressMessage, setProgressMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -47,35 +147,94 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const activeToolData = useMemo(
-    () => pdfTools.find((tool) => tool.activeTool === activeTool),
+    () =>
+      pdfTools.find(
+        (tool) => tool.activeTool === activeTool
+      ),
     [activeTool]
   )
 
   const totalSelectedSize = useMemo(
     () =>
       selectedFiles.reduce(
-        (total, selected) => total + selected.file.size,
+        (total, selected) =>
+          total + selected.file.size,
         0
       ),
     [selectedFiles]
   )
 
-  const acceptsImages = activeTool === 'jpgToPdf'
+  const acceptsImages =
+    activeTool === 'jpgToPdf'
 
   const acceptsMultipleFiles =
-    activeTool === 'merge' || activeTool === 'jpgToPdf'
+    activeTool === 'merge' ||
+    activeTool === 'jpgToPdf'
 
-  const allowsReorder = acceptsMultipleFiles
+  const allowsReorder =
+    acceptsMultipleFiles
+
+  const resetToolOptions = () => {
+    setSplitMode('ranges')
+    setSplitRanges('1-3')
+
+    setJpgQuality('standard')
+
+    setWatermarkText(
+      DEFAULT_WATERMARK_TEXT
+    )
+
+    setWatermarkPosition('center')
+
+    setWatermarkFontSize(
+      DEFAULT_WATERMARK_FONT_SIZE
+    )
+
+    setWatermarkOpacity(
+      DEFAULT_WATERMARK_OPACITY
+    )
+
+    setWatermarkRotation(
+      DEFAULT_WATERMARK_ROTATION
+    )
+
+    setSignatureFile(null)
+
+    setSignaturePageMode(
+      DEFAULT_SIGNATURE_PAGE_MODE
+    )
+
+    setSignaturePageNumber(1)
+
+    setSignaturePosition(
+      DEFAULT_SIGNATURE_POSITION
+    )
+
+    setSignatureWidth(
+      DEFAULT_SIGNATURE_WIDTH
+    )
+
+    setSignatureOpacity(
+      DEFAULT_SIGNATURE_OPACITY
+    )
+  }
 
   const clearOperation = () => {
     setSelectedFiles([])
-    setSplitMode('ranges')
-    setSplitRanges('1-3')
-    setJpgQuality('standard')
+    resetToolOptions()
     setProgressMessage('')
     setErrorMessage('')
     setResult(null)
+    setIsProcessing(false)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
+
+  useEffect(() => {
+    clearOperation()
+  }, [activeTool])
 
   const addFiles = (files: File[]) => {
     setErrorMessage('')
@@ -83,7 +242,9 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
     setResult(null)
 
     const invalidFile = files.find((file) =>
-      acceptsImages ? !isJpgFile(file) : !isPdfFile(file)
+      acceptsImages
+        ? !isJpgFile(file)
+        : !isPdfFile(file)
     )
 
     if (invalidFile) {
@@ -92,23 +253,27 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           ? `O ficheiro "${invalidFile.name}" não parece ser uma imagem JPG.`
           : `O ficheiro "${invalidFile.name}" não parece ser um documento PDF.`
       )
+
       return
     }
 
     const oversizedFile = files.find(
-      (file) => file.size > MAX_FILE_SIZE_BYTES
+      (file) =>
+        file.size > MAX_FILE_SIZE_BYTES
     )
 
     if (oversizedFile) {
       setErrorMessage(
         `O ficheiro "${oversizedFile.name}" ultrapassa o limite recomendado de 100 MB.`
       )
+
       return
     }
 
-    const acceptedFiles = acceptsMultipleFiles
-      ? files
-      : files.slice(0, 1)
+    const acceptedFiles =
+      acceptsMultipleFiles
+        ? files
+        : files.slice(0, 1)
 
     setSelectedFiles((currentFiles) => {
       if (!acceptsMultipleFiles) {
@@ -143,13 +308,18 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           file
         }))
 
-      return [...currentFiles, ...newFiles]
+      return [
+        ...currentFiles,
+        ...newFiles
+      ]
     })
   }
 
   const removeFile = (id: string) => {
     setSelectedFiles((currentFiles) =>
-      currentFiles.filter((item) => item.id !== id)
+      currentFiles.filter(
+        (item) => item.id !== id
+      )
     )
 
     setResult(null)
@@ -157,21 +327,84 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
     setErrorMessage('')
   }
 
-  const moveFile = (index: number, direction: -1 | 1) => {
+  const moveFile = (
+    index: number,
+    direction: -1 | 1
+  ) => {
     setSelectedFiles((currentFiles) => {
-      const destination = index + direction
+      const destination =
+        index + direction
 
-      if (destination < 0 || destination >= currentFiles.length) {
+      if (
+        destination < 0 ||
+        destination >= currentFiles.length
+      ) {
         return currentFiles
       }
 
-      const reordered = [...currentFiles]
-      const [movedItem] = reordered.splice(index, 1)
+      const reordered = [
+        ...currentFiles
+      ]
 
-      reordered.splice(destination, 0, movedItem)
+      const [movedItem] =
+        reordered.splice(index, 1)
+
+      reordered.splice(
+        destination,
+        0,
+        movedItem
+      )
 
       return reordered
     })
+  }
+
+  const handleSignatureFileChange = (
+    file: File | null
+  ) => {
+    setErrorMessage('')
+    setResult(null)
+    setProgressMessage('')
+
+    if (!file) {
+      setSignatureFile(null)
+      return
+    }
+
+    if (!isSignatureImage(file)) {
+      setSignatureFile(null)
+
+      setErrorMessage(
+        'A assinatura deve estar num ficheiro PNG, JPG ou JPEG.'
+      )
+
+      return
+    }
+
+    if (
+      file.size >
+      MAX_SIGNATURE_SIZE_BYTES
+    ) {
+      setSignatureFile(null)
+
+      setErrorMessage(
+        'A imagem da assinatura ultrapassa o limite de 10 MB.'
+      )
+
+      return
+    }
+
+    if (file.size === 0) {
+      setSignatureFile(null)
+
+      setErrorMessage(
+        'O ficheiro da assinatura está vazio.'
+      )
+
+      return
+    }
+
+    setSignatureFile(file)
   }
 
   const processCurrentTool = async () => {
@@ -181,59 +414,117 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
 
     setIsProcessing(true)
     setErrorMessage('')
+    setProgressMessage('')
     setResult(null)
 
     try {
       let generatedResult: ResultData
 
       if (activeTool === 'merge') {
-        generatedResult = await mergePdfFiles(
-          selectedFiles,
-          setProgressMessage
-        )
+        generatedResult =
+          await mergePdfFiles(
+            selectedFiles,
+            setProgressMessage
+          )
       } else if (activeTool === 'split') {
-        generatedResult = await splitPdfFile(
-          selectedFiles[0],
-          splitMode,
-          splitRanges,
-          setProgressMessage
-        )
+        generatedResult =
+          await splitPdfFile(
+            selectedFiles[0],
+            splitMode,
+            splitRanges,
+            setProgressMessage
+          )
       } else if (activeTool === 'compress') {
-        generatedResult = await compressPdfFile(
-          selectedFiles[0],
-          setProgressMessage
-        )
+        generatedResult =
+          await compressPdfFile(
+            selectedFiles[0],
+            setProgressMessage
+          )
       } else if (activeTool === 'pdfToJpg') {
-        generatedResult = await convertPdfToJpg(
-          selectedFiles[0],
-          jpgQuality,
-          setProgressMessage
-        )
+        generatedResult =
+          await convertPdfToJpg(
+            selectedFiles[0],
+            jpgQuality,
+            setProgressMessage
+          )
+      } else if (activeTool === 'jpgToPdf') {
+        generatedResult =
+          await convertJpgToPdf(
+            selectedFiles,
+            setProgressMessage
+          )
+      } else if (activeTool === 'watermark') {
+        generatedResult =
+          await addWatermarkToPdf(
+            selectedFiles[0],
+            {
+              text: watermarkText,
+              position: watermarkPosition,
+              fontSize: watermarkFontSize,
+              opacity: watermarkOpacity,
+              rotation: watermarkRotation
+            },
+            setProgressMessage
+          )
+      } else if (activeTool === 'sign') {
+        if (!signatureFile) {
+          throw new Error(
+            'Escolha uma imagem PNG, JPG ou JPEG com a assinatura.'
+          )
+        }
+
+        generatedResult =
+          await signPdf(
+            selectedFiles[0],
+            {
+              signatureFile,
+              page:
+                signaturePageMode === 'custom'
+                  ? signaturePageNumber
+                  : signaturePageMode,
+              position: signaturePosition,
+              width: signatureWidth,
+              opacity: signatureOpacity
+            },
+            setProgressMessage
+          )
       } else {
-        generatedResult = await convertJpgToPdf(
-          selectedFiles,
-          setProgressMessage
+        throw new Error(
+          'Esta ferramenta ainda não está disponível.'
         )
       }
 
       setResult(generatedResult)
-      setProgressMessage('Processamento concluído.')
+
+      setProgressMessage(
+        'Processamento concluído.'
+      )
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Não foi possível processar este documento.'
 
-      const normalizedMessage = message.toLowerCase()
+      const normalizedMessage =
+        message.toLowerCase()
 
       if (
-        normalizedMessage.includes('encrypted') ||
-        normalizedMessage.includes('password')
+        normalizedMessage.includes(
+          'encrypted'
+        ) ||
+        normalizedMessage.includes(
+          'password'
+        ) ||
+        normalizedMessage.includes(
+          'palavra-passe'
+        )
       ) {
         setErrorMessage(
           'Este PDF está protegido por palavra-passe. Remova a proteção antes de utilizar a ferramenta.'
         )
-      } else if (activeTool === 'jpgToPdf') {
+      } else if (
+        activeTool === 'jpgToPdf'
+      ) {
         setErrorMessage(
           'Não foi possível ler uma das imagens. Confirme que todos os ficheiros são JPG ou JPEG válidos.'
         )
@@ -252,7 +543,13 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
       ? selectedFiles.length >= 2
       : activeTool === 'jpgToPdf'
         ? selectedFiles.length >= 1
-        : selectedFiles.length === 1
+        : activeTool === 'watermark'
+          ? selectedFiles.length === 1 &&
+            watermarkText.trim().length > 0
+          : activeTool === 'sign'
+            ? selectedFiles.length === 1 &&
+              signatureFile !== null
+            : selectedFiles.length === 1
 
   const buttonText =
     activeTool === 'merge'
@@ -265,7 +562,13 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           ? 'Otimizar PDF'
           : activeTool === 'pdfToJpg'
             ? 'Converter PDF para JPG'
-            : 'Converter imagens para PDF'
+            : activeTool === 'jpgToPdf'
+              ? 'Converter imagens para PDF'
+              : activeTool === 'watermark'
+                ? 'Adicionar marca de água'
+                : activeTool === 'sign'
+                  ? 'Assinar documento PDF'
+                  : 'Processar documento'
 
   return (
     <section
@@ -279,7 +582,10 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
               <div className="flex items-center gap-4">
                 <div
                   className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${
-                    accentClasses[activeToolData?.accent || 'cyan']
+                    accentClasses[
+                      activeToolData?.accent ||
+                        'cyan'
+                    ]
                   }`}
                 >
                   {activeToolData?.badge}
@@ -295,13 +601,16 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    {activeToolData?.description}
+                    {
+                      activeToolData?.description
+                    }
                   </p>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.08] px-4 py-3 text-sm text-emerald-100">
-                Gratuito · Sem upload para servidores
+                Gratuito · Sem upload para
+                servidores
               </div>
             </div>
           </div>
@@ -309,7 +618,11 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
           <div className="p-5 md:p-7">
             <UploadZone
               multiple={acceptsMultipleFiles}
-              fileType={acceptsImages ? 'jpg' : 'pdf'}
+              fileType={
+                acceptsImages
+                  ? 'jpg'
+                  : 'pdf'
+              }
               inputRef={fileInputRef}
               onFiles={addFiles}
             />
@@ -317,51 +630,147 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
             <SelectedFilesList
               files={selectedFiles}
               allowReorder={allowsReorder}
-              fileBadge={acceptsImages ? 'JPG' : 'PDF'}
+              fileBadge={
+                acceptsImages
+                  ? 'JPG'
+                  : 'PDF'
+              }
               onRemove={removeFile}
               onMove={moveFile}
             />
 
-            {activeTool === 'merge' && selectedFiles.length > 0 ? (
+            {activeTool === 'merge' &&
+            selectedFiles.length > 0 ? (
               <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-                Os documentos serão unidos pela ordem apresentada acima.
-                Utilize as setas para alterar a ordem.
+                Os documentos serão unidos
+                pela ordem apresentada acima.
+                Utilize as setas para alterar
+                a ordem.
               </div>
             ) : null}
 
-            {activeTool === 'split' && selectedFiles.length === 1 ? (
+            {activeTool === 'split' &&
+            selectedFiles.length === 1 ? (
               <SplitOptions
                 splitMode={splitMode}
                 splitRanges={splitRanges}
                 onModeChange={setSplitMode}
-                onRangesChange={setSplitRanges}
+                onRangesChange={
+                  setSplitRanges
+                }
               />
             ) : null}
 
-            {activeTool === 'compress' && selectedFiles.length === 1 ? (
+            {activeTool === 'compress' &&
+            selectedFiles.length === 1 ? (
               <CompressInfo />
             ) : null}
 
-            {activeTool === 'pdfToJpg' && selectedFiles.length === 1 ? (
+            {activeTool === 'pdfToJpg' &&
+            selectedFiles.length === 1 ? (
               <PdfToJpgOptions
                 jpgQuality={jpgQuality}
-                onQualityChange={setJpgQuality}
+                onQualityChange={
+                  setJpgQuality
+                }
               />
             ) : null}
 
-            {activeTool === 'jpgToPdf' && selectedFiles.length > 0 ? (
+            {activeTool === 'jpgToPdf' &&
+            selectedFiles.length > 0 ? (
               <JpgToPdfInfo />
+            ) : null}
+
+            {activeTool === 'watermark' &&
+            selectedFiles.length === 1 ? (
+              <WatermarkOptions
+                text={watermarkText}
+                position={
+                  watermarkPosition
+                }
+                fontSize={
+                  watermarkFontSize
+                }
+                opacity={
+                  watermarkOpacity
+                }
+                rotation={
+                  watermarkRotation
+                }
+                onTextChange={
+                  setWatermarkText
+                }
+                onPositionChange={
+                  setWatermarkPosition
+                }
+                onFontSizeChange={
+                  setWatermarkFontSize
+                }
+                onOpacityChange={
+                  setWatermarkOpacity
+                }
+                onRotationChange={
+                  setWatermarkRotation
+                }
+              />
+            ) : null}
+
+            {activeTool === 'sign' &&
+            selectedFiles.length === 1 ? (
+              <SignatureOptions
+                signatureFile={
+                  signatureFile
+                }
+                pageMode={
+                  signaturePageMode
+                }
+                pageNumber={
+                  signaturePageNumber
+                }
+                position={
+                  signaturePosition
+                }
+                width={
+                  signatureWidth
+                }
+                opacity={
+                  signatureOpacity
+                }
+                onFileChange={
+                  handleSignatureFileChange
+                }
+                onPageModeChange={
+                  setSignaturePageMode
+                }
+                onPageNumberChange={
+                  setSignaturePageNumber
+                }
+                onPositionChange={
+                  setSignaturePosition
+                }
+                onWidthChange={
+                  setSignatureWidth
+                }
+                onOpacityChange={
+                  setSignatureOpacity
+                }
+              />
             ) : null}
 
             {selectedFiles.length > 0 ? (
               <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-400">
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-                  {selectedFiles.length} ficheiro
-                  {selectedFiles.length === 1 ? '' : 's'}
+                  {selectedFiles.length}{' '}
+                  ficheiro
+                  {selectedFiles.length === 1
+                    ? ''
+                    : 's'}
                 </span>
 
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-                  {formatFileSize(totalSelectedSize)}
+                  {formatFileSize(
+                    totalSelectedSize
+                  )}
                 </span>
               </div>
             ) : null}
@@ -375,7 +784,8 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
               </div>
             ) : null}
 
-            {isProcessing || progressMessage ? (
+            {isProcessing ||
+            progressMessage ? (
               <div
                 className="mt-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4"
                 role="status"
@@ -400,19 +810,33 @@ export default function PdfWorkbench({ activeTool }: PdfWorkbenchProps) {
             {!result ? (
               <button
                 type="button"
-                onClick={processCurrentTool}
-                disabled={!canProcess || isProcessing}
+                onClick={
+                  processCurrentTool
+                }
+                disabled={
+                  !canProcess ||
+                  isProcessing
+                }
                 className="btn-primary hightech-button mt-6 w-full disabled:cursor-not-allowed disabled:opacity-40"
-                aria-busy={isProcessing}
+                aria-busy={
+                  isProcessing
+                }
               >
                 <span className="btn-shine" />
 
                 <span className="relative z-10">
-                  {isProcessing ? 'A processar...' : buttonText}
+                  {isProcessing
+                    ? 'A processar...'
+                    : buttonText}
                 </span>
               </button>
             ) : (
-              <ResultCard result={result} onReset={clearOperation} />
+              <ResultCard
+                result={result}
+                onReset={
+                  clearOperation
+                }
+              />
             )}
           </div>
         </div>
