@@ -9,6 +9,8 @@ type UploadFileType =
   | 'pdf'
   | 'jpg'
   | 'docx'
+  | 'excel'
+  | 'pptx'
 
 type UploadZoneProps = {
   multiple: boolean
@@ -30,42 +32,51 @@ const uploadFileConfigs: Record<
   UploadFileConfig
 > = {
   pdf: {
-    acceptedTypes:
-      '.pdf,application/pdf',
-    singularDropLabel:
-      'o ficheiro PDF',
-    pluralDropLabel:
-      'os ficheiros PDF',
-    singularButtonLabel:
-      'ficheiro PDF',
-    pluralButtonLabel:
-      'ficheiros PDF'
+    acceptedTypes: '.pdf,application/pdf',
+    singularDropLabel: 'o ficheiro PDF',
+    pluralDropLabel: 'os ficheiros PDF',
+    singularButtonLabel: 'ficheiro PDF',
+    pluralButtonLabel: 'ficheiros PDF'
   },
-
   jpg: {
     acceptedTypes:
       '.jpg,.jpeg,image/jpeg',
-    singularDropLabel:
-      'a imagem JPG',
-    pluralDropLabel:
-      'as imagens JPG',
-    singularButtonLabel:
-      'imagem JPG',
-    pluralButtonLabel:
-      'imagens JPG'
+    singularDropLabel: 'a imagem JPG',
+    pluralDropLabel: 'as imagens JPG',
+    singularButtonLabel: 'imagem JPG',
+    pluralButtonLabel: 'imagens JPG'
   },
-
   docx: {
     acceptedTypes:
       '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    singularDropLabel: 'o documento Word',
+    pluralDropLabel: 'os documentos Word',
+    singularButtonLabel: 'documento Word',
+    pluralButtonLabel: 'documentos Word'
+  },
+  excel: {
+    acceptedTypes:
+      '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
     singularDropLabel:
-      'o documento Word',
+      'a folha de cálculo Excel',
     pluralDropLabel:
-      'os documentos Word',
+      'as folhas de cálculo Excel',
     singularButtonLabel:
-      'documento Word',
+      'ficheiro Excel',
     pluralButtonLabel:
-      'documentos Word'
+      'ficheiros Excel'
+  },
+  pptx: {
+    acceptedTypes:
+      '.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    singularDropLabel:
+      'a apresentação PowerPoint',
+    pluralDropLabel:
+      'as apresentações PowerPoint',
+    singularButtonLabel:
+      'ficheiro PowerPoint',
+    pluralButtonLabel:
+      'ficheiros PowerPoint'
   }
 }
 
@@ -93,18 +104,13 @@ export default function UploadZone({
       return
     }
 
-    onFiles(
-      Array.from(fileList)
-    )
+    onFiles(Array.from(fileList))
   }
 
   const handleInputChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    processFileList(
-      event.target.files
-    )
-
+    processFileList(event.target.files)
     event.target.value = ''
   }
 
@@ -112,10 +118,7 @@ export default function UploadZone({
     event: DragEvent<HTMLDivElement>
   ) => {
     event.preventDefault()
-
-    event.dataTransfer.dropEffect =
-      'copy'
-
+    event.dataTransfer.dropEffect = 'copy'
     setIsDragging(true)
   }
 
@@ -131,7 +134,6 @@ export default function UploadZone({
   ) => {
     event.preventDefault()
     setIsDragging(false)
-
     processFileList(
       event.dataTransfer.files
     )
@@ -139,15 +141,9 @@ export default function UploadZone({
 
   return (
     <div
-      onDragOver={
-        handleDragOver
-      }
-      onDragLeave={
-        handleDragLeave
-      }
-      onDrop={
-        handleDrop
-      }
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={`rounded-[2rem] border-2 border-dashed p-6 text-center transition md:p-10 ${
         isDragging
           ? 'border-cyan-200 bg-cyan-300/[0.12]'
@@ -155,19 +151,11 @@ export default function UploadZone({
       }`}
     >
       <input
-        ref={
-          inputRef
-        }
+        ref={inputRef}
         type="file"
-        accept={
-          acceptedTypes
-        }
-        multiple={
-          multiple
-        }
-        onChange={
-          handleInputChange
-        }
+        accept={acceptedTypes}
+        multiple={multiple}
+        onChange={handleInputChange}
         className="hidden"
       />
 
@@ -184,8 +172,9 @@ export default function UploadZone({
       </h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        O processamento acontece no seu navegador.
-        Os ficheiros não são enviados para servidores.
+        O processamento acontece no seu
+        navegador. Os ficheiros não são
+        enviados para servidores.
       </p>
 
       <button
@@ -205,7 +194,8 @@ export default function UploadZone({
       </button>
 
       <p className="mt-4 text-xs text-slate-500">
-        Tamanho máximo recomendado: 100 MB por ficheiro
+        Tamanho máximo recomendado: 100 MB
+        por ficheiro
       </p>
     </div>
   )
