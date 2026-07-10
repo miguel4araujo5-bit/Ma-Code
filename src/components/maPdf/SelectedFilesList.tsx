@@ -4,6 +4,7 @@ import type { SelectedPdf } from '../../types/maPdf'
 type SelectedFilesListProps = {
   files: SelectedPdf[]
   allowReorder: boolean
+  fileBadge: 'PDF' | 'JPG'
   onRemove: (id: string) => void
   onMove: (index: number, direction: -1 | 1) => void
 }
@@ -11,6 +12,7 @@ type SelectedFilesListProps = {
 export default function SelectedFilesList({
   files,
   allowReorder,
+  fileBadge,
   onRemove,
   onMove
 }: SelectedFilesListProps) {
@@ -27,7 +29,7 @@ export default function SelectedFilesList({
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-xs font-black text-cyan-100">
-              PDF
+              {fileBadge}
             </div>
 
             <div className="min-w-0">
