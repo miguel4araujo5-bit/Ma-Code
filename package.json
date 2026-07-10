@@ -12,8 +12,10 @@
     "fflate": "^0.8.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.1.200",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
