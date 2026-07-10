@@ -10,8 +10,11 @@ export type ActiveTool =
   | 'merge'
   | 'split'
   | 'compress'
+  | 'pdfToWord'
+  | 'pdfToDoc'
   | 'pdfToJpg'
   | 'jpgToPdf'
+  | 'pdfToExcel'
   | 'watermark'
   | 'sign'
 
@@ -38,14 +41,8 @@ export type ResultData = {
   message: string
 }
 
-export type SplitMode =
-  | 'ranges'
-  | 'individual'
+export type SplitMode = 'ranges' | 'individual'
 
-export type JpgQuality =
-  | 'standard'
-  | 'high'
+export type JpgQuality = 'standard' | 'high'
 
-export type ProgressCallback = (
-  message: string
-) => void
+export type ProgressCallback = (message: string) => void
