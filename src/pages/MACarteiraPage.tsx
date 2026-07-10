@@ -34,10 +34,13 @@ import {
 
 import {
   DEFAULT_CHAIN_ID,
+  getNativeCurrency,
+  getWrappedNativeToken,
   type ChainId
 } from '../lib/maCarteiraChains'
 
 import TokenPricePanel from '../components/ma-carteira/TokenPricePanel'
+import WalletTransactionsPanel from '../components/ma-carteira/WalletTransactionsPanel'
 
 type Toast = {
   message: string
@@ -68,7 +71,7 @@ function TokenList({
   if (!tokens.length) {
     return (
       <p className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-400">
-        Não foram encontrados tokens ERC-20 com saldo.
+        Não foram encontrados outros tokens ERC-20 com saldo.
       </p>
     )
   }
@@ -158,6 +161,85 @@ function TokenList({
   )
 }
 
+function NativeAssetRow({
+  chainId,
+  balance,
+  loading,
+  error,
+  onOpenPrice
+}: {
+  chainId: ChainId
+  balance: string
+  loading: boolean
+  error: string | null
+  onOpenPrice: (
+    token: SelectedTokenPrice
+  ) => void
+}) {
+  const nativeCurrency =
+    getNativeCurrency(chainId)
+
+  const wrappedNativeToken =
+    getWrappedNativeToken(chainId)
+
+  const formattedBalance =
+    loading && !balance
+      ? 'A atualizar…'
+      : error
+        ? 'Erro'
+        : balance
+          ? formatBalance(
+              balance,
+              nativeCurrency.decimals,
+              6
+            )
+          : '—'
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl bg-emerald-300/[0.045] px-3 py-2.5 ring-1 ring-inset ring-emerald-300/10">
+      <div className="flex min-w-0 items-center justify-between gap-4">
+        <span className="min-w-0">
+          <strong className="block truncate text-sm text-white">
+            {nativeCurrency.symbol}
+          </strong>
+
+          <span className="block truncate text-xs text-slate-500">
+            {nativeCurrency.name} · Ativo nativo
+          </span>
+        </span>
+
+        <span className="shrink-0 text-right font-mono text-sm text-emerald-200">
+          {formattedBalance}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        disabled={!wrappedNativeToken}
+        onClick={() => {
+          if (!wrappedNativeToken) {
+            return
+          }
+
+          onOpenPrice({
+            chainId,
+            contractAddress:
+              wrappedNativeToken,
+            symbol:
+              nativeCurrency.symbol,
+            name:
+              nativeCurrency.name
+          })
+        }}
+        className="min-h-9 shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 text-xs font-bold text-emerald-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label={`Ver gráfico de preço de ${nativeCurrency.symbol}`}
+      >
+        Ver gráfico
+      </button>
+    </div>
+  )
+}
+
 export default function MACarteiraPage() {
   const initial = useMemo(
     () => loadState(),
@@ -186,6 +268,11 @@ export default function MACarteiraPage() {
   const [
     selectedHistory,
     setSelectedHistory
+  ] = useState<string | null>(null)
+
+  const [
+    selectedTransactions,
+    setSelectedTransactions
   ] = useState<string | null>(null)
 
   const [toast, setToast] =
@@ -218,6 +305,7 @@ export default function MACarteiraPage() {
   useEffect(() => {
     if (
       !selectedHistory &&
+      !selectedTransactions &&
       !selectedTokenPrice
     ) {
       return
@@ -231,6 +319,7 @@ export default function MACarteiraPage() {
       }
 
       setSelectedHistory(null)
+      setSelectedTransactions(null)
       setSelectedTokenPrice(null)
     }
 
@@ -246,6 +335,7 @@ export default function MACarteiraPage() {
       )
   }, [
     selectedHistory,
+    selectedTransactions,
     selectedTokenPrice
   ])
 
@@ -605,6 +695,14 @@ export default function MACarteiraPage() {
       return next
     })
 
+    if (selectedHistory === key) {
+      setSelectedHistory(null)
+    }
+
+    if (selectedTransactions === key) {
+      setSelectedTransactions(null)
+    }
+
     showToast('Endereço removido.')
   }
 
@@ -701,6 +799,17 @@ export default function MACarteiraPage() {
       ? history[selectedHistory] || []
       : []
 
+  const selectedTransactionsWallet =
+    selectedTransactions
+      ? wallets.find(
+          (wallet) =>
+            addressKey(
+              wallet.address,
+              getWalletChainId(wallet)
+            ) === selectedTransactions
+        ) || null
+      : null
+
   return (
     <main className="site-shell">
       <div className="site-bg-orb site-bg-orb-one" />
@@ -766,9 +875,9 @@ export default function MACarteiraPage() {
                 Adicione endereços públicos, atribua
                 um nome a cada um e consulte os
                 respetivos portefólios: saldo de PLS,
-                tokens ERC-20, gráficos de preço
-                disponíveis e registos das
-                atualizações anteriores.
+                tokens ERC-20, gráficos de preço,
+                transações públicas do endereço e
+                registos das atualizações anteriores.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
@@ -1221,46 +1330,55 @@ export default function MACarteiraPage() {
                         </div>
 
                         <div className="p-5">
-                          <div className="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                              <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">
-                                PLS nativo
+                          <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedTransactions(
+                                  key
+                                )
+                              }
+                              className="rounded-[1.35rem] border border-cyan-300/15 bg-cyan-300/[0.06] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                            >
+                              <span className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">
+                                Transações on-chain
                               </span>
 
-                              <strong className="mt-1 block break-all text-3xl font-semibold tracking-tight text-white">
-                                {data.loading &&
-                                !data.plsBalance
-                                  ? 'A atualizar…'
-                                  : data.error
-                                    ? 'Erro'
-                                    : data.plsBalance
-                                      ? formatBalance(
-                                          data.plsBalance,
-                                          18,
-                                          6
-                                        )
-                                      : '—'}
+                              <strong className="mt-2 block text-sm text-white">
+                                Ver movimentos reais
                               </strong>
-                            </div>
 
-                            <div className="text-right text-xs text-slate-500">
-                              <span className="block">
-                                {snapshots.length}{' '}
-                                registos de saldo
+                              <span className="mt-1 block text-xs leading-5 text-slate-400">
+                                Recebidos, enviados,
+                                swaps e interações.
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedHistory(
+                                  key
+                                )
+                              }
+                              className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/25 hover:bg-emerald-300/[0.07]"
+                            >
+                              <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/80">
+                                Histórico de saldos
                               </span>
 
-                              <button
-                                type="button"
-                                className="mt-1 font-semibold text-emerald-300 hover:text-emerald-200"
-                                onClick={() =>
-                                  setSelectedHistory(
-                                    key
-                                  )
-                                }
-                              >
-                                Ver registos
-                              </button>
-                            </div>
+                              <strong className="mt-2 block text-sm text-white">
+                                {snapshots.length}{' '}
+                                {snapshots.length === 1
+                                  ? 'registo guardado'
+                                  : 'registos guardados'}
+                              </strong>
+
+                              <span className="mt-1 block text-xs leading-5 text-slate-400">
+                                Estados do portefólio nas
+                                atualizações anteriores.
+                              </span>
+                            </button>
                           </div>
 
                           {data.error ? (
@@ -1270,25 +1388,39 @@ export default function MACarteiraPage() {
                           ) : null}
 
                           <h4 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">
-                            Tokens ERC-20 encontrados (
-                            {data.tokens.length})
+                            Ativos do endereço (
+                            {data.tokens.length + 1})
                           </h4>
 
-                          {data.loading &&
-                          !data.tokens.length ? (
-                            <p className="rounded-2xl bg-white/[0.04] p-4 text-sm text-slate-400">
-                              A consultar a
-                              PulseChain…
-                            </p>
-                          ) : (
-                            <TokenList
-                              tokens={data.tokens}
+                          <div className="space-y-1">
+                            <NativeAssetRow
                               chainId={chainId}
+                              balance={
+                                data.plsBalance || ''
+                              }
+                              loading={data.loading}
+                              error={data.error}
                               onOpenPrice={
                                 setSelectedTokenPrice
                               }
                             />
-                          )}
+
+                            {data.loading &&
+                            !data.tokens.length ? (
+                              <p className="rounded-2xl bg-white/[0.04] p-4 text-sm text-slate-400">
+                                A consultar os restantes
+                                ativos na PulseChain…
+                              </p>
+                            ) : (
+                              <TokenList
+                                tokens={data.tokens}
+                                chainId={chainId}
+                                onOpenPrice={
+                                  setSelectedTokenPrice
+                                }
+                              />
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-black/10 px-5 py-3 text-xs text-slate-500">
@@ -1366,6 +1498,37 @@ export default function MACarteiraPage() {
               }
               onClose={() =>
                 setSelectedTokenPrice(null)
+              }
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {selectedTransactions &&
+      selectedTransactionsWallet ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Transações de ${selectedTransactionsWallet.name}`}
+          onMouseDown={(event) =>
+            event.currentTarget === event.target &&
+            setSelectedTransactions(null)
+          }
+        >
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto">
+            <WalletTransactionsPanel
+              address={
+                selectedTransactionsWallet.address
+              }
+              chainId={getWalletChainId(
+                selectedTransactionsWallet
+              )}
+              walletName={
+                selectedTransactionsWallet.name
+              }
+              onClose={() =>
+                setSelectedTransactions(null)
               }
             />
           </div>
