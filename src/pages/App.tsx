@@ -4,7 +4,12 @@ import ServicePage from './ServicePage'
 import ContactPage from './ContactPage'
 import ProductsPage from './ProductsPage'
 import MAPdfPage from './MAPdfPage'
-import { getServicePageByPath, type ServicePageSlug } from '../data/servicePages'
+import MABtcAlertsPage from './MABtcAlertsPage'
+
+import {
+  getServicePageByPath,
+  type ServicePageSlug
+} from '../data/servicePages'
 
 type AppPage =
   | { type: 'home' }
@@ -12,60 +17,123 @@ type AppPage =
   | { type: 'contact' }
   | { type: 'products' }
   | { type: 'ma-pdf' }
-  | { type: 'service'; slug: ServicePageSlug }
+  | { type: 'ma-btc-alertas' }
+  | {
+      type: 'service'
+      slug: ServicePageSlug
+    }
 
 function getPageFromPath(): AppPage {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  const path =
+    window.location.pathname.replace(
+      /\/+$/,
+      ''
+    ) || '/'
 
   if (path === '/projetos') {
-    return { type: 'portfolio' }
+    return {
+      type: 'portfolio'
+    }
   }
 
   if (path === '/contacto') {
-    return { type: 'contact' }
+    return {
+      type: 'contact'
+    }
   }
 
   if (path === '/produtos') {
-    return { type: 'products' }
+    return {
+      type: 'products'
+    }
   }
 
-  if (path === '/produtos/mapdf' || path === '/produtos/ma-pdf') {
-    return { type: 'ma-pdf' }
+  if (
+    path === '/produtos/mapdf' ||
+    path === '/produtos/ma-pdf'
+  ) {
+    return {
+      type: 'ma-pdf'
+    }
   }
 
-  const servicePage = getServicePageByPath(path)
+  if (
+    path ===
+    '/produtos/ma-btc-alertas'
+  ) {
+    return {
+      type: 'ma-btc-alertas'
+    }
+  }
+
+  const servicePage =
+    getServicePageByPath(
+      path
+    )
 
   if (servicePage) {
     return {
       type: 'service',
-      slug: servicePage.slug,
+      slug:
+        servicePage.slug
     }
   }
 
-  return { type: 'home' }
+  return {
+    type: 'home'
+  }
 }
 
 export default function App() {
-  const page = getPageFromPath()
+  const page =
+    getPageFromPath()
 
-  if (page.type === 'portfolio') {
+  if (
+    page.type ===
+    'portfolio'
+  ) {
     return <PortfolioPage />
   }
 
-  if (page.type === 'contact') {
+  if (
+    page.type ===
+    'contact'
+  ) {
     return <ContactPage />
   }
 
-  if (page.type === 'service') {
-    return <ServicePage slug={page.slug} />
+  if (
+    page.type ===
+    'service'
+  ) {
+    return (
+      <ServicePage
+        slug={page.slug}
+      />
+    )
   }
 
-  if (page.type === 'products') {
+  if (
+    page.type ===
+    'products'
+  ) {
     return <ProductsPage />
   }
 
-  if (page.type === 'ma-pdf') {
+  if (
+    page.type ===
+    'ma-pdf'
+  ) {
     return <MAPdfPage />
+  }
+
+  if (
+    page.type ===
+    'ma-btc-alertas'
+  ) {
+    return (
+      <MABtcAlertsPage />
+    )
   }
 
   return <MACode />
