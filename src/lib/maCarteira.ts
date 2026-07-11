@@ -1,906 +1,679 @@
-import {
-  DEFAULT_CHAIN_ID,
-  createWalletStorageKey,
-  getChainConfig,
-  getExplorerAddressUrl,
-  getExplorerTokenUrl,
-  getExplorerTransactionUrl,
-  isSupportedChainId,
-  isValidChainAddress,
-  normalizeChainAddress,
-  parseWalletStorageKey,
-  type ChainId
-} from './maCarteiraChains'
+export type ChainStatus = 'active' | 'planned' | 'disabled'
 
-import { fetchWalletPortfolio } from './maCarteiraApi'
+export type ExplorerApiFamily =
+  | 'blockscout-legacy'
+  | 'etherscan-compatible'
+  | 'custom'
+  | 'none'
 
-export const MA_CARTEIRA_URL = 'https://ma-code.pt/produtos/ma-carteira'
+export type PriceProvider = 'geckoterminal'
 
-const DEFAULT_CHAIN = getChainConfig(DEFAULT_CHAIN_ID)
+export type AddressType =
+  | 'evm'
+  | 'solana'
+  | 'tron'
+  | 'bitcoin'
 
-export const PULSECHAIN_EXPLORER = DEFAULT_CHAIN.explorer.addressUrl
+export type PortfolioProvider =
+  | 'pulsechain'
+  | 'blockscout-v2'
+  | 'evm-native-only'
+  | 'solana-rpc'
+  | 'trongrid'
+  | 'blockstream'
 
-const MAX_HISTORY = 120
+export type TransactionProvider =
+  | 'evm-explorer'
+  | 'solana-rpc'
+  | 'trongrid'
+  | 'blockstream'
+  | 'none'
 
-const keys = {
-  portfolio: 'ma_carteira_v1_portfolio',
-  data: 'ma_carteira_v1_data',
-  history: 'ma_carteira_v1_history',
-  pulsefolioPortfolio: 'pulsefolio_v2_portfolio',
-  pulsefolioData: 'pulsefolio_v2_data',
-  pulsefolioHistory: 'pulsefolio_v2_history',
-  legacyWallets: 'pulsefolio_wallets',
-  legacyData: 'pulsefolio_data'
-} as const
-
-export type Wallet = {
-  address: string
+export type NativeCurrency = {
   name: string
-  createdAt: string
-  pinned: boolean
-  chainId?: ChainId
+  symbol: string
+  decimals: number
 }
 
-export type PulseToken = {
-  symbol?: string
-  name?: string
-  balance?: string
-  decimals?: string | number
-  contractAddress?: string
-  address?: string
-  type?: string
+export type ChainExplorerConfig = {
+  baseUrl: string
+  addressUrl: string
+  transactionUrl: string
+  tokenUrl: string
+  apiUrl: string
+  apiFamily: ExplorerApiFamily
 }
 
-export type WalletData = {
-  chainId: ChainId
-  plsBalance: string | null
-  tokens: PulseToken[]
-  loading: boolean
-  error: string | null
-  lastUpdated: string | null
-  partial: boolean
-  notice: string | null
+export type ChainPriceConfig = {
+  provider: PriceProvider
+  networkId: string
+  wrappedNativeToken: string | null
 }
 
-export type Snapshot = {
+export type ChainCapabilities = {
+  tokens: boolean
+  transactions: boolean
+  prices: boolean
+}
+
+export type ChainConfig = {
   id: string
-  chainId: ChainId
-  address: string
-  walletName: string
-  timestamp: string
-  plsBalance: string
-  tokenCount: number
-  topTokens: Array<{
-    symbol: string
-    name: string
-    balance: string
-    decimals: string | number
-    contractAddress: string | null
-  }>
+  chainId: number | null
+  name: string
+  shortName: string
+  evm: boolean
+  addressType: AddressType
+  tokenStandard: string | null
+  addressPlaceholder: string
+  status: ChainStatus
+  nativeCurrency: NativeCurrency
+  rpcUrls: readonly string[]
+  dataApiUrl: string
+  portfolioProvider: PortfolioProvider
+  transactionProvider: TransactionProvider
+  capabilities: ChainCapabilities
+  explorer: ChainExplorerConfig
+  price: ChainPriceConfig | null
 }
 
-export type WalletDataMap = Record<string, WalletData>
-export type HistoryMap = Record<string, Snapshot[]>
-
-export type StoredState = {
-  wallets: Wallet[]
-  walletData: WalletDataMap
-  history: HistoryMap
-}
-
-const emptyData = (
-  chainId: ChainId = DEFAULT_CHAIN_ID
-): WalletData => ({
-  chainId,
-  plsBalance: null,
-  tokens: [],
-  loading: false,
-  error: null,
-  lastUpdated: null,
-  partial: false,
-  notice: null
-})
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-const readJson = (key: string): unknown => {
-  try {
-    const raw = localStorage.getItem(key)
-
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-export const normalizeAddress = (
-  value: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) => normalizeChainAddress(value, chainId)
-
-export const isValidAddress = (
-  value: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) => isValidChainAddress(value, chainId)
-
-export const addressKey = (
-  value: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) =>
-  createWalletStorageKey(
-    chainId,
-    normalizeAddress(value, chainId)
-  )
-
-export const shortAddress = (value: string) =>
-  `${value.slice(0, 6)}…${value.slice(-4)}`
-
-export const getWalletChainId = (
-  wallet: Pick<Wallet, 'chainId'>
-): ChainId => wallet.chainId || DEFAULT_CHAIN_ID
-
-export const getWalletExplorerUrl = (
-  wallet: Pick<Wallet, 'address' | 'chainId'>
-) =>
-  getExplorerAddressUrl(
-    wallet.address,
-    getWalletChainId(wallet)
-  )
-
-export const getAddressExplorerUrl = (
-  address: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) => getExplorerAddressUrl(address, chainId)
-
-export const getTransactionExplorerUrl = (
-  transactionHash: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) =>
-  getExplorerTransactionUrl(
-    transactionHash,
-    chainId
-  )
-
-export const getTokenExplorerUrl = (
-  contractAddress: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-) =>
-  getExplorerTokenUrl(
-    contractAddress,
-    chainId
-  )
-
-const cleanWallets = (value: unknown): Wallet[] => {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value.flatMap((item, index) => {
-    if (!isRecord(item) || typeof item.address !== 'string') {
-      return []
-    }
-
-    const chainId =
-      typeof item.chainId === 'string' &&
-      isSupportedChainId(item.chainId)
-        ? item.chainId
-        : DEFAULT_CHAIN_ID
-
-    const address = normalizeAddress(item.address, chainId)
-
-    if (!isValidAddress(address, chainId)) {
-      return []
-    }
-
-    return [
-      {
-        address,
-        name:
-          typeof item.name === 'string' && item.name.trim()
-            ? item.name.trim().slice(0, 40)
-            : `Endereço ${index + 1}`,
-        createdAt:
-          typeof item.createdAt === 'string'
-            ? item.createdAt
-            : new Date().toISOString(),
-        pinned: Boolean(item.pinned),
-        chainId
-      }
-    ]
-  })
-}
-
-const cleanData = (value: unknown): WalletDataMap => {
-  if (!isRecord(value)) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([key, item]) => {
-      if (!isRecord(item)) {
-        return []
-      }
-
-      const parsedKey = parseWalletStorageKey(key)
-
-      const chainId =
-        typeof item.chainId === 'string' &&
-        isSupportedChainId(item.chainId)
-          ? item.chainId
-          : parsedKey.chainId
-
-      return [
-        [
-          addressKey(parsedKey.address, chainId),
-          {
-            chainId,
-            plsBalance:
-              typeof item.plsBalance === 'string'
-                ? item.plsBalance
-                : null,
-            tokens: Array.isArray(item.tokens)
-              ? (item.tokens as PulseToken[])
-              : [],
-            loading: false,
-            error:
-              typeof item.error === 'string'
-                ? item.error
-                : null,
-            lastUpdated:
-              typeof item.lastUpdated === 'string'
-                ? item.lastUpdated
-                : null,
-            partial: item.partial === true,
-            notice:
-              typeof item.notice === 'string'
-                ? item.notice
-                : null
-          } satisfies WalletData
-        ]
-      ]
-    })
-  )
-}
-
-const cleanHistory = (value: unknown): HistoryMap => {
-  if (!isRecord(value)) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([key, list]) => {
-      if (!Array.isArray(list)) {
-        return []
-      }
-
-      const parsedKey = parseWalletStorageKey(key)
-      const firstSnapshot = list.find(isRecord)
-
-      const chainId =
-        firstSnapshot &&
-        typeof firstSnapshot.chainId === 'string' &&
-        isSupportedChainId(firstSnapshot.chainId)
-          ? firstSnapshot.chainId
-          : parsedKey.chainId
-
-      const snapshots = list
-        .flatMap((item): Snapshot[] => {
-          if (
-            !isRecord(item) ||
-            typeof item.timestamp !== 'string' ||
-            typeof item.plsBalance !== 'string'
-          ) {
-            return []
-          }
-
-          const snapshotChainId =
-            typeof item.chainId === 'string' &&
-            isSupportedChainId(item.chainId)
-              ? item.chainId
-              : chainId
-
-          return [
-            {
-              id:
-                typeof item.id === 'string'
-                  ? item.id
-                  : crypto.randomUUID(),
-              chainId: snapshotChainId,
-              address:
-                typeof item.address === 'string'
-                  ? item.address
-                  : parsedKey.address,
-              walletName:
-                typeof item.walletName === 'string'
-                  ? item.walletName
-                  : shortAddress(parsedKey.address),
-              timestamp: item.timestamp,
-              plsBalance: item.plsBalance,
-              tokenCount:
-                typeof item.tokenCount === 'number'
-                  ? item.tokenCount
-                  : 0,
-              topTokens: Array.isArray(item.topTokens)
-                ? (item.topTokens as Snapshot['topTokens'])
-                : []
-            }
-          ]
-        })
-        .slice(0, MAX_HISTORY)
-
-      return snapshots.length
-        ? [
-            [
-              addressKey(
-                parsedKey.address,
-                chainId
-              ),
-              snapshots
-            ]
-          ]
-        : []
-    })
-  )
-}
-
-export function loadState(): StoredState {
-  const currentPortfolio = readJson(keys.portfolio)
-  const oldPortfolio = readJson(keys.pulsefolioPortfolio)
-  const legacyWallets = readJson(keys.legacyWallets)
-
-  let wallets: Wallet[] = []
-
-  if (isRecord(currentPortfolio)) {
-    wallets = cleanWallets(currentPortfolio.wallets)
-  }
-
-  if (!wallets.length && isRecord(oldPortfolio)) {
-    wallets = cleanWallets(oldPortfolio.wallets)
-  }
-
-  if (!wallets.length && Array.isArray(legacyWallets)) {
-    wallets = cleanWallets(
-      legacyWallets.map((address, index) => ({
-        address,
-        name: `Endereço ${index + 1}`
-      }))
-    )
-  }
-
-  const currentData = cleanData(
-    readJson(keys.data)
-  )
-
-  const oldData = cleanData(
-    readJson(keys.pulsefolioData)
-  )
-
-  const legacyData = cleanData(
-    readJson(keys.legacyData)
-  )
-
-  const currentHistory = cleanHistory(
-    readJson(keys.history)
-  )
-
-  const oldHistory = cleanHistory(
-    readJson(keys.pulsefolioHistory)
-  )
-
-  const state = {
-    wallets,
-    walletData: Object.keys(currentData).length
-      ? currentData
-      : Object.keys(oldData).length
-        ? oldData
-        : legacyData,
-    history: Object.keys(currentHistory).length
-      ? currentHistory
-      : oldHistory
-  }
-
-  saveState(state)
-
-  return state
-}
-
-export function saveState({
-  wallets,
-  walletData,
-  history
-}: StoredState) {
-  localStorage.setItem(
-    keys.portfolio,
-    JSON.stringify({
-      version: 2,
-      updatedAt: new Date().toISOString(),
-      wallets: wallets.map((wallet) => ({
-        ...wallet,
-        chainId: getWalletChainId(wallet)
-      }))
-    })
-  )
-
-  localStorage.setItem(
-    keys.data,
-    JSON.stringify(walletData)
-  )
-
-  localStorage.setItem(
-    keys.history,
-    JSON.stringify(history)
-  )
-}
-
-export function clearStoredState() {
-  localStorage.removeItem(keys.portfolio)
-  localStorage.removeItem(keys.data)
-  localStorage.removeItem(keys.history)
-}
-
-export function formatBalance(
-  raw: string | bigint | null,
-  decimals = 18,
-  maxFraction = 6
-) {
-  if (!raw) {
-    return '0'
-  }
-
-  try {
-    const value =
-      typeof raw === 'bigint'
-        ? raw
-        : BigInt(raw)
-
-    const divisor = 10n ** BigInt(decimals)
-    const whole = value / divisor
-
-    let fraction = (value % divisor)
-      .toString()
-      .padStart(decimals, '0')
-      .replace(/0+$/, '')
-
-    fraction = fraction.slice(
-      0,
-      maxFraction
-    )
-
-    const formattedWhole =
-      new Intl.NumberFormat(
-        'pt-PT'
-      ).format(whole)
-
-    return fraction
-      ? `${formattedWhole},${fraction}`
-      : formattedWhole
-  } catch {
-    return String(raw)
-  }
-}
-
-export function formatDateTime(
-  value: string | null
-) {
-  if (!value) {
-    return 'Nunca'
-  }
-
-  return new Intl.DateTimeFormat('pt-PT', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(new Date(value))
-}
-
-const tokenValue = (token: PulseToken) => {
-  try {
-    const decimals = Number(
-      token.decimals ?? 18
-    )
-
-    const balance = BigInt(
-      token.balance ?? '0'
-    )
-
-    return (
-      balance /
-      10n **
-        BigInt(
-          Math.max(
-            0,
-            decimals - 6
-          )
-        )
-    )
-  } catch {
-    return 0n
-  }
-}
-
-export async function fetchWallet(
-  address: string,
-  chainId: ChainId = DEFAULT_CHAIN_ID
-): Promise<WalletData> {
-  const result = await fetchWalletPortfolio(
-    address,
-    {
-      chainId,
-      timeoutMs: 20_000
-    }
-  )
-
-  return {
-    chainId: result.chainId,
-    plsBalance: result.nativeBalance,
-    tokens: result.tokens,
-    loading: false,
-    error: null,
-    lastUpdated: result.fetchedAt,
-    partial: result.partial,
-    notice: result.notice
-  }
-}
-
-export function createSnapshot(
-  wallet: Wallet,
-  data: WalletData
-): Snapshot {
-  const chainId =
-    getWalletChainId(wallet)
-
-  return {
-    id: crypto.randomUUID(),
-    chainId,
-    address: wallet.address,
-    walletName: wallet.name,
-    timestamp: new Date().toISOString(),
-    plsBalance: data.plsBalance || '0',
-    tokenCount: data.tokens.length,
-    topTokens: data.tokens
-      .slice(0, 12)
-      .map((token) => ({
-        symbol: token.symbol || '???',
-        name:
-          token.name ||
-          token.symbol ||
-          'Token',
-        balance: token.balance || '0',
-        decimals: token.decimals || 18,
-        contractAddress:
-          token.contractAddress ||
-          token.address ||
-          null
-      }))
-  }
-}
-
-export function addSnapshot(
-  history: HistoryMap,
-  wallet: Wallet,
-  data: WalletData
-): HistoryMap {
-  const key = addressKey(
-    wallet.address,
-    getWalletChainId(wallet)
-  )
-
-  return {
-    ...history,
-    [key]: [
-      createSnapshot(
-        wallet,
-        data
-      ),
-      ...(history[key] || [])
-    ].slice(0, MAX_HISTORY)
-  }
-}
-
-export function exportState(
-  state: StoredState
-) {
-  const blob = new Blob(
-    [
-      JSON.stringify(
-        {
-          app: 'MA-Carteira',
-          version: 2,
-          exportedAt:
-            new Date().toISOString(),
-          ...state
-        },
-        null,
-        2
-      )
-    ],
-    {
-      type: 'application/json'
-    }
-  )
-
-  const url =
-    URL.createObjectURL(blob)
-
-  const link =
-    document.createElement('a')
-
-  link.href = url
-
-  link.download = `ma-carteira-${new Date()
-    .toISOString()
-    .slice(0, 10)}.json`
-
-  link.click()
-
-  URL.revokeObjectURL(url)
-}
-
-export async function importState(
-  file: File,
-  current: StoredState
-): Promise<StoredState> {
-  const parsed = JSON.parse(
-    await file.text()
-  ) as Record<string, unknown>
-
-  const incomingWallets = cleanWallets(
-    parsed.wallets
-  )
-
-  if (!incomingWallets.length) {
-    throw new Error(
-      'O ficheiro não contém endereços válidos.'
-    )
-  }
-
-  const currentWallets =
-    current.wallets.map(
-      (wallet) => ({
-        ...wallet,
-        chainId:
-          getWalletChainId(wallet)
-      })
-    )
-
-  const existing = new Set(
-    currentWallets.map((wallet) =>
-      addressKey(
-        wallet.address,
-        getWalletChainId(wallet)
-      )
-    )
-  )
-
-  const wallets = [
-    ...currentWallets,
-    ...incomingWallets.filter(
-      (wallet) =>
-        !existing.has(
-          addressKey(
-            wallet.address,
-            getWalletChainId(wallet)
-          )
-        )
-    )
-  ]
-
-  return {
-    wallets,
-    walletData: {
-      ...cleanData(
-        parsed.walletData
-      ),
-      ...current.walletData
+export const CHAIN_CONFIGS = {
+  pulsechain: {
+    id: 'pulsechain',
+    chainId: 369,
+    name: 'PulseChain',
+    shortName: 'PulseChain',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'PRC-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Pulse',
+      symbol: 'PLS',
+      decimals: 18
     },
-    history: {
-      ...cleanHistory(
-        parsed.history
-      ),
-      ...current.history
+    rpcUrls: ['https://rpc.pulsechain.com'],
+    dataApiUrl: 'https://api.scan.pulsechain.com/api',
+    portfolioProvider: 'pulsechain',
+    transactionProvider: 'evm-explorer',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://scan.pulsechain.com',
+      addressUrl: 'https://scan.pulsechain.com/address',
+      transactionUrl: 'https://scan.pulsechain.com/tx',
+      tokenUrl: 'https://scan.pulsechain.com/token',
+      apiUrl: 'https://api.scan.pulsechain.com/api',
+      apiFamily: 'blockscout-legacy'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'pulsechain',
+      wrappedNativeToken:
+        '0xA1077a294dDE1B09bB078844df40758a5D0f9a27'
+    }
+  },
+  ethereum: {
+    id: 'ethereum',
+    chainId: 1,
+    name: 'Ethereum',
+    shortName: 'Ethereum',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'ERC-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    rpcUrls: ['https://cloudflare-eth.com'],
+    dataApiUrl: 'https://eth.blockscout.com/api/v2',
+    portfolioProvider: 'blockscout-v2',
+    transactionProvider: 'evm-explorer',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://eth.blockscout.com',
+      addressUrl: 'https://eth.blockscout.com/address',
+      transactionUrl: 'https://eth.blockscout.com/tx',
+      tokenUrl: 'https://eth.blockscout.com/token',
+      apiUrl: 'https://eth.blockscout.com/api',
+      apiFamily: 'blockscout-legacy'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'eth',
+      wrappedNativeToken:
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+    }
+  },
+  bnb: {
+    id: 'bnb',
+    chainId: 56,
+    name: 'BNB Smart Chain',
+    shortName: 'BNB Chain',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'BEP-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'BNB',
+      symbol: 'BNB',
+      decimals: 18
+    },
+    rpcUrls: ['https://bsc-dataseed.bnbchain.org'],
+    dataApiUrl: '',
+    portfolioProvider: 'evm-native-only',
+    transactionProvider: 'none',
+    capabilities: {
+      tokens: false,
+      transactions: false,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://bsctrace.com',
+      addressUrl: 'https://bsctrace.com/address',
+      transactionUrl: 'https://bsctrace.com/tx',
+      tokenUrl: 'https://bsctrace.com/token',
+      apiUrl: '',
+      apiFamily: 'none'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'bsc',
+      wrappedNativeToken:
+        '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'
+    }
+  },
+  solana: {
+    id: 'solana',
+    chainId: null,
+    name: 'Solana',
+    shortName: 'Solana',
+    evm: false,
+    addressType: 'solana',
+    tokenStandard: 'SPL',
+    addressPlaceholder: 'Endereço Base58 de Solana',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Solana',
+      symbol: 'SOL',
+      decimals: 9
+    },
+    rpcUrls: ['https://api.mainnet-beta.solana.com'],
+    dataApiUrl: 'https://api.mainnet-beta.solana.com',
+    portfolioProvider: 'solana-rpc',
+    transactionProvider: 'solana-rpc',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: false
+    },
+    explorer: {
+      baseUrl: 'https://explorer.solana.com',
+      addressUrl: 'https://explorer.solana.com/address',
+      transactionUrl: 'https://explorer.solana.com/tx',
+      tokenUrl: 'https://explorer.solana.com/address',
+      apiUrl: 'https://api.mainnet-beta.solana.com',
+      apiFamily: 'custom'
+    },
+    price: null
+  },
+  tron: {
+    id: 'tron',
+    chainId: null,
+    name: 'TRON',
+    shortName: 'TRON',
+    evm: false,
+    addressType: 'tron',
+    tokenStandard: 'TRC-20',
+    addressPlaceholder: 'Endereço TRON iniciado por T',
+    status: 'active',
+    nativeCurrency: {
+      name: 'TRON',
+      symbol: 'TRX',
+      decimals: 6
+    },
+    rpcUrls: [],
+    dataApiUrl: 'https://api.trongrid.io',
+    portfolioProvider: 'trongrid',
+    transactionProvider: 'trongrid',
+    capabilities: {
+      tokens: false,
+      transactions: true,
+      prices: false
+    },
+    explorer: {
+      baseUrl: 'https://tronscan.org',
+      addressUrl: 'https://tronscan.org/#/address',
+      transactionUrl: 'https://tronscan.org/#/transaction',
+      tokenUrl: 'https://tronscan.org/#/token20',
+      apiUrl: 'https://api.trongrid.io',
+      apiFamily: 'custom'
+    },
+    price: null
+  },
+  bitcoin: {
+    id: 'bitcoin',
+    chainId: null,
+    name: 'Bitcoin',
+    shortName: 'Bitcoin',
+    evm: false,
+    addressType: 'bitcoin',
+    tokenStandard: null,
+    addressPlaceholder: 'bc1…, 1… ou 3…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      decimals: 8
+    },
+    rpcUrls: [],
+    dataApiUrl: 'https://blockstream.info/api',
+    portfolioProvider: 'blockstream',
+    transactionProvider: 'blockstream',
+    capabilities: {
+      tokens: false,
+      transactions: true,
+      prices: false
+    },
+    explorer: {
+      baseUrl: 'https://blockstream.info',
+      addressUrl: 'https://blockstream.info/address',
+      transactionUrl: 'https://blockstream.info/tx',
+      tokenUrl: 'https://blockstream.info/address',
+      apiUrl: 'https://blockstream.info/api',
+      apiFamily: 'custom'
+    },
+    price: null
+  },
+  base: {
+    id: 'base',
+    chainId: 8453,
+    name: 'Base',
+    shortName: 'Base',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'ERC-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    rpcUrls: ['https://mainnet.base.org'],
+    dataApiUrl: 'https://base.blockscout.com/api/v2',
+    portfolioProvider: 'blockscout-v2',
+    transactionProvider: 'evm-explorer',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://base.blockscout.com',
+      addressUrl: 'https://base.blockscout.com/address',
+      transactionUrl: 'https://base.blockscout.com/tx',
+      tokenUrl: 'https://base.blockscout.com/token',
+      apiUrl: 'https://base.blockscout.com/api',
+      apiFamily: 'blockscout-legacy'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'base',
+      wrappedNativeToken:
+        '0x4200000000000000000000000000000000000006'
+    }
+  },
+  arbitrum: {
+    id: 'arbitrum',
+    chainId: 42161,
+    name: 'Arbitrum One',
+    shortName: 'Arbitrum',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'ERC-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+    dataApiUrl: 'https://arbitrum.blockscout.com/api/v2',
+    portfolioProvider: 'blockscout-v2',
+    transactionProvider: 'evm-explorer',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://arbitrum.blockscout.com',
+      addressUrl: 'https://arbitrum.blockscout.com/address',
+      transactionUrl: 'https://arbitrum.blockscout.com/tx',
+      tokenUrl: 'https://arbitrum.blockscout.com/token',
+      apiUrl: 'https://arbitrum.blockscout.com/api',
+      apiFamily: 'blockscout-legacy'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'arbitrum',
+      wrappedNativeToken:
+        '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+    }
+  },
+  polygon: {
+    id: 'polygon',
+    chainId: 137,
+    name: 'Polygon PoS',
+    shortName: 'Polygon',
+    evm: true,
+    addressType: 'evm',
+    tokenStandard: 'ERC-20',
+    addressPlaceholder: '0x…',
+    status: 'active',
+    nativeCurrency: {
+      name: 'POL',
+      symbol: 'POL',
+      decimals: 18
+    },
+    rpcUrls: ['https://polygon-rpc.com'],
+    dataApiUrl: 'https://polygon.blockscout.com/api/v2',
+    portfolioProvider: 'blockscout-v2',
+    transactionProvider: 'evm-explorer',
+    capabilities: {
+      tokens: true,
+      transactions: true,
+      prices: true
+    },
+    explorer: {
+      baseUrl: 'https://polygon.blockscout.com',
+      addressUrl: 'https://polygon.blockscout.com/address',
+      transactionUrl: 'https://polygon.blockscout.com/tx',
+      tokenUrl: 'https://polygon.blockscout.com/token',
+      apiUrl: 'https://polygon.blockscout.com/api',
+      apiFamily: 'blockscout-legacy'
+    },
+    price: {
+      provider: 'geckoterminal',
+      networkId: 'polygon_pos',
+      wrappedNativeToken:
+        '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270'
     }
   }
-}
+} as const satisfies Record<string, ChainConfig>
 
-export function setPageMetadata() {
-  const setMeta = (
-    selector: string,
-    attr: 'name' | 'property',
-    key: string,
-    content: string
-  ) => {
-    let element =
-      document.querySelector<HTMLMetaElement>(
-        selector
-      )
+export type ChainId = keyof typeof CHAIN_CONFIGS
 
-    if (!element) {
-      element =
-        document.createElement('meta')
+export const DEFAULT_CHAIN_ID: ChainId = 'pulsechain'
 
-      element.setAttribute(
-        attr,
-        key
-      )
+export const SUPPORTED_CHAIN_IDS = Object.keys(
+  CHAIN_CONFIGS
+) as ChainId[]
 
-      document.head.appendChild(
-        element
-      )
+export const ACTIVE_CHAIN_IDS = SUPPORTED_CHAIN_IDS.filter(
+  (chainId) => CHAIN_CONFIGS[chainId].status === 'active'
+)
+
+const BASE58_ALPHABET =
+  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+const getBase58DecodedLength = (value: string) => {
+  if (!value) {
+    return 0
+  }
+
+  const bytes: number[] = [0]
+
+  for (const character of value) {
+    const digit = BASE58_ALPHABET.indexOf(character)
+
+    if (digit === -1) {
+      return 0
     }
 
-    element.content = content
+    let carry = digit
+
+    for (let index = 0; index < bytes.length; index += 1) {
+      carry += bytes[index] * 58
+      bytes[index] = carry & 0xff
+      carry >>= 8
+    }
+
+    while (carry > 0) {
+      bytes.push(carry & 0xff)
+      carry >>= 8
+    }
   }
 
-  document.title =
-    'MA-Carteira | Portefólios Multichain | MA-Code'
+  let leadingZeros = 0
 
-  const description =
-    'Organize endereços públicos de várias redes num só portefólio e consulte saldos, tokens, transações e gráficos disponíveis, sem ligar a carteira nem introduzir seed phrases.'
-
-  setMeta(
-    'meta[name="description"]',
-    'name',
-    'description',
-    description
-  )
-
-  setMeta(
-    'meta[name="keywords"]',
-    'name',
-    'keywords',
-    'MA-Carteira, portefólio multichain, PulseChain, Ethereum, Solana, Bitcoin, TRON, BNB Chain, Base, Arbitrum, Polygon, endereços públicos, gráficos de preço, MA-Code'
-  )
-
-  setMeta(
-    'meta[name="robots"]',
-    'name',
-    'robots',
-    'index, follow, max-image-preview:large, max-snippet:-1'
-  )
-
-  setMeta(
-    'meta[property="og:type"]',
-    'property',
-    'og:type',
-    'website'
-  )
-
-  setMeta(
-    'meta[property="og:site_name"]',
-    'property',
-    'og:site_name',
-    'MA-Code'
-  )
-
-  setMeta(
-    'meta[property="og:url"]',
-    'property',
-    'og:url',
-    MA_CARTEIRA_URL
-  )
-
-  setMeta(
-    'meta[property="og:title"]',
-    'property',
-    'og:title',
-    'MA-Carteira | Portefólios Multichain'
-  )
-
-  setMeta(
-    'meta[property="og:description"]',
-    'property',
-    'og:description',
-    description
-  )
-
-  setMeta(
-    'meta[property="og:image"]',
-    'property',
-    'og:image',
-    'https://ma-code.pt/ma-code.png'
-  )
-
-  setMeta(
-    'meta[name="twitter:card"]',
-    'name',
-    'twitter:card',
-    'summary_large_image'
-  )
-
-  setMeta(
-    'meta[name="twitter:title"]',
-    'name',
-    'twitter:title',
-    'MA-Carteira | Portefólios Multichain'
-  )
-
-  setMeta(
-    'meta[name="twitter:description"]',
-    'name',
-    'twitter:description',
-    description
-  )
-
-  setMeta(
-    'meta[name="twitter:image"]',
-    'name',
-    'twitter:image',
-    'https://ma-code.pt/ma-code.png'
-  )
-
-  let canonical =
-    document.querySelector<HTMLLinkElement>(
-      'link[rel="canonical"]'
-    )
-
-  if (!canonical) {
-    canonical =
-      document.createElement('link')
-
-    canonical.rel = 'canonical'
-
-    document.head.appendChild(
-      canonical
-    )
+  while (
+    leadingZeros < value.length &&
+    value[leadingZeros] === '1'
+  ) {
+    leadingZeros += 1
   }
 
-  canonical.href =
-    MA_CARTEIRA_URL
-
-  let schema =
-    document.querySelector<HTMLScriptElement>(
-      'script[data-schema-id="ma-carteira"]'
-    )
-
-  if (!schema) {
-    schema =
-      document.createElement('script')
-
-    schema.type =
-      'application/ld+json'
-
-    schema.dataset.schemaId =
-      'ma-carteira'
-
-    document.head.appendChild(
-      schema
-    )
-  }
-
-  schema.textContent =
-    JSON.stringify({
-      '@context':
-        'https://schema.org',
-      '@type':
-        'SoftwareApplication',
-      name:
-        'MA-Carteira',
-      applicationCategory:
-        'FinanceApplication',
-      operatingSystem:
-        'Web',
-      url:
-        MA_CARTEIRA_URL,
-      description,
-      creator: {
-        '@type':
-          'Organization',
-        name:
-          'MA-Code',
-        url:
-          'https://ma-code.pt'
-      },
-      offers: {
-        '@type':
-          'Offer',
-        price:
-          '0',
-        priceCurrency:
-          'EUR',
-        description:
-          'Consulta local gratuita; Conta MA com sincronização cloud em preparação.'
-      }
-    })
+  return (
+    bytes.length +
+    leadingZeros -
+    (bytes.length === 1 && bytes[0] === 0 ? 1 : 0)
+  )
 }
 
-export { emptyData }
+export function isSupportedChainId(value: string): value is ChainId {
+  return value in CHAIN_CONFIGS
+}
+
+export function getChainConfig(chainId?: string | null): ChainConfig {
+  if (chainId && isSupportedChainId(chainId)) {
+    return CHAIN_CONFIGS[chainId]
+  }
+
+  return CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
+}
+
+export function getDefaultChainConfig() {
+  return CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
+}
+
+export function getActiveChains() {
+  return ACTIVE_CHAIN_IDS.map((chainId) => CHAIN_CONFIGS[chainId])
+}
+
+export function getRpcUrls(chainId?: string | null) {
+  return [...getChainConfig(chainId).rpcUrls]
+}
+
+export function getPrimaryRpcUrl(chainId?: string | null) {
+  const chain = getChainConfig(chainId)
+  const rpcUrl = chain.rpcUrls[0]
+
+  if (!rpcUrl) {
+    throw new Error(`Não existe RPC configurado para ${chain.name}.`)
+  }
+
+  return rpcUrl
+}
+
+export function getExplorerAddressUrl(
+  address: string,
+  chainId?: string | null
+) {
+  return `${getChainConfig(chainId).explorer.addressUrl}/${address}`
+}
+
+export function getExplorerTransactionUrl(
+  transactionHash: string,
+  chainId?: string | null
+) {
+  return `${getChainConfig(chainId).explorer.transactionUrl}/${transactionHash}`
+}
+
+export function getExplorerTokenUrl(
+  contractAddress: string,
+  chainId?: string | null
+) {
+  return `${getChainConfig(chainId).explorer.tokenUrl}/${contractAddress}`
+}
+
+export function getExplorerApiUrl(chainId?: string | null) {
+  return getChainConfig(chainId).explorer.apiUrl
+}
+
+export function getNativeCurrency(chainId?: string | null) {
+  return getChainConfig(chainId).nativeCurrency
+}
+
+export function getWrappedNativeToken(chainId?: string | null) {
+  return getChainConfig(chainId).price?.wrappedNativeToken || null
+}
+
+export function getPriceNetworkId(chainId?: string | null) {
+  return getChainConfig(chainId).price?.networkId || null
+}
+
+export function getTokenStandard(chainId?: string | null) {
+  return getChainConfig(chainId).tokenStandard
+}
+
+export function getAddressPlaceholder(chainId?: string | null) {
+  return getChainConfig(chainId).addressPlaceholder
+}
+
+export function supportsTokens(chainId?: string | null) {
+  return getChainConfig(chainId).capabilities.tokens
+}
+
+export function supportsTransactions(chainId?: string | null) {
+  return getChainConfig(chainId).capabilities.transactions
+}
+
+export function supportsPrices(chainId?: string | null) {
+  return getChainConfig(chainId).capabilities.prices
+}
+
+export function normalizeChainAddress(
+  value: string,
+  chainId: string = DEFAULT_CHAIN_ID
+) {
+  const clean = value.trim()
+  const chain = getChainConfig(chainId)
+
+  if (!clean) {
+    return ''
+  }
+
+  if (chain.addressType === 'evm') {
+    return clean.toLowerCase().startsWith('0x')
+      ? `0x${clean.slice(2)}`
+      : `0x${clean}`
+  }
+
+  if (
+    chain.addressType === 'bitcoin' &&
+    clean.toLowerCase().startsWith('bc1')
+  ) {
+    return clean.toLowerCase()
+  }
+
+  return clean
+}
+
+export function isValidChainAddress(
+  value: string,
+  chainId: string = DEFAULT_CHAIN_ID
+) {
+  const chain = getChainConfig(chainId)
+  const address = normalizeChainAddress(value, chain.id)
+
+  if (chain.addressType === 'evm') {
+    return /^0x[a-fA-F0-9]{40}$/.test(address)
+  }
+
+  if (chain.addressType === 'solana') {
+    return (
+      /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address) &&
+      getBase58DecodedLength(address) === 32
+    )
+  }
+
+  if (chain.addressType === 'tron') {
+    return (
+      /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address) &&
+      getBase58DecodedLength(address) === 25
+    )
+  }
+
+  if (/^(bc1)[ac-hj-np-z02-9]{11,71}$/.test(address)) {
+    return true
+  }
+
+  return (
+    /^[13][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(address) &&
+    getBase58DecodedLength(address) === 25
+  )
+}
+
+export function getCanonicalAddress(
+  address: string,
+  chainId: string = DEFAULT_CHAIN_ID
+) {
+  const normalized = normalizeChainAddress(address, chainId)
+  const chain = getChainConfig(chainId)
+
+  if (chain.addressType === 'evm') {
+    return normalized.toLowerCase()
+  }
+
+  return normalized
+}
+
+export function createWalletStorageKey(
+  chainId: string,
+  address: string
+) {
+  const safeChainId = isSupportedChainId(chainId)
+    ? chainId
+    : DEFAULT_CHAIN_ID
+
+  return `${safeChainId}:${getCanonicalAddress(address, safeChainId)}`
+}
+
+export function parseWalletStorageKey(value: string) {
+  const separatorIndex = value.indexOf(':')
+
+  if (separatorIndex === -1) {
+    return {
+      chainId: DEFAULT_CHAIN_ID,
+      address: getCanonicalAddress(value, DEFAULT_CHAIN_ID)
+    }
+  }
+
+  const possibleChainId = value.slice(0, separatorIndex).trim()
+
+  const chainId = isSupportedChainId(possibleChainId)
+    ? possibleChainId
+    : DEFAULT_CHAIN_ID
+
+  return {
+    chainId,
+    address: getCanonicalAddress(
+      value.slice(separatorIndex + 1).trim(),
+      chainId
+    )
+  }
+}
