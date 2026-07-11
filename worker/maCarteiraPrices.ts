@@ -87,6 +87,11 @@ type CacheEntry<T> = {
   value: T
 }
 
+type MarketApiConfig = {
+  baseUrl: string
+  headers: Record<string, string>
+}
+
 type EdgeCache = {
   match:
     (
@@ -104,11 +109,11 @@ type EdgeCache = {
       Promise<void>
 }
 
-const GECKOTERMINAL_API =
-  'https://api.geckoterminal.com/api/v2'
+const COINGECKO_DEMO_ONCHAIN_API =
+  'https://api.coingecko.com/api/v3/onchain'
 
-const GECKOTERMINAL_VERSION =
-  '20230203'
+const COINGECKO_DEMO_API_KEY_NAME =
+  'COINGECKO_DEMO_API_KEY'
 
 const PULSECHAIN_NETWORK_ID =
   'pulsechain'
@@ -329,6 +334,51 @@ const readNumber = (
     ? parsed
     : fallback
 }
+
+const getCoinGeckoDemoApiKey = () => {
+  const runtimeProcess = (
+    globalThis as unknown as {
+      process?: {
+        env?: Record<
+          string,
+          string | undefined
+        >
+      }
+    }
+  ).process
+
+  return (
+    runtimeProcess?.env?.[
+      COINGECKO_DEMO_API_KEY_NAME
+    ] || ''
+  ).trim()
+}
+
+const getMarketApiConfig =
+  (): MarketApiConfig => {
+    const apiKey =
+      getCoinGeckoDemoApiKey()
+
+    if (!apiKey) {
+      throw new MaCarteiraPricesError(
+        'A chave da API CoinGecko Demo não está disponível no Worker.',
+        500
+      )
+    }
+
+    return {
+      baseUrl:
+        COINGECKO_DEMO_ONCHAIN_API,
+
+      headers: {
+        Accept:
+          'application/json',
+
+        'x-cg-demo-api-key':
+          apiKey
+      }
+    }
+  }
 
 const trimMemoryCache = <T>(
   memoryCache:
@@ -709,7 +759,8 @@ const runGeckoTerminalRequest =
   }
 
 const fetchJson = async (
-  url: string
+  url: string,
+  headers: Record<string, string>
 ): Promise<unknown> =>
   runGeckoTerminalRequest(
     async () => {
@@ -732,10 +783,7 @@ const fetchJson = async (
             await fetch(
               url,
               {
-                headers: {
-                  Accept:
-                    `application/json;version=${GECKOTERMINAL_VERSION}`
-                },
+                headers,
 
                 signal:
                   controller.signal
@@ -748,6 +796,16 @@ const fetchJson = async (
             throw new MaCarteiraPricesError(
               'Não foi encontrado um mercado com preço para este token.',
               404
+            )
+          }
+
+          if (
+            response.status === 401 ||
+            response.status === 403
+          ) {
+            throw new MaCarteiraPricesError(
+              'A chave da API CoinGecko Demo não foi aceite. Confirme o Secret na Cloudflare.',
+              502
             )
           }
 
@@ -1044,9 +1102,12 @@ const fetchPoolLookup = async (
   networkId: string,
   contractAddress: string
 ): Promise<PoolLookup> => {
+  const apiConfig =
+    getMarketApiConfig()
+
   const poolsUrl =
     new URL(
-      `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
+      `${apiConfig.baseUrl}/networks/${encodeURIComponent(
         networkId
       )}/tokens/${encodeURIComponent(
         contractAddress
@@ -1070,7 +1131,8 @@ const fetchPoolLookup = async (
 
   const rawPoolsResponse =
     await fetchJson(
-      poolsUrl.toString()
+      poolsUrl.toString(),
+      apiConfig.headers
     )
 
   const poolsResponse =
@@ -1635,13 +1697,16 @@ const fetchCorrectTokenOhlcv =
     contractAddress: string,
     config: PeriodConfig
   ): Promise<OhlcvResult> => {
+    const apiConfig =
+      getMarketApiConfig()
+
     const fetchPage = async (
       tokenSelector: string,
       beforeTimestamp?: number
     ) => {
       const ohlcvUrl =
         new URL(
-          `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
+          `${apiConfig.baseUrl}/networks/${encodeURIComponent(
             networkId
           )}/pools/${encodeURIComponent(
             selectedPool
@@ -1697,7 +1762,8 @@ const fetchCorrectTokenOhlcv =
 
       const response =
         await fetchJson(
-          ohlcvUrl.toString()
+          ohlcvUrl.toString(),
+          apiConfig.headers
         )
 
       return normalizePricePoints(
