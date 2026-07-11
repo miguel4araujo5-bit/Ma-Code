@@ -34,8 +34,15 @@ import {
 
 import {
   DEFAULT_CHAIN_ID,
+  getActiveChains,
+  getAddressPlaceholder,
+  getChainConfig,
   getNativeCurrency,
+  getTokenStandard,
   getWrappedNativeToken,
+  supportsPrices,
+  supportsTokens,
+  supportsTransactions,
   type ChainId
 } from '../lib/maCarteiraChains'
 
@@ -71,7 +78,9 @@ function TokenList({
   if (!tokens.length) {
     return (
       <p className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-400">
-        Não foram encontrados outros tokens ERC-20 com saldo.
+        {supportsTokens(chainId)
+          ? `Não foram encontrados outros ${getTokenStandard(chainId) || 'tokens'} com saldo.`
+          : 'A listagem de tokens ainda não está disponível nesta rede.'}
       </p>
     )
   }
@@ -90,7 +99,7 @@ function TokenList({
               </strong>
 
               <span className="block truncate text-xs text-slate-500">
-                {token.name || 'ERC-20'}
+                {token.name || getTokenStandard(chainId) || 'Token'}
               </span>
             </span>
 
@@ -133,27 +142,29 @@ function TokenList({
               {content}
             </a>
 
-            <button
-              type="button"
-              onClick={() =>
-                onOpenPrice({
-                  chainId,
-                  contractAddress: contract,
-                  symbol:
-                    token.symbol || 'TOKEN',
-                  name:
-                    token.name ||
-                    token.symbol ||
-                    'Token'
-                })
-              }
-              className="min-h-9 shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 text-xs font-bold text-emerald-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/15 hover:text-white"
-              aria-label={`Ver gráfico de preço de ${
-                token.symbol || 'token'
-              }`}
-            >
-              Ver gráfico
-            </button>
+            {supportsPrices(chainId) ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenPrice({
+                    chainId,
+                    contractAddress: contract,
+                    symbol:
+                      token.symbol || 'TOKEN',
+                    name:
+                      token.name ||
+                      token.symbol ||
+                      'Token'
+                  })
+                }
+                className="min-h-9 shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 text-xs font-bold text-emerald-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/15 hover:text-white"
+                aria-label={`Ver gráfico de preço de ${
+                  token.symbol || 'token'
+                }`}
+              >
+                Ver gráfico
+              </button>
+            ) : null}
           </div>
         )
       })}
@@ -263,6 +274,18 @@ export default function MACarteiraPage() {
   const [walletAddress, setWalletAddress] =
     useState('')
 
+  const [walletChainId, setWalletChainId] =
+    useState<ChainId>(DEFAULT_CHAIN_ID)
+
+  const activeChains = useMemo(
+    () => getActiveChains(),
+    []
+  )
+
+  const selectedChain = getChainConfig(
+    walletChainId
+  )
+
   const [search, setSearch] = useState('')
 
   const [
@@ -364,31 +387,39 @@ export default function MACarteiraPage() {
   }
 
   const refreshAddresses = async (
-    addresses: string[],
-    knownWallets = wallets
+    walletsToRefresh: Wallet[]
   ) => {
-    if (!addresses.length) {
+    if (!walletsToRefresh.length) {
       return
     }
 
     const keys = new Set(
-      addresses.map((address) =>
-        addressKey(address)
+      walletsToRefresh.map((wallet) =>
+        addressKey(
+          wallet.address,
+          getWalletChainId(wallet)
+        )
       )
     )
 
-    setWalletData((current) =>
-      Object.fromEntries(
-        Object.entries({
-          ...current,
-          ...Object.fromEntries(
-            addresses.map((address) => [
-              addressKey(address),
-              current[addressKey(address)] ||
-                emptyData()
-            ])
-          )
-        }).map(([key, data]) => [
+    setWalletData((current) => {
+      const next = {
+        ...current
+      }
+
+      walletsToRefresh.forEach((wallet) => {
+        const chainId = getWalletChainId(wallet)
+        const key = addressKey(wallet.address, chainId)
+
+        next[key] = {
+          ...(current[key] || emptyData(chainId)),
+          loading: true,
+          error: null
+        }
+      })
+
+      return Object.fromEntries(
+        Object.entries(next).map(([key, data]) => [
           key,
           keys.has(key)
             ? {
@@ -399,19 +430,24 @@ export default function MACarteiraPage() {
             : data
         ])
       )
-    )
+    })
 
     const results = await Promise.all(
-      addresses.map(async (address) => {
+      walletsToRefresh.map(async (wallet) => {
+        const chainId = getWalletChainId(wallet)
+
         try {
           return {
-            address,
-            data: await fetchWallet(address),
+            wallet,
+            data: await fetchWallet(
+              wallet.address,
+              chainId
+            ),
             error: null
           }
         } catch (error) {
           return {
-            address,
+            wallet,
             data: null,
             error:
               error instanceof Error
@@ -428,13 +464,17 @@ export default function MACarteiraPage() {
       }
 
       results.forEach((result) => {
+        const chainId = getWalletChainId(
+          result.wallet
+        )
         const key = addressKey(
-          result.address
+          result.wallet.address,
+          chainId
         )
 
         next[key] =
           result.data || {
-            ...(current[key] || emptyData()),
+            ...(current[key] || emptyData(chainId)),
             loading: false,
             error: result.error,
             lastUpdated:
@@ -453,19 +493,11 @@ export default function MACarteiraPage() {
           return
         }
 
-        const wallet = knownWallets.find(
-          (item) =>
-            addressKey(item.address) ===
-            addressKey(result.address)
+        next = addSnapshot(
+          next,
+          result.wallet,
+          result.data
         )
-
-        if (wallet) {
-          next = addSnapshot(
-            next,
-            wallet,
-            result.data
-          )
-        }
       })
 
       return next
@@ -495,7 +527,10 @@ export default function MACarteiraPage() {
       (wallet) => {
         const lastUpdated =
           walletData[
-            addressKey(wallet.address)
+            addressKey(
+              wallet.address,
+              getWalletChainId(wallet)
+            )
           ]?.lastUpdated
 
         return (
@@ -509,11 +544,7 @@ export default function MACarteiraPage() {
       }
     )
 
-    void refreshAddresses(
-      stale.map(
-        (wallet) => wallet.address
-      )
-    )
+    void refreshAddresses(stale)
 
     // Executar apenas na abertura da página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -542,27 +573,23 @@ export default function MACarteiraPage() {
             .includes(query) ||
           wallet.address
             .toLowerCase()
+            .includes(query) ||
+          getChainConfig(
+            getWalletChainId(wallet)
+          ).name
+            .toLowerCase()
             .includes(query)
       )
   }, [search, wallets])
 
-  const totalPls = useMemo(
+  const networkCount = useMemo(
     () =>
-      Object.values(walletData).reduce(
-        (total, data) => {
-          try {
-            return data.plsBalance &&
-              !data.error
-              ? total +
-                  BigInt(data.plsBalance)
-              : total
-          } catch {
-            return total
-          }
-        },
-        0n
-      ),
-    [walletData]
+      new Set(
+        wallets.map((wallet) =>
+          getWalletChainId(wallet)
+        )
+      ).size,
+    [wallets]
   )
 
   const snapshotCount = useMemo(
@@ -581,12 +608,13 @@ export default function MACarteiraPage() {
     event.preventDefault()
 
     const address = normalizeAddress(
-      walletAddress
+      walletAddress,
+      walletChainId
     )
 
-    if (!isValidAddress(address)) {
+    if (!isValidAddress(address, walletChainId)) {
       showToast(
-        'Introduza um endereço PulseChain válido.',
+        `Introduza um endereço válido para ${selectedChain.name}.`,
         true
       )
 
@@ -596,8 +624,11 @@ export default function MACarteiraPage() {
     if (
       wallets.some(
         (wallet) =>
-          addressKey(wallet.address) ===
-          addressKey(address)
+          addressKey(
+            wallet.address,
+            getWalletChainId(wallet)
+          ) ===
+          addressKey(address, walletChainId)
       )
     ) {
       showToast(
@@ -610,7 +641,7 @@ export default function MACarteiraPage() {
 
     const wallet: Wallet = {
       address,
-      chainId: DEFAULT_CHAIN_ID,
+      chainId: walletChainId,
       name:
         walletName.trim().slice(0, 40) ||
         `Endereço ${wallets.length + 1}`,
@@ -626,8 +657,8 @@ export default function MACarteiraPage() {
 
     setWalletData((current) => ({
       ...current,
-      [addressKey(address)]: {
-        ...emptyData(),
+      [addressKey(address, walletChainId)]: {
+        ...emptyData(walletChainId),
         loading: true
       }
     }))
@@ -635,10 +666,7 @@ export default function MACarteiraPage() {
     setWalletName('')
     setWalletAddress('')
 
-    await refreshAddresses(
-      [address],
-      [...wallets, wallet]
-    )
+    await refreshAddresses([wallet])
 
     showToast('Endereço adicionado.')
   }
@@ -657,7 +685,14 @@ export default function MACarteiraPage() {
 
     setWallets((current) =>
       current.map((item) =>
-        item.address === wallet.address
+        addressKey(
+          item.address,
+          getWalletChainId(item)
+        ) ===
+        addressKey(
+          wallet.address,
+          getWalletChainId(wallet)
+        )
           ? {
               ...item,
               name: name.slice(0, 40)
@@ -676,12 +711,18 @@ export default function MACarteiraPage() {
       return
     }
 
-    const key = addressKey(wallet.address)
+    const key = addressKey(
+      wallet.address,
+      getWalletChainId(wallet)
+    )
 
     setWallets((current) =>
       current.filter(
         (item) =>
-          addressKey(item.address) !== key
+          addressKey(
+            item.address,
+            getWalletChainId(item)
+          ) !== key
       )
     )
 
@@ -858,13 +899,12 @@ export default function MACarteiraPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
 
                 <span>
-                  Produto MA-Code · Painel de
-                  endereços PulseChain
+                  Produto MA-Code · Portefólios multichain
                 </span>
               </div>
 
               <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                Todos os seus endereços PulseChain,{' '}
+                Todos os seus endereços públicos,{' '}
                 <span className="bg-gradient-to-r from-emerald-200 via-cyan-200 to-sky-300 bg-clip-text text-transparent">
                   organizados num só portefólio
                 </span>
@@ -872,12 +912,7 @@ export default function MACarteiraPage() {
               </h1>
 
               <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-                Adicione endereços públicos, atribua
-                um nome a cada um e consulte os
-                respetivos portefólios: saldo de PLS,
-                tokens ERC-20, gráficos de preço,
-                transações públicas do endereço e
-                registos das atualizações anteriores.
+                Adicione endereços de PulseChain, Ethereum, BNB Chain, Solana, TRON, Bitcoin, Base, Arbitrum e Polygon. Consulte saldos, tokens, gráficos e transações conforme as capacidades públicas de cada rede.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
@@ -930,15 +965,9 @@ export default function MACarteiraPage() {
                 'Endereços monitorizados'
               ],
               [
-                'PLS total',
-                totalPls
-                  ? formatBalance(
-                      totalPls,
-                      18,
-                      2
-                    )
-                  : '—',
-                'Soma dos últimos saldos consultados'
+                'Redes em uso',
+                networkCount.toString(),
+                'Redes com endereços guardados'
               ],
               [
                 'Registos de saldo',
@@ -987,7 +1016,7 @@ export default function MACarteiraPage() {
               </p>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
+            <div className="grid gap-4 xl:grid-cols-[220px_220px_minmax(0,1fr)_auto] xl:items-end">
               <div>
                 <label
                   htmlFor="wallet-name"
@@ -1012,10 +1041,40 @@ export default function MACarteiraPage() {
 
               <div>
                 <label
+                  htmlFor="wallet-chain"
+                  className="input-label"
+                >
+                  Rede
+                </label>
+
+                <select
+                  id="wallet-chain"
+                  className="input-field"
+                  value={walletChainId}
+                  onChange={(event) => {
+                    setWalletChainId(
+                      event.target.value as ChainId
+                    )
+                    setWalletAddress('')
+                  }}
+                >
+                  {activeChains.map((chain) => (
+                    <option
+                      key={chain.id}
+                      value={chain.id}
+                    >
+                      {chain.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
                   htmlFor="wallet-address"
                   className="input-label"
                 >
-                  Endereço público PulseChain
+                  Endereço público {selectedChain.name}
                 </label>
 
                 <input
@@ -1027,7 +1086,7 @@ export default function MACarteiraPage() {
                       event.target.value
                     )
                   }
-                  placeholder="0x…"
+                  placeholder={getAddressPlaceholder(walletChainId)}
                   autoComplete="off"
                   required
                 />
@@ -1087,12 +1146,7 @@ export default function MACarteiraPage() {
                   className={actionButton}
                   disabled={!wallets.length}
                   onClick={() =>
-                    void refreshAddresses(
-                      wallets.map(
-                        (wallet) =>
-                          wallet.address
-                      )
-                    )
+                    void refreshAddresses(wallets)
                   }
                 >
                   ↻ Atualizar todos
@@ -1187,12 +1241,7 @@ export default function MACarteiraPage() {
                 </h2>
 
                 <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-slate-400">
-                  Adicione um endereço público
-                  PulseChain e atribua-lhe um nome. A
-                  MA-Carteira consulta o saldo de
-                  PLS, identifica os tokens ERC-20 e
-                  guarda um novo registo sempre que
-                  atualizar os dados.
+                  Escolha uma rede, adicione um endereço público e atribua-lhe um nome. A MA-Carteira consulta os dados disponíveis e guarda um novo registo sempre que atualizar o endereço.
                 </p>
               </div>
             ) : filteredWallets.length ? (
@@ -1209,14 +1258,14 @@ export default function MACarteiraPage() {
 
                     const data =
                       walletData[key] ||
-                      emptyData()
+                      emptyData(chainId)
 
                     const snapshots =
                       history[key] || []
 
                     return (
                       <article
-                        key={wallet.address}
+                        key={key}
                         className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/65 shadow-2xl shadow-black/15 backdrop-blur"
                       >
                         <div className="border-b border-white/10 bg-black/15 p-5">
@@ -1232,6 +1281,10 @@ export default function MACarteiraPage() {
                                 <h3 className="truncate text-2xl font-semibold tracking-tight text-white">
                                   {wallet.name}
                                 </h3>
+
+                                <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-300">
+                                  {getChainConfig(chainId).shortName}
+                                </span>
                               </div>
 
                               <button
@@ -1266,8 +1319,11 @@ export default function MACarteiraPage() {
                                     (current) =>
                                       current.map(
                                         (item) =>
-                                          item.address ===
-                                          wallet.address
+                                          addressKey(
+                                            item.address,
+                                            getWalletChainId(item)
+                                          ) ===
+                                          key
                                             ? {
                                                 ...item,
                                                 pinned:
@@ -1302,11 +1358,7 @@ export default function MACarteiraPage() {
                                 disabled={data.loading}
                                 className="h-9 w-9 rounded-xl text-emerald-300 transition hover:bg-white/10 disabled:opacity-40"
                                 onClick={() =>
-                                  void refreshAddresses(
-                                    [
-                                      wallet.address
-                                    ]
-                                  )
+                                  void refreshAddresses([wallet])
                                 }
                               >
                                 ↻
@@ -1333,19 +1385,22 @@ export default function MACarteiraPage() {
                           <div className="mb-5 grid gap-3 sm:grid-cols-2">
                             <button
                               type="button"
+                              disabled={!supportsTransactions(chainId)}
                               onClick={() =>
                                 setSelectedTransactions(
                                   key
                                 )
                               }
-                              className="rounded-[1.35rem] border border-cyan-300/15 bg-cyan-300/[0.06] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                              className="rounded-[1.35rem] border border-cyan-300/15 bg-cyan-300/[0.06] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
                             >
                               <span className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">
                                 Transações on-chain
                               </span>
 
                               <strong className="mt-2 block text-sm text-white">
-                                Ver movimentos reais
+                                {supportsTransactions(chainId)
+                                  ? 'Ver movimentos reais'
+                                  : 'Ainda indisponível nesta rede'}
                               </strong>
 
                               <span className="mt-1 block text-xs leading-5 text-slate-400">
@@ -1381,6 +1436,12 @@ export default function MACarteiraPage() {
                             </button>
                           </div>
 
+                          {data.notice ? (
+                            <p className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.08] p-3 text-sm leading-6 text-amber-100">
+                              {data.notice}
+                            </p>
+                          ) : null}
+
                           {data.error ? (
                             <p className="mb-4 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
                               {data.error}
@@ -1408,8 +1469,7 @@ export default function MACarteiraPage() {
                             {data.loading &&
                             !data.tokens.length ? (
                               <p className="rounded-2xl bg-white/[0.04] p-4 text-sm text-slate-400">
-                                A consultar os restantes
-                                ativos na PulseChain…
+                                A consultar os restantes ativos em {getChainConfig(chainId).name}…
                               </p>
                             ) : (
                               <TokenList
@@ -1458,10 +1518,7 @@ export default function MACarteiraPage() {
 
           <footer className="mt-12 border-t border-white/10 pt-7 text-center text-xs leading-6 text-slate-500">
             <p>
-              A MA-Carteira utiliza exclusivamente
-              informação pública da PulseChain. Não
-              guarda chaves, não movimenta fundos e
-              não executa transações.
+              A MA-Carteira utiliza exclusivamente informação pública das redes suportadas. Não guarda chaves, não movimenta fundos e não executa transações.
             </p>
 
             <p>
@@ -1604,13 +1661,13 @@ export default function MACarteiraPage() {
 
                         <div className="text-right">
                           <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/80">
-                            PLS
+                            {getNativeCurrency(snapshot.chainId).symbol}
                           </span>
 
                           <strong className="block text-xl text-white">
                             {formatBalance(
                               snapshot.plsBalance,
-                              18,
+                              getNativeCurrency(snapshot.chainId).decimals,
                               4
                             )}
                           </strong>
