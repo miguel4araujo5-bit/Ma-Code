@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import FormPrivacyNotice from '../components/FormPrivacyNotice'
 
-const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit'
-const WEB3FORMS_ACCESS_KEY = String(
-  import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || import.meta.env.VITE_WEB3FORMS_KEY || ''
-).trim()
-
 const projectTypes = [
   'Website simples',
   'Website profissional',
@@ -344,26 +339,26 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
   })
 }
 
-function getWeb3FormsAccessKey() {
-  return WEB3FORMS_ACCESS_KEY
-}
+function buildSubmissionMessage(form: ContactFormState, attribution: AttributionData) {
+  const attributionLines = [
+    attribution.traffic_source ? `Origem do tráfego: ${attribution.traffic_source}` : null,
+    attribution.traffic_medium ? `Meio do tráfego: ${attribution.traffic_medium}` : null,
+    attribution.traffic_campaign ? `Campanha: ${attribution.traffic_campaign}` : null,
+    attribution.traffic_term ? `Termo: ${attribution.traffic_term}` : null,
+    attribution.traffic_content ? `Conteúdo: ${attribution.traffic_content}` : null,
+    attribution.traffic_referrer ? `Referência: ${attribution.traffic_referrer}` : null,
+    attribution.landing_page ? `Página de entrada: ${attribution.landing_page}` : null
+  ].filter((line): line is string => Boolean(line))
 
-function buildSubmissionMessage(form: ContactFormState, pageUrl: string, timestamp: string) {
+  if (attributionLines.length === 0) {
+    return form.message
+  }
+
   return [
-    'Novo pedido recebido através do site MA-Code.',
-    '',
-    `Nome: ${form.name}`,
-    `Email: ${form.email}`,
-    form.phone ? `Telefone/WhatsApp: ${form.phone}` : 'Telefone/WhatsApp: não indicado',
-    form.projectType ? `Tipo de projeto: ${form.projectType}` : 'Tipo de projeto: não indicado',
-    form.projectGoal ? `Objetivo principal: ${form.projectGoal}` : 'Objetivo principal: não indicado',
-    form.hasWebsite ? `Já tem site: ${form.hasWebsite}` : 'Já tem site: não indicado',
-    '',
-    'Mensagem:',
     form.message,
     '',
-    `Página de origem: ${pageUrl}`,
-    `Data: ${timestamp}`
+    'Atribuição do pedido:',
+    ...attributionLines
   ].join('\n')
 }
 
@@ -515,19 +510,6 @@ export default function ContactPage() {
       return
     }
 
-    const accessKey = getWeb3FormsAccessKey()
-
-    if (!accessKey) {
-      trackEvent('proposal_form_configuration_error', {
-        form_name: 'pedido_proposta',
-        reason: 'missing_web3forms_access_key'
-      })
-
-      setErrorMessage('A configuração do formulário não está disponível neste momento.')
-      setIsSending(false)
-      return
-    }
-
     trackEvent('proposal_form_submit_attempt', {
       form_name: 'pedido_proposta',
       project_type: form.projectType || 'not_selected',
@@ -537,35 +519,25 @@ export default function ContactPage() {
     })
 
     const pageUrl = typeof window !== 'undefined' ? window.location.href : 'https://ma-code.pt/contacto'
-    const timestamp = new Date().toISOString()
-    const submissionMessage = buildSubmissionMessage(form, pageUrl, timestamp)
-    const subject = ['Pedido de proposta - MA-Code', form.projectType || null, form.name]
-      .filter(Boolean)
-      .join(' | ')
+    const submissionMessage = buildSubmissionMessage(form, getTrafficAttribution())
 
     try {
-      const response = await fetch(WEB3FORMS_ENDPOINT, {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          access_key: accessKey,
-          subject,
-          from_name: 'MA-Code Website',
           name: form.name,
           email: form.email,
-          replyto: form.email,
           phone: form.phone,
-          project_type: form.projectType,
-          project_goal: form.projectGoal,
-          has_website: form.hasWebsite,
-          page: pageUrl,
-          timestamp,
+          projectType: form.projectType,
+          projectGoal: form.projectGoal,
+          hasWebsite: form.hasWebsite,
+          pageUrl,
           message: submissionMessage,
-          botcheck: form.botcheck,
-          ...getTrafficAttribution()
+          botcheck: form.botcheck
         })
       })
 
