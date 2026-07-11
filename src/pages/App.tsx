@@ -1,23 +1,57 @@
-import MACode from './MACode'
-import PortfolioPage from './PortfolioPage'
-import ServicePage from './ServicePage'
-import ContactPage from './ContactPage'
-import ProductsPage from './ProductsPage'
-import MAPdfPage from './MAPdfPage'
-import MABtcAlertsPage from './MABtcAlertsPage'
+import { lazy } from 'react'
 
 import {
   getServicePageByPath,
   type ServicePageSlug
 } from '../data/servicePages'
 
+const MACode = lazy(
+  () => import('./MACode')
+)
+
+const PortfolioPage = lazy(
+  () => import('./PortfolioPage')
+)
+
+const ServicePage = lazy(
+  () => import('./ServicePage')
+)
+
+const ContactPage = lazy(
+  () => import('./ContactPage')
+)
+
+const ProductsPage = lazy(
+  () => import('./ProductsPage')
+)
+
+const MAPdfPage = lazy(
+  () => import('./MAPdfPage')
+)
+
+const MABtcAlertsPage = lazy(
+  () => import('./MABtcAlertsPage')
+)
+
 type AppPage =
-  | { type: 'home' }
-  | { type: 'portfolio' }
-  | { type: 'contact' }
-  | { type: 'products' }
-  | { type: 'ma-pdf' }
-  | { type: 'ma-btc-alertas' }
+  | {
+      type: 'home'
+    }
+  | {
+      type: 'portfolio'
+    }
+  | {
+      type: 'contact'
+    }
+  | {
+      type: 'products'
+    }
+  | {
+      type: 'ma-pdf'
+    }
+  | {
+      type: 'ma-btc-alertas'
+    }
   | {
       type: 'service'
       slug: ServicePageSlug
