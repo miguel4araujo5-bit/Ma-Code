@@ -51,9 +51,16 @@ const formatUsd = (
     return '$0,00'
   }
 
-  const maximumFractionDigits =
+  const minimumFractionDigits =
     absolute >= 1000
       ? 0
+      : absolute >= 1
+        ? 2
+        : 0
+
+  const maximumFractionDigits =
+    absolute >= 1000
+      ? 2
       : absolute >= 1
         ? 4
         : absolute >= 0.01
@@ -65,10 +72,7 @@ const formatUsd = (
     {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits:
-        absolute >= 1
-          ? 2
-          : 0,
+      minimumFractionDigits,
       maximumFractionDigits
     }
   ).format(value)
