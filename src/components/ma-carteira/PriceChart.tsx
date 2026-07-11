@@ -119,20 +119,23 @@ const formatPointDate = (
   }
 
   if (
-    includeTime &&
-    (
-      period === '24H' ||
-      period === '7D'
-    )
+    period === '15M' ||
+    period === '4H' ||
+    period === '1D'
   ) {
     return new Intl.DateTimeFormat(
       'pt-PT',
-      {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      }
+      includeTime
+        ? {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          }
+        : {
+            hour: '2-digit',
+            minute: '2-digit'
+          }
     ).format(date)
   }
 
@@ -142,7 +145,7 @@ const formatPointDate = (
       day: '2-digit',
       month: 'short',
       year:
-        period === '1A'
+        period === 'Tudo'
           ? '2-digit'
           : undefined
     }
