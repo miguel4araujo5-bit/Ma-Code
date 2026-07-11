@@ -1,0 +1,19 @@
+{
+  "name": "MA-BTC ALERTAS",
+  "short_name": "BTC Alertas",
+  "description": "Alertas BTC/USD quando o Bitcoin sobe ou desce pelo menos 1%.",
+  "lang": "pt-PT",
+  "start_url": "/produtos/ma-btc-alertas",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#f7931a",
+  "icons": [
+    {
+      "src": "/ma-code.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
