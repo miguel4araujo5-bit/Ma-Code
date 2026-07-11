@@ -7,19 +7,12 @@ import {
 
 import { pdfTools } from '../../data/pdfTools'
 
-import { compressPdfFile } from '../../lib/maPdf/compressPdf'
-
 import {
   accentClasses,
   MAX_FILE_SIZE_BYTES
 } from '../../lib/maPdf/constants'
 
-import {
-  editPdf,
-  type PdfEditElement
-} from '../../lib/maPdf/editPdf'
-
-import { convertExcelToPdf } from '../../lib/maPdf/excelToPdf'
+import type { PdfEditElement } from '../../lib/maPdf/editPdf'
 
 import {
   createFileId,
@@ -28,27 +21,8 @@ import {
   isPdfFile
 } from '../../lib/maPdf/fileUtils'
 
-import { convertJpgToPdf } from '../../lib/maPdf/jpgToPdf'
-import { mergePdfFiles } from '../../lib/maPdf/mergePdf'
-import { convertPdfToDoc } from '../../lib/maPdf/pdfToDoc'
-import { convertPdfToExcel } from '../../lib/maPdf/pdfToExcel'
-import { convertPdfToJpg } from '../../lib/maPdf/pdfToJpg'
-import { convertPdfToPowerPoint } from '../../lib/maPdf/pdfToPowerPoint'
-import { convertPdfToWord } from '../../lib/maPdf/pdfToWord'
-import { convertPowerPointToPdf } from '../../lib/maPdf/powerPointToPdf'
-
-import {
-  signPdf,
-  type SignaturePosition
-} from '../../lib/maPdf/signPdf'
-
-import { splitPdfFile } from '../../lib/maPdf/splitPdf'
-import { convertWordToPdf } from '../../lib/maPdf/wordToPdf'
-
-import {
-  addWatermarkToPdf,
-  type WatermarkPosition
-} from '../../lib/maPdf/watermarkPdf'
+import type { SignaturePosition } from '../../lib/maPdf/signPdf'
+import type { WatermarkPosition } from '../../lib/maPdf/watermarkPdf'
 
 import type {
   ActiveTool,
@@ -746,6 +720,12 @@ export default function PdfWorkbench({
         if (
           activeTool === 'merge'
         ) {
+          const {
+            mergePdfFiles
+          } = await import(
+            '../../lib/maPdf/mergePdf'
+          )
+
           generatedResult =
             await mergePdfFiles(
               selectedFiles,
@@ -754,6 +734,12 @@ export default function PdfWorkbench({
         } else if (
           activeTool === 'split'
         ) {
+          const {
+            splitPdfFile
+          } = await import(
+            '../../lib/maPdf/splitPdf'
+          )
+
           generatedResult =
             await splitPdfFile(
               selectedFiles[0],
@@ -764,6 +750,12 @@ export default function PdfWorkbench({
         } else if (
           activeTool === 'compress'
         ) {
+          const {
+            compressPdfFile
+          } = await import(
+            '../../lib/maPdf/compressPdf'
+          )
+
           generatedResult =
             await compressPdfFile(
               selectedFiles[0],
@@ -773,6 +765,12 @@ export default function PdfWorkbench({
           activeTool ===
           'pdfToWord'
         ) {
+          const {
+            convertPdfToWord
+          } = await import(
+            '../../lib/maPdf/pdfToWord'
+          )
+
           generatedResult =
             await convertPdfToWord(
               selectedFiles[0],
@@ -782,6 +780,12 @@ export default function PdfWorkbench({
           activeTool ===
           'wordToPdf'
         ) {
+          const {
+            convertWordToPdf
+          } = await import(
+            '../../lib/maPdf/wordToPdf'
+          )
+
           generatedResult =
             await convertWordToPdf(
               selectedFiles[0],
@@ -791,6 +795,12 @@ export default function PdfWorkbench({
           activeTool ===
           'pdfToDoc'
         ) {
+          const {
+            convertPdfToDoc
+          } = await import(
+            '../../lib/maPdf/pdfToDoc'
+          )
+
           generatedResult =
             await convertPdfToDoc(
               selectedFiles[0],
@@ -800,6 +810,12 @@ export default function PdfWorkbench({
           activeTool ===
           'pdfToExcel'
         ) {
+          const {
+            convertPdfToExcel
+          } = await import(
+            '../../lib/maPdf/pdfToExcel'
+          )
+
           generatedResult =
             await convertPdfToExcel(
               selectedFiles[0],
@@ -809,6 +825,12 @@ export default function PdfWorkbench({
           activeTool ===
           'excelToPdf'
         ) {
+          const {
+            convertExcelToPdf
+          } = await import(
+            '../../lib/maPdf/excelToPdf'
+          )
+
           generatedResult =
             await convertExcelToPdf(
               selectedFiles[0],
@@ -818,6 +840,12 @@ export default function PdfWorkbench({
           activeTool ===
           'pdfToPowerPoint'
         ) {
+          const {
+            convertPdfToPowerPoint
+          } = await import(
+            '../../lib/maPdf/pdfToPowerPoint'
+          )
+
           generatedResult =
             await convertPdfToPowerPoint(
               selectedFiles[0],
@@ -827,6 +855,12 @@ export default function PdfWorkbench({
           activeTool ===
           'powerPointToPdf'
         ) {
+          const {
+            convertPowerPointToPdf
+          } = await import(
+            '../../lib/maPdf/powerPointToPdf'
+          )
+
           generatedResult =
             await convertPowerPointToPdf(
               selectedFiles[0],
@@ -836,6 +870,12 @@ export default function PdfWorkbench({
           activeTool ===
           'pdfToJpg'
         ) {
+          const {
+            convertPdfToJpg
+          } = await import(
+            '../../lib/maPdf/pdfToJpg'
+          )
+
           generatedResult =
             await convertPdfToJpg(
               selectedFiles[0],
@@ -846,6 +886,12 @@ export default function PdfWorkbench({
           activeTool ===
           'jpgToPdf'
         ) {
+          const {
+            convertJpgToPdf
+          } = await import(
+            '../../lib/maPdf/jpgToPdf'
+          )
+
           generatedResult =
             await convertJpgToPdf(
               selectedFiles,
@@ -855,6 +901,12 @@ export default function PdfWorkbench({
           activeTool ===
           'editPdf'
         ) {
+          const {
+            editPdf
+          } = await import(
+            '../../lib/maPdf/editPdf'
+          )
+
           generatedResult =
             await editPdf(
               selectedFiles[0],
@@ -868,6 +920,12 @@ export default function PdfWorkbench({
           activeTool ===
           'watermark'
         ) {
+          const {
+            addWatermarkToPdf
+          } = await import(
+            '../../lib/maPdf/watermarkPdf'
+          )
+
           generatedResult =
             await addWatermarkToPdf(
               selectedFiles[0],
@@ -893,6 +951,12 @@ export default function PdfWorkbench({
               'Escolha uma imagem PNG, JPG ou JPEG com a assinatura.'
             )
           }
+
+          const {
+            signPdf
+          } = await import(
+            '../../lib/maPdf/signPdf'
+          )
 
           generatedResult =
             await signPdf(
