@@ -1,8 +1,15 @@
-import { useEffect, useState } from 'react'
+import {
+  useEffect,
+  useState
+} from 'react'
 
-const siteUrl = 'https://ma-code.pt'
+const siteUrl =
+  'https://ma-code.pt'
 
-type ProductStatus = 'Disponível em breve' | 'Em desenvolvimento' | 'Planeado'
+type ProductStatus =
+  | 'Disponível em breve'
+  | 'Em desenvolvimento'
+  | 'Planeado'
 
 type ProductCard = {
   name: string
@@ -12,88 +19,202 @@ type ProductCard = {
   status: ProductStatus
   highlights: string[]
   badge: string
+  badgeClassName?: string
 }
 
-const products: ProductCard[] = [
+const products:
+  ProductCard[] = [
   {
     name: 'MA PDF',
-    eyebrow: 'Ferramentas PDF',
+    eyebrow:
+      'Ferramentas PDF',
     description:
       'Junte, divida, comprima, converta, edite e assine documentos PDF com uma experiência simples, moderna e preparada para pagamentos por MB WAY.',
-    href: '/produtos/mapdf',
-    status: 'Disponível em breve',
+    href:
+      '/produtos/mapdf',
+    status:
+      'Disponível em breve',
     badge: 'PDF',
-    highlights: ['Juntar PDF', 'Comprimir PDF', 'PDF para Word', 'MB WAY']
+    highlights: [
+      'Juntar PDF',
+      'Comprimir PDF',
+      'PDF para Word',
+      'MB WAY'
+    ]
   },
   {
     name: 'MA Carteira',
-    eyebrow: 'Carteira digital',
+    eyebrow:
+      'Carteira digital',
     description:
       'Guarde endereços públicos, dê nomes às carteiras, acompanhe saldos e consulte histórico sem nunca pedir seed phrase ou chaves privadas.',
-    href: '/produtos/ma-carteira',
-    status: 'Em desenvolvimento',
+    href:
+      '/produtos/ma-carteira',
+    status:
+      'Em desenvolvimento',
     badge: 'WAL',
-    highlights: ['Watch wallet', 'Histórico', 'Endereços nomeados', 'Seguro']
+    highlights: [
+      'Watch wallet',
+      'Histórico',
+      'Endereços nomeados',
+      'Seguro'
+    ]
   },
   {
-    name: 'Novo produto MA',
-    eyebrow: 'Próxima ferramenta',
+    name:
+      'MA-BTC ALERTAS',
+    eyebrow:
+      'Alertas Bitcoin',
+    description:
+      'Receba notificações quando o BTC/USD acumular uma subida ou descida de pelo menos 1%, com consultas horárias e snooze de 8 horas.',
+    href:
+      '/produtos/ma-btc-alertas',
+    status:
+      'Em desenvolvimento',
+    badge: '₿',
+    badgeClassName:
+      'border-orange-300/35 bg-[#f7931a]/15 text-orange-100 shadow-orange-950/30',
+    highlights: [
+      'BTC/USD',
+      'Alertas ±1%',
+      'Snooze 8h',
+      '07:00–23:00'
+    ]
+  },
+  {
+    name:
+      'Novo produto MA',
+    eyebrow:
+      'Próxima ferramenta',
     description:
       'Espaço reservado para os próximos produtos próprios da MA-Code: ferramentas digitais simples, úteis e preparadas para pequenos negócios.',
-    href: '/contacto?tipo=produto-ma-code',
+    href:
+      '/contacto?tipo=produto-ma-code',
     status: 'Planeado',
     badge: 'MA',
-    highlights: ['Automação', 'Produtividade', 'Negócios', 'À medida']
+    highlights: [
+      'Automação',
+      'Produtividade',
+      'Negócios',
+      'À medida'
+    ]
   }
 ]
 
-function updateMeta(name: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+function updateMeta(
+  name: string,
+  content: string
+) {
+  let meta =
+    document.querySelector<
+      HTMLMetaElement
+    >(
+      `meta[name="${name}"]`
+    )
 
   if (!meta) {
-    meta = document.createElement('meta')
+    meta =
+      document.createElement(
+        'meta'
+      )
+
     meta.name = name
-    document.head.appendChild(meta)
+
+    document.head.appendChild(
+      meta
+    )
   }
 
   meta.content = content
 }
 
-function updatePropertyMeta(property: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`)
+function updatePropertyMeta(
+  property: string,
+  content: string
+) {
+  let meta =
+    document.querySelector<
+      HTMLMetaElement
+    >(
+      `meta[property="${property}"]`
+    )
 
   if (!meta) {
-    meta = document.createElement('meta')
-    meta.setAttribute('property', property)
-    document.head.appendChild(meta)
+    meta =
+      document.createElement(
+        'meta'
+      )
+
+    meta.setAttribute(
+      'property',
+      property
+    )
+
+    document.head.appendChild(
+      meta
+    )
   }
 
   meta.content = content
 }
 
-function updateCanonical(href: string) {
-  let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+function updateCanonical(
+  href: string
+) {
+  let canonical =
+    document.querySelector<
+      HTMLLinkElement
+    >(
+      'link[rel="canonical"]'
+    )
 
   if (!canonical) {
-    canonical = document.createElement('link')
-    canonical.rel = 'canonical'
-    document.head.appendChild(canonical)
+    canonical =
+      document.createElement(
+        'link'
+      )
+
+    canonical.rel =
+      'canonical'
+
+    document.head.appendChild(
+      canonical
+    )
   }
 
   canonical.href = href
 }
 
-function updateStructuredData(id: string, data: unknown) {
-  let script = document.querySelector<HTMLScriptElement>(`script[data-schema-id="${id}"]`)
+function updateStructuredData(
+  id: string,
+  data: unknown
+) {
+  let script =
+    document.querySelector<
+      HTMLScriptElement
+    >(
+      `script[data-schema-id="${id}"]`
+    )
 
   if (!script) {
-    script = document.createElement('script')
-    script.type = 'application/ld+json'
-    script.dataset.schemaId = id
-    document.head.appendChild(script)
+    script =
+      document.createElement(
+        'script'
+      )
+
+    script.type =
+      'application/ld+json'
+
+    script.dataset.schemaId =
+      id
+
+    document.head.appendChild(
+      script
+    )
   }
 
-  script.textContent = JSON.stringify(data)
+  script.textContent =
+    JSON.stringify(data)
 }
 
 function ProductCardItem({
@@ -105,14 +226,25 @@ function ProductCardItem({
   index: number
   mounted: boolean
 }) {
-  const opensProduct = product.name === 'MA PDF' || product.name === 'MA Carteira'
+  const opensProduct =
+    product.name ===
+      'MA PDF' ||
+    product.name ===
+      'MA Carteira' ||
+    product.name ===
+      'MA-BTC ALERTAS'
 
   return (
     <article
       className={`service-card group flex h-full flex-col ${
-        mounted ? 'animate-fade-in-up' : 'opacity-0'
+        mounted
+          ? 'animate-fade-in-up'
+          : 'opacity-0'
       }`}
-      style={{ animationDelay: `${index * 120}ms` }}
+      style={{
+        animationDelay:
+          `${index * 120}ms`
+      }}
     >
       <div className="service-card__line" />
 
@@ -128,7 +260,17 @@ function ProductCardItem({
             </h2>
           </div>
 
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-100 shadow-lg shadow-cyan-950/30">
+          <div
+            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-sm font-black shadow-lg ${
+              product.badgeClassName ||
+              'border-cyan-300/25 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30'
+            } ${
+              product.badge ===
+              '₿'
+                ? 'text-3xl'
+                : ''
+            }`}
+          >
             {product.badge}
           </div>
         </div>
@@ -138,14 +280,16 @@ function ProductCardItem({
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          {product.highlights.map((highlight) => (
-            <span
-              key={highlight}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200"
-            >
-              {highlight}
-            </span>
-          ))}
+          {product.highlights.map(
+            (highlight) => (
+              <span
+                key={highlight}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200"
+              >
+                {highlight}
+              </span>
+            )
+          )}
         </div>
 
         <div className="mt-7 flex items-center justify-between gap-4">
@@ -162,7 +306,11 @@ function ProductCardItem({
               : 'border-white/10 bg-white/[0.04] text-slate-200 group-hover:border-cyan-200/30 group-hover:bg-cyan-300/[0.06]'
           }`}
         >
-          <span>{opensProduct ? 'Abrir produto' : 'Saber mais'}</span>
+          <span>
+            {opensProduct
+              ? 'Abrir produto'
+              : 'Saber mais'}
+          </span>
 
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
             →
@@ -174,21 +322,25 @@ function ProductCardItem({
 }
 
 export default function ProductsPage() {
-  const [mounted, setMounted] = useState(false)
+  const [
+    mounted,
+    setMounted
+  ] = useState(false)
 
   useEffect(() => {
     setMounted(true)
 
-    document.title = 'Produtos MA-Code | Apps e ferramentas digitais'
+    document.title =
+      'Produtos MA-Code | Apps e ferramentas digitais'
 
     updateMeta(
       'description',
-      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira e futuras ferramentas digitais para documentos, produtividade, automação e pequenos negócios.'
+      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e futuras ferramentas digitais para documentos, produtividade e automação.'
     )
 
     updateMeta(
       'keywords',
-      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, apps web, ferramentas digitais, produtos digitais, MB WAY'
+      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, apps web, ferramentas digitais, produtos digitais, MB WAY'
     )
 
     updateMeta(
@@ -196,68 +348,142 @@ export default function ProductsPage() {
       'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
     )
 
-    updatePropertyMeta('og:type', 'website')
-    updatePropertyMeta('og:locale', 'pt_PT')
-    updatePropertyMeta('og:site_name', 'MA-Code')
-    updatePropertyMeta('og:url', `${siteUrl}/produtos`)
-    updatePropertyMeta('og:title', 'Produtos MA-Code | Apps e ferramentas digitais')
+    updatePropertyMeta(
+      'og:type',
+      'website'
+    )
+
+    updatePropertyMeta(
+      'og:locale',
+      'pt_PT'
+    )
+
+    updatePropertyMeta(
+      'og:site_name',
+      'MA-Code'
+    )
+
+    updatePropertyMeta(
+      'og:url',
+      `${siteUrl}/produtos`
+    )
+
+    updatePropertyMeta(
+      'og:title',
+      'Produtos MA-Code | Apps e ferramentas digitais'
+    )
 
     updatePropertyMeta(
       'og:description',
-      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital e futuras apps web com foco em simplicidade, utilidade e pagamentos adaptados a Portugal.'
+      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin e futuras apps web com foco em simplicidade e utilidade.'
     )
 
-    updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
-    updatePropertyMeta('og:image:alt', 'Produtos MA-Code')
+    updatePropertyMeta(
+      'og:image',
+      `${siteUrl}/ma-code.png`
+    )
 
-    updateMeta('twitter:card', 'summary_large_image')
-    updateMeta('twitter:url', `${siteUrl}/produtos`)
-    updateMeta('twitter:title', 'Produtos MA-Code | Apps e ferramentas digitais')
+    updatePropertyMeta(
+      'og:image:alt',
+      'Produtos MA-Code'
+    )
+
+    updateMeta(
+      'twitter:card',
+      'summary_large_image'
+    )
+
+    updateMeta(
+      'twitter:url',
+      `${siteUrl}/produtos`
+    )
+
+    updateMeta(
+      'twitter:title',
+      'Produtos MA-Code | Apps e ferramentas digitais'
+    )
 
     updateMeta(
       'twitter:description',
-      'Produtos próprios da MA-Code: MA PDF, MA Carteira e futuras ferramentas digitais.'
+      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e futuras ferramentas digitais.'
     )
 
-    updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
-    updateMeta('twitter:image:alt', 'Produtos MA-Code')
+    updateMeta(
+      'twitter:image',
+      `${siteUrl}/ma-code.png`
+    )
 
-    updateCanonical(`${siteUrl}/produtos`)
+    updateMeta(
+      'twitter:image:alt',
+      'Produtos MA-Code'
+    )
 
-    updateStructuredData('ma-code-products-page', {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'CollectionPage',
-          '@id': `${siteUrl}/produtos#collectionpage`,
-          name: 'Produtos MA-Code',
-          url: `${siteUrl}/produtos`,
-          inLanguage: 'pt-PT',
-          description:
-            'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital e futuras aplicações web.',
-          isPartOf: {
-            '@id': `${siteUrl}/#website`
-          }
-        },
-        {
-          '@type': 'ItemList',
-          '@id': `${siteUrl}/produtos#product-list`,
-          name: 'Produtos MA-Code',
-          itemListElement: products.map((product, index) => ({
-            '@type': 'ListItem',
-            position: index + 1,
-            item: {
-              '@type': 'SoftwareApplication',
-              name: product.name,
-              applicationCategory: 'WebApplication',
-              operatingSystem: 'Web',
-              url: `${siteUrl}${product.href}`,
-              description: product.description
+    updateCanonical(
+      `${siteUrl}/produtos`
+    )
+
+    updateStructuredData(
+      'ma-code-products-page',
+      {
+        '@context':
+          'https://schema.org',
+        '@graph': [
+          {
+            '@type':
+              'CollectionPage',
+            '@id':
+              `${siteUrl}/produtos#collectionpage`,
+            name:
+              'Produtos MA-Code',
+            url:
+              `${siteUrl}/produtos`,
+            inLanguage:
+              'pt-PT',
+            description:
+              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin e futuras aplicações web.',
+            isPartOf: {
+              '@id':
+                `${siteUrl}/#website`
             }
-          }))
-        }
-      ]
-    })
+          },
+          {
+            '@type':
+              'ItemList',
+            '@id':
+              `${siteUrl}/produtos#product-list`,
+            name:
+              'Produtos MA-Code',
+            itemListElement:
+              products.map(
+                (
+                  product,
+                  index
+                ) => ({
+                  '@type':
+                    'ListItem',
+                  position:
+                    index +
+                    1,
+                  item: {
+                    '@type':
+                      'SoftwareApplication',
+                    name:
+                      product.name,
+                    applicationCategory:
+                      'WebApplication',
+                    operatingSystem:
+                      'Web',
+                    url:
+                      `${siteUrl}${product.href}`,
+                    description:
+                      product.description
+                  }
+                })
+              )
+          }
+        ]
+      }
+    )
   }, [])
 
   return (
@@ -271,7 +497,11 @@ export default function ProductsPage() {
       <section className="relative z-10 overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
         <div className="mx-auto max-w-7xl">
           <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
-            <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
+            <a
+              href="/"
+              className="brand-mark"
+              aria-label="MA-Code.pt - Página inicial"
+            >
               <img
                 src="/ma-code.png"
                 alt="MA-Code.pt"
@@ -280,7 +510,9 @@ export default function ProductsPage() {
                 decoding="async"
               />
 
-              <span>MA-Code.pt</span>
+              <span>
+                MA-Code.pt
+              </span>
             </a>
 
             <div className="hidden items-center gap-5 lg:flex">
@@ -298,16 +530,28 @@ export default function ProductsPage() {
                 Projetos
               </a>
 
-              <a href="/contacto" className="btn-ghost text-sm">
+              <a
+                href="/contacto"
+                className="btn-ghost text-sm"
+              >
                 Pedir proposta
               </a>
             </div>
           </header>
 
-          <div className={`${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
+          <div
+            className={`${
+              mounted
+                ? 'animate-fade-in-up'
+                : 'opacity-0'
+            }`}
+          >
             <div className="hero-topline">
               <span className="hero-topline__dot" />
-              <span>Produtos próprios MA-Code</span>
+
+              <span>
+                Produtos próprios MA-Code
+              </span>
             </div>
 
             <h1 className="mt-6 max-w-5xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
@@ -319,15 +563,22 @@ export default function ProductsPage() {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-              Esta área reúne produtos próprios da MA-Code. Começamos pelo MA PDF e deixamos
-              a estrutura preparada para acrescentar novos produtos, como carteira digital,
-              automações, ferramentas para negócios e apps web com pagamento simples.
+              Esta área reúne produtos próprios da MA-Code, como o
+              MA PDF, a MA Carteira e a MA-BTC ALERTAS, mantendo a
+              estrutura preparada para acrescentar novas automações,
+              ferramentas para negócios e apps web.
             </p>
 
             <div className="hero-actions">
-              <a href="#produtos" className="btn-primary hightech-button">
+              <a
+                href="#produtos"
+                className="btn-primary hightech-button"
+              >
                 <span className="btn-shine" />
-                <span className="relative z-10">Ver produtos</span>
+
+                <span className="relative z-10">
+                  Ver produtos
+                </span>
               </a>
 
               <a
@@ -347,28 +598,44 @@ export default function ProductsPage() {
       >
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 max-w-4xl">
-            <span className="section-label">Catálogo</span>
+            <span className="section-label">
+              Catálogo
+            </span>
 
             <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-4xl">
               Produtos disponíveis e em desenvolvimento.
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Cada produto terá a sua própria página dentro de /produtos. Assim, a estrutura
-              fica limpa, organizada e preparada para SEO quando forem adicionadas novas
+              Cada produto terá a sua própria página dentro de
+              /produtos. Assim, a estrutura fica limpa, organizada e
+              preparada para SEO quando forem adicionadas novas
               ferramentas.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {products.map((product, index) => (
-              <ProductCardItem
-                key={product.name}
-                product={product}
-                index={index}
-                mounted={mounted}
-              />
-            ))}
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {products.map(
+              (
+                product,
+                index
+              ) => (
+                <ProductCardItem
+                  key={
+                    product.name
+                  }
+                  product={
+                    product
+                  }
+                  index={
+                    index
+                  }
+                  mounted={
+                    mounted
+                  }
+                />
+              )
+            )}
           </div>
         </div>
       </section>
@@ -378,15 +645,19 @@ export default function ProductsPage() {
           <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
             <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <span className="section-label">Próximos produtos</span>
+                <span className="section-label">
+                  Próximos produtos
+                </span>
 
                 <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  A página fica preparada para acrescentar mais produtos MA.
+                  A página fica preparada para acrescentar mais
+                  produtos MA.
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Quando houver outro produto, basta criar nova página como
-                  /produtos/nomedoproduto e acrescentar o cartão nesta página de catálogo.
+                  Quando houver outro produto, basta criar nova
+                  página como /produtos/nomedoproduto e acrescentar o
+                  cartão nesta página de catálogo.
                 </p>
               </div>
 
@@ -395,7 +666,10 @@ export default function ProductsPage() {
                 className="btn-primary hightech-button"
               >
                 <span className="btn-shine" />
-                <span className="relative z-10">Falar sobre produto</span>
+
+                <span className="relative z-10">
+                  Falar sobre produto
+                </span>
               </a>
             </div>
           </div>
