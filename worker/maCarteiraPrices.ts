@@ -9,11 +9,11 @@ export const MA_CARTEIRA_PRICES_PATH =
   '/api/ma-carteira/token-price-history'
 
 export const PRICE_PERIODS = [
-  '24H',
-  '7D',
-  '30D',
-  '90D',
-  '1A'
+  '15M',
+  '4H',
+  '1D',
+  '1M',
+  'Tudo'
 ] as const
 
 export type PricePeriod =
@@ -51,9 +51,18 @@ type UnknownRecord =
   Record<string, unknown>
 
 type PeriodConfig = {
-  timeframe: 'hour' | 'day'
-  aggregate: 1 | 4
+  timeframe:
+    | 'minute'
+    | 'hour'
+    | 'day'
+  aggregate:
+    | 1
+    | 4
+    | 5
+    | 15
   limit: number
+  freshForMs: number
+  loadAll?: boolean
 }
 
 type PoolSelection = {
@@ -62,10 +71,37 @@ type PoolSelection = {
   poolAddress: string
 }
 
+type PoolLookup = {
+  poolsResponse: UnknownRecord
+  selectedPool: PoolSelection
+}
+
 type OhlcvResult = {
   points: MaCarteiraPricePoint[]
   baseAddress: string
   quoteAddress: string
+}
+
+type CacheEntry<T> = {
+  cachedAt: number
+  value: T
+}
+
+type EdgeCache = {
+  match:
+    (
+      request: Request
+    ) =>
+      Promise<
+        Response | undefined
+      >
+
+  put:
+    (
+      request: Request,
+      response: Response
+    ) =>
+      Promise<void>
 }
 
 const GECKOTERMINAL_API =
@@ -77,40 +113,99 @@ const GECKOTERMINAL_VERSION =
 const REQUEST_TIMEOUT_MS =
   15_000
 
+const CACHE_VERSION =
+  'v2'
+
+const CACHE_ORIGIN =
+  'https://ma-code.pt'
+
+const PRICE_CACHE_RETENTION_SECONDS =
+  24 * 60 * 60
+
+const POOL_CACHE_RETENTION_SECONDS =
+  7 * 24 * 60 * 60
+
+const POOL_CACHE_FRESH_MS =
+  6 * 60 * 60 * 1000
+
+const MAX_ALL_HISTORY_PAGES =
+  10
+
+const MAX_MEMORY_CACHE_ENTRIES =
+  250
+
 const PERIOD_CONFIG: Record<
   PricePeriod,
   PeriodConfig
 > = {
-  '24H': {
-    timeframe: 'hour',
+  '15M': {
+    timeframe: 'minute',
     aggregate: 1,
-    limit: 24
+    limit: 15,
+    freshForMs: 30_000
   },
 
-  '7D': {
+  '4H': {
+    timeframe: 'minute',
+    aggregate: 5,
+    limit: 48,
+    freshForMs: 60_000
+  },
+
+  '1D': {
+    timeframe: 'minute',
+    aggregate: 15,
+    limit: 96,
+    freshForMs: 120_000
+  },
+
+  '1M': {
     timeframe: 'hour',
     aggregate: 4,
-    limit: 42
+    limit: 180,
+    freshForMs: 10 * 60_000
   },
 
-  '30D': {
+  'Tudo': {
     timeframe: 'day',
     aggregate: 1,
-    limit: 30
-  },
-
-  '90D': {
-    timeframe: 'day',
-    aggregate: 1,
-    limit: 90
-  },
-
-  '1A': {
-    timeframe: 'day',
-    aggregate: 1,
-    limit: 365
+    limit: 1000,
+    freshForMs: 30 * 60_000,
+    loadAll: true
   }
 }
+
+const priceMemoryCache =
+  new Map<
+    string,
+    CacheEntry<
+      MaCarteiraPriceHistory
+    >
+  >()
+
+const poolMemoryCache =
+  new Map<
+    string,
+    CacheEntry<
+      PoolLookup
+    >
+  >()
+
+const priceRequestsInFlight =
+  new Map<
+    string,
+    Promise<
+      MaCarteiraPriceHistory
+    >
+  >()
+
+const poolRequestsInFlight =
+  new Map<
+    string,
+    Promise<
+      PoolLookup
+    >
+  >()
 
 export class MaCarteiraPricesError
   extends Error {
@@ -184,6 +279,210 @@ const readNumber = (
     : fallback
 }
 
+const trimMemoryCache = <T>(
+  memoryCache:
+    Map<
+      string,
+      CacheEntry<T>
+    >
+) => {
+  while (
+    memoryCache.size >
+    MAX_MEMORY_CACHE_ENTRIES
+  ) {
+    const oldestKey =
+      memoryCache.keys()
+        .next().value
+
+    if (
+      typeof oldestKey !==
+      'string'
+    ) {
+      break
+    }
+
+    memoryCache.delete(
+      oldestKey
+    )
+  }
+}
+
+const getEdgeCache = () => {
+  const cacheStorage = (
+    globalThis as unknown as {
+      caches?: {
+        default?: EdgeCache
+      }
+    }
+  ).caches
+
+  return (
+    cacheStorage?.default ||
+    null
+  )
+}
+
+const createCacheRequest = (
+  scope: 'prices' | 'pools',
+  key: string
+) =>
+  new Request(
+    `${CACHE_ORIGIN}/__ma-carteira-cache/${CACHE_VERSION}/${scope}/${encodeURIComponent(
+      key
+    )}`
+  )
+
+const readCacheEntry = async <T>(
+  scope: 'prices' | 'pools',
+  key: string,
+  memoryCache:
+    Map<
+      string,
+      CacheEntry<T>
+    >
+): Promise<CacheEntry<T> | null> => {
+  const memoryEntry =
+    memoryCache.get(
+      key
+    )
+
+  if (memoryEntry) {
+    return memoryEntry
+  }
+
+  const edgeCache =
+    getEdgeCache()
+
+  if (!edgeCache) {
+    return null
+  }
+
+  try {
+    const response =
+      await edgeCache.match(
+        createCacheRequest(
+          scope,
+          key
+        )
+      )
+
+    if (!response) {
+      return null
+    }
+
+    const rawEntry:
+      unknown =
+        await response.json()
+
+    if (
+      !isRecord(rawEntry) ||
+      !(
+        'value' in
+        rawEntry
+      )
+    ) {
+      return null
+    }
+
+    const cachedAt =
+      readNumber(
+        rawEntry.cachedAt
+      )
+
+    if (cachedAt <= 0) {
+      return null
+    }
+
+    const entry:
+      CacheEntry<T> = {
+        cachedAt,
+        value:
+          rawEntry.value as T
+      }
+
+    memoryCache.set(
+      key,
+      entry
+    )
+
+    trimMemoryCache(
+      memoryCache
+    )
+
+    return entry
+  } catch {
+    return null
+  }
+}
+
+const writeCacheEntry = async <T>(
+  scope: 'prices' | 'pools',
+  key: string,
+  entry: CacheEntry<T>,
+  memoryCache:
+    Map<
+      string,
+      CacheEntry<T>
+    >,
+  retentionSeconds: number
+) => {
+  memoryCache.set(
+    key,
+    entry
+  )
+
+  trimMemoryCache(
+    memoryCache
+  )
+
+  const edgeCache =
+    getEdgeCache()
+
+  if (!edgeCache) {
+    return
+  }
+
+  try {
+    await edgeCache.put(
+      createCacheRequest(
+        scope,
+        key
+      ),
+
+      new Response(
+        JSON.stringify(
+          entry
+        ),
+        {
+          headers: {
+            'Content-Type':
+              'application/json; charset=utf-8',
+
+            'Cache-Control':
+              `public, max-age=${retentionSeconds}`
+          }
+        }
+      )
+    )
+  } catch {
+    /*
+     * A cache é uma otimização.
+     * Uma falha ao gravá-la não deve
+     * impedir a apresentação do preço.
+     */
+  }
+}
+
+const canUseStaleCache = (
+  error: unknown
+) =>
+  error instanceof
+    MaCarteiraPricesError &&
+  (
+    error.status === 429 ||
+    error.status >= 500
+  )
+
 const normalizeAddress = (
   value: string
 ) => {
@@ -231,25 +530,30 @@ const getRequestedChainId = (
 const getRequestedPeriod = (
   url: URL
 ): PricePeriod => {
-  const requested = (
+  const rawPeriod = (
     url.searchParams.get(
       'period'
     ) ||
-    '7D'
-  ).toUpperCase()
+    '1D'
+  ).trim()
 
-  if (
-    !PRICE_PERIODS.includes(
-      requested as PricePeriod
+  const requested =
+    PRICE_PERIODS.find(
+      (period) =>
+        period
+          .toLowerCase() ===
+        rawPeriod
+          .toLowerCase()
     )
-  ) {
+
+  if (!requested) {
     throw new MaCarteiraPricesError(
       'O período indicado não é válido.',
       400
     )
   }
 
-  return requested as PricePeriod
+  return requested
 }
 
 const fetchJson = async (
@@ -540,6 +844,186 @@ const selectPool = (
           )
       )[0] || null
   )
+}
+
+const fetchPoolLookup = async (
+  networkId: string,
+  contractAddress: string
+): Promise<PoolLookup> => {
+  const poolsUrl =
+    new URL(
+      `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
+        networkId
+      )}/tokens/${encodeURIComponent(
+        contractAddress
+      )}/pools`
+    )
+
+  poolsUrl.searchParams.set(
+    'page',
+    '1'
+  )
+
+  poolsUrl.searchParams.set(
+    'include',
+    'base_token,quote_token'
+  )
+
+  poolsUrl.searchParams.set(
+    'include_inactive_source',
+    'true'
+  )
+
+  const rawPoolsResponse =
+    await fetchJson(
+      poolsUrl.toString()
+    )
+
+  const poolsResponse =
+    asRecord(
+      rawPoolsResponse
+    )
+
+  const pools =
+    Array.isArray(
+      poolsResponse?.data
+    )
+      ? poolsResponse.data
+      : []
+
+  const selectedPool =
+    selectPool(
+      pools,
+      contractAddress
+    )
+
+  if (!selectedPool) {
+    throw new MaCarteiraPricesError(
+      'Não foi encontrado um mercado com preço para este token.',
+      404
+    )
+  }
+
+  if (
+    !isValidEvmAddress(
+      selectedPool
+        .poolAddress
+    )
+  ) {
+    throw new MaCarteiraPricesError(
+      'O mercado selecionado devolveu um endereço inválido.',
+      502
+    )
+  }
+
+  return {
+    poolsResponse:
+      poolsResponse || {},
+
+    selectedPool
+  }
+}
+
+const getPoolLookup = async (
+  networkId: string,
+  contractAddress: string
+): Promise<PoolLookup> => {
+  const key = [
+    networkId,
+    contractAddress
+      .toLowerCase()
+  ].join(':')
+
+  const storedCache =
+    await readCacheEntry(
+      'pools',
+      key,
+      poolMemoryCache
+    )
+
+  const cached =
+    storedCache &&
+    Date.now() -
+      storedCache.cachedAt <=
+      POOL_CACHE_RETENTION_SECONDS *
+      1000
+      ? storedCache
+      : null
+
+  if (
+    cached &&
+    Date.now() -
+      cached.cachedAt <=
+      POOL_CACHE_FRESH_MS
+  ) {
+    return cached.value
+  }
+
+  const inFlight =
+    poolRequestsInFlight.get(
+      key
+    )
+
+  if (inFlight) {
+    return inFlight
+  }
+
+  const request = (
+    async () => {
+      try {
+        const value =
+          await fetchPoolLookup(
+            networkId,
+            contractAddress
+          )
+
+        await writeCacheEntry(
+          'pools',
+          key,
+          {
+            cachedAt:
+              Date.now(),
+
+            value
+          },
+          poolMemoryCache,
+          POOL_CACHE_RETENTION_SECONDS
+        )
+
+        return value
+      } catch (error) {
+        if (
+          cached &&
+          canUseStaleCache(
+            error
+          )
+        ) {
+          return cached.value
+        }
+
+        throw error
+      }
+    }
+  )()
+
+  poolRequestsInFlight.set(
+    key,
+    request
+  )
+
+  try {
+    return await request
+  } finally {
+    if (
+      poolRequestsInFlight.get(
+        key
+      ) === request
+    ) {
+      poolRequestsInFlight.delete(
+        key
+      )
+    }
+  }
 }
 
 const findIncludedToken = (
@@ -844,27 +1328,10 @@ const fetchCorrectTokenOhlcv =
     contractAddress: string,
     config: PeriodConfig
   ): Promise<OhlcvResult> => {
-    /*
-     * Primeiro pedimos explicitamente o
-     * contrato selecionado.
-     *
-     * O base/quote fica apenas como fallback
-     * para compatibilidade com respostas
-     * antigas do serviço.
-     */
-    const tokenSelectors = [
-      contractAddress,
-      selectedPool.tokenSide
-    ]
-
-    let lastResponse:
-      | OhlcvResult
-      | null = null
-
-    for (
-      const tokenSelector of
-      tokenSelectors
-    ) {
+    const fetchPage = async (
+      tokenSelector: string,
+      beforeTimestamp?: number
+    ) => {
       const ohlcvUrl =
         new URL(
           `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
@@ -904,14 +1371,215 @@ const fetchCorrectTokenOhlcv =
         'true'
       )
 
+      if (
+        typeof beforeTimestamp ===
+          'number' &&
+        Number.isFinite(
+          beforeTimestamp
+        )
+      ) {
+        ohlcvUrl.searchParams.set(
+          'before_timestamp',
+          String(
+            Math.floor(
+              beforeTimestamp
+            )
+          )
+        )
+      }
+
       const response =
         await fetchJson(
           ohlcvUrl.toString()
         )
 
+      return normalizePricePoints(
+        response
+      )
+    }
+
+    const loadCompleteHistory =
+      async (
+        tokenSelector: string,
+        firstPage: OhlcvResult
+      ): Promise<OhlcvResult> => {
+        if (!config.loadAll) {
+          return firstPage
+        }
+
+        const pointsByTimestamp =
+          new Map<
+            string,
+            MaCarteiraPricePoint
+          >()
+
+        firstPage.points.forEach(
+          (point) => {
+            pointsByTimestamp.set(
+              point.timestamp,
+              point
+            )
+          }
+        )
+
+        let oldestTimestamp =
+          Math.min(
+            ...firstPage.points.map(
+              (point) =>
+                new Date(
+                  point.timestamp
+                ).getTime() /
+                1000
+            )
+          )
+
+        for (
+          let page = 1;
+          page <
+          MAX_ALL_HISTORY_PAGES;
+          page += 1
+        ) {
+          if (
+            !Number.isFinite(
+              oldestTimestamp
+            )
+          ) {
+            break
+          }
+
+          let olderPage:
+            OhlcvResult
+
+          try {
+            olderPage =
+              await fetchPage(
+                tokenSelector,
+                oldestTimestamp -
+                  1
+              )
+          } catch (error) {
+            /*
+             * A primeira página já permite
+             * apresentar o gráfico. Se uma
+             * página histórica adicional
+             * atingir o limite do fornecedor,
+             * mantemos os dados já obtidos.
+             */
+            if (
+              canUseStaleCache(
+                error
+              )
+            ) {
+              break
+            }
+
+            throw error
+          }
+
+          if (
+            !olderPage
+              .points.length
+          ) {
+            break
+          }
+
+          const previousSize =
+            pointsByTimestamp.size
+
+          olderPage.points.forEach(
+            (point) => {
+              pointsByTimestamp.set(
+                point.timestamp,
+                point
+              )
+            }
+          )
+
+          if (
+            pointsByTimestamp.size ===
+            previousSize
+          ) {
+            break
+          }
+
+          const nextOldestTimestamp =
+            Math.min(
+              ...olderPage.points.map(
+                (point) =>
+                  new Date(
+                    point.timestamp
+                  ).getTime() /
+                  1000
+              )
+            )
+
+          if (
+            !Number.isFinite(
+              nextOldestTimestamp
+            ) ||
+            nextOldestTimestamp >=
+              oldestTimestamp
+          ) {
+            break
+          }
+
+          oldestTimestamp =
+            nextOldestTimestamp
+
+          if (
+            olderPage
+              .points.length <
+            config.limit
+          ) {
+            break
+          }
+        }
+
+        return {
+          ...firstPage,
+
+          points: [
+            ...pointsByTimestamp
+              .values()
+          ].sort(
+            (
+              first,
+              second
+            ) =>
+              new Date(
+                first.timestamp
+              ).getTime() -
+              new Date(
+                second.timestamp
+              ).getTime()
+          )
+        }
+      }
+
+    /*
+     * Primeiro pedimos explicitamente o
+     * contrato selecionado.
+     *
+     * O base/quote fica apenas como fallback
+     * para compatibilidade com respostas
+     * antigas do serviço.
+     */
+    const tokenSelectors = [
+      contractAddress,
+      selectedPool.tokenSide
+    ]
+
+    let lastResponse:
+      | OhlcvResult
+      | null = null
+
+    for (
+      const tokenSelector of
+      tokenSelectors
+    ) {
       const normalized =
-        normalizePricePoints(
-          response
+        await fetchPage(
+          tokenSelector
         )
 
       lastResponse =
@@ -943,7 +1611,10 @@ const fetchCorrectTokenOhlcv =
           .baseAddress ===
           requested
       ) {
-        return normalized
+        return loadCompleteHistory(
+          tokenSelector,
+          normalized
+        )
       }
     }
 
@@ -1038,191 +1709,234 @@ export async function getMaCarteiraPriceHistory(
   const networkId =
     chain.price.networkId
 
-  const poolsUrl =
-    new URL(
-      `${GECKOTERMINAL_API}/networks/${encodeURIComponent(
-        networkId
-      )}/tokens/${encodeURIComponent(
-        contractAddress
-      )}/pools`
-    )
-
-  poolsUrl.searchParams.set(
-    'page',
-    '1'
-  )
-
-  poolsUrl.searchParams.set(
-    'include',
-    'base_token,quote_token'
-  )
-
-  poolsUrl.searchParams.set(
-    'include_inactive_source',
-    'true'
-  )
-
-  const rawPoolsResponse =
-    await fetchJson(
-      poolsUrl.toString()
-    )
-
-  const poolsResponse =
-    asRecord(
-      rawPoolsResponse
-    )
-
-  const pools =
-    Array.isArray(
-      poolsResponse?.data
-    )
-      ? poolsResponse.data
-      : []
-
-  const selectedPool =
-    selectPool(
-      pools,
-      contractAddress
-    )
-
-  if (!selectedPool) {
-    throw new MaCarteiraPricesError(
-      'Não foi encontrado um mercado com preço para este token.',
-      404
-    )
-  }
-
-  if (
-    !isValidEvmAddress(
-      selectedPool
-        .poolAddress
-    )
-  ) {
-    throw new MaCarteiraPricesError(
-      'O mercado selecionado devolveu um endereço inválido.',
-      502
-    )
-  }
-
   const config =
     PERIOD_CONFIG[
       period
     ]
 
-  const ohlcv =
-    await fetchCorrectTokenOhlcv(
-      networkId,
-      selectedPool,
-      contractAddress,
-      config
-    )
-
-  const points =
-    ohlcv.points
-
-  if (!points.length) {
-    throw new MaCarteiraPricesError(
-      'Ainda não existem dados históricos de preço para este token.',
-      404
-    )
-  }
-
-  const metadata =
-    getTokenMetadata(
-      poolsResponse || {},
-      selectedPool.pool,
-      contractAddress,
-      selectedPool.tokenSide
-    )
-
-  /*
-   * Os pontos já estão ordenados do
-   * mais antigo para o mais recente.
-   */
-  const firstPrice =
-    points[0].open
-
-  const currentPrice =
-    points[
-      points.length - 1
-    ].close
-
-  const changePercentage =
-    firstPrice > 0
-      ? (
-          (
-            currentPrice -
-            firstPrice
-          ) /
-          firstPrice
-        ) *
-        100
-      : 0
-
-  const highUsd =
-    Math.max(
-      ...points.map(
-        (point) =>
-          point.high
-      )
-    )
-
-  const lowUsd =
-    Math.min(
-      ...points.map(
-        (point) =>
-          point.low
-      )
-    )
-
-  const volumeUsd =
-    points.reduce(
-      (
-        total,
-        point
-      ) =>
-        total +
-        point.volume,
-      0
-    )
-
-  return {
+  const cacheKey = [
     chainId,
     networkId,
-    contractAddress,
+    contractAddress
+      .toLowerCase(),
+    period
+  ].join(':')
 
-    symbol:
-      metadata.symbol,
+  const storedCache =
+    await readCacheEntry(
+      'prices',
+      cacheKey,
+      priceMemoryCache
+    )
 
-    name:
-      metadata.name,
+  const cached =
+    storedCache &&
+    Date.now() -
+      storedCache.cachedAt <=
+      PRICE_CACHE_RETENTION_SECONDS *
+      1000
+      ? storedCache
+      : null
 
-    period,
+  if (
+    cached &&
+    Date.now() -
+      cached.cachedAt <=
+      config.freshForMs
+  ) {
+    return cached.value
+  }
 
-    poolAddress:
-      selectedPool
-        .poolAddress,
+  const inFlight =
+    priceRequestsInFlight.get(
+      cacheKey
+    )
 
-    poolName:
-      metadata.poolName,
+  if (inFlight) {
+    return inFlight
+  }
 
-    currentPriceUsd:
-      currentPrice,
+  const request = (
+    async () => {
+      try {
+        const {
+          poolsResponse,
+          selectedPool
+        } =
+          await getPoolLookup(
+            networkId,
+            contractAddress
+          )
 
-    changePercentage,
+        const ohlcv =
+          await fetchCorrectTokenOhlcv(
+            networkId,
+            selectedPool,
+            contractAddress,
+            config
+          )
 
-    highUsd,
-    lowUsd,
-    volumeUsd,
+        const points =
+          ohlcv.points
 
-    liquidityUsd:
-      metadata
-        .liquidityUsd,
+        if (!points.length) {
+          throw new MaCarteiraPricesError(
+            'Ainda não existem dados históricos de preço para este token.',
+            404
+          )
+        }
 
-    fetchedAt:
-      new Date()
-        .toISOString(),
+        const metadata =
+          getTokenMetadata(
+            poolsResponse,
+            selectedPool.pool,
+            contractAddress,
+            selectedPool.tokenSide
+          )
 
-    points
+        /*
+         * Os pontos já estão ordenados do
+         * mais antigo para o mais recente.
+         */
+        const firstPrice =
+          points[0].open
+
+        const currentPrice =
+          points[
+            points.length - 1
+          ].close
+
+        const changePercentage =
+          firstPrice > 0
+            ? (
+                (
+                  currentPrice -
+                  firstPrice
+                ) /
+                firstPrice
+              ) *
+              100
+            : 0
+
+        const highUsd =
+          Math.max(
+            ...points.map(
+              (point) =>
+                point.high
+            )
+          )
+
+        const lowUsd =
+          Math.min(
+            ...points.map(
+              (point) =>
+                point.low
+            )
+          )
+
+        const volumeUsd =
+          points.reduce(
+            (
+              total,
+              point
+            ) =>
+              total +
+              point.volume,
+            0
+          )
+
+        const value:
+          MaCarteiraPriceHistory = {
+            chainId,
+            networkId,
+            contractAddress,
+
+            symbol:
+              metadata.symbol,
+
+            name:
+              metadata.name,
+
+            period,
+
+            poolAddress:
+              selectedPool
+                .poolAddress,
+
+            poolName:
+              metadata.poolName,
+
+            currentPriceUsd:
+              currentPrice,
+
+            changePercentage,
+
+            highUsd,
+            lowUsd,
+            volumeUsd,
+
+            liquidityUsd:
+              metadata
+                .liquidityUsd,
+
+            fetchedAt:
+              new Date()
+                .toISOString(),
+
+            points
+          }
+
+        await writeCacheEntry(
+          'prices',
+          cacheKey,
+          {
+            cachedAt:
+              Date.now(),
+
+            value
+          },
+          priceMemoryCache,
+          PRICE_CACHE_RETENTION_SECONDS
+        )
+
+        return value
+      } catch (error) {
+        /*
+         * Se o fornecedor atingir o limite,
+         * ficar indisponível ou demorar
+         * demasiado, mantemos o último
+         * histórico válido já guardado.
+         */
+        if (
+          cached &&
+          canUseStaleCache(
+            error
+          )
+        ) {
+          return cached.value
+        }
+
+        throw error
+      }
+    }
+  )()
+
+  priceRequestsInFlight.set(
+    cacheKey,
+    request
+  )
+
+  try {
+    return await request
+  } finally {
+    if (
+      priceRequestsInFlight.get(
+        cacheKey
+      ) === request
+    ) {
+      priceRequestsInFlight.delete(
+        cacheKey
+      )
+    }
   }
 }
