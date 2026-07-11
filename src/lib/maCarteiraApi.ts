@@ -11,11 +11,11 @@ export const MA_CARTEIRA_PRICE_HISTORY_API =
   '/api/ma-carteira/token-price-history'
 
 export const PRICE_PERIODS = [
-  '24H',
-  '7D',
-  '30D',
-  '90D',
-  '1A'
+  '15M',
+  '4H',
+  '1D',
+  '1M',
+  'Tudo'
 ] as const
 
 export type PricePeriod =
@@ -669,7 +669,7 @@ export async function fetchTokenPriceHistory(
 
   const period =
     options.period ||
-    '7D'
+    '1D'
 
   if (
     !isPricePeriod(period)
