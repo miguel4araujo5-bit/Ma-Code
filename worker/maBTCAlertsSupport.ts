@@ -1,1052 +1,588 @@
-import {
-  ACTIVE_END_HOUR,
-  ACTIVE_START_HOUR,
-  ALERT_THRESHOLD_PERCENT,
-  MA_BTC_ALERTS_API_PREFIX,
-  MAX_SUBSCRIBERS,
-  PAIR,
-  PRODUCT_NAME,
-  SNOOZE_DURATION_MS,
-  STORAGE_KEY,
-  TIME_ZONE,
-  createInitialState,
-  errorMessage,
-  fetchBtcUsdPrice,
-  formatPercent,
-  formatUsd,
-  getBody,
-  getChangePercent,
-  hashEndpoint,
-  isActiveHour,
-  isBtcAlertsApiPath,
-  isExpiredSubscription,
-  isSnoozedSubscriber,
-  isValidEndpoint,
-  json,
-  normalizeSubscription,
-  securityHeaders,
-  sendPushNotification,
-  toIso,
-  type BtcAlertsEnv,
-  type DurableObjectStateLike,
-  type JsonBody,
-  type StoredState
-} from './maBTCAlertsSupport'
+import webpush from 'web-push'
 
-export {
-  isBtcAlertsApiPath,
-  type BtcAlertsEnv
+export const MA_BTC_ALERTS_API_PREFIX = '/api/ma-btc-alertas'
+export const PRODUCT_NAME = 'MA-BTC ALERTAS' as const
+export const PAIR = 'BTC/USD' as const
+export const TIME_ZONE = 'Europe/Lisbon' as const
+export const ACTIVE_START_HOUR = 7
+export const ACTIVE_END_HOUR = 23
+export const ALERT_THRESHOLD_PERCENT = 1
+export const SNOOZE_DURATION_MS = 8 * 60 * 60 * 1000
+export const MAX_SUBSCRIBERS = 100
+export const STORAGE_KEY = 'ma-btc-alertas-state-v1'
+
+const MAX_REQUEST_BODY_BYTES = 24_000
+const COINBASE_TICKER_URL =
+  'https://api.exchange.coinbase.com/products/BTC-USD/ticker'
+const NOTIFICATION_URL = '/produtos/ma-btc-alertas'
+const VAPID_SUBJECT = 'https://ma-code.pt'
+
+export const securityHeaders = {
+  'Cache-Control': 'no-store',
+  'Content-Type': 'application/json; charset=utf-8',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Robots-Tag': 'noindex, nofollow'
 }
 
-const normalizeOrigin = (
-  value: string
-) => {
-  try {
-    return new URL(value).origin
-  } catch {
-    return ''
+export type DurableObjectStorageLike = {
+  get<T>(key: string): Promise<T | undefined>
+  put<T>(key: string, value: T): Promise<void>
+}
+
+export type DurableObjectStateLike = {
+  storage: DurableObjectStorageLike
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>
+}
+
+export type DurableObjectStubLike = {
+  fetch(request: Request): Promise<Response>
+}
+
+export type DurableObjectNamespaceLike = {
+  idFromName(name: string): unknown
+  get(id: unknown): DurableObjectStubLike
+}
+
+export interface BtcAlertsEnv {
+  BTC_ALERTS: DurableObjectNamespaceLike
+}
+
+export type PushSubscriptionPayload = {
+  endpoint: string
+  expirationTime: number | null
+  keys: {
+    p256dh: string
+    auth: string
   }
 }
 
-const isAllowedOrigin = (
-  request: Request
-) => {
-  const requestOrigin =
-    new URL(request.url).origin
+export type Subscriber = {
+  id: string
+  subscription: PushSubscriptionPayload
+  snoozeUntil: number | null
+  createdAt: number
+  updatedAt: number
+}
 
-  const origin = normalizeOrigin(
-    request.headers.get('Origin') || ''
+export type StoredState = {
+  version: 1
+  vapidKeys: {
+    publicKey: string
+    privateKey: string
+  }
+  subscribers: Record<string, Subscriber>
+  currentPrice: number | null
+  referencePrice: number | null
+  lastCheckedAt: number | null
+  lastAlertAt: number | null
+  lastAlertDirection: 'up' | 'down' | null
+  lastAlertPercent: number | null
+  lastError: string | null
+}
+
+export type JsonBody = Record<string, unknown>
+
+type CoinbaseTickerResponse = {
+  price?: unknown
+}
+
+type PushError = Error & {
+  statusCode?: number
+}
+
+export const json = (
+  body: unknown,
+  status = 200,
+  headers: HeadersInit = {}
+) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...securityHeaders,
+      ...headers
+    }
+  })
+
+export const errorMessage = (
+  error: unknown,
+  fallback: string
+) =>
+  error instanceof Error &&
+  error.message.trim()
+    ? error.message.trim()
+    : fallback
+
+export const toIso = (
+  value: number | null
+) =>
+  value === null
+    ? null
+    : new Date(value).toISOString()
+
+export const isBtcAlertsApiPath = (
+  pathname: string
+) =>
+  pathname ===
+    MA_BTC_ALERTS_API_PREFIX ||
+  pathname.startsWith(
+    `${MA_BTC_ALERTS_API_PREFIX}/`
   )
 
-  const referer = normalizeOrigin(
-    request.headers.get('Referer') || ''
-  )
-
-  const candidate =
-    origin || referer
-
-  if (!candidate) {
-    return false
-  }
-
-  const allowed = new Set([
-    requestOrigin,
-    'https://ma-code.pt',
-    'https://www.ma-code.pt'
-  ])
-
-  try {
-    const hostname =
-      new URL(candidate).hostname
-
-    if (
-      [
-        'localhost',
-        '127.0.0.1',
-        '0.0.0.0'
-      ].includes(hostname)
-    ) {
-      return true
-    }
-  } catch {
-    return false
-  }
-
-  return allowed.has(candidate)
-}
-
-const getDurableObject = (
-  env: BtcAlertsEnv
+export const getLisbonHour = (
+  date = new Date()
 ) => {
-  const id =
-    env.BTC_ALERTS.idFromName(
-      'ma-btc-alertas-global'
-    )
-
-  return env.BTC_ALERTS.get(id)
-}
-
-export const handleBtcAlertsApiRequest =
-  async (
-    request: Request,
-    env: BtcAlertsEnv
-  ) => {
-    const origin = normalizeOrigin(
-      request.headers.get('Origin') || ''
-    )
-
-    const corsHeaders:
-      Record<string, string> = {}
-
-    if (
-      origin &&
-      isAllowedOrigin(request)
-    ) {
-      corsHeaders[
-        'Access-Control-Allow-Origin'
-      ] = origin
-
-      corsHeaders.Vary = 'Origin'
-    }
-
-    if (
-      request.method === 'OPTIONS'
-    ) {
-      if (!isAllowedOrigin(request)) {
-        return json(
-          {
-            success: false,
-            message:
-              'Pedido bloqueado por origem inválida.'
-          },
-          403
-        )
-      }
-
-      return new Response(
-        null,
-        {
-          status: 204,
-          headers: {
-            ...securityHeaders,
-            ...corsHeaders,
-            'Access-Control-Allow-Headers':
-              'Content-Type',
-            'Access-Control-Allow-Methods':
-              'POST, OPTIONS',
-            'Access-Control-Max-Age':
-              '86400'
-          }
-        }
-      )
-    }
-
-    if (
-      request.method !== 'POST'
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'Método não permitido.'
-        },
-        405,
-        {
-          ...corsHeaders,
-          Allow: 'POST, OPTIONS'
-        }
-      )
-    }
-
-    if (!isAllowedOrigin(request)) {
-      return json(
-        {
-          success: false,
-          message:
-            'Pedido bloqueado por origem inválida.'
-        },
-        403
-      )
-    }
-
-    const response =
-      await getDurableObject(
-        env
-      ).fetch(request)
-
-    const headers =
-      new Headers(
-        response.headers
-      )
-
-    Object.entries(
-      corsHeaders
-    ).forEach(
-      ([name, value]) => {
-        headers.set(name, value)
-      }
-    )
-
-    return new Response(
-      response.body,
+  const parts =
+    new Intl.DateTimeFormat(
+      'en-GB',
       {
-        status: response.status,
-        statusText:
-          response.statusText,
-        headers
+        hour: '2-digit',
+        hourCycle: 'h23',
+        timeZone: TIME_ZONE
       }
+    ).formatToParts(date)
+
+  const hour = Number(
+    parts.find(
+      (part) =>
+        part.type === 'hour'
+    )?.value
+  )
+
+  return Number.isInteger(hour)
+    ? hour
+    : -1
+}
+
+export const isActiveHour = (
+  date = new Date()
+) => {
+  const hour =
+    getLisbonHour(date)
+
+  return (
+    hour >= ACTIVE_START_HOUR &&
+    hour <= ACTIVE_END_HOUR
+  )
+}
+
+export const getChangePercent = (
+  currentPrice: number | null,
+  referencePrice: number | null
+) => {
+  if (
+    currentPrice === null ||
+    referencePrice === null ||
+    !Number.isFinite(
+      currentPrice
+    ) ||
+    !Number.isFinite(
+      referencePrice
+    ) ||
+    referencePrice <= 0
+  ) {
+    return null
+  }
+
+  return (
+    ((currentPrice -
+      referencePrice) /
+      referencePrice) *
+    100
+  )
+}
+
+export const formatUsd = (
+  value: number
+) =>
+  new Intl.NumberFormat(
+    'en-US',
+    {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    }
+  ).format(value)
+
+export const formatPercent = (
+  value: number
+) =>
+  Math.abs(value).toLocaleString(
+    'pt-PT',
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  )
+
+export const isValidEndpoint = (
+  value: unknown
+): value is string => {
+  if (
+    typeof value !== 'string' ||
+    value.length < 20 ||
+    value.length > 4096
+  ) {
+    return false
+  }
+
+  try {
+    return (
+      new URL(value).protocol ===
+      'https:'
+    )
+  } catch {
+    return false
+  }
+}
+
+export const normalizeSubscription = (
+  value: unknown
+): PushSubscriptionPayload | null => {
+  if (
+    !value ||
+    typeof value !== 'object'
+  ) {
+    return null
+  }
+
+  const subscription =
+    value as {
+      endpoint?: unknown
+      expirationTime?: unknown
+      keys?: unknown
+    }
+
+  if (
+    !isValidEndpoint(
+      subscription.endpoint
+    )
+  ) {
+    return null
+  }
+
+  if (
+    !subscription.keys ||
+    typeof subscription.keys !==
+      'object'
+  ) {
+    return null
+  }
+
+  const keys =
+    subscription.keys as {
+      p256dh?: unknown
+      auth?: unknown
+    }
+
+  if (
+    typeof keys.p256dh !==
+      'string' ||
+    keys.p256dh.length < 20 ||
+    keys.p256dh.length > 512 ||
+    typeof keys.auth !==
+      'string' ||
+    keys.auth.length < 8 ||
+    keys.auth.length > 256
+  ) {
+    return null
+  }
+
+  const expirationTime =
+    typeof subscription.expirationTime ===
+      'number' &&
+    Number.isFinite(
+      subscription.expirationTime
+    )
+      ? subscription.expirationTime
+      : null
+
+  return {
+    endpoint:
+      subscription.endpoint,
+    expirationTime,
+    keys: {
+      p256dh: keys.p256dh,
+      auth: keys.auth
+    }
+  }
+}
+
+export const getBody = async (
+  request: Request
+): Promise<JsonBody> => {
+  const contentLength = Number(
+    request.headers.get(
+      'Content-Length'
+    ) || '0'
+  )
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      MAX_REQUEST_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
     )
   }
 
-export const runBtcAlertsScheduled =
+  const text =
+    await request.text()
+
+  if (
+    new TextEncoder().encode(
+      text
+    ).byteLength >
+    MAX_REQUEST_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
+    )
+  }
+
+  if (!text) {
+    return {}
+  }
+
+  const parsed =
+    JSON.parse(text) as unknown
+
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    Array.isArray(parsed)
+  ) {
+    throw new Error(
+      'O pedido enviado não é válido.'
+    )
+  }
+
+  return parsed as JsonBody
+}
+
+export const hashEndpoint =
   async (
-    env: BtcAlertsEnv
-  ) => {
-    await getDurableObject(
-      env
-    ).fetch(
-      new Request(
-        'https://ma-btc-alertas.internal/internal/cron',
-        {
-          method: 'POST'
-        }
-      )
-    )
-  }
-
-export class BtcAlertsDurableObject {
-  private readonly state:
-    DurableObjectStateLike
-
-  private storedState:
-    StoredState | null = null
-
-  private operation:
-    Promise<void>
-
-  constructor(
-    state: DurableObjectStateLike,
-    _env: BtcAlertsEnv
-  ) {
-    this.state = state
-
-    this.operation =
-      this.state.blockConcurrencyWhile(
-        async () => {
-          this.storedState =
-            (
-              await this.state.storage.get<
-                StoredState
-              >(STORAGE_KEY)
-            ) ||
-            createInitialState()
-
-          await this.save()
-        }
-      )
-  }
-
-  fetch(
-    request: Request
-  ): Promise<Response> {
-    const response =
-      this.operation.then(
-        () =>
-          this.handleRequest(
-            request
-          )
-      )
-
-    this.operation =
-      response.then(
-        () => undefined,
-        () => undefined
-      )
-
-    return response
-  }
-
-  private async getState() {
-    if (!this.storedState) {
-      this.storedState =
-        (
-          await this.state.storage.get<
-            StoredState
-          >(STORAGE_KEY)
-        ) ||
-        createInitialState()
-    }
-
-    return this.storedState
-  }
-
-  private async save() {
-    if (this.storedState) {
-      await this.state.storage.put(
-        STORAGE_KEY,
-        this.storedState
-      )
-    }
-  }
-
-  private async handleRequest(
-    request: Request
-  ) {
-    const url =
-      new URL(request.url)
-
-    if (
-      url.pathname ===
-      '/internal/cron'
-    ) {
-      if (
-        request.method !== 'POST'
-      ) {
-        return json(
-          {
-            success: false,
-            message:
-              'Método não permitido.'
-          },
-          405
-        )
-      }
-
-      await this.runScheduledCheck()
-
-      return json({
-        success: true
-      })
-    }
-
-    if (
-      !isBtcAlertsApiPath(
-        url.pathname
-      )
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'Endpoint não encontrado.'
-        },
-        404
-      )
-    }
-
-    const action =
-      url.pathname.slice(
-        MA_BTC_ALERTS_API_PREFIX.length
-      ) || '/'
-
-    try {
-      const body =
-        await getBody(request)
-
-      switch (action) {
-        case '/status':
-          return this.handleStatus(
-            body
-          )
-
-        case '/subscribe':
-          return this.handleSubscribe(
-            body
-          )
-
-        case '/unsubscribe':
-          return this.handleUnsubscribe(
-            body
-          )
-
-        case '/snooze':
-          return this.handleSnooze(
-            body
-          )
-
-        case '/resume':
-          return this.handleResume(
-            body
-          )
-
-        case '/test':
-          return this.handleTest(
-            body
-          )
-
-        default:
-          return json(
-            {
-              success: false,
-              message:
-                'Endpoint não encontrado.'
-            },
-            404
-          )
-      }
-    } catch (error) {
-      const message =
-        errorMessage(
-          error,
-          'Não foi possível processar o pedido da MA-BTC ALERTAS.'
-        )
-
-      const status =
-        message ===
-        'O pedido é demasiado grande.'
-          ? 413
-          : message ===
-              'O pedido enviado não é válido.' ||
-            message.includes(
-              'JSON'
-            )
-            ? 400
-            : 500
-
-      return json(
-        {
-          success: false,
-          message
-        },
-        status
-      )
-    }
-  }
-
-  private async buildStatus(
     endpoint: string
-  ) {
-    const state =
-      await this.getState()
-
-    const now =
-      Date.now()
-
-    const id =
-      isValidEndpoint(endpoint)
-        ? await hashEndpoint(
-            endpoint
-          )
-        : ''
-
-    const subscriber =
-      id
-        ? state.subscribers[id]
-        : undefined
-
-    const snoozeUntil =
-      subscriber?.snoozeUntil &&
-      subscriber.snoozeUntil > now
-        ? subscriber.snoozeUntil
-        : null
-
-    return {
-      success: true as const,
-      product: PRODUCT_NAME,
-      pair: PAIR,
-      thresholdPercent:
-        ALERT_THRESHOLD_PERCENT,
-      activeHours: {
-        start:
-          ACTIVE_START_HOUR,
-        end:
-          ACTIVE_END_HOUR,
-        timeZone:
-          TIME_ZONE
-      },
-      activeNow:
-        isActiveHour(
-          new Date(now)
-        ),
-      vapidPublicKey:
-        state.vapidKeys.publicKey,
-      currentPrice:
-        state.currentPrice,
-      referencePrice:
-        state.referencePrice,
-      changePercent:
-        getChangePercent(
-          state.currentPrice,
-          state.referencePrice
-        ),
-      lastCheckedAt:
-        toIso(
-          state.lastCheckedAt
-        ),
-      lastAlertAt:
-        toIso(
-          state.lastAlertAt
-        ),
-      lastAlertDirection:
-        state.lastAlertDirection,
-      lastAlertPercent:
-        state.lastAlertPercent,
-      lastError:
-        state.lastError,
-      subscriberCount:
-        Object.keys(
-          state.subscribers
-        ).length,
-      subscription: {
-        active:
-          Boolean(subscriber),
-        snoozeUntil:
-          toIso(snoozeUntil)
-      }
-    }
-  }
-
-  private async handleStatus(
-    body: JsonBody
-  ) {
-    const endpoint =
-      typeof body.endpoint ===
-      'string'
-        ? body.endpoint
-        : ''
-
-    return json(
-      await this.buildStatus(
-        endpoint
-      )
-    )
-  }
-
-  private async handleSubscribe(
-    body: JsonBody
-  ) {
-    const state =
-      await this.getState()
-
-    const subscription =
-      normalizeSubscription(
-        body.subscription
-      )
-
-    if (!subscription) {
-      return json(
-        {
-          success: false,
-          message:
-            'A subscrição de notificações não é válida.'
-        },
-        400
-      )
-    }
-
-    const id =
-      await hashEndpoint(
-        subscription.endpoint
-      )
-
-    const existing =
-      state.subscribers[id]
-
-    if (
-      !existing &&
-      Object.keys(
-        state.subscribers
-      ).length >=
-        MAX_SUBSCRIBERS
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'Foi atingido o limite de dispositivos.'
-        },
-        409
-      )
-    }
-
-    const now =
-      Date.now()
-
-    state.subscribers[id] = {
-      id,
-      subscription,
-      snoozeUntil:
-        existing?.snoozeUntil ||
-        null,
-      createdAt:
-        existing?.createdAt ||
-        now,
-      updatedAt: now
-    }
-
-    if (
-      state.referencePrice ===
-        null &&
-      isActiveHour(
-        new Date(now)
-      )
-    ) {
-      try {
-        const price =
-          await fetchBtcUsdPrice()
-
-        state.currentPrice =
-          price
-
-        state.referencePrice =
-          price
-
-        state.lastCheckedAt =
-          now
-
-        state.lastError =
-          null
-      } catch (error) {
-        state.lastError =
-          errorMessage(
-            error,
-            'Não foi possível obter o preço BTC/USD.'
-          )
-      }
-    }
-
-    await this.save()
-
-    return json(
-      await this.buildStatus(
-        subscription.endpoint
-      )
-    )
-  }
-
-  private async handleUnsubscribe(
-    body: JsonBody
-  ) {
-    const state =
-      await this.getState()
-
-    const endpoint =
-      typeof body.endpoint ===
-      'string'
-        ? body.endpoint
-        : ''
-
-    if (
-      isValidEndpoint(
-        endpoint
-      )
-    ) {
-      delete state.subscribers[
-        await hashEndpoint(
+  ) => {
+    const digest =
+      await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(
           endpoint
         )
-      ]
+      )
 
-      await this.save()
-    }
-
-    return json(
-      await this.buildStatus('')
+    return Array.from(
+      new Uint8Array(digest)
     )
+      .map((byte) =>
+        byte
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('')
   }
 
-  private async getSubscriberFromBody(
-    body: JsonBody
-  ) {
-    const state =
-      await this.getState()
+export const fetchBtcUsdPrice =
+  async () => {
+    const controller =
+      new AbortController()
 
-    const endpoint =
-      typeof body.endpoint ===
-      'string'
-        ? body.endpoint
-        : ''
-
-    if (
-      !isValidEndpoint(
-        endpoint
+    const timeout =
+      setTimeout(
+        () =>
+          controller.abort(),
+        10_000
       )
-    ) {
-      return {
-        state,
-        endpoint,
-        id: '',
-        subscriber: null
-      }
-    }
-
-    const id =
-      await hashEndpoint(
-        endpoint
-      )
-
-    return {
-      state,
-      endpoint,
-      id,
-      subscriber:
-        state.subscribers[id] ||
-        null
-    }
-  }
-
-  private async handleSnooze(
-    body: JsonBody
-  ) {
-    const {
-      endpoint,
-      subscriber
-    } =
-      await this.getSubscriberFromBody(
-        body
-      )
-
-    if (!subscriber) {
-      return json(
-        {
-          success: false,
-          message:
-            'Ative primeiro as notificações neste dispositivo.'
-        },
-        404
-      )
-    }
-
-    subscriber.snoozeUntil =
-      Date.now() +
-      SNOOZE_DURATION_MS
-
-    subscriber.updatedAt =
-      Date.now()
-
-    await this.save()
-
-    return json(
-      await this.buildStatus(
-        endpoint
-      )
-    )
-  }
-
-  private async handleResume(
-    body: JsonBody
-  ) {
-    const {
-      endpoint,
-      subscriber
-    } =
-      await this.getSubscriberFromBody(
-        body
-      )
-
-    if (!subscriber) {
-      return json(
-        {
-          success: false,
-          message:
-            'A subscrição deste dispositivo não foi encontrada.'
-        },
-        404
-      )
-    }
-
-    subscriber.snoozeUntil =
-      null
-
-    subscriber.updatedAt =
-      Date.now()
-
-    await this.save()
-
-    return json(
-      await this.buildStatus(
-        endpoint
-      )
-    )
-  }
-
-  private async handleTest(
-    body: JsonBody
-  ) {
-    const {
-      state,
-      endpoint,
-      id,
-      subscriber
-    } =
-      await this.getSubscriberFromBody(
-        body
-      )
-
-    if (!subscriber) {
-      return json(
-        {
-          success: false,
-          message:
-            'Ative primeiro as notificações neste dispositivo.'
-        },
-        404
-      )
-    }
-
-    const result =
-      await sendPushNotification(
-        state,
-        subscriber,
-        {
-          title:
-            '✅ MA-BTC ALERTAS ativo',
-          body:
-            'As notificações estão prontas.\n\nBTC/USD · Alertas ±1%\nWWW.MA-CODE.PT'
-        }
-      )
-
-    if (result.remove) {
-      delete state.subscribers[
-        id
-      ]
-
-      await this.save()
-
-      return json(
-        {
-          success: false,
-          message:
-            'A subscrição deixou de ser válida. Volte a ativar as notificações.'
-        },
-        410
-      )
-    }
-
-    if (!result.delivered) {
-      return json(
-        {
-          success: false,
-          message:
-            result.message ||
-            'A notificação de teste falhou.'
-        },
-        502
-      )
-    }
-
-    return json(
-      await this.buildStatus(
-        endpoint
-      )
-    )
-  }
-
-  private async runScheduledCheck() {
-    const state =
-      await this.getState()
-
-    const now =
-      Date.now()
-
-    for (
-      const [
-        id,
-        subscriber
-      ] of Object.entries(
-        state.subscribers
-      )
-    ) {
-      if (
-        isExpiredSubscription(
-          subscriber,
-          now
-        )
-      ) {
-        delete state.subscribers[
-          id
-        ]
-      }
-    }
-
-    if (
-      Object.keys(
-        state.subscribers
-      ).length === 0 ||
-      !isActiveHour(
-        new Date(now)
-      )
-    ) {
-      await this.save()
-      return
-    }
 
     try {
+      const response =
+        await fetch(
+          COINBASE_TICKER_URL,
+          {
+            headers: {
+              Accept:
+                'application/json',
+              'User-Agent':
+                'MA-BTC-ALERTAS/1.0'
+            },
+            signal:
+              controller.signal
+          }
+        )
+
+      if (!response.ok) {
+        throw new Error(
+          `A fonte BTC/USD respondeu com o estado ${response.status}.`
+        )
+      }
+
+      const data =
+        (await response.json()) as CoinbaseTickerResponse
+
       const price =
-        await fetchBtcUsdPrice()
-
-      state.currentPrice =
-        price
-
-      state.lastCheckedAt =
-        now
-
-      state.lastError =
-        null
+        Number(data.price)
 
       if (
-        state.referencePrice ===
-        null
-      ) {
-        state.referencePrice =
+        !Number.isFinite(
           price
-
-        await this.save()
-        return
+        ) ||
+        price <= 0
+      ) {
+        throw new Error(
+          'A fonte BTC/USD devolveu um preço inválido.'
+        )
       }
 
-      const changePercent =
-        getChangePercent(
-          price,
-          state.referencePrice
-        )
-
+      return price
+    } catch (error) {
       if (
-        changePercent === null ||
-        Math.abs(
-          changePercent
-        ) <
-          ALERT_THRESHOLD_PERCENT
-      ) {
-        await this.save()
-        return
-      }
-
-      const referencePrice =
-        state.referencePrice
-
-      const direction =
-        changePercent > 0
-          ? 'up'
-          : 'down'
-
-      const directionText =
-        direction === 'up'
-          ? 'subiu'
-          : 'desceu'
-
-      const icon =
-        direction === 'up'
-          ? '🚨'
-          : '🔻'
-
-      const title =
-        `${icon} Bitcoin ${directionText} ${formatPercent(
-          changePercent
-        )}%`
-
-      const body = [
-        `Preço atual: ${formatUsd(
-          price
-        )}`,
-        `Preço de referência: ${formatUsd(
-          referencePrice
-        )}`,
-        '',
-        'MA BTC ALERTAS',
-        'WWW.MA-CODE.PT'
-      ].join('\n')
-
-      let failedDeliveries =
-        0
-
-      for (
-        const [
-          id,
-          subscriber
-        ] of Object.entries(
-          state.subscribers
-        )
+        error instanceof Error
       ) {
         if (
-          isSnoozedSubscriber(
-            subscriber,
-            now
-          )
+          error.name ===
+          'AbortError'
         ) {
-          continue
+          throw new Error(
+            'A consulta BTC/USD excedeu o tempo máximo.'
+          )
         }
 
-        const result =
-          await sendPushNotification(
-            state,
-            subscriber,
-            {
-              title,
-              body
-            }
+        if (
+          error.message.startsWith(
+            'A fonte BTC/USD'
           )
-
-        if (result.remove) {
-          delete state.subscribers[
-            id
-          ]
-        } else if (
-          !result.delivered
         ) {
-          failedDeliveries += 1
+          throw error
         }
       }
 
-      state.referencePrice =
-        price
-
-      state.lastAlertAt =
-        now
-
-      state.lastAlertDirection =
-        direction
-
-      state.lastAlertPercent =
-        Math.abs(
-          changePercent
-        )
-
-      state.lastError =
-        failedDeliveries > 0
-          ? `${failedDeliveries} notificação${
-              failedDeliveries === 1
-                ? ''
-                : 'ões'
-            } não ${
-              failedDeliveries === 1
-                ? 'foi entregue'
-                : 'foram entregues'
-            }.`
-          : null
-
-      await this.save()
-    } catch (error) {
-      state.lastCheckedAt =
-        now
-
-      state.lastError =
-        errorMessage(
-          error,
-          'Não foi possível obter o preço BTC/USD.'
-        )
-
-      await this.save()
+      throw new Error(
+        'Não foi possível comunicar com a fonte BTC/USD.'
+      )
+    } finally {
+      clearTimeout(timeout)
     }
   }
+
+export const createInitialState =
+  (): StoredState => ({
+    version: 1,
+    vapidKeys:
+      webpush.generateVAPIDKeys(),
+    subscribers: {},
+    currentPrice: null,
+    referencePrice: null,
+    lastCheckedAt: null,
+    lastAlertAt: null,
+    lastAlertDirection: null,
+    lastAlertPercent: null,
+    lastError: null
+  })
+
+export const isExpiredSubscription =
+  (
+    subscriber: Subscriber,
+    now: number
+  ) =>
+    subscriber.subscription
+      .expirationTime !== null &&
+    subscriber.subscription
+      .expirationTime <= now
+
+export const isSnoozedSubscriber =
+  (
+    subscriber: Subscriber,
+    now: number
+  ) =>
+    subscriber.snoozeUntil !==
+      null &&
+    subscriber.snoozeUntil >
+      now
+
+const getPushStatusCode = (
+  error: unknown
+) => {
+  if (
+    !error ||
+    typeof error !== 'object'
+  ) {
+    return null
+  }
+
+  const statusCode =
+    (error as PushError)
+      .statusCode
+
+  return typeof statusCode ===
+    'number'
+    ? statusCode
+    : null
 }
+
+export const sendPushNotification =
+  async (
+    state: StoredState,
+    subscriber: Subscriber,
+    notification: {
+      title: string
+      body: string
+    }
+  ) => {
+    webpush.setVapidDetails(
+      VAPID_SUBJECT,
+      state.vapidKeys.publicKey,
+      state.vapidKeys.privateKey
+    )
+
+    const payload =
+      JSON.stringify({
+        title:
+          notification.title,
+        body:
+          notification.body,
+        icon: '/ma-code.png',
+        badge: '/ma-code.png',
+        tag:
+          'ma-btc-alertas-price',
+        url:
+          NOTIFICATION_URL
+      })
+
+    try {
+      await webpush.sendNotification(
+        subscriber.subscription,
+        payload,
+        {
+          TTL: 60 * 60,
+          urgency: 'high'
+        }
+      )
+
+      return {
+        delivered: true,
+        remove: false,
+        message: ''
+      }
+    } catch (error) {
+      const statusCode =
+        getPushStatusCode(
+          error
+        )
+
+      return {
+        delivered: false,
+        remove:
+          statusCode === 404 ||
+          statusCode === 410,
+        message:
+          errorMessage(
+            error,
+            'Não foi possível entregar a notificação.'
+          )
+      }
+    }
+  }
