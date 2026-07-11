@@ -1,8 +1,13 @@
 import {
   DEFAULT_CHAIN_ID,
   isSupportedChainId,
+  isValidChainAddress,
+  normalizeChainAddress,
   type ChainId
 } from './maCarteiraChains'
+
+export const MA_CARTEIRA_WALLET_API =
+  '/api/ma-carteira/wallet'
 
 export const MA_CARTEIRA_TRANSACTIONS_API =
   '/api/ma-carteira/transactions'
@@ -65,6 +70,27 @@ export type WalletTransactionsResult = {
   transactions: WalletTransaction[]
 }
 
+
+export type WalletPortfolioToken = {
+  symbol?: string
+  name?: string
+  balance?: string
+  decimals?: string | number
+  contractAddress?: string
+  address?: string
+  type?: string
+}
+
+export type WalletPortfolioResult = {
+  chainId: ChainId
+  address: string
+  nativeBalance: string
+  tokens: WalletPortfolioToken[]
+  fetchedAt: string
+  partial: boolean
+  notice: string | null
+}
+
 export type TokenPricePoint = {
   timestamp: string
   open: number
@@ -97,6 +123,11 @@ export type ApiRequestOptions = {
   signal?: AbortSignal
   timeoutMs?: number
 }
+
+export type WalletRequestOptions =
+  ApiRequestOptions & {
+    chainId?: ChainId
+  }
 
 export type TransactionsRequestOptions =
   ApiRequestOptions & {
@@ -162,26 +193,6 @@ const readErrorMessage = (
 
   return message || fallback
 }
-
-const normalizeAddress = (
-  value: string
-) => {
-  const clean = value.trim()
-
-  return (
-    clean &&
-    !clean.startsWith('0x')
-  )
-    ? `0x${clean}`
-    : clean
-}
-
-const isValidEvmAddress = (
-  value: string
-) =>
-  /^0x[a-fA-F0-9]{40}$/.test(
-    value
-  )
 
 const getSafeTransactionLimit = (
   value: number | undefined
@@ -567,27 +578,126 @@ const parsePricePoints = (
   )
 }
 
-export async function fetchWalletTransactions(
-  address: string,
-  options: TransactionsRequestOptions = {}
-): Promise<WalletTransactionsResult> {
-  const normalizedAddress =
-    normalizeAddress(address)
 
-  if (
-    !isValidEvmAddress(
-      normalizedAddress
-    )
-  ) {
+const parseWalletTokens = (
+  value: unknown
+): WalletPortfolioToken[] => {
+  if (!Array.isArray(value)) {
     throw new MaCarteiraApiError(
-      'O endereço indicado não é válido.',
+      'A carteira devolveu uma lista de tokens inválida.',
+      502
+    )
+  }
+
+  return value.flatMap((item): WalletPortfolioToken[] => {
+    if (!isRecord(item)) {
+      return []
+    }
+
+    return [
+      {
+        symbol:
+          typeof item.symbol === 'string'
+            ? item.symbol
+            : undefined,
+        name:
+          typeof item.name === 'string'
+            ? item.name
+            : undefined,
+        balance:
+          typeof item.balance === 'string'
+            ? item.balance
+            : undefined,
+        decimals:
+          typeof item.decimals === 'string' ||
+          typeof item.decimals === 'number'
+            ? item.decimals
+            : undefined,
+        contractAddress:
+          typeof item.contractAddress === 'string'
+            ? item.contractAddress
+            : undefined,
+        address:
+          typeof item.address === 'string'
+            ? item.address
+            : undefined,
+        type:
+          typeof item.type === 'string'
+            ? item.type
+            : undefined
+      }
+    ]
+  })
+}
+
+export async function fetchWalletPortfolio(
+  address: string,
+  options: WalletRequestOptions = {}
+): Promise<WalletPortfolioResult> {
+  const chainId = options.chainId || DEFAULT_CHAIN_ID
+  const normalizedAddress = normalizeChainAddress(address, chainId)
+
+  if (!isValidChainAddress(normalizedAddress, chainId)) {
+    throw new MaCarteiraApiError(
+      'O endereço indicado não é válido para a rede selecionada.',
       400
     )
   }
 
+  const parameters = new URLSearchParams({
+    chainId,
+    address: normalizedAddress
+  })
+
+  const body = await requestJson(
+    `${MA_CARTEIRA_WALLET_API}?${parameters.toString()}`,
+    'Não foi possível consultar os saldos deste endereço.',
+    options
+  )
+
+  if (!isRecord(body)) {
+    throw new MaCarteiraApiError(
+      'A carteira devolveu um formato inválido.',
+      502
+    )
+  }
+
+  return {
+    chainId: parseChainId(body.chainId, chainId),
+    address: toStringValue(body.address) || normalizedAddress,
+    nativeBalance: toStringValue(body.nativeBalance) || '0',
+    tokens: parseWalletTokens(body.tokens),
+    fetchedAt: toStringValue(body.fetchedAt) || new Date().toISOString(),
+    partial: body.partial === true,
+    notice:
+      typeof body.notice === 'string' && body.notice.trim()
+        ? body.notice.trim()
+        : null
+  }
+}
+
+export async function fetchWalletTransactions(
+  address: string,
+  options: TransactionsRequestOptions = {}
+): Promise<WalletTransactionsResult> {
   const chainId =
     options.chainId ||
     DEFAULT_CHAIN_ID
+
+  const normalizedAddress =
+    normalizeChainAddress(address, chainId)
+
+  if (
+    !isValidChainAddress(
+      normalizedAddress,
+      chainId
+    )
+  ) {
+    throw new MaCarteiraApiError(
+      'O endereço indicado não é válido para a rede selecionada.',
+      400
+    )
+  }
 
   const limit =
     getSafeTransactionLimit(
@@ -648,12 +758,13 @@ export async function fetchTokenPriceHistory(
   options: PriceHistoryRequestOptions = {}
 ): Promise<TokenPriceHistory> {
   const normalizedContract =
-    normalizeAddress(
-      contractAddress
+    normalizeChainAddress(
+      contractAddress,
+      options.chainId || DEFAULT_CHAIN_ID
     )
 
   if (
-    !isValidEvmAddress(
+    !/^0x[a-fA-F0-9]{40}$/.test(
       normalizedContract
     )
   ) {
