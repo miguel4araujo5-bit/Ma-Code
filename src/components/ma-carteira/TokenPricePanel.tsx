@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -28,6 +29,35 @@ type TokenPricePanelProps = {
   className?: string
   onClose?: () => void
 }
+
+type PeriodSelection = {
+  requestIdentity: string
+  value: PricePeriod
+}
+
+type PriceHistoryCacheEntry = {
+  cachedAt: number
+  history: TokenPriceHistory
+}
+
+const PRICE_REQUEST_DELAY_MS = 350
+const MAX_BROWSER_CACHE_ENTRIES = 40
+
+const PRICE_CACHE_TTL_MS: Record<
+  PricePeriod,
+  number
+> = {
+  '15M': 2 * 60_000,
+  '4H': 5 * 60_000,
+  '1D': 10 * 60_000,
+  '1M': 30 * 60_000,
+  'Tudo': 6 * 60 * 60_000
+}
+
+const priceHistoryCache = new Map<
+  string,
+  PriceHistoryCacheEntry
+>()
 
 const shortContract = (
   address: string
@@ -60,6 +90,64 @@ const getTokenInitials = (
     .toUpperCase() ||
   'TKN'
 
+const createPriceCacheKey = (
+  chainId: ChainId,
+  contractAddress: string,
+  period: PricePeriod
+) =>
+  `${chainId}:${contractAddress
+    .trim()
+    .toLowerCase()}:${period}`
+
+const storePriceHistory = (
+  key: string,
+  history: TokenPriceHistory
+) => {
+  priceHistoryCache.delete(key)
+
+  priceHistoryCache.set(
+    key,
+    {
+      cachedAt: Date.now(),
+      history
+    }
+  )
+
+  while (
+    priceHistoryCache.size >
+    MAX_BROWSER_CACHE_ENTRIES
+  ) {
+    const oldestKey =
+      priceHistoryCache.keys()
+        .next().value
+
+    if (
+      typeof oldestKey !==
+      'string'
+    ) {
+      break
+    }
+
+    priceHistoryCache.delete(
+      oldestKey
+    )
+  }
+}
+
+const isMatchingHistory = (
+  history: TokenPriceHistory,
+  chainId: ChainId,
+  contractAddress: string,
+  period: PricePeriod
+) =>
+  history.chainId === chainId &&
+  history.period === period &&
+  history.contractAddress
+    .toLowerCase() ===
+    contractAddress
+      .trim()
+      .toLowerCase()
+
 export default function TokenPricePanel({
   contractAddress,
   chainId = DEFAULT_CHAIN_ID,
@@ -69,12 +157,29 @@ export default function TokenPricePanel({
   className = '',
   onClose
 }: TokenPricePanelProps) {
+  const requestIdentity =
+    `${chainId}:${
+      contractAddress
+        .trim()
+        .toLowerCase()
+    }`
+
   const [
-    period,
-    setPeriod
-  ] = useState<PricePeriod>(
-    defaultPeriod
+    periodSelection,
+    setPeriodSelection
+  ] = useState<PeriodSelection>(
+    () => ({
+      requestIdentity,
+      value: defaultPeriod
+    })
   )
+
+  const period =
+    periodSelection
+      .requestIdentity ===
+    requestIdentity
+      ? periodSelection.value
+      : defaultPeriod
 
   const [
     history,
@@ -98,16 +203,37 @@ export default function TokenPricePanel({
     )
 
   const [
+    notice,
+    setNotice
+  ] =
+    useState<string | null>(
+      null
+    )
+
+  const [
     retryKey,
     setRetryKey
   ] = useState(0)
 
-  const requestIdentity =
-    `${chainId}:${
-      contractAddress
-        .trim()
-        .toLowerCase()
-    }`
+  const requestLockedRef =
+    useRef(false)
+
+  const forceRefreshRef =
+    useRef(false)
+
+  const cacheKey = useMemo(
+    () =>
+      createPriceCacheKey(
+        chainId,
+        contractAddress,
+        period
+      ),
+    [
+      chainId,
+      contractAddress,
+      period
+    ]
+  )
 
   const visibleHistory =
     useMemo(() => {
@@ -115,103 +241,254 @@ export default function TokenPricePanel({
         return null
       }
 
-      return (
-        history.chainId ===
-          chainId &&
-        history.contractAddress
-          .toLowerCase() ===
-          contractAddress
-            .trim()
-            .toLowerCase()
+      return isMatchingHistory(
+        history,
+        chainId,
+        contractAddress,
+        period
       )
         ? history
         : null
     }, [
       chainId,
       contractAddress,
-      history
+      history,
+      period
     ])
 
   useEffect(() => {
+    requestLockedRef.current =
+      false
+
+    forceRefreshRef.current =
+      false
+
+    setPeriodSelection({
+      requestIdentity,
+      value: defaultPeriod
+    })
+
     setHistory(null)
     setError(null)
-    setPeriod(
-      defaultPeriod
-    )
+    setNotice(null)
   }, [
     requestIdentity,
     defaultPeriod
   ])
 
   useEffect(() => {
+    const forceRefresh =
+      forceRefreshRef.current
+
+    forceRefreshRef.current =
+      false
+
+    const cachedEntry =
+      priceHistoryCache.get(
+        cacheKey
+      ) || null
+
+    const cachedHistory =
+      cachedEntry &&
+      isMatchingHistory(
+        cachedEntry.history,
+        chainId,
+        contractAddress,
+        period
+      )
+        ? cachedEntry.history
+        : null
+
+    const cacheIsFresh =
+      cachedEntry &&
+      cachedHistory &&
+      Date.now() -
+        cachedEntry.cachedAt <=
+        PRICE_CACHE_TTL_MS[
+          period
+        ]
+
+    if (
+      cacheIsFresh &&
+      !forceRefresh
+    ) {
+      setHistory(
+        cachedHistory
+      )
+
+      setLoading(false)
+      setError(null)
+      setNotice(null)
+
+      requestLockedRef.current =
+        false
+
+      return
+    }
+
     const controller =
       new AbortController()
 
+    requestLockedRef.current =
+      true
+
     setLoading(true)
     setError(null)
+    setNotice(null)
 
-    void fetchTokenPriceHistory(
-      contractAddress,
-      {
-        chainId,
-        period,
-        signal:
-          controller.signal
-      }
-    )
-      .then((result) => {
-        if (
-          !controller
-            .signal
-            .aborted
-        ) {
-          setHistory(
-            result
+    const timer =
+      window.setTimeout(
+        () => {
+          void fetchTokenPriceHistory(
+            contractAddress,
+            {
+              chainId,
+              period,
+              signal:
+                controller.signal
+            }
           )
-        }
-      })
-      .catch(
-        (
-          caughtError:
-            unknown
-        ) => {
-          if (
-            controller
-              .signal
-              .aborted
-          ) {
-            return
-          }
+            .then((result) => {
+              if (
+                controller
+                  .signal
+                  .aborted
+              ) {
+                return
+              }
 
-          const message =
-            caughtError instanceof
-              MaCarteiraApiError ||
-            caughtError instanceof
-              Error
-              ? caughtError.message
-              : 'Não foi possível consultar o histórico de preço.'
+              storePriceHistory(
+                cacheKey,
+                result
+              )
 
-          setError(message)
-        }
+              setHistory(
+                result
+              )
+
+              setError(null)
+              setNotice(null)
+            })
+            .catch(
+              (
+                caughtError:
+                  unknown
+              ) => {
+                if (
+                  controller
+                    .signal
+                    .aborted
+                ) {
+                  return
+                }
+
+                const message =
+                  caughtError instanceof
+                    MaCarteiraApiError ||
+                  caughtError instanceof
+                    Error
+                    ? caughtError.message
+                    : 'Não foi possível consultar o histórico de preço.'
+
+                if (
+                  cachedHistory
+                ) {
+                  setHistory(
+                    cachedHistory
+                  )
+
+                  setError(null)
+
+                  setNotice(
+                    'Não foi possível atualizar agora. Está a ser apresentado o último gráfico disponível.'
+                  )
+
+                  return
+                }
+
+                setError(message)
+              }
+            )
+            .finally(() => {
+              if (
+                controller
+                  .signal
+                  .aborted
+              ) {
+                return
+              }
+
+              setLoading(false)
+
+              requestLockedRef.current =
+                false
+            })
+        },
+        PRICE_REQUEST_DELAY_MS
       )
-      .finally(() => {
-        if (
-          !controller
-            .signal
-            .aborted
-        ) {
-          setLoading(false)
-        }
-      })
 
-    return () =>
+    return () => {
+      window.clearTimeout(
+        timer
+      )
+
       controller.abort()
+    }
   }, [
+    cacheKey,
     chainId,
     contractAddress,
     period,
     retryKey
   ])
+
+  const handlePeriodChange = (
+    nextPeriod: PricePeriod
+  ) => {
+    if (
+      nextPeriod === period ||
+      requestLockedRef.current
+    ) {
+      return
+    }
+
+    requestLockedRef.current =
+      true
+
+    setLoading(true)
+    setError(null)
+    setNotice(null)
+
+    setPeriodSelection({
+      requestIdentity,
+      value: nextPeriod
+    })
+  }
+
+  const handleRetry = () => {
+    if (
+      requestLockedRef.current
+    ) {
+      return
+    }
+
+    forceRefreshRef.current =
+      true
+
+    requestLockedRef.current =
+      true
+
+    setLoading(true)
+    setError(null)
+    setNotice(null)
+
+    setRetryKey(
+      (
+        current
+      ) =>
+        current + 1
+    )
+  }
 
   const displaySymbol =
     visibleHistory?.symbol ||
@@ -299,17 +576,25 @@ export default function TokenPricePanel({
         loading={loading}
         error={error}
         onPeriodChange={
-          setPeriod
+          loading
+            ? undefined
+            : handlePeriodChange
         }
-        onRetry={() =>
-          setRetryKey(
-            (
-              current
-            ) =>
-              current + 1
-          )
+        onRetry={
+          loading
+            ? undefined
+            : handleRetry
         }
       />
+
+      {notice ? (
+        <p
+          className="mx-2 mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] px-3 py-2 text-xs leading-5 text-amber-100/80"
+          role="status"
+        >
+          {notice}
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-2 px-2 pb-1 pt-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <p>
