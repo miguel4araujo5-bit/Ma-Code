@@ -3,14 +3,16 @@ import {
   createWalletStorageKey,
   getChainConfig,
   getExplorerAddressUrl,
-  getExplorerApiUrl,
   getExplorerTokenUrl,
   getExplorerTransactionUrl,
-  getPrimaryRpcUrl,
   isSupportedChainId,
+  isValidChainAddress,
+  normalizeChainAddress,
   parseWalletStorageKey,
   type ChainId
 } from './maCarteiraChains'
+
+import { fetchWalletPortfolio } from './maCarteiraApi'
 
 export const MA_CARTEIRA_URL = 'https://ma-code.pt/produtos/ma-carteira'
 
@@ -56,6 +58,8 @@ export type WalletData = {
   loading: boolean
   error: string | null
   lastUpdated: string | null
+  partial: boolean
+  notice: string | null
 }
 
 export type Snapshot = {
@@ -92,7 +96,9 @@ const emptyData = (
   tokens: [],
   loading: false,
   error: null,
-  lastUpdated: null
+  lastUpdated: null,
+  partial: false,
+  notice: null
 })
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -108,14 +114,15 @@ const readJson = (key: string): unknown => {
   }
 }
 
-export const normalizeAddress = (value: string) => {
-  const clean = value.trim()
+export const normalizeAddress = (
+  value: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) => normalizeChainAddress(value, chainId)
 
-  return clean && !clean.startsWith('0x') ? `0x${clean}` : clean
-}
-
-export const isValidAddress = (value: string) =>
-  /^0x[a-fA-F0-9]{40}$/.test(value)
+export const isValidAddress = (
+  value: string,
+  chainId: ChainId = DEFAULT_CHAIN_ID
+) => isValidChainAddress(value, chainId)
 
 export const addressKey = (
   value: string,
@@ -123,7 +130,7 @@ export const addressKey = (
 ) =>
   createWalletStorageKey(
     chainId,
-    normalizeAddress(value)
+    normalizeAddress(value, chainId)
   )
 
 export const shortAddress = (value: string) =>
@@ -174,17 +181,17 @@ const cleanWallets = (value: unknown): Wallet[] => {
       return []
     }
 
-    const address = normalizeAddress(item.address)
-
-    if (!isValidAddress(address)) {
-      return []
-    }
-
     const chainId =
       typeof item.chainId === 'string' &&
       isSupportedChainId(item.chainId)
         ? item.chainId
         : DEFAULT_CHAIN_ID
+
+    const address = normalizeAddress(item.address, chainId)
+
+    if (!isValidAddress(address, chainId)) {
+      return []
+    }
 
     return [
       {
@@ -243,6 +250,11 @@ const cleanData = (value: unknown): WalletDataMap => {
             lastUpdated:
               typeof item.lastUpdated === 'string'
                 ? item.lastUpdated
+                : null,
+            partial: item.partial === true,
+            notice:
+              typeof item.notice === 'string'
+                ? item.notice
                 : null
           } satisfies WalletData
         ]
@@ -510,99 +522,23 @@ export async function fetchWallet(
   address: string,
   chainId: ChainId = DEFAULT_CHAIN_ID
 ): Promise<WalletData> {
-  const chain = getChainConfig(chainId)
-  const rpcUrl = getPrimaryRpcUrl(chainId)
-
-  const explorerApiUrl =
-    getExplorerApiUrl(chainId)
-
-  const rpcPromise = fetch(rpcUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'eth_getBalance',
-      params: [address, 'latest'],
-      id: Date.now()
-    })
-  }).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(
-        `Erro ao consultar o saldo ${chain.nativeCurrency.symbol}.`
-      )
+  const result = await fetchWalletPortfolio(
+    address,
+    {
+      chainId,
+      timeoutMs: 20_000
     }
-
-    const data = (await response.json()) as {
-      result?: string
-      error?: {
-        message?: string
-      }
-    }
-
-    if (data.error || !data.result) {
-      throw new Error(
-        data.error?.message ||
-          `Saldo ${chain.nativeCurrency.symbol} indisponível.`
-      )
-    }
-
-    return data.result
-  })
-
-  const tokenPromise = fetch(
-    `${explorerApiUrl}?module=account&action=tokenlist&address=${encodeURIComponent(
-      address
-    )}`
-  ).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(
-        `Erro ao consultar tokens em ${chain.name}.`
-      )
-    }
-
-    const data = (await response.json()) as {
-      message?: string
-      result?: PulseToken[]
-    }
-
-    if (
-      data.message !== 'OK' ||
-      !Array.isArray(data.result)
-    ) {
-      return []
-    }
-
-    return data.result
-      .filter(
-        (token) =>
-          token.type === 'ERC-20' &&
-          token.balance &&
-          token.balance !== '0'
-      )
-      .sort((a, b) =>
-        tokenValue(a) === tokenValue(b)
-          ? 0
-          : tokenValue(a) > tokenValue(b)
-            ? -1
-            : 1
-      )
-  })
-
-  const [plsBalance, tokens] =
-    await Promise.all([
-      rpcPromise,
-      tokenPromise
-    ])
+  )
 
   return {
-    chainId,
-    plsBalance,
-    tokens,
+    chainId: result.chainId,
+    plsBalance: result.nativeBalance,
+    tokens: result.tokens,
     loading: false,
     error: null,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: result.fetchedAt,
+    partial: result.partial,
+    notice: result.notice
   }
 }
 
@@ -796,10 +732,10 @@ export function setPageMetadata() {
   }
 
   document.title =
-    'MA-Carteira | Endereços e Portefólios PulseChain | MA-Code'
+    'MA-Carteira | Portefólios Multichain | MA-Code'
 
   const description =
-    'Organize endereços públicos PulseChain num só portefólio, consulte saldos de PLS, tokens ERC-20, gráficos de preço e registos de saldo, sem ligar a carteira.'
+    'Organize endereços públicos de várias redes num só portefólio e consulte saldos, tokens, transações e gráficos disponíveis, sem ligar a carteira nem introduzir seed phrases.'
 
   setMeta(
     'meta[name="description"]',
@@ -812,7 +748,7 @@ export function setPageMetadata() {
     'meta[name="keywords"]',
     'name',
     'keywords',
-    'MA-Carteira, PulseChain, endereços PulseChain, portefólio PulseChain, explorador PulseChain, saldo PLS, tokens ERC-20, gráficos de preço, MA-Code'
+    'MA-Carteira, portefólio multichain, PulseChain, Ethereum, Solana, Bitcoin, TRON, BNB Chain, Base, Arbitrum, Polygon, endereços públicos, gráficos de preço, MA-Code'
   )
 
   setMeta(
@@ -847,7 +783,7 @@ export function setPageMetadata() {
     'meta[property="og:title"]',
     'property',
     'og:title',
-    'MA-Carteira | Endereços e Portefólios PulseChain'
+    'MA-Carteira | Portefólios Multichain'
   )
 
   setMeta(
@@ -875,7 +811,7 @@ export function setPageMetadata() {
     'meta[name="twitter:title"]',
     'name',
     'twitter:title',
-    'MA-Carteira | Endereços e Portefólios PulseChain'
+    'MA-Carteira | Portefólios Multichain'
   )
 
   setMeta(
