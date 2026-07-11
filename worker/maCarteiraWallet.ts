@@ -41,9 +41,12 @@ const MAX_SOLANA_TOKEN_ACCOUNTS = 1_500
 
 const SOLANA_TOKEN_PROGRAM =
   'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
-
 const SOLANA_TOKEN_2022_PROGRAM =
   'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+
+const BITCOIN_API_FALLBACKS = [
+  'https://mempool.space/api'
+] as const
 
 export class MaCarteiraWalletError extends Error {
   status: number
@@ -55,34 +58,102 @@ export class MaCarteiraWalletError extends Error {
   }
 }
 
-const isRecord = (value: unknown): value is UnknownRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+const isRecord = (
+  value: unknown
+): value is UnknownRecord =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value)
 
-const asRecord = (value: unknown) => (isRecord(value) ? value : null)
+const asRecord = (value: unknown) =>
+  isRecord(value) ? value : null
 
 const toStringValue = (value: unknown) => {
   if (typeof value === 'string') {
     return value
   }
 
-  if (typeof value === 'number' || typeof value === 'bigint') {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'bigint'
+  ) {
     return String(value)
   }
 
   return ''
 }
 
-const readString = (record: UnknownRecord | null, key: string) =>
-  record ? toStringValue(record[key]).trim() : ''
+const readString = (
+  record: UnknownRecord | null,
+  key: string
+) =>
+  record
+    ? toStringValue(record[key]).trim()
+    : ''
 
-const getTimeoutSignal = (timeoutMs = REQUEST_TIMEOUT_MS) => {
+const getTimeoutSignal = (
+  timeoutMs = REQUEST_TIMEOUT_MS
+) => {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const timer = setTimeout(
+    () => controller.abort(),
+    timeoutMs
+  )
 
   return {
     signal: controller.signal,
     clear: () => clearTimeout(timer)
   }
+}
+
+const readResponseBody = async (
+  response: Response
+): Promise<unknown> => {
+  const text = await response.text()
+
+  if (!text.trim()) {
+    return null
+  }
+
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return text
+  }
+}
+
+const getProviderErrorMessage = (
+  body: unknown,
+  fallbackMessage: string
+) => {
+  const record = asRecord(body)
+
+  if (record) {
+    const message =
+      readString(record, 'message') ||
+      readString(record, 'error') ||
+      readString(record, 'detail')
+
+    if (message) {
+      return message
+    }
+  }
+
+  if (typeof body === 'string') {
+    const clean = body
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    if (
+      clean &&
+      clean.length <= 180
+    ) {
+      return clean
+    }
+  }
+
+  return fallbackMessage
 }
 
 const requestJson = async (
@@ -102,41 +173,50 @@ const requestJson = async (
       }
     })
 
-    let body: unknown
+    const body = await readResponseBody(response)
 
-    try {
-      body = await response.json()
-    } catch {
+    if (!response.ok) {
+      throw new MaCarteiraWalletError(
+        getProviderErrorMessage(
+          body,
+          fallbackMessage
+        ),
+        response.status
+      )
+    }
+
+    if (
+      typeof body === 'string' ||
+      body === null
+    ) {
       throw new MaCarteiraWalletError(
         'O fornecedor de dados devolveu uma resposta inválida.',
         502
       )
     }
 
-    if (!response.ok) {
-      const record = asRecord(body)
-      const message =
-        readString(record, 'message') ||
-        readString(record, 'error') ||
-        fallbackMessage
-
-      throw new MaCarteiraWalletError(message, response.status)
-    }
-
     return body
   } catch (error) {
-    if (error instanceof MaCarteiraWalletError) {
+    if (
+      error instanceof MaCarteiraWalletError
+    ) {
       throw error
     }
 
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (
+      error instanceof DOMException &&
+      error.name === 'AbortError'
+    ) {
       throw new MaCarteiraWalletError(
         'O fornecedor de dados demorou demasiado tempo a responder.',
         504
       )
     }
 
-    throw new MaCarteiraWalletError(fallbackMessage, 502)
+    throw new MaCarteiraWalletError(
+      fallbackMessage,
+      502
+    )
   } finally {
     timeout.clear()
   }
@@ -165,11 +245,15 @@ const jsonRpc = async (
     fallbackMessage
   )) as JsonRpcResponse
 
-  if (body.error !== undefined || body.result === undefined) {
+  if (
+    body.error !== undefined ||
+    body.result === undefined
+  ) {
     const error = asRecord(body.error)
 
     throw new MaCarteiraWalletError(
-      readString(error, 'message') || fallbackMessage,
+      readString(error, 'message') ||
+        fallbackMessage,
       502
     )
   }
@@ -177,7 +261,9 @@ const jsonRpc = async (
   return body.result
 }
 
-const hexToDecimalString = (value: string) => {
+const hexToDecimalString = (
+  value: string
+) => {
   try {
     return BigInt(value || '0x0').toString()
   } catch {
@@ -188,58 +274,176 @@ const hexToDecimalString = (value: string) => {
   }
 }
 
-const normalizeDecimals = (value: unknown, fallback = 18) => {
+const normalizeDecimals = (
+  value: unknown,
+  fallback = 18
+) => {
   const parsed = Number(value)
 
   if (!Number.isFinite(parsed)) {
     return fallback
   }
 
-  return Math.max(0, Math.min(255, Math.trunc(parsed)))
+  return Math.max(
+    0,
+    Math.min(255, Math.trunc(parsed))
+  )
 }
 
-const sortTokens = (tokens: MaCarteiraWalletToken[]) =>
+const sortTokens = (
+  tokens: MaCarteiraWalletToken[]
+) =>
   [...tokens].sort((left, right) => {
     try {
-      const leftDecimals = normalizeDecimals(left.decimals)
-      const rightDecimals = normalizeDecimals(right.decimals)
-      const leftBalance = BigInt(left.balance || '0')
-      const rightBalance = BigInt(right.balance || '0')
-      const commonDecimals = Math.max(leftDecimals, rightDecimals)
+      const leftDecimals = normalizeDecimals(
+        left.decimals
+      )
+      const rightDecimals = normalizeDecimals(
+        right.decimals
+      )
+      const leftBalance = BigInt(
+        left.balance || '0'
+      )
+      const rightBalance = BigInt(
+        right.balance || '0'
+      )
+      const commonDecimals = Math.max(
+        leftDecimals,
+        rightDecimals
+      )
       const normalizedLeft =
-        leftBalance * 10n ** BigInt(commonDecimals - leftDecimals)
+        leftBalance *
+        10n **
+          BigInt(
+            commonDecimals - leftDecimals
+          )
       const normalizedRight =
-        rightBalance * 10n ** BigInt(commonDecimals - rightDecimals)
+        rightBalance *
+        10n **
+          BigInt(
+            commonDecimals - rightDecimals
+          )
 
-      if (normalizedLeft === normalizedRight) {
-        return (left.symbol || '').localeCompare(right.symbol || '')
+      if (
+        normalizedLeft === normalizedRight
+      ) {
+        return (left.symbol || '').localeCompare(
+          right.symbol || ''
+        )
       }
 
-      return normalizedLeft > normalizedRight ? -1 : 1
+      return normalizedLeft > normalizedRight
+        ? -1
+        : 1
     } catch {
       return 0
     }
   })
 
-const getEvmNativeBalance = async (chainId: ChainId, address: string) => {
+const getEvmNativeBalance = async (
+  chainId: ChainId,
+  address: string
+) => {
   const chain = getChainConfig(chainId)
-  const rpcUrl = chain.rpcUrls[0]
+  let lastError: MaCarteiraWalletError | null = null
 
-  if (!rpcUrl) {
-    throw new MaCarteiraWalletError(
-      `Não existe um RPC configurado para ${chain.name}.`,
-      503
-    )
+  for (const rpcUrl of chain.rpcUrls) {
+    try {
+      const result = await jsonRpc(
+        rpcUrl,
+        'eth_getBalance',
+        [address, 'latest'],
+        `Não foi possível consultar o saldo ${chain.nativeCurrency.symbol}.`
+      )
+
+      return hexToDecimalString(
+        toStringValue(result)
+      )
+    } catch (error) {
+      lastError =
+        error instanceof MaCarteiraWalletError
+          ? error
+          : new MaCarteiraWalletError(
+              `Não foi possível consultar o saldo ${chain.nativeCurrency.symbol}.`,
+              502
+            )
+    }
   }
 
-  const result = await jsonRpc(
-    rpcUrl,
-    'eth_getBalance',
-    [address, 'latest'],
-    `Não foi possível consultar o saldo ${chain.nativeCurrency.symbol}.`
-  )
+  if (lastError) {
+    throw lastError
+  }
 
-  return hexToDecimalString(toStringValue(result))
+  throw new MaCarteiraWalletError(
+    `Não existe um RPC configurado para ${chain.name}.`,
+    503
+  )
+}
+
+const parsePulseChainTokens = (
+  body: unknown,
+  expectedType: string
+) => {
+  const response = asRecord(body)
+  const result = response?.result
+
+  if (!Array.isArray(result)) {
+    return []
+  }
+
+  return result.flatMap(
+    (item): MaCarteiraWalletToken[] => {
+      const token = asRecord(item)
+
+      if (!token) {
+        return []
+      }
+
+      const balance = readString(
+        token,
+        'balance'
+      )
+      const type = readString(token, 'type')
+
+      if (!balance || balance === '0') {
+        return []
+      }
+
+      if (
+        type &&
+        type !== 'ERC-20' &&
+        type !== expectedType
+      ) {
+        return []
+      }
+
+      const contractAddress =
+        readString(
+          token,
+          'contractAddress'
+        ) || readString(token, 'address')
+
+      return [
+        {
+          symbol:
+            readString(token, 'symbol') ||
+            'TOKEN',
+          name:
+            readString(token, 'name') ||
+            expectedType,
+          balance,
+          decimals: normalizeDecimals(
+            token.decimals
+          ),
+          contractAddress:
+            contractAddress || undefined,
+          address:
+            contractAddress || undefined,
+          type: expectedType
+        }
+      ]
+    }
+  )
 }
 
 const getPulseChainPortfolio = async (
@@ -247,68 +451,111 @@ const getPulseChainPortfolio = async (
   address: string
 ): Promise<MaCarteiraWalletResult> => {
   const chain = getChainConfig(chainId)
-  const nativePromise = getEvmNativeBalance(chainId, address)
-  const tokenPromise = requestJson(
-    `${chain.explorer.apiUrl}?module=account&action=tokenlist&address=${encodeURIComponent(address)}`,
-    { method: 'GET' },
-    `Não foi possível consultar os tokens em ${chain.name}.`
-  )
+  const nativeBalance =
+    await getEvmNativeBalance(
+      chainId,
+      address
+    )
+  const expectedType =
+    chain.tokenStandard || 'PRC-20'
 
-  const [nativeBalance, tokenBody] = await Promise.all([
-    nativePromise,
-    tokenPromise
-  ])
+  try {
+    const tokenBody = await requestJson(
+      `${chain.explorer.apiUrl}?module=account&action=tokenlist&address=${encodeURIComponent(
+        address
+      )}`,
+      { method: 'GET' },
+      `Não foi possível consultar os tokens em ${chain.name}.`
+    )
 
-  const tokenResponse = asRecord(tokenBody)
-  const result = tokenResponse?.result
-  const expectedType = chain.tokenStandard || 'PRC-20'
-
-  const tokens = Array.isArray(result)
-    ? result.flatMap((item): MaCarteiraWalletToken[] => {
-        const token = asRecord(item)
-
-        if (!token) {
-          return []
-        }
-
-        const balance = readString(token, 'balance')
-        const type = readString(token, 'type')
-
-        if (!balance || balance === '0') {
-          return []
-        }
-
-        if (type && type !== 'ERC-20' && type !== expectedType) {
-          return []
-        }
-
-        const contractAddress =
-          readString(token, 'contractAddress') ||
-          readString(token, 'address')
-
-        return [
-          {
-            symbol: readString(token, 'symbol') || 'TOKEN',
-            name: readString(token, 'name') || expectedType,
-            balance,
-            decimals: normalizeDecimals(token.decimals),
-            contractAddress: contractAddress || undefined,
-            address: contractAddress || undefined,
-            type: expectedType
-          }
-        ]
-      })
-    : []
-
-  return {
-    chainId,
-    address,
-    nativeBalance,
-    tokens: sortTokens(tokens),
-    fetchedAt: new Date().toISOString(),
-    partial: false,
-    notice: null
+    return {
+      chainId,
+      address,
+      nativeBalance,
+      tokens: sortTokens(
+        parsePulseChainTokens(
+          tokenBody,
+          expectedType
+        )
+      ),
+      fetchedAt: new Date().toISOString(),
+      partial: false,
+      notice: null
+    }
+  } catch {
+    return {
+      chainId,
+      address,
+      nativeBalance,
+      tokens: [],
+      fetchedAt: new Date().toISOString(),
+      partial: true,
+      notice: `O saldo ${chain.nativeCurrency.symbol} foi atualizado. A listagem de ${expectedType} está temporariamente indisponível.`
+    }
   }
+}
+
+const parseBlockscoutTokens = (
+  body: unknown,
+  tokenStandard: string
+) => {
+  if (!Array.isArray(body)) {
+    return []
+  }
+
+  return body.flatMap(
+    (item): MaCarteiraWalletToken[] => {
+      const balanceRecord = asRecord(item)
+      const token = asRecord(
+        balanceRecord?.token
+      )
+
+      if (!balanceRecord || !token) {
+        return []
+      }
+
+      const value = readString(
+        balanceRecord,
+        'value'
+      )
+      const tokenType = readString(
+        token,
+        'type'
+      )
+
+      if (
+        !value ||
+        value === '0' ||
+        (tokenType && tokenType !== 'ERC-20')
+      ) {
+        return []
+      }
+
+      const contractAddress =
+        readString(token, 'address') ||
+        readString(token, 'address_hash')
+
+      return [
+        {
+          symbol:
+            readString(token, 'symbol') ||
+            'TOKEN',
+          name:
+            readString(token, 'name') ||
+            tokenStandard,
+          balance: value,
+          decimals: normalizeDecimals(
+            token.decimals
+          ),
+          contractAddress:
+            contractAddress || undefined,
+          address:
+            contractAddress || undefined,
+          type: tokenStandard
+        }
+      ]
+    }
+  )
 }
 
 const getBlockscoutPortfolio = async (
@@ -316,66 +563,51 @@ const getBlockscoutPortfolio = async (
   address: string
 ): Promise<MaCarteiraWalletResult> => {
   const chain = getChainConfig(chainId)
-  const baseUrl = chain.dataApiUrl.replace(/\/$/, '')
+  const baseUrl = chain.dataApiUrl.replace(
+    /\/$/,
+    ''
+  )
+  const nativeBalance =
+    await getEvmNativeBalance(
+      chainId,
+      address
+    )
+  const tokenStandard =
+    chain.tokenStandard || 'ERC-20'
 
-  const [addressBody, tokenBody] = await Promise.all([
-    requestJson(
-      `${baseUrl}/addresses/${encodeURIComponent(address)}`,
-      { method: 'GET' },
-      `Não foi possível consultar o saldo em ${chain.name}.`
-    ),
-    requestJson(
-      `${baseUrl}/addresses/${encodeURIComponent(address)}/token-balances`,
+  try {
+    const tokenBody = await requestJson(
+      `${baseUrl}/addresses/${encodeURIComponent(
+        address
+      )}/token-balances`,
       { method: 'GET' },
       `Não foi possível consultar os tokens em ${chain.name}.`
     )
-  ])
 
-  const addressRecord = asRecord(addressBody)
-  const nativeBalance = readString(addressRecord, 'coin_balance') || '0'
-
-  const tokens = Array.isArray(tokenBody)
-    ? tokenBody.flatMap((item): MaCarteiraWalletToken[] => {
-        const balanceRecord = asRecord(item)
-        const token = asRecord(balanceRecord?.token)
-
-        if (!balanceRecord || !token) {
-          return []
-        }
-
-        const value = readString(balanceRecord, 'value')
-        const tokenType = readString(token, 'type')
-
-        if (!value || value === '0' || (tokenType && tokenType !== 'ERC-20')) {
-          return []
-        }
-
-        const contractAddress =
-          readString(token, 'address') ||
-          readString(token, 'address_hash')
-
-        return [
-          {
-            symbol: readString(token, 'symbol') || 'TOKEN',
-            name: readString(token, 'name') || chain.tokenStandard || 'ERC-20',
-            balance: value,
-            decimals: normalizeDecimals(token.decimals),
-            contractAddress: contractAddress || undefined,
-            address: contractAddress || undefined,
-            type: chain.tokenStandard || 'ERC-20'
-          }
-        ]
-      })
-    : []
-
-  return {
-    chainId,
-    address,
-    nativeBalance,
-    tokens: sortTokens(tokens),
-    fetchedAt: new Date().toISOString(),
-    partial: false,
-    notice: null
+    return {
+      chainId,
+      address,
+      nativeBalance,
+      tokens: sortTokens(
+        parseBlockscoutTokens(
+          tokenBody,
+          tokenStandard
+        )
+      ),
+      fetchedAt: new Date().toISOString(),
+      partial: false,
+      notice: null
+    }
+  } catch {
+    return {
+      chainId,
+      address,
+      nativeBalance,
+      tokens: [],
+      fetchedAt: new Date().toISOString(),
+      partial: true,
+      notice: `O saldo ${chain.nativeCurrency.symbol} foi atualizado. A listagem de ${tokenStandard} está temporariamente indisponível no indexador desta rede.`
+    }
   }
 }
 
@@ -384,7 +616,11 @@ const getEvmNativeOnlyPortfolio = async (
   address: string
 ): Promise<MaCarteiraWalletResult> => {
   const chain = getChainConfig(chainId)
-  const nativeBalance = await getEvmNativeBalance(chainId, address)
+  const nativeBalance =
+    await getEvmNativeBalance(
+      chainId,
+      address
+    )
 
   return {
     chainId,
@@ -393,8 +629,7 @@ const getEvmNativeOnlyPortfolio = async (
     tokens: [],
     fetchedAt: new Date().toISOString(),
     partial: true,
-    notice:
-      `O saldo ${chain.nativeCurrency.symbol} está ativo. A leitura de ${chain.tokenStandard || 'tokens'} e o histórico completo serão ligados quando o projeto tiver um indexador compatível para ${chain.name}.`
+    notice: `O saldo ${chain.nativeCurrency.symbol} está ativo. A leitura de ${chain.tokenStandard || 'tokens'} e o histórico completo serão ligados quando o projeto tiver um indexador compatível para ${chain.name}.`
   }
 }
 
@@ -417,7 +652,6 @@ const getSolanaTokenAccounts = async (
     ],
     'Não foi possível consultar os tokens SPL.'
   )
-
   const resultRecord = asRecord(result)
   const value = resultRecord?.value
 
@@ -425,41 +659,64 @@ const getSolanaTokenAccounts = async (
     return []
   }
 
-  if (value.length > MAX_SOLANA_TOKEN_ACCOUNTS) {
+  if (
+    value.length >
+    MAX_SOLANA_TOKEN_ACCOUNTS
+  ) {
     throw new MaCarteiraWalletError(
       'O endereço tem demasiadas contas SPL para uma consulta segura.',
       413
     )
   }
 
-  return value.flatMap((item): Array<{
-    mint: string
-    balance: string
-    decimals: number
-    type: string
-  }> => {
-    const account = asRecord(item)
-    const accountData = asRecord(account?.account)
-    const data = asRecord(accountData?.data)
-    const parsed = asRecord(data?.parsed)
-    const info = asRecord(parsed?.info)
-    const tokenAmount = asRecord(info?.tokenAmount)
-    const mint = readString(info, 'mint')
-    const balance = readString(tokenAmount, 'amount')
+  return value.flatMap(
+    (
+      item
+    ): Array<{
+      mint: string
+      balance: string
+      decimals: number
+      type: string
+    }> => {
+      const account = asRecord(item)
+      const accountData = asRecord(
+        account?.account
+      )
+      const data = asRecord(
+        accountData?.data
+      )
+      const parsed = asRecord(data?.parsed)
+      const info = asRecord(parsed?.info)
+      const tokenAmount = asRecord(
+        info?.tokenAmount
+      )
+      const mint = readString(info, 'mint')
+      const balance = readString(
+        tokenAmount,
+        'amount'
+      )
 
-    if (!mint || !balance || balance === '0') {
-      return []
-    }
-
-    return [
-      {
-        mint,
-        balance,
-        decimals: normalizeDecimals(tokenAmount?.decimals, 0),
-        type: tokenType
+      if (
+        !mint ||
+        !balance ||
+        balance === '0'
+      ) {
+        return []
       }
-    ]
-  })
+
+      return [
+        {
+          mint,
+          balance,
+          decimals: normalizeDecimals(
+            tokenAmount?.decimals,
+            0
+          ),
+          type: tokenType
+        }
+      ]
+    }
+  )
 }
 
 const shortIdentifier = (value: string) =>
@@ -475,32 +732,46 @@ const getSolanaPortfolio = async (
   const rpcUrl = chain.rpcUrls[0]
 
   if (!rpcUrl) {
-    throw new MaCarteiraWalletError('O RPC de Solana não está configurado.', 503)
+    throw new MaCarteiraWalletError(
+      'O RPC de Solana não está configurado.',
+      503
+    )
   }
 
-  const [balanceResult, originalTokens, token2022Tokens] = await Promise.all([
-    jsonRpc(
-      rpcUrl,
-      'getBalance',
-      [address, { commitment: 'confirmed' }],
-      'Não foi possível consultar o saldo SOL.'
-    ),
-    getSolanaTokenAccounts(
-      rpcUrl,
-      address,
-      SOLANA_TOKEN_PROGRAM,
-      'SPL'
-    ),
-    getSolanaTokenAccounts(
-      rpcUrl,
-      address,
-      SOLANA_TOKEN_2022_PROGRAM,
-      'SPL Token-2022'
-    )
-  ])
+  const balanceResult = await jsonRpc(
+    rpcUrl,
+    'getBalance',
+    [address, { commitment: 'confirmed' }],
+    'Não foi possível consultar o saldo SOL.'
+  )
+  const balanceRecord = asRecord(
+    balanceResult
+  )
+  const nativeBalance =
+    readString(balanceRecord, 'value') || '0'
 
-  const balanceRecord = asRecord(balanceResult)
-  const nativeBalance = readString(balanceRecord, 'value') || '0'
+  const tokenResults =
+    await Promise.allSettled([
+      getSolanaTokenAccounts(
+        rpcUrl,
+        address,
+        SOLANA_TOKEN_PROGRAM,
+        'SPL'
+      ),
+      getSolanaTokenAccounts(
+        rpcUrl,
+        address,
+        SOLANA_TOKEN_2022_PROGRAM,
+        'SPL Token-2022'
+      )
+    ])
+
+  const tokenAccounts = tokenResults.flatMap(
+    (result) =>
+      result.status === 'fulfilled'
+        ? result.value
+        : []
+  )
   const merged = new Map<
     string,
     {
@@ -510,7 +781,7 @@ const getSolanaPortfolio = async (
     }
   >()
 
-  for (const token of [...originalTokens, ...token2022Tokens]) {
+  for (const token of tokenAccounts) {
     const current = merged.get(token.mint)
 
     try {
@@ -522,15 +793,19 @@ const getSolanaPortfolio = async (
           decimals: token.decimals,
           type: token.type
         })
-      } else if (current.decimals === token.decimals) {
+      } else if (
+        current.decimals === token.decimals
+      ) {
         current.balance += value
       }
     } catch {
-      // Ignora apenas a conta SPL inválida, preservando as restantes.
+      // Ignora apenas a conta SPL inválida.
     }
   }
 
-  const tokens = Array.from(merged.entries()).map(
+  const tokens = Array.from(
+    merged.entries()
+  ).map(
     ([mint, token]): MaCarteiraWalletToken => ({
       symbol: shortIdentifier(mint),
       name: token.type,
@@ -541,6 +816,10 @@ const getSolanaPortfolio = async (
       type: token.type
     })
   )
+  const allTokenRequestsSucceeded =
+    tokenResults.every(
+      (result) => result.status === 'fulfilled'
+    )
 
   return {
     chainId,
@@ -549,8 +828,9 @@ const getSolanaPortfolio = async (
     tokens: sortTokens(tokens),
     fetchedAt: new Date().toISOString(),
     partial: true,
-    notice:
-      'Os saldos SPL são lidos diretamente da rede. Símbolos e nomes dependem de um serviço de metadados e, por agora, são identificados pelo mint.'
+    notice: allTokenRequestsSucceeded
+      ? 'Os saldos SPL são lidos diretamente da rede. Símbolos e nomes dependem de um serviço de metadados e, por agora, são identificados pelo mint.'
+      : 'O saldo SOL foi atualizado. Uma parte das contas SPL não pôde ser consultada neste momento.'
   }
 }
 
@@ -560,15 +840,22 @@ const getTronPortfolio = async (
 ): Promise<MaCarteiraWalletResult> => {
   const chain = getChainConfig(chainId)
   const body = await requestJson(
-    `${chain.dataApiUrl.replace(/\/$/, '')}/v1/accounts/${encodeURIComponent(address)}`,
+    `${chain.dataApiUrl.replace(
+      /\/$/,
+      ''
+    )}/v1/accounts/${encodeURIComponent(
+      address
+    )}`,
     { method: 'GET' },
     'Não foi possível consultar o saldo TRX.'
   )
-
   const response = asRecord(body)
   const data = response?.data
-  const account = Array.isArray(data) ? asRecord(data[0]) : null
-  const nativeBalance = readString(account, 'balance') || '0'
+  const account = Array.isArray(data)
+    ? asRecord(data[0])
+    : null
+  const nativeBalance =
+    readString(account, 'balance') || '0'
 
   return {
     chainId,
@@ -582,26 +869,138 @@ const getTronPortfolio = async (
   }
 }
 
+const getBitcoinApiUrls = (
+  configuredUrl: string
+) =>
+  Array.from(
+    new Set([
+      configuredUrl.replace(/\/$/, ''),
+      ...BITCOIN_API_FALLBACKS
+    ])
+  ).filter(Boolean)
+
+const getBitcoinAddressData = async (
+  chainId: ChainId,
+  address: string
+) => {
+  const chain = getChainConfig(chainId)
+  let lastError: MaCarteiraWalletError | null = null
+
+  for (const baseUrl of getBitcoinApiUrls(
+    chain.dataApiUrl
+  )) {
+    try {
+      const body = await requestJson(
+        `${baseUrl}/address/${encodeURIComponent(
+          address
+        )}`,
+        { method: 'GET' },
+        'Não foi possível consultar o saldo BTC.'
+      )
+      const response = asRecord(body)
+
+      if (
+        !response ||
+        !asRecord(response.chain_stats) ||
+        !asRecord(response.mempool_stats)
+      ) {
+        throw new MaCarteiraWalletError(
+          'O fornecedor Bitcoin devolveu dados incompletos.',
+          502
+        )
+      }
+
+      return response
+    } catch (error) {
+      lastError =
+        error instanceof MaCarteiraWalletError
+          ? error
+          : new MaCarteiraWalletError(
+              'Não foi possível consultar o saldo BTC.',
+              502
+            )
+    }
+  }
+
+  if (
+    lastError &&
+    (lastError.status === 400 ||
+      lastError.status === 404)
+  ) {
+    throw new MaCarteiraWalletError(
+      'O endereço Bitcoin não foi aceite pelos exploradores. Confirme se o endereço está completo e pertence à rede principal.',
+      400
+    )
+  }
+
+  throw (
+    lastError ||
+    new MaCarteiraWalletError(
+      'Não foi possível consultar o saldo BTC.',
+      502
+    )
+  )
+}
+
+const readBigIntField = (
+  record: UnknownRecord,
+  key: string
+) => {
+  try {
+    return BigInt(
+      readString(record, key) || '0'
+    )
+  } catch {
+    throw new MaCarteiraWalletError(
+      'O fornecedor Bitcoin devolveu um saldo inválido.',
+      502
+    )
+  }
+}
+
 const getBitcoinPortfolio = async (
   chainId: ChainId,
   address: string
 ): Promise<MaCarteiraWalletResult> => {
-  const chain = getChainConfig(chainId)
-  const body = await requestJson(
-    `${chain.dataApiUrl.replace(/\/$/, '')}/address/${encodeURIComponent(address)}`,
-    { method: 'GET' },
-    'Não foi possível consultar o saldo BTC.'
+  const response = await getBitcoinAddressData(
+    chainId,
+    address
+  )
+  const chainStats = asRecord(
+    response.chain_stats
+  )
+  const mempoolStats = asRecord(
+    response.mempool_stats
   )
 
-  const response = asRecord(body)
-  const chainStats = asRecord(response?.chain_stats)
-  const mempoolStats = asRecord(response?.mempool_stats)
+  if (!chainStats || !mempoolStats) {
+    throw new MaCarteiraWalletError(
+      'O fornecedor Bitcoin devolveu dados incompletos.',
+      502
+    )
+  }
 
-  const funded = BigInt(readString(chainStats, 'funded_txo_sum') || '0')
-  const spent = BigInt(readString(chainStats, 'spent_txo_sum') || '0')
-  const mempoolFunded = BigInt(readString(mempoolStats, 'funded_txo_sum') || '0')
-  const mempoolSpent = BigInt(readString(mempoolStats, 'spent_txo_sum') || '0')
-  const nativeBalance = funded - spent + mempoolFunded - mempoolSpent
+  const funded = readBigIntField(
+    chainStats,
+    'funded_txo_sum'
+  )
+  const spent = readBigIntField(
+    chainStats,
+    'spent_txo_sum'
+  )
+  const mempoolFunded = readBigIntField(
+    mempoolStats,
+    'funded_txo_sum'
+  )
+  const mempoolSpent = readBigIntField(
+    mempoolStats,
+    'spent_txo_sum'
+  )
+  const nativeBalance =
+    funded -
+    spent +
+    mempoolFunded -
+    mempoolSpent
 
   return {
     chainId,
@@ -614,11 +1013,18 @@ const getBitcoinPortfolio = async (
   }
 }
 
-const resolveChainId = (url: URL): ChainId => {
-  const requested = url.searchParams.get('chainId') || DEFAULT_CHAIN_ID
+const resolveChainId = (
+  url: URL
+): ChainId => {
+  const requested =
+    url.searchParams.get('chainId') ||
+    DEFAULT_CHAIN_ID
 
   if (!isSupportedChainId(requested)) {
-    throw new MaCarteiraWalletError('A rede indicada não é suportada.', 400)
+    throw new MaCarteiraWalletError(
+      'A rede indicada não é suportada.',
+      400
+    )
   }
 
   return requested
@@ -634,35 +1040,69 @@ export async function getMaCarteiraWallet(
     chainId
   )
 
-  if (!isValidChainAddress(address, chainId)) {
+  if (
+    !isValidChainAddress(address, chainId)
+  ) {
     throw new MaCarteiraWalletError(
       `O endereço indicado não é válido para ${chain.name}.`,
       400
     )
   }
 
-  if (chain.portfolioProvider === 'pulsechain') {
-    return getPulseChainPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider === 'pulsechain'
+  ) {
+    return getPulseChainPortfolio(
+      chainId,
+      address
+    )
   }
 
-  if (chain.portfolioProvider === 'blockscout-v2') {
-    return getBlockscoutPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider ===
+    'blockscout-v2'
+  ) {
+    return getBlockscoutPortfolio(
+      chainId,
+      address
+    )
   }
 
-  if (chain.portfolioProvider === 'evm-native-only') {
-    return getEvmNativeOnlyPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider ===
+    'evm-native-only'
+  ) {
+    return getEvmNativeOnlyPortfolio(
+      chainId,
+      address
+    )
   }
 
-  if (chain.portfolioProvider === 'solana-rpc') {
-    return getSolanaPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider === 'solana-rpc'
+  ) {
+    return getSolanaPortfolio(
+      chainId,
+      address
+    )
   }
 
-  if (chain.portfolioProvider === 'trongrid') {
-    return getTronPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider === 'trongrid'
+  ) {
+    return getTronPortfolio(
+      chainId,
+      address
+    )
   }
 
-  if (chain.portfolioProvider === 'blockstream') {
-    return getBitcoinPortfolio(chainId, address)
+  if (
+    chain.portfolioProvider === 'blockstream'
+  ) {
+    return getBitcoinPortfolio(
+      chainId,
+      address
+    )
   }
 
   throw new MaCarteiraWalletError(
