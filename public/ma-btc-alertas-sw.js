@@ -2,7 +2,7 @@ const APP_PATH =
   '/produtos/ma-btc-alertas'
 
 const DEFAULT_ICON =
-  '/ma-btc-alertas.svg'
+  '/ma-code.png'
 
 self.addEventListener(
   'install',
