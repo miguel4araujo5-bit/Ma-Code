@@ -110,6 +110,18 @@ const GECKOTERMINAL_API =
 const GECKOTERMINAL_VERSION =
   '20230203'
 
+const PULSECHAIN_NETWORK_ID =
+  'pulsechain'
+
+const PULSECHAIN_WPLS_ADDRESS =
+  '0xa1077a294dde1b09bb078844df40758a5d0f9a27'
+
+const PULSECHAIN_PLSX_ADDRESS =
+  '0x95b303987a60c71504d99aa1b13b4da07b0790ab'
+
+const PULSEX_PLSX_WPLS_POOL_ADDRESS =
+  '0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9'
+
 const REQUEST_TIMEOUT_MS =
   15_000
 
@@ -123,13 +135,25 @@ const PRICE_CACHE_RETENTION_SECONDS =
   24 * 60 * 60
 
 const POOL_CACHE_RETENTION_SECONDS =
-  7 * 24 * 60 * 60
+  30 * 24 * 60 * 60
 
 const POOL_CACHE_FRESH_MS =
-  6 * 60 * 60 * 1000
+  24 * 60 * 60 * 1000
 
 const MAX_ALL_HISTORY_PAGES =
-  10
+  2
+
+const MIN_GECKOTERMINAL_REQUEST_INTERVAL_MS =
+  2_500
+
+const GECKOTERMINAL_RETRY_DELAY_MS =
+  4_000
+
+const GECKOTERMINAL_MAX_RETRY_DELAY_MS =
+  8_000
+
+const GECKOTERMINAL_COOLDOWN_MS =
+  60_000
 
 const MAX_MEMORY_CACHE_ENTRIES =
   250
@@ -142,37 +166,57 @@ const PERIOD_CONFIG: Record<
     timeframe: 'minute',
     aggregate: 1,
     limit: 15,
-    freshForMs: 30_000
+    freshForMs: 2 * 60_000
   },
 
   '4H': {
     timeframe: 'minute',
     aggregate: 5,
     limit: 48,
-    freshForMs: 60_000
+    freshForMs: 5 * 60_000
   },
 
   '1D': {
     timeframe: 'minute',
     aggregate: 15,
     limit: 96,
-    freshForMs: 120_000
+    freshForMs: 10 * 60_000
   },
 
   '1M': {
     timeframe: 'hour',
     aggregate: 4,
     limit: 180,
-    freshForMs: 10 * 60_000
+    freshForMs: 30 * 60_000
   },
 
   'Tudo': {
     timeframe: 'day',
     aggregate: 1,
     limit: 1000,
-    freshForMs: 30 * 60_000,
+    freshForMs: 6 * 60 * 60_000,
     loadAll: true
   }
+}
+
+const PERIOD_WINDOW_MS: Record<
+  Exclude<PricePeriod, 'Tudo'>,
+  number
+> = {
+  '15M': 15 * 60_000,
+  '4H': 4 * 60 * 60_000,
+  '1D': 24 * 60 * 60_000,
+  '1M': 30 * 24 * 60 * 60_000
+}
+
+const PERIOD_FALLBACK_SOURCES: Record<
+  Exclude<PricePeriod, 'Tudo'>,
+  PricePeriod[]
+> = {
+  '15M': ['4H', '1D', '1M', 'Tudo'],
+  '4H': ['1D', '1M', 'Tudo'],
+  '1D': ['1M', 'Tudo'],
+  '1M': ['Tudo']
 }
 
 const priceMemoryCache =
@@ -206,6 +250,13 @@ const poolRequestsInFlight =
       PoolLookup
     >
   >()
+
+let geckoTerminalQueue:
+  Promise<void> =
+    Promise.resolve()
+
+let nextGeckoTerminalRequestAt = 0
+let geckoTerminalCooldownUntil = 0
 
 export class MaCarteiraPricesError
   extends Error {
@@ -556,91 +607,234 @@ const getRequestedPeriod = (
   return requested
 }
 
-const fetchJson = async (
-  url: string
-): Promise<unknown> => {
-  const controller =
-    new AbortController()
-
-  const timer = setTimeout(
-    () => controller.abort(),
-    REQUEST_TIMEOUT_MS
+const wait = (
+  milliseconds: number
+) =>
+  new Promise<void>(
+    (resolve) => {
+      setTimeout(
+        resolve,
+        Math.max(
+          0,
+          milliseconds
+        )
+      )
+    }
   )
 
-  try {
-    const response = await fetch(
-      url,
-      {
-        headers: {
-          Accept:
-            `application/json;version=${GECKOTERMINAL_VERSION}`
-        },
-
-        signal:
-          controller.signal
-      }
+const getRetryAfterMs = (
+  response: Response
+) => {
+  const retryAfter =
+    response.headers.get(
+      'Retry-After'
     )
 
-    if (
-      response.status === 404
-    ) {
-      throw new MaCarteiraPricesError(
-        'Não foi encontrado um mercado com preço para este token.',
-        404
-      )
-    }
+  if (!retryAfter) {
+    return 0
+  }
 
-    if (
-      response.status === 429
-    ) {
-      throw new MaCarteiraPricesError(
-        'O serviço de preços atingiu temporariamente o limite de pedidos. Tente novamente dentro de alguns segundos.',
-        429
-      )
-    }
+  const seconds =
+    Number(retryAfter)
 
-    if (!response.ok) {
+  if (
+    Number.isFinite(seconds) &&
+    seconds >= 0
+  ) {
+    return seconds * 1000
+  }
+
+  const date =
+    new Date(
+      retryAfter
+    ).getTime()
+
+  return Number.isFinite(date)
+    ? Math.max(
+        0,
+        date - Date.now()
+      )
+    : 0
+}
+
+const runGeckoTerminalRequest =
+  async <T>(
+    operation: () => Promise<T>
+  ): Promise<T> => {
+    const previousQueue =
+      geckoTerminalQueue
+
+    let releaseQueue!: () => void
+
+    geckoTerminalQueue =
+      new Promise<void>(
+        (resolve) => {
+          releaseQueue = resolve
+        }
+      )
+
+    await previousQueue
+
+    try {
+      const now = Date.now()
+
+      if (
+        geckoTerminalCooldownUntil >
+        now
+      ) {
+        throw new MaCarteiraPricesError(
+          'O serviço de preços está temporariamente a recuperar. Tente novamente dentro de alguns segundos.',
+          429
+        )
+      }
+
+      const waitMs = Math.max(
+        0,
+        nextGeckoTerminalRequestAt -
+          now
+      )
+
+      if (waitMs > 0) {
+        await wait(waitMs)
+      }
+
+      nextGeckoTerminalRequestAt =
+        Date.now() +
+        MIN_GECKOTERMINAL_REQUEST_INTERVAL_MS
+
+      return await operation()
+    } finally {
+      releaseQueue()
+    }
+  }
+
+const fetchJson = async (
+  url: string
+): Promise<unknown> =>
+  runGeckoTerminalRequest(
+    async () => {
+      for (
+        let attempt = 0;
+        attempt < 2;
+        attempt += 1
+      ) {
+        const controller =
+          new AbortController()
+
+        const timer = setTimeout(
+          () =>
+            controller.abort(),
+          REQUEST_TIMEOUT_MS
+        )
+
+        try {
+          const response =
+            await fetch(
+              url,
+              {
+                headers: {
+                  Accept:
+                    `application/json;version=${GECKOTERMINAL_VERSION}`
+                },
+
+                signal:
+                  controller.signal
+              }
+            )
+
+          if (
+            response.status === 404
+          ) {
+            throw new MaCarteiraPricesError(
+              'Não foi encontrado um mercado com preço para este token.',
+              404
+            )
+          }
+
+          if (
+            response.status === 429
+          ) {
+            const retryAfterMs =
+              getRetryAfterMs(
+                response
+              )
+
+            if (attempt === 0) {
+              await wait(
+                Math.min(
+                  GECKOTERMINAL_MAX_RETRY_DELAY_MS,
+                  Math.max(
+                    GECKOTERMINAL_RETRY_DELAY_MS,
+                    retryAfterMs
+                  )
+                )
+              )
+
+              continue
+            }
+
+            geckoTerminalCooldownUntil =
+              Date.now() +
+              Math.max(
+                GECKOTERMINAL_COOLDOWN_MS,
+                retryAfterMs
+              )
+
+            throw new MaCarteiraPricesError(
+              'O serviço de preços atingiu temporariamente o limite de pedidos. Tente novamente dentro de alguns segundos.',
+              429
+            )
+          }
+
+          if (!response.ok) {
+            throw new MaCarteiraPricesError(
+              'O serviço de preços não respondeu corretamente.',
+              502
+            )
+          }
+
+          try {
+            return await response.json()
+          } catch {
+            throw new MaCarteiraPricesError(
+              'O serviço de preços devolveu uma resposta inválida.',
+              502
+            )
+          }
+        } catch (error) {
+          if (
+            error instanceof
+            MaCarteiraPricesError
+          ) {
+            throw error
+          }
+
+          if (
+            error instanceof Error &&
+            error.name ===
+              'AbortError'
+          ) {
+            throw new MaCarteiraPricesError(
+              'O serviço de preços demorou demasiado tempo a responder.',
+              504
+            )
+          }
+
+          throw new MaCarteiraPricesError(
+            'Não foi possível comunicar com o serviço de preços.',
+            502
+          )
+        } finally {
+          clearTimeout(timer)
+        }
+      }
+
       throw new MaCarteiraPricesError(
         'O serviço de preços não respondeu corretamente.',
         502
       )
     }
-
-    try {
-      return await response.json()
-    } catch {
-      throw new MaCarteiraPricesError(
-        'O serviço de preços devolveu uma resposta inválida.',
-        502
-      )
-    }
-  } catch (error) {
-    if (
-      error instanceof
-      MaCarteiraPricesError
-    ) {
-      throw error
-    }
-
-    if (
-      error instanceof Error &&
-      error.name ===
-        'AbortError'
-    ) {
-      throw new MaCarteiraPricesError(
-        'O serviço de preços demorou demasiado tempo a responder.',
-        504
-      )
-    }
-
-    throw new MaCarteiraPricesError(
-      'Não foi possível comunicar com o serviço de preços.',
-      502
-    )
-  } finally {
-    clearTimeout(timer)
-  }
-}
+  )
 
 const getResourceAddress = (
   value: unknown
@@ -924,6 +1118,126 @@ const fetchPoolLookup = async (
   }
 }
 
+const getSharedPulsePoolLookups = (
+  networkId: string,
+  value: PoolLookup
+) => {
+  if (
+    networkId !==
+      PULSECHAIN_NETWORK_ID ||
+    value.selectedPool.poolAddress
+      .toLowerCase() !==
+      PULSEX_PLSX_WPLS_POOL_ADDRESS
+  ) {
+    return []
+  }
+
+  const baseAddress =
+    getRelationshipAddress(
+      value.selectedPool.pool,
+      'base_token'
+    )
+
+  const quoteAddress =
+    getRelationshipAddress(
+      value.selectedPool.pool,
+      'quote_token'
+    )
+
+  const expectedAddresses =
+    new Set([
+      PULSECHAIN_PLSX_ADDRESS,
+      PULSECHAIN_WPLS_ADDRESS
+    ])
+
+  if (
+    !expectedAddresses.has(
+      baseAddress
+    ) ||
+    !expectedAddresses.has(
+      quoteAddress
+    ) ||
+    baseAddress === quoteAddress
+  ) {
+    return []
+  }
+
+  return [
+    {
+      address: baseAddress,
+      value: {
+        poolsResponse:
+          value.poolsResponse,
+        selectedPool: {
+          pool:
+            value.selectedPool.pool,
+          tokenSide: 'base' as const,
+          poolAddress:
+            value.selectedPool.poolAddress
+        }
+      }
+    },
+    {
+      address: quoteAddress,
+      value: {
+        poolsResponse:
+          value.poolsResponse,
+        selectedPool: {
+          pool:
+            value.selectedPool.pool,
+          tokenSide: 'quote' as const,
+          poolAddress:
+            value.selectedPool.poolAddress
+        }
+      }
+    }
+  ]
+}
+
+const writePoolLookupCache = async (
+  networkId: string,
+  contractAddress: string,
+  value: PoolLookup
+) => {
+  const cachedAt = Date.now()
+
+  const sharedLookups =
+    getSharedPulsePoolLookups(
+      networkId,
+      value
+    )
+
+  const lookups =
+    sharedLookups.length
+      ? sharedLookups
+      : [
+          {
+            address:
+              contractAddress.toLowerCase(),
+            value
+          }
+        ]
+
+  await Promise.all(
+    lookups.map(
+      (lookup) =>
+        writeCacheEntry(
+          'pools',
+          [
+            networkId,
+            lookup.address
+          ].join(':'),
+          {
+            cachedAt,
+            value: lookup.value
+          },
+          poolMemoryCache,
+          POOL_CACHE_RETENTION_SECONDS
+        )
+    )
+  )
+}
+
 const getPoolLookup = async (
   networkId: string,
   contractAddress: string
@@ -977,17 +1291,10 @@ const getPoolLookup = async (
             contractAddress
           )
 
-        await writeCacheEntry(
-          'pools',
-          key,
-          {
-            cachedAt:
-              Date.now(),
-
-            value
-          },
-          poolMemoryCache,
-          POOL_CACHE_RETENTION_SECONDS
+        await writePoolLookupCache(
+          networkId,
+          contractAddress,
+          value
         )
 
         return value
@@ -1638,6 +1945,189 @@ const fetchCorrectTokenOhlcv =
     )
   }
 
+const createPriceCacheKey = (
+  chainId: ChainId,
+  networkId: string,
+  contractAddress: string,
+  period: PricePeriod
+) =>
+  [
+    chainId,
+    networkId,
+    contractAddress.toLowerCase(),
+    period
+  ].join(':')
+
+const buildHistoryFromPoints = (
+  source: MaCarteiraPriceHistory,
+  period: PricePeriod,
+  points: MaCarteiraPricePoint[]
+): MaCarteiraPriceHistory | null => {
+  if (points.length < 2) {
+    return null
+  }
+
+  const orderedPoints = [
+    ...points
+  ].sort(
+    (
+      first,
+      second
+    ) =>
+      new Date(
+        first.timestamp
+      ).getTime() -
+      new Date(
+        second.timestamp
+      ).getTime()
+  )
+
+  const firstPrice =
+    orderedPoints[0].open
+
+  const currentPrice =
+    orderedPoints[
+      orderedPoints.length - 1
+    ].close
+
+  const changePercentage =
+    firstPrice > 0
+      ? (
+          (
+            currentPrice -
+            firstPrice
+          ) /
+          firstPrice
+        ) * 100
+      : 0
+
+  return {
+    ...source,
+    period,
+    currentPriceUsd:
+      currentPrice,
+    changePercentage,
+    highUsd: Math.max(
+      ...orderedPoints.map(
+        (point) => point.high
+      )
+    ),
+    lowUsd: Math.min(
+      ...orderedPoints.map(
+        (point) => point.low
+      )
+    ),
+    volumeUsd:
+      orderedPoints.reduce(
+        (
+          total,
+          point
+        ) =>
+          total +
+          point.volume,
+        0
+      ),
+    points: orderedPoints
+  }
+}
+
+const getCompatibleCachedHistory =
+  async (
+    chainId: ChainId,
+    networkId: string,
+    contractAddress: string,
+    period: PricePeriod
+  ): Promise<MaCarteiraPriceHistory | null> => {
+    if (period === 'Tudo') {
+      return null
+    }
+
+    const cutoff =
+      Date.now() -
+      PERIOD_WINDOW_MS[period]
+
+    const candidates =
+      await Promise.all(
+        PERIOD_FALLBACK_SOURCES[
+          period
+        ].map(
+          async (
+            sourcePeriod
+          ) => {
+            const entry =
+              await readCacheEntry(
+                'prices',
+                createPriceCacheKey(
+                  chainId,
+                  networkId,
+                  contractAddress,
+                  sourcePeriod
+                ),
+                priceMemoryCache
+              )
+
+            if (
+              !entry ||
+              Date.now() -
+                entry.cachedAt >
+                PRICE_CACHE_RETENTION_SECONDS *
+                  1000
+            ) {
+              return null
+            }
+
+            const points =
+              entry.value.points.filter(
+                (point) => {
+                  const timestamp =
+                    new Date(
+                      point.timestamp
+                    ).getTime()
+
+                  return (
+                    Number.isFinite(
+                      timestamp
+                    ) &&
+                    timestamp >=
+                      cutoff
+                  )
+                }
+              )
+
+            return buildHistoryFromPoints(
+              entry.value,
+              period,
+              points
+            )
+          }
+        )
+      )
+
+    return (
+      candidates
+        .filter(
+          (
+            candidate
+          ): candidate is MaCarteiraPriceHistory =>
+            candidate !== null
+        )
+        .sort(
+          (
+            first,
+            second
+          ) =>
+            second.points.length -
+              first.points.length ||
+            new Date(
+              second.fetchedAt
+            ).getTime() -
+              new Date(
+                first.fetchedAt
+              ).getTime()
+        )[0] || null
+    )
+  }
+
 export async function getMaCarteiraPriceHistory(
   url: URL
 ): Promise<MaCarteiraPriceHistory> {
@@ -1714,13 +2204,13 @@ export async function getMaCarteiraPriceHistory(
       period
     ]
 
-  const cacheKey = [
-    chainId,
-    networkId,
-    contractAddress
-      .toLowerCase(),
-    period
-  ].join(':')
+  const cacheKey =
+    createPriceCacheKey(
+      chainId,
+      networkId,
+      contractAddress,
+      period
+    )
 
   const storedCache =
     await readCacheEntry(
@@ -1745,6 +2235,32 @@ export async function getMaCarteiraPriceHistory(
       config.freshForMs
   ) {
     return cached.value
+  }
+
+  if (
+    geckoTerminalCooldownUntil >
+    Date.now()
+  ) {
+    if (cached) {
+      return cached.value
+    }
+
+    const compatibleCache =
+      await getCompatibleCachedHistory(
+        chainId,
+        networkId,
+        contractAddress,
+        period
+      )
+
+    if (compatibleCache) {
+      return compatibleCache
+    }
+
+    throw new MaCarteiraPricesError(
+      'O serviço de preços está temporariamente a recuperar. Tente novamente dentro de alguns segundos.',
+      429
+    )
   }
 
   const inFlight =
@@ -1908,12 +2424,25 @@ export async function getMaCarteiraPriceHistory(
          * histórico válido já guardado.
          */
         if (
-          cached &&
           canUseStaleCache(
             error
           )
         ) {
-          return cached.value
+          if (cached) {
+            return cached.value
+          }
+
+          const compatibleCache =
+            await getCompatibleCachedHistory(
+              chainId,
+              networkId,
+              contractAddress,
+              period
+            )
+
+          if (compatibleCache) {
+            return compatibleCache
+          }
         }
 
         throw error
