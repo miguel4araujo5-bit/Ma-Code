@@ -65,7 +65,7 @@ export default function TokenPricePanel({
   chainId = DEFAULT_CHAIN_ID,
   tokenSymbol = 'TOKEN',
   tokenName = 'Token',
-  defaultPeriod = '7D',
+  defaultPeriod = '1D',
   className = '',
   onClose
 }: TokenPricePanelProps) {
