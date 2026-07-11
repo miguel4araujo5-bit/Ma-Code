@@ -31,7 +31,7 @@ import {
   type DurableObjectStateLike,
   type JsonBody,
   type StoredState
-} from './maBtcAlertsSupport'
+} from './maBTCAlertsSupport'
 
 export {
   isBtcAlertsApiPath,
