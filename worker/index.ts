@@ -13,6 +13,12 @@ import {
 } from './maCarteiraTransactions'
 
 import {
+  MA_CARTEIRA_WALLET_PATH,
+  MaCarteiraWalletError,
+  getMaCarteiraWallet
+} from './maCarteiraWallet'
+
+import {
   MA_CARTEIRA_PRICES_PATH,
   MaCarteiraPricesError,
   getMaCarteiraPriceHistory
@@ -46,6 +52,7 @@ type HeaderMap = Record<string, string>
 type ApiRoute =
   | 'contact'
   | 'ma-carteira-chains'
+  | 'ma-carteira-wallet'
   | 'ma-carteira-transactions'
   | 'ma-carteira-prices'
   | 'not-found'
@@ -265,6 +272,13 @@ const getRoute = (
 
   if (
     pathname ===
+    MA_CARTEIRA_WALLET_PATH
+  ) {
+    return 'ma-carteira-wallet'
+  }
+
+  if (
+    pathname ===
     MA_CARTEIRA_TRANSACTIONS_PATH
   ) {
     return 'ma-carteira-transactions'
@@ -290,6 +304,8 @@ const getAllowedMethods = (
   if (
     route ===
       'ma-carteira-chains' ||
+    route ===
+      'ma-carteira-wallet' ||
     route ===
       'ma-carteira-transactions' ||
     route ===
@@ -484,6 +500,10 @@ const serializeChain = (
       chain.shortName,
     evm: chain.evm,
     status: chain.status,
+    addressType: chain.addressType,
+    tokenStandard: chain.tokenStandard,
+    addressPlaceholder: chain.addressPlaceholder,
+    capabilities: chain.capabilities,
     nativeCurrency:
       chain.nativeCurrency,
     explorer: {
@@ -566,6 +586,84 @@ const handleChainsRequest = (
     }
   )
 }
+
+const handleWalletRequest =
+  async (
+    request: Request,
+    url: URL,
+    respond: (
+      body: unknown,
+      status?: number,
+      headers?: HeaderMap
+    ) => Response
+  ) => {
+    if (
+      request.method !== 'GET'
+    ) {
+      return respond(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'GET, OPTIONS'
+        }
+      )
+    }
+
+    try {
+      const result =
+        await getMaCarteiraWallet(
+          url
+        )
+
+      return respond(
+        {
+          success: true,
+          ...result
+        },
+        200,
+        {
+          'Cache-Control':
+            'public, max-age=15, s-maxage=15'
+        }
+      )
+    } catch (error) {
+      if (
+        error instanceof
+        MaCarteiraWalletError
+      ) {
+        return respond(
+          {
+            success: false,
+            message: error.message
+          },
+          error.status
+        )
+      }
+
+      console.error(
+        'MA-Carteira wallet request failed',
+        {
+          message:
+            getErrorMessage(
+              error
+            )
+        }
+      )
+
+      return respond(
+        {
+          success: false,
+          message:
+            'Não foi possível consultar os saldos deste endereço.'
+        },
+        500
+      )
+    }
+  }
 
 const handleTransactionsRequest =
   async (
@@ -1306,6 +1404,17 @@ export default {
       'ma-carteira-chains'
     ) {
       return handleChainsRequest(
+        request,
+        url,
+        respond
+      )
+    }
+
+    if (
+      route ===
+      'ma-carteira-wallet'
+    ) {
+      return handleWalletRequest(
         request,
         url,
         respond
