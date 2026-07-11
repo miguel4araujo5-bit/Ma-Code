@@ -917,7 +917,7 @@ export default function WalletTransactionsPanel({
                   </div>
                 ) : (
                   <p className="mt-4 rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-sm leading-6 text-slate-400">
-                    Interação com contrato sem transferência direta de PLS ou tokens detetada.
+                    Interação com contrato ou programa sem transferência direta de {chain.nativeCurrency.symbol} ou tokens detetada.
                   </p>
                 )}
 
@@ -996,7 +996,7 @@ export default function WalletTransactionsPanel({
 
         {result?.partial ? (
           <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs leading-5 text-amber-100">
-            O explorador devolveu dados parciais. Algumas entradas, sobretudo movimentos internos de PLS, podem ainda não estar incluídas.
+            O fornecedor devolveu dados parciais. Algumas entradas, sobretudo movimentos internos ou transferências de tokens, podem ainda não estar incluídas.
           </p>
         ) : null}
       </div>
