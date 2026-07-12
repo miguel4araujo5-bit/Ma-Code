@@ -309,6 +309,7 @@ export default function MACarteiraPage() {
   )
 
   const autoRefreshStarted = useRef(false)
+  const storageWarningShown = useRef(false)
 
   const importInput =
     useRef<HTMLInputElement>(null)
@@ -318,11 +319,24 @@ export default function MACarteiraPage() {
   }, [])
 
   useEffect(() => {
-    saveState({
+    const saved = saveState({
       wallets,
       walletData,
       history
     })
+
+    if (
+      !saved &&
+      !storageWarningShown.current
+    ) {
+      storageWarningShown.current = true
+
+      setToast({
+        message:
+          'O navegador não permitiu guardar os dados locais. Exporte uma cópia para não perder os endereços e registos.',
+        error: true
+      })
+    }
   }, [wallets, walletData, history])
 
   useEffect(() => {
@@ -467,6 +481,7 @@ export default function MACarteiraPage() {
         const chainId = getWalletChainId(
           result.wallet
         )
+
         const key = addressKey(
           result.wallet.address,
           chainId
@@ -760,9 +775,15 @@ export default function MACarteiraPage() {
     setWalletData({})
     setHistory({})
 
-    clearStoredState()
+    const cleared =
+      clearStoredState()
 
-    showToast('Dados locais apagados.')
+    showToast(
+      cleared
+        ? 'Dados locais apagados.'
+        : 'Os dados foram removidos da aplicação, mas o navegador não permitiu limpar todo o armazenamento local.',
+      !cleared
+    )
   }
 
   const copyAddress = async (
