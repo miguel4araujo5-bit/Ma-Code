@@ -5,6 +5,11 @@ import {
   type ChainId
 } from '../src/lib/maCarteiraChains'
 
+import {
+  MaCarteiraNativePricesError,
+  getMaCarteiraNativePriceHistory
+} from './maCarteiraNativePrices'
+
 export const MA_CARTEIRA_PRICES_PATH =
   '/api/ma-carteira/token-price-history'
 
@@ -2231,6 +2236,49 @@ export async function getMaCarteiraPriceHistory(
       `${chain.name} ainda não está ativa na MA-Carteira.`,
       409
     )
+  }
+
+  if (
+    chain.price?.provider ===
+    'coingecko-market'
+  ) {
+    const coinGeckoId =
+      chain.price.coinGeckoId
+
+    if (!coinGeckoId) {
+      throw new MaCarteiraPricesError(
+        `O identificador CoinGecko ainda não está configurado para ${chain.name}.`,
+        501
+      )
+    }
+
+    try {
+      return await getMaCarteiraNativePriceHistory({
+        chainId,
+        networkId:
+          chain.price.networkId,
+        coinGeckoId,
+        contractAddress:
+          `native:${chainId}`,
+        symbol:
+          chain.nativeCurrency.symbol,
+        name:
+          chain.nativeCurrency.name,
+        period
+      })
+    } catch (error) {
+      if (
+        error instanceof
+        MaCarteiraNativePricesError
+      ) {
+        throw new MaCarteiraPricesError(
+          error.message,
+          error.status
+        )
+      }
+
+      throw error
+    }
   }
 
   if (!chain.evm) {
