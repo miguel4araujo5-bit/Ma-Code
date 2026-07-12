@@ -222,7 +222,7 @@ export const CHAIN_CONFIGS = {
     capabilities: {
       tokens: true,
       transactions: true,
-      prices: false
+      prices: true
     },
     explorer: {
       baseUrl: 'https://explorer.solana.com',
@@ -261,7 +261,7 @@ export const CHAIN_CONFIGS = {
     capabilities: {
       tokens: false,
       transactions: true,
-      prices: false
+      prices: true
     },
     explorer: {
       baseUrl: 'https://tronscan.org',
@@ -300,7 +300,7 @@ export const CHAIN_CONFIGS = {
     capabilities: {
       tokens: false,
       transactions: true,
-      prices: false
+      prices: true
     },
     explorer: {
       baseUrl: 'https://blockstream.info',
