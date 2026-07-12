@@ -1,4 +1,5 @@
 {
+  "id": "/produtos/ma-btc-alertas",
   "name": "MA-BTC ALERTAS",
   "short_name": "BTC Alertas",
   "description": "Alertas BTC/USD quando o Bitcoin sobe ou desce pelo menos 1%.",
@@ -11,9 +12,9 @@
   "icons": [
     {
       "src": "/ma-code.png",
-      "sizes": "any",
+      "sizes": "2048x2048",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
