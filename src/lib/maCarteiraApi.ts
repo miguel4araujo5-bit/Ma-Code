@@ -70,7 +70,6 @@ export type WalletTransactionsResult = {
   transactions: WalletTransaction[]
 }
 
-
 export type WalletPortfolioToken = {
   symbol?: string
   name?: string
@@ -159,7 +158,9 @@ export class MaCarteiraApiError
   ) {
     super(message)
 
-    this.name = 'MaCarteiraApiError'
+    this.name =
+      'MaCarteiraApiError'
+
     this.status = status
   }
 }
@@ -446,7 +447,8 @@ const parseTransactions = (
               item.chainId,
               fallbackChainId
             ),
-          hash: item.hash,
+          hash:
+            item.hash,
           timestamp:
             item.timestamp,
           blockNumber:
@@ -578,7 +580,6 @@ const parsePricePoints = (
   )
 }
 
-
 const parseWalletTokens = (
   value: unknown
 ): WalletPortfolioToken[] => {
@@ -589,71 +590,98 @@ const parseWalletTokens = (
     )
   }
 
-  return value.flatMap((item): WalletPortfolioToken[] => {
-    if (!isRecord(item)) {
-      return []
-    }
-
-    return [
-      {
-        symbol:
-          typeof item.symbol === 'string'
-            ? item.symbol
-            : undefined,
-        name:
-          typeof item.name === 'string'
-            ? item.name
-            : undefined,
-        balance:
-          typeof item.balance === 'string'
-            ? item.balance
-            : undefined,
-        decimals:
-          typeof item.decimals === 'string' ||
-          typeof item.decimals === 'number'
-            ? item.decimals
-            : undefined,
-        contractAddress:
-          typeof item.contractAddress === 'string'
-            ? item.contractAddress
-            : undefined,
-        address:
-          typeof item.address === 'string'
-            ? item.address
-            : undefined,
-        type:
-          typeof item.type === 'string'
-            ? item.type
-            : undefined
+  return value.flatMap(
+    (
+      item
+    ): WalletPortfolioToken[] => {
+      if (!isRecord(item)) {
+        return []
       }
-    ]
-  })
+
+      return [
+        {
+          symbol:
+            typeof item.symbol ===
+              'string'
+              ? item.symbol
+              : undefined,
+          name:
+            typeof item.name ===
+              'string'
+              ? item.name
+              : undefined,
+          balance:
+            typeof item.balance ===
+              'string'
+              ? item.balance
+              : undefined,
+          decimals:
+            typeof item.decimals ===
+              'string' ||
+            typeof item.decimals ===
+              'number'
+              ? item.decimals
+              : undefined,
+          contractAddress:
+            typeof item.contractAddress ===
+              'string'
+              ? item.contractAddress
+              : undefined,
+          address:
+            typeof item.address ===
+              'string'
+              ? item.address
+              : undefined,
+          type:
+            typeof item.type ===
+              'string'
+              ? item.type
+              : undefined
+        }
+      ]
+    }
+  )
 }
 
 export async function fetchWalletPortfolio(
   address: string,
   options: WalletRequestOptions = {}
 ): Promise<WalletPortfolioResult> {
-  const chainId = options.chainId || DEFAULT_CHAIN_ID
-  const normalizedAddress = normalizeChainAddress(address, chainId)
+  const chainId =
+    options.chainId ||
+    DEFAULT_CHAIN_ID
 
-  if (!isValidChainAddress(normalizedAddress, chainId)) {
+  const normalizedAddress =
+    normalizeChainAddress(
+      address,
+      chainId
+    )
+
+  if (
+    !isValidChainAddress(
+      normalizedAddress,
+      chainId
+    )
+  ) {
     throw new MaCarteiraApiError(
       'O endereço indicado não é válido para a rede selecionada.',
       400
     )
   }
 
-  const parameters = new URLSearchParams({
-    chainId,
-    address: normalizedAddress
-  })
+  const parameters =
+    new URLSearchParams({
+      chainId,
+      address:
+        normalizedAddress
+    })
 
-  const body = await requestJson(
-    `${MA_CARTEIRA_WALLET_API}?${parameters.toString()}`,
-    'Não foi possível consultar os saldos deste endereço.',
-    options
-  )
+  const body =
+    await requestJson(
+      `${MA_CARTEIRA_WALLET_API}?${parameters.toString()}`,
+      'Não foi possível consultar os saldos deste endereço.',
+      options
+    )
 
   if (!isRecord(body)) {
     throw new MaCarteiraApiError(
@@ -663,14 +691,35 @@ export async function fetchWalletPortfolio(
   }
 
   return {
-    chainId: parseChainId(body.chainId, chainId),
-    address: toStringValue(body.address) || normalizedAddress,
-    nativeBalance: toStringValue(body.nativeBalance) || '0',
-    tokens: parseWalletTokens(body.tokens),
-    fetchedAt: toStringValue(body.fetchedAt) || new Date().toISOString(),
-    partial: body.partial === true,
+    chainId:
+      parseChainId(
+        body.chainId,
+        chainId
+      ),
+    address:
+      toStringValue(
+        body.address
+      ) ||
+      normalizedAddress,
+    nativeBalance:
+      toStringValue(
+        body.nativeBalance
+      ) || '0',
+    tokens:
+      parseWalletTokens(
+        body.tokens
+      ),
+    fetchedAt:
+      toStringValue(
+        body.fetchedAt
+      ) ||
+      new Date().toISOString(),
+    partial:
+      body.partial === true,
     notice:
-      typeof body.notice === 'string' && body.notice.trim()
+      typeof body.notice ===
+        'string' &&
+      body.notice.trim()
         ? body.notice.trim()
         : null
   }
@@ -685,7 +734,10 @@ export async function fetchWalletTransactions(
     DEFAULT_CHAIN_ID
 
   const normalizedAddress =
-    normalizeChainAddress(address, chainId)
+    normalizeChainAddress(
+      address,
+      chainId
+    )
 
   if (
     !isValidChainAddress(
@@ -757,26 +809,38 @@ export async function fetchTokenPriceHistory(
   contractAddress: string,
   options: PriceHistoryRequestOptions = {}
 ): Promise<TokenPriceHistory> {
+  const chainId =
+    options.chainId ||
+    DEFAULT_CHAIN_ID
+
+  const nativePriceReference =
+    `native:${chainId}`
+
+  const isNativePriceRequest =
+    contractAddress
+      .trim()
+      .toLowerCase() ===
+    nativePriceReference
+
   const normalizedContract =
-    normalizeChainAddress(
-      contractAddress,
-      options.chainId || DEFAULT_CHAIN_ID
-    )
+    isNativePriceRequest
+      ? nativePriceReference
+      : normalizeChainAddress(
+          contractAddress,
+          chainId
+        )
 
   if (
+    !isNativePriceRequest &&
     !/^0x[a-fA-F0-9]{40}$/.test(
       normalizedContract
     )
   ) {
     throw new MaCarteiraApiError(
-      'O contrato do token não é válido.',
+      'O identificador do ativo não é válido.',
       400
     )
   }
-
-  const chainId =
-    options.chainId ||
-    DEFAULT_CHAIN_ID
 
   const period =
     options.period ||
