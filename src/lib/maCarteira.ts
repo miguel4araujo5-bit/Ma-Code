@@ -562,52 +562,75 @@ export function saveState({
   walletData,
   history
 }: StoredState) {
-  localStorage.setItem(
-    keys.portfolio,
-    JSON.stringify({
-      version: 2,
-      updatedAt:
-        new Date().toISOString(),
-      wallets:
-        wallets.map(
-          (wallet) => ({
-            ...wallet,
-            chainId:
-              getWalletChainId(
-                wallet
-              )
-          })
-        )
-    })
-  )
+  try {
+    const portfolio =
+      JSON.stringify({
+        version: 2,
+        updatedAt:
+          new Date().toISOString(),
+        wallets:
+          wallets.map(
+            (wallet) => ({
+              ...wallet,
+              chainId:
+                getWalletChainId(
+                  wallet
+                )
+            })
+          )
+      })
 
-  localStorage.setItem(
-    keys.data,
-    JSON.stringify(
-      walletData
-    )
-  )
+    const data =
+      JSON.stringify(
+        walletData
+      )
 
-  localStorage.setItem(
-    keys.history,
-    JSON.stringify(
-      history
+    const storedHistory =
+      JSON.stringify(
+        history
+      )
+
+    localStorage.setItem(
+      keys.portfolio,
+      portfolio
     )
-  )
+
+    localStorage.setItem(
+      keys.data,
+      data
+    )
+
+    localStorage.setItem(
+      keys.history,
+      storedHistory
+    )
+
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function clearStoredState() {
-  localStorage.removeItem(
-    keys.portfolio
-  )
+  let cleared = true
 
-  localStorage.removeItem(
-    keys.data
-  )
-
-  localStorage.removeItem(
+  const storageKeys = [
+    keys.portfolio,
+    keys.data,
     keys.history
-  )
+  ]
+
+  for (const key of storageKeys) {
+    try {
+      localStorage.removeItem(
+        key
+      )
+    } catch {
+      cleared = false
+    }
+  }
+
+  return cleared
 }
 
 export function formatBalance(
@@ -678,35 +701,6 @@ export function formatDateTime(
   ).format(
     new Date(value)
   )
-}
-
-const tokenValue = (
-  token: PulseToken
-) => {
-  try {
-    const decimals =
-      Number(
-        token.decimals ?? 18
-      )
-
-    const balance =
-      BigInt(
-        token.balance ?? '0'
-      )
-
-    return (
-      balance /
-      10n **
-        BigInt(
-          Math.max(
-            0,
-            decimals - 6
-          )
-        )
-    )
-  } catch {
-    return 0n
-  }
 }
 
 export async function fetchWallet(
