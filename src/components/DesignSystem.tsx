@@ -262,12 +262,14 @@ export function ActionLink({
 export function ActionButton({
   variant = 'primary',
   size = 'md',
+  type = 'button',
   className,
   children,
   ...props
 }: ActionButtonProps) {
   return (
     <button
+      type={type}
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-60',
         buttonSizes[size],
@@ -306,9 +308,11 @@ export function StatCard({
       <p className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
         {value}
       </p>
+
       <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200">
         {label}
       </p>
+
       {description ? (
         <p className="mt-3 text-sm leading-6 text-slate-400">{description}</p>
       ) : null}
@@ -328,7 +332,9 @@ export function NumberedStep({
       <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] text-sm font-bold text-cyan-200">
         {number}
       </div>
+
       <h3 className="text-lg font-semibold text-white">{title}</h3>
+
       <p className="mt-3 text-sm leading-7 text-slate-300">{description}</p>
     </SurfaceCard>
   )
