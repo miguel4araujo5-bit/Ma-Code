@@ -14,6 +14,7 @@ import {
 
 import {
   DEFAULT_CHAIN_ID,
+  getChainConfig,
   getExplorerTokenUrl,
   type ChainId
 } from '../../lib/maCarteiraChains'
@@ -500,11 +501,29 @@ export default function TokenPricePanel({
     tokenName ||
     'Token'
 
-  const explorerUrl =
-    getExplorerTokenUrl(
-      contractAddress,
+  const isNativeAsset =
+    contractAddress
+      .trim()
+      .toLowerCase() ===
+    `native:${chainId}`
+
+  const chain =
+    getChainConfig(
       chainId
     )
+
+  const explorerUrl =
+    isNativeAsset
+      ? null
+      : getExplorerTokenUrl(
+          contractAddress,
+          chainId
+        )
+
+  const dataProvider =
+    isNativeAsset
+      ? 'CoinGecko'
+      : 'GeckoTerminal'
 
   return (
     <section
@@ -534,25 +553,31 @@ export default function TokenPricePanel({
               {displayName}
             </p>
 
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-xs text-emerald-300 transition hover:text-emerald-200"
-              title={
-                contractAddress
-              }
-            >
-              <span className="truncate">
-                {shortContract(
+            {explorerUrl ? (
+              <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-xs text-emerald-300 transition hover:text-emerald-200"
+                title={
                   contractAddress
-                )}
-              </span>
+                }
+              >
+                <span className="truncate">
+                  {shortContract(
+                    contractAddress
+                  )}
+                </span>
 
-              <span aria-hidden="true">
-                ↗
+                <span aria-hidden="true">
+                  ↗
+                </span>
+              </a>
+            ) : (
+              <span className="mt-1 inline-flex max-w-full items-center gap-1 text-xs font-semibold text-emerald-300">
+                {chain.name} · Ativo nativo
               </span>
-            </a>
+            )}
           </div>
         </div>
 
@@ -598,7 +623,7 @@ export default function TokenPricePanel({
 
       <div className="flex flex-col gap-2 px-2 pb-1 pt-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <p>
-          Dados públicos de mercado fornecidos pela GeckoTerminal.
+          Dados públicos de mercado fornecidos pela {dataProvider}.
         </p>
 
         {visibleHistory
