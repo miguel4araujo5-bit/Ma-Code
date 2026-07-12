@@ -157,7 +157,7 @@ export const CHAIN_CONFIGS = {
       networkId: 'eth',
       wrappedNativeToken:
         '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      coinGeckoId: null
+      coinGeckoId: 'ethereum'
     }
   },
   bnb: {
@@ -197,7 +197,7 @@ export const CHAIN_CONFIGS = {
       networkId: 'bsc',
       wrappedNativeToken:
         '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
-      coinGeckoId: null
+      coinGeckoId: 'binancecoin'
     }
   },
   solana: {
@@ -354,7 +354,7 @@ export const CHAIN_CONFIGS = {
       networkId: 'base',
       wrappedNativeToken:
         '0x4200000000000000000000000000000000000006',
-      coinGeckoId: null
+      coinGeckoId: 'ethereum'
     }
   },
   arbitrum: {
@@ -394,7 +394,7 @@ export const CHAIN_CONFIGS = {
       networkId: 'arbitrum',
       wrappedNativeToken:
         '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-      coinGeckoId: null
+      coinGeckoId: 'ethereum'
     }
   },
   polygon: {
@@ -412,7 +412,11 @@ export const CHAIN_CONFIGS = {
       symbol: 'POL',
       decimals: 18
     },
-    rpcUrls: ['https://polygon-rpc.com'],
+    rpcUrls: [
+      'https://polygon.drpc.org',
+      'https://polygon.publicnode.com',
+      'https://polygon.api.onfinality.io/public'
+    ],
     dataApiUrl: 'https://polygon.blockscout.com/api/v2',
     portfolioProvider: 'blockscout-v2',
     transactionProvider: 'evm-explorer',
@@ -434,7 +438,7 @@ export const CHAIN_CONFIGS = {
       networkId: 'polygon_pos',
       wrappedNativeToken:
         '0x0d500B1d8E8eD2aBC408eE5F4CeaD17D96C0F127',
-      coinGeckoId: null
+      coinGeckoId: 'polygon-ecosystem-token'
     }
   }
 } as const satisfies Record<string, ChainConfig>
