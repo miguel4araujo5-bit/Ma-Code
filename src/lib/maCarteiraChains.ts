@@ -6,7 +6,9 @@ export type ExplorerApiFamily =
   | 'custom'
   | 'none'
 
-export type PriceProvider = 'geckoterminal'
+export type PriceProvider =
+  | 'geckoterminal'
+  | 'coingecko-market'
 
 export type AddressType =
   | 'evm'
@@ -48,6 +50,7 @@ export type ChainPriceConfig = {
   provider: PriceProvider
   networkId: string
   wrappedNativeToken: string | null
+  coinGeckoId: string | null
 }
 
 export type ChainCapabilities = {
@@ -113,7 +116,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'pulsechain',
       wrappedNativeToken:
-        '0xA1077a294dDE1B09bB078844df40758a5D0f9a27'
+        '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
+      coinGeckoId: null
     }
   },
   ethereum: {
@@ -152,7 +156,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'eth',
       wrappedNativeToken:
-        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      coinGeckoId: null
     }
   },
   bnb: {
@@ -191,7 +196,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'bsc',
       wrappedNativeToken:
-        '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'
+        '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+      coinGeckoId: null
     }
   },
   solana: {
@@ -226,7 +232,12 @@ export const CHAIN_CONFIGS = {
       apiUrl: 'https://api.mainnet-beta.solana.com',
       apiFamily: 'custom'
     },
-    price: null
+    price: {
+      provider: 'coingecko-market',
+      networkId: 'solana',
+      wrappedNativeToken: null,
+      coinGeckoId: 'solana'
+    }
   },
   tron: {
     id: 'tron',
@@ -260,7 +271,12 @@ export const CHAIN_CONFIGS = {
       apiUrl: 'https://api.trongrid.io',
       apiFamily: 'custom'
     },
-    price: null
+    price: {
+      provider: 'coingecko-market',
+      networkId: 'tron',
+      wrappedNativeToken: null,
+      coinGeckoId: 'tron'
+    }
   },
   bitcoin: {
     id: 'bitcoin',
@@ -294,7 +310,12 @@ export const CHAIN_CONFIGS = {
       apiUrl: 'https://blockstream.info/api',
       apiFamily: 'custom'
     },
-    price: null
+    price: {
+      provider: 'coingecko-market',
+      networkId: 'bitcoin',
+      wrappedNativeToken: null,
+      coinGeckoId: 'bitcoin'
+    }
   },
   base: {
     id: 'base',
@@ -332,7 +353,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'base',
       wrappedNativeToken:
-        '0x4200000000000000000000000000000000000006'
+        '0x4200000000000000000000000000000000000006',
+      coinGeckoId: null
     }
   },
   arbitrum: {
@@ -371,7 +393,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'arbitrum',
       wrappedNativeToken:
-        '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+        '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+      coinGeckoId: null
     }
   },
   polygon: {
@@ -410,7 +433,8 @@ export const CHAIN_CONFIGS = {
       provider: 'geckoterminal',
       networkId: 'polygon_pos',
       wrappedNativeToken:
-        '0x0d500B1d8E8eD2aBC408eE5F4CeaD17D96C0F127'
+        '0x0d500B1d8E8eD2aBC408eE5F4CeaD17D96C0F127',
+      coinGeckoId: null
     }
   }
 } as const satisfies Record<string, ChainConfig>
@@ -540,6 +564,10 @@ export function getWrappedNativeToken(chainId?: string | null) {
 
 export function getPriceNetworkId(chainId?: string | null) {
   return getChainConfig(chainId).price?.networkId || null
+}
+
+export function getCoinGeckoCoinId(chainId?: string | null) {
+  return getChainConfig(chainId).price?.coinGeckoId || null
 }
 
 export function getTokenStandard(chainId?: string | null) {
