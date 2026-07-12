@@ -2,16 +2,21 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react()
+  ],
   build: {
     cssCodeSplit: true,
     sourcemap: false,
-    reportCompressedSize: false,
+    reportCompressedSize: true,
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom']
+          'react-vendor': [
+            'react',
+            'react-dom'
+          ]
         }
       }
     }
