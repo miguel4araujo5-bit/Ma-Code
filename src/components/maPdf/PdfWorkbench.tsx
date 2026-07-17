@@ -5,14 +5,18 @@ import {
   useState
 } from 'react'
 
-import { pdfTools } from '../../data/pdfTools'
+import {
+  pdfTools
+} from '../../data/pdfTools'
 
 import {
   accentClasses,
   MAX_FILE_SIZE_BYTES
 } from '../../lib/maPdf/constants'
 
-import type { PdfEditElement } from '../../lib/maPdf/editPdf'
+import type {
+  PdfEditElement
+} from '../../lib/maPdf/editPdf'
 
 import {
   createFileId,
@@ -21,8 +25,13 @@ import {
   isPdfFile
 } from '../../lib/maPdf/fileUtils'
 
-import type { SignaturePosition } from '../../lib/maPdf/signPdf'
-import type { WatermarkPosition } from '../../lib/maPdf/watermarkPdf'
+import type {
+  SignaturePosition
+} from '../../lib/maPdf/signPdf'
+
+import type {
+  WatermarkPosition
+} from '../../lib/maPdf/watermarkPdf'
 
 import type {
   ActiveTool,
@@ -45,10 +54,14 @@ import SignatureOptions, {
 
 import SplitOptions from './SplitOptions'
 import UploadZone from './UploadZone'
-import WatermarkOptions from './WatermarkOptions'
+
+import WatermarkOptions, {
+  type WatermarkPageMode
+} from './WatermarkOptions'
 
 type PdfWorkbenchProps = {
-  activeTool: ActiveTool
+  activeTool:
+    ActiveTool
 }
 
 type UploadFileType =
@@ -70,8 +83,16 @@ const DEFAULT_WATERMARK_OPACITY =
 const DEFAULT_WATERMARK_ROTATION =
   45
 
+const DEFAULT_WATERMARK_PAGE_MODE:
+  WatermarkPageMode =
+    'all'
+
+const DEFAULT_WATERMARK_COLOR =
+  '#737373'
+
 const DEFAULT_SIGNATURE_PAGE_MODE:
-  SignaturePageMode = 'last'
+  SignaturePageMode =
+    'last'
 
 const DEFAULT_SIGNATURE_POSITION:
   SignaturePosition =
@@ -84,7 +105,9 @@ const DEFAULT_SIGNATURE_OPACITY =
   1
 
 const MAX_SIGNATURE_SIZE_BYTES =
-  10 * 1024 * 1024
+  10 *
+  1024 *
+  1024
 
 const DOCX_MIME_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -98,12 +121,18 @@ const XLS_MIME_TYPE =
 const PPTX_MIME_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 
-function isPngFile(file: File) {
+function isPngFile(
+  file: File
+) {
   return (
-    file.type === 'image/png' ||
+    file.type ===
+      'image/png' ||
+
     file.name
       .toLowerCase()
-      .endsWith('.png')
+      .endsWith(
+        '.png'
+      )
   )
 }
 
@@ -111,27 +140,41 @@ function isSignatureImage(
   file: File
 ) {
   return (
-    isPngFile(file) ||
-    isJpgFile(file)
+    isPngFile(
+      file
+    ) ||
+
+    isJpgFile(
+      file
+    )
   )
 }
 
-function isDocxFile(file: File) {
+function isDocxFile(
+  file: File
+) {
   return (
     file.type ===
       DOCX_MIME_TYPE ||
+
     file.name
       .toLowerCase()
-      .endsWith('.docx')
+      .endsWith(
+        '.docx'
+      )
   )
 }
 
-function isExcelFile(file: File) {
+function isExcelFile(
+  file: File
+) {
   return (
     file.type ===
       XLSX_MIME_TYPE ||
+
     file.type ===
       XLS_MIME_TYPE ||
+
     /\.xlsx?$/i.test(
       file.name
     )
@@ -144,29 +187,36 @@ function isPowerPointFile(
   return (
     file.type ===
       PPTX_MIME_TYPE ||
+
     file.name
       .toLowerCase()
-      .endsWith('.pptx')
+      .endsWith(
+        '.pptx'
+      )
   )
 }
 
 function getUploadFileType(
-  activeTool: ActiveTool
+  activeTool:
+    ActiveTool
 ): UploadFileType {
   if (
-    activeTool === 'jpgToPdf'
+    activeTool ===
+    'jpgToPdf'
   ) {
     return 'jpg'
   }
 
   if (
-    activeTool === 'wordToPdf'
+    activeTool ===
+    'wordToPdf'
   ) {
     return 'docx'
   }
 
   if (
-    activeTool === 'excelToPdf'
+    activeTool ===
+    'excelToPdf'
   ) {
     return 'excel'
   }
@@ -182,68 +232,126 @@ function getUploadFileType(
 }
 
 function getExpectedFileMessage(
-  fileType: UploadFileType
+  fileType:
+    UploadFileType
 ) {
-  if (fileType === 'jpg') {
-    return 'uma imagem JPG ou JPEG'
+  if (
+    fileType ===
+    'jpg'
+  ) {
+    return (
+      'uma imagem JPG ou JPEG'
+    )
   }
 
-  if (fileType === 'docx') {
-    return 'um documento Word no formato DOCX'
+  if (
+    fileType ===
+    'docx'
+  ) {
+    return (
+      'um documento Word no formato DOCX'
+    )
   }
 
-  if (fileType === 'excel') {
-    return 'uma folha de cálculo Excel no formato XLSX ou XLS'
+  if (
+    fileType ===
+    'excel'
+  ) {
+    return (
+      'uma folha de cálculo Excel no formato XLSX ou XLS'
+    )
   }
 
-  if (fileType === 'pptx') {
-    return 'uma apresentação PowerPoint no formato PPTX'
+  if (
+    fileType ===
+    'pptx'
+  ) {
+    return (
+      'uma apresentação PowerPoint no formato PPTX'
+    )
   }
 
-  return 'um documento PDF'
+  return (
+    'um documento PDF'
+  )
 }
 
 function isValidFileForType(
   file: File,
-  fileType: UploadFileType
+
+  fileType:
+    UploadFileType
 ) {
-  if (fileType === 'jpg') {
-    return isJpgFile(file)
+  if (
+    fileType ===
+    'jpg'
+  ) {
+    return isJpgFile(
+      file
+    )
   }
 
-  if (fileType === 'docx') {
-    return isDocxFile(file)
+  if (
+    fileType ===
+    'docx'
+  ) {
+    return isDocxFile(
+      file
+    )
   }
 
-  if (fileType === 'excel') {
-    return isExcelFile(file)
+  if (
+    fileType ===
+    'excel'
+  ) {
+    return isExcelFile(
+      file
+    )
   }
 
-  if (fileType === 'pptx') {
+  if (
+    fileType ===
+    'pptx'
+  ) {
     return isPowerPointFile(
       file
     )
   }
 
-  return isPdfFile(file)
+  return isPdfFile(
+    file
+  )
 }
 
 function getFileBadge(
-  fileType: UploadFileType
+  fileType:
+    UploadFileType
 ) {
-  if (fileType === 'jpg') {
+  if (
+    fileType ===
+    'jpg'
+  ) {
     return 'JPG'
   }
 
-  if (fileType === 'docx') {
+  if (
+    fileType ===
+    'docx'
+  ) {
     return 'DOCX'
   }
 
-  if (fileType === 'excel') {
+  if (
+    fileType ===
+    'excel'
+  ) {
     return 'XLS'
   }
 
-  if (fileType === 'pptx') {
+  if (
+    fileType ===
+    'pptx'
+  ) {
     return 'PPTX'
   }
 
@@ -256,141 +364,197 @@ export default function PdfWorkbench({
   const [
     selectedFiles,
     setSelectedFiles
-  ] = useState<SelectedPdf[]>(
-    []
-  )
+  ] =
+    useState<
+      SelectedPdf[]
+    >([])
 
   const [
     splitMode,
     setSplitMode
-  ] = useState<SplitMode>(
-    'ranges'
-  )
+  ] =
+    useState<
+      SplitMode
+    >(
+      'ranges'
+    )
 
   const [
     splitRanges,
     setSplitRanges
-  ] = useState('1-3')
+  ] =
+    useState(
+      '1-3'
+    )
 
   const [
     jpgQuality,
     setJpgQuality
-  ] = useState<JpgQuality>(
-    'standard'
-  )
+  ] =
+    useState<
+      JpgQuality
+    >(
+      'standard'
+    )
 
   const [
     editElements,
     setEditElements
-  ] = useState<
-    PdfEditElement[]
-  >([])
+  ] =
+    useState<
+      PdfEditElement[]
+    >([])
 
   const [
     watermarkText,
     setWatermarkText
-  ] = useState(
-    DEFAULT_WATERMARK_TEXT
-  )
+  ] =
+    useState(
+      DEFAULT_WATERMARK_TEXT
+    )
+
+  const [
+    watermarkPageMode,
+    setWatermarkPageMode
+  ] =
+    useState<
+      WatermarkPageMode
+    >(
+      DEFAULT_WATERMARK_PAGE_MODE
+    )
+
+  const [
+    watermarkPageNumber,
+    setWatermarkPageNumber
+  ] =
+    useState(1)
 
   const [
     watermarkPosition,
     setWatermarkPosition
-  ] = useState<
-    WatermarkPosition
-  >('center')
+  ] =
+    useState<
+      WatermarkPosition
+    >(
+      'center'
+    )
 
   const [
     watermarkFontSize,
     setWatermarkFontSize
-  ] = useState(
-    DEFAULT_WATERMARK_FONT_SIZE
-  )
+  ] =
+    useState(
+      DEFAULT_WATERMARK_FONT_SIZE
+    )
 
   const [
     watermarkOpacity,
     setWatermarkOpacity
-  ] = useState(
-    DEFAULT_WATERMARK_OPACITY
-  )
+  ] =
+    useState(
+      DEFAULT_WATERMARK_OPACITY
+    )
 
   const [
     watermarkRotation,
     setWatermarkRotation
-  ] = useState(
-    DEFAULT_WATERMARK_ROTATION
-  )
+  ] =
+    useState(
+      DEFAULT_WATERMARK_ROTATION
+    )
+
+  const [
+    watermarkColor,
+    setWatermarkColor
+  ] =
+    useState(
+      DEFAULT_WATERMARK_COLOR
+    )
 
   const [
     signatureFile,
     setSignatureFile
-  ] = useState<File | null>(
-    null
-  )
+  ] =
+    useState<
+      File |
+      null
+    >(null)
 
   const [
     signaturePageMode,
     setSignaturePageMode
-  ] = useState<
-    SignaturePageMode
-  >(
-    DEFAULT_SIGNATURE_PAGE_MODE
-  )
+  ] =
+    useState<
+      SignaturePageMode
+    >(
+      DEFAULT_SIGNATURE_PAGE_MODE
+    )
 
   const [
     signaturePageNumber,
     setSignaturePageNumber
-  ] = useState(1)
+  ] =
+    useState(1)
 
   const [
     signaturePosition,
     setSignaturePosition
-  ] = useState<
-    SignaturePosition
-  >(
-    DEFAULT_SIGNATURE_POSITION
-  )
+  ] =
+    useState<
+      SignaturePosition
+    >(
+      DEFAULT_SIGNATURE_POSITION
+    )
 
   const [
     signatureWidth,
     setSignatureWidth
-  ] = useState(
-    DEFAULT_SIGNATURE_WIDTH
-  )
+  ] =
+    useState(
+      DEFAULT_SIGNATURE_WIDTH
+    )
 
   const [
     signatureOpacity,
     setSignatureOpacity
-  ] = useState(
-    DEFAULT_SIGNATURE_OPACITY
-  )
+  ] =
+    useState(
+      DEFAULT_SIGNATURE_OPACITY
+    )
 
   const [
     isProcessing,
     setIsProcessing
-  ] = useState(false)
+  ] =
+    useState(
+      false
+    )
 
   const [
     progressMessage,
     setProgressMessage
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     errorMessage,
     setErrorMessage
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     result,
     setResult
-  ] = useState<
-    ResultData | null
-  >(null)
+  ] =
+    useState<
+      ResultData |
+      null
+    >(null)
 
   const fileInputRef =
-    useRef<HTMLInputElement>(
-      null
-    )
+    useRef<
+      HTMLInputElement
+    >(null)
 
   const uploadFileType =
     getUploadFileType(
@@ -398,8 +562,11 @@ export default function PdfWorkbench({
     )
 
   const acceptsMultipleFiles =
-    activeTool === 'merge' ||
-    activeTool === 'jpgToPdf'
+    activeTool ===
+      'merge' ||
+
+    activeTool ===
+      'jpgToPdf'
 
   const allowsReorder =
     acceptsMultipleFiles
@@ -408,10 +575,13 @@ export default function PdfWorkbench({
     useMemo(
       () =>
         pdfTools.find(
-          (tool) =>
+          (
+            tool
+          ) =>
             tool.activeTool ===
             activeTool
         ),
+
       [activeTool]
     )
 
@@ -425,20 +595,41 @@ export default function PdfWorkbench({
           ) =>
             total +
             selected.file.size,
+
           0
         ),
+
       [selectedFiles]
     )
 
   const resetToolOptions =
     () => {
-      setSplitMode('ranges')
-      setSplitRanges('1-3')
-      setJpgQuality('standard')
-      setEditElements([])
+      setSplitMode(
+        'ranges'
+      )
+
+      setSplitRanges(
+        '1-3'
+      )
+
+      setJpgQuality(
+        'standard'
+      )
+
+      setEditElements(
+        []
+      )
 
       setWatermarkText(
         DEFAULT_WATERMARK_TEXT
+      )
+
+      setWatermarkPageMode(
+        DEFAULT_WATERMARK_PAGE_MODE
+      )
+
+      setWatermarkPageNumber(
+        1
       )
 
       setWatermarkPosition(
@@ -457,13 +648,21 @@ export default function PdfWorkbench({
         DEFAULT_WATERMARK_ROTATION
       )
 
-      setSignatureFile(null)
+      setWatermarkColor(
+        DEFAULT_WATERMARK_COLOR
+      )
+
+      setSignatureFile(
+        null
+      )
 
       setSignaturePageMode(
         DEFAULT_SIGNATURE_PAGE_MODE
       )
 
-      setSignaturePageNumber(1)
+      setSignaturePageNumber(
+        1
+      )
 
       setSignaturePosition(
         DEFAULT_SIGNATURE_POSITION
@@ -480,18 +679,26 @@ export default function PdfWorkbench({
 
   const clearOperation =
     () => {
-      setSelectedFiles([])
+      setSelectedFiles(
+        []
+      )
+
       resetToolOptions()
+
       setProgressMessage('')
       setErrorMessage('')
       setResult(null)
-      setIsProcessing(false)
+
+      setIsProcessing(
+        false
+      )
 
       if (
         fileInputRef.current
       ) {
-        fileInputRef.current.value =
-          ''
+        fileInputRef
+          .current
+          .value = ''
       }
     }
 
@@ -499,175 +706,225 @@ export default function PdfWorkbench({
     clearOperation()
   }, [activeTool])
 
-  const addFiles = (
-    files: File[]
-  ) => {
-    setErrorMessage('')
-    setProgressMessage('')
-    setResult(null)
+  const addFiles =
+    (
+      files:
+        File[]
+    ) => {
+      setErrorMessage('')
+      setProgressMessage('')
+      setResult(null)
 
-    const invalidFile =
-      files.find(
-        (file) =>
-          !isValidFileForType(
-            file,
+      const invalidFile =
+        files.find(
+          (
+            file
+          ) =>
+            !isValidFileForType(
+              file,
+              uploadFileType
+            )
+        )
+
+      if (invalidFile) {
+        setErrorMessage(
+          `O ficheiro "${invalidFile.name}" não parece ser ${getExpectedFileMessage(
             uploadFileType
-          )
-      )
+          )}.`
+        )
 
-    if (invalidFile) {
-      setErrorMessage(
-        `O ficheiro "${invalidFile.name}" não parece ser ${getExpectedFileMessage(
-          uploadFileType
-        )}.`
-      )
+        return
+      }
 
-      return
-    }
+      const oversizedFile =
+        files.find(
+          (
+            file
+          ) =>
+            file.size >
+            MAX_FILE_SIZE_BYTES
+        )
 
-    const oversizedFile =
-      files.find(
-        (file) =>
-          file.size >
-          MAX_FILE_SIZE_BYTES
-      )
+      if (oversizedFile) {
+        setErrorMessage(
+          `O ficheiro "${oversizedFile.name}" ultrapassa o limite recomendado de 100 MB.`
+        )
 
-    if (oversizedFile) {
-      setErrorMessage(
-        `O ficheiro "${oversizedFile.name}" ultrapassa o limite recomendado de 100 MB.`
-      )
+        return
+      }
 
-      return
-    }
+      const acceptedFiles =
+        acceptsMultipleFiles
+          ? files
+          : files.slice(
+              0,
+              1
+            )
 
-    const acceptedFiles =
-      acceptsMultipleFiles
-        ? files
-        : files.slice(0, 1)
+      setSelectedFiles(
+        (
+          currentFiles
+        ) => {
+          if (
+            !acceptsMultipleFiles
+          ) {
+            const file =
+              acceptedFiles[0]
 
-    setSelectedFiles(
-      (currentFiles) => {
-        if (
-          !acceptsMultipleFiles
-        ) {
-          const file =
-            acceptedFiles[0]
+            return file
+              ? [
+                  {
+                    id:
+                      createFileId(
+                        file
+                      ),
 
-          return file
-            ? [
-                {
+                    file
+                  }
+                ]
+
+              : currentFiles
+          }
+
+          const existingSignatures =
+            new Set(
+              currentFiles.map(
+                (
+                  item
+                ) =>
+                  `${item.file.name}-${item.file.size}-${item.file.lastModified}`
+              )
+            )
+
+          const newFiles =
+            acceptedFiles
+              .filter(
+                (
+                  file
+                ) =>
+                  !existingSignatures.has(
+                    `${file.name}-${file.size}-${file.lastModified}`
+                  )
+              )
+              .map(
+                (
+                  file
+                ) => ({
                   id:
                     createFileId(
                       file
                     ),
+
                   file
-                }
-              ]
-            : currentFiles
-        }
+                })
+              )
 
-        const existingSignatures =
-          new Set(
-            currentFiles.map(
-              (item) =>
-                `${item.file.name}-${item.file.size}-${item.file.lastModified}`
-            )
+          return [
+            ...currentFiles,
+            ...newFiles
+          ]
+        }
+      )
+    }
+
+  const removeFile =
+    (
+      id:
+        string
+    ) => {
+      setSelectedFiles(
+        (
+          currentFiles
+        ) =>
+          currentFiles.filter(
+            (
+              item
+            ) =>
+              item.id !==
+              id
           )
+      )
 
-        const newFiles =
-          acceptedFiles
-            .filter(
-              (file) =>
-                !existingSignatures.has(
-                  `${file.name}-${file.size}-${file.lastModified}`
-                )
+      setResult(null)
+      setProgressMessage('')
+      setErrorMessage('')
+    }
+
+  const moveFile =
+    (
+      index:
+        number,
+
+      direction:
+        -1 |
+        1
+    ) => {
+      setSelectedFiles(
+        (
+          currentFiles
+        ) => {
+          const destination =
+            index +
+            direction
+
+          if (
+            destination < 0 ||
+
+            destination >=
+              currentFiles.length
+          ) {
+            return currentFiles
+          }
+
+          const reordered = [
+            ...currentFiles
+          ]
+
+          const [
+            movedItem
+          ] =
+            reordered.splice(
+              index,
+              1
             )
-            .map((file) => ({
-              id: createFileId(
-                file
-              ),
-              file
-            }))
 
-        return [
-          ...currentFiles,
-          ...newFiles
-        ]
-      }
-    )
-  }
-
-  const removeFile = (
-    id: string
-  ) => {
-    setSelectedFiles(
-      (currentFiles) =>
-        currentFiles.filter(
-          (item) =>
-            item.id !== id
-        )
-    )
-
-    setResult(null)
-    setProgressMessage('')
-    setErrorMessage('')
-  }
-
-  const moveFile = (
-    index: number,
-    direction: -1 | 1
-  ) => {
-    setSelectedFiles(
-      (currentFiles) => {
-        const destination =
-          index + direction
-
-        if (
-          destination < 0 ||
-          destination >=
-            currentFiles.length
-        ) {
-          return currentFiles
-        }
-
-        const reordered = [
-          ...currentFiles
-        ]
-
-        const [movedItem] =
           reordered.splice(
-            index,
-            1
+            destination,
+            0,
+            movedItem
           )
 
-        reordered.splice(
-          destination,
-          0,
-          movedItem
-        )
-
-        return reordered
-      }
-    )
-  }
+          return reordered
+        }
+      )
+    }
 
   const handleSignatureFileChange =
     (
-      file: File | null
+      file:
+        File |
+        null
     ) => {
       setErrorMessage('')
       setResult(null)
       setProgressMessage('')
 
       if (!file) {
-        setSignatureFile(null)
+        setSignatureFile(
+          null
+        )
+
         return
       }
 
       if (
-        !isSignatureImage(file)
+        !isSignatureImage(
+          file
+        )
       ) {
-        setSignatureFile(null)
+        setSignatureFile(
+          null
+        )
 
         setErrorMessage(
           'A assinatura deve estar num ficheiro PNG, JPG ou JPEG.'
@@ -680,7 +937,9 @@ export default function PdfWorkbench({
         file.size >
         MAX_SIGNATURE_SIZE_BYTES
       ) {
-        setSignatureFile(null)
+        setSignatureFile(
+          null
+        )
 
         setErrorMessage(
           'A imagem da assinatura ultrapassa o limite de 10 MB.'
@@ -689,8 +948,12 @@ export default function PdfWorkbench({
         return
       }
 
-      if (file.size === 0) {
-        setSignatureFile(null)
+      if (
+        file.size === 0
+      ) {
+        setSignatureFile(
+          null
+        )
 
         setErrorMessage(
           'O ficheiro da assinatura está vazio.'
@@ -699,7 +962,9 @@ export default function PdfWorkbench({
         return
       }
 
-      setSignatureFile(file)
+      setSignatureFile(
+        file
+      )
     }
 
   const processCurrentTool =
@@ -708,7 +973,10 @@ export default function PdfWorkbench({
         return
       }
 
-      setIsProcessing(true)
+      setIsProcessing(
+        true
+      )
+
       setErrorMessage('')
       setProgressMessage('')
       setResult(null)
@@ -718,13 +986,15 @@ export default function PdfWorkbench({
           ResultData
 
         if (
-          activeTool === 'merge'
+          activeTool ===
+          'merge'
         ) {
           const {
             mergePdfFiles
-          } = await import(
-            '../../lib/maPdf/mergePdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/mergePdf'
+            )
 
           generatedResult =
             await mergePdfFiles(
@@ -732,13 +1002,15 @@ export default function PdfWorkbench({
               setProgressMessage
             )
         } else if (
-          activeTool === 'split'
+          activeTool ===
+          'split'
         ) {
           const {
             splitPdfFile
-          } = await import(
-            '../../lib/maPdf/splitPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/splitPdf'
+            )
 
           generatedResult =
             await splitPdfFile(
@@ -748,13 +1020,15 @@ export default function PdfWorkbench({
               setProgressMessage
             )
         } else if (
-          activeTool === 'compress'
+          activeTool ===
+          'compress'
         ) {
           const {
             compressPdfFile
-          } = await import(
-            '../../lib/maPdf/compressPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/compressPdf'
+            )
 
           generatedResult =
             await compressPdfFile(
@@ -767,9 +1041,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPdfToWord
-          } = await import(
-            '../../lib/maPdf/pdfToWord'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/pdfToWord'
+            )
 
           generatedResult =
             await convertPdfToWord(
@@ -782,9 +1057,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertWordToPdf
-          } = await import(
-            '../../lib/maPdf/wordToPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/wordToPdf'
+            )
 
           generatedResult =
             await convertWordToPdf(
@@ -797,9 +1073,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPdfToDoc
-          } = await import(
-            '../../lib/maPdf/pdfToDoc'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/pdfToDoc'
+            )
 
           generatedResult =
             await convertPdfToDoc(
@@ -812,9 +1089,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPdfToExcel
-          } = await import(
-            '../../lib/maPdf/pdfToExcel'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/pdfToExcel'
+            )
 
           generatedResult =
             await convertPdfToExcel(
@@ -827,9 +1105,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertExcelToPdf
-          } = await import(
-            '../../lib/maPdf/excelToPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/excelToPdf'
+            )
 
           generatedResult =
             await convertExcelToPdf(
@@ -842,9 +1121,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPdfToPowerPoint
-          } = await import(
-            '../../lib/maPdf/pdfToPowerPoint'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/pdfToPowerPoint'
+            )
 
           generatedResult =
             await convertPdfToPowerPoint(
@@ -857,9 +1137,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPowerPointToPdf
-          } = await import(
-            '../../lib/maPdf/powerPointToPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/powerPointToPdf'
+            )
 
           generatedResult =
             await convertPowerPointToPdf(
@@ -872,9 +1153,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertPdfToJpg
-          } = await import(
-            '../../lib/maPdf/pdfToJpg'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/pdfToJpg'
+            )
 
           generatedResult =
             await convertPdfToJpg(
@@ -888,9 +1170,10 @@ export default function PdfWorkbench({
         ) {
           const {
             convertJpgToPdf
-          } = await import(
-            '../../lib/maPdf/jpgToPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/jpgToPdf'
+            )
 
           generatedResult =
             await convertJpgToPdf(
@@ -903,9 +1186,10 @@ export default function PdfWorkbench({
         ) {
           const {
             editPdf
-          } = await import(
-            '../../lib/maPdf/editPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/editPdf'
+            )
 
           generatedResult =
             await editPdf(
@@ -922,9 +1206,10 @@ export default function PdfWorkbench({
         ) {
           const {
             addWatermarkToPdf
-          } = await import(
-            '../../lib/maPdf/watermarkPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/watermarkPdf'
+            )
 
           generatedResult =
             await addWatermarkToPdf(
@@ -932,21 +1217,39 @@ export default function PdfWorkbench({
               {
                 text:
                   watermarkText,
+
+                page:
+                  watermarkPageMode ===
+                  'custom'
+
+                    ? watermarkPageNumber
+
+                    : watermarkPageMode,
+
                 position:
                   watermarkPosition,
+
                 fontSize:
                   watermarkFontSize,
+
                 opacity:
                   watermarkOpacity,
+
                 rotation:
-                  watermarkRotation
+                  watermarkRotation,
+
+                color:
+                  watermarkColor
               },
               setProgressMessage
             )
         } else if (
-          activeTool === 'sign'
+          activeTool ===
+          'sign'
         ) {
-          if (!signatureFile) {
+          if (
+            !signatureFile
+          ) {
             throw new Error(
               'Escolha uma imagem PNG, JPG ou JPEG com a assinatura.'
             )
@@ -954,24 +1257,31 @@ export default function PdfWorkbench({
 
           const {
             signPdf
-          } = await import(
-            '../../lib/maPdf/signPdf'
-          )
+          } =
+            await import(
+              '../../lib/maPdf/signPdf'
+            )
 
           generatedResult =
             await signPdf(
               selectedFiles[0],
               {
                 signatureFile,
+
                 page:
                   signaturePageMode ===
                   'custom'
+
                     ? signaturePageNumber
+
                     : signaturePageMode,
+
                 position:
                   signaturePosition,
+
                 width:
                   signatureWidth,
+
                 opacity:
                   signatureOpacity
               },
@@ -990,25 +1300,36 @@ export default function PdfWorkbench({
         setProgressMessage(
           'Processamento concluído.'
         )
-      } catch (error) {
+      } catch (
+        error
+      ) {
         const message =
-          error instanceof Error
+          error instanceof
+            Error
+
             ? error.message
+
             : 'Não foi possível processar este documento.'
 
         const normalizedMessage =
-          message.toLowerCase()
+          message
+            .toLowerCase()
 
         if (
-          normalizedMessage.includes(
-            'encrypted'
-          ) ||
-          normalizedMessage.includes(
-            'password'
-          ) ||
-          normalizedMessage.includes(
-            'palavra-passe'
-          )
+          normalizedMessage
+            .includes(
+              'encrypted'
+            ) ||
+
+          normalizedMessage
+            .includes(
+              'password'
+            ) ||
+
+          normalizedMessage
+            .includes(
+              'palavra-passe'
+            )
         ) {
           setErrorMessage(
             'Este PDF está protegido por palavra-passe. Remova a proteção antes de utilizar a ferramenta.'
@@ -1021,88 +1342,122 @@ export default function PdfWorkbench({
             'Não foi possível ler uma das imagens. Confirme que todos os ficheiros são JPG ou JPEG válidos.'
           )
         } else {
-          setErrorMessage(message)
+          setErrorMessage(
+            message
+          )
         }
 
         setProgressMessage('')
       } finally {
-        setIsProcessing(false)
+        setIsProcessing(
+          false
+        )
       }
     }
 
   const canProcess =
-    activeTool === 'merge'
-      ? selectedFiles.length >= 2
+    activeTool ===
+    'merge'
+      ? selectedFiles.length >=
+        2
+
       : activeTool ===
-          'jpgToPdf'
-        ? selectedFiles.length >= 1
+        'jpgToPdf'
+        ? selectedFiles.length >=
+          1
+
         : activeTool ===
-            'editPdf'
+          'editPdf'
           ? selectedFiles.length ===
               1 &&
-            editElements.length > 0
+            editElements.length >
+              0
+
           : activeTool ===
-              'watermark'
+            'watermark'
             ? selectedFiles.length ===
                 1 &&
               watermarkText
                 .trim()
-                .length > 0
-            : activeTool === 'sign'
+                .length >
+                0
+
+            : activeTool ===
+              'sign'
               ? selectedFiles.length ===
                   1 &&
                 signatureFile !==
                   null
+
               : selectedFiles.length ===
                 1
 
   const buttonText =
-    activeTool === 'merge'
+    activeTool ===
+    'merge'
       ? 'Juntar ficheiros PDF'
-      : activeTool === 'split'
+
+      : activeTool ===
+        'split'
         ? splitMode ===
           'individual'
+
           ? 'Separar todas as páginas'
+
           : 'Extrair páginas selecionadas'
+
         : activeTool ===
-            'compress'
+          'compress'
           ? 'Otimizar PDF'
+
           : activeTool ===
-              'pdfToWord'
+            'pdfToWord'
             ? 'Converter PDF para Word'
+
             : activeTool ===
-                'wordToPdf'
+              'wordToPdf'
               ? 'Converter Word para PDF'
+
               : activeTool ===
-                  'pdfToDoc'
+                'pdfToDoc'
                 ? 'Converter PDF para DOC'
+
                 : activeTool ===
-                    'pdfToExcel'
+                  'pdfToExcel'
                   ? 'Converter PDF para Excel'
+
                   : activeTool ===
-                      'excelToPdf'
+                    'excelToPdf'
                     ? 'Converter Excel para PDF'
+
                     : activeTool ===
-                        'pdfToPowerPoint'
+                      'pdfToPowerPoint'
                       ? 'Converter PDF para PowerPoint'
+
                       : activeTool ===
-                          'powerPointToPdf'
+                        'powerPointToPdf'
                         ? 'Converter PowerPoint para PDF'
+
                         : activeTool ===
-                            'pdfToJpg'
+                          'pdfToJpg'
                           ? 'Converter PDF para JPG'
+
                           : activeTool ===
-                              'jpgToPdf'
+                            'jpgToPdf'
                             ? 'Converter imagens para PDF'
+
                             : activeTool ===
-                                'editPdf'
+                              'editPdf'
                               ? 'Criar PDF editado'
+
                               : activeTool ===
-                                  'watermark'
+                                'watermark'
                                 ? 'Adicionar marca de água'
+
                                 : activeTool ===
-                                    'sign'
+                                  'sign'
                                   ? 'Assinar documento PDF'
+
                                   : 'Processar documento'
 
   return (
@@ -1118,8 +1473,9 @@ export default function PdfWorkbench({
                 <div
                   className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${
                     accentClasses[
-                      activeToolData?.accent ||
-                        'cyan'
+                      activeToolData
+                        ?.accent ||
+                      'cyan'
                     ]
                   }`}
                 >
@@ -1158,22 +1514,28 @@ export default function PdfWorkbench({
             <SelectedFilesList
               files={selectedFiles}
               allowReorder={allowsReorder}
-              fileBadge={getFileBadge(
-                uploadFileType
-              )}
+              fileBadge={
+                getFileBadge(
+                  uploadFileType
+                )
+              }
               onRemove={removeFile}
               onMove={moveFile}
             />
 
-            {activeTool === 'merge' &&
-            selectedFiles.length > 0 ? (
+            {activeTool ===
+              'merge' &&
+            selectedFiles.length >
+              0 ? (
               <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
                 Os documentos serão unidos pela ordem apresentada acima. Utilize as setas para alterar a ordem.
               </div>
             ) : null}
 
-            {activeTool === 'split' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'split' &&
+            selectedFiles.length ===
+              1 ? (
               <SplitOptions
                 splitMode={splitMode}
                 splitRanges={splitRanges}
@@ -1182,54 +1544,70 @@ export default function PdfWorkbench({
               />
             ) : null}
 
-            {activeTool === 'compress' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'compress' &&
+            selectedFiles.length ===
+              1 ? (
               <CompressInfo />
             ) : null}
 
-            {activeTool === 'pdfToJpg' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'pdfToJpg' &&
+            selectedFiles.length ===
+              1 ? (
               <PdfToJpgOptions
                 jpgQuality={jpgQuality}
                 onQualityChange={setJpgQuality}
               />
             ) : null}
 
-            {activeTool === 'jpgToPdf' &&
-            selectedFiles.length > 0 ? (
+            {activeTool ===
+              'jpgToPdf' &&
+            selectedFiles.length >
+              0 ? (
               <JpgToPdfInfo />
             ) : null}
 
-            {activeTool === 'pdfToWord' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'pdfToWord' &&
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
                 O texto selecionável será extraído para um ficheiro DOCX editável. PDFs digitalizados apenas como imagem podem necessitar de OCR.
               </div>
             ) : null}
 
-            {activeTool === 'wordToPdf' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'wordToPdf' &&
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
                 O conversor aceita documentos DOCX e preserva texto, parágrafos e formatação básica. Tabelas complexas, imagens e paginação podem apresentar diferenças.
               </div>
             ) : null}
 
-            {activeTool === 'pdfToDoc' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'pdfToDoc' &&
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-blue-300/15 bg-blue-300/[0.05] p-4 text-sm leading-6 text-blue-50/85">
                 O texto selecionável será extraído para um ficheiro DOC editável. PDFs digitalizados apenas como imagem podem necessitar de OCR.
               </div>
             ) : null}
 
-            {activeTool === 'pdfToExcel' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'pdfToExcel' &&
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] p-4 text-sm leading-6 text-emerald-50/85">
                 Cada página será criada como uma folha Excel. A separação de linhas e colunas depende da estrutura do texto selecionável existente no PDF.
               </div>
             ) : null}
 
-            {activeTool === 'excelToPdf' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'excelToPdf' &&
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] p-4 text-sm leading-6 text-emerald-50/85">
                 Todas as folhas preenchidas serão convertidas para páginas PDF horizontais. Fórmulas são apresentadas pelos valores calculados; macros, gráficos e imagens não são reproduzidos.
               </div>
@@ -1237,7 +1615,8 @@ export default function PdfWorkbench({
 
             {activeTool ===
               'pdfToPowerPoint' &&
-            selectedFiles.length === 1 ? (
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-orange-300/15 bg-orange-300/[0.05] p-4 text-sm leading-6 text-orange-50/85">
                 Cada página do PDF será colocada como imagem num slide PowerPoint, preservando o aspeto visual do documento original.
               </div>
@@ -1245,41 +1624,64 @@ export default function PdfWorkbench({
 
             {activeTool ===
               'powerPointToPdf' &&
-            selectedFiles.length === 1 ? (
+            selectedFiles.length ===
+              1 ? (
               <div className="mt-5 rounded-2xl border border-orange-300/15 bg-orange-300/[0.05] p-4 text-sm leading-6 text-orange-50/85">
                 O conversor processa ficheiros PPTX no navegador. Texto e imagens comuns são preservados; animações, vídeo, SmartArt, gráficos e efeitos avançados podem apresentar diferenças.
               </div>
             ) : null}
 
-            {activeTool === 'editPdf' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'editPdf' &&
+            selectedFiles.length ===
+              1 ? (
               <EditPdfOptions
-                pdfFile={selectedFiles[0].file}
+                pdfFile={
+                  selectedFiles[0]
+                    .file
+                }
                 elements={editElements}
                 onElementsChange={setEditElements}
               />
             ) : null}
 
-            {activeTool === 'watermark' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'watermark' &&
+            selectedFiles.length ===
+              1 ? (
               <WatermarkOptions
+                pdfFile={
+                  selectedFiles[0]
+                    .file
+                }
                 text={watermarkText}
+                pageMode={watermarkPageMode}
+                pageNumber={watermarkPageNumber}
                 position={watermarkPosition}
                 fontSize={watermarkFontSize}
                 opacity={watermarkOpacity}
                 rotation={watermarkRotation}
+                color={watermarkColor}
                 onTextChange={setWatermarkText}
+                onPageModeChange={setWatermarkPageMode}
+                onPageNumberChange={setWatermarkPageNumber}
                 onPositionChange={setWatermarkPosition}
                 onFontSizeChange={setWatermarkFontSize}
                 onOpacityChange={setWatermarkOpacity}
                 onRotationChange={setWatermarkRotation}
+                onColorChange={setWatermarkColor}
               />
             ) : null}
 
-            {activeTool === 'sign' &&
-            selectedFiles.length === 1 ? (
+            {activeTool ===
+              'sign' &&
+            selectedFiles.length ===
+              1 ? (
               <SignatureOptions
-                pdfFile={selectedFiles[0].file}
+                pdfFile={
+                  selectedFiles[0]
+                    .file
+                }
                 signatureFile={signatureFile}
                 pageMode={signaturePageMode}
                 pageNumber={signaturePageNumber}
@@ -1295,20 +1697,28 @@ export default function PdfWorkbench({
               />
             ) : null}
 
-            {selectedFiles.length > 0 ? (
+            {selectedFiles.length >
+            0 ? (
               <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-400">
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-                  {selectedFiles.length}{' '}
+                  {
+                    selectedFiles.length
+                  }{' '}
                   ficheiro
-                  {selectedFiles.length === 1
-                    ? ''
-                    : 's'}
+                  {
+                    selectedFiles.length ===
+                    1
+                      ? ''
+                      : 's'
+                  }
                 </span>
 
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-                  {formatFileSize(
-                    totalSelectedSize
-                  )}
+                  {
+                    formatFileSize(
+                      totalSelectedSize
+                    )
+                  }
                 </span>
               </div>
             ) : null}
