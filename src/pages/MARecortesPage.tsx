@@ -190,8 +190,13 @@ function downloadBlob(
   link.click()
   link.remove()
 
-  URL.revokeObjectURL(
-    url
+  window.setTimeout(
+    () => {
+      URL.revokeObjectURL(
+        url
+      )
+    },
+    500
   )
 }
 
@@ -361,7 +366,7 @@ export default function MARecortesPage() {
 
     updateMeta(
       'description',
-      'Crie stickers para WhatsApp: selecione uma fotografia por pontos, corrija o recorte manualmente e exporte em PNG transparente.'
+      'Crie imagens preparadas para stickers do WhatsApp: selecione uma fotografia por pontos, corrija o recorte e exporte em PNG transparente.'
     )
 
     updateMeta(
@@ -401,7 +406,7 @@ export default function MARecortesPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Selecione fotografias por pontos, ajuste as margens e exporte como PNG transparente ou sticker para WhatsApp.'
+      'Selecione fotografias por pontos, ajuste as margens e exporte uma imagem preparada para criar um sticker no WhatsApp.'
     )
 
     updatePropertyMeta(
@@ -421,7 +426,7 @@ export default function MARecortesPage() {
 
     updateMeta(
       'twitter:description',
-      'Selecione, corrija e exporte stickers para WhatsApp diretamente no navegador.'
+      'Selecione, corrija e exporte imagens transparentes preparadas para stickers.'
     )
 
     updateMeta(
@@ -449,7 +454,7 @@ export default function MARecortesPage() {
         url:
           `${siteUrl}/produtos/ma-recortes`,
         description:
-          'Aplicação web para selecionar e recortar imagens manualmente, corrigir margens e exportar PNG transparentes e stickers para WhatsApp.',
+          'Aplicação web para selecionar e recortar imagens manualmente, corrigir margens e exportar PNG transparentes preparados para stickers.',
         offers: {
           '@type':
             'Offer',
@@ -718,6 +723,8 @@ export default function MARecortesPage() {
           'adjust'
         )
 
+        setZoom(1)
+
         setBrushMode(
           'restore'
         )
@@ -840,6 +847,7 @@ export default function MARecortesPage() {
       setOriginalMask(null)
       setHistory([])
       setSelectionPoints([])
+      setZoom(1)
 
       setEditorStage(
         'select'
@@ -882,6 +890,8 @@ export default function MARecortesPage() {
             setEditorStage(
               'adjust'
             )
+
+            setZoom(1)
 
             setNotice({
               type:
@@ -1186,7 +1196,7 @@ export default function MARecortesPage() {
         type: 'info',
         text:
           whatsapp
-            ? 'A preparar o sticker para partilhar…'
+            ? 'A preparar a imagem para criar o sticker no WhatsApp…'
             : 'A criar o PNG transparente…'
       })
 
@@ -1203,102 +1213,34 @@ export default function MARecortesPage() {
 
         const fileName =
           whatsapp
-            ? 'ma-recortes-sticker.png'
+            ? 'ma-recortes-para-whatsapp.png'
             : 'ma-recortes.png'
 
-        if (whatsapp) {
-          const file =
-            new File(
-              [blob],
-              fileName,
-              {
-                type:
-                  'image/png'
-              }
-            )
+        downloadBlob(
+          blob,
+          fileName
+        )
 
-          const shareData:
-            ShareData = {
-              files: [
-                file
-              ],
-              title:
-                'Sticker criado no MA-Recortes',
-              text:
-                'Sticker criado em ma-code.pt/produtos/ma-recortes'
-            }
-
-          if (
-            navigator.share &&
-            (
-              !navigator.canShare ||
-              navigator.canShare(
-                shareData
-              )
-            )
-          ) {
-            await navigator.share(
-              shareData
-            )
-
-            setNotice({
-              type:
-                'success',
-              text:
-                'Escolha o WhatsApp na janela de partilha.'
-            })
-          } else {
-            downloadBlob(
-              blob,
-              fileName
-            )
-
-            setNotice({
-              type:
-                'info',
-              text:
-                'O navegador não permite partilha direta. O sticker foi descarregado.'
-            })
-          }
-        } else {
-          downloadBlob(
-            blob,
-            fileName
-          )
-
-          setNotice({
-            type:
-              'success',
-            text:
-              'PNG transparente descarregado com sucesso.'
-          })
-        }
+        setNotice({
+          type:
+            'success',
+          text:
+            whatsapp
+              ? 'Imagem guardada. Abra o WhatsApp, entre numa conversa, abra os stickers, escolha “Criar” e selecione esta imagem para a guardar como sticker.'
+              : 'PNG transparente descarregado com sucesso.'
+        })
       } catch (
         error
       ) {
-        if (
-          error instanceof
-            DOMException &&
-          error.name ===
-            'AbortError'
-        ) {
-          setNotice({
-            type:
-              'info',
-            text:
-              'Partilha cancelada. O recorte continua disponível.'
-          })
-        } else {
-          setNotice({
-            type:
-              'error',
-            text:
-              error instanceof
-              Error
-                ? error.message
-                : 'Não foi possível exportar o recorte.'
-          })
-        }
+        setNotice({
+          type:
+            'error',
+          text:
+            error instanceof
+            Error
+              ? error.message
+              : 'Não foi possível exportar o recorte.'
+        })
       } finally {
         setProcessing(false)
       }
@@ -1312,13 +1254,20 @@ export default function MARecortesPage() {
       setSelectionPoints([])
       setHistory([])
       setNotice(null)
+      setZoom(1)
+
       setEditorStage(
         'adjust'
       )
     }
 
+  const editorWidthPercentage =
+    Math.round(
+      zoom * 100
+    )
+
   return (
-    <main className="site-shell">
+    <main className="site-shell overflow-x-hidden">
       <div className="site-bg-orb site-bg-orb-one" />
       <div className="site-bg-orb site-bg-orb-two" />
       <div className="site-bg-orb site-bg-orb-three" />
@@ -1379,9 +1328,9 @@ export default function MARecortesPage() {
             </div>
 
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white md:text-6xl">
-              Selecione o contorno e transforme a fotografia num{' '}
+              Selecione o contorno e prepare a fotografia para criar um{' '}
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-200 bg-clip-text text-transparent">
-                sticker para WhatsApp
+                sticker no WhatsApp
               </span>
               .
             </h1>
@@ -1409,11 +1358,11 @@ export default function MARecortesPage() {
         </div>
       </section>
 
-      <section className="relative z-10 px-5 pb-20 sm:px-6 md:px-10">
-        <div className="mx-auto max-w-7xl">
+      <section className="relative z-10 min-w-0 px-5 pb-20 sm:px-6 md:px-10">
+        <div className="mx-auto min-w-0 max-w-7xl">
           {!editor ? (
-            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="service-card">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="service-card min-w-0">
                 <span className="section-label">
                   1 · Escolher modo
                 </span>
@@ -1425,7 +1374,7 @@ export default function MARecortesPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   Recomendamos o modo manual por pontos. É mais
                   previsível e permite indicar exatamente a área que
-                  deve ficar no sticker.
+                  deve ficar na imagem.
                 </p>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -1499,7 +1448,7 @@ export default function MARecortesPage() {
                 )}
               </div>
 
-              <div className="service-card flex min-h-[360px] flex-col items-center justify-center text-center">
+              <div className="service-card flex min-h-[360px] min-w-0 flex-col items-center justify-center text-center">
                 <div className="flex size-20 items-center justify-center rounded-3xl border border-cyan-300/25 bg-cyan-300/10 text-3xl shadow-xl shadow-cyan-950/30">
                   ✂
                 </div>
@@ -1550,8 +1499,8 @@ export default function MARecortesPage() {
               </div>
             </div>
           ) : (
-            <div className="grid items-start gap-6 xl:grid-cols-[330px_minmax(0,1fr)]">
-              <aside className="service-card xl:sticky xl:top-5">
+            <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[330px_minmax(0,1fr)]">
+              <aside className="service-card min-w-0 xl:sticky xl:top-5">
                 <div className="flex items-center justify-between gap-3">
                   <span className="section-label">
                     {editorStage ===
@@ -1726,10 +1675,7 @@ export default function MARecortesPage() {
                         Zoom
 
                         <strong className="text-cyan-200">
-                          {Math.round(
-                            zoom *
-                              100
-                          )}
+                          {editorWidthPercentage}
                           %
                         </strong>
                       </span>
@@ -1914,8 +1860,8 @@ export default function MARecortesPage() {
                 )}
               </aside>
 
-              <div className="space-y-6">
-                <section className="service-card overflow-hidden">
+              <div className="min-w-0 space-y-6">
+                <section className="service-card min-w-0 overflow-hidden">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <span className="section-label">
@@ -1928,7 +1874,7 @@ export default function MARecortesPage() {
                       <p className="mt-3 text-sm leading-6 text-slate-300">
                         {editorStage ===
                         'select'
-                          ? 'Toque à volta da área que pretende manter. O primeiro ponto aparece a amarelo.'
+                          ? 'A fotografia foi ajustada ao ecrã. Toque à volta da área que pretende manter. O primeiro ponto aparece a amarelo.'
                           : 'Pinte diretamente sobre a imagem com Restaurar ou Remover.'}
                       </p>
                     </div>
@@ -1941,70 +1887,89 @@ export default function MARecortesPage() {
                     </span>
                   </div>
 
-                  <div className="mt-6 max-h-[72vh] overflow-auto rounded-3xl border border-white/10 bg-[linear-gradient(45deg,rgba(255,255,255,0.07)_25%,transparent_25%),linear-gradient(-45deg,rgba(255,255,255,0.07)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,rgba(255,255,255,0.07)_75%),linear-gradient(-45deg,transparent_75%,rgba(255,255,255,0.07)_75%)] bg-[length:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0px] p-3 sm:p-5">
-                    <div
-                      className="mx-auto origin-top transition-transform duration-200"
-                      style={{
-                        width:
-                          `${editor.width}px`,
-                        maxWidth:
-                          '100%',
-                        transform:
-                          `scale(${zoom})`,
-                        transformOrigin:
-                          'top center',
-                        marginBottom:
-                          `${Math.max(
-                            0,
-                            (
-                              zoom -
-                              1
-                            ) *
-                              Math.min(
-                                editor.height,
-                                700
-                              )
-                          )}px`
-                      }}
-                    >
-                      <canvas
-                        ref={
-                          canvasRef
-                        }
-                        onPointerDown={
-                          handlePointerDown
-                        }
-                        onPointerMove={
-                          handlePointerMove
-                        }
-                        onPointerUp={
-                          stopPainting
-                        }
-                        onPointerCancel={
-                          stopPainting
-                        }
-                        onPointerLeave={
-                          stopPainting
-                        }
-                        className={`block h-auto w-full touch-none rounded-2xl ${
-                          editorStage ===
-                          'select'
-                            ? 'cursor-crosshair'
-                            : brushMode ===
-                                'remove'
+                  <div
+                    className={`mt-6 min-w-0 rounded-3xl border border-white/10 bg-[linear-gradient(45deg,rgba(255,255,255,0.07)_25%,transparent_25%),linear-gradient(-45deg,rgba(255,255,255,0.07)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,rgba(255,255,255,0.07)_75%),linear-gradient(-45deg,transparent_75%,rgba(255,255,255,0.07)_75%)] bg-[length:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0px] p-2 sm:p-4 ${
+                      editorStage ===
+                      'select'
+                        ? 'overflow-hidden'
+                        : 'max-h-[72vh] overflow-auto'
+                    }`}
+                  >
+                    {editorStage ===
+                    'select' ? (
+                      <div className="flex min-h-0 w-full min-w-0 items-center justify-center">
+                        <canvas
+                          ref={
+                            canvasRef
+                          }
+                          onPointerDown={
+                            handlePointerDown
+                          }
+                          onPointerMove={
+                            handlePointerMove
+                          }
+                          onPointerUp={
+                            stopPainting
+                          }
+                          onPointerCancel={
+                            stopPainting
+                          }
+                          onPointerLeave={
+                            stopPainting
+                          }
+                          className="block h-auto max-h-[65vh] w-auto max-w-full touch-none cursor-crosshair rounded-2xl"
+                          aria-label="Selecionar o contorno da imagem"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="mx-auto min-w-0"
+                        style={{
+                          width:
+                            `${editorWidthPercentage}%`,
+                          maxWidth:
+                            `${Math.round(
+                              editor.width *
+                                zoom
+                            )}px`
+                        }}
+                      >
+                        <canvas
+                          ref={
+                            canvasRef
+                          }
+                          onPointerDown={
+                            handlePointerDown
+                          }
+                          onPointerMove={
+                            handlePointerMove
+                          }
+                          onPointerUp={
+                            stopPainting
+                          }
+                          onPointerCancel={
+                            stopPainting
+                          }
+                          onPointerLeave={
+                            stopPainting
+                          }
+                          className={`block h-auto w-full touch-none rounded-2xl ${
+                            brushMode ===
+                            'remove'
                               ? 'cursor-crosshair'
                               : 'cursor-cell'
-                        }`}
-                        aria-label="Editor do recorte"
-                      />
-                    </div>
+                          }`}
+                          aria-label="Ajustar o recorte da imagem"
+                        />
+                      </div>
+                    )}
                   </div>
                 </section>
 
                 {editorStage ===
                   'adjust' &&
                   mask && (
-                  <section className="service-card">
+                  <section className="service-card min-w-0">
                     <span className="section-label">
                       5 · Exportar
                     </span>
@@ -2014,9 +1979,10 @@ export default function MARecortesPage() {
                     </h2>
 
                     <p className="mt-3 text-sm leading-7 text-slate-300">
-                      O PNG mantém o fundo transparente. A opção
+                      O PNG mantém o fundo transparente. A opção para
                       WhatsApp cria uma imagem quadrada de 512 × 512
-                      px.
+                      px, preparada para selecionar no criador de
+                      stickers do próprio WhatsApp.
                     </p>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -2052,9 +2018,40 @@ export default function MARecortesPage() {
                         <span className="relative z-10">
                           {processing
                             ? 'A preparar…'
-                            : 'Partilhar para WhatsApp'}
+                            : 'Guardar para WhatsApp'}
                         </span>
                       </button>
+                    </div>
+
+                    <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
+                      <strong className="text-sm font-semibold text-emerald-100">
+                        Como adicionar como sticker
+                      </strong>
+
+                      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                        <li>
+                          1. Carregue em “Guardar para WhatsApp”.
+                        </li>
+
+                        <li>
+                          2. Abra uma conversa no WhatsApp.
+                        </li>
+
+                        <li>
+                          3. Abra a área dos stickers e escolha
+                          “Criar”.
+                        </li>
+
+                        <li>
+                          4. Selecione a imagem guardada pelo
+                          MA-Recortes.
+                        </li>
+
+                        <li>
+                          5. Envie o sticker e guarde-o nos favoritos
+                          ou num pack.
+                        </li>
+                      </ol>
                     </div>
                   </section>
                 )}
