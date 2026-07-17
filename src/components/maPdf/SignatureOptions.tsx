@@ -69,6 +69,19 @@ type DragState = {
   offsetY: number
 }
 
+type ResizeHandle =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+
+type ResizeState = {
+  pointerId: number
+  handle: ResizeHandle
+  anchorX: number
+  anchorY: number
+}
+
 const pageModes: Array<{
   value: SignaturePageMode
   title: string
@@ -82,12 +95,14 @@ const pageModes: Array<{
   {
     value: 'all',
     title: 'Todas as páginas',
-    description: 'Repetir a assinatura na mesma posição relativa em todas as páginas.'
+    description:
+      'Repetir a assinatura na mesma posição relativa em todas as páginas.'
   },
   {
     value: 'custom',
     title: 'Página específica',
-    description: 'Escolher manualmente a página que deve receber a assinatura.'
+    description:
+      'Escolher manualmente a página que deve receber a assinatura.'
   }
 ]
 
@@ -127,6 +142,8 @@ const signaturePositions: Array<{
 
 const DEFAULT_PREVIEW_WIDTH = 760
 const DEFAULT_SIGNATURE_MARGIN = 36
+const MIN_SIGNATURE_WIDTH = 40
+const MAX_SIGNATURE_WIDTH = 400
 
 function formatFileSize(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -142,30 +159,53 @@ function formatFileSize(bytes: number) {
   return `${(kilobytes / 1024).toFixed(2)} MB`
 }
 
-function clampInteger(value: number, minimum: number, maximum: number) {
+function clampInteger(
+  value: number,
+  minimum: number,
+  maximum: number
+) {
   if (!Number.isFinite(value)) {
     return minimum
   }
 
-  return Math.min(Math.max(Math.trunc(value), minimum), maximum)
+  return Math.min(
+    Math.max(Math.trunc(value), minimum),
+    maximum
+  )
 }
 
-function clampNumber(value: number, minimum: number, maximum: number) {
+function clampNumber(
+  value: number,
+  minimum: number,
+  maximum: number
+) {
   if (!Number.isFinite(value)) {
     return minimum
   }
 
-  return Math.min(Math.max(value, minimum), maximum)
+  return Math.min(
+    Math.max(value, minimum),
+    maximum
+  )
 }
 
 function isCustomPosition(
   position: SignaturePosition
-): position is { xRatio: number; yRatio: number } {
+): position is {
+  xRatio: number
+  yRatio: number
+} {
   return typeof position === 'object'
 }
 
 function getPresetCoordinates(
-  position: Exclude<SignaturePosition, { xRatio: number; yRatio: number }>,
+  position: Exclude<
+    SignaturePosition,
+    {
+      xRatio: number
+      yRatio: number
+    }
+  >,
   pageWidth: number,
   pageHeight: number,
   signatureWidth: number,
@@ -173,11 +213,19 @@ function getPresetCoordinates(
   margin: number
 ) {
   const leftX = margin
-  const centerX = (pageWidth - signatureWidth) / 2
-  const rightX = pageWidth - signatureWidth - margin
+  const centerX =
+    (pageWidth - signatureWidth) / 2
+  const rightX =
+    pageWidth -
+    signatureWidth -
+    margin
   const topY = margin
-  const centerY = (pageHeight - signatureHeight) / 2
-  const bottomY = pageHeight - signatureHeight - margin
+  const centerY =
+    (pageHeight - signatureHeight) / 2
+  const bottomY =
+    pageHeight -
+    signatureHeight -
+    margin
 
   switch (position) {
     case 'top-left':
@@ -240,30 +288,84 @@ export default function SignatureOptions({
   onWidthChange,
   onOpacityChange
 }: SignatureOptionsProps) {
-  const signatureInputRef = useRef<HTMLInputElement>(null)
-  const previewViewportRef = useRef<HTMLDivElement>(null)
-  const previewPageRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const dragStateRef = useRef<DragState | null>(null)
+  const signatureInputRef =
+    useRef<HTMLInputElement>(null)
 
-  const [signaturePreviewUrl, setSignaturePreviewUrl] = useState('')
-  const [signatureAspectRatio, setSignatureAspectRatio] = useState(0.35)
-  const [pdfDocument, setPdfDocument] = useState<PdfDocumentProxy | null>(null)
-  const [pageCount, setPageCount] = useState(0)
-  const [previewPageNumber, setPreviewPageNumber] = useState(1)
-  const [availablePreviewWidth, setAvailablePreviewWidth] = useState(
+  const previewViewportRef =
+    useRef<HTMLDivElement>(null)
+
+  const previewPageRef =
+    useRef<HTMLDivElement>(null)
+
+  const canvasRef =
+    useRef<HTMLCanvasElement>(null)
+
+  const dragStateRef =
+    useRef<DragState | null>(null)
+
+  const resizeStateRef =
+    useRef<ResizeState | null>(null)
+
+  const [
+    signaturePreviewUrl,
+    setSignaturePreviewUrl
+  ] = useState('')
+
+  const [
+    signatureAspectRatio,
+    setSignatureAspectRatio
+  ] = useState(0.35)
+
+  const [
+    pdfDocument,
+    setPdfDocument
+  ] =
+    useState<PdfDocumentProxy | null>(
+      null
+    )
+
+  const [
+    pageCount,
+    setPageCount
+  ] = useState(0)
+
+  const [
+    previewPageNumber,
+    setPreviewPageNumber
+  ] = useState(1)
+
+  const [
+    availablePreviewWidth,
+    setAvailablePreviewWidth
+  ] = useState(
     DEFAULT_PREVIEW_WIDTH
   )
-  const [previewSize, setPreviewSize] = useState<PreviewSize>({
+
+  const [
+    previewSize,
+    setPreviewSize
+  ] = useState<PreviewSize>({
     width: 0,
     height: 0
   })
-  const [pdfPageSize, setPdfPageSize] = useState<PreviewSize>({
+
+  const [
+    pdfPageSize,
+    setPdfPageSize
+  ] = useState<PreviewSize>({
     width: 0,
     height: 0
   })
-  const [isPreviewLoading, setIsPreviewLoading] = useState(true)
-  const [previewError, setPreviewError] = useState('')
+
+  const [
+    isPreviewLoading,
+    setIsPreviewLoading
+  ] = useState(true)
+
+  const [
+    previewError,
+    setPreviewError
+  ] = useState('')
 
   useEffect(() => {
     if (!signatureFile) {
@@ -272,14 +374,27 @@ export default function SignatureOptions({
       return
     }
 
-    const objectUrl = URL.createObjectURL(signatureFile)
-    const image = new Image()
+    const objectUrl =
+      URL.createObjectURL(
+        signatureFile
+      )
 
-    setSignaturePreviewUrl(objectUrl)
+    const image =
+      new Image()
+
+    setSignaturePreviewUrl(
+      objectUrl
+    )
 
     image.onload = () => {
-      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-        setSignatureAspectRatio(image.naturalHeight / image.naturalWidth)
+      if (
+        image.naturalWidth > 0 &&
+        image.naturalHeight > 0
+      ) {
+        setSignatureAspectRatio(
+          image.naturalHeight /
+            image.naturalWidth
+        )
       }
     }
 
@@ -287,32 +402,46 @@ export default function SignatureOptions({
 
     return () => {
       image.onload = null
-      URL.revokeObjectURL(objectUrl)
+
+      URL.revokeObjectURL(
+        objectUrl
+      )
     }
   }, [signatureFile])
 
   useEffect(() => {
-    const previewViewport = previewViewportRef.current
+    const previewViewport =
+      previewViewportRef.current
 
     if (!previewViewport) {
       return
     }
 
-    const updateAvailableWidth = () => {
-      const nextWidth = clampNumber(
-        previewViewport.clientWidth - 32,
-        260,
-        920
-      )
+    const updateAvailableWidth =
+      () => {
+        const nextWidth =
+          clampNumber(
+            previewViewport.clientWidth -
+              32,
+            260,
+            920
+          )
 
-      setAvailablePreviewWidth(nextWidth)
-    }
+        setAvailablePreviewWidth(
+          nextWidth
+        )
+      }
 
     updateAvailableWidth()
 
-    const resizeObserver = new ResizeObserver(updateAvailableWidth)
+    const resizeObserver =
+      new ResizeObserver(
+        updateAvailableWidth
+      )
 
-    resizeObserver.observe(previewViewport)
+    resizeObserver.observe(
+      previewViewport
+    )
 
     return () => {
       resizeObserver.disconnect()
@@ -321,7 +450,10 @@ export default function SignatureOptions({
 
   useEffect(() => {
     let cancelled = false
-    let loadingTask: PdfDocumentLoadingTask | null = null
+
+    let loadingTask:
+      | PdfDocumentLoadingTask
+      | null = null
 
     setPdfDocument(null)
     setPageCount(0)
@@ -330,32 +462,53 @@ export default function SignatureOptions({
 
     const loadPdf = async () => {
       try {
-        const [pdfJs, workerModule] = await Promise.all([
+        const [
+          pdfJs,
+          workerModule
+        ] = await Promise.all([
           import('pdfjs-dist'),
-          import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+          import(
+            'pdfjs-dist/build/pdf.worker.min.mjs?url'
+          )
         ])
 
-        pdfJs.GlobalWorkerOptions.workerSrc = workerModule.default
+        pdfJs.GlobalWorkerOptions.workerSrc =
+          workerModule.default
 
-        const data = new Uint8Array(await pdfFile.arrayBuffer())
+        const data =
+          new Uint8Array(
+            await pdfFile.arrayBuffer()
+          )
 
-        loadingTask = pdfJs.getDocument({
-          data
-        }) as unknown as PdfDocumentLoadingTask
+        loadingTask =
+          pdfJs.getDocument({
+            data
+          }) as unknown as PdfDocumentLoadingTask
 
-        const loadedDocument = await loadingTask.promise
+        const loadedDocument =
+          await loadingTask.promise
 
         if (cancelled) {
           await loadingTask.destroy()
           return
         }
 
-        if (loadedDocument.numPages === 0) {
-          throw new Error('O documento não contém páginas.')
+        if (
+          loadedDocument.numPages ===
+          0
+        ) {
+          throw new Error(
+            'O documento não contém páginas.'
+          )
         }
 
-        setPdfDocument(loadedDocument)
-        setPageCount(loadedDocument.numPages)
+        setPdfDocument(
+          loadedDocument
+        )
+
+        setPageCount(
+          loadedDocument.numPages
+        )
       } catch (error) {
         if (cancelled) {
           return
@@ -366,6 +519,7 @@ export default function SignatureOptions({
             ? error.message
             : 'Não foi possível criar a pré-visualização deste PDF.'
         )
+
         setIsPreviewLoading(false)
       }
     }
@@ -387,97 +541,196 @@ export default function SignatureOptions({
     }
 
     if (pageMode === 'last') {
-      setPreviewPageNumber(pageCount)
+      setPreviewPageNumber(
+        pageCount
+      )
+
       return
     }
 
-    if (pageMode === 'custom') {
-      setPreviewPageNumber(clampInteger(pageNumber, 1, pageCount))
+    if (
+      pageMode === 'custom'
+    ) {
+      setPreviewPageNumber(
+        clampInteger(
+          pageNumber,
+          1,
+          pageCount
+        )
+      )
+
       return
     }
 
-    setPreviewPageNumber((currentPage) =>
-      clampInteger(currentPage, 1, pageCount)
+    setPreviewPageNumber(
+      (currentPage) =>
+        clampInteger(
+          currentPage,
+          1,
+          pageCount
+        )
     )
-  }, [pageCount, pageMode, pageNumber])
+  }, [
+    pageCount,
+    pageMode,
+    pageNumber
+  ])
 
   useEffect(() => {
-    if (!pdfDocument || !canvasRef.current || previewPageNumber < 1) {
+    if (
+      !pdfDocument ||
+      !canvasRef.current ||
+      previewPageNumber < 1
+    ) {
       return
     }
 
     let cancelled = false
-    let renderTask: PdfRenderTask | null = null
 
-    const renderPreview = async () => {
-      setIsPreviewLoading(true)
-      setPreviewError('')
+    let renderTask:
+      | PdfRenderTask
+      | null = null
 
-      try {
-        const page = await pdfDocument.getPage(previewPageNumber)
-        const baseViewport = page.getViewport({ scale: 1 })
-        const cssScale = availablePreviewWidth / baseViewport.width
-        const cssViewport = page.getViewport({ scale: cssScale })
-        const outputScale = clampNumber(window.devicePixelRatio || 1, 1, 2)
-        const renderViewport = page.getViewport({
-          scale: cssScale * outputScale
-        })
-        const canvas = canvasRef.current
-        const context = canvas?.getContext('2d', {
-          alpha: false
-        })
+    const renderPreview =
+      async () => {
+        setIsPreviewLoading(true)
+        setPreviewError('')
 
-        if (!canvas || !context) {
-          throw new Error(
-            'O navegador não conseguiu preparar a pré-visualização da página.'
+        try {
+          const page =
+            await pdfDocument.getPage(
+              previewPageNumber
+            )
+
+          const baseViewport =
+            page.getViewport({
+              scale: 1
+            })
+
+          const cssScale =
+            availablePreviewWidth /
+            baseViewport.width
+
+          const cssViewport =
+            page.getViewport({
+              scale: cssScale
+            })
+
+          const outputScale =
+            clampNumber(
+              window.devicePixelRatio ||
+                1,
+              1,
+              2
+            )
+
+          const renderViewport =
+            page.getViewport({
+              scale:
+                cssScale *
+                outputScale
+            })
+
+          const canvas =
+            canvasRef.current
+
+          const context =
+            canvas?.getContext(
+              '2d',
+              {
+                alpha: false
+              }
+            )
+
+          if (
+            !canvas ||
+            !context
+          ) {
+            throw new Error(
+              'O navegador não conseguiu preparar a pré-visualização da página.'
+            )
+          }
+
+          canvas.width =
+            Math.max(
+              1,
+              Math.ceil(
+                renderViewport.width
+              )
+            )
+
+          canvas.height =
+            Math.max(
+              1,
+              Math.ceil(
+                renderViewport.height
+              )
+            )
+
+          canvas.style.width =
+            `${cssViewport.width}px`
+
+          canvas.style.height =
+            `${cssViewport.height}px`
+
+          setPreviewSize({
+            width:
+              cssViewport.width,
+            height:
+              cssViewport.height
+          })
+
+          setPdfPageSize({
+            width:
+              baseViewport.width,
+            height:
+              baseViewport.height
+          })
+
+          renderTask =
+            page.render({
+              canvas,
+              canvasContext:
+                context,
+              viewport:
+                renderViewport,
+              background:
+                'rgb(255, 255, 255)'
+            })
+
+          await renderTask.promise
+
+          if (!cancelled) {
+            setIsPreviewLoading(
+              false
+            )
+          }
+
+          page.cleanup()
+        } catch (error) {
+          if (
+            cancelled ||
+            (
+              error instanceof
+                Error &&
+              error.name ===
+                'RenderingCancelledException'
+            )
+          ) {
+            return
+          }
+
+          setPreviewError(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível mostrar esta página.'
+          )
+
+          setIsPreviewLoading(
+            false
           )
         }
-
-        canvas.width = Math.max(1, Math.ceil(renderViewport.width))
-        canvas.height = Math.max(1, Math.ceil(renderViewport.height))
-        canvas.style.width = `${cssViewport.width}px`
-        canvas.style.height = `${cssViewport.height}px`
-
-        setPreviewSize({
-          width: cssViewport.width,
-          height: cssViewport.height
-        })
-        setPdfPageSize({
-          width: baseViewport.width,
-          height: baseViewport.height
-        })
-
-        renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport: renderViewport,
-          background: 'rgb(255, 255, 255)'
-        })
-
-        await renderTask.promise
-
-        if (!cancelled) {
-          setIsPreviewLoading(false)
-        }
-
-        page.cleanup()
-      } catch (error) {
-        if (
-          cancelled ||
-          (error instanceof Error &&
-            error.name === 'RenderingCancelledException')
-        ) {
-          return
-        }
-
-        setPreviewError(
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível mostrar esta página.'
-        )
-        setIsPreviewLoading(false)
       }
-    }
 
     void renderPreview()
 
@@ -485,199 +738,658 @@ export default function SignatureOptions({
       cancelled = true
       renderTask?.cancel()
     }
-  }, [availablePreviewWidth, pdfDocument, previewPageNumber])
-
-  const signaturePreview = useMemo(() => {
-    if (
-      previewSize.width <= 0 ||
-      previewSize.height <= 0 ||
-      pdfPageSize.width <= 0 ||
-      pdfPageSize.height <= 0
-    ) {
-      return {
-        width: 0,
-        height: 0,
-        left: 0,
-        top: 0
-      }
-    }
-
-    const scale = previewSize.width / pdfPageSize.width
-    const margin = isCustomPosition(position)
-      ? 0
-      : DEFAULT_SIGNATURE_MARGIN
-    const availablePdfWidth = Math.max(
-      pdfPageSize.width - margin * 2,
-      40
-    )
-    const availablePdfHeight = Math.max(
-      pdfPageSize.height - margin * 2,
-      40
-    )
-    let signaturePdfWidth = Math.min(width, availablePdfWidth)
-    let signaturePdfHeight = signaturePdfWidth * signatureAspectRatio
-
-    if (signaturePdfHeight > availablePdfHeight) {
-      signaturePdfHeight = availablePdfHeight
-      signaturePdfWidth = signaturePdfHeight / signatureAspectRatio
-    }
-
-    const signatureWidth = signaturePdfWidth * scale
-    const signatureHeight = signaturePdfHeight * scale
-    const maximumLeft = Math.max(previewSize.width - signatureWidth, 0)
-    const maximumTop = Math.max(previewSize.height - signatureHeight, 0)
-
-    if (isCustomPosition(position)) {
-      return {
-        width: signatureWidth,
-        height: signatureHeight,
-        left: clampNumber(position.xRatio, 0, 1) * maximumLeft,
-        top: clampNumber(position.yRatio, 0, 1) * maximumTop
-      }
-    }
-
-    const presetCoordinates = getPresetCoordinates(
-      position,
-      previewSize.width,
-      previewSize.height,
-      signatureWidth,
-      signatureHeight,
-      margin * scale
-    )
-
-    return {
-      width: signatureWidth,
-      height: signatureHeight,
-      left: clampNumber(presetCoordinates.left, 0, maximumLeft),
-      top: clampNumber(presetCoordinates.top, 0, maximumTop)
-    }
   }, [
-    pdfPageSize,
-    position,
-    previewSize,
-    signatureAspectRatio,
-    width
+    availablePreviewWidth,
+    pdfDocument,
+    previewPageNumber
   ])
 
-  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
+  const signaturePreview =
+    useMemo(() => {
+      if (
+        previewSize.width <= 0 ||
+        previewSize.height <= 0 ||
+        pdfPageSize.width <= 0 ||
+        pdfPageSize.height <= 0
+      ) {
+        return {
+          width: 0,
+          height: 0,
+          left: 0,
+          top: 0
+        }
+      }
 
-    onFileChange(file)
+      const scale =
+        previewSize.width /
+        pdfPageSize.width
 
-    event.target.value = ''
-  }
+      const margin =
+        isCustomPosition(
+          position
+        )
+          ? 0
+          : DEFAULT_SIGNATURE_MARGIN
 
-  const handleRemoveSignature = () => {
-    onFileChange(null)
+      const availablePdfWidth =
+        Math.max(
+          pdfPageSize.width -
+            margin * 2,
+          MIN_SIGNATURE_WIDTH
+        )
 
-    if (signatureInputRef.current) {
-      signatureInputRef.current.value = ''
+      const availablePdfHeight =
+        Math.max(
+          pdfPageSize.height -
+            margin * 2,
+          MIN_SIGNATURE_WIDTH
+        )
+
+      let signaturePdfWidth =
+        Math.min(
+          width,
+          availablePdfWidth
+        )
+
+      let signaturePdfHeight =
+        signaturePdfWidth *
+        signatureAspectRatio
+
+      if (
+        signaturePdfHeight >
+        availablePdfHeight
+      ) {
+        signaturePdfHeight =
+          availablePdfHeight
+
+        signaturePdfWidth =
+          signaturePdfHeight /
+          signatureAspectRatio
+      }
+
+      const signatureWidth =
+        signaturePdfWidth *
+        scale
+
+      const signatureHeight =
+        signaturePdfHeight *
+        scale
+
+      const maximumLeft =
+        Math.max(
+          previewSize.width -
+            signatureWidth,
+          0
+        )
+
+      const maximumTop =
+        Math.max(
+          previewSize.height -
+            signatureHeight,
+          0
+        )
+
+      if (
+        isCustomPosition(
+          position
+        )
+      ) {
+        return {
+          width:
+            signatureWidth,
+          height:
+            signatureHeight,
+          left:
+            clampNumber(
+              position.xRatio,
+              0,
+              1
+            ) *
+            maximumLeft,
+          top:
+            clampNumber(
+              position.yRatio,
+              0,
+              1
+            ) *
+            maximumTop
+        }
+      }
+
+      const presetCoordinates =
+        getPresetCoordinates(
+          position,
+          previewSize.width,
+          previewSize.height,
+          signatureWidth,
+          signatureHeight,
+          margin * scale
+        )
+
+      return {
+        width:
+          signatureWidth,
+        height:
+          signatureHeight,
+        left:
+          clampNumber(
+            presetCoordinates.left,
+            0,
+            maximumLeft
+          ),
+        top:
+          clampNumber(
+            presetCoordinates.top,
+            0,
+            maximumTop
+          )
+      }
+    }, [
+      pdfPageSize,
+      position,
+      previewSize,
+      signatureAspectRatio,
+      width
+    ])
+
+  const handleFileInputChange =
+    (
+      event:
+        ChangeEvent<HTMLInputElement>
+    ) => {
+      const file =
+        event.target.files?.[0] ??
+        null
+
+      onFileChange(file)
+
+      event.target.value = ''
     }
-  }
 
-  const handlePageNumberChange = (value: number) => {
-    onPageNumberChange(
-      clampInteger(value, 1, pageCount > 0 ? pageCount : 99999)
+  const handleRemoveSignature =
+    () => {
+      onFileChange(null)
+
+      if (
+        signatureInputRef.current
+      ) {
+        signatureInputRef.current.value =
+          ''
+      }
+    }
+
+  const handlePageNumberChange =
+    (
+      value: number
+    ) => {
+      onPageNumberChange(
+        clampInteger(
+          value,
+          1,
+          pageCount > 0
+            ? pageCount
+            : 99999
+        )
+      )
+    }
+
+  const handleWidthChange =
+    (
+      value: number
+    ) => {
+      onWidthChange(
+        clampInteger(
+          value,
+          MIN_SIGNATURE_WIDTH,
+          MAX_SIGNATURE_WIDTH
+        )
+      )
+    }
+
+  const handleOpacityChange =
+    (
+      value: number
+    ) => {
+      onOpacityChange(
+        clampNumber(
+          value,
+          0.1,
+          1
+        )
+      )
+    }
+
+  const handlePreviewPageChange =
+    (
+      nextPage: number
+    ) => {
+      const safePage =
+        clampInteger(
+          nextPage,
+          1,
+          Math.max(
+            pageCount,
+            1
+          )
+        )
+
+      if (
+        pageMode === 'custom'
+      ) {
+        onPageNumberChange(
+          safePage
+        )
+
+        return
+      }
+
+      if (
+        pageMode === 'all'
+      ) {
+        setPreviewPageNumber(
+          safePage
+        )
+      }
+    }
+
+  const handleSignaturePointerDown =
+    (
+      event:
+        ReactPointerEvent<HTMLButtonElement>
+    ) => {
+      if (
+        !previewPageRef.current ||
+        signaturePreview.width <=
+          0
+      ) {
+        return
+      }
+
+      event.preventDefault()
+
+      event.currentTarget.setPointerCapture(
+        event.pointerId
+      )
+
+      const pageRectangle =
+        previewPageRef.current.getBoundingClientRect()
+
+      dragStateRef.current = {
+        pointerId:
+          event.pointerId,
+        offsetX:
+          event.clientX -
+          pageRectangle.left -
+          signaturePreview.left,
+        offsetY:
+          event.clientY -
+          pageRectangle.top -
+          signaturePreview.top
+      }
+    }
+
+  const handleSignaturePointerMove =
+    (
+      event:
+        ReactPointerEvent<HTMLButtonElement>
+    ) => {
+      const dragState =
+        dragStateRef.current
+
+      const previewPage =
+        previewPageRef.current
+
+      if (
+        !dragState ||
+        dragState.pointerId !==
+          event.pointerId ||
+        !previewPage
+      ) {
+        return
+      }
+
+      event.preventDefault()
+
+      const pageRectangle =
+        previewPage.getBoundingClientRect()
+
+      const maximumLeft =
+        Math.max(
+          previewSize.width -
+            signaturePreview.width,
+          0
+        )
+
+      const maximumTop =
+        Math.max(
+          previewSize.height -
+            signaturePreview.height,
+          0
+        )
+
+      const nextLeft =
+        clampNumber(
+          event.clientX -
+            pageRectangle.left -
+            dragState.offsetX,
+          0,
+          maximumLeft
+        )
+
+      const nextTop =
+        clampNumber(
+          event.clientY -
+            pageRectangle.top -
+            dragState.offsetY,
+          0,
+          maximumTop
+        )
+
+      onPositionChange({
+        xRatio:
+          maximumLeft > 0
+            ? nextLeft /
+              maximumLeft
+            : 0,
+        yRatio:
+          maximumTop > 0
+            ? nextTop /
+              maximumTop
+            : 0
+      })
+    }
+
+  const finishSignatureDrag =
+    (
+      event:
+        ReactPointerEvent<HTMLButtonElement>
+    ) => {
+      if (
+        dragStateRef.current
+          ?.pointerId ===
+        event.pointerId
+      ) {
+        dragStateRef.current =
+          null
+      }
+
+      if (
+        event.currentTarget.hasPointerCapture(
+          event.pointerId
+        )
+      ) {
+        event.currentTarget.releasePointerCapture(
+          event.pointerId
+        )
+      }
+    }
+
+  const handleResizePointerDown =
+    (
+      event:
+        ReactPointerEvent<HTMLSpanElement>,
+      handle: ResizeHandle
+    ) => {
+      if (
+        !previewPageRef.current ||
+        signaturePreview.width <=
+          0
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      event.currentTarget.setPointerCapture(
+        event.pointerId
+      )
+
+      const isLeftHandle =
+        handle.endsWith(
+          'left'
+        )
+
+      const isTopHandle =
+        handle.startsWith(
+          'top'
+        )
+
+      resizeStateRef.current = {
+        pointerId:
+          event.pointerId,
+        handle,
+        anchorX:
+          isLeftHandle
+            ? signaturePreview.left +
+              signaturePreview.width
+            : signaturePreview.left,
+        anchorY:
+          isTopHandle
+            ? signaturePreview.top +
+              signaturePreview.height
+            : signaturePreview.top
+      }
+    }
+
+  const handleResizePointerMove =
+    (
+      event:
+        ReactPointerEvent<HTMLSpanElement>
+    ) => {
+      const resizeState =
+        resizeStateRef.current
+
+      const previewPage =
+        previewPageRef.current
+
+      if (
+        !resizeState ||
+        resizeState.pointerId !==
+          event.pointerId ||
+        !previewPage ||
+        previewSize.width <= 0 ||
+        pdfPageSize.width <= 0 ||
+        signatureAspectRatio <=
+          0
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const pageRectangle =
+        previewPage.getBoundingClientRect()
+
+      const pointerX =
+        event.clientX -
+        pageRectangle.left
+
+      const pointerY =
+        event.clientY -
+        pageRectangle.top
+
+      const horizontalDirection =
+        resizeState.handle.endsWith(
+          'right'
+        )
+          ? 1
+          : -1
+
+      const verticalDirection =
+        resizeState.handle.startsWith(
+          'bottom'
+        )
+          ? 1
+          : -1
+
+      const deltaX =
+        pointerX -
+        resizeState.anchorX
+
+      const deltaY =
+        pointerY -
+        resizeState.anchorY
+
+      const projectedWidth =
+        (
+          horizontalDirection *
+            deltaX +
+          verticalDirection *
+            signatureAspectRatio *
+            deltaY
+        ) /
+        (
+          1 +
+          signatureAspectRatio *
+            signatureAspectRatio
+        )
+
+      const scale =
+        previewSize.width /
+        pdfPageSize.width
+
+      const maximumWidthByHorizontalSpace =
+        horizontalDirection === 1
+          ? previewSize.width -
+            resizeState.anchorX
+          : resizeState.anchorX
+
+      const maximumHeightByVerticalSpace =
+        verticalDirection === 1
+          ? previewSize.height -
+            resizeState.anchorY
+          : resizeState.anchorY
+
+      const maximumWidthByVerticalSpace =
+        maximumHeightByVerticalSpace /
+        signatureAspectRatio
+
+      const maximumPreviewWidth =
+        Math.min(
+          maximumWidthByHorizontalSpace,
+          maximumWidthByVerticalSpace,
+          MAX_SIGNATURE_WIDTH *
+            scale
+        )
+
+      const maximumWidthInPdfPoints =
+        Math.max(
+          MIN_SIGNATURE_WIDTH,
+          Math.min(
+            MAX_SIGNATURE_WIDTH,
+            Math.floor(
+              maximumPreviewWidth /
+                scale
+            )
+          )
+        )
+
+      const nextWidthInPdfPoints =
+        clampInteger(
+          Math.round(
+            projectedWidth /
+              scale
+          ),
+          MIN_SIGNATURE_WIDTH,
+          maximumWidthInPdfPoints
+        )
+
+      const nextPreviewWidth =
+        nextWidthInPdfPoints *
+        scale
+
+      const nextPreviewHeight =
+        nextPreviewWidth *
+        signatureAspectRatio
+
+      const nextLeft =
+        horizontalDirection === 1
+          ? resizeState.anchorX
+          : resizeState.anchorX -
+            nextPreviewWidth
+
+      const nextTop =
+        verticalDirection === 1
+          ? resizeState.anchorY
+          : resizeState.anchorY -
+            nextPreviewHeight
+
+      const maximumLeft =
+        Math.max(
+          previewSize.width -
+            nextPreviewWidth,
+          0
+        )
+
+      const maximumTop =
+        Math.max(
+          previewSize.height -
+            nextPreviewHeight,
+          0
+        )
+
+      onWidthChange(
+        nextWidthInPdfPoints
+      )
+
+      onPositionChange({
+        xRatio:
+          maximumLeft > 0
+            ? clampNumber(
+                nextLeft,
+                0,
+                maximumLeft
+              ) /
+              maximumLeft
+            : 0,
+        yRatio:
+          maximumTop > 0
+            ? clampNumber(
+                nextTop,
+                0,
+                maximumTop
+              ) /
+              maximumTop
+            : 0
+      })
+    }
+
+  const finishSignatureResize =
+    (
+      event:
+        ReactPointerEvent<HTMLSpanElement>
+    ) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (
+        resizeStateRef.current
+          ?.pointerId ===
+        event.pointerId
+      ) {
+        resizeStateRef.current =
+          null
+      }
+
+      if (
+        event.currentTarget.hasPointerCapture(
+          event.pointerId
+        )
+      ) {
+        event.currentTarget.releasePointerCapture(
+          event.pointerId
+        )
+      }
+    }
+
+  const positionSelectValue =
+    isCustomPosition(
+      position
     )
-  }
-
-  const handleWidthChange = (value: number) => {
-    onWidthChange(clampInteger(value, 40, 400))
-  }
-
-  const handleOpacityChange = (value: number) => {
-    onOpacityChange(clampNumber(value, 0.1, 1))
-  }
-
-  const handlePreviewPageChange = (nextPage: number) => {
-    const safePage = clampInteger(nextPage, 1, Math.max(pageCount, 1))
-
-    if (pageMode === 'custom') {
-      onPageNumberChange(safePage)
-      return
-    }
-
-    if (pageMode === 'all') {
-      setPreviewPageNumber(safePage)
-    }
-  }
-
-  const handleSignaturePointerDown = (
-    event: ReactPointerEvent<HTMLButtonElement>
-  ) => {
-    if (!previewPageRef.current || signaturePreview.width <= 0) {
-      return
-    }
-
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-
-    const pageRectangle = previewPageRef.current.getBoundingClientRect()
-
-    dragStateRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - pageRectangle.left - signaturePreview.left,
-      offsetY: event.clientY - pageRectangle.top - signaturePreview.top
-    }
-  }
-
-  const handleSignaturePointerMove = (
-    event: ReactPointerEvent<HTMLButtonElement>
-  ) => {
-    const dragState = dragStateRef.current
-    const previewPage = previewPageRef.current
-
-    if (
-      !dragState ||
-      dragState.pointerId !== event.pointerId ||
-      !previewPage
-    ) {
-      return
-    }
-
-    event.preventDefault()
-
-    const pageRectangle = previewPage.getBoundingClientRect()
-    const maximumLeft = Math.max(
-      previewSize.width - signaturePreview.width,
-      0
-    )
-    const maximumTop = Math.max(
-      previewSize.height - signaturePreview.height,
-      0
-    )
-    const nextLeft = clampNumber(
-      event.clientX - pageRectangle.left - dragState.offsetX,
-      0,
-      maximumLeft
-    )
-    const nextTop = clampNumber(
-      event.clientY - pageRectangle.top - dragState.offsetY,
-      0,
-      maximumTop
-    )
-
-    onPositionChange({
-      xRatio: maximumLeft > 0 ? nextLeft / maximumLeft : 0,
-      yRatio: maximumTop > 0 ? nextTop / maximumTop : 0
-    })
-  }
-
-  const finishSignatureDrag = (
-    event: ReactPointerEvent<HTMLButtonElement>
-  ) => {
-    if (dragStateRef.current?.pointerId === event.pointerId) {
-      dragStateRef.current = null
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-  }
-
-  const positionSelectValue = isCustomPosition(position)
-    ? 'custom'
-    : position
+      ? 'custom'
+      : position
 
   return (
     <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-violet-300/20 bg-violet-300/[0.05]">
@@ -687,27 +1399,37 @@ export default function SignatureOptions({
         </span>
 
         <h3 className="mt-2 text-lg font-semibold text-white">
-          Veja a página e arraste a assinatura
+          Veja, mova e
+          redimensione a assinatura
         </h3>
 
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Escolha uma imagem PNG, JPG ou JPEG, confirme a página e arraste a
-          assinatura diretamente sobre a pré-visualização para a colocar no
-          local exato.
+          Escolha uma imagem PNG,
+          JPG ou JPEG, confirme a
+          página, arraste a assinatura
+          para a posição correta e
+          puxe um dos quatro cantos
+          para ajustar o tamanho.
         </p>
       </div>
 
       <div className="space-y-6 p-5">
         <div>
-          <span className="input-label">Imagem da assinatura</span>
+          <span className="input-label">
+            Imagem da assinatura
+          </span>
 
           <input
-            ref={signatureInputRef}
+            ref={
+              signatureInputRef
+            }
             id="ma-pdf-signature-file"
             type="file"
             accept=".png,.jpg,.jpeg,image/png,image/jpeg"
             className="sr-only"
-            onChange={handleFileInputChange}
+            onChange={
+              handleFileInputChange
+            }
           />
 
           {!signatureFile ? (
@@ -720,11 +1442,13 @@ export default function SignatureOptions({
               </span>
 
               <strong className="mt-4 text-sm font-semibold text-white">
-                Escolher imagem da assinatura
+                Escolher imagem da
+                assinatura
               </strong>
 
               <span className="mt-2 text-xs leading-5 text-slate-400">
-                PNG, JPG ou JPEG · máximo de 10 MB
+                PNG, JPG ou JPEG ·
+                máximo de 10 MB
               </span>
             </label>
           ) : (
@@ -734,7 +1458,9 @@ export default function SignatureOptions({
                   <div className="flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white p-3">
                     {signaturePreviewUrl ? (
                       <img
-                        src={signaturePreviewUrl}
+                        src={
+                          signaturePreviewUrl
+                        }
                         alt="Pré-visualização da assinatura"
                         className="max-h-full max-w-full object-contain"
                       />
@@ -743,15 +1469,21 @@ export default function SignatureOptions({
 
                   <div className="min-w-0">
                     <strong className="block truncate text-sm font-semibold text-white">
-                      {signatureFile.name}
+                      {
+                        signatureFile.name
+                      }
                     </strong>
 
                     <span className="mt-1 block text-xs text-slate-400">
-                      {formatFileSize(signatureFile.size)}
+                      {formatFileSize(
+                        signatureFile.size
+                      )}
                     </span>
 
                     <span className="mt-2 block text-xs leading-5 text-violet-100/80">
-                      A imagem será incorporada diretamente no PDF.
+                      A imagem será
+                      incorporada
+                      diretamente no PDF.
                     </span>
                   </div>
                 </div>
@@ -766,7 +1498,9 @@ export default function SignatureOptions({
 
                   <button
                     type="button"
-                    onClick={handleRemoveSignature}
+                    onClick={
+                      handleRemoveSignature
+                    }
                     className="inline-flex items-center justify-center rounded-2xl border border-red-300/20 bg-red-300/[0.07] px-4 py-2 text-xs font-semibold text-red-100 transition hover:border-red-300/40 hover:bg-red-300/10"
                   >
                     Remover
@@ -778,39 +1512,61 @@ export default function SignatureOptions({
         </div>
 
         <div>
-          <span className="input-label">Página onde será aplicada</span>
+          <span className="input-label">
+            Página onde será aplicada
+          </span>
 
           <div className="mt-3 grid gap-3 md:grid-cols-3">
-            {pageModes.map((mode) => {
-              const selected = pageMode === mode.value
+            {pageModes.map(
+              (mode) => {
+                const selected =
+                  pageMode ===
+                  mode.value
 
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  onClick={() => onPageModeChange(mode.value)}
-                  aria-pressed={selected}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    selected
-                      ? 'border-violet-200/45 bg-violet-300/12 shadow-lg shadow-violet-950/20'
-                      : 'border-white/10 bg-white/[0.03] hover:border-violet-200/25 hover:bg-violet-300/[0.06]'
-                  }`}
-                >
-                  <strong className="block text-sm font-semibold text-white">
-                    {mode.title}
-                  </strong>
+                return (
+                  <button
+                    key={
+                      mode.value
+                    }
+                    type="button"
+                    onClick={() =>
+                      onPageModeChange(
+                        mode.value
+                      )
+                    }
+                    aria-pressed={
+                      selected
+                    }
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      selected
+                        ? 'border-violet-200/45 bg-violet-300/12 shadow-lg shadow-violet-950/20'
+                        : 'border-white/10 bg-white/[0.03] hover:border-violet-200/25 hover:bg-violet-300/[0.06]'
+                    }`}
+                  >
+                    <strong className="block text-sm font-semibold text-white">
+                      {
+                        mode.title
+                      }
+                    </strong>
 
-                  <span className="mt-2 block text-xs leading-5 text-slate-400">
-                    {mode.description}
-                  </span>
-                </button>
-              )
-            })}
+                    <span className="mt-2 block text-xs leading-5 text-slate-400">
+                      {
+                        mode.description
+                      }
+                    </span>
+                  </button>
+                )
+              }
+            )}
           </div>
 
-          {pageMode === 'custom' ? (
+          {pageMode ===
+          'custom' ? (
             <div className="mt-4 max-w-xs">
-              <label htmlFor="signature-page-number" className="input-label">
+              <label
+                htmlFor="signature-page-number"
+                className="input-label"
+              >
                 Número da página
               </label>
 
@@ -818,19 +1574,36 @@ export default function SignatureOptions({
                 id="signature-page-number"
                 type="number"
                 min={1}
-                max={pageCount > 0 ? pageCount : undefined}
+                max={
+                  pageCount > 0
+                    ? pageCount
+                    : undefined
+                }
                 step={1}
-                value={pageNumber}
+                value={
+                  pageNumber
+                }
                 className="input-field"
-                onChange={(event) =>
-                  handlePageNumberChange(Number(event.target.value))
+                onChange={(
+                  event
+                ) =>
+                  handlePageNumberChange(
+                    Number(
+                      event
+                        .target
+                        .value
+                    )
+                  )
                 }
               />
 
               <p className="mt-2 text-xs leading-5 text-slate-400">
                 {pageCount > 0
                   ? `Este documento tem ${pageCount} página${
-                      pageCount === 1 ? '' : 's'
+                      pageCount ===
+                      1
+                        ? ''
+                        : 's'
                     }.`
                   : 'A ferramenta está a analisar o número de páginas.'}
               </p>
@@ -842,25 +1615,35 @@ export default function SignatureOptions({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
             <div>
               <strong className="block text-sm font-semibold text-white">
-                Pré-visualização da página
+                Pré-visualização da
+                página
               </strong>
 
               <span className="mt-1 block text-xs text-slate-400">
                 {signatureFile
-                  ? 'Agarre na assinatura e arraste-a para o local pretendido.'
+                  ? 'Arraste a assinatura para mover. Puxe qualquer canto para redimensionar.'
                   : 'Escolha a imagem da assinatura para a posicionar sobre a página.'}
               </span>
             </div>
 
             {pageCount > 0 ? (
               <div className="flex items-center gap-2">
-                {pageMode === 'all' && pageCount > 1 ? (
+                {pageMode ===
+                  'all' &&
+                pageCount >
+                  1 ? (
                   <button
                     type="button"
                     onClick={() =>
-                      handlePreviewPageChange(previewPageNumber - 1)
+                      handlePreviewPageChange(
+                        previewPageNumber -
+                          1
+                      )
                     }
-                    disabled={previewPageNumber <= 1}
+                    disabled={
+                      previewPageNumber <=
+                      1
+                    }
                     className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm text-white transition hover:border-violet-200/30 hover:bg-violet-300/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver página anterior"
                   >
@@ -869,16 +1652,32 @@ export default function SignatureOptions({
                 ) : null}
 
                 <span className="rounded-full border border-violet-200/20 bg-violet-300/10 px-3 py-2 text-xs font-semibold text-violet-50">
-                  Página {previewPageNumber} de {pageCount}
+                  Página{' '}
+                  {
+                    previewPageNumber
+                  }{' '}
+                  de{' '}
+                  {
+                    pageCount
+                  }
                 </span>
 
-                {pageMode === 'all' && pageCount > 1 ? (
+                {pageMode ===
+                  'all' &&
+                pageCount >
+                  1 ? (
                   <button
                     type="button"
                     onClick={() =>
-                      handlePreviewPageChange(previewPageNumber + 1)
+                      handlePreviewPageChange(
+                        previewPageNumber +
+                          1
+                      )
                     }
-                    disabled={previewPageNumber >= pageCount}
+                    disabled={
+                      previewPageNumber >=
+                      pageCount
+                    }
                     className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm text-white transition hover:border-violet-200/30 hover:bg-violet-300/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver página seguinte"
                   >
@@ -890,24 +1689,40 @@ export default function SignatureOptions({
           </div>
 
           <div
-            ref={previewViewportRef}
+            ref={
+              previewViewportRef
+            }
             className="relative flex min-h-[24rem] items-start justify-center overflow-auto bg-slate-900/80 p-4"
           >
             {previewError ? (
               <div className="my-auto max-w-lg rounded-2xl border border-red-300/20 bg-red-300/[0.07] p-4 text-center text-sm leading-6 text-red-100">
-                Não foi possível apresentar a pré-visualização. {previewError}
+                Não foi possível
+                apresentar a
+                pré-visualização.{' '}
+                {
+                  previewError
+                }
               </div>
             ) : (
               <div
-                ref={previewPageRef}
+                ref={
+                  previewPageRef
+                }
                 className="relative shrink-0 overflow-hidden bg-white shadow-2xl shadow-black/50"
                 style={{
-                  width: previewSize.width || availablePreviewWidth,
-                  height: previewSize.height || availablePreviewWidth * 1.414
+                  width:
+                    previewSize.width ||
+                    availablePreviewWidth,
+                  height:
+                    previewSize.height ||
+                    availablePreviewWidth *
+                      1.414
                 }}
               >
                 <canvas
-                  ref={canvasRef}
+                  ref={
+                    canvasRef
+                  }
                   className="block"
                   aria-label={`Pré-visualização da página ${previewPageNumber}`}
                 />
@@ -915,36 +1730,148 @@ export default function SignatureOptions({
                 {isPreviewLoading ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-sm font-semibold text-white backdrop-blur-sm">
                     <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-violet-200/25 border-t-violet-200" />
-                    A carregar a página...
+                    A carregar a
+                    página...
                   </div>
                 ) : null}
 
                 {!isPreviewLoading &&
                 signatureFile &&
                 signaturePreviewUrl &&
-                signaturePreview.width > 0 ? (
+                signaturePreview.width >
+                  0 ? (
                   <button
                     type="button"
-                    aria-label="Arrastar assinatura para outra posição"
-                    title="Arraste para posicionar a assinatura"
+                    aria-label="Mover ou redimensionar a assinatura"
+                    title="Arraste para mover ou puxe um canto para redimensionar"
                     className="absolute z-10 touch-none cursor-grab select-none rounded-md border-2 border-dashed border-violet-600/75 bg-violet-100/10 p-0 shadow-lg shadow-violet-950/25 active:cursor-grabbing"
                     style={{
-                      left: signaturePreview.left,
-                      top: signaturePreview.top,
-                      width: signaturePreview.width,
-                      height: signaturePreview.height,
-                      opacity
+                      left:
+                        signaturePreview.left,
+                      top:
+                        signaturePreview.top,
+                      width:
+                        signaturePreview.width,
+                      height:
+                        signaturePreview.height
                     }}
-                    onPointerDown={handleSignaturePointerDown}
-                    onPointerMove={handleSignaturePointerMove}
-                    onPointerUp={finishSignatureDrag}
-                    onPointerCancel={finishSignatureDrag}
+                    onPointerDown={
+                      handleSignaturePointerDown
+                    }
+                    onPointerMove={
+                      handleSignaturePointerMove
+                    }
+                    onPointerUp={
+                      finishSignatureDrag
+                    }
+                    onPointerCancel={
+                      finishSignatureDrag
+                    }
                   >
                     <img
-                      src={signaturePreviewUrl}
+                      src={
+                        signaturePreviewUrl
+                      }
                       alt="Assinatura posicionada no documento"
-                      draggable={false}
-                      className="h-full w-full pointer-events-none object-contain"
+                      draggable={
+                        false
+                      }
+                      className="pointer-events-none h-full w-full object-contain"
+                      style={{
+                        opacity
+                      }}
+                    />
+
+                    <span
+                      aria-hidden="true"
+                      title="Redimensionar pelo canto superior esquerdo"
+                      className="absolute -left-2 -top-2 z-20 h-4 w-4 touch-none cursor-nwse-resize rounded-full border-2 border-white bg-violet-600 shadow-md shadow-black/40"
+                      onPointerDown={(
+                        event
+                      ) =>
+                        handleResizePointerDown(
+                          event,
+                          'top-left'
+                        )
+                      }
+                      onPointerMove={
+                        handleResizePointerMove
+                      }
+                      onPointerUp={
+                        finishSignatureResize
+                      }
+                      onPointerCancel={
+                        finishSignatureResize
+                      }
+                    />
+
+                    <span
+                      aria-hidden="true"
+                      title="Redimensionar pelo canto superior direito"
+                      className="absolute -right-2 -top-2 z-20 h-4 w-4 touch-none cursor-nesw-resize rounded-full border-2 border-white bg-violet-600 shadow-md shadow-black/40"
+                      onPointerDown={(
+                        event
+                      ) =>
+                        handleResizePointerDown(
+                          event,
+                          'top-right'
+                        )
+                      }
+                      onPointerMove={
+                        handleResizePointerMove
+                      }
+                      onPointerUp={
+                        finishSignatureResize
+                      }
+                      onPointerCancel={
+                        finishSignatureResize
+                      }
+                    />
+
+                    <span
+                      aria-hidden="true"
+                      title="Redimensionar pelo canto inferior esquerdo"
+                      className="absolute -bottom-2 -left-2 z-20 h-4 w-4 touch-none cursor-nesw-resize rounded-full border-2 border-white bg-violet-600 shadow-md shadow-black/40"
+                      onPointerDown={(
+                        event
+                      ) =>
+                        handleResizePointerDown(
+                          event,
+                          'bottom-left'
+                        )
+                      }
+                      onPointerMove={
+                        handleResizePointerMove
+                      }
+                      onPointerUp={
+                        finishSignatureResize
+                      }
+                      onPointerCancel={
+                        finishSignatureResize
+                      }
+                    />
+
+                    <span
+                      aria-hidden="true"
+                      title="Redimensionar pelo canto inferior direito"
+                      className="absolute -bottom-2 -right-2 z-20 h-4 w-4 touch-none cursor-nwse-resize rounded-full border-2 border-white bg-violet-600 shadow-md shadow-black/40"
+                      onPointerDown={(
+                        event
+                      ) =>
+                        handleResizePointerDown(
+                          event,
+                          'bottom-right'
+                        )
+                      }
+                      onPointerMove={
+                        handleResizePointerMove
+                      }
+                      onPointerUp={
+                        finishSignatureResize
+                      }
+                      onPointerCancel={
+                        finishSignatureResize
+                      }
                     />
                   </button>
                 ) : null}
@@ -955,43 +1882,75 @@ export default function SignatureOptions({
 
         <div className="grid gap-5 md:grid-cols-2">
           <div>
-            <label htmlFor="signature-position" className="input-label">
+            <label
+              htmlFor="signature-position"
+              className="input-label"
+            >
               Atalho de posição
             </label>
 
             <select
               id="signature-position"
               className="input-field"
-              value={positionSelectValue}
-              onChange={(event) => {
-                if (event.target.value !== 'custom') {
-                  onPositionChange(event.target.value as SignaturePosition)
+              value={
+                positionSelectValue
+              }
+              onChange={(
+                event
+              ) => {
+                if (
+                  event.target
+                    .value !==
+                  'custom'
+                ) {
+                  onPositionChange(
+                    event.target
+                      .value as SignaturePosition
+                  )
                 }
               }}
             >
-              {positionSelectValue === 'custom' ? (
-                <option value="custom">Posição personalizada</option>
+              {positionSelectValue ===
+              'custom' ? (
+                <option value="custom">
+                  Posição personalizada
+                </option>
               ) : null}
 
-              {signaturePositions.map((signaturePosition) => (
-                <option
-                  key={signaturePosition.value}
-                  value={signaturePosition.value}
-                >
-                  {signaturePosition.label}
-                </option>
-              ))}
+              {signaturePositions.map(
+                (
+                  signaturePosition
+                ) => (
+                  <option
+                    key={
+                      signaturePosition.value
+                    }
+                    value={
+                      signaturePosition.value
+                    }
+                  >
+                    {
+                      signaturePosition.label
+                    }
+                  </option>
+                )
+              )}
             </select>
 
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Pode usar um atalho e depois ajustar livremente a posição ao
-              arrastar a assinatura na página.
+              Pode usar um atalho e
+              depois ajustar livremente
+              a posição ao arrastar a
+              assinatura na página.
             </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="signature-width" className="input-label mb-0">
+              <label
+                htmlFor="signature-width"
+                className="input-label mb-0"
+              >
                 Tamanho
               </label>
 
@@ -1003,31 +1962,56 @@ export default function SignatureOptions({
             <input
               id="signature-width"
               type="range"
-              min={40}
-              max={400}
+              min={
+                MIN_SIGNATURE_WIDTH
+              }
+              max={
+                MAX_SIGNATURE_WIDTH
+              }
               step={5}
-              value={width}
+              value={
+                width
+              }
               className="mt-4 w-full accent-violet-300"
-              onChange={(event) =>
-                handleWidthChange(Number(event.target.value))
+              onChange={(
+                event
+              ) =>
+                handleWidthChange(
+                  Number(
+                    event.target
+                      .value
+                  )
+                )
               }
             />
 
             <div className="mt-2 flex justify-between text-[0.68rem] text-slate-500">
-              <span>Pequena</span>
-              <span>Grande</span>
+              <span>
+                Pequena
+              </span>
+
+              <span>
+                Grande
+              </span>
             </div>
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between gap-3">
-            <label htmlFor="signature-opacity" className="input-label mb-0">
+            <label
+              htmlFor="signature-opacity"
+              className="input-label mb-0"
+            >
               Opacidade
             </label>
 
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-violet-100">
-              {Math.round(opacity * 100)}%
+              {Math.round(
+                opacity *
+                  100
+              )}
+              %
             </span>
           </div>
 
@@ -1037,23 +2021,41 @@ export default function SignatureOptions({
             min={0.1}
             max={1}
             step={0.05}
-            value={opacity}
+            value={
+              opacity
+            }
             className="mt-4 w-full accent-violet-300"
-            onChange={(event) =>
-              handleOpacityChange(Number(event.target.value))
+            onChange={(
+              event
+            ) =>
+              handleOpacityChange(
+                Number(
+                  event.target
+                    .value
+                )
+              )
             }
           />
 
           <div className="mt-2 flex justify-between text-[0.68rem] text-slate-500">
-            <span>Transparente</span>
-            <span>Totalmente visível</span>
+            <span>
+              Transparente
+            </span>
+
+            <span>
+              Totalmente visível
+            </span>
           </div>
         </div>
 
         <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4 text-xs leading-5 text-emerald-50/90">
-          O documento, a pré-visualização e a imagem da assinatura são
-          processados localmente no navegador. Nenhum dos ficheiros é enviado
-          para servidores.
+          O documento, a
+          pré-visualização e a imagem
+          da assinatura são
+          processados localmente no
+          navegador. Nenhum dos
+          ficheiros é enviado para
+          servidores.
         </div>
       </div>
     </div>
