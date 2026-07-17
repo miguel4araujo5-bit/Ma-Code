@@ -15,6 +15,11 @@ import {
   sanitizeFileName
 } from './fileUtils'
 
+export type SignatureCoordinates = {
+  xRatio: number
+  yRatio: number
+}
+
 export type SignaturePosition =
   | 'bottom-left'
   | 'bottom-center'
@@ -23,6 +28,7 @@ export type SignaturePosition =
   | 'top-left'
   | 'top-center'
   | 'top-right'
+  | SignatureCoordinates
 
 export type SignaturePageSelection =
   | 'last'
@@ -214,6 +220,34 @@ function getSignatureCoordinates(
     height: pageHeight
   } = page.getSize()
 
+  if (typeof position === 'object') {
+    const maximumX = Math.max(
+      pageWidth - signatureWidth,
+      0
+    )
+
+    const maximumTop = Math.max(
+      pageHeight - signatureHeight,
+      0
+    )
+
+    const x =
+      clamp(position.xRatio, 0, 1) *
+      maximumX
+
+    const top =
+      clamp(position.yRatio, 0, 1) *
+      maximumTop
+
+    return {
+      x,
+      y:
+        pageHeight -
+        signatureHeight -
+        top
+    }
+  }
+
   const leftX = margin
 
   const centerX =
@@ -388,12 +422,17 @@ export async function signPdf(
       } de ${pages.length}...`
     )
 
+    const effectiveMargin =
+      typeof position === 'object'
+        ? 0
+        : margin
+
     const signatureSize =
       getSignatureSize(
         page,
         signatureImage,
         requestedWidth,
-        margin
+        effectiveMargin
       )
 
     const coordinates =
@@ -402,7 +441,7 @@ export async function signPdf(
         signatureSize.width,
         signatureSize.height,
         position,
-        margin
+        effectiveMargin
       )
 
     page.drawImage(
