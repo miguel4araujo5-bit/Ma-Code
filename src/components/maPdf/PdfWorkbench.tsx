@@ -1254,6 +1254,7 @@ export default function PdfWorkbench({
             {activeTool === 'editPdf' &&
             selectedFiles.length === 1 ? (
               <EditPdfOptions
+                pdfFile={selectedFiles[0].file}
                 elements={editElements}
                 onElementsChange={setEditElements}
               />
