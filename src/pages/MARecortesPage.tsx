@@ -54,9 +54,7 @@ function updateMeta(
   content: string
 ) {
   let meta =
-    document.querySelector<
-      HTMLMetaElement
-    >(
+    document.querySelector<HTMLMetaElement>(
       `meta[name="${name}"]`
     )
 
@@ -81,9 +79,7 @@ function updatePropertyMeta(
   content: string
 ) {
   let meta =
-    document.querySelector<
-      HTMLMetaElement
-    >(
+    document.querySelector<HTMLMetaElement>(
       `meta[property="${property}"]`
     )
 
@@ -110,9 +106,7 @@ function updateCanonical(
   href: string
 ) {
   let canonical =
-    document.querySelector<
-      HTMLLinkElement
-    >(
+    document.querySelector<HTMLLinkElement>(
       'link[rel="canonical"]'
     )
 
@@ -138,9 +132,7 @@ function updateStructuredData(
   data: unknown
 ) {
   let script =
-    document.querySelector<
-      HTMLScriptElement
-    >(
+    document.querySelector<HTMLScriptElement>(
       `script[data-schema-id="${id}"]`
     )
 
@@ -265,9 +257,9 @@ export default function MARecortesPage() {
   const [
     selectionPoints,
     setSelectionPoints
-  ] = useState<
-    EditorPoint[]
-  >([])
+  ] = useState<EditorPoint[]>(
+    []
+  )
 
   const [
     editorStage,
@@ -334,9 +326,9 @@ export default function MARecortesPage() {
   const [
     history,
     setHistory
-  ] = useState<
-    PixelMask[]
-  >([])
+  ] = useState<PixelMask[]>(
+    []
+  )
 
   const [
     isPainting,
@@ -406,7 +398,7 @@ export default function MARecortesPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Selecione fotografias por pontos, ajuste as margens e exporte uma imagem preparada para criar um sticker no WhatsApp.'
+      'Selecione fotografias por pontos, ajuste as margens e partilhe o recorte para o WhatsApp.'
     )
 
     updatePropertyMeta(
@@ -426,7 +418,7 @@ export default function MARecortesPage() {
 
     updateMeta(
       'twitter:description',
-      'Selecione, corrija e exporte imagens transparentes preparadas para stickers.'
+      'Selecione, corrija e partilhe imagens transparentes preparadas para stickers.'
     )
 
     updateMeta(
@@ -1196,7 +1188,7 @@ export default function MARecortesPage() {
         type: 'info',
         text:
           whatsapp
-            ? 'A preparar a imagem para criar o sticker no WhatsApp…'
+            ? 'A preparar o recorte para partilhar…'
             : 'A criar o PNG transparente…'
       })
 
@@ -1213,8 +1205,77 @@ export default function MARecortesPage() {
 
         const fileName =
           whatsapp
-            ? 'ma-recortes-para-whatsapp.png'
+            ? 'ma-recortes-whatsapp.png'
             : 'ma-recortes.png'
+
+        if (!whatsapp) {
+          downloadBlob(
+            blob,
+            fileName
+          )
+
+          setNotice({
+            type:
+              'success',
+            text:
+              'PNG transparente descarregado com sucesso.'
+          })
+
+          return
+        }
+
+        const file =
+          new File(
+            [blob],
+            fileName,
+            {
+              type:
+                'image/png',
+              lastModified:
+                Date.now()
+            }
+          )
+
+        const shareData:
+          ShareData = {
+            files: [
+              file
+            ],
+            title:
+              'MA-Recortes',
+            text:
+              'Imagem criada no MA-Recortes — https://ma-code.pt/produtos/ma-recortes'
+          }
+
+        const supportsFileSharing =
+          typeof navigator.share ===
+            'function' &&
+          (
+            typeof navigator.canShare !==
+              'function' ||
+            navigator.canShare({
+              files: [
+                file
+              ]
+            })
+          )
+
+        if (
+          supportsFileSharing
+        ) {
+          await navigator.share(
+            shareData
+          )
+
+          setNotice({
+            type:
+              'success',
+            text:
+              'Imagem partilhada. Para a guardar como sticker, abra a área de stickers do WhatsApp, escolha “Criar” e selecione esta imagem.'
+          })
+
+          return
+        }
 
         downloadBlob(
           blob,
@@ -1223,24 +1284,36 @@ export default function MARecortesPage() {
 
         setNotice({
           type:
-            'success',
+            'info',
           text:
-            whatsapp
-              ? 'Imagem guardada. Abra o WhatsApp, entre numa conversa, abra os stickers, escolha “Criar” e selecione esta imagem para a guardar como sticker.'
-              : 'PNG transparente descarregado com sucesso.'
+            'Este navegador não permite partilhar ficheiros diretamente. A imagem foi descarregada; no WhatsApp, abra os stickers, escolha “Criar” e selecione-a.'
         })
       } catch (
         error
       ) {
-        setNotice({
-          type:
-            'error',
-          text:
-            error instanceof
-            Error
-              ? error.message
-              : 'Não foi possível exportar o recorte.'
-        })
+        if (
+          error instanceof
+            DOMException &&
+          error.name ===
+            'AbortError'
+        ) {
+          setNotice({
+            type:
+              'info',
+            text:
+              'Partilha cancelada. O recorte continua disponível.'
+          })
+        } else {
+          setNotice({
+            type:
+              'error',
+            text:
+              error instanceof
+              Error
+                ? error.message
+                : 'Não foi possível exportar o recorte.'
+          })
+        }
       } finally {
         setProcessing(false)
       }
@@ -1351,7 +1424,7 @@ export default function MARecortesPage() {
               </li>
 
               <li>
-                PNG transparente
+                Partilha direta
               </li>
             </ul>
           </div>
@@ -1979,10 +2052,9 @@ export default function MARecortesPage() {
                     </h2>
 
                     <p className="mt-3 text-sm leading-7 text-slate-300">
-                      O PNG mantém o fundo transparente. A opção para
-                      WhatsApp cria uma imagem quadrada de 512 × 512
-                      px, preparada para selecionar no criador de
-                      stickers do próprio WhatsApp.
+                      Exporte o PNG transparente ou abra a partilha
+                      do telemóvel para o enviar diretamente pelo
+                      WhatsApp.
                     </p>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -2018,40 +2090,22 @@ export default function MARecortesPage() {
                         <span className="relative z-10">
                           {processing
                             ? 'A preparar…'
-                            : 'Guardar para WhatsApp'}
+                            : 'Partilhar para WhatsApp'}
                         </span>
                       </button>
                     </div>
 
-                    <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
-                      <strong className="text-sm font-semibold text-emerald-100">
-                        Como adicionar como sticker
+                    <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] p-4">
+                      <strong className="text-sm font-semibold text-cyan-100">
+                        Para guardar como sticker
                       </strong>
 
-                      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-                        <li>
-                          1. Carregue em “Guardar para WhatsApp”.
-                        </li>
-
-                        <li>
-                          2. Abra uma conversa no WhatsApp.
-                        </li>
-
-                        <li>
-                          3. Abra a área dos stickers e escolha
-                          “Criar”.
-                        </li>
-
-                        <li>
-                          4. Selecione a imagem guardada pelo
-                          MA-Recortes.
-                        </li>
-
-                        <li>
-                          5. Envie o sticker e guarde-o nos favoritos
-                          ou num pack.
-                        </li>
-                      </ol>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">
+                        A partilha envia a imagem recortada diretamente
+                        para o WhatsApp. Para a adicionar à coleção de
+                        stickers, abra a área dos stickers no WhatsApp,
+                        escolha “Criar” e selecione esta imagem.
+                      </p>
                     </div>
                   </section>
                 )}
