@@ -83,20 +83,23 @@ const products:
   },
   {
     name:
-      'Novo produto MA',
+      'MA-Recortes',
     eyebrow:
-      'Próxima ferramenta',
+      'Criador de stickers',
     description:
-      'Espaço reservado para os próximos produtos próprios da MA-Code: ferramentas digitais simples, úteis e preparadas para pequenos negócios.',
+      'Carregue uma fotografia, remova o fundo automaticamente ou faça o recorte totalmente à mão. Corrija os detalhes e exporte em PNG transparente ou para o WhatsApp.',
     href:
-      '/contacto?tipo=produto-ma-code',
-    status: 'Planeado',
-    badge: 'MA',
+      '/produtos/ma-recortes',
+    status:
+      'Em desenvolvimento',
+    badge: '✂',
+    badgeClassName:
+      'border-violet-300/30 bg-violet-300/10 text-violet-100 shadow-violet-950/30',
     highlights: [
-      'Automação',
-      'Produtividade',
-      'Negócios',
-      'À medida'
+      'Recorte automático',
+      'Correção manual',
+      'PNG transparente',
+      'WhatsApp'
     ]
   }
 ]
@@ -232,7 +235,9 @@ function ProductCardItem({
     product.name ===
       'MA Carteira' ||
     product.name ===
-      'MA-BTC ALERTAS'
+      'MA-BTC ALERTAS' ||
+    product.name ===
+      'MA-Recortes'
 
   return (
     <article
@@ -266,7 +271,9 @@ function ProductCardItem({
               'border-cyan-300/25 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30'
             } ${
               product.badge ===
-              '₿'
+                '₿' ||
+              product.badge ===
+                '✂'
                 ? 'text-3xl'
                 : ''
             }`}
@@ -335,12 +342,12 @@ export default function ProductsPage() {
 
     updateMeta(
       'description',
-      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e futuras ferramentas digitais para documentos, produtividade e automação.'
+      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e MA-Recortes, uma ferramenta para criar stickers e imagens PNG transparentes.'
     )
 
     updateMeta(
       'keywords',
-      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, apps web, ferramentas digitais, produtos digitais, MB WAY'
+      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, remover fundo, PNG transparente, apps web, ferramentas digitais'
     )
 
     updateMeta(
@@ -375,7 +382,7 @@ export default function ProductsPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin e futuras apps web com foco em simplicidade e utilidade.'
+      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin e criação de stickers e recortes transparentes.'
     )
 
     updatePropertyMeta(
@@ -405,7 +412,7 @@ export default function ProductsPage() {
 
     updateMeta(
       'twitter:description',
-      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e futuras ferramentas digitais.'
+      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e MA-Recortes.'
     )
 
     updateMeta(
@@ -440,7 +447,7 @@ export default function ProductsPage() {
             inLanguage:
               'pt-PT',
             description:
-              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin e futuras aplicações web.',
+              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin e uma aplicação para criar stickers e recortes transparentes.',
             isPartOf: {
               '@id':
                 `${siteUrl}/#website`
@@ -564,9 +571,9 @@ export default function ProductsPage() {
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
               Esta área reúne produtos próprios da MA-Code, como o
-              MA PDF, a MA Carteira e a MA-BTC ALERTAS, mantendo a
-              estrutura preparada para acrescentar novas automações,
-              ferramentas para negócios e apps web.
+              MA PDF, a MA Carteira, a MA-BTC ALERTAS e o MA-Recortes,
+              mantendo a estrutura preparada para acrescentar novas
+              automações, ferramentas para negócios e apps web.
             </p>
 
             <div className="hero-actions">
@@ -607,7 +614,7 @@ export default function ProductsPage() {
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">
-              Cada produto terá a sua própria página dentro de
+              Cada produto tem a sua própria página dentro de
               /produtos. Assim, a estrutura fica limpa, organizada e
               preparada para SEO quando forem adicionadas novas
               ferramentas.
@@ -655,9 +662,9 @@ export default function ProductsPage() {
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Quando houver outro produto, basta criar nova
+                  Quando houver outro produto, basta criar uma nova
                   página como /produtos/nomedoproduto e acrescentar o
-                  cartão nesta página de catálogo.
+                  respetivo cartão nesta página de catálogo.
                 </p>
               </div>
 
