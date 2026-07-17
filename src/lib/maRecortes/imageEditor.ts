@@ -1,8 +1,16 @@
+export type PixelMask =
+  Uint8ClampedArray<ArrayBufferLike>
+
+export type EditorPoint = {
+  x: number
+  y: number
+}
+
 export type EditorImage = {
   image: HTMLImageElement
   width: number
   height: number
-  mask: Uint8ClampedArray
+  mask: PixelMask
 }
 
 export type BrushMode =
@@ -143,9 +151,48 @@ function getImagePixels(
 
 function colourDistance(
   pixels:
-    Uint8ClampedArray,
+    Uint8ClampedArray<ArrayBufferLike>,
+  firstPixelIndex: number,
+  secondPixelIndex: number
+) {
+  const firstOffset =
+    firstPixelIndex * 4
+
+  const secondOffset =
+    secondPixelIndex * 4
+
+  const red =
+    pixels[firstOffset] -
+    pixels[secondOffset]
+
+  const green =
+    pixels[
+      firstOffset + 1
+    ] -
+    pixels[
+      secondOffset + 1
+    ]
+
+  const blue =
+    pixels[
+      firstOffset + 2
+    ] -
+    pixels[
+      secondOffset + 2
+    ]
+
+  return Math.sqrt(
+    red * red +
+      green * green +
+      blue * blue
+  )
+}
+
+function colourDistanceFromSample(
+  pixels:
+    Uint8ClampedArray<ArrayBufferLike>,
   pixelIndex: number,
-  colour:
+  sample:
     readonly [
       number,
       number,
@@ -157,15 +204,19 @@ function colourDistance(
 
   const red =
     pixels[offset] -
-    colour[0]
+    sample[0]
 
   const green =
-    pixels[offset + 1] -
-    colour[1]
+    pixels[
+      offset + 1
+    ] -
+    sample[1]
 
   const blue =
-    pixels[offset + 2] -
-    colour[2]
+    pixels[
+      offset + 2
+    ] -
+    sample[2]
 
   return Math.sqrt(
     red * red +
@@ -174,106 +225,137 @@ function colourDistance(
   )
 }
 
-function averageCornerColour(
+function getPixelColour(
   pixels:
-    Uint8ClampedArray,
-  width: number,
-  height: number,
-  startX: number,
-  startY: number,
-  size: number
+    Uint8ClampedArray<ArrayBufferLike>,
+  pixelIndex: number
 ): [
   number,
   number,
   number
 ] {
-  let red = 0
-  let green = 0
-  let blue = 0
-  let count = 0
-
-  const endX =
-    Math.min(
-      width,
-      startX + size
-    )
-
-  const endY =
-    Math.min(
-      height,
-      startY + size
-    )
-
-  for (
-    let y =
-      Math.max(
-        0,
-        startY
-      );
-    y < endY;
-    y += 1
-  ) {
-    for (
-      let x =
-        Math.max(
-          0,
-          startX
-        );
-      x < endX;
-      x += 1
-    ) {
-      const offset =
-        (
-          y * width +
-          x
-        ) * 4
-
-      red +=
-        pixels[offset]
-
-      green +=
-        pixels[
-          offset + 1
-        ]
-
-      blue +=
-        pixels[
-          offset + 2
-        ]
-
-      count += 1
-    }
-  }
+  const offset =
+    pixelIndex * 4
 
   return [
-    Math.round(
-      red /
-        Math.max(
-          1,
-          count
-        )
-    ),
-    Math.round(
-      green /
-        Math.max(
-          1,
-          count
-        )
-    ),
-    Math.round(
-      blue /
-        Math.max(
-          1,
-          count
-        )
-    )
+    pixels[offset],
+    pixels[
+      offset + 1
+    ],
+    pixels[
+      offset + 2
+    ]
   ]
+}
+
+function getBackgroundSamples(
+  pixels:
+    Uint8ClampedArray<ArrayBufferLike>,
+  width: number,
+  height: number
+) {
+  const positions = [
+    {
+      x: 0,
+      y: 0
+    },
+    {
+      x:
+        Math.floor(
+          width / 2
+        ),
+      y: 0
+    },
+    {
+      x:
+        width - 1,
+      y: 0
+    },
+    {
+      x:
+        width - 1,
+      y:
+        Math.floor(
+          height / 2
+        )
+    },
+    {
+      x:
+        width - 1,
+      y:
+        height - 1
+    },
+    {
+      x:
+        Math.floor(
+          width / 2
+        ),
+      y:
+        height - 1
+    },
+    {
+      x: 0,
+      y:
+        height - 1
+    },
+    {
+      x: 0,
+      y:
+        Math.floor(
+          height / 2
+        )
+    }
+  ]
+
+  return positions.map(
+    ({
+      x,
+      y
+    }) =>
+      getPixelColour(
+        pixels,
+        y * width + x
+      )
+  )
+}
+
+function getBackgroundDistance(
+  pixels:
+    Uint8ClampedArray<ArrayBufferLike>,
+  pixelIndex: number,
+  samples:
+    ReadonlyArray<
+      readonly [
+        number,
+        number,
+        number
+      ]
+    >
+) {
+  let minimumDistance =
+    Number.POSITIVE_INFINITY
+
+  for (
+    const sample of samples
+  ) {
+    minimumDistance =
+      Math.min(
+        minimumDistance,
+        colourDistanceFromSample(
+          pixels,
+          pixelIndex,
+          sample
+        )
+      )
+  }
+
+  return minimumDistance
 }
 
 export function createAutomaticMask(
   editor: EditorImage,
   tolerance: number
-) {
+): PixelMask {
   const {
     width,
     height
@@ -284,60 +366,18 @@ export function createAutomaticMask(
       editor
     )
 
-  const cornerSize =
-    Math.max(
-      2,
-      Math.round(
-        Math.min(
-          width,
-          height
-        ) * 0.025
-      )
+  const samples =
+    getBackgroundSamples(
+      pixels,
+      width,
+      height
     )
 
-  const colours = [
-    averageCornerColour(
-      pixels,
-      width,
-      height,
-      0,
-      0,
-      cornerSize
-    ),
-    averageCornerColour(
-      pixels,
-      width,
-      height,
-      width -
-        cornerSize,
-      0,
-      cornerSize
-    ),
-    averageCornerColour(
-      pixels,
-      width,
-      height,
-      0,
-      height -
-        cornerSize,
-      cornerSize
-    ),
-    averageCornerColour(
-      pixels,
-      width,
-      height,
-      width -
-        cornerSize,
-      height -
-        cornerSize,
-      cornerSize
-    )
-  ] as const
-
-  const mask =
-    new Uint8ClampedArray(
-      width * height
-    ).fill(255)
+  const mask:
+    PixelMask =
+      new Uint8ClampedArray(
+        width * height
+      ).fill(255)
 
   const visited =
     new Uint8Array(
@@ -352,30 +392,75 @@ export function createAutomaticMask(
   let queueStart = 0
   let queueEnd = 0
 
-  const matchesBackground =
+  const localTolerance =
+    Math.max(
+      24,
+      tolerance * 0.6
+    )
+
+  const extendedTolerance =
+    tolerance * 1.3
+
+  const canRemove =
     (
-      pixelIndex: number
-    ) =>
-      colours.some(
-        (colour) =>
-          colourDistance(
-            pixels,
-            pixelIndex,
-            colour
-          ) <=
-          tolerance
+      pixelIndex: number,
+      previousPixelIndex:
+        number | null
+    ) => {
+      const backgroundDistance =
+        getBackgroundDistance(
+          pixels,
+          pixelIndex,
+          samples
+        )
+
+      if (
+        backgroundDistance <=
+        tolerance
+      ) {
+        return true
+      }
+
+      if (
+        previousPixelIndex ===
+        null
+      ) {
+        return false
+      }
+
+      const localDistance =
+        colourDistance(
+          pixels,
+          pixelIndex,
+          previousPixelIndex
+        )
+
+      return (
+        backgroundDistance <=
+          extendedTolerance &&
+        localDistance <=
+          localTolerance
       )
+    }
 
   const enqueue =
     (
-      pixelIndex: number
+      pixelIndex: number,
+      previousPixelIndex:
+        number | null
     ) => {
       if (
         visited[
           pixelIndex
-        ] ||
-        !matchesBackground(
-          pixelIndex
+        ]
+      ) {
+        return
+      }
+
+      if (
+        !canRemove(
+          pixelIndex,
+          previousPixelIndex
         )
       ) {
         return
@@ -397,14 +482,18 @@ export function createAutomaticMask(
     x < width;
     x += 1
   ) {
-    enqueue(x)
+    enqueue(
+      x,
+      null
+    )
 
     enqueue(
       (
         height - 1
       ) *
         width +
-        x
+        x,
+      null
     )
   }
 
@@ -414,13 +503,15 @@ export function createAutomaticMask(
     y += 1
   ) {
     enqueue(
-      y * width
+      y * width,
+      null
     )
 
     enqueue(
       y * width +
         width -
-        1
+        1,
+      null
     )
   }
 
@@ -451,7 +542,8 @@ export function createAutomaticMask(
 
     if (x > 0) {
       enqueue(
-        pixelIndex - 1
+        pixelIndex - 1,
+        pixelIndex
       )
     }
 
@@ -460,14 +552,16 @@ export function createAutomaticMask(
       width - 1
     ) {
       enqueue(
-        pixelIndex + 1
+        pixelIndex + 1,
+        pixelIndex
       )
     }
 
     if (y > 0) {
       enqueue(
         pixelIndex -
-          width
+          width,
+        pixelIndex
       )
     }
 
@@ -477,7 +571,8 @@ export function createAutomaticMask(
     ) {
       enqueue(
         pixelIndex +
-          width
+          width,
+        pixelIndex
       )
     }
   }
@@ -493,15 +588,112 @@ export function createAutomaticMask(
 export function createEmptyMask(
   width: number,
   height: number
-) {
+): PixelMask {
   return new Uint8ClampedArray(
     width * height
   )
 }
 
+export function createPolygonMask(
+  width: number,
+  height: number,
+  points:
+    EditorPoint[]
+): PixelMask {
+  if (
+    points.length < 3
+  ) {
+    throw new Error(
+      'Marque pelo menos três pontos para criar o recorte.'
+    )
+  }
+
+  const canvas =
+    document.createElement(
+      'canvas'
+    )
+
+  canvas.width = width
+  canvas.height = height
+
+  const context =
+    canvas.getContext(
+      '2d',
+      {
+        willReadFrequently:
+          true
+      }
+    )
+
+  if (!context) {
+    throw new Error(
+      'Não foi possível criar a seleção manual.'
+    )
+  }
+
+  context.clearRect(
+    0,
+    0,
+    width,
+    height
+  )
+
+  context.fillStyle =
+    '#ffffff'
+
+  context.beginPath()
+
+  context.moveTo(
+    points[0].x,
+    points[0].y
+  )
+
+  for (
+    let index = 1;
+    index <
+    points.length;
+    index += 1
+  ) {
+    context.lineTo(
+      points[index].x,
+      points[index].y
+    )
+  }
+
+  context.closePath()
+  context.fill()
+
+  const imageData =
+    context.getImageData(
+      0,
+      0,
+      width,
+      height
+    )
+
+  const mask:
+    PixelMask =
+      new Uint8ClampedArray(
+        width * height
+      )
+
+  for (
+    let index = 0;
+    index <
+    mask.length;
+    index += 1
+  ) {
+    mask[index] =
+      imageData.data[
+        index * 4 + 3
+      ]
+  }
+
+  return mask
+}
+
 export function paintMask(
-  mask:
-    Uint8ClampedArray,
+  mask: PixelMask,
   width: number,
   height: number,
   centreX: number,
@@ -573,8 +765,8 @@ export function paintMask(
       if (
         deltaX *
           deltaX +
-          deltaY *
-            deltaY <=
+        deltaY *
+          deltaY <=
         radiusSquared
       ) {
         mask[
@@ -585,17 +777,14 @@ export function paintMask(
       }
     }
   }
-
-  return mask
 }
 
 export function softenMask(
-  mask:
-    Uint8ClampedArray,
+  mask: PixelMask,
   width: number,
   height: number,
   radius: number
-) {
+): PixelMask {
   if (
     radius <= 0
   ) {
@@ -618,10 +807,11 @@ export function softenMask(
       mask.length
     )
 
-  const nextMask =
-    new Uint8ClampedArray(
-      mask.length
-    )
+  const nextMask:
+    PixelMask =
+      new Uint8ClampedArray(
+        mask.length
+      )
 
   for (
     let y = 0;
@@ -631,18 +821,18 @@ export function softenMask(
     let total = 0
 
     for (
-      let x =
+      let offset =
         -safeRadius;
-      x <=
+      offset <=
       safeRadius;
-      x += 1
+      offset += 1
     ) {
       const sampleX =
         Math.min(
           width - 1,
           Math.max(
             0,
-            x
+            offset
           )
         )
 
@@ -714,18 +904,18 @@ export function softenMask(
     let total = 0
 
     for (
-      let y =
+      let offset =
         -safeRadius;
-      y <=
+      offset <=
       safeRadius;
-      y += 1
+      offset += 1
     ) {
       const sampleY =
         Math.min(
           height - 1,
           Math.max(
             0,
-            y
+            offset
           )
         )
 
@@ -794,12 +984,245 @@ export function softenMask(
   return nextMask
 }
 
+export function renderPolygonSelectionCanvas(
+  canvas:
+    HTMLCanvasElement,
+  editor: EditorImage,
+  points:
+    EditorPoint[]
+) {
+  canvas.width =
+    editor.width
+
+  canvas.height =
+    editor.height
+
+  const context =
+    canvas.getContext(
+      '2d'
+    )
+
+  if (!context) {
+    return
+  }
+
+  context.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  )
+
+  context.drawImage(
+    editor.image,
+    0,
+    0,
+    editor.width,
+    editor.height
+  )
+
+  context.fillStyle =
+    'rgba(2, 6, 23, 0.38)'
+
+  context.fillRect(
+    0,
+    0,
+    editor.width,
+    editor.height
+  )
+
+  if (
+    points.length >= 3
+  ) {
+    context.save()
+
+    context.beginPath()
+
+    context.moveTo(
+      points[0].x,
+      points[0].y
+    )
+
+    for (
+      let index = 1;
+      index <
+      points.length;
+      index += 1
+    ) {
+      context.lineTo(
+        points[index].x,
+        points[index].y
+      )
+    }
+
+    context.closePath()
+    context.clip()
+
+    context.drawImage(
+      editor.image,
+      0,
+      0,
+      editor.width,
+      editor.height
+    )
+
+    context.restore()
+  }
+
+  if (
+    points.length === 0
+  ) {
+    return
+  }
+
+  const lineWidth =
+    Math.max(
+      3,
+      Math.min(
+        editor.width,
+        editor.height
+      ) * 0.004
+    )
+
+  const pointRadius =
+    Math.max(
+      6,
+      Math.min(
+        editor.width,
+        editor.height
+      ) * 0.009
+    )
+
+  context.lineCap =
+    'round'
+
+  context.lineJoin =
+    'round'
+
+  context.strokeStyle =
+    '#67e8f9'
+
+  context.lineWidth =
+    lineWidth
+
+  context.beginPath()
+
+  context.moveTo(
+    points[0].x,
+    points[0].y
+  )
+
+  for (
+    let index = 1;
+    index <
+    points.length;
+    index += 1
+  ) {
+    context.lineTo(
+      points[index].x,
+      points[index].y
+    )
+  }
+
+  context.stroke()
+
+  if (
+    points.length >= 3
+  ) {
+    const lastPoint =
+      points[
+        points.length - 1
+      ]
+
+    context.save()
+
+    context.setLineDash([
+      lineWidth * 2,
+      lineWidth * 2
+    ])
+
+    context.strokeStyle =
+      'rgba(255, 255, 255, 0.8)'
+
+    context.beginPath()
+
+    context.moveTo(
+      lastPoint.x,
+      lastPoint.y
+    )
+
+    context.lineTo(
+      points[0].x,
+      points[0].y
+    )
+
+    context.stroke()
+    context.restore()
+  }
+
+  points.forEach(
+    (
+      point,
+      index
+    ) => {
+      context.beginPath()
+
+      context.arc(
+        point.x,
+        point.y,
+        index === 0
+          ? pointRadius * 1.3
+          : pointRadius,
+        0,
+        Math.PI * 2
+      )
+
+      context.fillStyle =
+        index === 0
+          ? '#facc15'
+          : '#67e8f9'
+
+      context.fill()
+
+      context.lineWidth =
+        Math.max(
+          2,
+          lineWidth * 0.6
+        )
+
+      context.strokeStyle =
+        '#082f49'
+
+      context.stroke()
+
+      if (index === 0) {
+        context.beginPath()
+
+        context.arc(
+          point.x,
+          point.y,
+          pointRadius * 2,
+          0,
+          Math.PI * 2
+        )
+
+        context.strokeStyle =
+          'rgba(250, 204, 21, 0.75)'
+
+        context.lineWidth =
+          lineWidth
+
+        context.stroke()
+      }
+    }
+  )
+}
+
 export function renderEditorCanvas(
   canvas:
     HTMLCanvasElement,
   editor: EditorImage,
-  mask:
-    Uint8ClampedArray,
+  mask: PixelMask,
   outlineSize: number
 ) {
   canvas.width =
@@ -850,8 +1273,7 @@ export function renderEditorCanvas(
 
 function createCutoutCanvas(
   editor: EditorImage,
-  mask:
-    Uint8ClampedArray
+  mask: PixelMask
 ) {
   const imageCanvas =
     document.createElement(
@@ -940,9 +1362,7 @@ function drawOutline(
       '2d'
     )
 
-  if (
-    !outlineContext
-  ) {
+  if (!outlineContext) {
     return
   }
 
@@ -987,27 +1407,20 @@ function drawOutline(
         Math.PI
       ) / 180
 
-    const offsetX =
+    context.drawImage(
+      outlineCanvas,
       Math.cos(
         radians
-      ) * safeSize
-
-    const offsetY =
+      ) * safeSize,
       Math.sin(
         radians
       ) * safeSize
-
-    context.drawImage(
-      outlineCanvas,
-      offsetX,
-      offsetY
     )
   }
 }
 
 function findMaskBounds(
-  mask:
-    Uint8ClampedArray,
+  mask: PixelMask,
   width: number,
   height: number
 ) {
@@ -1085,8 +1498,7 @@ function findMaskBounds(
 
 export async function createExportBlob(
   editor: EditorImage,
-  mask:
-    Uint8ClampedArray,
+  mask: PixelMask,
   options: {
     whatsapp: boolean
     outlineSize: number
@@ -1214,9 +1626,7 @@ export async function createExportBlob(
       '2d'
     )
 
-  if (
-    !croppedContext
-  ) {
+  if (!croppedContext) {
     throw new Error(
       'Não foi possível preparar o ficheiro final.'
     )
@@ -1261,9 +1671,7 @@ export async function createExportBlob(
         '2d'
       )
 
-    if (
-      scaledContext
-    ) {
+    if (scaledContext) {
       scaledContext.drawImage(
         cropped,
         drawX,
