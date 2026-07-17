@@ -9,14 +9,17 @@ import {
 
 import {
   createAutomaticMask,
-  createEmptyMask,
   createExportBlob,
+  createPolygonMask,
   loadEditorImage,
   paintMask,
   renderEditorCanvas,
+  renderPolygonSelectionCanvas,
   softenMask,
   type BrushMode,
-  type EditorImage
+  type EditorImage,
+  type EditorPoint,
+  type PixelMask
 } from '../lib/maRecortes/imageEditor'
 
 const siteUrl =
@@ -31,6 +34,10 @@ const acceptedTypes = [
 type EditorStartMode =
   | 'automatic'
   | 'manual'
+
+type EditorStage =
+  | 'select'
+  | 'adjust'
 
 type Notice =
   | {
@@ -238,7 +245,7 @@ export default function MARecortesPage() {
     mask,
     setMask
   ] =
-    useState<Uint8ClampedArray | null>(
+    useState<PixelMask | null>(
       null
     )
 
@@ -246,8 +253,23 @@ export default function MARecortesPage() {
     originalMask,
     setOriginalMask
   ] =
-    useState<Uint8ClampedArray | null>(
+    useState<PixelMask | null>(
       null
+    )
+
+  const [
+    selectionPoints,
+    setSelectionPoints
+  ] = useState<
+    EditorPoint[]
+  >([])
+
+  const [
+    editorStage,
+    setEditorStage
+  ] =
+    useState<EditorStage>(
+      'adjust'
     )
 
   const [
@@ -255,7 +277,7 @@ export default function MARecortesPage() {
     setStartMode
   ] =
     useState<EditorStartMode>(
-      'automatic'
+      'manual'
     )
 
   const [
@@ -263,7 +285,7 @@ export default function MARecortesPage() {
     setBrushMode
   ] =
     useState<BrushMode>(
-      'remove'
+      'restore'
     )
 
   const [
@@ -308,7 +330,7 @@ export default function MARecortesPage() {
     history,
     setHistory
   ] = useState<
-    Uint8ClampedArray[]
+    PixelMask[]
   >([])
 
   const [
@@ -327,10 +349,7 @@ export default function MARecortesPage() {
     )
 
   const lastPaintPointRef =
-    useRef<{
-      x: number
-      y: number
-    } | null>(
+    useRef<EditorPoint | null>(
       null
     )
 
@@ -342,12 +361,12 @@ export default function MARecortesPage() {
 
     updateMeta(
       'description',
-      'Crie stickers para WhatsApp: carregue uma fotografia, recorte automaticamente ou manualmente, corrija os detalhes e exporte em PNG transparente.'
+      'Crie stickers para WhatsApp: selecione uma fotografia por pontos, corrija o recorte manualmente e exporte em PNG transparente.'
     )
 
     updateMeta(
       'keywords',
-      'criar sticker WhatsApp, recortar imagem, remover fundo, PNG transparente, stickers personalizados, MA-Recortes, MA-Code'
+      'criar sticker WhatsApp, recortar imagem, selecionar contorno, remover fundo, PNG transparente, MA-Recortes, MA-Code'
     )
 
     updateMeta(
@@ -382,7 +401,7 @@ export default function MARecortesPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Recorte fotografias automaticamente ou à mão e exporte o resultado em PNG ou como sticker para WhatsApp.'
+      'Selecione fotografias por pontos, ajuste as margens e exporte como PNG transparente ou sticker para WhatsApp.'
     )
 
     updatePropertyMeta(
@@ -402,7 +421,7 @@ export default function MARecortesPage() {
 
     updateMeta(
       'twitter:description',
-      'Recorte, corrija e exporte stickers para WhatsApp diretamente no navegador.'
+      'Selecione, corrija e exporte stickers para WhatsApp diretamente no navegador.'
     )
 
     updateMeta(
@@ -430,7 +449,7 @@ export default function MARecortesPage() {
         url:
           `${siteUrl}/produtos/ma-recortes`,
         description:
-          'Aplicação web para recortar imagens automaticamente ou manualmente e exportar PNG transparentes e stickers para WhatsApp.',
+          'Aplicação web para selecionar e recortar imagens manualmente, corrigir margens e exportar PNG transparentes e stickers para WhatsApp.',
         offers: {
           '@type':
             'Offer',
@@ -445,9 +464,25 @@ export default function MARecortesPage() {
   useEffect(() => {
     if (
       !editor ||
-      !mask ||
       !canvasRef.current
     ) {
+      return
+    }
+
+    if (
+      editorStage ===
+      'select'
+    ) {
+      renderPolygonSelectionCanvas(
+        canvasRef.current,
+        editor,
+        selectionPoints
+      )
+
+      return
+    }
+
+    if (!mask) {
       return
     }
 
@@ -460,7 +495,9 @@ export default function MARecortesPage() {
   }, [
     editor,
     mask,
-    outlineSize
+    outlineSize,
+    editorStage,
+    selectionPoints
   ])
 
   const startEditor =
@@ -497,9 +534,7 @@ export default function MARecortesPage() {
           return
         }
 
-        setProcessing(
-          true
-        )
+        setProcessing(true)
 
         setNotice({
           type: 'info',
@@ -513,49 +548,67 @@ export default function MARecortesPage() {
               file
             )
 
-          const nextMask =
-            startMode ===
-            'automatic'
-              ? createAutomaticMask(
-                  nextEditor,
-                  tolerance
-                )
-              : createEmptyMask(
-                  nextEditor.width,
-                  nextEditor.height
-                )
-
           setEditor(
             nextEditor
           )
 
-          setMask(
-            nextMask
-          )
-
-          setOriginalMask(
-            nextMask.slice()
-          )
-
-          setHistory([])
           setZoom(1)
+          setHistory([])
+          setSelectionPoints([])
 
-          setBrushMode(
+          if (
             startMode ===
-              'manual'
-              ? 'restore'
-              : 'remove'
-          )
+            'automatic'
+          ) {
+            const nextMask =
+              createAutomaticMask(
+                nextEditor,
+                tolerance
+              )
 
-          setNotice({
-            type:
-              'success',
-            text:
-              startMode ===
-              'automatic'
-                ? 'Recorte automático concluído. Use os pincéis para corrigir qualquer detalhe.'
-                : 'Modo manual iniciado. Pinte com “Restaurar” a área que pretende manter.'
-          })
+            setMask(
+              nextMask
+            )
+
+            setOriginalMask(
+              nextMask.slice()
+            )
+
+            setEditorStage(
+              'adjust'
+            )
+
+            setBrushMode(
+              'restore'
+            )
+
+            setNotice({
+              type:
+                'success',
+              text:
+                'Recorte automático concluído. Use “Restaurar” para recuperar partes apagadas e “Remover” para limpar o fundo.'
+            })
+          } else {
+            setMask(null)
+
+            setOriginalMask(
+              null
+            )
+
+            setEditorStage(
+              'select'
+            )
+
+            setBrushMode(
+              'restore'
+            )
+
+            setNotice({
+              type: 'info',
+              text:
+                'Toque em vários pontos à volta da pessoa ou objeto. No final, toque novamente no primeiro ponto amarelo para fechar a seleção.'
+            })
+          }
         } catch (
           error
         ) {
@@ -568,9 +621,7 @@ export default function MARecortesPage() {
                 : 'Não foi possível abrir a imagem.'
           })
         } finally {
-          setProcessing(
-            false
-          )
+          setProcessing(false)
         }
       },
       [
@@ -596,6 +647,209 @@ export default function MARecortesPage() {
           file
         )
       }
+    }
+
+  const getCanvasPoint =
+    (
+      event:
+        ReactPointerEvent<HTMLCanvasElement>
+    ): EditorPoint => {
+      const canvas =
+        event.currentTarget
+
+      const rectangle =
+        canvas.getBoundingClientRect()
+
+      return {
+        x:
+          (
+            event.clientX -
+            rectangle.left
+          ) /
+          rectangle.width *
+          canvas.width,
+        y:
+          (
+            event.clientY -
+            rectangle.top
+          ) /
+          rectangle.height *
+          canvas.height
+      }
+    }
+
+  const finishPolygonSelection =
+    (
+      points =
+        selectionPoints
+    ) => {
+      if (
+        !editor ||
+        points.length < 3
+      ) {
+        setNotice({
+          type: 'error',
+          text:
+            'Marque pelo menos três pontos antes de fechar a seleção.'
+        })
+
+        return
+      }
+
+      try {
+        const nextMask =
+          createPolygonMask(
+            editor.width,
+            editor.height,
+            points
+          )
+
+        setMask(
+          nextMask
+        )
+
+        setOriginalMask(
+          nextMask.slice()
+        )
+
+        setHistory([])
+
+        setEditorStage(
+          'adjust'
+        )
+
+        setBrushMode(
+          'restore'
+        )
+
+        setNotice({
+          type:
+            'success',
+          text:
+            'Seleção fechada. Tudo o que ficou fora foi removido. Use “Restaurar” para recuperar margens e “Remover” para limpar excessos.'
+        })
+      } catch (
+        error
+      ) {
+        setNotice({
+          type: 'error',
+          text:
+            error instanceof
+            Error
+              ? error.message
+              : 'Não foi possível criar o recorte.'
+        })
+      }
+    }
+
+  const handleSelectionPoint =
+    (
+      event:
+        ReactPointerEvent<HTMLCanvasElement>
+    ) => {
+      if (
+        !editor ||
+        editorStage !==
+          'select'
+      ) {
+        return
+      }
+
+      const point =
+        getCanvasPoint(
+          event
+        )
+
+      if (
+        selectionPoints.length >=
+        3
+      ) {
+        const firstPoint =
+          selectionPoints[0]
+
+        const closeDistance =
+          Math.max(
+            18,
+            Math.min(
+              editor.width,
+              editor.height
+            ) * 0.035
+          )
+
+        const distanceToStart =
+          Math.hypot(
+            point.x -
+              firstPoint.x,
+            point.y -
+              firstPoint.y
+          )
+
+        if (
+          distanceToStart <=
+          closeDistance
+        ) {
+          finishPolygonSelection()
+
+          return
+        }
+      }
+
+      setSelectionPoints(
+        (
+          currentPoints
+        ) => [
+          ...currentPoints,
+          point
+        ]
+      )
+    }
+
+  const undoSelectionPoint =
+    () => {
+      setSelectionPoints(
+        (
+          currentPoints
+        ) =>
+          currentPoints.slice(
+            0,
+            -1
+          )
+      )
+
+      setNotice({
+        type: 'info',
+        text:
+          'Último ponto removido.'
+      })
+    }
+
+  const clearSelectionPoints =
+    () => {
+      setSelectionPoints([])
+
+      setNotice({
+        type: 'info',
+        text:
+          'Seleção limpa. Comece novamente a marcar o contorno.'
+      })
+    }
+
+  const restartManualSelection =
+    () => {
+      setMask(null)
+      setOriginalMask(null)
+      setHistory([])
+      setSelectionPoints([])
+
+      setEditorStage(
+        'select'
+      )
+
+      setNotice({
+        type: 'info',
+        text:
+          'Marque novamente os pontos à volta da pessoa ou objeto e toque no primeiro ponto para fechar.'
+      })
     }
 
   const rerunAutomaticCut =
@@ -625,11 +879,15 @@ export default function MARecortesPage() {
 
             setHistory([])
 
+            setEditorStage(
+              'adjust'
+            )
+
             setNotice({
               type:
                 'success',
               text:
-                'O recorte automático foi recalculado com a nova sensibilidade.'
+                'O recorte automático foi recalculado. Corrija agora as margens com os pincéis.'
             })
           } catch (
             error
@@ -644,50 +902,17 @@ export default function MARecortesPage() {
                   : 'Não foi possível recalcular o recorte.'
             })
           } finally {
-            setProcessing(
-              false
-            )
+            setProcessing(false)
           }
         },
         20
       )
     }
 
-  const getCanvasPoint =
-    (
-      event:
-        ReactPointerEvent<HTMLCanvasElement>
-    ) => {
-      const canvas =
-        event.currentTarget
-
-      const rectangle =
-        canvas.getBoundingClientRect()
-
-      return {
-        x:
-          (
-            event.clientX -
-            rectangle.left
-          ) /
-          rectangle.width *
-          canvas.width,
-        y:
-          (
-            event.clientY -
-            rectangle.top
-          ) /
-          rectangle.height *
-          canvas.height
-      }
-    }
-
   const applyPaintPoint =
     (
-      point: {
-        x: number
-        y: number
-      }
+      point:
+        EditorPoint
     ) => {
       if (!editor) {
         return
@@ -786,9 +1011,24 @@ export default function MARecortesPage() {
         ReactPointerEvent<HTMLCanvasElement>
     ) => {
       if (
-        !mask ||
-        processing
+        processing ||
+        !editor
       ) {
+        return
+      }
+
+      if (
+        editorStage ===
+        'select'
+      ) {
+        handleSelectionPoint(
+          event
+        )
+
+        return
+      }
+
+      if (!mask) {
         return
       }
 
@@ -798,15 +1038,14 @@ export default function MARecortesPage() {
 
       setHistory(
         (current) => [
-          ...current
-            .slice(-7),
+          ...current.slice(
+            -7
+          ),
           mask.slice()
         ]
       )
 
-      setIsPainting(
-        true
-      )
+      setIsPainting(true)
 
       lastPaintPointRef.current =
         null
@@ -824,7 +1063,9 @@ export default function MARecortesPage() {
         ReactPointerEvent<HTMLCanvasElement>
     ) => {
       if (
-        !isPainting
+        !isPainting ||
+        editorStage !==
+          'adjust'
       ) {
         return
       }
@@ -838,9 +1079,7 @@ export default function MARecortesPage() {
 
   const stopPainting =
     () => {
-      setIsPainting(
-        false
-      )
+      setIsPainting(false)
 
       lastPaintPointRef.current =
         null
@@ -878,9 +1117,7 @@ export default function MARecortesPage() {
 
   const resetMask =
     () => {
-      if (
-        !originalMask
-      ) {
+      if (!originalMask) {
         return
       }
 
@@ -908,8 +1145,9 @@ export default function MARecortesPage() {
 
       setHistory(
         (current) => [
-          ...current
-            .slice(-7),
+          ...current.slice(
+            -7
+          ),
           mask.slice()
         ]
       )
@@ -942,9 +1180,7 @@ export default function MARecortesPage() {
         return
       }
 
-      setProcessing(
-        true
-      )
+      setProcessing(true)
 
       setNotice({
         type: 'info',
@@ -1009,7 +1245,7 @@ export default function MARecortesPage() {
               type:
                 'success',
               text:
-                'Escolha o WhatsApp na janela de partilha. Depois envie ou guarde a imagem como sticker.'
+                'Escolha o WhatsApp na janela de partilha.'
             })
           } else {
             downloadBlob(
@@ -1021,7 +1257,7 @@ export default function MARecortesPage() {
               type:
                 'info',
               text:
-                'Este navegador não permite partilha direta. O sticker foi descarregado para poder abrir no WhatsApp.'
+                'O navegador não permite partilha direta. O sticker foi descarregado.'
             })
           }
         } else {
@@ -1064,9 +1300,7 @@ export default function MARecortesPage() {
           })
         }
       } finally {
-        setProcessing(
-          false
-        )
+        setProcessing(false)
       }
     }
 
@@ -1074,11 +1308,13 @@ export default function MARecortesPage() {
     () => {
       setEditor(null)
       setMask(null)
-      setOriginalMask(
-        null
-      )
+      setOriginalMask(null)
+      setSelectionPoints([])
       setHistory([])
       setNotice(null)
+      setEditorStage(
+        'adjust'
+      )
     }
 
   return (
@@ -1143,7 +1379,7 @@ export default function MARecortesPage() {
             </div>
 
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white md:text-6xl">
-              Recorte a fotografia e transforme-a num{' '}
+              Selecione o contorno e transforme a fotografia num{' '}
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-200 bg-clip-text text-transparent">
                 sticker para WhatsApp
               </span>
@@ -1151,18 +1387,18 @@ export default function MARecortesPage() {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-              Faça o recorte automaticamente e corrija os detalhes,
-              ou comece do zero e recorte totalmente à mão. No final,
-              exporte em PNG transparente ou partilhe para o WhatsApp.
+              Marque pontos à volta da pessoa ou objeto, feche a
+              seleção tocando no primeiro ponto e ajuste depois os
+              detalhes com os pincéis de restaurar e remover.
             </p>
 
             <ul className="hero-mini-points">
               <li>
-                Recorte automático
+                Seleção por pontos
               </li>
 
               <li>
-                Correção manual
+                Ajuste das margens
               </li>
 
               <li>
@@ -1175,8 +1411,7 @@ export default function MARecortesPage() {
 
       <section className="relative z-10 px-5 pb-20 sm:px-6 md:px-10">
         <div className="mx-auto max-w-7xl">
-          {!editor ||
-          !mask ? (
+          {!editor ? (
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="service-card">
                 <span className="section-label">
@@ -1184,27 +1419,26 @@ export default function MARecortesPage() {
                 </span>
 
                 <h2 className="mt-5 text-2xl font-semibold text-white md:text-3xl">
-                  Como pretende começar?
+                  Como pretende criar o recorte?
                 </h2>
 
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  O modo automático tenta identificar o fundo ligado
-                  às margens da fotografia. O modo manual começa
-                  transparente para pintar apenas o que pretende
-                  manter.
+                  Recomendamos o modo manual por pontos. É mais
+                  previsível e permite indicar exatamente a área que
+                  deve ficar no sticker.
                 </p>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <ToolButton
                     active={
                       startMode ===
-                      'automatic'
+                      'manual'
                     }
-                    title="Automático + correção"
-                    description="Remove o fundo primeiro e permite corrigir depois."
+                    title="Selecionar por pontos"
+                    description="Marque o contorno e toque no primeiro ponto para fechar."
                     onClick={() =>
                       setStartMode(
-                        'automatic'
+                        'manual'
                       )
                     }
                   />
@@ -1212,13 +1446,13 @@ export default function MARecortesPage() {
                   <ToolButton
                     active={
                       startMode ===
-                      'manual'
+                      'automatic'
                     }
-                    title="Totalmente manual"
-                    description="Começa vazio e mantém apenas o que pintar."
+                    title="Tentativa automática"
+                    description="Tenta remover fundos simples e uniformes."
                     onClick={() =>
                       setStartMode(
-                        'manual'
+                        'automatic'
                       )
                     }
                   />
@@ -1258,8 +1492,8 @@ export default function MARecortesPage() {
                     />
 
                     <span className="mt-2 block text-xs leading-5 text-slate-400">
-                      Aumente para retirar mais fundo; diminua se
-                      estiver a apagar partes da pessoa ou objeto.
+                      Funciona melhor quando o fundo é simples,
+                      uniforme e diferente da pessoa ou objeto.
                     </span>
                   </label>
                 )}
@@ -1280,8 +1514,7 @@ export default function MARecortesPage() {
 
                 <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
                   Formatos JPG, PNG ou WebP até 20 MB. A fotografia é
-                  processada no seu navegador e não é enviada para os
-                  nossos servidores.
+                  processada apenas no navegador.
                 </p>
 
                 <input
@@ -1321,7 +1554,10 @@ export default function MARecortesPage() {
               <aside className="service-card xl:sticky xl:top-5">
                 <div className="flex items-center justify-between gap-3">
                   <span className="section-label">
-                    Ferramentas
+                    {editorStage ===
+                    'select'
+                      ? 'Seleção'
+                      : 'Ferramentas'}
                   </span>
 
                   <button
@@ -1335,247 +1571,347 @@ export default function MARecortesPage() {
                   </button>
                 </div>
 
-                <div className="mt-6 grid gap-3">
-                  <ToolButton
-                    active={
-                      brushMode ===
-                      'remove'
-                    }
-                    title="Remover"
-                    description="Apaga partes que não devem aparecer no sticker."
-                    onClick={() =>
-                      setBrushMode(
-                        'remove'
-                      )
-                    }
-                  />
-
-                  <ToolButton
-                    active={
-                      brushMode ===
-                      'restore'
-                    }
-                    title="Restaurar"
-                    description="Recupera partes da fotografia que foram apagadas."
-                    onClick={() =>
-                      setBrushMode(
-                        'restore'
-                      )
-                    }
-                  />
-                </div>
-
-                <label className="mt-6 block">
-                  <span className="flex justify-between text-sm font-semibold text-slate-200">
-                    Tamanho do pincel
-
-                    <strong className="text-cyan-200">
-                      {brushSize}
-                      px
-                    </strong>
-                  </span>
-
-                  <input
-                    type="range"
-                    min="6"
-                    max="140"
-                    value={
-                      brushSize
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setBrushSize(
-                        Number(
-                          event
-                            .target
-                            .value
-                        )
-                      )
-                    }
-                    className="mt-3 w-full accent-cyan-300"
-                  />
-                </label>
-
-                <label className="mt-6 block">
-                  <span className="flex justify-between text-sm font-semibold text-slate-200">
-                    Zoom
-
-                    <strong className="text-cyan-200">
-                      {Math.round(
-                        zoom *
-                          100
-                      )}
-                      %
-                    </strong>
-                  </span>
-
-                  <input
-                    type="range"
-                    min="0.7"
-                    max="2.5"
-                    step="0.1"
-                    value={zoom}
-                    onChange={(
-                      event
-                    ) =>
-                      setZoom(
-                        Number(
-                          event
-                            .target
-                            .value
-                        )
-                      )
-                    }
-                    className="mt-3 w-full accent-cyan-300"
-                  />
-                </label>
-
-                <label className="mt-6 block">
-                  <span className="flex justify-between text-sm font-semibold text-slate-200">
-                    Contorno branco
-
-                    <strong className="text-cyan-200">
-                      {outlineSize}
-                      px
-                    </strong>
-                  </span>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="24"
-                    value={
-                      outlineSize
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setOutlineSize(
-                        Number(
-                          event
-                            .target
-                            .value
-                        )
-                      )
-                    }
-                    className="mt-3 w-full accent-cyan-300"
-                  />
-                </label>
-
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={undo}
-                    disabled={
-                      history.length ===
-                      0
-                    }
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ↶ Anular
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      resetMask
-                    }
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/30"
-                  >
-                    Repor
-                  </button>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-                  <label className="block">
-                    <span className="flex justify-between text-sm font-semibold text-slate-200">
-                      Suavizar margem
-
-                      <strong className="text-cyan-200">
-                        {softness}
+                {editorStage ===
+                'select' ? (
+                  <>
+                    <div className="mt-6 rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.07] p-4">
+                      <strong className="text-sm text-yellow-100">
+                        Como selecionar
                       </strong>
-                    </span>
 
-                    <input
-                      type="range"
-                      min="1"
-                      max="4"
-                      value={
-                        softness
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setSoftness(
-                          Number(
-                            event
-                              .target
-                              .value
-                          )
-                        )
-                      }
-                      className="mt-3 w-full accent-cyan-300"
-                    />
-                  </label>
+                      <ol className="mt-3 space-y-2 text-xs leading-6 text-slate-300">
+                        <li>
+                          1. Toque à volta da pessoa ou objeto.
+                        </li>
 
-                  <button
-                    type="button"
-                    onClick={
-                      applySoftness
-                    }
-                    className="mt-4 w-full rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-300/15"
-                  >
-                    Aplicar suavização
-                  </button>
-                </div>
+                        <li>
+                          2. Use vários pontos nas zonas curvas.
+                        </li>
 
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-                  <label className="block">
-                    <span className="flex justify-between text-sm font-semibold text-slate-200">
-                      Sensibilidade
+                        <li>
+                          3. Toque no primeiro ponto amarelo para
+                          fechar.
+                        </li>
 
-                      <strong className="text-cyan-200">
-                        {tolerance}
+                        <li>
+                          4. Ajuste depois com Restaurar e Remover.
+                        </li>
+                      </ol>
+                    </div>
+
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                      <span className="text-sm font-semibold text-slate-200">
+                        Pontos marcados
+                      </span>
+
+                      <strong className="mt-2 block text-3xl text-cyan-200">
+                        {selectionPoints.length}
                       </strong>
-                    </span>
+                    </div>
 
-                    <input
-                      type="range"
-                      min="30"
-                      max="140"
-                      step="2"
-                      value={
-                        tolerance
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={
+                          undoSelectionPoint
+                        }
+                        disabled={
+                          selectionPoints.length ===
+                          0
+                        }
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ↶ Retirar ponto
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          clearSelectionPoints
+                        }
+                        disabled={
+                          selectionPoints.length ===
+                          0
+                        }
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-200/30 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        finishPolygonSelection()
                       }
-                      onChange={(
-                        event
-                      ) =>
-                        setTolerance(
-                          Number(
-                            event
-                              .target
-                              .value
+                      disabled={
+                        selectionPoints.length <
+                        3
+                      }
+                      className="btn-primary hightech-button mt-4 w-full disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <span className="btn-shine" />
+
+                      <span className="relative z-10">
+                        Fechar seleção
+                      </span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-6 grid gap-3">
+                      <ToolButton
+                        active={
+                          brushMode ===
+                          'restore'
+                        }
+                        title="Restaurar"
+                        description="Recupera partes que ficaram fora da seleção."
+                        onClick={() =>
+                          setBrushMode(
+                            'restore'
                           )
-                        )
-                      }
-                      className="mt-3 w-full accent-cyan-300"
-                    />
-                  </label>
+                        }
+                      />
 
-                  <button
-                    type="button"
-                    onClick={
-                      rerunAutomaticCut
-                    }
-                    disabled={
-                      processing
-                    }
-                    className="mt-4 w-full rounded-xl border border-violet-300/20 bg-violet-300/10 px-3 py-2.5 text-sm font-semibold text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-50"
-                  >
-                    Repetir recorte automático
-                  </button>
-                </div>
+                      <ToolButton
+                        active={
+                          brushMode ===
+                          'remove'
+                        }
+                        title="Remover"
+                        description="Apaga fundo ou partes que ficaram a mais."
+                        onClick={() =>
+                          setBrushMode(
+                            'remove'
+                          )
+                        }
+                      />
+                    </div>
+
+                    <label className="mt-6 block">
+                      <span className="flex justify-between text-sm font-semibold text-slate-200">
+                        Tamanho do pincel
+
+                        <strong className="text-cyan-200">
+                          {brushSize}
+                          px
+                        </strong>
+                      </span>
+
+                      <input
+                        type="range"
+                        min="6"
+                        max="140"
+                        value={
+                          brushSize
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setBrushSize(
+                            Number(
+                              event
+                                .target
+                                .value
+                            )
+                          )
+                        }
+                        className="mt-3 w-full accent-cyan-300"
+                      />
+                    </label>
+
+                    <label className="mt-6 block">
+                      <span className="flex justify-between text-sm font-semibold text-slate-200">
+                        Zoom
+
+                        <strong className="text-cyan-200">
+                          {Math.round(
+                            zoom *
+                              100
+                          )}
+                          %
+                        </strong>
+                      </span>
+
+                      <input
+                        type="range"
+                        min="0.7"
+                        max="2.5"
+                        step="0.1"
+                        value={zoom}
+                        onChange={(
+                          event
+                        ) =>
+                          setZoom(
+                            Number(
+                              event
+                                .target
+                                .value
+                            )
+                          )
+                        }
+                        className="mt-3 w-full accent-cyan-300"
+                      />
+                    </label>
+
+                    <label className="mt-6 block">
+                      <span className="flex justify-between text-sm font-semibold text-slate-200">
+                        Contorno branco
+
+                        <strong className="text-cyan-200">
+                          {outlineSize}
+                          px
+                        </strong>
+                      </span>
+
+                      <input
+                        type="range"
+                        min="0"
+                        max="24"
+                        value={
+                          outlineSize
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setOutlineSize(
+                            Number(
+                              event
+                                .target
+                                .value
+                            )
+                          )
+                        }
+                        className="mt-3 w-full accent-cyan-300"
+                      />
+                    </label>
+
+                    <div className="mt-6 grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={undo}
+                        disabled={
+                          history.length ===
+                          0
+                        }
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ↶ Anular
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          resetMask
+                        }
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/30"
+                      >
+                        Repor
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={
+                        restartManualSelection
+                      }
+                      className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200 transition hover:border-yellow-200/30"
+                    >
+                      Refazer seleção por pontos
+                    </button>
+
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                      <label className="block">
+                        <span className="flex justify-between text-sm font-semibold text-slate-200">
+                          Suavizar margem
+
+                          <strong className="text-cyan-200">
+                            {softness}
+                          </strong>
+                        </span>
+
+                        <input
+                          type="range"
+                          min="1"
+                          max="4"
+                          value={
+                            softness
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setSoftness(
+                              Number(
+                                event
+                                  .target
+                                  .value
+                              )
+                            )
+                          }
+                          className="mt-3 w-full accent-cyan-300"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={
+                          applySoftness
+                        }
+                        className="mt-4 w-full rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-300/15"
+                      >
+                        Aplicar suavização
+                      </button>
+                    </div>
+
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                      <label className="block">
+                        <span className="flex justify-between text-sm font-semibold text-slate-200">
+                          Sensibilidade automática
+
+                          <strong className="text-cyan-200">
+                            {tolerance}
+                          </strong>
+                        </span>
+
+                        <input
+                          type="range"
+                          min="30"
+                          max="140"
+                          step="2"
+                          value={
+                            tolerance
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setTolerance(
+                              Number(
+                                event
+                                  .target
+                                  .value
+                              )
+                            )
+                          }
+                          className="mt-3 w-full accent-cyan-300"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={
+                          rerunAutomaticCut
+                        }
+                        disabled={
+                          processing
+                        }
+                        className="mt-4 w-full rounded-xl border border-violet-300/20 bg-violet-300/10 px-3 py-2.5 text-sm font-semibold text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-50"
+                      >
+                        Tentar recorte automático
+                      </button>
+                    </div>
+                  </>
+                )}
               </aside>
 
               <div className="space-y-6">
@@ -1583,12 +1919,17 @@ export default function MARecortesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <span className="section-label">
-                        3 · Corrigir recorte
+                        {editorStage ===
+                        'select'
+                          ? '3 · Marcar contorno'
+                          : '4 · Ajustar recorte'}
                       </span>
 
                       <p className="mt-3 text-sm leading-6 text-slate-300">
-                        Pinte diretamente sobre a imagem com a
-                        ferramenta selecionada.
+                        {editorStage ===
+                        'select'
+                          ? 'Toque à volta da área que pretende manter. O primeiro ponto aparece a amarelo.'
+                          : 'Pinte diretamente sobre a imagem com Restaurar ou Remover.'}
                       </p>
                     </div>
 
@@ -1646,10 +1987,13 @@ export default function MARecortesPage() {
                           stopPainting
                         }
                         className={`block h-auto w-full touch-none rounded-2xl ${
-                          brushMode ===
-                          'remove'
+                          editorStage ===
+                          'select'
                             ? 'cursor-crosshair'
-                            : 'cursor-cell'
+                            : brushMode ===
+                                'remove'
+                              ? 'cursor-crosshair'
+                              : 'cursor-cell'
                         }`}
                         aria-label="Editor do recorte"
                       />
@@ -1657,60 +2001,63 @@ export default function MARecortesPage() {
                   </div>
                 </section>
 
-                <section className="service-card">
-                  <span className="section-label">
-                    4 · Exportar
-                  </span>
+                {editorStage ===
+                  'adjust' &&
+                  mask && (
+                  <section className="service-card">
+                    <span className="section-label">
+                      5 · Exportar
+                    </span>
 
-                  <h2 className="mt-5 text-2xl font-semibold text-white md:text-3xl">
-                    O seu recorte está pronto
-                  </h2>
+                    <h2 className="mt-5 text-2xl font-semibold text-white md:text-3xl">
+                      O seu recorte está pronto
+                    </h2>
 
-                  <p className="mt-3 text-sm leading-7 text-slate-300">
-                    O PNG mantém o fundo transparente. A opção
-                    WhatsApp cria uma imagem quadrada de 512 × 512 px
-                    e abre a partilha do dispositivo quando o
-                    navegador permitir.
-                  </p>
+                    <p className="mt-3 text-sm leading-7 text-slate-300">
+                      O PNG mantém o fundo transparente. A opção
+                      WhatsApp cria uma imagem quadrada de 512 × 512
+                      px.
+                    </p>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void exportPng(
-                          false
-                        )
-                      }
-                      disabled={
-                        processing
-                      }
-                      className="btn-secondary hightech-button-secondary disabled:cursor-wait disabled:opacity-50"
-                    >
-                      Exportar PNG transparente
-                    </button>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void exportPng(
+                            false
+                          )
+                        }
+                        disabled={
+                          processing
+                        }
+                        className="btn-secondary hightech-button-secondary disabled:cursor-wait disabled:opacity-50"
+                      >
+                        Exportar PNG transparente
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void exportPng(
-                          true
-                        )
-                      }
-                      disabled={
-                        processing
-                      }
-                      className="btn-primary hightech-button disabled:cursor-wait disabled:opacity-50"
-                    >
-                      <span className="btn-shine" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void exportPng(
+                            true
+                          )
+                        }
+                        disabled={
+                          processing
+                        }
+                        className="btn-primary hightech-button disabled:cursor-wait disabled:opacity-50"
+                      >
+                        <span className="btn-shine" />
 
-                      <span className="relative z-10">
-                        {processing
-                          ? 'A preparar…'
-                          : 'Partilhar para WhatsApp'}
-                      </span>
-                    </button>
-                  </div>
-                </section>
+                        <span className="relative z-10">
+                          {processing
+                            ? 'A preparar…'
+                            : 'Partilhar para WhatsApp'}
+                        </span>
+                      </button>
+                    </div>
+                  </section>
+                )}
               </div>
             </div>
           )}
@@ -1739,8 +2086,6 @@ export default function MARecortesPage() {
             </strong>{' '}
             o recorte, a correção e a exportação são feitos no
             navegador. A fotografia não é carregada para a MA-Code.
-            A partilha direta depende das funcionalidades disponíveis
-            no navegador e no dispositivo.
           </div>
         </div>
       </section>
