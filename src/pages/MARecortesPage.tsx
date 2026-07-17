@@ -706,7 +706,7 @@ export default function MARecortesPage() {
           const previousPoint =
             lastPaintPointRef.current
 
-          let nextMask =
+          const nextMask =
             currentMask.slice()
 
           const distance =
@@ -761,16 +761,15 @@ export default function MARecortesPage() {
                     ratio
                 : point.y
 
-            nextMask =
-              paintMask(
-                nextMask,
-                editor.width,
-                editor.height,
-                x,
-                y,
-                brushSize,
-                brushMode
-              )
+            paintMask(
+              nextMask,
+              editor.width,
+              editor.height,
+              x,
+              y,
+              brushSize,
+              brushMode
+            )
           }
 
           return nextMask
