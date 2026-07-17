@@ -33,6 +33,10 @@ const MABtcAlertsPage = lazy(
   () => import('./MABtcAlertsPage')
 )
 
+const MARecortesPage = lazy(
+  () => import('./MARecortesPage')
+)
+
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
@@ -55,6 +59,9 @@ type AppPage =
     }
   | {
       type: 'ma-btc-alertas'
+    }
+  | {
+      type: 'ma-recortes'
     }
   | {
       type: 'service'
@@ -110,6 +117,15 @@ function getPageFromPath(): AppPage {
   ) {
     return {
       type: 'ma-btc-alertas'
+    }
+  }
+
+  if (
+    path ===
+    '/produtos/ma-recortes'
+  ) {
+    return {
+      type: 'ma-recortes'
     }
   }
 
@@ -180,6 +196,15 @@ export default function App() {
   ) {
     return (
       <MABtcAlertsPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'ma-recortes'
+  ) {
+    return (
+      <MARecortesPage />
     )
   }
 
