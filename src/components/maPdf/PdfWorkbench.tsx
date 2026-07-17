@@ -1278,6 +1278,7 @@ export default function PdfWorkbench({
             {activeTool === 'sign' &&
             selectedFiles.length === 1 ? (
               <SignatureOptions
+                pdfFile={selectedFiles[0].file}
                 signatureFile={signatureFile}
                 pageMode={signaturePageMode}
                 pageNumber={signaturePageNumber}
