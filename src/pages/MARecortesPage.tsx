@@ -4,7 +4,8 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type PointerEvent as ReactPointerEvent
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode
 } from 'react'
 
 import {
@@ -270,6 +271,88 @@ function canvasToPngBlob(
   )
 }
 
+function drawRoundedRectangle(
+  context:
+    CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  const safeRadius =
+    Math.min(
+      radius,
+      width / 2,
+      height / 2
+    )
+
+  context.beginPath()
+
+  context.moveTo(
+    x + safeRadius,
+    y
+  )
+
+  context.lineTo(
+    x +
+      width -
+      safeRadius,
+    y
+  )
+
+  context.quadraticCurveTo(
+    x + width,
+    y,
+    x + width,
+    y + safeRadius
+  )
+
+  context.lineTo(
+    x + width,
+    y +
+      height -
+      safeRadius
+  )
+
+  context.quadraticCurveTo(
+    x + width,
+    y + height,
+    x +
+      width -
+      safeRadius,
+    y + height
+  )
+
+  context.lineTo(
+    x + safeRadius,
+    y + height
+  )
+
+  context.quadraticCurveTo(
+    x,
+    y + height,
+    x,
+    y +
+      height -
+      safeRadius
+  )
+
+  context.lineTo(
+    x,
+    y + safeRadius
+  )
+
+  context.quadraticCurveTo(
+    x,
+    y,
+    x + safeRadius,
+    y
+  )
+
+  context.closePath()
+}
+
 async function addWatermarkToPngBlob(
   blob: Blob
 ): Promise<Blob> {
@@ -328,81 +411,150 @@ async function addWatermarkToPngBlob(
 
   const fontSize =
     Math.max(
-      10,
+      18,
       Math.round(
         shortestSide *
-          0.027
+          0.042
       )
     )
 
   const horizontalPadding =
     Math.max(
-      9,
+      10,
       Math.round(
         fontSize *
-          0.7
+          0.6
       )
     )
 
   const verticalPadding =
     Math.max(
-      9,
+      6,
       Math.round(
         fontSize *
-          0.65
+          0.38
+      )
+    )
+
+  const outerMargin =
+    Math.max(
+      10,
+      Math.round(
+        shortestSide *
+          0.025
       )
     )
 
   context.save()
 
-  context.globalAlpha =
-    0.82
-
   context.font =
-    `700 ${fontSize}px Arial, Helvetica, sans-serif`
+    `800 ${fontSize}px Arial, Helvetica, sans-serif`
 
-  context.textAlign =
-    'right'
+  const textMetrics =
+    context.measureText(
+      watermarkText
+    )
 
-  context.textBaseline =
-    'bottom'
+  const textWidth =
+    Math.ceil(
+      textMetrics.width
+    )
 
-  context.lineJoin =
-    'round'
+  const boxWidth =
+    textWidth +
+    horizontalPadding * 2
+
+  const boxHeight =
+    fontSize +
+    verticalPadding * 2
+
+  const boxX =
+    Math.max(
+      outerMargin,
+      width -
+        boxWidth -
+        outerMargin
+    )
+
+  const boxY =
+    Math.max(
+      outerMargin,
+      height -
+        boxHeight -
+        outerMargin
+    )
+
+  const boxRadius =
+    Math.max(
+      6,
+      Math.round(
+        boxHeight *
+          0.28
+      )
+    )
+
+  drawRoundedRectangle(
+    context,
+    boxX,
+    boxY,
+    boxWidth,
+    boxHeight,
+    boxRadius
+  )
+
+  context.fillStyle =
+    'rgba(2, 6, 23, 0.88)'
+
+  context.fill()
 
   context.lineWidth =
     Math.max(
-      2,
+      1,
       Math.round(
         fontSize *
-          0.18
+          0.07
       )
     )
 
   context.strokeStyle =
-    'rgba(2, 6, 23, 0.9)'
+    'rgba(255, 255, 255, 0.75)'
+
+  context.stroke()
+
+  context.font =
+    `800 ${fontSize}px Arial, Helvetica, sans-serif`
+
+  context.textAlign =
+    'center'
+
+  context.textBaseline =
+    'middle'
 
   context.fillStyle =
-    'rgba(255, 255, 255, 0.96)'
+    '#ffffff'
 
-  const watermarkX =
-    width -
-    horizontalPadding
+  context.shadowColor =
+    'rgba(0, 0, 0, 0.75)'
 
-  const watermarkY =
-    height -
-    verticalPadding
-
-  context.strokeText(
-    watermarkText,
-    watermarkX,
-    watermarkY
-  )
+  context.shadowBlur =
+    Math.max(
+      2,
+      Math.round(
+        fontSize *
+          0.12
+      )
+    )
 
   context.fillText(
     watermarkText,
-    watermarkX,
-    watermarkY
+    boxX +
+      boxWidth / 2,
+    boxY +
+      boxHeight / 2 +
+      Math.round(
+        fontSize *
+          0.03
+      )
   )
 
   context.restore()
@@ -449,7 +601,7 @@ function InstructionStep({
   children
 }: {
   number: number
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <li className="flex items-start gap-3">
@@ -543,7 +695,7 @@ export default function MARecortesPage() {
   const [
     outlineSize,
     setOutlineSize
-  ] = useState(8)
+  ] = useState(0)
 
   const [
     zoom,
@@ -2058,11 +2210,13 @@ export default function MARecortesPage() {
 
                     <label className="mt-6 block">
                       <span className="flex justify-between text-sm font-semibold text-slate-200">
-                        Contorno branco
+                        Contorno branco opcional
 
                         <strong className="text-cyan-200">
-                          {outlineSize}
-                          px
+                          {outlineSize ===
+                          0
+                            ? 'Sem contorno'
+                            : `${outlineSize}px`}
                         </strong>
                       </span>
 
@@ -2086,6 +2240,11 @@ export default function MARecortesPage() {
                         }
                         className="mt-3 w-full accent-cyan-300"
                       />
+
+                      <span className="mt-2 block text-xs leading-5 text-slate-400">
+                        O valor inicial é zero. Aumente apenas quando
+                        quiser adicionar um contorno branco.
+                      </span>
                     </label>
 
                     <div className="mt-6 grid grid-cols-2 gap-3">
@@ -2459,7 +2618,7 @@ export default function MARecortesPage() {
 
                       <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-xs leading-6 text-slate-300">
                         Todos os stickers e PNG exportados incluem uma
-                        pequena marca de água{' '}
+                        marca de água legível{' '}
                         <strong className="text-white">
                           MA-CODE.PT
                         </strong>{' '}
