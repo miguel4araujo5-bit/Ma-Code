@@ -25,6 +25,9 @@ import {
 const siteUrl =
   'https://ma-code.pt'
 
+const watermarkText =
+  'MA-CODE.PT'
+
 const acceptedTypes = [
   'image/jpeg',
   'image/png',
@@ -39,11 +42,6 @@ type EditorStage =
   | 'select'
   | 'adjust'
 
-type DeviceKind =
-  | 'iphone'
-  | 'android'
-  | 'other'
-
 type Notice =
   | {
       type:
@@ -53,36 +51,6 @@ type Notice =
       text: string
     }
   | null
-
-function detectDeviceKind(): DeviceKind {
-  const userAgent =
-    navigator.userAgent
-
-  const isIpadUsingDesktopMode =
-    navigator.platform ===
-      'MacIntel' &&
-    navigator.maxTouchPoints >
-      1
-
-  if (
-    /iPhone|iPad|iPod/i.test(
-      userAgent
-    ) ||
-    isIpadUsingDesktopMode
-  ) {
-    return 'iphone'
-  }
-
-  if (
-    /Android/i.test(
-      userAgent
-    )
-  ) {
-    return 'android'
-  }
-
-  return 'other'
-}
 
 function updateMeta(
   name: string,
@@ -224,6 +192,223 @@ function downloadBlob(
       )
     },
     500
+  )
+}
+
+function loadImageFromBlob(
+  blob: Blob
+): Promise<HTMLImageElement> {
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+      const url =
+        URL.createObjectURL(
+          blob
+        )
+
+      const image =
+        new Image()
+
+      image.onload =
+        () => {
+          URL.revokeObjectURL(
+            url
+          )
+
+          resolve(
+            image
+          )
+        }
+
+      image.onerror =
+        () => {
+          URL.revokeObjectURL(
+            url
+          )
+
+          reject(
+            new Error(
+              'Não foi possível preparar a marca de água.'
+            )
+          )
+        }
+
+      image.src = url
+    }
+  )
+}
+
+function canvasToPngBlob(
+  canvas: HTMLCanvasElement
+): Promise<Blob> {
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(
+              new Error(
+                'Não foi possível criar o PNG final.'
+              )
+            )
+
+            return
+          }
+
+          resolve(
+            blob
+          )
+        },
+        'image/png'
+      )
+    }
+  )
+}
+
+async function addWatermarkToPngBlob(
+  blob: Blob
+): Promise<Blob> {
+  const image =
+    await loadImageFromBlob(
+      blob
+    )
+
+  const canvas =
+    document.createElement(
+      'canvas'
+    )
+
+  const width =
+    image.naturalWidth ||
+    image.width
+
+  const height =
+    image.naturalHeight ||
+    image.height
+
+  canvas.width = width
+  canvas.height = height
+
+  const context =
+    canvas.getContext(
+      '2d'
+    )
+
+  if (!context) {
+    throw new Error(
+      'Não foi possível preparar a imagem final.'
+    )
+  }
+
+  context.clearRect(
+    0,
+    0,
+    width,
+    height
+  )
+
+  context.drawImage(
+    image,
+    0,
+    0,
+    width,
+    height
+  )
+
+  const shortestSide =
+    Math.min(
+      width,
+      height
+    )
+
+  const fontSize =
+    Math.max(
+      10,
+      Math.round(
+        shortestSide *
+          0.027
+      )
+    )
+
+  const horizontalPadding =
+    Math.max(
+      9,
+      Math.round(
+        fontSize *
+          0.7
+      )
+    )
+
+  const verticalPadding =
+    Math.max(
+      9,
+      Math.round(
+        fontSize *
+          0.65
+      )
+    )
+
+  context.save()
+
+  context.globalAlpha =
+    0.82
+
+  context.font =
+    `700 ${fontSize}px Arial, Helvetica, sans-serif`
+
+  context.textAlign =
+    'right'
+
+  context.textBaseline =
+    'bottom'
+
+  context.lineJoin =
+    'round'
+
+  context.lineWidth =
+    Math.max(
+      2,
+      Math.round(
+        fontSize *
+          0.18
+      )
+    )
+
+  context.strokeStyle =
+    'rgba(2, 6, 23, 0.9)'
+
+  context.fillStyle =
+    'rgba(255, 255, 255, 0.96)'
+
+  const watermarkX =
+    width -
+    horizontalPadding
+
+  const watermarkY =
+    height -
+    verticalPadding
+
+  context.strokeText(
+    watermarkText,
+    watermarkX,
+    watermarkY
+  )
+
+  context.fillText(
+    watermarkText,
+    watermarkX,
+    watermarkY
+  )
+
+  context.restore()
+
+  return canvasToPngBlob(
+    canvas
   )
 }
 
@@ -391,16 +576,8 @@ export default function MARecortesPage() {
   ] = useState(false)
 
   const [
-    deviceKind,
-    setDeviceKind
-  ] =
-    useState<DeviceKind>(
-      'other'
-    )
-
-  const [
-    iphoneImagePrepared,
-    setIphoneImagePrepared
+    stickerCopied,
+    setStickerCopied
   ] = useState(false)
 
   const fileInputRef =
@@ -421,21 +598,17 @@ export default function MARecortesPage() {
   useEffect(() => {
     setMounted(true)
 
-    setDeviceKind(
-      detectDeviceKind()
-    )
-
     document.title =
       'MA-Recortes | Criar stickers para WhatsApp'
 
     updateMeta(
       'description',
-      'Crie imagens preparadas para stickers do WhatsApp: selecione uma fotografia por pontos, corrija o recorte e guarde o PNG transparente.'
+      'Crie imagens preparadas para stickers do WhatsApp: selecione uma fotografia por pontos, corrija o recorte e copie o sticker diretamente.'
     )
 
     updateMeta(
       'keywords',
-      'criar sticker WhatsApp, recortar imagem, selecionar contorno, remover fundo, PNG transparente, MA-Recortes, MA-Code'
+      'criar sticker WhatsApp, recortar imagem, copiar sticker, remover fundo, PNG transparente, MA-Recortes, MA-Code'
     )
 
     updateMeta(
@@ -470,7 +643,7 @@ export default function MARecortesPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Selecione fotografias por pontos, ajuste as margens e prepare o recorte para criar um sticker no WhatsApp.'
+      'Selecione fotografias por pontos, ajuste as margens e copie o recorte diretamente para o WhatsApp.'
     )
 
     updatePropertyMeta(
@@ -490,7 +663,7 @@ export default function MARecortesPage() {
 
     updateMeta(
       'twitter:description',
-      'Selecione, corrija e guarde imagens transparentes preparadas para stickers.'
+      'Selecione, corrija e copie imagens transparentes preparadas para stickers.'
     )
 
     updateMeta(
@@ -518,7 +691,7 @@ export default function MARecortesPage() {
         url:
           `${siteUrl}/produtos/ma-recortes`,
         description:
-          'Aplicação web para selecionar e recortar imagens manualmente, corrigir margens e exportar PNG transparentes preparados para stickers.',
+          'Aplicação web para selecionar e recortar imagens manualmente, corrigir margens e copiar PNG transparentes preparados para stickers.',
         offers: {
           '@type':
             'Offer',
@@ -570,7 +743,7 @@ export default function MARecortesPage() {
   ])
 
   useEffect(() => {
-    setIphoneImagePrepared(
+    setStickerCopied(
       false
     )
   }, [
@@ -634,7 +807,7 @@ export default function MARecortesPage() {
           setZoom(1)
           setHistory([])
           setSelectionPoints([])
-          setIphoneImagePrepared(
+          setStickerCopied(
             false
           )
 
@@ -1258,9 +1431,7 @@ export default function MARecortesPage() {
     }
 
   const exportPng =
-    async (
-      whatsapp: boolean
-    ) => {
+    async () => {
       if (
         !editor ||
         !mask
@@ -1268,179 +1439,148 @@ export default function MARecortesPage() {
         return
       }
 
-      const isIphone =
-        deviceKind ===
-        'iphone'
-
       setProcessing(true)
 
       setNotice({
         type: 'info',
         text:
-          whatsapp
-            ? isIphone
-              ? 'A preparar a imagem. Na janela seguinte, toque em “Guardar imagem”.'
-              : 'A preparar o recorte para partilhar…'
-            : 'A criar o PNG transparente…'
+          'A criar o PNG transparente com a marca MA-CODE.PT…'
       })
 
       try {
-        const blob =
+        const originalBlob =
           await createExportBlob(
             editor,
             mask,
             {
-              whatsapp,
+              whatsapp:
+                false,
               outlineSize
             }
           )
 
-        const fileName =
-          whatsapp
-            ? 'ma-recortes-sticker.png'
-            : 'ma-recortes.png'
-
-        if (!whatsapp) {
-          downloadBlob(
-            blob,
-            fileName
+        const brandedBlob =
+          await addWatermarkToPngBlob(
+            originalBlob
           )
-
-          setNotice({
-            type:
-              'success',
-            text:
-              'PNG transparente descarregado com sucesso.'
-          })
-
-          return
-        }
-
-        const file =
-          new File(
-            [blob],
-            fileName,
-            {
-              type:
-                'image/png',
-              lastModified:
-                Date.now()
-            }
-          )
-
-        const supportsFileSharing =
-          typeof navigator.share ===
-            'function' &&
-          (
-            typeof navigator.canShare !==
-              'function' ||
-            navigator.canShare({
-              files: [
-                file
-              ]
-            })
-          )
-
-        if (
-          supportsFileSharing
-        ) {
-          const shareData:
-            ShareData =
-            isIphone
-              ? {
-                  files: [
-                    file
-                  ],
-                  title:
-                    'Guardar sticker MA-Recortes'
-                }
-              : {
-                  files: [
-                    file
-                  ],
-                  title:
-                    'MA-Recortes',
-                  text:
-                    'Imagem criada no MA-Recortes — https://ma-code.pt/produtos/ma-recortes'
-                }
-
-          await navigator.share(
-            shareData
-          )
-
-          if (isIphone) {
-            setIphoneImagePrepared(
-              true
-            )
-
-            setNotice({
-              type:
-                'success',
-              text:
-                'Imagem preparada. Se escolheu “Guardar imagem”, toque agora em “2. Abrir WhatsApp” e siga os passos apresentados abaixo.'
-            })
-          } else {
-            setNotice({
-              type:
-                'success',
-              text:
-                'Imagem partilhada. No WhatsApp, abra os stickers, toque em “Criar” e selecione esta imagem.'
-            })
-          }
-
-          return
-        }
 
         downloadBlob(
-          blob,
-          fileName
+          brandedBlob,
+          'ma-recortes.png'
         )
 
-        if (isIphone) {
-          setIphoneImagePrepared(
-            true
-          )
-
-          setNotice({
-            type:
-              'info',
-            text:
-              'O navegador descarregou a imagem. Abra o ficheiro, toque em Partilhar e escolha “Guardar imagem” antes de abrir o WhatsApp.'
-          })
-        } else {
-          setNotice({
-            type:
-              'info',
-            text:
-              'Este navegador não permite partilhar ficheiros diretamente. A imagem foi descarregada; no WhatsApp, abra os stickers, escolha “Criar” e selecione-a.'
-          })
-        }
+        setNotice({
+          type:
+            'success',
+          text:
+            'PNG transparente descarregado com a marca MA-CODE.PT.'
+        })
       } catch (
         error
       ) {
-        if (
-          error instanceof
-            DOMException &&
-          error.name ===
-            'AbortError'
-        ) {
-          setNotice({
-            type:
-              'info',
-            text:
-              'Operação cancelada. A imagem não foi guardada.'
+        setNotice({
+          type:
+            'error',
+          text:
+            error instanceof
+            Error
+              ? error.message
+              : 'Não foi possível exportar o recorte.'
+        })
+      } finally {
+        setProcessing(false)
+      }
+    }
+
+  const copySticker =
+    async () => {
+      if (
+        !editor ||
+        !mask
+      ) {
+        return
+      }
+
+      if (
+        typeof ClipboardItem ===
+          'undefined' ||
+        !navigator.clipboard ||
+        typeof navigator.clipboard
+          .write !==
+          'function'
+      ) {
+        setNotice({
+          type:
+            'error',
+          text:
+            'Este navegador não permite copiar imagens. Abra a MA-Recortes numa versão atualizada do Safari ou Chrome.'
+        })
+
+        return
+      }
+
+      setProcessing(true)
+      setStickerCopied(false)
+
+      setNotice({
+        type: 'info',
+        text:
+          'A preparar e copiar o sticker…'
+      })
+
+      try {
+        const stickerBlobPromise =
+          createExportBlob(
+            editor,
+            mask,
+            {
+              whatsapp:
+                true,
+              outlineSize
+            }
+          ).then(
+            (
+              originalBlob
+            ) =>
+              addWatermarkToPngBlob(
+                originalBlob
+              )
+          )
+
+        const clipboardItem =
+          new ClipboardItem({
+            'image/png':
+              stickerBlobPromise
           })
-        } else {
-          setNotice({
-            type:
-              'error',
-            text:
-              error instanceof
-              Error
-                ? error.message
-                : 'Não foi possível exportar o recorte.'
-          })
-        }
+
+        await navigator.clipboard.write(
+          [
+            clipboardItem
+          ]
+        )
+
+        setStickerCopied(
+          true
+        )
+
+        setNotice({
+          type:
+            'success',
+          text:
+            'Sticker copiado. Abra o WhatsApp, mantenha premido no campo da mensagem e toque em “Colar”.'
+        })
+      } catch (
+        error
+      ) {
+        setNotice({
+          type:
+            'error',
+          text:
+            error instanceof
+            Error
+              ? `Não foi possível copiar o sticker: ${error.message}`
+              : 'Não foi possível copiar o sticker. Confirme que autorizou o acesso à área de transferência.'
+        })
       } finally {
         setProcessing(false)
       }
@@ -1451,7 +1591,7 @@ export default function MARecortesPage() {
       setNotice({
         type: 'info',
         text:
-          'No WhatsApp, abra qualquer conversa, toque em Stickers, escolha “Criar” e selecione a última imagem guardada.'
+          'Abra uma conversa, mantenha premido no campo da mensagem, toque em “Colar” e envie.'
       })
 
       window.location.href =
@@ -1467,7 +1607,7 @@ export default function MARecortesPage() {
       setHistory([])
       setNotice(null)
       setZoom(1)
-      setIphoneImagePrepared(
+      setStickerCopied(
         false
       )
 
@@ -1480,10 +1620,6 @@ export default function MARecortesPage() {
     Math.round(
       zoom * 100
     )
-
-  const isIphone =
-    deviceKind ===
-    'iphone'
 
   return (
     <main className="site-shell overflow-x-hidden">
@@ -1555,9 +1691,9 @@ export default function MARecortesPage() {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
-              Marque pontos à volta da pessoa ou objeto, feche a
-              seleção tocando no primeiro ponto e ajuste depois os
-              detalhes com os pincéis de restaurar e remover.
+              Marque pontos à volta da pessoa ou objeto, ajuste o
+              recorte e, no final, basta copiar o sticker e colá-lo
+              diretamente numa conversa do WhatsApp.
             </p>
 
             <ul className="hero-mini-points">
@@ -1570,7 +1706,7 @@ export default function MARecortesPage() {
               </li>
 
               <li>
-                Instruções para WhatsApp
+                Copiar e colar
               </li>
             </ul>
           </div>
@@ -2190,30 +2326,22 @@ export default function MARecortesPage() {
                   mask && (
                   <section className="service-card min-w-0">
                     <span className="section-label">
-                      5 · Criar sticker
+                      5 · Copiar para o WhatsApp
                     </span>
 
                     <h2 className="mt-5 text-2xl font-semibold text-white md:text-3xl">
-                      O seu recorte está pronto
+                      O seu sticker está pronto
                     </h2>
 
-                    {isIphone ? (
-                      <p className="mt-3 text-sm leading-7 text-slate-300">
-                        Primeiro guarde a imagem nas Fotografias do
-                        iPhone. Depois abra o WhatsApp e crie o sticker
-                        a partir da última imagem guardada.
-                      </p>
-                    ) : (
-                      <p className="mt-3 text-sm leading-7 text-slate-300">
-                        Exporte o PNG transparente ou abra a partilha
-                        do telemóvel.
-                      </p>
-                    )}
+                    <p className="mt-3 text-sm leading-7 text-slate-300">
+                      A MA-Recortes já criou o sticker transparente.
+                      Basta carregar em copiar e colá-lo no campo da
+                      mensagem de uma conversa do WhatsApp.
+                    </p>
 
                     <div
                       className={`mt-6 grid gap-3 ${
-                        isIphone &&
-                        iphoneImagePrepared
+                        stickerCopied
                           ? 'sm:grid-cols-3'
                           : 'sm:grid-cols-2'
                       }`}
@@ -2221,9 +2349,7 @@ export default function MARecortesPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          void exportPng(
-                            false
-                          )
+                          void exportPng()
                         }
                         disabled={
                           processing
@@ -2236,9 +2362,7 @@ export default function MARecortesPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          void exportPng(
-                            true
-                          )
+                          void copySticker()
                         }
                         disabled={
                           processing
@@ -2250,14 +2374,11 @@ export default function MARecortesPage() {
                         <span className="relative z-10">
                           {processing
                             ? 'A preparar…'
-                            : isIphone
-                              ? '1. Guardar imagem no iPhone'
-                              : 'Partilhar para WhatsApp'}
+                            : '1. Copiar sticker'}
                         </span>
                       </button>
 
-                      {isIphone &&
-                        iphoneImagePrepared && (
+                      {stickerCopied && (
                         <button
                           type="button"
                           onClick={
@@ -2270,143 +2391,81 @@ export default function MARecortesPage() {
                       )}
                     </div>
 
-                    {isIphone ? (
-                      <div className="mt-6 rounded-3xl border border-cyan-300/25 bg-cyan-300/[0.07] p-5">
-                        <strong className="text-base font-semibold text-cyan-100">
-                          Passos exatos no iPhone
+                    <div className="mt-6 rounded-3xl border border-cyan-300/25 bg-cyan-300/[0.07] p-5">
+                      <strong className="text-base font-semibold text-cyan-100">
+                        Como enviar o sticker
+                      </strong>
+
+                      <ol className="mt-5 space-y-4 text-sm leading-6 text-slate-200">
+                        <InstructionStep
+                          number={1}
+                        >
+                          Toque em{' '}
+                          <strong className="text-white">
+                            1. Copiar sticker
+                          </strong>
+                          .
+                        </InstructionStep>
+
+                        <InstructionStep
+                          number={2}
+                        >
+                          Quando aparecer a mensagem{' '}
+                          <strong className="text-white">
+                            “Sticker copiado”
+                          </strong>
+                          , toque em{' '}
+                          <strong className="text-white">
+                            2. Abrir WhatsApp
+                          </strong>
+                          .
+                        </InstructionStep>
+
+                        <InstructionStep
+                          number={3}
+                        >
+                          Abra a conversa onde pretende enviar o
+                          sticker.
+                        </InstructionStep>
+
+                        <InstructionStep
+                          number={4}
+                        >
+                          Mantenha premido no campo onde escreve a
+                          mensagem e toque em{' '}
+                          <strong className="text-white">
+                            Colar
+                          </strong>
+                          .
+                        </InstructionStep>
+
+                        <InstructionStep
+                          number={5}
+                        >
+                          Confirme a pré-visualização e toque em{' '}
+                          <strong className="text-white">
+                            Enviar
+                          </strong>
+                          .
+                        </InstructionStep>
+                      </ol>
+
+                      <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-50">
+                        No final é apenas:
+                        <strong>
+                          {' '}Copiar → Abrir WhatsApp → Colar → Enviar.
                         </strong>
-
-                        <ol className="mt-5 space-y-4 text-sm leading-6 text-slate-200">
-                          <InstructionStep
-                            number={1}
-                          >
-                            Toque em{' '}
-                            <strong className="text-white">
-                              1. Guardar imagem no iPhone
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={2}
-                          >
-                            Na janela de partilha do iPhone, desça a
-                            lista e toque em{' '}
-                            <strong className="text-white">
-                              Guardar imagem
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={3}
-                          >
-                            <strong className="text-yellow-100">
-                              Não escolha WhatsApp nessa janela.
-                            </strong>{' '}
-                            O objetivo deste passo é guardar primeiro a
-                            imagem nas Fotografias.
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={4}
-                          >
-                            Volte à MA-Recortes e toque em{' '}
-                            <strong className="text-white">
-                              2. Abrir WhatsApp
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={5}
-                          >
-                            No WhatsApp, abra qualquer conversa e toque
-                            no ícone de{' '}
-                            <strong className="text-white">
-                              Stickers
-                            </strong>{' '}
-                            junto ao campo onde escreve a mensagem.
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={6}
-                          >
-                            Toque em{' '}
-                            <strong className="text-white">
-                              Criar
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={7}
-                          >
-                            Abra{' '}
-                            <strong className="text-white">
-                              Recentes
-                            </strong>
-                            , toque em{' '}
-                            <strong className="text-white">
-                              Ver mais
-                            </strong>{' '}
-                            e depois em{' '}
-                            <strong className="text-white">
-                              Fotografias
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={8}
-                          >
-                            Escolha a última imagem guardada pela
-                            MA-Recortes e toque em{' '}
-                            <strong className="text-white">
-                              Enviar
-                            </strong>
-                            .
-                          </InstructionStep>
-
-                          <InstructionStep
-                            number={9}
-                          >
-                            Para a guardar num pack, toque no sticker
-                            enviado, escolha{' '}
-                            <strong className="text-white">
-                              Adicionar ao pack de stickers
-                            </strong>{' '}
-                            e selecione um pack existente ou crie o pack{' '}
-                            <strong className="text-white">
-                              MA-Recortes
-                            </strong>
-                            .
-                          </InstructionStep>
-                        </ol>
-
-                        <div className="mt-5 rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.06] p-4 text-xs leading-6 text-yellow-50">
-                          <strong>
-                            Importante:
-                          </strong>{' '}
-                          no primeiro menu deve escolher
-                          obrigatoriamente “Guardar imagem”. Se escolher
-                          imediatamente o WhatsApp, a imagem será enviada
-                          como fotografia e não como sticker.
-                        </div>
                       </div>
-                    ) : (
-                      <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] p-4">
-                        <strong className="text-sm font-semibold text-cyan-100">
-                          Para criar o sticker
-                        </strong>
 
-                        <p className="mt-2 text-sm leading-6 text-slate-300">
-                          No WhatsApp, abra qualquer conversa, toque em
-                          Stickers, escolha “Criar” e selecione a imagem
-                          guardada ou descarregada pela MA-Recortes.
-                        </p>
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-xs leading-6 text-slate-300">
+                        Todos os stickers e PNG exportados incluem uma
+                        pequena marca de água{' '}
+                        <strong className="text-white">
+                          MA-CODE.PT
+                        </strong>{' '}
+                        no canto inferior direito.
                       </div>
-                    )}
+                    </div>
                   </section>
                 )}
               </div>
@@ -2435,8 +2494,9 @@ export default function MARecortesPage() {
             <strong className="text-slate-200">
               Privacidade:
             </strong>{' '}
-            o recorte, a correção e a exportação são feitos no
-            navegador. A fotografia não é carregada para a MA-Code.
+            o recorte, a correção, a marca de água e a exportação são
+            feitos no navegador. A fotografia não é carregada para a
+            MA-Code.
           </div>
         </div>
       </section>
