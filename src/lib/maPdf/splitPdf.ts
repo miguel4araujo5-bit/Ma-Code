@@ -8,9 +8,120 @@ import type {
 } from '../../types/maPdf'
 import {
   bytesToArrayBuffer,
-  parsePageRanges,
   sanitizeFileName
 } from './fileUtils'
+
+type PageGroup = {
+  startPage: number
+  endPage: number
+  pageIndexes: number[]
+}
+
+function parsePageGroups(
+  value: string,
+  pageCount: number
+): PageGroup[] {
+  const cleaned = value.replace(/\s+/g, '')
+
+  if (!cleaned) {
+    throw new Error('Indique pelo menos uma página ou intervalo.')
+  }
+
+  const parts = cleaned.split(',').filter(Boolean)
+
+  if (parts.length === 0) {
+    throw new Error('Indique pelo menos uma página ou intervalo.')
+  }
+
+  return parts.map((part) => {
+    if (/^\d+$/.test(part)) {
+      const page = Number(part)
+
+      if (page < 1 || page > pageCount) {
+        throw new Error(
+          `A página ${page} não existe. O documento tem ${pageCount} páginas.`
+        )
+      }
+
+      return {
+        startPage: page,
+        endPage: page,
+        pageIndexes: [page - 1]
+      }
+    }
+
+    const match = part.match(/^(\d+)-(\d+)$/)
+
+    if (!match) {
+      throw new Error(
+        'Use páginas e intervalos no formato 1-3, 5, 8-10.'
+      )
+    }
+
+    const startPage = Number(match[1])
+    const endPage = Number(match[2])
+
+    if (startPage > endPage) {
+      throw new Error(`O intervalo ${part} está invertido.`)
+    }
+
+    if (startPage < 1 || endPage > pageCount) {
+      throw new Error(
+        `O intervalo ${part} ultrapassa as ${pageCount} páginas do documento.`
+      )
+    }
+
+    return {
+      startPage,
+      endPage,
+      pageIndexes: Array.from(
+        { length: endPage - startPage + 1 },
+        (_, index) => startPage - 1 + index
+      )
+    }
+  })
+}
+
+async function createPdfBytes(
+  sourceDocument: PDFDocument,
+  pageIndexes: number[]
+) {
+  const outputDocument = await PDFDocument.create()
+  const copiedPages = await outputDocument.copyPages(
+    sourceDocument,
+    pageIndexes
+  )
+
+  copiedPages.forEach((page) => {
+    outputDocument.addPage(page)
+  })
+
+  return outputDocument.save({
+    useObjectStreams: true,
+    addDefaultPage: false,
+    objectsPerTick: 30
+  })
+}
+
+function getRangeFileName(
+  sanitizedFileName: string,
+  group: PageGroup,
+  groupIndex: number,
+  groupCount: number,
+  pageCount: number
+) {
+  const groupPadding = String(groupCount).length
+  const pagePadding = String(pageCount).length
+  const groupNumber = String(groupIndex + 1).padStart(groupPadding, '0')
+  const startPage = String(group.startPage).padStart(pagePadding, '0')
+  const endPage = String(group.endPage).padStart(pagePadding, '0')
+  const pageLabel =
+    group.startPage === group.endPage
+      ? `pagina-${startPage}`
+      : `paginas-${startPage}-a-${endPage}`
+
+  return `${sanitizedFileName}-grupo-${groupNumber}-${pageLabel}.pdf`
+}
 
 async function splitPdfByRanges(
   sourceDocument: PDFDocument,
@@ -19,38 +130,80 @@ async function splitPdfByRanges(
   onProgress: ProgressCallback
 ): Promise<ResultData> {
   const pageCount = sourceDocument.getPageCount()
-  const selectedPageIndexes = parsePageRanges(splitRanges, pageCount)
+  const pageGroups = parsePageGroups(splitRanges, pageCount)
+  const sanitizedFileName = sanitizeFileName(selected.file.name)
 
-  onProgress('A copiar as páginas selecionadas...')
+  if (pageGroups.length === 1) {
+    const [pageGroup] = pageGroups
 
-  const outputDocument = await PDFDocument.create()
-  const copiedPages = await outputDocument.copyPages(
-    sourceDocument,
-    selectedPageIndexes
-  )
+    onProgress('A criar o PDF com o intervalo selecionado...')
 
-  copiedPages.forEach((page) => {
-    outputDocument.addPage(page)
+    const outputBytes = await createPdfBytes(
+      sourceDocument,
+      pageGroup.pageIndexes
+    )
+    const blob = new Blob([bytesToArrayBuffer(outputBytes)], {
+      type: 'application/pdf'
+    })
+
+    return {
+      fileName: getRangeFileName(
+        sanitizedFileName,
+        pageGroup,
+        0,
+        1,
+        pageCount
+      ),
+      blob,
+      originalSize: selected.file.size,
+      finalSize: blob.size,
+      message: `${pageGroup.pageIndexes.length} página${
+        pageGroup.pageIndexes.length === 1 ? '' : 's'
+      } foram separadas para um novo PDF.`
+    }
+  }
+
+  const zipFiles: Record<string, Uint8Array> = {}
+
+  for (let groupIndex = 0; groupIndex < pageGroups.length; groupIndex += 1) {
+    const pageGroup = pageGroups[groupIndex]
+
+    onProgress(
+      `A criar intervalo ${groupIndex + 1} de ${pageGroups.length} ` +
+        `(páginas ${pageGroup.startPage}-${pageGroup.endPage})...`
+    )
+
+    const groupBytes = await createPdfBytes(
+      sourceDocument,
+      pageGroup.pageIndexes
+    )
+
+    zipFiles[
+      getRangeFileName(
+        sanitizedFileName,
+        pageGroup,
+        groupIndex,
+        pageGroups.length,
+        pageCount
+      )
+    ] = groupBytes
+  }
+
+  onProgress('A criar o ficheiro ZIP...')
+
+  const zipBytes = zipSync(zipFiles, {
+    level: 6
   })
-
-  const outputBytes = await outputDocument.save({
-    useObjectStreams: true,
-    addDefaultPage: false,
-    objectsPerTick: 30
-  })
-
-  const blob = new Blob([bytesToArrayBuffer(outputBytes)], {
-    type: 'application/pdf'
+  const blob = new Blob([bytesToArrayBuffer(zipBytes)], {
+    type: 'application/zip'
   })
 
   return {
-    fileName: `${sanitizeFileName(selected.file.name)}-paginas-selecionadas.pdf`,
+    fileName: `${sanitizedFileName}-intervalos.zip`,
     blob,
     originalSize: selected.file.size,
     finalSize: blob.size,
-    message: `${selectedPageIndexes.length} página${
-      selectedPageIndexes.length === 1 ? '' : 's'
-    } foram extraídas para um novo PDF.`
+    message: `${pageGroups.length} intervalos foram separados em ${pageGroups.length} ficheiros PDF independentes.`
   }
 }
 
@@ -67,6 +220,7 @@ async function splitPdfIntoPageGroups(
   const pageCount = sourceDocument.getPageCount()
   const groupCount = Math.ceil(pageCount / splitGroupSize)
   const numberPadding = String(pageCount).length
+  const groupPadding = String(groupCount).length
   const zipFiles: Record<string, Uint8Array> = {}
   const sanitizedFileName = sanitizeFileName(selected.file.name)
 
@@ -84,25 +238,15 @@ async function splitPdfIntoPageGroups(
         `(páginas ${startPageNumber}-${endPageNumber})...`
     )
 
-    const groupDocument = await PDFDocument.create()
     const pageIndexes = Array.from(
       { length: endPageIndex - startPageIndex },
       (_, index) => startPageIndex + index
     )
-    const copiedPages = await groupDocument.copyPages(
+    const groupBytes = await createPdfBytes(
       sourceDocument,
       pageIndexes
     )
-
-    copiedPages.forEach((page) => {
-      groupDocument.addPage(page)
-    })
-
-    const groupBytes = await groupDocument.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 30
-    })
+    const groupNumber = String(groupIndex + 1).padStart(groupPadding, '0')
     const paddedStartPage = String(startPageNumber).padStart(
       numberPadding,
       '0'
@@ -113,7 +257,7 @@ async function splitPdfIntoPageGroups(
     )
 
     zipFiles[
-      `${sanitizedFileName}-paginas-${paddedStartPage}-a-${paddedEndPage}.pdf`
+      `${sanitizedFileName}-grupo-${groupNumber}-paginas-${paddedStartPage}-a-${paddedEndPage}.pdf`
     ] = groupBytes
   }
 
@@ -146,30 +290,19 @@ async function splitPdfIntoIndividualPages(
 ): Promise<ResultData> {
   const pageCount = sourceDocument.getPageCount()
   const zipFiles: Record<string, Uint8Array> = {}
+  const sanitizedFileName = sanitizeFileName(selected.file.name)
 
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     onProgress(`A separar página ${pageIndex + 1} de ${pageCount}...`)
 
-    const pageDocument = await PDFDocument.create()
-    const [copiedPage] = await pageDocument.copyPages(sourceDocument, [
-      pageIndex
-    ])
-
-    pageDocument.addPage(copiedPage)
-
-    const pageBytes = await pageDocument.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 30
-    })
-
+    const pageBytes = await createPdfBytes(sourceDocument, [pageIndex])
     const pageNumber = String(pageIndex + 1).padStart(
       String(pageCount).length,
       '0'
     )
 
     zipFiles[
-      `${sanitizeFileName(selected.file.name)}-pagina-${pageNumber}.pdf`
+      `${sanitizedFileName}-pagina-${pageNumber}.pdf`
     ] = pageBytes
   }
 
@@ -178,13 +311,12 @@ async function splitPdfIntoIndividualPages(
   const zipBytes = zipSync(zipFiles, {
     level: 6
   })
-
   const blob = new Blob([bytesToArrayBuffer(zipBytes)], {
     type: 'application/zip'
   })
 
   return {
-    fileName: `${sanitizeFileName(selected.file.name)}-paginas.zip`,
+    fileName: `${sanitizedFileName}-paginas.zip`,
     blob,
     originalSize: selected.file.size,
     finalSize: blob.size,
