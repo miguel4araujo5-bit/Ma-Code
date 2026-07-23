@@ -48,6 +48,7 @@ export type ResultData = {
 
 export type SplitMode =
   | 'ranges'
+  | 'groups'
   | 'individual'
 
 export type JpgQuality =
