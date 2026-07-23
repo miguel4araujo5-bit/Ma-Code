@@ -54,6 +54,91 @@ async function splitPdfByRanges(
   }
 }
 
+async function splitPdfIntoPageGroups(
+  sourceDocument: PDFDocument,
+  selected: SelectedPdf,
+  splitGroupSize: number,
+  onProgress: ProgressCallback
+): Promise<ResultData> {
+  if (!Number.isInteger(splitGroupSize) || splitGroupSize < 1) {
+    throw new Error('Indique um número válido de páginas por grupo.')
+  }
+
+  const pageCount = sourceDocument.getPageCount()
+  const groupCount = Math.ceil(pageCount / splitGroupSize)
+  const numberPadding = String(pageCount).length
+  const zipFiles: Record<string, Uint8Array> = {}
+  const sanitizedFileName = sanitizeFileName(selected.file.name)
+
+  for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
+    const startPageIndex = groupIndex * splitGroupSize
+    const endPageIndex = Math.min(
+      startPageIndex + splitGroupSize,
+      pageCount
+    )
+    const startPageNumber = startPageIndex + 1
+    const endPageNumber = endPageIndex
+
+    onProgress(
+      `A criar grupo ${groupIndex + 1} de ${groupCount} ` +
+        `(páginas ${startPageNumber}-${endPageNumber})...`
+    )
+
+    const groupDocument = await PDFDocument.create()
+    const pageIndexes = Array.from(
+      { length: endPageIndex - startPageIndex },
+      (_, index) => startPageIndex + index
+    )
+    const copiedPages = await groupDocument.copyPages(
+      sourceDocument,
+      pageIndexes
+    )
+
+    copiedPages.forEach((page) => {
+      groupDocument.addPage(page)
+    })
+
+    const groupBytes = await groupDocument.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 30
+    })
+    const paddedStartPage = String(startPageNumber).padStart(
+      numberPadding,
+      '0'
+    )
+    const paddedEndPage = String(endPageNumber).padStart(
+      numberPadding,
+      '0'
+    )
+
+    zipFiles[
+      `${sanitizedFileName}-paginas-${paddedStartPage}-a-${paddedEndPage}.pdf`
+    ] = groupBytes
+  }
+
+  onProgress('A criar o ficheiro ZIP...')
+
+  const zipBytes = zipSync(zipFiles, {
+    level: 6
+  })
+  const blob = new Blob([bytesToArrayBuffer(zipBytes)], {
+    type: 'application/zip'
+  })
+
+  return {
+    fileName: `${sanitizedFileName}-grupos-de-${splitGroupSize}-paginas.zip`,
+    blob,
+    originalSize: selected.file.size,
+    finalSize: blob.size,
+    message: `${pageCount} páginas foram divididas em ${groupCount} ficheiro${
+      groupCount === 1 ? '' : 's'
+    } PDF, com até ${splitGroupSize} página${
+      splitGroupSize === 1 ? '' : 's'
+    } por grupo.`
+  }
+}
+
 async function splitPdfIntoIndividualPages(
   sourceDocument: PDFDocument,
   selected: SelectedPdf,
@@ -111,6 +196,7 @@ export async function splitPdfFile(
   selected: SelectedPdf | undefined,
   splitMode: SplitMode,
   splitRanges: string,
+  splitGroupSize: number,
   onProgress: ProgressCallback
 ): Promise<ResultData> {
   if (!selected) {
@@ -132,6 +218,15 @@ export async function splitPdfFile(
     return splitPdfIntoIndividualPages(
       sourceDocument,
       selected,
+      onProgress
+    )
+  }
+
+  if (splitMode === 'groups') {
+    return splitPdfIntoPageGroups(
+      sourceDocument,
+      selected,
+      splitGroupSize,
       onProgress
     )
   }
