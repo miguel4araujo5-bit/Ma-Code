@@ -388,6 +388,12 @@ export default function PdfWorkbench({
     )
 
   const [
+    splitGroupSize,
+    setSplitGroupSize
+  ] =
+    useState(5)
+
+  const [
     jpgQuality,
     setJpgQuality
   ] =
@@ -611,6 +617,8 @@ export default function PdfWorkbench({
       setSplitRanges(
         '1-3'
       )
+
+      setSplitGroupSize(5)
 
       setJpgQuality(
         'standard'
@@ -1017,6 +1025,7 @@ export default function PdfWorkbench({
               selectedFiles[0],
               splitMode,
               splitRanges,
+              splitGroupSize,
               setProgressMessage
             )
         } else if (
@@ -1357,7 +1366,19 @@ export default function PdfWorkbench({
 
   const canProcess =
     activeTool ===
-    'merge'
+    'split' &&
+    splitMode ===
+    'groups'
+      ? selectedFiles.length ===
+          1 &&
+        Number.isInteger(
+          splitGroupSize
+        ) &&
+        splitGroupSize >
+          0
+
+      : activeTool ===
+        'merge'
       ? selectedFiles.length >=
         2
 
@@ -1404,7 +1425,12 @@ export default function PdfWorkbench({
 
           ? 'Separar todas as páginas'
 
-          : 'Extrair páginas selecionadas'
+          : splitMode ===
+            'groups'
+
+            ? 'Dividir PDF por grupos'
+
+            : 'Extrair páginas selecionadas'
 
         : activeTool ===
           'compress'
@@ -1539,8 +1565,10 @@ export default function PdfWorkbench({
               <SplitOptions
                 splitMode={splitMode}
                 splitRanges={splitRanges}
+                splitGroupSize={splitGroupSize}
                 onModeChange={setSplitMode}
                 onRangesChange={setSplitRanges}
+                onGroupSizeChange={setSplitGroupSize}
               />
             ) : null}
 
