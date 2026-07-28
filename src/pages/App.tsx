@@ -37,6 +37,10 @@ const MARecortesPage = lazy(
   () => import('./MARecortesPage')
 )
 
+const MAProfessorPage = lazy(
+  () => import('./MAProfessorPage')
+)
+
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
@@ -62,6 +66,9 @@ type AppPage =
     }
   | {
       type: 'ma-recortes'
+    }
+  | {
+      type: 'ma-professor'
     }
   | {
       type: 'service'
@@ -126,6 +133,15 @@ function getPageFromPath(): AppPage {
   ) {
     return {
       type: 'ma-recortes'
+    }
+  }
+
+  if (
+    path ===
+    '/produtos/ma-professor'
+  ) {
+    return {
+      type: 'ma-professor'
     }
   }
 
@@ -205,6 +221,15 @@ export default function App() {
   ) {
     return (
       <MARecortesPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'ma-professor'
+  ) {
+    return (
+      <MAProfessorPage />
     )
   }
 
