@@ -7,6 +7,7 @@ const siteUrl =
   'https://ma-code.pt'
 
 type ProductStatus =
+  | 'Brevemente disponível'
   | 'Disponível em breve'
   | 'Em desenvolvimento'
   | 'Planeado'
@@ -15,7 +16,7 @@ type ProductCard = {
   name: string
   eyebrow: string
   description: string
-  href: string
+  href?: string
   status: ProductStatus
   highlights: string[]
   badge: string
@@ -101,8 +102,38 @@ const products:
       'PNG transparente',
       'WhatsApp'
     ]
+  },
+  {
+    name:
+      'MA-Professor',
+    eyebrow:
+      'Gestão pedagógica',
+    description:
+      'Organize planificações, sumários, UFCD, avaliações, faltas e recuperações de aprendizagens num único espaço preparado para o trabalho diário dos professores.',
+    status:
+      'Brevemente disponível',
+    badge: 'MP',
+    badgeClassName:
+      'border-emerald-300/30 bg-emerald-300/10 text-emerald-100 shadow-emerald-950/30',
+    highlights: [
+      'Sumários',
+      'UFCD',
+      'Avaliações',
+      'Faltas'
+    ]
   }
 ]
+
+const publicProducts =
+  products.filter(
+    (
+      product
+    ): product is ProductCard & {
+      href: string
+    } =>
+      typeof product.href ===
+      'string'
+  )
 
 function updateMeta(
   name: string,
@@ -230,14 +261,7 @@ function ProductCardItem({
   mounted: boolean
 }) {
   const opensProduct =
-    product.name ===
-      'MA PDF' ||
-    product.name ===
-      'MA Carteira' ||
-    product.name ===
-      'MA-BTC ALERTAS' ||
-    product.name ===
-      'MA-Recortes'
+    Boolean(product.href)
 
   return (
     <article
@@ -305,24 +329,39 @@ function ProductCardItem({
           </span>
         </div>
 
-        <a
-          href={product.href}
-          className={`mt-7 inline-flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-semibold transition duration-300 ${
-            opensProduct
-              ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15'
-              : 'border-white/10 bg-white/[0.04] text-slate-200 group-hover:border-cyan-200/30 group-hover:bg-cyan-300/[0.06]'
-          }`}
-        >
-          <span>
-            {opensProduct
-              ? 'Abrir produto'
-              : 'Saber mais'}
-          </span>
+        {product.href ? (
+          <a
+            href={product.href}
+            className={`mt-7 inline-flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-semibold transition duration-300 ${
+              opensProduct
+                ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15'
+                : 'border-white/10 bg-white/[0.04] text-slate-200 group-hover:border-cyan-200/30 group-hover:bg-cyan-300/[0.06]'
+            }`}
+          >
+            <span>
+              {opensProduct
+                ? 'Abrir produto'
+                : 'Saber mais'}
+            </span>
 
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
-            →
-          </span>
-        </a>
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
+              →
+            </span>
+          </a>
+        ) : (
+          <div
+            className="mt-7 inline-flex w-full cursor-not-allowed items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm font-semibold text-slate-500"
+            aria-disabled="true"
+          >
+            <span>
+              Brevemente disponível
+            </span>
+
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-500">
+              —
+            </span>
+          </div>
+        )}
       </div>
     </article>
   )
@@ -342,12 +381,12 @@ export default function ProductsPage() {
 
     updateMeta(
       'description',
-      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e MA-Recortes, uma ferramenta para criar stickers e imagens PNG transparentes.'
+      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes e o futuro MA-Professor para gestão pedagógica.'
     )
 
     updateMeta(
       'keywords',
-      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, remover fundo, PNG transparente, apps web, ferramentas digitais'
+      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, MA-Professor, gestão de sumários, UFCD, apps web, ferramentas digitais'
     )
 
     updateMeta(
@@ -382,7 +421,7 @@ export default function ProductsPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin e criação de stickers e recortes transparentes.'
+      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers e soluções de gestão pedagógica.'
     )
 
     updatePropertyMeta(
@@ -412,7 +451,7 @@ export default function ProductsPage() {
 
     updateMeta(
       'twitter:description',
-      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS e MA-Recortes.'
+      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes e MA-Professor.'
     )
 
     updateMeta(
@@ -447,7 +486,7 @@ export default function ProductsPage() {
             inLanguage:
               'pt-PT',
             description:
-              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin e uma aplicação para criar stickers e recortes transparentes.',
+              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers e uma futura aplicação de gestão pedagógica.',
             isPartOf: {
               '@id':
                 `${siteUrl}/#website`
@@ -461,7 +500,7 @@ export default function ProductsPage() {
             name:
               'Produtos MA-Code',
             itemListElement:
-              products.map(
+              publicProducts.map(
                 (
                   product,
                   index
@@ -563,6 +602,7 @@ export default function ProductsPage() {
 
             <h1 className="mt-6 max-w-5xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
               Apps e ferramentas digitais{' '}
+
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-200 bg-clip-text text-transparent">
                 prontas para crescer
               </span>
@@ -571,9 +611,10 @@ export default function ProductsPage() {
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
               Esta área reúne produtos próprios da MA-Code, como o
-              MA PDF, a MA Carteira, a MA-BTC ALERTAS e o MA-Recortes,
-              mantendo a estrutura preparada para acrescentar novas
-              automações, ferramentas para negócios e apps web.
+              MA PDF, a MA Carteira, a MA-BTC ALERTAS, o MA-Recortes
+              e o futuro MA-Professor, mantendo a estrutura preparada
+              para acrescentar novas automações, ferramentas para
+              negócios e apps web.
             </p>
 
             <div className="hero-actions">
@@ -621,7 +662,7 @@ export default function ProductsPage() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {products.map(
               (
                 product,
