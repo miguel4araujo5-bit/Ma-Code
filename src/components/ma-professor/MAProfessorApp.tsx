@@ -14,9 +14,10 @@ import {
   type SetupSnapshot
 } from './repository'
 
+import SetupWizard from './setup/SetupWizard'
+
 import type {
-  AcademicYear,
-  SetupStepId
+  AcademicYear
 } from './types'
 
 type ApplicationState =
@@ -35,13 +36,6 @@ type NavigationItem = {
   id: string
   label: string
   shortLabel: string
-}
-
-type SetupStepDefinition = {
-  id: SetupStepId
-  number: number
-  title: string
-  description: string
 }
 
 const navigationItems: NavigationItem[] = [
@@ -89,72 +83,6 @@ const navigationItems: NavigationItem[] = [
     id: 'settings',
     label: 'Definições',
     shortLabel: 'Menu'
-  }
-]
-
-const setupSteps: SetupStepDefinition[] = [
-  {
-    id: 'academic_year',
-    number: 1,
-    title: 'Ano letivo',
-    description:
-      'Defina o período de funcionamento deste ano letivo.'
-  },
-  {
-    id: 'groups',
-    number: 2,
-    title: 'Turmas',
-    description:
-      'Adicione as turmas, cursos e anos de escolaridade.'
-  },
-  {
-    id: 'subjects',
-    number: 3,
-    title: 'Disciplinas',
-    description:
-      'Crie as disciplinas e associe-as às respetivas turmas.'
-  },
-  {
-    id: 'modules',
-    number: 4,
-    title: 'UFCD ou módulos',
-    description:
-      'Introduza os códigos, nomes, ordem e carga horária.'
-  },
-  {
-    id: 'assessment_criteria',
-    number: 5,
-    title: 'Critérios de avaliação',
-    description:
-      'Defina os critérios e as ponderações que totalizam 100%.'
-  },
-  {
-    id: 'planifications',
-    number: 6,
-    title: 'Planificações',
-    description:
-      'Organize conteúdos, objetivos e atividades de cada UFCD.'
-  },
-  {
-    id: 'weekly_schedule',
-    number: 7,
-    title: 'Horário semanal',
-    description:
-      'Indique os dias, horas e tempos letivos de cada turma.'
-  },
-  {
-    id: 'students',
-    number: 8,
-    title: 'Alunos',
-    description:
-      'Adicione o número e o nome dos alunos de cada turma.'
-  },
-  {
-    id: 'confirmation',
-    number: 9,
-    title: 'Confirmação',
-    description:
-      'Reveja os dados e conclua a configuração inicial.'
   }
 ]
 
@@ -226,47 +154,6 @@ function getErrorMessage(
   }
 
   return 'Ocorreu um erro inesperado.'
-}
-
-function formatDate(
-  value: string
-) {
-  if (!value) {
-    return '—'
-  }
-
-  const [
-    year,
-    month,
-    day
-  ] =
-    value
-      .split('-')
-      .map(Number)
-
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }
-  ).format(
-    new Date(
-      year,
-      month -
-        1,
-      day
-    )
-  )
 }
 
 function LoadingView() {
@@ -617,244 +504,6 @@ function AcademicYearSetup({
           </button>
         </form>
       </div>
-    </div>
-  )
-}
-
-function SetupMetric({
-  label,
-  value
-}: {
-  label: string
-  value: number
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-2 text-2xl font-black text-white">
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function SetupOverview({
-  snapshot,
-  onRefresh
-}: {
-  snapshot: SetupSnapshot
-  onRefresh: () => void
-}) {
-  const completedSteps =
-    new Set(
-      snapshot.progress
-        ?.completedSteps ??
-        []
-    )
-
-  const currentStep =
-    setupSteps.find(
-      (
-        step
-      ) =>
-        step.id ===
-        snapshot.progress
-          ?.currentStep
-    )
-
-  return (
-    <div className="mx-auto max-w-7xl">
-      <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-              Configuração inicial
-            </p>
-
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              {snapshot.academicYear.name}
-            </h1>
-
-            <p className="mt-3 text-sm leading-7 text-slate-400">
-              {formatDate(
-                snapshot
-                  .academicYear
-                  .startDate
-              )}{' '}
-              a{' '}
-              {formatDate(
-                snapshot
-                  .academicYear
-                  .endDate
-              )}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]"
-          >
-            Atualizar dados
-          </button>
-        </div>
-
-        <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-          <SetupMetric
-            label="Turmas"
-            value={
-              snapshot.groups.length
-            }
-          />
-
-          <SetupMetric
-            label="Disciplinas"
-            value={
-              snapshot.subjects.length
-            }
-          />
-
-          <SetupMetric
-            label="UFCD"
-            value={
-              snapshot.modules.length
-            }
-          />
-
-          <SetupMetric
-            label="Critérios"
-            value={
-              snapshot
-                .assessmentCriteria
-                .length
-            }
-          />
-
-          <SetupMetric
-            label="Planificações"
-            value={
-              snapshot
-                .planifications
-                .length
-            }
-          />
-
-          <SetupMetric
-            label="Horários"
-            value={
-              snapshot
-                .weeklyScheduleSlots
-                .length
-            }
-          />
-
-          <SetupMetric
-            label="Alunos"
-            value={
-              snapshot.students.length
-            }
-          />
-        </div>
-
-        {currentStep ? (
-          <div className="mt-6 rounded-2xl border border-violet-300/20 bg-violet-300/[0.07] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-              Próximo passo
-            </p>
-
-            <p className="mt-2 text-lg font-black text-white">
-              {currentStep.number}.{' '}
-              {currentStep.title}
-            </p>
-
-            <p className="mt-2 text-sm leading-6 text-violet-100/75">
-              {currentStep.description}
-            </p>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="mt-7">
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-            Preparação do ano
-          </p>
-
-          <h2 className="mt-3 text-2xl font-black text-white">
-            Complete os nove passos.
-          </h2>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {setupSteps.map(
-            (
-              step
-            ) => {
-              const completed =
-                completedSteps.has(
-                  step.id
-                )
-
-              const active =
-                snapshot
-                  .progress
-                  ?.currentStep ===
-                step.id
-
-              return (
-                <article
-                  key={step.id}
-                  className={`rounded-[1.5rem] border p-5 transition ${
-                    completed
-                      ? 'border-emerald-300/20 bg-emerald-300/[0.055]'
-                      : active
-                        ? 'border-cyan-300/35 bg-cyan-300/[0.08] shadow-lg shadow-cyan-950/20'
-                        : 'border-white/10 bg-slate-950/65'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-black ${
-                        completed
-                          ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
-                          : active
-                            ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-50'
-                            : 'border-white/10 bg-white/[0.04] text-slate-400'
-                      }`}
-                    >
-                      {completed
-                        ? '✓'
-                        : step.number}
-                    </span>
-
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-black text-white">
-                          {step.title}
-                        </h3>
-
-                        {active &&
-                        !completed ? (
-                          <span className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-cyan-100">
-                            Atual
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              )
-            }
-          )}
-        </div>
-      </section>
     </div>
   )
 }
@@ -1319,12 +968,15 @@ export default function MAProfessorApp() {
                   }
                 />
               ) : (
-                <SetupOverview
+                <SetupWizard
                   snapshot={
                     snapshot
                   }
-                  onRefresh={
-                    handleRetry
+                  onSnapshotChange={
+                    setSnapshot
+                  }
+                  onCompleted={
+                    setSnapshot
                   }
                 />
               )}
