@@ -29,6 +29,14 @@ import {
   type DashboardSnapshot
 } from './dashboard/dashboardRepository'
 
+import GIAEWorkspaceView from './giae/GIAEWorkspaceView'
+
+import {
+  giaeWorkspaceRepository,
+  type GIAEWorkspaceFilters,
+  type GIAEWorkspaceSnapshot
+} from './giae/giaeWorkspaceRepository'
+
 import {
   isMAProfessorDatabaseSupported
 } from './db'
@@ -62,6 +70,7 @@ type AcademicYearFormState = {
 type WorkspaceView =
   | 'dashboard'
   | 'calendar'
+  | 'giae'
 
 type NavigationItem = {
   id: string
@@ -86,7 +95,8 @@ const navigationItems: NavigationItem[] = [
   {
     id: 'giae',
     label: 'Sumários / GIAE',
-    shortLabel: 'GIAE'
+    shortLabel: 'GIAE',
+    workspace: 'giae'
   },
   {
     id: 'planifications',
@@ -675,6 +685,46 @@ export default function MAProfessorApp() {
     useState(0)
 
   const [
+    giaeSnapshot,
+    setGIAESnapshot
+  ] =
+    useState<GIAEWorkspaceSnapshot | null>(
+      null
+    )
+
+  const [
+    giaeFilters,
+    setGIAEFilters
+  ] =
+    useState<GIAEWorkspaceFilters>({
+      query: '',
+      dateFrom: null,
+      dateTo: null,
+      groupId: null,
+      teachingAssignmentId: null,
+      moduleId: null,
+      state: null
+    })
+
+  const [
+    giaeLoading,
+    setGIAELoading
+  ] =
+    useState(false)
+
+  const [
+    giaeError,
+    setGIAEError
+  ] =
+    useState('')
+
+  const [
+    giaeReloadKey,
+    setGIAEReloadKey
+  ] =
+    useState(0)
+
+  const [
     lessonEditorContext,
     setLessonEditorContext
   ] =
@@ -1005,6 +1055,98 @@ export default function MAProfessorApp() {
     snapshot?.academicYear.id
   ])
 
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted ||
+      activeWorkspace !==
+        'giae'
+    ) {
+      if (
+        !snapshot ||
+        !setupCompleted
+      ) {
+        setGIAESnapshot(
+          null
+        )
+        setGIAEError('')
+      }
+
+      setGIAELoading(
+        false
+      )
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const academicYearId =
+      snapshot.academicYear.id
+
+    setGIAELoading(
+      true
+    )
+    setGIAEError('')
+
+    async function loadGIAEWorkspace() {
+      try {
+        const nextGIAESnapshot =
+          await giaeWorkspaceRepository.getWorkspace(
+            academicYearId,
+            giaeFilters
+          )
+
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setGIAESnapshot(
+          nextGIAESnapshot
+        )
+      } catch (
+        loadError
+      ) {
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setGIAEError(
+          getErrorMessage(
+            loadError
+          )
+        )
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setGIAELoading(
+            false
+          )
+        }
+      }
+    }
+
+    void loadGIAEWorkspace()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeWorkspace,
+    giaeFilters,
+    giaeReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
   async function handleAcademicYearCreated(
     academicYear: AcademicYear
   ) {
@@ -1029,6 +1171,20 @@ export default function MAProfessorApp() {
     setCalendarAnchorDate(
       undefined
     )
+
+    setGIAESnapshot(
+      null
+    )
+    setGIAEError('')
+    setGIAEFilters({
+      query: '',
+      dateFrom: null,
+      dateTo: null,
+      groupId: null,
+      teachingAssignmentId: null,
+      moduleId: null,
+      state: null
+    })
 
     setLessonEditorContext(
       null
@@ -1075,18 +1231,104 @@ export default function MAProfessorApp() {
     )
   }
 
+  function handleGIAERefresh() {
+    setGIAEReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
+  function handleGIAEFiltersChange(
+    filters: GIAEWorkspaceFilters
+  ) {
+    setGIAEFilters(
+      filters
+    )
+
+    setGIAESnapshot(
+      (
+        current
+      ) =>
+        current
+          ? {
+              ...current,
+              filters
+            }
+          : current
+    )
+  }
+
+  function refreshLessonWorkspaces() {
+    setCalendarReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setGIAEReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
+  async function handleGIAEMarkSubmitted(
+    lessonId: EntityId
+  ) {
+    await giaeWorkspaceRepository.markSubmitted(
+      lessonId
+    )
+
+    refreshLessonWorkspaces()
+  }
+
+  async function handleGIAEMarkPending(
+    lessonId: EntityId
+  ) {
+    await giaeWorkspaceRepository.markPending(
+      lessonId
+    )
+
+    refreshLessonWorkspaces()
+  }
+
+  async function handleGIAEMarkManySubmitted(
+    lessonIds: EntityId[]
+  ) {
+    await giaeWorkspaceRepository.markManySubmitted(
+      lessonIds
+    )
+
+    refreshLessonWorkspaces()
+  }
+
   function handleWorkspaceChange(
     workspace: WorkspaceView
   ) {
+    setLessonEditorContext(
+      null
+    )
+    setLessonEditorError('')
+
     if (
       workspace !==
       'calendar'
     ) {
-      setLessonEditorContext(
-        null
-      )
-      setLessonEditorError('')
-
       setExtraLessonContext(
         null
       )
@@ -1214,6 +1456,14 @@ export default function MAProfessorApp() {
         current +
         1
     )
+
+    setGIAEReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
   }
 
   async function handleExtraLessonCreate(
@@ -1299,6 +1549,14 @@ export default function MAProfessorApp() {
     )
 
     setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setGIAEReloadKey(
       (
         current
       ) =>
@@ -1587,6 +1845,73 @@ export default function MAProfessorApp() {
                       }
                       onRetry={
                         handleCalendarRefresh
+                      }
+                    />
+                  ) : (
+                    <LoadingView />
+                  )
+                ) : activeWorkspace ===
+                  'giae' ? (
+                  giaeSnapshot ? (
+                    <div>
+                      {lessonEditorError ? (
+                        <div
+                          role="alert"
+                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
+                        >
+                          <p className="leading-6">
+                            Não foi possível abrir a aula: {lessonEditorError}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLessonEditorError('')
+                            }
+                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
+                          >
+                            Fechar aviso
+                          </button>
+                        </div>
+                      ) : null}
+
+                      <GIAEWorkspaceView
+                        snapshot={
+                          giaeSnapshot
+                        }
+                        loading={
+                          giaeLoading
+                        }
+                        error={
+                          giaeError
+                        }
+                        onRefresh={
+                          handleGIAERefresh
+                        }
+                        onFiltersChange={
+                          handleGIAEFiltersChange
+                        }
+                        onLessonSelect={
+                          handleCalendarLessonSelect
+                        }
+                        onMarkSubmitted={
+                          handleGIAEMarkSubmitted
+                        }
+                        onMarkPending={
+                          handleGIAEMarkPending
+                        }
+                        onMarkManySubmitted={
+                          handleGIAEMarkManySubmitted
+                        }
+                      />
+                    </div>
+                  ) : giaeError ? (
+                    <ErrorView
+                      message={
+                        giaeError
+                      }
+                      onRetry={
+                        handleGIAERefresh
                       }
                     />
                   ) : (
