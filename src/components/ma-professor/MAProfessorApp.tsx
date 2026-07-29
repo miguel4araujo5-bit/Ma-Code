@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import CalendarWorkspaceView from './calendar/CalendarWorkspaceView'
+import ExtraLessonDialog from './calendar/ExtraLessonDialog'
 import LessonEditorDialog from './calendar/LessonEditorDialog'
 
 import {
@@ -15,6 +16,11 @@ import {
   type CalendarWorkspaceFilters,
   type CalendarWorkspaceSnapshot
 } from './calendar/calendarWorkspaceRepository'
+
+import {
+  extraLessonRepository,
+  type ExtraLessonCreateContext
+} from './calendar/extraLessonRepository'
 
 import DashboardView from './dashboard/DashboardView'
 
@@ -37,7 +43,8 @@ import SetupWizard from './setup/SetupWizard'
 import type {
   AcademicYear,
   EntityId,
-  ISODate
+  ISODate,
+  Lesson
 } from './types'
 
 type ApplicationState =
@@ -275,7 +282,9 @@ function ErrorView({
 
         <button
           type="button"
-          onClick={onRetry}
+          onClick={
+            onRetry
+          }
           className="mt-7 inline-flex items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-5 py-3 text-sm font-bold text-cyan-50 transition hover:bg-cyan-300/15"
         >
           Tentar novamente
@@ -392,7 +401,9 @@ function AcademicYearSetup({
                 item
               ) => (
                 <div
-                  key={item}
+                  key={
+                    item
+                  }
                   className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4"
                 >
                   <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-300/15 text-xs font-black text-cyan-100">
@@ -409,7 +420,9 @@ function AcademicYearSetup({
         </section>
 
         <form
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
           className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8"
         >
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
@@ -681,6 +694,26 @@ export default function MAProfessorApp() {
   ] =
     useState('')
 
+  const [
+    extraLessonContext,
+    setExtraLessonContext
+  ] =
+    useState<ExtraLessonCreateContext | null>(
+      null
+    )
+
+  const [
+    extraLessonLoading,
+    setExtraLessonLoading
+  ] =
+    useState(false)
+
+  const [
+    extraLessonError,
+    setExtraLessonError
+  ] =
+    useState('')
+
   const setupCompleted =
     Boolean(
       snapshot
@@ -884,10 +917,16 @@ export default function MAProfessorApp() {
           null
         )
         setCalendarError('')
+
         setLessonEditorContext(
           null
         )
         setLessonEditorError('')
+
+        setExtraLessonContext(
+          null
+        )
+        setExtraLessonError('')
       }
 
       setCalendarLoading(
@@ -977,10 +1016,12 @@ export default function MAProfessorApp() {
     setActiveWorkspace(
       'dashboard'
     )
+
     setDashboardSnapshot(
       null
     )
     setDashboardError('')
+
     setCalendarSnapshot(
       null
     )
@@ -988,10 +1029,17 @@ export default function MAProfessorApp() {
     setCalendarAnchorDate(
       undefined
     )
+
     setLessonEditorContext(
       null
     )
     setLessonEditorError('')
+
+    setExtraLessonContext(
+      null
+    )
+    setExtraLessonError('')
+
     setSnapshot(
       nextSnapshot
     )
@@ -1038,6 +1086,11 @@ export default function MAProfessorApp() {
         null
       )
       setLessonEditorError('')
+
+      setExtraLessonContext(
+        null
+      )
+      setExtraLessonError('')
     }
 
     setActiveWorkspace(
@@ -1087,10 +1140,16 @@ export default function MAProfessorApp() {
     lessonId: EntityId
   ) {
     if (
-      lessonEditorLoading
+      lessonEditorLoading ||
+      extraLessonLoading
     ) {
       return
     }
+
+    setExtraLessonContext(
+      null
+    )
+    setExtraLessonError('')
 
     setLessonEditorLoading(
       true
@@ -1139,6 +1198,97 @@ export default function MAProfessorApp() {
       null
     )
     setLessonEditorError('')
+
+    setCalendarReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
+  async function handleExtraLessonCreate(
+    requestedDate?: ISODate
+  ) {
+    if (
+      !snapshot ||
+      extraLessonLoading ||
+      lessonEditorLoading
+    ) {
+      return
+    }
+
+    setLessonEditorContext(
+      null
+    )
+    setLessonEditorError('')
+
+    setExtraLessonLoading(
+      true
+    )
+    setExtraLessonError('')
+
+    try {
+      const nextContext =
+        await extraLessonRepository.getCreateContext(
+          snapshot.academicYear.id,
+          requestedDate ??
+            calendarSnapshot?.anchorDate,
+          calendarFilters.teachingAssignmentId ??
+            null
+        )
+
+      setExtraLessonContext(
+        nextContext
+      )
+    } catch (
+      loadError
+    ) {
+      setExtraLessonError(
+        getErrorMessage(
+          loadError
+        )
+      )
+    } finally {
+      setExtraLessonLoading(
+        false
+      )
+    }
+  }
+
+  function handleExtraLessonClose() {
+    if (
+      extraLessonLoading
+    ) {
+      return
+    }
+
+    setExtraLessonContext(
+      null
+    )
+    setExtraLessonError('')
+  }
+
+  function handleExtraLessonCreated(
+    lesson: Lesson
+  ) {
+    setExtraLessonContext(
+      null
+    )
+    setExtraLessonError('')
+
+    setCalendarAnchorDate(
+      lesson.date
+    )
 
     setCalendarReloadKey(
       (
@@ -1376,6 +1526,27 @@ export default function MAProfessorApp() {
                         </div>
                       ) : null}
 
+                      {extraLessonError ? (
+                        <div
+                          role="alert"
+                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
+                        >
+                          <p className="leading-6">
+                            Não foi possível preparar a aula extra: {extraLessonError}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExtraLessonError('')
+                            }
+                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
+                          >
+                            Fechar aviso
+                          </button>
+                        </div>
+                      ) : null}
+
                       <CalendarWorkspaceView
                         snapshot={
                           calendarSnapshot
@@ -1403,6 +1574,9 @@ export default function MAProfessorApp() {
                         }
                         onLessonSelect={
                           handleCalendarLessonSelect
+                        }
+                        onCreateLesson={
+                          handleExtraLessonCreate
                         }
                       />
                     </div>
@@ -1545,17 +1719,22 @@ export default function MAProfessorApp() {
           )}
       </nav>
 
-      {lessonEditorLoading ? (
+      {lessonEditorLoading ||
+      extraLessonLoading ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 p-5 backdrop-blur-sm">
           <div className="rounded-[1.75rem] border border-cyan-300/20 bg-slate-950/95 p-7 text-center shadow-2xl shadow-black/50">
             <span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-cyan-100/20 border-t-cyan-200" />
 
             <p className="mt-4 text-sm font-black text-white">
-              A abrir a aula...
+              {extraLessonLoading
+                ? 'A preparar a aula extra...'
+                : 'A abrir a aula...'}
             </p>
 
             <p className="mt-2 text-xs text-slate-500">
-              A carregar o sumário e a planificação.
+              {extraLessonLoading
+                ? 'A carregar turmas, UFCD e sugestões.'
+                : 'A carregar o sumário e a planificação.'}
             </p>
           </div>
         </div>
@@ -1571,6 +1750,20 @@ export default function MAProfessorApp() {
           }
           onSaved={
             handleLessonEditorSaved
+          }
+        />
+      ) : null}
+
+      {extraLessonContext ? (
+        <ExtraLessonDialog
+          context={
+            extraLessonContext
+          }
+          onClose={
+            handleExtraLessonClose
+          }
+          onCreated={
+            handleExtraLessonCreated
           }
         />
       ) : null}
