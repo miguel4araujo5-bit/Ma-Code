@@ -6,9 +6,11 @@ import {
 } from 'react'
 
 import CalendarWorkspaceView from './calendar/CalendarWorkspaceView'
+import LessonEditorDialog from './calendar/LessonEditorDialog'
 
 import {
   calendarWorkspaceRepository,
+  type CalendarLessonEditorContext,
   type CalendarViewMode,
   type CalendarWorkspaceFilters,
   type CalendarWorkspaceSnapshot
@@ -34,6 +36,7 @@ import SetupWizard from './setup/SetupWizard'
 
 import type {
   AcademicYear,
+  EntityId,
   ISODate
 } from './types'
 
@@ -658,6 +661,26 @@ export default function MAProfessorApp() {
   ] =
     useState(0)
 
+  const [
+    lessonEditorContext,
+    setLessonEditorContext
+  ] =
+    useState<CalendarLessonEditorContext | null>(
+      null
+    )
+
+  const [
+    lessonEditorLoading,
+    setLessonEditorLoading
+  ] =
+    useState(false)
+
+  const [
+    lessonEditorError,
+    setLessonEditorError
+  ] =
+    useState('')
+
   const setupCompleted =
     Boolean(
       snapshot
@@ -861,6 +884,10 @@ export default function MAProfessorApp() {
           null
         )
         setCalendarError('')
+        setLessonEditorContext(
+          null
+        )
+        setLessonEditorError('')
       }
 
       setCalendarLoading(
@@ -961,6 +988,10 @@ export default function MAProfessorApp() {
     setCalendarAnchorDate(
       undefined
     )
+    setLessonEditorContext(
+      null
+    )
+    setLessonEditorError('')
     setSnapshot(
       nextSnapshot
     )
@@ -999,6 +1030,16 @@ export default function MAProfessorApp() {
   function handleWorkspaceChange(
     workspace: WorkspaceView
   ) {
+    if (
+      workspace !==
+      'calendar'
+    ) {
+      setLessonEditorContext(
+        null
+      )
+      setLessonEditorError('')
+    }
+
     setActiveWorkspace(
       workspace
     )
@@ -1039,6 +1080,80 @@ export default function MAProfessorApp() {
   ) {
     setCalendarFilters(
       filters
+    )
+  }
+
+  async function handleCalendarLessonSelect(
+    lessonId: EntityId
+  ) {
+    if (
+      lessonEditorLoading
+    ) {
+      return
+    }
+
+    setLessonEditorLoading(
+      true
+    )
+    setLessonEditorError('')
+
+    try {
+      const editorContext =
+        await calendarWorkspaceRepository.getLessonEditorContext(
+          lessonId
+        )
+
+      setLessonEditorContext(
+        editorContext
+      )
+    } catch (
+      loadError
+    ) {
+      setLessonEditorError(
+        getErrorMessage(
+          loadError
+        )
+      )
+    } finally {
+      setLessonEditorLoading(
+        false
+      )
+    }
+  }
+
+  function handleLessonEditorClose() {
+    if (
+      lessonEditorLoading
+    ) {
+      return
+    }
+
+    setLessonEditorContext(
+      null
+    )
+    setLessonEditorError('')
+  }
+
+  function handleLessonEditorSaved() {
+    setLessonEditorContext(
+      null
+    )
+    setLessonEditorError('')
+
+    setCalendarReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
     )
   }
 
@@ -1239,32 +1354,58 @@ export default function MAProfessorApp() {
                 activeWorkspace ===
                 'calendar' ? (
                   calendarSnapshot ? (
-                    <CalendarWorkspaceView
-                      snapshot={
-                        calendarSnapshot
-                      }
-                      loading={
-                        calendarLoading
-                      }
-                      error={
-                        calendarError
-                      }
-                      onRefresh={
-                        handleCalendarRefresh
-                      }
-                      onModeChange={
-                        handleCalendarModeChange
-                      }
-                      onNavigate={
-                        handleCalendarNavigate
-                      }
-                      onGoToday={
-                        handleCalendarGoToday
-                      }
-                      onFiltersChange={
-                        handleCalendarFiltersChange
-                      }
-                    />
+                    <div>
+                      {lessonEditorError ? (
+                        <div
+                          role="alert"
+                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
+                        >
+                          <p className="leading-6">
+                            Não foi possível abrir a aula: {lessonEditorError}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLessonEditorError('')
+                            }
+                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
+                          >
+                            Fechar aviso
+                          </button>
+                        </div>
+                      ) : null}
+
+                      <CalendarWorkspaceView
+                        snapshot={
+                          calendarSnapshot
+                        }
+                        loading={
+                          calendarLoading
+                        }
+                        error={
+                          calendarError
+                        }
+                        onRefresh={
+                          handleCalendarRefresh
+                        }
+                        onModeChange={
+                          handleCalendarModeChange
+                        }
+                        onNavigate={
+                          handleCalendarNavigate
+                        }
+                        onGoToday={
+                          handleCalendarGoToday
+                        }
+                        onFiltersChange={
+                          handleCalendarFiltersChange
+                        }
+                        onLessonSelect={
+                          handleCalendarLessonSelect
+                        }
+                      />
+                    </div>
                   ) : calendarError ? (
                     <ErrorView
                       message={
@@ -1403,6 +1544,36 @@ export default function MAProfessorApp() {
             )
           )}
       </nav>
+
+      {lessonEditorLoading ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 p-5 backdrop-blur-sm">
+          <div className="rounded-[1.75rem] border border-cyan-300/20 bg-slate-950/95 p-7 text-center shadow-2xl shadow-black/50">
+            <span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-cyan-100/20 border-t-cyan-200" />
+
+            <p className="mt-4 text-sm font-black text-white">
+              A abrir a aula...
+            </p>
+
+            <p className="mt-2 text-xs text-slate-500">
+              A carregar o sumário e a planificação.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {lessonEditorContext ? (
+        <LessonEditorDialog
+          context={
+            lessonEditorContext
+          }
+          onClose={
+            handleLessonEditorClose
+          }
+          onSaved={
+            handleLessonEditorSaved
+          }
+        />
+      ) : null}
     </main>
   )
 }
