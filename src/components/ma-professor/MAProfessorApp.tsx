@@ -5,6 +5,13 @@ import {
   useState
 } from 'react'
 
+import DashboardView from './dashboard/DashboardView'
+
+import {
+  dashboardRepository,
+  type DashboardSnapshot
+} from './dashboard/dashboardRepository'
+
 import {
   isMAProfessorDatabaseSupported
 } from './db'
@@ -508,125 +515,6 @@ function AcademicYearSetup({
   )
 }
 
-function DashboardPreview({
-  snapshot
-}: {
-  snapshot: SetupSnapshot
-}) {
-  const dashboardCards = [
-    {
-      label:
-        'Turmas ativas',
-      value:
-        snapshot.groups.filter(
-          (
-            group
-          ) =>
-            group.active
-        ).length
-    },
-    {
-      label:
-        'UFCD configuradas',
-      value:
-        snapshot.modules.filter(
-          (
-            module
-          ) =>
-            module.active
-        ).length
-    },
-    {
-      label:
-        'Alunos',
-      value:
-        snapshot.students.filter(
-          (
-            student
-          ) =>
-            student.active
-        ).length
-    },
-    {
-      label:
-        'Planificações',
-      value:
-        snapshot.planifications.filter(
-          (
-            planification
-          ) =>
-            planification.active
-        ).length
-    }
-  ]
-
-  return (
-    <div className="mx-auto max-w-7xl">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-            Painel
-          </p>
-
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Ano letivo{' '}
-            {snapshot
-              .academicYear
-              .name}
-          </h1>
-
-          <p className="mt-3 text-sm leading-7 text-slate-400">
-            A configuração inicial está concluída.
-          </p>
-        </div>
-
-        <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">
-          Configurado
-        </span>
-      </div>
-
-      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {dashboardCards.map(
-          (
-            card
-          ) => (
-            <article
-              key={
-                card.label
-              }
-              className="rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20"
-            >
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                {card.label}
-              </p>
-
-              <p className="mt-3 text-3xl font-black text-white">
-                {card.value}
-              </p>
-            </article>
-          )
-        )}
-      </div>
-
-      <div className="mt-7 rounded-[2rem] border border-violet-300/15 bg-violet-300/[0.055] p-6 sm:p-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-200">
-          Próxima fase
-        </p>
-
-        <h2 className="mt-3 text-2xl font-black text-white">
-          Calendário, aulas e sumários.
-        </h2>
-
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-          Depois da configuração inicial, o painel apresentará os tempos
-          dados, os tempos em falta, a UFCD atual, a previsão de conclusão,
-          os sumários pendentes e os alertas de assiduidade.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 export default function MAProfessorApp() {
   const [
     applicationState,
@@ -655,6 +543,42 @@ export default function MAProfessorApp() {
     setReloadKey
   ] =
     useState(0)
+
+  const [
+    dashboardSnapshot,
+    setDashboardSnapshot
+  ] =
+    useState<DashboardSnapshot | null>(
+      null
+    )
+
+  const [
+    dashboardLoading,
+    setDashboardLoading
+  ] =
+    useState(false)
+
+  const [
+    dashboardError,
+    setDashboardError
+  ] =
+    useState('')
+
+  const [
+    dashboardReloadKey,
+    setDashboardReloadKey
+  ] =
+    useState(0)
+
+  const setupCompleted =
+    Boolean(
+      snapshot
+        ?.academicYear
+        .setupCompletedAt ||
+        snapshot
+          ?.progress
+          ?.completedAt
+    )
 
   useEffect(() => {
     let cancelled =
@@ -750,6 +674,87 @@ export default function MAProfessorApp() {
     reloadKey
   ])
 
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted
+    ) {
+      setDashboardSnapshot(
+        null
+      )
+      setDashboardLoading(
+        false
+      )
+      setDashboardError('')
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const academicYearId =
+      snapshot.academicYear.id
+
+    setDashboardLoading(
+      true
+    )
+    setDashboardError('')
+
+    async function loadDashboard() {
+      try {
+        const nextDashboardSnapshot =
+          await dashboardRepository.getDashboard(
+            academicYearId
+          )
+
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setDashboardSnapshot(
+          nextDashboardSnapshot
+        )
+      } catch (
+        loadError
+      ) {
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setDashboardError(
+          getErrorMessage(
+            loadError
+          )
+        )
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setDashboardLoading(
+            false
+          )
+        }
+      }
+    }
+
+    void loadDashboard()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    dashboardReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
   async function handleAcademicYearCreated(
     academicYear: AcademicYear
   ) {
@@ -758,6 +763,10 @@ export default function MAProfessorApp() {
         academicYear.id
       )
 
+    setDashboardSnapshot(
+      null
+    )
+    setDashboardError('')
     setSnapshot(
       nextSnapshot
     )
@@ -773,15 +782,15 @@ export default function MAProfessorApp() {
     )
   }
 
-  const setupCompleted =
-    Boolean(
-      snapshot
-        ?.academicYear
-        .setupCompletedAt ||
-        snapshot
-          ?.progress
-          ?.completedAt
+  function handleDashboardRefresh() {
+    setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
     )
+  }
 
   if (
     applicationState ===
@@ -962,11 +971,53 @@ export default function MAProfessorApp() {
                   }
                 />
               ) : setupCompleted ? (
-                <DashboardPreview
-                  snapshot={
-                    snapshot
-                  }
-                />
+                dashboardSnapshot ? (
+                  <div>
+                    {dashboardError ? (
+                      <div
+                        role="alert"
+                        className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm text-amber-50"
+                      >
+                        <p className="leading-6">
+                          Não foi possível atualizar o painel: {dashboardError}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={
+                            handleDashboardRefresh
+                          }
+                          className="rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-bold text-amber-50 transition hover:bg-amber-200/15"
+                        >
+                          Tentar novamente
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <DashboardView
+                      snapshot={
+                        dashboardSnapshot
+                      }
+                      refreshing={
+                        dashboardLoading
+                      }
+                      onRefresh={
+                        handleDashboardRefresh
+                      }
+                    />
+                  </div>
+                ) : dashboardError ? (
+                  <ErrorView
+                    message={
+                      dashboardError
+                    }
+                    onRetry={
+                      handleDashboardRefresh
+                    }
+                  />
+                ) : (
+                  <LoadingView />
+                )
               ) : (
                 <SetupWizard
                   snapshot={
