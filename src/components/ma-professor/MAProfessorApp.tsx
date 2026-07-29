@@ -5,6 +5,15 @@ import {
   useState
 } from 'react'
 
+import CalendarWorkspaceView from './calendar/CalendarWorkspaceView'
+
+import {
+  calendarWorkspaceRepository,
+  type CalendarViewMode,
+  type CalendarWorkspaceFilters,
+  type CalendarWorkspaceSnapshot
+} from './calendar/calendarWorkspaceRepository'
+
 import DashboardView from './dashboard/DashboardView'
 
 import {
@@ -24,7 +33,8 @@ import {
 import SetupWizard from './setup/SetupWizard'
 
 import type {
-  AcademicYear
+  AcademicYear,
+  ISODate
 } from './types'
 
 type ApplicationState =
@@ -39,22 +49,29 @@ type AcademicYearFormState = {
   endDate: string
 }
 
+type WorkspaceView =
+  | 'dashboard'
+  | 'calendar'
+
 type NavigationItem = {
   id: string
   label: string
   shortLabel: string
+  workspace?: WorkspaceView
 }
 
 const navigationItems: NavigationItem[] = [
   {
     id: 'dashboard',
     label: 'Painel',
-    shortLabel: 'Painel'
+    shortLabel: 'Painel',
+    workspace: 'dashboard'
   },
   {
     id: 'calendar',
     label: 'Calendário',
-    shortLabel: 'Calendário'
+    shortLabel: 'Calendário',
+    workspace: 'calendar'
   },
   {
     id: 'giae',
@@ -112,6 +129,17 @@ function toISODate(
       '0'
     )
   ].join('-')
+}
+
+function getTodayISODate(): ISODate {
+  const today =
+    new Date()
+
+  return toISODate(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    today.getDate()
+  )
 }
 
 function getSuggestedAcademicYear():
@@ -545,6 +573,14 @@ export default function MAProfessorApp() {
     useState(0)
 
   const [
+    activeWorkspace,
+    setActiveWorkspace
+  ] =
+    useState<WorkspaceView>(
+      'dashboard'
+    )
+
+  const [
     dashboardSnapshot,
     setDashboardSnapshot
   ] =
@@ -567,6 +603,58 @@ export default function MAProfessorApp() {
   const [
     dashboardReloadKey,
     setDashboardReloadKey
+  ] =
+    useState(0)
+
+  const [
+    calendarSnapshot,
+    setCalendarSnapshot
+  ] =
+    useState<CalendarWorkspaceSnapshot | null>(
+      null
+    )
+
+  const [
+    calendarMode,
+    setCalendarMode
+  ] =
+    useState<CalendarViewMode>(
+      'week'
+    )
+
+  const [
+    calendarAnchorDate,
+    setCalendarAnchorDate
+  ] =
+    useState<ISODate | undefined>(
+      undefined
+    )
+
+  const [
+    calendarFilters,
+    setCalendarFilters
+  ] =
+    useState<CalendarWorkspaceFilters>({
+      groupId: null,
+      teachingAssignmentId: null,
+      lessonStatus: null
+    })
+
+  const [
+    calendarLoading,
+    setCalendarLoading
+  ] =
+    useState(false)
+
+  const [
+    calendarError,
+    setCalendarError
+  ] =
+    useState('')
+
+  const [
+    calendarReloadKey,
+    setCalendarReloadKey
   ] =
     useState(0)
 
@@ -755,6 +843,102 @@ export default function MAProfessorApp() {
     snapshot?.academicYear.id
   ])
 
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted ||
+      activeWorkspace !==
+        'calendar'
+    ) {
+      if (
+        !snapshot ||
+        !setupCompleted
+      ) {
+        setCalendarSnapshot(
+          null
+        )
+        setCalendarError('')
+      }
+
+      setCalendarLoading(
+        false
+      )
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const academicYearId =
+      snapshot.academicYear.id
+
+    setCalendarLoading(
+      true
+    )
+    setCalendarError('')
+
+    async function loadCalendar() {
+      try {
+        const nextCalendarSnapshot =
+          await calendarWorkspaceRepository.getWorkspace(
+            academicYearId,
+            calendarMode,
+            calendarAnchorDate,
+            calendarFilters
+          )
+
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setCalendarSnapshot(
+          nextCalendarSnapshot
+        )
+      } catch (
+        loadError
+      ) {
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setCalendarError(
+          getErrorMessage(
+            loadError
+          )
+        )
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setCalendarLoading(
+            false
+          )
+        }
+      }
+    }
+
+    void loadCalendar()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeWorkspace,
+    calendarAnchorDate,
+    calendarFilters,
+    calendarMode,
+    calendarReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
   async function handleAcademicYearCreated(
     academicYear: AcademicYear
   ) {
@@ -763,10 +947,20 @@ export default function MAProfessorApp() {
         academicYear.id
       )
 
+    setActiveWorkspace(
+      'dashboard'
+    )
     setDashboardSnapshot(
       null
     )
     setDashboardError('')
+    setCalendarSnapshot(
+      null
+    )
+    setCalendarError('')
+    setCalendarAnchorDate(
+      undefined
+    )
     setSnapshot(
       nextSnapshot
     )
@@ -789,6 +983,62 @@ export default function MAProfessorApp() {
       ) =>
         current +
         1
+    )
+  }
+
+  function handleCalendarRefresh() {
+    setCalendarReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
+  function handleWorkspaceChange(
+    workspace: WorkspaceView
+  ) {
+    setActiveWorkspace(
+      workspace
+    )
+  }
+
+  function handleCalendarModeChange(
+    mode: CalendarViewMode
+  ) {
+    setCalendarMode(
+      mode
+    )
+
+    if (
+      calendarSnapshot
+    ) {
+      setCalendarAnchorDate(
+        calendarSnapshot.anchorDate
+      )
+    }
+  }
+
+  function handleCalendarNavigate(
+    anchorDate: ISODate
+  ) {
+    setCalendarAnchorDate(
+      anchorDate
+    )
+  }
+
+  function handleCalendarGoToday() {
+    setCalendarAnchorDate(
+      getTodayISODate()
+    )
+  }
+
+  function handleCalendarFiltersChange(
+    filters: CalendarWorkspaceFilters
+  ) {
+    setCalendarFilters(
+      filters
     )
   }
 
@@ -873,12 +1123,27 @@ export default function MAProfessorApp() {
                     item.id
                   }
                   type="button"
+                  onClick={() => {
+                    if (
+                      item.workspace
+                    ) {
+                      handleWorkspaceChange(
+                        item.workspace
+                      )
+                    }
+                  }}
                   disabled={
-                    !setupCompleted
+                    !setupCompleted ||
+                    !item.workspace
+                  }
+                  title={
+                    item.workspace
+                      ? undefined
+                      : 'Em breve'
                   }
                   className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
-                    index ===
-                    0
+                    item.workspace ===
+                    activeWorkspace
                       ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50'
                       : 'border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white'
                   } disabled:cursor-not-allowed disabled:opacity-45`}
@@ -971,7 +1236,48 @@ export default function MAProfessorApp() {
                   }
                 />
               ) : setupCompleted ? (
-                dashboardSnapshot ? (
+                activeWorkspace ===
+                'calendar' ? (
+                  calendarSnapshot ? (
+                    <CalendarWorkspaceView
+                      snapshot={
+                        calendarSnapshot
+                      }
+                      loading={
+                        calendarLoading
+                      }
+                      error={
+                        calendarError
+                      }
+                      onRefresh={
+                        handleCalendarRefresh
+                      }
+                      onModeChange={
+                        handleCalendarModeChange
+                      }
+                      onNavigate={
+                        handleCalendarNavigate
+                      }
+                      onGoToday={
+                        handleCalendarGoToday
+                      }
+                      onFiltersChange={
+                        handleCalendarFiltersChange
+                      }
+                    />
+                  ) : calendarError ? (
+                    <ErrorView
+                      message={
+                        calendarError
+                      }
+                      onRetry={
+                        handleCalendarRefresh
+                      }
+                    />
+                  ) : (
+                    <LoadingView />
+                  )
+                ) : dashboardSnapshot ? (
                   <div>
                     {dashboardError ? (
                       <div
@@ -1055,12 +1361,27 @@ export default function MAProfessorApp() {
                   item.id
                 }
                 type="button"
+                onClick={() => {
+                  if (
+                    item.workspace
+                  ) {
+                    handleWorkspaceChange(
+                      item.workspace
+                    )
+                  }
+                }}
                 disabled={
-                  !setupCompleted
+                  !setupCompleted ||
+                  !item.workspace
+                }
+                title={
+                  item.workspace
+                    ? undefined
+                    : 'Em breve'
                 }
                 className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[0.65rem] font-bold transition ${
-                  index ===
-                  0
+                  item.workspace ===
+                  activeWorkspace
                     ? 'bg-cyan-300/10 text-cyan-100'
                     : 'text-slate-500'
                 } disabled:cursor-not-allowed disabled:opacity-40`}
