@@ -5,6 +5,15 @@ import {
   useState
 } from 'react'
 
+import AssessmentWorkspaceView from './assessments/AssessmentWorkspaceView'
+
+import {
+  assessmentWorkspaceRepository,
+  type AssessmentWorkspaceFilters,
+  type AssessmentWorkspaceSnapshot,
+  type SaveModuleFinalGradeInput
+} from './assessments/assessmentWorkspaceRepository'
+
 import CalendarWorkspaceView from './calendar/CalendarWorkspaceView'
 import ExtraLessonDialog from './calendar/ExtraLessonDialog'
 import LessonEditorDialog from './calendar/LessonEditorDialog'
@@ -71,6 +80,7 @@ type WorkspaceView =
   | 'dashboard'
   | 'calendar'
   | 'giae'
+  | 'assessments'
 
 type NavigationItem = {
   id: string
@@ -99,6 +109,12 @@ const navigationItems: NavigationItem[] = [
     workspace: 'giae'
   },
   {
+    id: 'assessments',
+    label: 'Avaliações',
+    shortLabel: 'Avaliar',
+    workspace: 'assessments'
+  },
+  {
     id: 'planifications',
     label: 'Planificações',
     shortLabel: 'Planos'
@@ -107,11 +123,6 @@ const navigationItems: NavigationItem[] = [
     id: 'groups',
     label: 'Turmas e alunos',
     shortLabel: 'Turmas'
-  },
-  {
-    id: 'assessments',
-    label: 'Avaliações',
-    shortLabel: 'Avaliar'
   },
   {
     id: 'attendance',
@@ -725,6 +736,41 @@ export default function MAProfessorApp() {
     useState(0)
 
   const [
+    assessmentSnapshot,
+    setAssessmentSnapshot
+  ] =
+    useState<AssessmentWorkspaceSnapshot | null>(
+      null
+    )
+
+  const [
+    assessmentFilters,
+    setAssessmentFilters
+  ] =
+    useState<AssessmentWorkspaceFilters>({
+      teachingAssignmentId: null,
+      moduleId: null
+    })
+
+  const [
+    assessmentLoading,
+    setAssessmentLoading
+  ] =
+    useState(false)
+
+  const [
+    assessmentError,
+    setAssessmentError
+  ] =
+    useState('')
+
+  const [
+    assessmentReloadKey,
+    setAssessmentReloadKey
+  ] =
+    useState(0)
+
+  const [
     lessonEditorContext,
     setLessonEditorContext
   ] =
@@ -1147,6 +1193,98 @@ export default function MAProfessorApp() {
     snapshot?.academicYear.id
   ])
 
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted ||
+      activeWorkspace !==
+        'assessments'
+    ) {
+      if (
+        !snapshot ||
+        !setupCompleted
+      ) {
+        setAssessmentSnapshot(
+          null
+        )
+        setAssessmentError('')
+      }
+
+      setAssessmentLoading(
+        false
+      )
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const academicYearId =
+      snapshot.academicYear.id
+
+    setAssessmentLoading(
+      true
+    )
+    setAssessmentError('')
+
+    async function loadAssessmentWorkspace() {
+      try {
+        const nextAssessmentSnapshot =
+          await assessmentWorkspaceRepository.getWorkspace(
+            academicYearId,
+            assessmentFilters
+          )
+
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setAssessmentSnapshot(
+          nextAssessmentSnapshot
+        )
+      } catch (
+        loadError
+      ) {
+        if (
+          cancelled
+        ) {
+          return
+        }
+
+        setAssessmentError(
+          getErrorMessage(
+            loadError
+          )
+        )
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setAssessmentLoading(
+            false
+          )
+        }
+      }
+    }
+
+    void loadAssessmentWorkspace()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeWorkspace,
+    assessmentFilters,
+    assessmentReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
   async function handleAcademicYearCreated(
     academicYear: AcademicYear
   ) {
@@ -1184,6 +1322,15 @@ export default function MAProfessorApp() {
       teachingAssignmentId: null,
       moduleId: null,
       state: null
+    })
+
+    setAssessmentSnapshot(
+      null
+    )
+    setAssessmentError('')
+    setAssessmentFilters({
+      teachingAssignmentId: null,
+      moduleId: null
     })
 
     setLessonEditorContext(
@@ -1261,6 +1408,69 @@ export default function MAProfessorApp() {
     )
   }
 
+  function handleAssessmentRefresh() {
+    setAssessmentReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
+  function handleAssessmentFiltersChange(
+    filters: AssessmentWorkspaceFilters
+  ) {
+    setAssessmentFilters(
+      filters
+    )
+
+    setAssessmentSnapshot(
+      (
+        current
+      ) =>
+        current
+          ? {
+              ...current,
+
+              filters: {
+                teachingAssignmentId:
+                  filters.teachingAssignmentId ??
+                  null,
+
+                moduleId:
+                  filters.moduleId ??
+                  null
+              }
+            }
+          : current
+    )
+  }
+
+  async function handleSaveModuleFinalGrade(
+    input: SaveModuleFinalGradeInput
+  ) {
+    await assessmentWorkspaceRepository.saveModuleFinalGrade(
+      input
+    )
+
+    setAssessmentReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setDashboardReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+  }
+
   function refreshLessonWorkspaces() {
     setCalendarReloadKey(
       (
@@ -1279,6 +1489,14 @@ export default function MAProfessorApp() {
     )
 
     setGIAEReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setAssessmentReloadKey(
       (
         current
       ) =>
@@ -1464,6 +1682,14 @@ export default function MAProfessorApp() {
         current +
         1
     )
+
+    setAssessmentReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
   }
 
   async function handleExtraLessonCreate(
@@ -1557,6 +1783,14 @@ export default function MAProfessorApp() {
     )
 
     setGIAEReloadKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    )
+
+    setAssessmentReloadKey(
       (
         current
       ) =>
@@ -1912,6 +2146,67 @@ export default function MAProfessorApp() {
                       }
                       onRetry={
                         handleGIAERefresh
+                      }
+                    />
+                  ) : (
+                    <LoadingView />
+                  )
+                ) : activeWorkspace ===
+                  'assessments' ? (
+                  assessmentSnapshot ? (
+                    <div>
+                      {lessonEditorError ? (
+                        <div
+                          role="alert"
+                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
+                        >
+                          <p className="leading-6">
+                            Não foi possível abrir a aula: {lessonEditorError}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLessonEditorError('')
+                            }
+                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
+                          >
+                            Fechar aviso
+                          </button>
+                        </div>
+                      ) : null}
+
+                      <AssessmentWorkspaceView
+                        snapshot={
+                          assessmentSnapshot
+                        }
+                        loading={
+                          assessmentLoading
+                        }
+                        error={
+                          assessmentError
+                        }
+                        onRefresh={
+                          handleAssessmentRefresh
+                        }
+                        onFiltersChange={
+                          handleAssessmentFiltersChange
+                        }
+                        onLessonSelect={
+                          handleCalendarLessonSelect
+                        }
+                        onSaveFinalGrade={
+                          handleSaveModuleFinalGrade
+                        }
+                      />
+                    </div>
+                  ) : assessmentError ? (
+                    <ErrorView
+                      message={
+                        assessmentError
+                      }
+                      onRetry={
+                        handleAssessmentRefresh
                       }
                     />
                   ) : (
