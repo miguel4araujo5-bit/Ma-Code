@@ -8,6 +8,8 @@ import {
   useState
 } from 'react'
 
+import LessonAssessmentSection from '../assessments/LessonAssessmentSection'
+
 import {
   lessonRepository
 } from '../lessons/lessonRepository'
@@ -1224,17 +1226,28 @@ export default function LessonEditorDialog({
               </section>
 
               {form.status === 'taught' ? (
-                <LessonAttendanceSection
-                  ref={
-                    attendanceSectionRef
-                  }
-                  lessonId={
-                    lesson.id
-                  }
-                  disabled={
-                    saving
-                  }
-                />
+                <>
+                  <LessonAttendanceSection
+                    ref={
+                      attendanceSectionRef
+                    }
+                    lessonId={
+                      lesson.id
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+
+                  <LessonAssessmentSection
+                    lessonId={
+                      lesson.id
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+                </>
               ) : null}
 
               <section className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
