@@ -46,13 +46,37 @@ import {
   type GIAEWorkspaceSnapshot
 } from './giae/giaeWorkspaceRepository'
 
+import GroupsWorkspaceView from './groups/GroupsWorkspaceView'
+
+import {
+  groupsWorkspaceRepository,
+  type CreateGroupWorkspaceInput,
+  type GroupsWorkspaceFilters,
+  type GroupsWorkspaceSnapshot,
+  type UpdateGroupWorkspaceInput,
+  type UpdateStudentWorkspaceInput
+} from './groups/groupsWorkspaceRepository'
+
 import {
   isMAProfessorDatabaseSupported
 } from './db'
 
+import PlanificationWorkspaceView from './planifications/PlanificationWorkspaceView'
+
+import {
+  planificationWorkspaceRepository,
+  type CreatePlanificationWorkspaceInput,
+  type PlanificationWorkspaceFilters,
+  type PlanificationWorkspaceSnapshot,
+  type UpdatePlanificationItemInput,
+  type UpdatePlanificationWorkspaceInput
+} from './planifications/planificationWorkspaceRepository'
+
 import {
   maProfessorRepository,
-  type SetupSnapshot
+  type PlanificationItemDraft,
+  type SetupSnapshot,
+  type StudentDraft
 } from './repository'
 
 import SetupWizard from './setup/SetupWizard'
@@ -61,7 +85,8 @@ import type {
   AcademicYear,
   EntityId,
   ISODate,
-  Lesson
+  Lesson,
+  PlanificationItemStatus
 } from './types'
 
 type ApplicationState =
@@ -81,6 +106,8 @@ type WorkspaceView =
   | 'calendar'
   | 'giae'
   | 'assessments'
+  | 'planifications'
+  | 'groups'
 
 type NavigationItem = {
   id: string
@@ -117,12 +144,14 @@ const navigationItems: NavigationItem[] = [
   {
     id: 'planifications',
     label: 'Planificações',
-    shortLabel: 'Planos'
+    shortLabel: 'Planos',
+    workspace: 'planifications'
   },
   {
     id: 'groups',
     label: 'Turmas e alunos',
-    shortLabel: 'Turmas'
+    shortLabel: 'Turmas',
+    workspace: 'groups'
   },
   {
     id: 'attendance',
@@ -140,6 +169,14 @@ const navigationItems: NavigationItem[] = [
     shortLabel: 'Menu'
   }
 ]
+
+const mobileNavigationItems =
+  navigationItems.filter(
+    item =>
+      Boolean(
+        item.workspace
+      )
+  )
 
 function toISODate(
   year: number,
@@ -173,8 +210,7 @@ function getTodayISODate(): ISODate {
   )
 }
 
-function getSuggestedAcademicYear():
-  AcademicYearFormState {
+function getSuggestedAcademicYear(): AcademicYearFormState {
   const today =
     new Date()
 
@@ -182,28 +218,27 @@ function getSuggestedAcademicYear():
     today.getFullYear()
 
   const currentMonth =
-    today.getMonth() +
-    1
+    today.getMonth() + 1
 
   const startYear =
     currentMonth >= 7
       ? currentYear
-      : currentYear -
-        1
+      : currentYear - 1
 
   return {
     name:
       `${startYear}/${startYear + 1}`,
+
     startDate:
       toISODate(
         startYear,
         9,
         1
       ),
+
     endDate:
       toISODate(
-        startYear +
-          1,
+        startYear + 1,
         8,
         31
       )
@@ -213,13 +248,9 @@ function getSuggestedAcademicYear():
 function getErrorMessage(
   error: unknown
 ) {
-  if (
-    error instanceof Error
-  ) {
-    return error.message
-  }
-
-  return 'Ocorreu um erro inesperado.'
+  return error instanceof Error
+    ? error.message
+    : 'Ocorreu um erro inesperado.'
 }
 
 function LoadingView() {
@@ -259,9 +290,7 @@ function UnsupportedView() {
         </h1>
 
         <p className="mt-4 text-sm leading-7 text-slate-300">
-          O MA-Professor necessita de um browser com suporte para
-          IndexedDB. Experimente abrir a aplicação numa versão atualizada
-          do Chrome, Edge, Firefox ou Safari.
+          O MA-Professor necessita de um browser com suporte para IndexedDB. Experimente abrir a aplicação numa versão atualizada do Chrome, Edge, Firefox ou Safari.
         </p>
 
         <a
@@ -303,14 +332,39 @@ function ErrorView({
 
         <button
           type="button"
-          onClick={
-            onRetry
-          }
+          onClick={onRetry}
           className="mt-7 inline-flex items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-5 py-3 text-sm font-bold text-cyan-50 transition hover:bg-cyan-300/15"
         >
           Tentar novamente
         </button>
       </div>
+    </div>
+  )
+}
+
+function WorkspaceWarning({
+  message,
+  onClose
+}: {
+  message: string
+  onClose: () => void
+}) {
+  return (
+    <div
+      role="alert"
+      className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
+    >
+      <p className="leading-6">
+        {message}
+      </p>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
+      >
+        Fechar aviso
+      </button>
     </div>
   )
 }
@@ -365,17 +419,12 @@ function AcademicYearSetup({
 
     try {
       const academicYear =
-        await maProfessorRepository.createAcademicYear(
-          {
-            name:
-              form.name,
-            startDate:
-              form.startDate,
-            endDate:
-              form.endDate,
-            active: true
-          }
-        )
+        await maProfessorRepository.createAcademicYear({
+          name: form.name,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          active: true
+        })
 
       await onCreated(
         academicYear
@@ -406,9 +455,7 @@ function AcademicYearSetup({
           </h1>
 
           <p className="mt-5 text-sm leading-7 text-slate-300 sm:text-base">
-            O MA-Professor começa vazio. As suas turmas, alunos,
-            planificações, critérios, aulas e classificações serão
-            introduzidos por si e guardados neste dispositivo.
+            O MA-Professor começa vazio. As suas turmas, alunos, planificações, critérios, aulas e classificações serão introduzidos por si e guardados neste dispositivo.
           </p>
 
           <div className="mt-7 space-y-4">
@@ -418,13 +465,9 @@ function AcademicYearSetup({
               'Pode alterar a configuração posteriormente.',
               'As cópias de segurança serão adicionadas antes do lançamento.'
             ].map(
-              (
-                item
-              ) => (
+              item => (
                 <div
-                  key={
-                    item
-                  }
+                  key={item}
                   className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4"
                 >
                   <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-300/15 text-xs font-black text-cyan-100">
@@ -441,9 +484,7 @@ function AcademicYearSetup({
         </section>
 
         <form
-          onSubmit={
-            handleSubmit
-          }
+          onSubmit={handleSubmit}
           className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8"
         >
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
@@ -466,21 +507,12 @@ function AcademicYearSetup({
 
               <input
                 type="text"
-                value={
-                  form.name
-                }
-                onChange={(
-                  event
-                ) =>
+                value={form.name}
+                onChange={event =>
                   setForm(
-                    (
-                      current
-                    ) => ({
+                    current => ({
                       ...current,
-                      name:
-                        event
-                          .target
-                          .value
+                      name: event.target.value
                     })
                   )
                 }
@@ -499,21 +531,12 @@ function AcademicYearSetup({
 
                 <input
                   type="date"
-                  value={
-                    form.startDate
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={form.startDate}
+                  onChange={event =>
                     setForm(
-                      (
-                        current
-                      ) => ({
+                      current => ({
                         ...current,
-                        startDate:
-                          event
-                            .target
-                            .value
+                        startDate: event.target.value
                       })
                     )
                   }
@@ -529,21 +552,12 @@ function AcademicYearSetup({
 
                 <input
                   type="date"
-                  value={
-                    form.endDate
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={form.endDate}
+                  onChange={event =>
                     setForm(
-                      (
-                        current
-                      ) => ({
+                      current => ({
                         ...current,
-                        endDate:
-                          event
-                            .target
-                            .value
+                        endDate: event.target.value
                       })
                     )
                   }
@@ -565,9 +579,7 @@ function AcademicYearSetup({
 
           <button
             type="submit"
-            disabled={
-              submitting
-            }
+            disabled={submitting}
             className="mt-7 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
           >
             {submitting
@@ -771,6 +783,75 @@ export default function MAProfessorApp() {
     useState(0)
 
   const [
+    planificationSnapshot,
+    setPlanificationSnapshot
+  ] =
+    useState<PlanificationWorkspaceSnapshot | null>(
+      null
+    )
+
+  const [
+    planificationFilters,
+    setPlanificationFilters
+  ] =
+    useState<PlanificationWorkspaceFilters>({
+      teachingAssignmentId: null,
+      moduleId: null
+    })
+
+  const [
+    planificationLoading,
+    setPlanificationLoading
+  ] =
+    useState(false)
+
+  const [
+    planificationError,
+    setPlanificationError
+  ] =
+    useState('')
+
+  const [
+    planificationReloadKey,
+    setPlanificationReloadKey
+  ] =
+    useState(0)
+
+  const [
+    groupsSnapshot,
+    setGroupsSnapshot
+  ] =
+    useState<GroupsWorkspaceSnapshot | null>(
+      null
+    )
+
+  const [
+    groupsFilters,
+    setGroupsFilters
+  ] =
+    useState<GroupsWorkspaceFilters>({
+      groupId: null
+    })
+
+  const [
+    groupsLoading,
+    setGroupsLoading
+  ] =
+    useState(false)
+
+  const [
+    groupsError,
+    setGroupsError
+  ] =
+    useState('')
+
+  const [
+    groupsReloadKey,
+    setGroupsReloadKey
+  ] =
+    useState(0)
+
+  const [
     lessonEditorContext,
     setLessonEditorContext
   ] =
@@ -815,9 +896,9 @@ export default function MAProfessorApp() {
       snapshot
         ?.academicYear
         .setupCompletedAt ||
-        snapshot
-          ?.progress
-          ?.completedAt
+      snapshot
+        ?.progress
+        ?.completedAt
     )
 
   useEffect(() => {
@@ -898,7 +979,6 @@ export default function MAProfessorApp() {
             loadError
           )
         )
-
         setApplicationState(
           'error'
         )
@@ -922,12 +1002,8 @@ export default function MAProfessorApp() {
       !snapshot ||
       !setupCompleted
     ) {
-      setDashboardSnapshot(
-        null
-      )
-      setDashboardLoading(
-        false
-      )
+      setDashboardSnapshot(null)
+      setDashboardLoading(false)
       setDashboardError('')
 
       return () => {
@@ -935,56 +1011,44 @@ export default function MAProfessorApp() {
       }
     }
 
-    const academicYearId =
-      snapshot.academicYear.id
-
-    setDashboardLoading(
-      true
-    )
+    setDashboardLoading(true)
     setDashboardError('')
 
-    async function loadDashboard() {
-      try {
-        const nextDashboardSnapshot =
-          await dashboardRepository.getDashboard(
-            academicYearId
-          )
-
-        if (
-          cancelled
-        ) {
-          return
+    void dashboardRepository
+      .getDashboard(
+        snapshot.academicYear.id
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setDashboardSnapshot(
+              nextSnapshot
+            )
+          }
         }
-
-        setDashboardSnapshot(
-          nextDashboardSnapshot
-        )
-      } catch (
-        loadError
-      ) {
-        if (
-          cancelled
-        ) {
-          return
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setDashboardError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
         }
-
-        setDashboardError(
-          getErrorMessage(
-            loadError
-          )
-        )
-      } finally {
+      )
+      .finally(() => {
         if (
           !cancelled
         ) {
-          setDashboardLoading(
-            false
-          )
+          setDashboardLoading(false)
         }
-      }
-    }
-
-    void loadDashboard()
+      })
 
     return () => {
       cancelled = true
@@ -1009,84 +1073,62 @@ export default function MAProfessorApp() {
         !snapshot ||
         !setupCompleted
       ) {
-        setCalendarSnapshot(
-          null
-        )
+        setCalendarSnapshot(null)
         setCalendarError('')
-
-        setLessonEditorContext(
-          null
-        )
+        setLessonEditorContext(null)
         setLessonEditorError('')
-
-        setExtraLessonContext(
-          null
-        )
+        setExtraLessonContext(null)
         setExtraLessonError('')
       }
 
-      setCalendarLoading(
-        false
-      )
+      setCalendarLoading(false)
 
       return () => {
         cancelled = true
       }
     }
 
-    const academicYearId =
-      snapshot.academicYear.id
-
-    setCalendarLoading(
-      true
-    )
+    setCalendarLoading(true)
     setCalendarError('')
 
-    async function loadCalendar() {
-      try {
-        const nextCalendarSnapshot =
-          await calendarWorkspaceRepository.getWorkspace(
-            academicYearId,
-            calendarMode,
-            calendarAnchorDate,
-            calendarFilters
-          )
-
-        if (
-          cancelled
-        ) {
-          return
+    void calendarWorkspaceRepository
+      .getWorkspace(
+        snapshot.academicYear.id,
+        calendarMode,
+        calendarAnchorDate,
+        calendarFilters
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setCalendarSnapshot(
+              nextSnapshot
+            )
+          }
         }
-
-        setCalendarSnapshot(
-          nextCalendarSnapshot
-        )
-      } catch (
-        loadError
-      ) {
-        if (
-          cancelled
-        ) {
-          return
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setCalendarError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
         }
-
-        setCalendarError(
-          getErrorMessage(
-            loadError
-          )
-        )
-      } finally {
+      )
+      .finally(() => {
         if (
           !cancelled
         ) {
-          setCalendarLoading(
-            false
-          )
+          setCalendarLoading(false)
         }
-      }
-    }
-
-    void loadCalendar()
+      })
 
     return () => {
       cancelled = true
@@ -1115,72 +1157,56 @@ export default function MAProfessorApp() {
         !snapshot ||
         !setupCompleted
       ) {
-        setGIAESnapshot(
-          null
-        )
+        setGIAESnapshot(null)
         setGIAEError('')
       }
 
-      setGIAELoading(
-        false
-      )
+      setGIAELoading(false)
 
       return () => {
         cancelled = true
       }
     }
 
-    const academicYearId =
-      snapshot.academicYear.id
-
-    setGIAELoading(
-      true
-    )
+    setGIAELoading(true)
     setGIAEError('')
 
-    async function loadGIAEWorkspace() {
-      try {
-        const nextGIAESnapshot =
-          await giaeWorkspaceRepository.getWorkspace(
-            academicYearId,
-            giaeFilters
-          )
-
-        if (
-          cancelled
-        ) {
-          return
+    void giaeWorkspaceRepository
+      .getWorkspace(
+        snapshot.academicYear.id,
+        giaeFilters
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setGIAESnapshot(
+              nextSnapshot
+            )
+          }
         }
-
-        setGIAESnapshot(
-          nextGIAESnapshot
-        )
-      } catch (
-        loadError
-      ) {
-        if (
-          cancelled
-        ) {
-          return
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setGIAEError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
         }
-
-        setGIAEError(
-          getErrorMessage(
-            loadError
-          )
-        )
-      } finally {
+      )
+      .finally(() => {
         if (
           !cancelled
         ) {
-          setGIAELoading(
-            false
-          )
+          setGIAELoading(false)
         }
-      }
-    }
-
-    void loadGIAEWorkspace()
+      })
 
     return () => {
       cancelled = true
@@ -1207,72 +1233,56 @@ export default function MAProfessorApp() {
         !snapshot ||
         !setupCompleted
       ) {
-        setAssessmentSnapshot(
-          null
-        )
+        setAssessmentSnapshot(null)
         setAssessmentError('')
       }
 
-      setAssessmentLoading(
-        false
-      )
+      setAssessmentLoading(false)
 
       return () => {
         cancelled = true
       }
     }
 
-    const academicYearId =
-      snapshot.academicYear.id
-
-    setAssessmentLoading(
-      true
-    )
+    setAssessmentLoading(true)
     setAssessmentError('')
 
-    async function loadAssessmentWorkspace() {
-      try {
-        const nextAssessmentSnapshot =
-          await assessmentWorkspaceRepository.getWorkspace(
-            academicYearId,
-            assessmentFilters
-          )
-
-        if (
-          cancelled
-        ) {
-          return
+    void assessmentWorkspaceRepository
+      .getWorkspace(
+        snapshot.academicYear.id,
+        assessmentFilters
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setAssessmentSnapshot(
+              nextSnapshot
+            )
+          }
         }
-
-        setAssessmentSnapshot(
-          nextAssessmentSnapshot
-        )
-      } catch (
-        loadError
-      ) {
-        if (
-          cancelled
-        ) {
-          return
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setAssessmentError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
         }
-
-        setAssessmentError(
-          getErrorMessage(
-            loadError
-          )
-        )
-      } finally {
+      )
+      .finally(() => {
         if (
           !cancelled
         ) {
-          setAssessmentLoading(
-            false
-          )
+          setAssessmentLoading(false)
         }
-      }
-    }
-
-    void loadAssessmentWorkspace()
+      })
 
     return () => {
       cancelled = true
@@ -1281,6 +1291,158 @@ export default function MAProfessorApp() {
     activeWorkspace,
     assessmentFilters,
     assessmentReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted ||
+      activeWorkspace !==
+        'planifications'
+    ) {
+      if (
+        !snapshot ||
+        !setupCompleted
+      ) {
+        setPlanificationSnapshot(null)
+        setPlanificationError('')
+      }
+
+      setPlanificationLoading(false)
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setPlanificationLoading(true)
+    setPlanificationError('')
+
+    void planificationWorkspaceRepository
+      .getWorkspace(
+        snapshot.academicYear.id,
+        planificationFilters
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setPlanificationSnapshot(
+              nextSnapshot
+            )
+          }
+        }
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setPlanificationError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
+        }
+      )
+      .finally(() => {
+        if (
+          !cancelled
+        ) {
+          setPlanificationLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeWorkspace,
+    planificationFilters,
+    planificationReloadKey,
+    setupCompleted,
+    snapshot?.academicYear.id
+  ])
+
+  useEffect(() => {
+    let cancelled =
+      false
+
+    if (
+      !snapshot ||
+      !setupCompleted ||
+      activeWorkspace !==
+        'groups'
+    ) {
+      if (
+        !snapshot ||
+        !setupCompleted
+      ) {
+        setGroupsSnapshot(null)
+        setGroupsError('')
+      }
+
+      setGroupsLoading(false)
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setGroupsLoading(true)
+    setGroupsError('')
+
+    void groupsWorkspaceRepository
+      .getWorkspace(
+        snapshot.academicYear.id,
+        groupsFilters
+      )
+      .then(
+        nextSnapshot => {
+          if (
+            !cancelled
+          ) {
+            setGroupsSnapshot(
+              nextSnapshot
+            )
+          }
+        }
+      )
+      .catch(
+        loadError => {
+          if (
+            !cancelled
+          ) {
+            setGroupsError(
+              getErrorMessage(
+                loadError
+              )
+            )
+          }
+        }
+      )
+      .finally(() => {
+        if (
+          !cancelled
+        ) {
+          setGroupsLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeWorkspace,
+    groupsFilters,
+    groupsReloadKey,
     setupCompleted,
     snapshot?.academicYear.id
   ])
@@ -1297,22 +1459,14 @@ export default function MAProfessorApp() {
       'dashboard'
     )
 
-    setDashboardSnapshot(
-      null
-    )
+    setDashboardSnapshot(null)
     setDashboardError('')
 
-    setCalendarSnapshot(
-      null
-    )
+    setCalendarSnapshot(null)
     setCalendarError('')
-    setCalendarAnchorDate(
-      undefined
-    )
+    setCalendarAnchorDate(undefined)
 
-    setGIAESnapshot(
-      null
-    )
+    setGIAESnapshot(null)
     setGIAEError('')
     setGIAEFilters({
       query: '',
@@ -1324,81 +1478,89 @@ export default function MAProfessorApp() {
       state: null
     })
 
-    setAssessmentSnapshot(
-      null
-    )
+    setAssessmentSnapshot(null)
     setAssessmentError('')
     setAssessmentFilters({
       teachingAssignmentId: null,
       moduleId: null
     })
 
-    setLessonEditorContext(
-      null
-    )
+    setPlanificationSnapshot(null)
+    setPlanificationError('')
+    setPlanificationFilters({
+      teachingAssignmentId: null,
+      moduleId: null
+    })
+
+    setGroupsSnapshot(null)
+    setGroupsError('')
+    setGroupsFilters({
+      groupId: null
+    })
+
+    setLessonEditorContext(null)
     setLessonEditorError('')
-
-    setExtraLessonContext(
-      null
-    )
+    setExtraLessonContext(null)
     setExtraLessonError('')
-
-    setSnapshot(
-      nextSnapshot
-    )
+    setSnapshot(nextSnapshot)
   }
 
   function handleRetry() {
     setReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+      current =>
+        current + 1
     )
   }
 
   function handleDashboardRefresh() {
     setDashboardReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+      current =>
+        current + 1
     )
   }
 
   function handleCalendarRefresh() {
     setCalendarReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+      current =>
+        current + 1
     )
   }
 
   function handleGIAERefresh() {
     setGIAEReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+      current =>
+        current + 1
+    )
+  }
+
+  function handleAssessmentRefresh() {
+    setAssessmentReloadKey(
+      current =>
+        current + 1
+    )
+  }
+
+  function handlePlanificationRefresh() {
+    setPlanificationReloadKey(
+      current =>
+        current + 1
+    )
+  }
+
+  function handleGroupsRefresh() {
+    setGroupsReloadKey(
+      current =>
+        current + 1
     )
   }
 
   function handleGIAEFiltersChange(
     filters: GIAEWorkspaceFilters
   ) {
-    setGIAEFilters(
-      filters
-    )
+    setGIAEFilters(filters)
 
     setGIAESnapshot(
-      (
-        current
-      ) =>
+      current =>
         current
           ? {
               ...current,
@@ -1408,27 +1570,13 @@ export default function MAProfessorApp() {
     )
   }
 
-  function handleAssessmentRefresh() {
-    setAssessmentReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
-  }
-
   function handleAssessmentFiltersChange(
     filters: AssessmentWorkspaceFilters
   ) {
-    setAssessmentFilters(
-      filters
-    )
+    setAssessmentFilters(filters)
 
     setAssessmentSnapshot(
-      (
-        current
-      ) =>
+      current =>
         current
           ? {
               ...current,
@@ -1447,6 +1595,52 @@ export default function MAProfessorApp() {
     )
   }
 
+  function handlePlanificationFiltersChange(
+    filters: PlanificationWorkspaceFilters
+  ) {
+    setPlanificationFilters(filters)
+
+    setPlanificationSnapshot(
+      current =>
+        current
+          ? {
+              ...current,
+
+              filters: {
+                teachingAssignmentId:
+                  filters.teachingAssignmentId ??
+                  null,
+
+                moduleId:
+                  filters.moduleId ??
+                  null
+              }
+            }
+          : current
+    )
+  }
+
+  function handleGroupsFiltersChange(
+    filters: GroupsWorkspaceFilters
+  ) {
+    setGroupsFilters(filters)
+
+    setGroupsSnapshot(
+      current =>
+        current
+          ? {
+              ...current,
+
+              filters: {
+                groupId:
+                  filters.groupId ??
+                  null
+              }
+            }
+          : current
+    )
+  }
+
   async function handleSaveModuleFinalGrade(
     input: SaveModuleFinalGradeInput
   ) {
@@ -1454,54 +1648,41 @@ export default function MAProfessorApp() {
       input
     )
 
-    setAssessmentReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
-
-    setDashboardReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+    handleAssessmentRefresh()
+    handleDashboardRefresh()
   }
 
   function refreshLessonWorkspaces() {
-    setCalendarReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+    handleCalendarRefresh()
+    handleDashboardRefresh()
+    handleGIAERefresh()
+    handleAssessmentRefresh()
+    handlePlanificationRefresh()
+  }
 
-    setDashboardReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+  function refreshConfigurationWorkspaces() {
+    handleGroupsRefresh()
+    handleDashboardRefresh()
+    handleCalendarRefresh()
+    handleGIAERefresh()
+    handleAssessmentRefresh()
+    handlePlanificationRefresh()
+  }
 
-    setGIAEReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+  async function refreshSetupSnapshot() {
+    if (
+      !snapshot
+    ) {
+      return
+    }
 
-    setAssessmentReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+    const nextSnapshot =
+      await maProfessorRepository.getSetupSnapshot(
+        snapshot.academicYear.id
+      )
+
+    setSnapshot(
+      nextSnapshot
     )
   }
 
@@ -1535,21 +1716,191 @@ export default function MAProfessorApp() {
     refreshLessonWorkspaces()
   }
 
+  async function handleCreatePlanification(
+    input: CreatePlanificationWorkspaceInput
+  ) {
+    await planificationWorkspaceRepository.createPlanification(
+      input
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+    handleDashboardRefresh()
+  }
+
+  async function handleUpdatePlanification(
+    planificationId: EntityId,
+    changes: UpdatePlanificationWorkspaceInput
+  ) {
+    await planificationWorkspaceRepository.updatePlanification(
+      planificationId,
+      changes
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleAddPlanificationItem(
+    planificationId: EntityId,
+    draft: PlanificationItemDraft
+  ) {
+    await planificationWorkspaceRepository.addPlanificationItem(
+      planificationId,
+      draft
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleUpdatePlanificationItem(
+    itemId: EntityId,
+    changes: UpdatePlanificationItemInput
+  ) {
+    await planificationWorkspaceRepository.updatePlanificationItem(
+      itemId,
+      changes
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleDeletePlanificationItem(
+    itemId: EntityId
+  ) {
+    await planificationWorkspaceRepository.deletePlanificationItem(
+      itemId
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleReorderPlanificationItems(
+    planificationId: EntityId,
+    orderedIds: EntityId[]
+  ) {
+    await planificationWorkspaceRepository.reorderPlanificationItems(
+      planificationId,
+      orderedIds
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleSetPlanificationItemStatus(
+    itemId: EntityId,
+    status: Extract<
+      PlanificationItemStatus,
+      'planned' | 'skipped'
+    >
+  ) {
+    await planificationWorkspaceRepository.setPlanificationItemStatus(
+      itemId,
+      status
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleImportPlanificationLines(
+    planificationId: EntityId,
+    text: string
+  ) {
+    await planificationWorkspaceRepository.importPlanificationLines(
+      planificationId,
+      text
+    )
+
+    handlePlanificationRefresh()
+    handleCalendarRefresh()
+  }
+
+  async function handleCreateGroup(
+    input: CreateGroupWorkspaceInput
+  ) {
+    const group =
+      await groupsWorkspaceRepository.createGroup(
+        input
+      )
+
+    setGroupsFilters({
+      groupId: group.id
+    })
+
+    await refreshSetupSnapshot()
+    refreshConfigurationWorkspaces()
+  }
+
+  async function handleUpdateGroup(
+    groupId: EntityId,
+    changes: UpdateGroupWorkspaceInput
+  ) {
+    await groupsWorkspaceRepository.updateGroup(
+      groupId,
+      changes
+    )
+
+    await refreshSetupSnapshot()
+    refreshConfigurationWorkspaces()
+  }
+
+  async function handleSaveStudents(
+    academicYearId: EntityId,
+    groupId: EntityId,
+    drafts: StudentDraft[]
+  ) {
+    await groupsWorkspaceRepository.saveStudents(
+      academicYearId,
+      groupId,
+      drafts
+    )
+
+    await refreshSetupSnapshot()
+    refreshConfigurationWorkspaces()
+  }
+
+  async function handleUpdateStudent(
+    studentId: EntityId,
+    changes: UpdateStudentWorkspaceInput
+  ) {
+    await groupsWorkspaceRepository.updateStudent(
+      studentId,
+      changes
+    )
+
+    await refreshSetupSnapshot()
+    refreshConfigurationWorkspaces()
+  }
+
+  async function handleSetStudentActive(
+    studentId: EntityId,
+    active: boolean
+  ) {
+    await groupsWorkspaceRepository.setStudentActive(
+      studentId,
+      active
+    )
+
+    await refreshSetupSnapshot()
+    refreshConfigurationWorkspaces()
+  }
+
   function handleWorkspaceChange(
     workspace: WorkspaceView
   ) {
-    setLessonEditorContext(
-      null
-    )
+    setLessonEditorContext(null)
     setLessonEditorError('')
 
     if (
       workspace !==
       'calendar'
     ) {
-      setExtraLessonContext(
-        null
-      )
+      setExtraLessonContext(null)
       setExtraLessonError('')
     }
 
@@ -1561,9 +1912,7 @@ export default function MAProfessorApp() {
   function handleCalendarModeChange(
     mode: CalendarViewMode
   ) {
-    setCalendarMode(
-      mode
-    )
+    setCalendarMode(mode)
 
     if (
       calendarSnapshot
@@ -1606,14 +1955,9 @@ export default function MAProfessorApp() {
       return
     }
 
-    setExtraLessonContext(
-      null
-    )
+    setExtraLessonContext(null)
     setExtraLessonError('')
-
-    setLessonEditorLoading(
-      true
-    )
+    setLessonEditorLoading(true)
     setLessonEditorError('')
 
     try {
@@ -1634,9 +1978,7 @@ export default function MAProfessorApp() {
         )
       )
     } finally {
-      setLessonEditorLoading(
-        false
-      )
+      setLessonEditorLoading(false)
     }
   }
 
@@ -1647,49 +1989,14 @@ export default function MAProfessorApp() {
       return
     }
 
-    setLessonEditorContext(
-      null
-    )
+    setLessonEditorContext(null)
     setLessonEditorError('')
   }
 
   function handleLessonEditorSaved() {
-    setLessonEditorContext(
-      null
-    )
+    setLessonEditorContext(null)
     setLessonEditorError('')
-
-    setCalendarReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
-
-    setDashboardReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
-
-    setGIAEReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
-
-    setAssessmentReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+    refreshLessonWorkspaces()
   }
 
   async function handleExtraLessonCreate(
@@ -1703,14 +2010,9 @@ export default function MAProfessorApp() {
       return
     }
 
-    setLessonEditorContext(
-      null
-    )
+    setLessonEditorContext(null)
     setLessonEditorError('')
-
-    setExtraLessonLoading(
-      true
-    )
+    setExtraLessonLoading(true)
     setExtraLessonError('')
 
     try {
@@ -1735,9 +2037,7 @@ export default function MAProfessorApp() {
         )
       )
     } finally {
-      setExtraLessonLoading(
-        false
-      )
+      setExtraLessonLoading(false)
     }
   }
 
@@ -1748,54 +2048,314 @@ export default function MAProfessorApp() {
       return
     }
 
-    setExtraLessonContext(
-      null
-    )
+    setExtraLessonContext(null)
     setExtraLessonError('')
   }
 
   function handleExtraLessonCreated(
     lesson: Lesson
   ) {
-    setExtraLessonContext(
-      null
-    )
+    setExtraLessonContext(null)
     setExtraLessonError('')
+    setCalendarAnchorDate(lesson.date)
+    refreshLessonWorkspaces()
+  }
 
-    setCalendarAnchorDate(
-      lesson.date
-    )
+  function renderWorkspace() {
+    if (
+      !snapshot
+    ) {
+      return (
+        <AcademicYearSetup
+          onCreated={
+            handleAcademicYearCreated
+          }
+        />
+      )
+    }
 
-    setCalendarReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+    if (
+      !setupCompleted
+    ) {
+      return (
+        <SetupWizard
+          snapshot={snapshot}
+          onSnapshotChange={setSnapshot}
+          onCompleted={setSnapshot}
+        />
+      )
+    }
 
-    setDashboardReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+    if (
+      activeWorkspace ===
+      'calendar'
+    ) {
+      if (
+        !calendarSnapshot
+      ) {
+        return calendarError
+          ? (
+              <ErrorView
+                message={calendarError}
+                onRetry={handleCalendarRefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
 
-    setGIAEReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    )
+      return (
+        <div>
+          {lessonEditorError ? (
+            <WorkspaceWarning
+              message={`Não foi possível abrir a aula: ${lessonEditorError}`}
+              onClose={() =>
+                setLessonEditorError('')
+              }
+            />
+          ) : null}
 
-    setAssessmentReloadKey(
-      (
-        current
-      ) =>
-        current +
-        1
+          {extraLessonError ? (
+            <WorkspaceWarning
+              message={`Não foi possível preparar a aula extra: ${extraLessonError}`}
+              onClose={() =>
+                setExtraLessonError('')
+              }
+            />
+          ) : null}
+
+          <CalendarWorkspaceView
+            snapshot={calendarSnapshot}
+            loading={calendarLoading}
+            error={calendarError}
+            onRefresh={handleCalendarRefresh}
+            onModeChange={handleCalendarModeChange}
+            onNavigate={handleCalendarNavigate}
+            onGoToday={handleCalendarGoToday}
+            onFiltersChange={handleCalendarFiltersChange}
+            onLessonSelect={handleCalendarLessonSelect}
+            onCreateLesson={handleExtraLessonCreate}
+          />
+        </div>
+      )
+    }
+
+    if (
+      activeWorkspace ===
+      'giae'
+    ) {
+      if (
+        !giaeSnapshot
+      ) {
+        return giaeError
+          ? (
+              <ErrorView
+                message={giaeError}
+                onRetry={handleGIAERefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
+
+      return (
+        <div>
+          {lessonEditorError ? (
+            <WorkspaceWarning
+              message={`Não foi possível abrir a aula: ${lessonEditorError}`}
+              onClose={() =>
+                setLessonEditorError('')
+              }
+            />
+          ) : null}
+
+          <GIAEWorkspaceView
+            snapshot={giaeSnapshot}
+            loading={giaeLoading}
+            error={giaeError}
+            onRefresh={handleGIAERefresh}
+            onFiltersChange={handleGIAEFiltersChange}
+            onLessonSelect={handleCalendarLessonSelect}
+            onMarkSubmitted={handleGIAEMarkSubmitted}
+            onMarkPending={handleGIAEMarkPending}
+            onMarkManySubmitted={handleGIAEMarkManySubmitted}
+          />
+        </div>
+      )
+    }
+
+    if (
+      activeWorkspace ===
+      'assessments'
+    ) {
+      if (
+        !assessmentSnapshot
+      ) {
+        return assessmentError
+          ? (
+              <ErrorView
+                message={assessmentError}
+                onRetry={handleAssessmentRefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
+
+      return (
+        <div>
+          {lessonEditorError ? (
+            <WorkspaceWarning
+              message={`Não foi possível abrir a aula: ${lessonEditorError}`}
+              onClose={() =>
+                setLessonEditorError('')
+              }
+            />
+          ) : null}
+
+          <AssessmentWorkspaceView
+            snapshot={assessmentSnapshot}
+            loading={assessmentLoading}
+            error={assessmentError}
+            onRefresh={handleAssessmentRefresh}
+            onFiltersChange={handleAssessmentFiltersChange}
+            onLessonSelect={handleCalendarLessonSelect}
+            onSaveFinalGrade={handleSaveModuleFinalGrade}
+          />
+        </div>
+      )
+    }
+
+    if (
+      activeWorkspace ===
+      'planifications'
+    ) {
+      if (
+        !planificationSnapshot
+      ) {
+        return planificationError
+          ? (
+              <ErrorView
+                message={planificationError}
+                onRetry={handlePlanificationRefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
+
+      return (
+        <div>
+          {lessonEditorError ? (
+            <WorkspaceWarning
+              message={`Não foi possível abrir a aula: ${lessonEditorError}`}
+              onClose={() =>
+                setLessonEditorError('')
+              }
+            />
+          ) : null}
+
+          <PlanificationWorkspaceView
+            snapshot={planificationSnapshot}
+            loading={planificationLoading}
+            error={planificationError}
+            onRefresh={handlePlanificationRefresh}
+            onFiltersChange={handlePlanificationFiltersChange}
+            onCreatePlanification={handleCreatePlanification}
+            onUpdatePlanification={handleUpdatePlanification}
+            onAddItem={handleAddPlanificationItem}
+            onUpdateItem={handleUpdatePlanificationItem}
+            onDeleteItem={handleDeletePlanificationItem}
+            onReorderItems={handleReorderPlanificationItems}
+            onSetItemStatus={handleSetPlanificationItemStatus}
+            onImportLines={handleImportPlanificationLines}
+            onLessonSelect={handleCalendarLessonSelect}
+          />
+        </div>
+      )
+    }
+
+    if (
+      activeWorkspace ===
+      'groups'
+    ) {
+      if (
+        !groupsSnapshot
+      ) {
+        return groupsError
+          ? (
+              <ErrorView
+                message={groupsError}
+                onRetry={handleGroupsRefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
+
+      return (
+        <GroupsWorkspaceView
+          snapshot={groupsSnapshot}
+          loading={groupsLoading}
+          error={groupsError}
+          onRefresh={handleGroupsRefresh}
+          onFiltersChange={handleGroupsFiltersChange}
+          onCreateGroup={handleCreateGroup}
+          onUpdateGroup={handleUpdateGroup}
+          onSaveStudents={handleSaveStudents}
+          onUpdateStudent={handleUpdateStudent}
+          onSetStudentActive={handleSetStudentActive}
+        />
+      )
+    }
+
+    if (
+      !dashboardSnapshot
+    ) {
+      return dashboardError
+        ? (
+            <ErrorView
+              message={dashboardError}
+              onRetry={handleDashboardRefresh}
+            />
+          )
+        : (
+            <LoadingView />
+          )
+    }
+
+    return (
+      <div>
+        {dashboardError ? (
+          <div
+            role="alert"
+            className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm text-amber-50"
+          >
+            <p className="leading-6">
+              Não foi possível atualizar o painel: {dashboardError}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleDashboardRefresh}
+              className="rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-bold text-amber-50 transition hover:bg-amber-200/15"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
+
+        <DashboardView
+          snapshot={dashboardSnapshot}
+          refreshing={dashboardLoading}
+          onRefresh={handleDashboardRefresh}
+        />
+      </div>
     )
   }
 
@@ -1823,12 +2383,8 @@ export default function MAProfessorApp() {
   ) {
     return (
       <ErrorView
-        message={
-          errorMessage
-        }
-        onRetry={
-          handleRetry
-        }
+        message={errorMessage}
+        onRetry={handleRetry}
       />
     )
   }
@@ -1876,9 +2432,7 @@ export default function MAProfessorApp() {
                 index
               ) => (
                 <button
-                  key={
-                    item.id
-                  }
+                  key={item.id}
                   type="button"
                   onClick={() => {
                     if (
@@ -1907,8 +2461,7 @@ export default function MAProfessorApp() {
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
                     {String(
-                      index +
-                        1
+                      index + 1
                     ).padStart(
                       2,
                       '0'
@@ -1962,9 +2515,7 @@ export default function MAProfessorApp() {
 
                 <p className="mt-1 text-sm font-semibold text-slate-200">
                   {snapshot
-                    ? snapshot
-                        .academicYear
-                        .name
+                    ? snapshot.academicYear.name
                     : 'Configuração inicial'}
                 </p>
               </div>
@@ -1986,357 +2537,56 @@ export default function MAProfessorApp() {
 
           <div className="px-5 py-7 sm:px-7 lg:px-9 lg:py-9">
             <div className="mx-auto max-w-[100rem]">
-              {!snapshot ? (
-                <AcademicYearSetup
-                  onCreated={
-                    handleAcademicYearCreated
-                  }
-                />
-              ) : setupCompleted ? (
-                activeWorkspace ===
-                'calendar' ? (
-                  calendarSnapshot ? (
-                    <div>
-                      {lessonEditorError ? (
-                        <div
-                          role="alert"
-                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
-                        >
-                          <p className="leading-6">
-                            Não foi possível abrir a aula: {lessonEditorError}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLessonEditorError('')
-                            }
-                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
-                          >
-                            Fechar aviso
-                          </button>
-                        </div>
-                      ) : null}
-
-                      {extraLessonError ? (
-                        <div
-                          role="alert"
-                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
-                        >
-                          <p className="leading-6">
-                            Não foi possível preparar a aula extra: {extraLessonError}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExtraLessonError('')
-                            }
-                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
-                          >
-                            Fechar aviso
-                          </button>
-                        </div>
-                      ) : null}
-
-                      <CalendarWorkspaceView
-                        snapshot={
-                          calendarSnapshot
-                        }
-                        loading={
-                          calendarLoading
-                        }
-                        error={
-                          calendarError
-                        }
-                        onRefresh={
-                          handleCalendarRefresh
-                        }
-                        onModeChange={
-                          handleCalendarModeChange
-                        }
-                        onNavigate={
-                          handleCalendarNavigate
-                        }
-                        onGoToday={
-                          handleCalendarGoToday
-                        }
-                        onFiltersChange={
-                          handleCalendarFiltersChange
-                        }
-                        onLessonSelect={
-                          handleCalendarLessonSelect
-                        }
-                        onCreateLesson={
-                          handleExtraLessonCreate
-                        }
-                      />
-                    </div>
-                  ) : calendarError ? (
-                    <ErrorView
-                      message={
-                        calendarError
-                      }
-                      onRetry={
-                        handleCalendarRefresh
-                      }
-                    />
-                  ) : (
-                    <LoadingView />
-                  )
-                ) : activeWorkspace ===
-                  'giae' ? (
-                  giaeSnapshot ? (
-                    <div>
-                      {lessonEditorError ? (
-                        <div
-                          role="alert"
-                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
-                        >
-                          <p className="leading-6">
-                            Não foi possível abrir a aula: {lessonEditorError}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLessonEditorError('')
-                            }
-                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
-                          >
-                            Fechar aviso
-                          </button>
-                        </div>
-                      ) : null}
-
-                      <GIAEWorkspaceView
-                        snapshot={
-                          giaeSnapshot
-                        }
-                        loading={
-                          giaeLoading
-                        }
-                        error={
-                          giaeError
-                        }
-                        onRefresh={
-                          handleGIAERefresh
-                        }
-                        onFiltersChange={
-                          handleGIAEFiltersChange
-                        }
-                        onLessonSelect={
-                          handleCalendarLessonSelect
-                        }
-                        onMarkSubmitted={
-                          handleGIAEMarkSubmitted
-                        }
-                        onMarkPending={
-                          handleGIAEMarkPending
-                        }
-                        onMarkManySubmitted={
-                          handleGIAEMarkManySubmitted
-                        }
-                      />
-                    </div>
-                  ) : giaeError ? (
-                    <ErrorView
-                      message={
-                        giaeError
-                      }
-                      onRetry={
-                        handleGIAERefresh
-                      }
-                    />
-                  ) : (
-                    <LoadingView />
-                  )
-                ) : activeWorkspace ===
-                  'assessments' ? (
-                  assessmentSnapshot ? (
-                    <div>
-                      {lessonEditorError ? (
-                        <div
-                          role="alert"
-                          className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm text-rose-50"
-                        >
-                          <p className="leading-6">
-                            Não foi possível abrir a aula: {lessonEditorError}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLessonEditorError('')
-                            }
-                            className="rounded-xl border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-xs font-bold text-rose-50 transition hover:bg-rose-200/15"
-                          >
-                            Fechar aviso
-                          </button>
-                        </div>
-                      ) : null}
-
-                      <AssessmentWorkspaceView
-                        snapshot={
-                          assessmentSnapshot
-                        }
-                        loading={
-                          assessmentLoading
-                        }
-                        error={
-                          assessmentError
-                        }
-                        onRefresh={
-                          handleAssessmentRefresh
-                        }
-                        onFiltersChange={
-                          handleAssessmentFiltersChange
-                        }
-                        onLessonSelect={
-                          handleCalendarLessonSelect
-                        }
-                        onSaveFinalGrade={
-                          handleSaveModuleFinalGrade
-                        }
-                      />
-                    </div>
-                  ) : assessmentError ? (
-                    <ErrorView
-                      message={
-                        assessmentError
-                      }
-                      onRetry={
-                        handleAssessmentRefresh
-                      }
-                    />
-                  ) : (
-                    <LoadingView />
-                  )
-                ) : dashboardSnapshot ? (
-                  <div>
-                    {dashboardError ? (
-                      <div
-                        role="alert"
-                        className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm text-amber-50"
-                      >
-                        <p className="leading-6">
-                          Não foi possível atualizar o painel: {dashboardError}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={
-                            handleDashboardRefresh
-                          }
-                          className="rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-bold text-amber-50 transition hover:bg-amber-200/15"
-                        >
-                          Tentar novamente
-                        </button>
-                      </div>
-                    ) : null}
-
-                    <DashboardView
-                      snapshot={
-                        dashboardSnapshot
-                      }
-                      refreshing={
-                        dashboardLoading
-                      }
-                      onRefresh={
-                        handleDashboardRefresh
-                      }
-                    />
-                  </div>
-                ) : dashboardError ? (
-                  <ErrorView
-                    message={
-                      dashboardError
-                    }
-                    onRetry={
-                      handleDashboardRefresh
-                    }
-                  />
-                ) : (
-                  <LoadingView />
-                )
-              ) : (
-                <SetupWizard
-                  snapshot={
-                    snapshot
-                  }
-                  onSnapshotChange={
-                    setSnapshot
-                  }
-                  onCompleted={
-                    setSnapshot
-                  }
-                />
-              )}
+              {renderWorkspace()}
             </div>
           </div>
         </section>
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-white/10 bg-slate-950/95 px-2 py-2 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-white/10 bg-slate-950/95 px-1 py-2 backdrop-blur-xl lg:hidden"
         aria-label="Navegação móvel do MA-Professor"
       >
-        {navigationItems
-          .slice(
-            0,
-            5
-          )
-          .map(
-            (
-              item,
-              index
-            ) => (
-              <button
-                key={
-                  item.id
-                }
-                type="button"
-                onClick={() => {
-                  if (
-                    item.workspace
-                  ) {
-                    handleWorkspaceChange(
-                      item.workspace
-                    )
-                  }
-                }}
-                disabled={
-                  !setupCompleted ||
-                  !item.workspace
-                }
-                title={
+        {mobileNavigationItems.map(
+          (
+            item,
+            index
+          ) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                if (
                   item.workspace
-                    ? undefined
-                    : 'Em breve'
+                ) {
+                  handleWorkspaceChange(
+                    item.workspace
+                  )
                 }
-                className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[0.65rem] font-bold transition ${
-                  item.workspace ===
-                  activeWorkspace
-                    ? 'bg-cyan-300/10 text-cyan-100'
-                    : 'text-slate-500'
-                } disabled:cursor-not-allowed disabled:opacity-40`}
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.6rem]">
-                  {String(
-                    index +
-                      1
-                  ).padStart(
-                    2,
-                    '0'
-                  )}
-                </span>
+              }}
+              disabled={!setupCompleted}
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[0.6rem] font-bold transition ${
+                item.workspace ===
+                activeWorkspace
+                  ? 'bg-cyan-300/10 text-cyan-100'
+                  : 'text-slate-500'
+              } disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.58rem]">
+                {String(
+                  index + 1
+                ).padStart(
+                  2,
+                  '0'
+                )}
+              </span>
 
-                <span className="max-w-full truncate">
-                  {item.shortLabel}
-                </span>
-              </button>
-            )
-          )}
+              <span className="max-w-full truncate">
+                {item.shortLabel}
+              </span>
+            </button>
+          )
+        )}
       </nav>
 
       {lessonEditorLoading ||
@@ -2362,29 +2612,17 @@ export default function MAProfessorApp() {
 
       {lessonEditorContext ? (
         <LessonEditorDialog
-          context={
-            lessonEditorContext
-          }
-          onClose={
-            handleLessonEditorClose
-          }
-          onSaved={
-            handleLessonEditorSaved
-          }
+          context={lessonEditorContext}
+          onClose={handleLessonEditorClose}
+          onSaved={handleLessonEditorSaved}
         />
       ) : null}
 
       {extraLessonContext ? (
         <ExtraLessonDialog
-          context={
-            extraLessonContext
-          }
-          onClose={
-            handleExtraLessonClose
-          }
-          onCreated={
-            handleExtraLessonCreated
-          }
+          context={extraLessonContext}
+          onClose={handleExtraLessonClose}
+          onCreated={handleExtraLessonCreated}
         />
       ) : null}
     </main>
