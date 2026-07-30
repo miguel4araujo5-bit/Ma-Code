@@ -4,6 +4,7 @@ import {
   type MouseEvent,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -23,6 +24,10 @@ import {
   getCalendarLessonStatusLabel,
   type CalendarLessonEditorContext
 } from './calendarWorkspaceRepository'
+
+import LessonAttendanceSection, {
+  type LessonAttendanceSectionHandle
+} from './LessonAttendanceSection'
 
 interface LessonEditorDialogProps {
   context: CalendarLessonEditorContext
@@ -308,6 +313,11 @@ export default function LessonEditorDialog({
     setError
   ] =
     useState('')
+
+  const attendanceSectionRef =
+    useRef<LessonAttendanceSectionHandle>(
+      null
+    )
 
   const lesson =
     context.lessonRow.lesson
@@ -613,6 +623,26 @@ export default function LessonEditorDialog({
           await lessonRepository.markGIAEPending(
             updated.id
           )
+      }
+
+      if (
+        updated.status ===
+        'taught'
+      ) {
+        const attendanceSection =
+          attendanceSectionRef.current
+
+        if (
+          !attendanceSection
+        ) {
+          throw new Error(
+            'Não foi possível preparar a assiduidade desta aula.'
+          )
+        }
+
+        await attendanceSection.saveAttendance(
+          updated
+        )
       }
 
       await onSaved(
@@ -1192,6 +1222,20 @@ export default function LessonEditorDialog({
                   </label>
                 </div>
               </section>
+
+              {form.status === 'taught' ? (
+                <LessonAttendanceSection
+                  ref={
+                    attendanceSectionRef
+                  }
+                  lessonId={
+                    lesson.id
+                  }
+                  disabled={
+                    saving
+                  }
+                />
+              ) : null}
 
               <section className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
