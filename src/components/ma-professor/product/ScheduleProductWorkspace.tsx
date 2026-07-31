@@ -4,7 +4,7 @@ import {
   useState
 } from 'react'
 
-import { ScheduleWorkspaceView } from '../schedule/ScheduleWorkspaceView'
+import ScheduleWorkspaceView from '../schedule/ScheduleWorkspaceView'
 import {
   scheduleWorkspaceRepository,
   type ScheduleSlotChanges,
@@ -47,6 +47,7 @@ export function ScheduleProductWorkspace({
             academicYearId,
             nextFilters
           )
+
         setSnapshot(nextSnapshot)
         setFilters(nextSnapshot.filters)
       } catch (loadError) {
@@ -60,11 +61,14 @@ export function ScheduleProductWorkspace({
 
   useEffect(() => {
     void load({})
+
     // O ano letivo é a única dependência que deve reiniciar os filtros.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [academicYearId])
 
-  const mutate = async (operation: () => Promise<unknown>) => {
+  const mutate = async (
+    operation: () => Promise<unknown>
+  ) => {
     setError('')
 
     try {
@@ -90,6 +94,7 @@ export function ScheduleProductWorkspace({
           {loading ? (
             <>
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+
               <p className="mt-4 text-sm font-semibold text-slate-400">
                 A preparar o horário e o calendário escolar…
               </p>
@@ -99,9 +104,12 @@ export function ScheduleProductWorkspace({
               <h1 className="text-xl font-black">
                 Não foi possível abrir os horários
               </h1>
+
               <p className="mt-3 text-sm text-rose-200">
-                {error || 'Verifique a configuração do ano letivo.'}
+                {error ||
+                  'Verifique a configuração do ano letivo.'}
               </p>
+
               <button
                 type="button"
                 onClick={() => void load()}
@@ -123,9 +131,13 @@ export function ScheduleProductWorkspace({
       error={error}
       onRefresh={() => void load()}
       onFiltersChange={handleFiltersChange}
-      onCreateScheduleSlot={(input: ScheduleSlotDraft) =>
+      onCreateScheduleSlot={(
+        input: ScheduleSlotDraft
+      ) =>
         mutate(() =>
-          scheduleWorkspaceRepository.createScheduleSlot(input)
+          scheduleWorkspaceRepository.createScheduleSlot(
+            input
+          )
         )
       }
       onUpdateScheduleSlot={(
@@ -139,9 +151,13 @@ export function ScheduleProductWorkspace({
           )
         )
       }
-      onDeleteScheduleSlot={(slotId: EntityId) =>
+      onDeleteScheduleSlot={(
+        slotId: EntityId
+      ) =>
         mutate(() =>
-          scheduleWorkspaceRepository.deleteScheduleSlot(slotId)
+          scheduleWorkspaceRepository.deleteScheduleSlot(
+            slotId
+          )
         )
       }
       onCreateSchoolCalendarEvent={(
@@ -164,7 +180,9 @@ export function ScheduleProductWorkspace({
           )
         )
       }
-      onDeleteSchoolCalendarEvent={(eventId: EntityId) =>
+      onDeleteSchoolCalendarEvent={(
+        eventId: EntityId
+      ) =>
         mutate(() =>
           scheduleWorkspaceRepository.deleteSchoolCalendarEvent(
             eventId
