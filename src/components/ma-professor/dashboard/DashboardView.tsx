@@ -1,3 +1,5 @@
+import DailyWorkspaceView from '../daily/DailyWorkspaceView'
+
 import {
   getDashboardPendingReasonLabel,
   type DashboardAssignmentRow,
@@ -13,161 +15,52 @@ interface DashboardViewProps {
   onRefresh?: () => void
 }
 
-interface MetricCardProps {
-  label: string
-  value: string | number
-  detail: string
-  tone?: 'cyan' | 'violet' | 'emerald' | 'amber'
-}
-
-const metricToneClasses = {
-  cyan: 'border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-100',
-  violet:
-    'border-violet-300/20 bg-violet-300/[0.06] text-violet-100',
-  emerald:
-    'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-100',
-  amber:
-    'border-amber-300/20 bg-amber-300/[0.06] text-amber-100'
-} as const
-
-function formatDate(
-  value: string | null
-) {
+function formatDate(value: string | null) {
   if (!value) {
     return 'Sem previsão'
   }
 
-  const [
-    year,
-    month,
-    day
-  ] = value
-    .split('-')
-    .map(Number)
+  const [year, month, day] = value.split('-').map(Number)
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value
   }
 
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    }
-  ).format(
-    new Date(
-      year,
-      month - 1,
-      day
-    )
-  )
+  return new Intl.DateTimeFormat('pt-PT', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(year, month - 1, day))
 }
 
-function formatLongDate(
-  value: string
-) {
-  const [
-    year,
-    month,
-    day
-  ] = value
-    .split('-')
-    .map(Number)
+function formatLongDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value
   }
 
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      weekday: 'long',
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }
-  ).format(
-    new Date(
-      year,
-      month - 1,
-      day
-    )
-  )
+  return new Intl.DateTimeFormat('pt-PT', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(year, month - 1, day))
 }
 
-function formatTimeRange(
-  startTime: string,
-  endTime: string
-) {
-  return `${startTime}–${endTime}`
+function formatPercentage(value: number) {
+  return new Intl.NumberFormat('pt-PT', {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1
+  }).format(value)
 }
 
-function formatPercentage(
-  value: number
-) {
-  return new Intl.NumberFormat(
-    'pt-PT',
-    {
-      minimumFractionDigits:
-        value % 1 === 0
-          ? 0
-          : 1,
-      maximumFractionDigits: 1
-    }
-  ).format(value)
+function getModuleTitle(code: string, name: string) {
+  return code.trim() ? `${code.trim()} · ${name}` : name
 }
 
-function getModuleTitle(
-  code: string,
-  name: string
-) {
-  return code.trim()
-    ? `${code.trim()} · ${name}`
-    : name
-}
-
-function getSubjectLabel(
-  row: DashboardAssignmentRow
-) {
-  return (
-    row.subject.shortName.trim() ||
-    row.subject.name
-  )
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-  tone = 'cyan'
-}: MetricCardProps) {
-  return (
-    <article
-      className={`rounded-[1.5rem] border p-5 shadow-xl shadow-black/15 ${metricToneClasses[tone]}`}
-    >
-      <p className="text-xs font-bold uppercase tracking-[0.14em] opacity-70">
-        {label}
-      </p>
-
-      <p className="mt-3 text-3xl font-black text-white">
-        {value}
-      </p>
-
-      <p className="mt-2 text-xs leading-5 text-slate-400">
-        {detail}
-      </p>
-    </article>
-  )
+function getSubjectLabel(row: DashboardAssignmentRow) {
+  return row.subject.shortName.trim() || row.subject.name
 }
 
 function ProgressBar({
@@ -177,59 +70,23 @@ function ProgressBar({
   value: number
   label: string
 }) {
-  const normalizedValue =
-    Math.min(
-      100,
-      Math.max(
-        0,
-        value
-      )
-    )
+  const normalizedValue = Math.min(100, Math.max(0, value))
 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-4 text-xs">
-        <span className="font-semibold text-slate-400">
-          {label}
-        </span>
-
+        <span className="font-semibold text-slate-400">{label}</span>
         <span className="font-black text-cyan-100">
-          {formatPercentage(
-            normalizedValue
-          )}
-          %
+          {formatPercentage(normalizedValue)}%
         </span>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
         <div
           className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 transition-[width] duration-500"
-          style={{
-            width:
-              `${normalizedValue}%`
-          }}
+          style={{ width: `${normalizedValue}%` }}
         />
       </div>
-    </div>
-  )
-}
-
-function EmptyState({
-  title,
-  description
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.025] p-6 text-center">
-      <p className="font-black text-white">
-        {title}
-      </p>
-
-      <p className="mt-2 text-sm leading-6 text-slate-500">
-        {description}
-      </p>
     </div>
   )
 }
@@ -248,11 +105,9 @@ function SectionHeading({
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
         {eyebrow}
       </p>
-
       <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">
         {title}
       </h2>
-
       {description ? (
         <p className="mt-2 text-sm leading-6 text-slate-400">
           {description}
@@ -262,43 +117,79 @@ function SectionHeading({
   )
 }
 
-function AssignmentCard({
-  row
+function EmptyState({
+  title,
+  description
 }: {
-  row: DashboardAssignmentRow
+  title: string
+  description: string
 }) {
-  const currentModuleTitle =
-    row.currentModule
-      ? getModuleTitle(
-          row.currentModule.code,
-          row.currentModule.name
-        )
-      : 'Sem UFCD ativa'
+  return (
+    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.025] p-6 text-center">
+      <p className="font-black text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+  tone
+}: {
+  label: string
+  value: string | number
+  detail: string
+  tone: 'cyan' | 'violet' | 'amber' | 'emerald'
+}) {
+  const toneClasses = {
+    cyan: 'border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-100',
+    violet:
+      'border-violet-300/20 bg-violet-300/[0.06] text-violet-100',
+    amber:
+      'border-amber-300/20 bg-amber-300/[0.06] text-amber-100',
+    emerald:
+      'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-100'
+  } as const
+
+  return (
+    <article
+      className={`rounded-[1.5rem] border p-5 shadow-xl shadow-black/15 ${toneClasses[tone]}`}
+    >
+      <p className="text-xs font-bold uppercase tracking-[0.14em] opacity-70">
+        {label}
+      </p>
+      <p className="mt-3 text-3xl font-black text-white">{value}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-400">{detail}</p>
+    </article>
+  )
+}
+
+function AssignmentCard({ row }: { row: DashboardAssignmentRow }) {
+  const moduleTitle = row.currentModule
+    ? getModuleTitle(row.currentModule.code, row.currentModule.name)
+    : 'Sem UFCD ativa'
 
   return (
     <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-cyan-100">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold text-cyan-100">
               {row.group.name}
             </span>
-
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-300">
-              {getSubjectLabel(
-                row
-              )}
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-slate-300">
+              {getSubjectLabel(row)}
             </span>
           </div>
-
           <h3 className="mt-4 text-lg font-black text-white">
             {row.subject.name}
           </h3>
-
           <p className="mt-1 text-sm text-slate-500">
-            {row.group.courseName ||
-              row.assignment
-                .displayName}
+            {row.group.courseName || row.assignment.displayName}
           </p>
         </div>
 
@@ -306,21 +197,15 @@ function AssignmentCard({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200/75">
             Conclusão global
           </p>
-
           <p className="mt-1 text-2xl font-black text-white">
-            {formatPercentage(
-              row.completionPercent
-            )}
-            %
+            {formatPercentage(row.completionPercent)}%
           </p>
         </div>
       </div>
 
       <div className="mt-6">
         <ProgressBar
-          value={
-            row.completionPercent
-          }
+          value={row.completionPercent}
           label={`${row.periodsTaught} de ${row.periodsPlanned} tempos dados`}
         />
       </div>
@@ -330,9 +215,8 @@ function AssignmentCard({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-500">
             UFCD atual
           </p>
-
           <p className="mt-2 text-sm font-black leading-6 text-white">
-            {currentModuleTitle}
+            {moduleTitle}
           </p>
         </div>
 
@@ -340,7 +224,6 @@ function AssignmentCard({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-500">
             Tempos em falta
           </p>
-
           <p className="mt-2 text-2xl font-black text-white">
             {row.periodsRemaining}
           </p>
@@ -350,12 +233,9 @@ function AssignmentCard({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-500">
             Previsão da UFCD
           </p>
-
           <p className="mt-2 text-sm font-black leading-6 text-white">
             {formatDate(
-              row.currentModuleProgress
-                ?.estimatedCompletionDate ??
-                null
+              row.currentModuleProgress?.estimatedCompletionDate ?? null
             )}
           </p>
         </div>
@@ -366,14 +246,9 @@ function AssignmentCard({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-cyan-200/70">
             Próximo conteúdo
           </p>
-
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-200">
-            {row
-              .nextPlanificationItem
-              ?.content ||
-              row
-                .nextPlanificationItem
-                ?.suggestedSummary ||
+            {row.nextPlanificationItem?.content ||
+              row.nextPlanificationItem?.suggestedSummary ||
               'Sem conteúdo seguinte definido na planificação.'}
           </p>
         </div>
@@ -386,70 +261,23 @@ function AssignmentCard({
           {row.nextLesson ? (
             <>
               <p className="mt-2 text-sm font-black text-white">
-                {formatDate(
-                  row.nextLesson.date
-                )}{' '}
-                ·{' '}
-                {formatTimeRange(
-                  row.nextLesson
-                    .startTime,
-                  row.nextLesson
-                    .endTime
-                )}
+                {formatDate(row.nextLesson.date)} ·{' '}
+                {row.nextLesson.startTime}–{row.nextLesson.endTime}
               </p>
-
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                {
-                  row.nextLesson
-                    .periodCount
-                }{' '}
-                {row.nextLesson
-                  .periodCount === 1
+              <p className="mt-1 text-xs text-slate-400">
+                {row.nextLesson.periodCount}{' '}
+                {row.nextLesson.periodCount === 1
                   ? 'tempo'
                   : 'tempos'}
               </p>
             </>
           ) : (
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Não existem aulas
-              futuras agendadas.
+            <p className="mt-2 text-sm text-slate-400">
+              Não existem aulas futuras agendadas.
             </p>
           )}
         </div>
       </div>
-
-      {row.pendingSummaryCount >
-        0 ||
-      row.pendingGIAECount >
-        0 ? (
-        <div className="mt-5 flex flex-wrap gap-2">
-          {row.pendingSummaryCount >
-          0 ? (
-            <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
-              {
-                row.pendingSummaryCount
-              }{' '}
-              {row.pendingSummaryCount ===
-              1
-                ? 'sumário por preencher'
-                : 'sumários por preencher'}
-            </span>
-          ) : null}
-
-          {row.pendingGIAECount >
-          0 ? (
-            <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-xs font-bold text-violet-100">
-              {
-                row.pendingGIAECount
-              }{' '}
-              {row.pendingGIAECount ===
-              1
-                ? 'registo GIAE pendente'
-                : 'registos GIAE pendentes'}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
     </article>
   )
 }
@@ -462,63 +290,30 @@ function UpcomingLessonItem({
   return (
     <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div>
           <p className="text-sm font-black text-white">
             {row.group.name} ·{' '}
-            {row.subject
-              .shortName ||
-              row.subject.name}
+            {row.subject.shortName || row.subject.name}
           </p>
-
-          <p className="mt-1 truncate text-xs text-slate-500">
-            {getModuleTitle(
-              row.module.code,
-              row.module.name
-            )}
+          <p className="mt-1 text-xs text-slate-500">
+            {getModuleTitle(row.module.code, row.module.name)}
           </p>
         </div>
 
-        <span className="shrink-0 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.07] px-3 py-2 text-xs font-black text-cyan-100">
-          {
-            row.lesson
-              .periodCount
-          }{' '}
-          {row.lesson
-            .periodCount === 1
-            ? 'tempo'
-            : 'tempos'}
+        <span className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.07] px-3 py-2 text-xs font-black text-cyan-100">
+          {row.lesson.periodCount}{' '}
+          {row.lesson.periodCount === 1 ? 'tempo' : 'tempos'}
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
-        <span>
-          {formatDate(
-            row.lesson.date
-          )}
-        </span>
+      <p className="mt-3 text-xs text-slate-400">
+        {formatDate(row.lesson.date)} · {row.lesson.startTime}–
+        {row.lesson.endTime}
+      </p>
 
-        <span>
-          {formatTimeRange(
-            row.lesson.startTime,
-            row.lesson.endTime
-          )}
-        </span>
-
-        {row.lesson.origin ===
-        'extra' ? (
-          <span className="font-bold text-violet-200">
-            Aula extra
-          </span>
-        ) : null}
-      </div>
-
-      {row.lesson
-        .plannedActivity ? (
+      {row.lesson.plannedActivity ? (
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          {
-            row.lesson
-              .plannedActivity
-          }
+          {row.lesson.plannedActivity}
         </p>
       ) : null}
     </article>
@@ -530,9 +325,7 @@ function PendingSummaryItem({
 }: {
   row: DashboardPendingSummaryRow
 }) {
-  const missingSummary =
-    row.reason ===
-    'missing_summary'
+  const missingSummary = row.reason === 'missing_summary'
 
   return (
     <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -540,46 +333,30 @@ function PendingSummaryItem({
         <div>
           <p className="text-sm font-black text-white">
             {row.group.name} ·{' '}
-            {row.subject
-              .shortName ||
-              row.subject.name}
+            {row.subject.shortName || row.subject.name}
           </p>
-
           <p className="mt-1 text-xs text-slate-500">
-            {formatDate(
-              row.lesson.date
-            )}{' '}
-            ·{' '}
-            {formatTimeRange(
-              row.lesson
-                .startTime,
-              row.lesson.endTime
-            )}
+            {formatDate(row.lesson.date)} · {row.lesson.startTime}–
+            {row.lesson.endTime}
           </p>
         </div>
 
         <span
-          className={`rounded-full border px-3 py-1.5 text-[0.68rem] font-bold ${
+          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
             missingSummary
               ? 'border-amber-300/20 bg-amber-300/10 text-amber-100'
               : 'border-violet-300/20 bg-violet-300/10 text-violet-100'
           }`}
         >
-          {getDashboardPendingReasonLabel(
-            row.reason
-          )}
+          {getDashboardPendingReasonLabel(row.reason)}
         </span>
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-slate-400">
-        {getModuleTitle(
-          row.module.code,
-          row.module.name
-        )}
+      <p className="mt-3 text-xs text-slate-400">
+        {getModuleTitle(row.module.code, row.module.name)}
       </p>
 
-      {!missingSummary &&
-      row.lesson.summary ? (
+      {!missingSummary && row.lesson.summary ? (
         <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-300">
           {row.lesson.summary}
         </p>
@@ -594,8 +371,7 @@ function AttendanceAlertItem({
   row: DashboardAttendanceAlertRow
 }) {
   const recoveryRequired =
-    row.summary.warningLevel ===
-    'recovery_required'
+    row.summary.warningLevel === 'recovery_required'
 
   return (
     <article
@@ -606,52 +382,31 @@ function AttendanceAlertItem({
       }`}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div>
           <p className="text-sm font-black text-white">
-            {row.student.number}{' '}
-            · {row.student.name}
+            {row.student.number} · {row.student.name}
           </p>
-
           <p className="mt-1 text-xs text-slate-500">
-            {
-              row.assignment
-                .displayName
-            }{' '}
-            ·{' '}
-            {getModuleTitle(
-              row.module.code,
-              row.module.name
-            )}
+            {row.assignment.displayName} ·{' '}
+            {getModuleTitle(row.module.code, row.module.name)}
           </p>
         </div>
 
         <span
-          className={`shrink-0 rounded-xl border px-3 py-2 text-sm font-black ${
+          className={`rounded-xl border px-3 py-2 text-sm font-black ${
             recoveryRequired
               ? 'border-rose-300/20 bg-rose-300/10 text-rose-100'
               : 'border-amber-300/20 bg-amber-300/10 text-amber-100'
           }`}
         >
-          {formatPercentage(
-            row.summary
-              .absencePercent
-          )}
-          %
+          {formatPercentage(row.summary.absencePercent)}%
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+      <div className="mt-4 flex flex-wrap gap-2 text-xs">
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-slate-300">
-          {
-            row.summary
-              .absences
-          }{' '}
-          faltas em{' '}
-          {
-            row.summary
-              .lessonsTaught
-          }{' '}
-          aulas
+          {row.summary.absences} faltas em{' '}
+          {row.summary.lessonsTaught} aulas
         </span>
 
         <span
@@ -681,78 +436,55 @@ export default function DashboardView({
   refreshing = false,
   onRefresh
 }: DashboardViewProps) {
-  const {
-    totals
-  } = snapshot
+  const { totals } = snapshot
 
   return (
-    <div className="mx-auto max-w-[100rem]">
-      <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
+    <div className="mx-auto max-w-[110rem]">
+      <DailyWorkspaceView
+        academicYearId={snapshot.academicYear.id}
+        onSaved={onRefresh}
+      />
+
+      <section className="mt-8 rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-              Painel do ano
-              letivo
+              Painel do ano letivo
             </p>
-
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              {
-                snapshot
-                  .academicYear
-                  .name
-              }
-            </h1>
-
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              {snapshot.academicYear.name}
+            </h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">
-              Estado calculado
-              até{' '}
-              {formatLongDate(
-                snapshot.referenceDate
-              )}
-              .
+              Estado calculado até{' '}
+              {formatLongDate(snapshot.referenceDate)}.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-100">
-              Dados locais
-              atualizados
-            </span>
-
-            {onRefresh ? (
-              <button
-                type="button"
-                onClick={
-                  onRefresh
-                }
-                disabled={
-                  refreshing
-                }
-                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60"
-              >
-                {refreshing
-                  ? 'A atualizar...'
-                  : 'Atualizar painel'}
-              </button>
-            ) : null}
-          </div>
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60"
+            >
+              {refreshing
+                ? 'A atualizar...'
+                : 'Atualizar painel'}
+            </button>
+          ) : null}
         </div>
 
         <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Tempos dados"
-            value={
-              totals.periodsTaught
-            }
+            value={totals.periodsTaught}
             detail={`${totals.periodsPlanned} tempos previstos no total`}
             tone="cyan"
           />
 
           <MetricCard
             label="Tempos em falta"
-            value={
-              totals.periodsRemaining
-            }
+            value={totals.periodsRemaining}
             detail={`${formatPercentage(
               totals.completionPercent
             )}% do ano concluído`}
@@ -782,20 +514,15 @@ export default function DashboardView({
 
         <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
           <ProgressBar
-            value={
-              totals.completionPercent
-            }
+            value={totals.completionPercent}
             label="Progresso letivo global"
           />
 
           <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <div>
               <p className="text-2xl font-black text-white">
-                {
-                  totals.activeGroupCount
-                }
+                {totals.activeGroupCount}
               </p>
-
               <p className="mt-1 text-xs text-slate-500">
                 Turmas
               </p>
@@ -803,11 +530,8 @@ export default function DashboardView({
 
             <div>
               <p className="text-2xl font-black text-white">
-                {
-                  totals.activeStudentCount
-                }
+                {totals.activeStudentCount}
               </p>
-
               <p className="mt-1 text-xs text-slate-500">
                 Alunos
               </p>
@@ -815,11 +539,8 @@ export default function DashboardView({
 
             <div>
               <p className="text-2xl font-black text-white">
-                {
-                  totals.activeModuleCount
-                }
+                {totals.activeModuleCount}
               </p>
-
               <p className="mt-1 text-xs text-slate-500">
                 UFCD
               </p>
@@ -827,11 +548,8 @@ export default function DashboardView({
 
             <div>
               <p className="text-2xl font-black text-white">
-                {
-                  totals.taughtLessonCount
-                }
+                {totals.taughtLessonCount}
               </p>
-
               <p className="mt-1 text-xs text-slate-500">
                 Aulas dadas
               </p>
@@ -848,24 +566,13 @@ export default function DashboardView({
         />
 
         <div className="mt-5 grid gap-5 xl:grid-cols-2">
-          {snapshot.assignments
-            .length > 0 ? (
-            snapshot.assignments.map(
-              (
-                row
-              ) => (
-                <AssignmentCard
-                  key={
-                    row
-                      .assignment
-                      .id
-                  }
-                  row={
-                    row
-                  }
-                />
-              )
-            )
+          {snapshot.assignments.length > 0 ? (
+            snapshot.assignments.map(row => (
+              <AssignmentCard
+                key={row.assignment.id}
+                row={row}
+              />
+            ))
           ) : (
             <div className="xl:col-span-2">
               <EmptyState
@@ -886,25 +593,13 @@ export default function DashboardView({
           />
 
           <div className="mt-5 space-y-3">
-            {snapshot
-              .upcomingLessons
-              .length > 0 ? (
-              snapshot.upcomingLessons.map(
-                (
-                  row
-                ) => (
-                  <UpcomingLessonItem
-                    key={
-                      row
-                        .lesson
-                        .id
-                    }
-                    row={
-                      row
-                    }
-                  />
-                )
-              )
+            {snapshot.upcomingLessons.length > 0 ? (
+              snapshot.upcomingLessons.map(row => (
+                <UpcomingLessonItem
+                  key={row.lesson.id}
+                  row={row}
+                />
+              ))
             ) : (
               <EmptyState
                 title="Sem próximas aulas."
@@ -922,21 +617,13 @@ export default function DashboardView({
           />
 
           <div className="mt-5 space-y-3">
-            {snapshot
-              .pendingSummaries
-              .length > 0 ? (
-              snapshot.pendingSummaries.map(
-                (
-                  row
-                ) => (
-                  <PendingSummaryItem
-                    key={`${row.lesson.id}-${row.reason}`}
-                    row={
-                      row
-                    }
-                  />
-                )
-              )
+            {snapshot.pendingSummaries.length > 0 ? (
+              snapshot.pendingSummaries.map(row => (
+                <PendingSummaryItem
+                  key={`${row.lesson.id}-${row.reason}`}
+                  row={row}
+                />
+              ))
             ) : (
               <EmptyState
                 title="Tudo em dia."
@@ -955,21 +642,13 @@ export default function DashboardView({
         />
 
         <div className="mt-5 grid gap-3 xl:grid-cols-2">
-          {snapshot
-            .attendanceAlerts
-            .length > 0 ? (
-            snapshot.attendanceAlerts.map(
-              (
-                row
-              ) => (
-                <AttendanceAlertItem
-                  key={`${row.student.id}-${row.module.id}`}
-                  row={
-                    row
-                  }
-                />
-              )
-            )
+          {snapshot.attendanceAlerts.length > 0 ? (
+            snapshot.attendanceAlerts.map(row => (
+              <AttendanceAlertItem
+                key={`${row.student.id}-${row.module.id}`}
+                row={row}
+              />
+            ))
           ) : (
             <div className="xl:col-span-2">
               <EmptyState
