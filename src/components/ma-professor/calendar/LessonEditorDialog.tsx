@@ -61,17 +61,20 @@ const statusOptions: Array<{
   {
     value: 'planned',
     label: 'Planeada',
-    description: 'A aula mantém-se agendada e ainda não conta como dada.'
+    description:
+      'A aula mantém-se agendada e ainda não conta como dada.'
   },
   {
     value: 'taught',
     label: 'Dada',
-    description: 'A aula conta para o progresso e exige um sumário.'
+    description:
+      'A aula conta para o progresso e exige um sumário.'
   },
   {
     value: 'cancelled',
     label: 'Cancelada',
-    description: 'A aula fica registada, mas não conta para o progresso.'
+    description:
+      'A aula fica registada, mas não conta para o progresso.'
   }
 ]
 
@@ -85,6 +88,12 @@ const statusClasses: Record<LessonStatus, string> = {
   cancelled:
     'border-rose-300/20 bg-rose-300/[0.055] text-rose-50'
 }
+
+const fieldClassName =
+  'w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60'
+
+const textAreaClassName =
+  'w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60'
 
 function getErrorMessage(
   error: unknown
@@ -209,6 +218,45 @@ function FieldLabel({
         </span>
       ) : null}
     </span>
+  )
+}
+
+function WorkspaceSectionHeader({
+  eyebrow,
+  title,
+  description,
+  tone = 'cyan'
+}: {
+  eyebrow: string
+  title: string
+  description?: string
+  tone?: 'cyan' | 'emerald' | 'violet'
+}) {
+  const eyebrowClass =
+    tone === 'emerald'
+      ? 'text-emerald-200'
+      : tone === 'violet'
+        ? 'text-violet-200'
+        : 'text-cyan-200'
+
+  return (
+    <div>
+      <p
+        className={`text-xs font-bold uppercase tracking-[0.16em] ${eyebrowClass}`}
+      >
+        {eyebrow}
+      </p>
+
+      <h3 className="mt-2 text-xl font-black text-white">
+        {title}
+      </h3>
+
+      {description ? (
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          {description}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -421,6 +469,7 @@ export default function LessonEditorDialog({
         current
       ) => ({
         ...current,
+
         status,
 
         countTowardProgress:
@@ -506,6 +555,43 @@ export default function LessonEditorDialog({
         planificationItemIds: [
           item.id
         ]
+      })
+    )
+  }
+
+  function handleSummaryChange(
+    event: ChangeEvent<HTMLTextAreaElement>
+  ) {
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+
+        summary:
+          event.target.value,
+
+        summarySource:
+          'manual',
+
+        planificationItemIds:
+          []
+      })
+    )
+  }
+
+  function disconnectPlanification() {
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+
+        planificationItemIds:
+          [],
+
+        summarySource:
+          'manual'
       })
     )
   }
@@ -665,7 +751,7 @@ export default function LessonEditorDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/85 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm"
       role="presentation"
       onMouseDown={(
         event: MouseEvent<HTMLDivElement>
@@ -683,10 +769,10 @@ export default function LessonEditorDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="lesson-editor-title"
-        className="flex max-h-[96vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-black/60 sm:max-h-[92vh] sm:rounded-[2rem]"
+        className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-950 shadow-2xl shadow-black/60"
       >
-        <header className="border-b border-white/10 bg-slate-950/95 px-5 py-5 sm:px-7">
-          <div className="flex items-start justify-between gap-5">
+        <header className="shrink-0 border-b border-white/10 bg-slate-950/95 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+          <div className="mx-auto flex w-full max-w-[110rem] items-start justify-between gap-5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-cyan-100">
@@ -718,26 +804,28 @@ export default function LessonEditorDialog({
                 ) : null}
               </div>
 
-              <h2
-                id="lesson-editor-title"
-                className="mt-3 truncate text-2xl font-black text-white"
-              >
-                {subjectLabel}
-              </h2>
+              <div className="mt-3 flex flex-col gap-1 lg:flex-row lg:items-end lg:gap-4">
+                <h2
+                  id="lesson-editor-title"
+                  className="truncate text-2xl font-black text-white sm:text-3xl"
+                >
+                  {subjectLabel}
+                </h2>
 
-              <p className="mt-2 text-sm capitalize leading-6 text-slate-400">
-                {formatDate(
-                  form.date
-                )}{' '}
-                ·{' '}
-                {
-                  form.startTime
-                }
-                –
-                {
-                  form.endTime
-                }
-              </p>
+                <p className="text-sm capitalize leading-6 text-slate-400">
+                  {formatDate(
+                    form.date
+                  )}{' '}
+                  ·{' '}
+                  {
+                    form.startTime
+                  }
+                  –
+                  {
+                    form.endTime
+                  }
+                </p>
+              </div>
             </div>
 
             <button
@@ -762,586 +850,640 @@ export default function LessonEditorDialog({
           }
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7">
-            <div className="space-y-7">
-              <section>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                  Estado da aula
-                </p>
-
-                <div className="mt-4">
-                  <StatusSelector
-                    value={
-                      form.status
-                    }
-                    disabled={
-                      saving
-                    }
-                    onChange={
-                      handleStatusChange
-                    }
-                  />
-                </div>
-              </section>
-
-              <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-                  Data, horário e UFCD
-                </p>
-
-                <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                  <label className="block sm:col-span-2 xl:col-span-1">
-                    <FieldLabel>
-                      Data
-                    </FieldLabel>
-
-                    <input
-                      type="date"
-                      value={
-                        form.date
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLInputElement>
-                      ) =>
-                        updateForm(
-                          'date',
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                      required
-                      className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <FieldLabel>
-                      Início
-                    </FieldLabel>
-
-                    <input
-                      type="time"
-                      value={
-                        form.startTime
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLInputElement>
-                      ) =>
-                        updateForm(
-                          'startTime',
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                      required
-                      className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <FieldLabel>
-                      Fim
-                    </FieldLabel>
-
-                    <input
-                      type="time"
-                      value={
-                        form.endTime
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLInputElement>
-                      ) =>
-                        updateForm(
-                          'endTime',
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                      required
-                      className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <FieldLabel>
-                      Tempos
-                    </FieldLabel>
-
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={
-                        form.periodCount
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLInputElement>
-                      ) =>
-                        updateForm(
-                          'periodCount',
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                      required
-                      className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-                </div>
-
-                <label className="mt-5 block">
-                  <FieldLabel>
-                    UFCD ou módulo
-                  </FieldLabel>
-
-                  <select
-                    value={
-                      form.moduleId
-                    }
-                    onChange={(
-                      event: ChangeEvent<HTMLSelectElement>
-                    ) => {
-                      const moduleId =
-                        event.target.value
-
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          moduleId,
-                          planificationItemIds:
-                            [],
-
-                          summarySource:
-                            current.summarySource ===
-                            'planification'
-                              ? 'manual'
-                              : current.summarySource
-                        })
-                      )
-                    }}
-                    disabled={
-                      saving
-                    }
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                  >
-                    {context.assignmentModules.map(
-                      (
-                        module
-                      ) => (
-                        <option
-                          key={
-                            module.id
-                          }
-                          value={
-                            module.id
-                          }
-                        >
-                          {getModuleLabel(
-                            module.code,
-                            module.name
-                          )}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </label>
-
-                <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/55 p-4">
-                  <input
-                    type="checkbox"
-                    checked={
-                      form.countTowardProgress
-                    }
-                    onChange={(
-                      event: ChangeEvent<HTMLInputElement>
-                    ) =>
-                      updateForm(
-                        'countTowardProgress',
-                        event.target.checked
-                      )
-                    }
-                    disabled={
-                      saving ||
-                      form.status ===
-                        'cancelled'
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30 disabled:opacity-40"
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto grid w-full max-w-[110rem] gap-5 px-4 py-5 sm:px-6 lg:px-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(40rem,1.1fr)] xl:items-start">
+              <div className="space-y-5">
+                <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+                  <WorkspaceSectionHeader
+                    eyebrow="Aula do dia"
+                    title="Estado, data e horário"
+                    description="Confirme a aula e altere apenas o que for necessário."
                   />
 
-                  <span>
-                    <span className="block text-sm font-black text-white">
-                      Contabilizar no progresso da UFCD
-                    </span>
+                  <div className="mt-5">
+                    <StatusSelector
+                      value={
+                        form.status
+                      }
+                      disabled={
+                        saving
+                      }
+                      onChange={
+                        handleStatusChange
+                      }
+                    />
+                  </div>
 
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      Desative apenas quando a aula não deve aumentar os tempos dados.
-                    </span>
-                  </span>
-                </label>
-              </section>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <label className="block sm:col-span-2 xl:col-span-1">
+                      <FieldLabel>
+                        Data
+                      </FieldLabel>
 
-              <section className="grid gap-5 xl:grid-cols-2">
-                <article className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-5 sm:p-6">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                    Planificação
-                  </p>
-
-                  {context.nextPlanificationItem ? (
-                    <>
-                      <p className="mt-4 text-sm font-black leading-6 text-white">
-                        {
-                          context
-                            .nextPlanificationItem
-                            .content
+                      <input
+                        type="date"
+                        value={
+                          form.date
                         }
-                      </p>
-
-                      {context.nextPlanificationItem.activity ? (
-                        <p className="mt-2 text-xs leading-5 text-slate-400">
-                          {
-                            context
-                              .nextPlanificationItem
-                              .activity
-                          }
-                        </p>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        onClick={
-                          useNextPlanificationItem
-                        }
-                        disabled={
-                          saving ||
-                          !canUsePlanification
-                        }
-                        className="mt-5 w-full rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        Usar próximo item
-                      </button>
-
-                      {!canUsePlanification ? (
-                        <p className="mt-3 text-xs leading-5 text-amber-200/80">
-                          Volte à UFCD original da aula para utilizar esta sugestão.
-                        </p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Não existe um próximo item disponível na planificação desta UFCD.
-                    </p>
-                  )}
-                </article>
-
-                <article className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-                    Aula anterior
-                  </p>
-
-                  {context.previousLessonTemplate ? (
-                    <>
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-300">
-                        {context
-                          .previousLessonTemplate
-                          .summary ||
-                          context
-                            .previousLessonTemplate
-                            .plannedActivity ||
-                          'A aula anterior não possui texto.'}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={
-                          copyPreviousLesson
+                        onChange={(
+                          event: ChangeEvent<HTMLInputElement>
+                        ) =>
+                          updateForm(
+                            'date',
+                            event.target.value
+                          )
                         }
                         disabled={
                           saving
                         }
-                        className="mt-5 w-full rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        Copiar aula anterior
-                      </button>
-                    </>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Ainda não existe uma aula anterior desta turma e disciplina.
-                    </p>
-                  )}
-                </article>
-              </section>
+                        required
+                        className={
+                          fieldClassName
+                        }
+                      />
+                    </label>
 
-              <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                  Conteúdo e sumário
-                </p>
+                    <label className="block">
+                      <FieldLabel>
+                        Início
+                      </FieldLabel>
 
-                <div className="mt-5 space-y-5">
-                  <label className="block">
-                    <FieldLabel optional>
-                      Atividade prevista
+                      <input
+                        type="time"
+                        value={
+                          form.startTime
+                        }
+                        onChange={(
+                          event: ChangeEvent<HTMLInputElement>
+                        ) =>
+                          updateForm(
+                            'startTime',
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                        required
+                        className={
+                          fieldClassName
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <FieldLabel>
+                        Fim
+                      </FieldLabel>
+
+                      <input
+                        type="time"
+                        value={
+                          form.endTime
+                        }
+                        onChange={(
+                          event: ChangeEvent<HTMLInputElement>
+                        ) =>
+                          updateForm(
+                            'endTime',
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                        required
+                        className={
+                          fieldClassName
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <FieldLabel>
+                        Tempos
+                      </FieldLabel>
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={
+                          form.periodCount
+                        }
+                        onChange={(
+                          event: ChangeEvent<HTMLInputElement>
+                        ) =>
+                          updateForm(
+                            'periodCount',
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                        required
+                        className={
+                          fieldClassName
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <label className="mt-5 block">
+                    <FieldLabel>
+                      UFCD ou módulo
                     </FieldLabel>
 
-                    <textarea
+                    <select
                       value={
-                        form.plannedActivity
+                        form.moduleId
                       }
                       onChange={(
-                        event: ChangeEvent<HTMLTextAreaElement>
-                      ) =>
-                        updateForm(
-                          'plannedActivity',
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                      rows={
-                        3
-                      }
-                      placeholder="Conteúdos, atividade ou trabalho previsto para a aula."
-                      className="w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <FieldLabel
-                      optional={
-                        form.status !==
-                        'taught'
-                      }
-                    >
-                      Sumário
-                    </FieldLabel>
-
-                    <textarea
-                      value={
-                        form.summary
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLTextAreaElement>
+                        event: ChangeEvent<HTMLSelectElement>
                       ) => {
-                        updateForm(
-                          'summary',
+                        const moduleId =
                           event.target.value
-                        )
 
-                        updateForm(
-                          'summarySource',
-                          'manual'
-                        )
+                        setForm(
+                          (
+                            current
+                          ) => ({
+                            ...current,
 
-                        updateForm(
-                          'planificationItemIds',
-                          []
+                            moduleId,
+
+                            planificationItemIds:
+                              [],
+
+                            summarySource:
+                              current.summarySource ===
+                              'planification'
+                                ? 'manual'
+                                : current.summarySource
+                          })
                         )
                       }}
                       disabled={
                         saving
                       }
-                      rows={
-                        5
+                      className={
+                        fieldClassName
                       }
-                      placeholder="Escreva o sumário que será registado no GIAE."
-                      className="w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
+                    >
+                      {context.assignmentModules.map(
+                        (
+                          module
+                        ) => (
+                          <option
+                            key={
+                              module.id
+                            }
+                            value={
+                              module.id
+                            }
+                          >
+                            {getModuleLabel(
+                              module.code,
+                              module.name
+                            )}
+                          </option>
+                        )
+                      )}
+                    </select>
                   </label>
 
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-400">
-                      Origem:{' '}
-                      {form.summarySource ===
-                      'planification'
-                        ? 'planificação'
-                        : form.summarySource ===
-                            'ai'
-                          ? 'inteligência artificial'
-                          : 'manual'}
+                  <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/55 p-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        form.countTowardProgress
+                      }
+                      onChange={(
+                        event: ChangeEvent<HTMLInputElement>
+                      ) =>
+                        updateForm(
+                          'countTowardProgress',
+                          event.target.checked
+                        )
+                      }
+                      disabled={
+                        saving ||
+                        form.status ===
+                          'cancelled'
+                      }
+                      className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30 disabled:opacity-40"
+                    />
+
+                    <span>
+                      <span className="block text-sm font-black text-white">
+                        Contabilizar no progresso da UFCD
+                      </span>
+
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        Desative apenas quando a aula não deve aumentar os tempos dados.
+                      </span>
                     </span>
+                  </label>
+                </section>
 
-                    {form.planificationItemIds.length >
-                    0 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateForm(
-                            'planificationItemIds',
-                            []
-                          )
+                <section className="grid gap-5 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  <article className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-5 sm:p-6">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+                      Próximo da planificação
+                    </p>
 
+                    {context.nextPlanificationItem ? (
+                      <>
+                        <p className="mt-4 text-sm font-black leading-6 text-white">
+                          {
+                            context
+                              .nextPlanificationItem
+                              .content
+                          }
+                        </p>
+
+                        {context.nextPlanificationItem.activity ? (
+                          <p className="mt-2 text-xs leading-5 text-slate-400">
+                            {
+                              context
+                                .nextPlanificationItem
+                                .activity
+                            }
+                          </p>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={
+                            useNextPlanificationItem
+                          }
+                          disabled={
+                            saving ||
+                            !canUsePlanification
+                          }
+                          className="mt-5 w-full rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          Usar próximo item
+                        </button>
+
+                        {!canUsePlanification ? (
+                          <p className="mt-3 text-xs leading-5 text-amber-200/80">
+                            Volte à UFCD original da aula para utilizar esta sugestão.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="mt-4 text-sm leading-6 text-slate-400">
+                        Não existe um próximo item disponível na planificação desta UFCD.
+                      </p>
+                    )}
+                  </article>
+
+                  <article className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
+                      Aula anterior
+                    </p>
+
+                    {context.previousLessonTemplate ? (
+                      <>
+                        <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-300">
+                          {context.previousLessonTemplate.summary ||
+                            context.previousLessonTemplate
+                              .plannedActivity ||
+                            'A aula anterior não possui texto.'}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={
+                            copyPreviousLesson
+                          }
+                          disabled={
+                            saving
+                          }
+                          className="mt-5 w-full rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          Copiar aula anterior
+                        </button>
+                      </>
+                    ) : (
+                      <p className="mt-4 text-sm leading-6 text-slate-400">
+                        Ainda não existe uma aula anterior desta turma e disciplina.
+                      </p>
+                    )}
+                  </article>
+                </section>
+
+                <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+                  <WorkspaceSectionHeader
+                    eyebrow="Registo pedagógico"
+                    title="Atividade e sumário"
+                    description="O sumário fica pronto para copiar para o GIAE. As notas privadas não são incluídas."
+                  />
+
+                  <div className="mt-5 space-y-5">
+                    <label className="block">
+                      <FieldLabel optional>
+                        Atividade prevista
+                      </FieldLabel>
+
+                      <textarea
+                        value={
+                          form.plannedActivity
+                        }
+                        onChange={(
+                          event: ChangeEvent<HTMLTextAreaElement>
+                        ) =>
                           updateForm(
-                            'summarySource',
-                            'manual'
+                            'plannedActivity',
+                            event.target.value
                           )
-                        }}
+                        }
                         disabled={
                           saving
                         }
-                        className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 font-bold text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-60"
+                        rows={
+                          3
+                        }
+                        placeholder="Conteúdos, atividade ou trabalho previsto para a aula."
+                        className={
+                          textAreaClassName
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <FieldLabel
+                        optional={
+                          form.status !==
+                          'taught'
+                        }
                       >
-                        Desligar da planificação
-                      </button>
-                    ) : null}
+                        Sumário
+                      </FieldLabel>
+
+                      <textarea
+                        value={
+                          form.summary
+                        }
+                        onChange={
+                          handleSummaryChange
+                        }
+                        disabled={
+                          saving
+                        }
+                        rows={
+                          5
+                        }
+                        placeholder="Escreva o sumário que será registado no GIAE."
+                        className={
+                          textAreaClassName
+                        }
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-400">
+                        Origem:{' '}
+                        {form.summarySource ===
+                        'planification'
+                          ? 'planificação'
+                          : form.summarySource ===
+                              'ai'
+                            ? 'inteligência artificial'
+                            : 'manual'}
+                      </span>
+
+                      {form.planificationItemIds.length >
+                      0 ? (
+                        <button
+                          type="button"
+                          onClick={
+                            disconnectPlanification
+                          }
+                          disabled={
+                            saving
+                          }
+                          className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 font-bold text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          Desligar da planificação
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <label className="block">
+                      <FieldLabel optional>
+                        Notas privadas
+                      </FieldLabel>
+
+                      <textarea
+                        value={
+                          form.notes
+                        }
+                        onChange={(
+                          event: ChangeEvent<HTMLTextAreaElement>
+                        ) =>
+                          updateForm(
+                            'notes',
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                        rows={
+                          3
+                        }
+                        placeholder="Observações que não serão incluídas no sumário."
+                        className={
+                          textAreaClassName
+                        }
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
+                        Registo no GIAE
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Marque como submetido apenas depois de copiar o sumário para o GIAE.
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full border px-3 py-1.5 text-xs font-black ${
+                        form.giaeStatus ===
+                        'submitted'
+                          ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
+                          : 'border-amber-300/20 bg-amber-300/10 text-amber-100'
+                      }`}
+                    >
+                      {form.giaeStatus ===
+                      'submitted'
+                        ? 'Submetido'
+                        : 'Pendente'}
+                    </span>
                   </div>
 
-                  <label className="block">
-                    <FieldLabel optional>
-                      Notas privadas
-                    </FieldLabel>
-
-                    <textarea
-                      value={
-                        form.notes
-                      }
-                      onChange={(
-                        event: ChangeEvent<HTMLTextAreaElement>
-                      ) =>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
                         updateForm(
-                          'notes',
-                          event.target.value
+                          'giaeStatus',
+                          'pending'
                         )
                       }
                       disabled={
                         saving
                       }
-                      rows={
-                        3
+                      className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${
+                        form.giaeStatus ===
+                        'pending'
+                          ? 'border-amber-300/25 bg-amber-300/10 text-amber-50'
+                          : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      Manter pendente
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateForm(
+                          'giaeStatus',
+                          'submitted'
+                        )
                       }
-                      placeholder="Observações que não serão incluídas no sumário."
-                      className="w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                    />
-                  </label>
-                </div>
-              </section>
-
-              {form.status === 'taught' ? (
-                <>
-                  <LessonAttendanceSection
-                    ref={
-                      attendanceSectionRef
-                    }
-                    lessonId={
-                      lesson.id
-                    }
-                    disabled={
-                      saving
-                    }
-                  />
-
-                  <LessonAssessmentSection
-                    lessonId={
-                      lesson.id
-                    }
-                    disabled={
-                      saving
-                    }
-                  />
-                </>
-              ) : null}
-
-              <section className="rounded-[1.5rem] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-                      Registo no GIAE
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Marque como submetido apenas depois de copiar o sumário para o GIAE.
-                    </p>
+                      disabled={
+                        saving ||
+                        !canSubmitToGIAE
+                      }
+                      className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                        form.giaeStatus ===
+                        'submitted'
+                          ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-50'
+                          : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      Marcar como submetido
+                    </button>
                   </div>
 
-                  <span
-                    className={`rounded-full border px-3 py-1.5 text-xs font-black ${
-                      form.giaeStatus ===
-                      'submitted'
-                        ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
-                        : 'border-amber-300/20 bg-amber-300/10 text-amber-100'
-                    }`}
-                  >
-                    {form.giaeStatus ===
-                    'submitted'
-                      ? 'Submetido'
-                      : 'Pendente'}
-                  </span>
-                </div>
+                  {!canSubmitToGIAE ? (
+                    <p className="mt-3 text-xs leading-5 text-slate-500">
+                      Para submeter no GIAE, marque a aula como dada e preencha o sumário.
+                    </p>
+                  ) : null}
+                </section>
+              </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateForm(
-                        'giaeStatus',
-                        'pending'
-                      )
-                    }
-                    disabled={
-                      saving
-                    }
-                    className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${
-                      form.giaeStatus ===
-                      'pending'
-                        ? 'border-amber-300/25 bg-amber-300/10 text-amber-50'
-                        : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    Manter pendente
-                  </button>
+              <div className="space-y-5">
+                <section className="rounded-[1.5rem] border border-emerald-300/15 bg-emerald-300/[0.025] p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <WorkspaceSectionHeader
+                      eyebrow="Turma"
+                      title="Alunos, faltas e avaliações"
+                      description="Registe a assiduidade e a avaliação desta aula sem sair deste ecrã."
+                      tone="emerald"
+                    />
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateForm(
-                        'giaeStatus',
-                        'submitted'
-                      )
-                    }
-                    disabled={
-                      saving ||
-                      !canSubmitToGIAE
-                    }
-                    className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                      form.giaeStatus ===
-                      'submitted'
-                        ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-50'
-                        : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    Marcar como submetido
-                  </button>
-                </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-right">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">
+                        Turma
+                      </p>
 
-                {!canSubmitToGIAE ? (
-                  <p className="mt-3 text-xs leading-5 text-slate-500">
-                    Para submeter no GIAE, marque a aula como dada e preencha o sumário.
-                  </p>
+                      <p className="mt-1 text-sm font-black text-white">
+                        {
+                          context
+                            .lessonRow
+                            .group
+                            .name
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {form.status ===
+                'taught' ? (
+                  <>
+                    <LessonAttendanceSection
+                      ref={
+                        attendanceSectionRef
+                      }
+                      lessonId={
+                        lesson.id
+                      }
+                      disabled={
+                        saving
+                      }
+                    />
+
+                    <LessonAssessmentSection
+                      lessonId={
+                        lesson.id
+                      }
+                      disabled={
+                        saving
+                      }
+                    />
+                  </>
+                ) : (
+                  <section className="rounded-[1.5rem] border border-dashed border-amber-300/25 bg-amber-300/[0.045] p-6 sm:p-8">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-xl font-black text-amber-100">
+                      !
+                    </div>
+
+                    <h3 className="mt-5 text-xl font-black text-white">
+                      Marque a aula como dada
+                    </h3>
+
+                    <p className="mt-3 text-sm leading-7 text-slate-400">
+                      A lista de alunos, o registo de faltas e as avaliações ficam disponíveis assim que selecionar o estado{' '}
+                      <strong className="text-amber-100">
+                        Dada
+                      </strong>
+                      .
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStatusChange(
+                          'taught'
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      className="mt-6 rounded-2xl border border-emerald-200/30 bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      Marcar como dada
+                    </button>
+                  </section>
+                )}
+
+                {error ? (
+                  <div
+                    role="alert"
+                    className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
+                  >
+                    {error}
+                  </div>
                 ) : null}
-              </section>
-
-              {error ? (
-                <div
-                  role="alert"
-                  className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
-                >
-                  {error}
-                </div>
-              ) : null}
+              </div>
             </div>
           </div>
 
-          <footer className="border-t border-white/10 bg-slate-950/95 px-5 py-4 sm:px-7">
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <footer className="shrink-0 border-t border-white/10 bg-slate-950/95 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[110rem] flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs leading-5 text-slate-500">
                 {selectedModule
                   ? getModuleLabel(
@@ -1374,7 +1516,7 @@ export default function LessonEditorDialog({
                 >
                   {saving
                     ? 'A guardar...'
-                    : 'Guardar aula'}
+                    : 'Guardar aula completa'}
                 </button>
               </div>
             </div>
