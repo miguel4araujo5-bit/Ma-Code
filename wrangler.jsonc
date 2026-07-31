@@ -21,6 +21,10 @@
       {
         "name": "BTC_ALERTS",
         "class_name": "BtcAlertsDurableObject"
+      },
+      {
+        "name": "MA_PROFESSOR_ACCESS",
+        "class_name": "MaProfessorAccessDurableObject"
       }
     ]
   },
@@ -29,6 +33,12 @@
       "tag": "v1-ma-btc-alertas",
       "new_sqlite_classes": [
         "BtcAlertsDurableObject"
+      ]
+    },
+    {
+      "tag": "v2-ma-professor-access",
+      "new_sqlite_classes": [
+        "MaProfessorAccessDurableObject"
       ]
     }
   ],
