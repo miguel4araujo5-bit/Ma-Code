@@ -4,7 +4,7 @@ import {
   useState
 } from 'react'
 
-import { AttendanceWorkspaceView } from '../attendance/AttendanceWorkspaceView'
+import AttendanceWorkspaceView from '../attendance/AttendanceWorkspaceView'
 import {
   attendanceWorkspaceRepository,
   type AttendanceWorkspaceFilters,
@@ -45,6 +45,7 @@ export function AttendanceProductWorkspace({
             academicYearId,
             nextFilters
           )
+
         setSnapshot(nextSnapshot)
         setFilters(nextSnapshot.filters)
       } catch (loadError) {
@@ -58,11 +59,14 @@ export function AttendanceProductWorkspace({
 
   useEffect(() => {
     void load({})
+
     // O ano letivo é a única dependência que deve reiniciar os filtros.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [academicYearId])
 
-  const mutate = async (operation: () => Promise<unknown>) => {
+  const mutate = async (
+    operation: () => Promise<unknown>
+  ) => {
     setError('')
 
     try {
@@ -70,6 +74,7 @@ export function AttendanceProductWorkspace({
       await load()
     } catch (mutationError) {
       const message = getErrorMessage(mutationError)
+
       setError(message)
       throw mutationError
     }
@@ -89,6 +94,7 @@ export function AttendanceProductWorkspace({
           {loading ? (
             <>
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+
               <p className="mt-4 text-sm font-semibold text-slate-400">
                 A preparar o controlo de faltas…
               </p>
@@ -98,9 +104,12 @@ export function AttendanceProductWorkspace({
               <h1 className="text-xl font-black">
                 Não foi possível abrir as faltas
               </h1>
+
               <p className="mt-3 text-sm text-rose-200">
-                {error || 'Verifique a configuração do ano letivo.'}
+                {error ||
+                  'Verifique a configuração do ano letivo.'}
               </p>
+
               <button
                 type="button"
                 onClick={() => void load()}
@@ -122,7 +131,9 @@ export function AttendanceProductWorkspace({
       error={error}
       onRefresh={() => void load()}
       onFiltersChange={handleFiltersChange}
-      onCreateRecovery={(input: CreateWorkspaceRecoveryInput) =>
+      onCreateRecovery={(
+        input: CreateWorkspaceRecoveryInput
+      ) =>
         mutate(() =>
           attendanceWorkspaceRepository.createRecovery(input)
         )
@@ -138,14 +149,18 @@ export function AttendanceProductWorkspace({
           )
         )
       }
-      onDeletePendingRecovery={(recoveryId: EntityId) =>
+      onDeletePendingRecovery={(
+        recoveryId: EntityId
+      ) =>
         mutate(() =>
           attendanceWorkspaceRepository.deletePendingRecovery(
             recoveryId
           )
         )
       }
-      onSynchronizeRecoveries={(moduleId: EntityId) =>
+      onSynchronizeRecoveries={(
+        moduleId: EntityId
+      ) =>
         mutate(() =>
           attendanceWorkspaceRepository.synchronizeModuleRecoveries(
             moduleId
