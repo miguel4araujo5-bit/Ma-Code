@@ -7,10 +7,22 @@ import {
   runBtcAlertsScheduled,
   type BtcAlertsEnv
 } from './maBtcAlerts'
+import {
+  handleMAProfessorAccessApiRequest,
+  isMAProfessorAccessApiPath,
+  MaProfessorAccessDurableObject,
+  type MaProfessorAccessEnv
+} from './maProfessorAccess'
 
-export { BtcAlertsDurableObject }
+export {
+  BtcAlertsDurableObject,
+  MaProfessorAccessDurableObject
+}
 
-export interface Env extends BaseEnv, BtcAlertsEnv {}
+export interface Env
+  extends BaseEnv,
+    BtcAlertsEnv,
+    MaProfessorAccessEnv {}
 
 type ExecutionContextLike = {
   waitUntil(promise: Promise<unknown>): void
@@ -22,6 +34,10 @@ export default {
 
     if (isBtcAlertsApiPath(url.pathname)) {
       return handleBtcAlertsApiRequest(request, env)
+    }
+
+    if (isMAProfessorAccessApiPath(url.pathname)) {
+      return handleMAProfessorAccessApiRequest(request, env)
     }
 
     return baseWorker.fetch(request, env)
