@@ -8,7 +8,9 @@ import {
   useState
 } from 'react'
 
-import LessonAssessmentSection from '../assessments/LessonAssessmentSection'
+import DailyLessonAssessmentSection, {
+  type DailyLessonAssessmentSectionHandle
+} from '../assessments/DailyLessonAssessmentSection'
 
 import {
   lessonRepository
@@ -68,7 +70,7 @@ const statusOptions: Array<{
     value: 'taught',
     label: 'Dada',
     description:
-      'A aula conta para o progresso e exige um sumário.'
+      'A aula conta para o progresso e permite faltas e avaliações.'
   },
   {
     value: 'cancelled',
@@ -81,10 +83,8 @@ const statusOptions: Array<{
 const statusClasses: Record<LessonStatus, string> = {
   planned:
     'border-cyan-300/20 bg-cyan-300/[0.055] text-cyan-50',
-
   taught:
     'border-emerald-300/20 bg-emerald-300/[0.055] text-emerald-50',
-
   cancelled:
     'border-rose-300/20 bg-rose-300/[0.055] text-rose-50'
 }
@@ -95,107 +95,89 @@ const fieldClassName =
 const textAreaClassName =
   'w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60'
 
-function getErrorMessage(
-  error: unknown
-) {
+function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : 'Ocorreu um erro inesperado.'
 }
 
-function formatDate(
-  value: string
-) {
-  const [
-    year,
-    month,
-    day
-  ] = value
+function formatDate(value: string) {
+  const [year, month, day] = value
     .split('-')
     .map(Number)
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value
   }
 
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      weekday: 'long',
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }
-  ).format(
-    new Date(
-      year,
-      month - 1,
-      day
-    )
-  )
+  return new Intl.DateTimeFormat('pt-PT', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(year, month - 1, day))
 }
 
-function getModuleLabel(
-  code: string,
-  name: string
-) {
+function getModuleLabel(code: string, name: string) {
   return code.trim()
     ? `${code.trim()} · ${name}`
     : name
 }
 
+function wait(milliseconds: number) {
+  return new Promise<void>(resolve => {
+    window.setTimeout(resolve, milliseconds)
+  })
+}
+
+async function saveAttendanceWhenReady(
+  section: LessonAttendanceSectionHandle,
+  lesson: Lesson
+) {
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      await section.saveAttendance(lesson)
+      return
+    } catch (error) {
+      lastError = error
+      const message = getErrorMessage(error)
+
+      if (!message.includes('ainda está a carregar')) {
+        throw error
+      }
+
+      await wait(100)
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(
+        'A lista de alunos demorou demasiado tempo a carregar. Volte a guardar a aula.'
+      )
+}
+
 function buildInitialForm(
   context: CalendarLessonEditorContext
 ): LessonEditorFormState {
-  const lesson =
-    context.lessonRow.lesson
+  const lesson = context.lessonRow.lesson
 
   return {
-    moduleId:
-      lesson.moduleId,
-
-    status:
-      lesson.status,
-
-    date:
-      lesson.date,
-
-    startTime:
-      lesson.startTime,
-
-    endTime:
-      lesson.endTime,
-
-    periodCount:
-      String(
-        lesson.periodCount
-      ),
-
-    countTowardProgress:
-      lesson.countTowardProgress,
-
-    plannedActivity:
-      lesson.plannedActivity,
-
-    summary:
-      lesson.summary,
-
-    summarySource:
-      lesson.summarySource,
-
-    planificationItemIds: [
-      ...lesson.planificationItemIds
-    ],
-
-    notes:
-      lesson.notes,
-
-    giaeStatus:
-      lesson.giaeStatus
+    moduleId: lesson.moduleId,
+    status: lesson.status,
+    date: lesson.date,
+    startTime: lesson.startTime,
+    endTime: lesson.endTime,
+    periodCount: String(lesson.periodCount),
+    countTowardProgress: lesson.countTowardProgress,
+    plannedActivity: lesson.plannedActivity,
+    summary: lesson.summary,
+    summarySource: lesson.summarySource,
+    planificationItemIds: [...lesson.planificationItemIds],
+    notes: lesson.notes,
+    giaeStatus: lesson.giaeStatus
   }
 }
 
@@ -208,9 +190,7 @@ function FieldLabel({
 }) {
   return (
     <span className="mb-2 flex items-center justify-between gap-3 text-sm font-bold text-slate-200">
-      <span>
-        {children}
-      </span>
+      <span>{children}</span>
 
       {optional ? (
         <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-slate-600">
@@ -221,7 +201,7 @@ function FieldLabel({
   )
 }
 
-function WorkspaceSectionHeader({
+function SectionHeader({
   eyebrow,
   title,
   description,
@@ -267,71 +247,47 @@ function StatusSelector({
 }: {
   value: LessonStatus
   disabled: boolean
-  onChange: (
-    status: LessonStatus
-  ) => void
+  onChange: (status: LessonStatus) => void
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      {statusOptions.map(
-        (
-          option
-        ) => {
-          const selected =
-            value ===
-            option.value
+      {statusOptions.map(option => {
+        const selected = value === option.value
 
-          return (
-            <button
-              key={
-                option.value
-              }
-              type="button"
-              onClick={() =>
-                onChange(
-                  option.value
-                )
-              }
-              disabled={
-                disabled
-              }
-              className={`rounded-2xl border p-4 text-left transition disabled:cursor-wait disabled:opacity-60 ${
-                selected
-                  ? statusClasses[
-                      option.value
-                    ]
-                  : 'border-white/10 bg-white/[0.025] text-slate-400 hover:border-white/20 hover:bg-white/[0.045]'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    option.value ===
-                    'planned'
-                      ? 'bg-cyan-300'
-                      : option.value ===
-                          'taught'
-                        ? 'bg-emerald-300'
-                        : 'bg-rose-300'
-                  }`}
-                />
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={disabled}
+            className={`rounded-2xl border p-4 text-left transition disabled:cursor-wait disabled:opacity-60 ${
+              selected
+                ? statusClasses[option.value]
+                : 'border-white/10 bg-white/[0.025] text-slate-400 hover:border-white/20 hover:bg-white/[0.045]'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  option.value === 'planned'
+                    ? 'bg-cyan-300'
+                    : option.value === 'taught'
+                      ? 'bg-emerald-300'
+                      : 'bg-rose-300'
+                }`}
+              />
 
-                <span className="text-sm font-black">
-                  {
-                    option.label
-                  }
-                </span>
-              </div>
+              <span className="text-sm font-black">
+                {option.label}
+              </span>
+            </div>
 
-              <p className="mt-2 text-xs leading-5 opacity-70">
-                {
-                  option.description
-                }
-              </p>
-            </button>
-          )
-        }
-      )}
+            <p className="mt-2 text-xs leading-5 opacity-70">
+              {option.description}
+            </p>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -341,109 +297,68 @@ export default function LessonEditorDialog({
   onClose,
   onSaved
 }: LessonEditorDialogProps) {
-  const [
-    form,
-    setForm
-  ] =
-    useState<LessonEditorFormState>(
-      () =>
-        buildInitialForm(
-          context
-        )
-    )
+  const [form, setForm] = useState<LessonEditorFormState>(
+    () => buildInitialForm(context)
+  )
 
-  const [
-    saving,
-    setSaving
-  ] =
-    useState(false)
-
-  const [
-    error,
-    setError
-  ] =
-    useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const attendanceSectionRef =
-    useRef<LessonAttendanceSectionHandle>(
-      null
-    )
+    useRef<LessonAttendanceSectionHandle>(null)
 
-  const lesson =
-    context.lessonRow.lesson
+  const assessmentSectionRef =
+    useRef<DailyLessonAssessmentSectionHandle>(null)
+
+  const lesson = context.lessonRow.lesson
 
   const subjectLabel =
     context.lessonRow.subject.shortName.trim() ||
     context.lessonRow.subject.name
 
-  const selectedModule =
-    useMemo(
-      () =>
-        context.assignmentModules.find(
-          (
-            module
-          ) =>
-            module.id ===
-            form.moduleId
-        ) ??
-        null,
-      [
-        context.assignmentModules,
-        form.moduleId
-      ]
-    )
+  const selectedModule = useMemo(
+    () =>
+      context.assignmentModules.find(
+        module => module.id === form.moduleId
+      ) ?? null,
+    [context.assignmentModules, form.moduleId]
+  )
 
-  const canUsePlanification =
-    Boolean(
-      context.nextPlanificationItem &&
-      form.moduleId ===
-        lesson.moduleId
-    )
+  const moduleChanged = form.moduleId !== lesson.moduleId
+
+  const canUsePlanification = Boolean(
+    context.nextPlanificationItem &&
+      form.moduleId === lesson.moduleId
+  )
 
   const canSubmitToGIAE =
-    form.status ===
-      'taught' &&
-    Boolean(
-      form.summary.trim()
-    )
+    form.status === 'taught' &&
+    Boolean(form.summary.trim())
+
+  useEffect(() => {
+    setForm(buildInitialForm(context))
+    setError('')
+  }, [context])
 
   useEffect(() => {
     const previousOverflow =
       document.body.style.overflow
 
-    document.body.style.overflow =
-      'hidden'
+    document.body.style.overflow = 'hidden'
 
-    function handleKeyDown(
-      event: KeyboardEvent
-    ) {
-      if (
-        event.key ===
-          'Escape' &&
-        !saving
-      ) {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !saving) {
         onClose()
       }
     }
 
-    window.addEventListener(
-      'keydown',
-      handleKeyDown
-    )
+    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.body.style.overflow =
-        previousOverflow
-
-      window.removeEventListener(
-        'keydown',
-        handleKeyDown
-      )
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [
-    onClose,
-    saving
-  ])
+  }, [onClose, saving])
 
   function updateForm<
     Key extends keyof LessonEditorFormState
@@ -451,149 +366,81 @@ export default function LessonEditorDialog({
     key: Key,
     value: LessonEditorFormState[Key]
   ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-        [key]: value
-      })
-    )
+    setForm(current => ({
+      ...current,
+      [key]: value
+    }))
   }
 
-  function handleStatusChange(
-    status: LessonStatus
-  ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-
-        status,
-
-        countTowardProgress:
-          status ===
-          'cancelled'
-            ? false
-            : current.status ===
-                'cancelled'
-              ? true
-              : current.countTowardProgress,
-
-        giaeStatus:
-          status ===
-          'taught'
-            ? current.giaeStatus
-            : 'pending'
-      })
-    )
+  function handleStatusChange(status: LessonStatus) {
+    setForm(current => ({
+      ...current,
+      status,
+      countTowardProgress:
+        status === 'cancelled'
+          ? false
+          : current.status === 'cancelled'
+            ? true
+            : current.countTowardProgress,
+      giaeStatus:
+        status === 'taught'
+          ? current.giaeStatus
+          : 'pending'
+    }))
   }
 
   function copyPreviousLesson() {
-    const previous =
-      context.previousLessonTemplate
+    const previous = context.previousLessonTemplate
 
-    if (
-      !previous
-    ) {
+    if (!previous) {
       return
     }
 
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-
-        plannedActivity:
-          previous.plannedActivity,
-
-        summary:
-          previous.summary,
-
-        summarySource:
-          'manual',
-
-        planificationItemIds:
-          [],
-
-        notes:
-          previous.notes
-      })
-    )
+    setForm(current => ({
+      ...current,
+      plannedActivity: previous.plannedActivity,
+      summary: previous.summary,
+      summarySource: 'manual',
+      planificationItemIds: [],
+      notes: previous.notes
+    }))
   }
 
   function useNextPlanificationItem() {
-    const item =
-      context.nextPlanificationItem
+    const item = context.nextPlanificationItem
 
-    if (
-      !item ||
-      !canUsePlanification
-    ) {
+    if (!item || !canUsePlanification) {
       return
     }
 
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-
-        plannedActivity:
-          item.activity.trim() ||
-          item.content.trim(),
-
-        summary:
-          item.suggestedSummary.trim() ||
-          item.content.trim(),
-
-        summarySource:
-          'planification',
-
-        planificationItemIds: [
-          item.id
-        ]
-      })
-    )
+    setForm(current => ({
+      ...current,
+      plannedActivity:
+        item.activity.trim() || item.content.trim(),
+      summary:
+        item.suggestedSummary.trim() || item.content.trim(),
+      summarySource: 'planification',
+      planificationItemIds: [item.id]
+    }))
   }
 
   function handleSummaryChange(
     event: ChangeEvent<HTMLTextAreaElement>
   ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-
-        summary:
-          event.target.value,
-
-        summarySource:
-          'manual',
-
-        planificationItemIds:
-          []
-      })
-    )
+    setForm(current => ({
+      ...current,
+      summary: event.target.value,
+      summarySource: 'manual',
+      planificationItemIds: []
+    }))
   }
 
   function disconnectPlanification() {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-
-        planificationItemIds:
-          [],
-
-        summarySource:
-          'manual'
-      })
-    )
+    setForm(current => ({
+      ...current,
+      planificationItemIds: [],
+      summarySource: 'manual'
+    }))
   }
 
   async function handleSubmit(
@@ -601,40 +448,55 @@ export default function LessonEditorDialog({
   ) {
     event.preventDefault()
 
-    if (
-      saving
-    ) {
+    if (saving) {
       return
     }
 
-    const periodCount =
-      Number(
-        form.periodCount
-      )
+    const periodCount = Number(form.periodCount)
 
     if (
-      !Number.isInteger(
-        periodCount
-      ) ||
-      periodCount <=
-        0
+      !Number.isInteger(periodCount) ||
+      periodCount <= 0
     ) {
       setError(
         'O número de tempos deve ser um número inteiro superior a zero.'
       )
-
       return
     }
 
     if (
-      form.status ===
-        'taught' &&
+      form.status === 'taught' &&
       !form.summary.trim()
     ) {
       setError(
         'Indique o sumário antes de marcar a aula como dada.'
       )
+      return
+    }
 
+    const assessmentIsRelevant =
+      form.status === 'taught' ||
+      lesson.status === 'taught' ||
+      moduleChanged
+
+    try {
+      if (assessmentIsRelevant) {
+        const assessmentSection =
+          assessmentSectionRef.current
+
+        if (!assessmentSection) {
+          throw new Error(
+            'Não foi possível preparar a área de avaliações.'
+          )
+        }
+
+        assessmentSection.validateLessonChanges({
+          moduleId: form.moduleId,
+          status: form.status
+        })
+      }
+    } catch (validationError) {
+      setError(getErrorMessage(validationError))
       return
     }
 
@@ -642,58 +504,33 @@ export default function LessonEditorDialog({
     setError('')
 
     try {
-      let updated =
-        await lessonRepository.updateLesson(
-          lesson.id,
-          {
-            moduleId:
-              form.moduleId,
-
-            status:
-              form.status,
-
-            date:
-              form.date,
-
-            startTime:
-              form.startTime,
-
-            endTime:
-              form.endTime,
-
-            periodCount,
-
-            countTowardProgress:
-              form.status ===
-              'cancelled'
-                ? false
-                : form.countTowardProgress,
-
-            plannedActivity:
-              form.plannedActivity,
-
-            summary:
-              form.summary,
-
-            summarySource:
-              form.summarySource,
-
-            planificationItemIds:
-              form.planificationItemIds,
-
-            notes:
-              form.notes
-          }
-        )
+      let updated = await lessonRepository.updateLesson(
+        lesson.id,
+        {
+          moduleId: form.moduleId,
+          status: form.status,
+          date: form.date,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          periodCount,
+          countTowardProgress:
+            form.status === 'cancelled'
+              ? false
+              : form.countTowardProgress,
+          plannedActivity: form.plannedActivity,
+          summary: form.summary,
+          summarySource: form.summarySource,
+          planificationItemIds:
+            form.planificationItemIds,
+          notes: form.notes
+        }
+      )
 
       if (
-        form.giaeStatus ===
-          'submitted' &&
-        updated.status ===
-          'taught' &&
+        form.giaeStatus === 'submitted' &&
+        updated.status === 'taught' &&
         updated.summary.trim() &&
-        updated.giaeStatus !==
-          'submitted'
+        updated.giaeStatus !== 'submitted'
       ) {
         updated =
           await lessonRepository.markGIAESubmitted(
@@ -702,10 +539,8 @@ export default function LessonEditorDialog({
       }
 
       if (
-        form.giaeStatus ===
-          'pending' &&
-        updated.giaeStatus ===
-          'submitted'
+        form.giaeStatus === 'pending' &&
+        updated.giaeStatus === 'submitted'
       ) {
         updated =
           await lessonRepository.markGIAEPending(
@@ -713,37 +548,36 @@ export default function LessonEditorDialog({
           )
       }
 
-      if (
-        updated.status ===
-        'taught'
-      ) {
+      if (updated.status === 'taught') {
         const attendanceSection =
           attendanceSectionRef.current
 
-        if (
-          !attendanceSection
-        ) {
+        const assessmentSection =
+          assessmentSectionRef.current
+
+        if (!attendanceSection) {
           throw new Error(
             'Não foi possível preparar a assiduidade desta aula.'
           )
         }
 
-        await attendanceSection.saveAttendance(
+        if (!assessmentSection) {
+          throw new Error(
+            'Não foi possível preparar as avaliações desta aula.'
+          )
+        }
+
+        await saveAttendanceWhenReady(
+          attendanceSection,
           updated
         )
+
+        await assessmentSection.saveAssessments(updated)
       }
 
-      await onSaved(
-        updated
-      )
-    } catch (
-      saveError
-    ) {
-      setError(
-        getErrorMessage(
-          saveError
-        )
-      )
+      await onSaved(updated)
+    } catch (saveError) {
+      setError(getErrorMessage(saveError))
     } finally {
       setSaving(false)
     }
@@ -757,8 +591,7 @@ export default function LessonEditorDialog({
         event: MouseEvent<HTMLDivElement>
       ) => {
         if (
-          event.target ===
-            event.currentTarget &&
+          event.target === event.currentTarget &&
           !saving
         ) {
           onClose()
@@ -776,28 +609,18 @@ export default function LessonEditorDialog({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-cyan-100">
-                  {
-                    context
-                      .lessonRow
-                      .group
-                      .name
-                  }
+                  {context.lessonRow.group.name}
                 </span>
 
                 <span
                   className={`rounded-full border px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] ${
-                    statusClasses[
-                      form.status
-                    ]
+                    statusClasses[form.status]
                   }`}
                 >
-                  {getCalendarLessonStatusLabel(
-                    form.status
-                  )}
+                  {getCalendarLessonStatusLabel(form.status)}
                 </span>
 
-                {lesson.origin ===
-                'extra' ? (
+                {lesson.origin === 'extra' ? (
                   <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-violet-100">
                     Aula extra
                   </span>
@@ -813,29 +636,16 @@ export default function LessonEditorDialog({
                 </h2>
 
                 <p className="text-sm capitalize leading-6 text-slate-400">
-                  {formatDate(
-                    form.date
-                  )}{' '}
-                  ·{' '}
-                  {
-                    form.startTime
-                  }
-                  –
-                  {
-                    form.endTime
-                  }
+                  {formatDate(form.date)} · {form.startTime}–
+                  {form.endTime}
                 </p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={
-                onClose
-              }
-              disabled={
-                saving
-              }
+              onClick={onClose}
+              disabled={saving}
               aria-label="Fechar edição da aula"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-xl font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-wait disabled:opacity-50"
             >
@@ -845,16 +655,14 @@ export default function LessonEditorDialog({
         </header>
 
         <form
-          onSubmit={
-            handleSubmit
-          }
+          onSubmit={handleSubmit}
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto grid w-full max-w-[110rem] gap-5 px-4 py-5 sm:px-6 lg:px-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(40rem,1.1fr)] xl:items-start">
+            <div className="mx-auto grid w-full max-w-[110rem] gap-5 px-4 py-5 sm:px-6 lg:px-8 xl:grid-cols-[minmax(0,0.88fr)_minmax(42rem,1.12fr)] xl:items-start">
               <div className="space-y-5">
                 <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-                  <WorkspaceSectionHeader
+                  <SectionHeader
                     eyebrow="Aula do dia"
                     title="Estado, data e horário"
                     description="Confirme a aula e altere apenas o que for necessário."
@@ -862,29 +670,19 @@ export default function LessonEditorDialog({
 
                   <div className="mt-5">
                     <StatusSelector
-                      value={
-                        form.status
-                      }
-                      disabled={
-                        saving
-                      }
-                      onChange={
-                        handleStatusChange
-                      }
+                      value={form.status}
+                      disabled={saving}
+                      onChange={handleStatusChange}
                     />
                   </div>
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <label className="block sm:col-span-2 xl:col-span-1">
-                      <FieldLabel>
-                        Data
-                      </FieldLabel>
+                      <FieldLabel>Data</FieldLabel>
 
                       <input
                         type="date"
-                        value={
-                          form.date
-                        }
+                        value={form.date}
                         onChange={(
                           event: ChangeEvent<HTMLInputElement>
                         ) =>
@@ -893,26 +691,18 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
+                        disabled={saving}
                         required
-                        className={
-                          fieldClassName
-                        }
+                        className={fieldClassName}
                       />
                     </label>
 
                     <label className="block">
-                      <FieldLabel>
-                        Início
-                      </FieldLabel>
+                      <FieldLabel>Início</FieldLabel>
 
                       <input
                         type="time"
-                        value={
-                          form.startTime
-                        }
+                        value={form.startTime}
                         onChange={(
                           event: ChangeEvent<HTMLInputElement>
                         ) =>
@@ -921,26 +711,18 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
+                        disabled={saving}
                         required
-                        className={
-                          fieldClassName
-                        }
+                        className={fieldClassName}
                       />
                     </label>
 
                     <label className="block">
-                      <FieldLabel>
-                        Fim
-                      </FieldLabel>
+                      <FieldLabel>Fim</FieldLabel>
 
                       <input
                         type="time"
-                        value={
-                          form.endTime
-                        }
+                        value={form.endTime}
                         onChange={(
                           event: ChangeEvent<HTMLInputElement>
                         ) =>
@@ -949,28 +731,20 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
+                        disabled={saving}
                         required
-                        className={
-                          fieldClassName
-                        }
+                        className={fieldClassName}
                       />
                     </label>
 
                     <label className="block">
-                      <FieldLabel>
-                        Tempos
-                      </FieldLabel>
+                      <FieldLabel>Tempos</FieldLabel>
 
                       <input
                         type="number"
                         min="1"
                         step="1"
-                        value={
-                          form.periodCount
-                        }
+                        value={form.periodCount}
                         onChange={(
                           event: ChangeEvent<HTMLInputElement>
                         ) =>
@@ -979,86 +753,55 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
+                        disabled={saving}
                         required
-                        className={
-                          fieldClassName
-                        }
+                        className={fieldClassName}
                       />
                     </label>
                   </div>
 
                   <label className="mt-5 block">
-                    <FieldLabel>
-                      UFCD ou módulo
-                    </FieldLabel>
+                    <FieldLabel>UFCD ou módulo</FieldLabel>
 
                     <select
-                      value={
-                        form.moduleId
-                      }
+                      value={form.moduleId}
                       onChange={(
                         event: ChangeEvent<HTMLSelectElement>
                       ) => {
-                        const moduleId =
-                          event.target.value
+                        const moduleId = event.target.value
 
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-
-                            moduleId,
-
-                            planificationItemIds:
-                              [],
-
-                            summarySource:
-                              current.summarySource ===
-                              'planification'
-                                ? 'manual'
-                                : current.summarySource
-                          })
-                        )
+                        setForm(current => ({
+                          ...current,
+                          moduleId,
+                          planificationItemIds: [],
+                          summarySource:
+                            current.summarySource ===
+                            'planification'
+                              ? 'manual'
+                              : current.summarySource
+                        }))
                       }}
-                      disabled={
-                        saving
-                      }
-                      className={
-                        fieldClassName
-                      }
+                      disabled={saving}
+                      className={fieldClassName}
                     >
-                      {context.assignmentModules.map(
-                        (
-                          module
-                        ) => (
-                          <option
-                            key={
-                              module.id
-                            }
-                            value={
-                              module.id
-                            }
-                          >
-                            {getModuleLabel(
-                              module.code,
-                              module.name
-                            )}
-                          </option>
-                        )
-                      )}
+                      {context.assignmentModules.map(module => (
+                        <option
+                          key={module.id}
+                          value={module.id}
+                        >
+                          {getModuleLabel(
+                            module.code,
+                            module.name
+                          )}
+                        </option>
+                      ))}
                     </select>
                   </label>
 
                   <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/55 p-4">
                     <input
                       type="checkbox"
-                      checked={
-                        form.countTowardProgress
-                      }
+                      checked={form.countTowardProgress}
                       onChange={(
                         event: ChangeEvent<HTMLInputElement>
                       ) =>
@@ -1069,8 +812,7 @@ export default function LessonEditorDialog({
                       }
                       disabled={
                         saving ||
-                        form.status ===
-                          'cancelled'
+                        form.status === 'cancelled'
                       }
                       className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30 disabled:opacity-40"
                     />
@@ -1081,7 +823,8 @@ export default function LessonEditorDialog({
                       </span>
 
                       <span className="mt-1 block text-xs leading-5 text-slate-500">
-                        Desative apenas quando a aula não deve aumentar os tempos dados.
+                        Desative apenas quando a aula não deve
+                        aumentar os tempos dados.
                       </span>
                     </span>
                   </label>
@@ -1096,28 +839,18 @@ export default function LessonEditorDialog({
                     {context.nextPlanificationItem ? (
                       <>
                         <p className="mt-4 text-sm font-black leading-6 text-white">
-                          {
-                            context
-                              .nextPlanificationItem
-                              .content
-                          }
+                          {context.nextPlanificationItem.content}
                         </p>
 
                         {context.nextPlanificationItem.activity ? (
                           <p className="mt-2 text-xs leading-5 text-slate-400">
-                            {
-                              context
-                                .nextPlanificationItem
-                                .activity
-                            }
+                            {context.nextPlanificationItem.activity}
                           </p>
                         ) : null}
 
                         <button
                           type="button"
-                          onClick={
-                            useNextPlanificationItem
-                          }
+                          onClick={useNextPlanificationItem}
                           disabled={
                             saving ||
                             !canUsePlanification
@@ -1126,16 +859,11 @@ export default function LessonEditorDialog({
                         >
                           Usar próximo item
                         </button>
-
-                        {!canUsePlanification ? (
-                          <p className="mt-3 text-xs leading-5 text-amber-200/80">
-                            Volte à UFCD original da aula para utilizar esta sugestão.
-                          </p>
-                        ) : null}
                       </>
                     ) : (
                       <p className="mt-4 text-sm leading-6 text-slate-400">
-                        Não existe um próximo item disponível na planificação desta UFCD.
+                        Não existe um próximo item disponível na
+                        planificação desta UFCD.
                       </p>
                     )}
                   </article>
@@ -1156,12 +884,8 @@ export default function LessonEditorDialog({
 
                         <button
                           type="button"
-                          onClick={
-                            copyPreviousLesson
-                          }
-                          disabled={
-                            saving
-                          }
+                          onClick={copyPreviousLesson}
+                          disabled={saving}
                           className="mt-5 w-full rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
                         >
                           Copiar aula anterior
@@ -1169,14 +893,15 @@ export default function LessonEditorDialog({
                       </>
                     ) : (
                       <p className="mt-4 text-sm leading-6 text-slate-400">
-                        Ainda não existe uma aula anterior desta turma e disciplina.
+                        Ainda não existe uma aula anterior desta
+                        turma e disciplina.
                       </p>
                     )}
                   </article>
                 </section>
 
                 <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-                  <WorkspaceSectionHeader
+                  <SectionHeader
                     eyebrow="Registo pedagógico"
                     title="Atividade e sumário"
                     description="O sumário fica pronto para copiar para o GIAE. As notas privadas não são incluídas."
@@ -1189,9 +914,7 @@ export default function LessonEditorDialog({
                       </FieldLabel>
 
                       <textarea
-                        value={
-                          form.plannedActivity
-                        }
+                        value={form.plannedActivity}
                         onChange={(
                           event: ChangeEvent<HTMLTextAreaElement>
                         ) =>
@@ -1200,71 +923,45 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
-                        rows={
-                          3
-                        }
+                        disabled={saving}
+                        rows={3}
                         placeholder="Conteúdos, atividade ou trabalho previsto para a aula."
-                        className={
-                          textAreaClassName
-                        }
+                        className={textAreaClassName}
                       />
                     </label>
 
                     <label className="block">
                       <FieldLabel
-                        optional={
-                          form.status !==
-                          'taught'
-                        }
+                        optional={form.status !== 'taught'}
                       >
                         Sumário
                       </FieldLabel>
 
                       <textarea
-                        value={
-                          form.summary
-                        }
-                        onChange={
-                          handleSummaryChange
-                        }
-                        disabled={
-                          saving
-                        }
-                        rows={
-                          5
-                        }
+                        value={form.summary}
+                        onChange={handleSummaryChange}
+                        disabled={saving}
+                        rows={5}
                         placeholder="Escreva o sumário que será registado no GIAE."
-                        className={
-                          textAreaClassName
-                        }
+                        className={textAreaClassName}
                       />
                     </label>
 
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-400">
                         Origem:{' '}
-                        {form.summarySource ===
-                        'planification'
+                        {form.summarySource === 'planification'
                           ? 'planificação'
-                          : form.summarySource ===
-                              'ai'
+                          : form.summarySource === 'ai'
                             ? 'inteligência artificial'
                             : 'manual'}
                       </span>
 
-                      {form.planificationItemIds.length >
-                      0 ? (
+                      {form.planificationItemIds.length > 0 ? (
                         <button
                           type="button"
-                          onClick={
-                            disconnectPlanification
-                          }
-                          disabled={
-                            saving
-                          }
+                          onClick={disconnectPlanification}
+                          disabled={saving}
                           className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 font-bold text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-60"
                         >
                           Desligar da planificação
@@ -1278,9 +975,7 @@ export default function LessonEditorDialog({
                       </FieldLabel>
 
                       <textarea
-                        value={
-                          form.notes
-                        }
+                        value={form.notes}
                         onChange={(
                           event: ChangeEvent<HTMLTextAreaElement>
                         ) =>
@@ -1289,16 +984,10 @@ export default function LessonEditorDialog({
                             event.target.value
                           )
                         }
-                        disabled={
-                          saving
-                        }
-                        rows={
-                          3
-                        }
+                        disabled={saving}
+                        rows={3}
                         placeholder="Observações que não serão incluídas no sumário."
-                        className={
-                          textAreaClassName
-                        }
+                        className={textAreaClassName}
                       />
                     </label>
                   </div>
@@ -1312,20 +1001,19 @@ export default function LessonEditorDialog({
                       </p>
 
                       <p className="mt-2 text-sm leading-6 text-slate-400">
-                        Marque como submetido apenas depois de copiar o sumário para o GIAE.
+                        Marque como submetido apenas depois de copiar
+                        o sumário para o GIAE.
                       </p>
                     </div>
 
                     <span
                       className={`rounded-full border px-3 py-1.5 text-xs font-black ${
-                        form.giaeStatus ===
-                        'submitted'
+                        form.giaeStatus === 'submitted'
                           ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
                           : 'border-amber-300/20 bg-amber-300/10 text-amber-100'
                       }`}
                     >
-                      {form.giaeStatus ===
-                      'submitted'
+                      {form.giaeStatus === 'submitted'
                         ? 'Submetido'
                         : 'Pendente'}
                     </span>
@@ -1340,12 +1028,9 @@ export default function LessonEditorDialog({
                           'pending'
                         )
                       }
-                      disabled={
-                        saving
-                      }
+                      disabled={saving}
                       className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${
-                        form.giaeStatus ===
-                        'pending'
+                        form.giaeStatus === 'pending'
                           ? 'border-amber-300/25 bg-amber-300/10 text-amber-50'
                           : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
                       }`}
@@ -1366,8 +1051,7 @@ export default function LessonEditorDialog({
                         !canSubmitToGIAE
                       }
                       className={`rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                        form.giaeStatus ===
-                        'submitted'
+                        form.giaeStatus === 'submitted'
                           ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-50'
                           : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
                       }`}
@@ -1375,22 +1059,16 @@ export default function LessonEditorDialog({
                       Marcar como submetido
                     </button>
                   </div>
-
-                  {!canSubmitToGIAE ? (
-                    <p className="mt-3 text-xs leading-5 text-slate-500">
-                      Para submeter no GIAE, marque a aula como dada e preencha o sumário.
-                    </p>
-                  ) : null}
                 </section>
               </div>
 
               <div className="space-y-5">
                 <section className="rounded-[1.5rem] border border-emerald-300/15 bg-emerald-300/[0.025] p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <WorkspaceSectionHeader
+                    <SectionHeader
                       eyebrow="Turma"
                       title="Alunos, faltas e avaliações"
-                      description="Registe a assiduidade e a avaliação desta aula sem sair deste ecrã."
+                      description="Registe toda a aula sem sair deste ecrã."
                       tone="emerald"
                     />
 
@@ -1400,42 +1078,13 @@ export default function LessonEditorDialog({
                       </p>
 
                       <p className="mt-1 text-sm font-black text-white">
-                        {
-                          context
-                            .lessonRow
-                            .group
-                            .name
-                        }
+                        {context.lessonRow.group.name}
                       </p>
                     </div>
                   </div>
                 </section>
 
-                {form.status ===
-                'taught' ? (
-                  <>
-                    <LessonAttendanceSection
-                      ref={
-                        attendanceSectionRef
-                      }
-                      lessonId={
-                        lesson.id
-                      }
-                      disabled={
-                        saving
-                      }
-                    />
-
-                    <LessonAssessmentSection
-                      lessonId={
-                        lesson.id
-                      }
-                      disabled={
-                        saving
-                      }
-                    />
-                  </>
-                ) : (
+                {form.status !== 'taught' ? (
                   <section className="rounded-[1.5rem] border border-dashed border-amber-300/25 bg-amber-300/[0.045] p-6 sm:p-8">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-xl font-black text-amber-100">
                       !
@@ -1446,7 +1095,8 @@ export default function LessonEditorDialog({
                     </h3>
 
                     <p className="mt-3 text-sm leading-7 text-slate-400">
-                      A lista de alunos, o registo de faltas e as avaliações ficam disponíveis assim que selecionar o estado{' '}
+                      A assiduidade e a avaliação ficam disponíveis
+                      assim que selecionar o estado{' '}
                       <strong className="text-amber-100">
                         Dada
                       </strong>
@@ -1456,19 +1106,45 @@ export default function LessonEditorDialog({
                     <button
                       type="button"
                       onClick={() =>
-                        handleStatusChange(
-                          'taught'
-                        )
+                        handleStatusChange('taught')
                       }
-                      disabled={
-                        saving
-                      }
+                      disabled={saving}
                       className="mt-6 rounded-2xl border border-emerald-200/30 bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
                     >
                       Marcar como dada
                     </button>
                   </section>
-                )}
+                ) : null}
+
+                <div
+                  className={
+                    form.status === 'taught'
+                      ? 'block'
+                      : 'hidden'
+                  }
+                >
+                  <LessonAttendanceSection
+                    ref={attendanceSectionRef}
+                    lessonId={lesson.id}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div
+                  className={
+                    form.status === 'taught'
+                      ? 'block'
+                      : 'hidden'
+                  }
+                >
+                  <DailyLessonAssessmentSection
+                    ref={assessmentSectionRef}
+                    lessonId={lesson.id}
+                    lessonStatus={form.status}
+                    moduleChanged={moduleChanged}
+                    disabled={saving}
+                  />
+                </div>
 
                 {error ? (
                   <div
@@ -1496,12 +1172,8 @@ export default function LessonEditorDialog({
               <div className="flex flex-col-reverse gap-3 sm:flex-row">
                 <button
                   type="button"
-                  onClick={
-                    onClose
-                  }
-                  disabled={
-                    saving
-                  }
+                  onClick={onClose}
+                  disabled={saving}
                   className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-wait disabled:opacity-50"
                 >
                   Fechar
@@ -1509,13 +1181,11 @@ export default function LessonEditorDialog({
 
                 <button
                   type="submit"
-                  disabled={
-                    saving
-                  }
+                  disabled={saving}
                   className="rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
                 >
                   {saving
-                    ? 'A guardar...'
+                    ? 'A guardar tudo...'
                     : 'Guardar aula completa'}
                 </button>
               </div>
