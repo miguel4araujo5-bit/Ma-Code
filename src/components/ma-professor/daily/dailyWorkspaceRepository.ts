@@ -66,8 +66,20 @@ export interface DailyLessonWorkspace {
   students: DailyStudentRow[]
 }
 
+export interface DailyWeekDay {
+  date: ISODate
+  isToday: boolean
+  isWithinAcademicYear: boolean
+  lessons: CalendarLessonRow[]
+}
+
 export interface DailyDateWorkspace {
   date: ISODate
+  weekStartDate: ISODate
+  weekEndDate: ISODate
+  previousWeekDate: ISODate | null
+  nextWeekDate: ISODate | null
+  weekDays: DailyWeekDay[]
   lessons: CalendarLessonRow[]
   selectedLessonId: EntityId | null
   selectedLesson: DailyLessonWorkspace | null
@@ -144,6 +156,15 @@ function todayISO(): ISODate {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0')
   ].join('-')
+}
+
+function getISOWeekday(value: ISODate) {
+  const [year, month, day] = value.split('-').map(Number)
+  const weekday = new Date(
+    Date.UTC(year, month - 1, day)
+  ).getUTCDay()
+
+  return weekday === 0 ? 7 : weekday
 }
 
 function resolveSelectedLessonId(
@@ -289,6 +310,15 @@ export class DailyWorkspaceRepository {
       {}
     )
 
+    const weekDays: DailyWeekDay[] = calendar.days
+      .filter(day => getISOWeekday(day.date) <= 5)
+      .map(day => ({
+        date: day.date,
+        isToday: day.isToday,
+        isWithinAcademicYear: day.isWithinAcademicYear,
+        lessons: sortLessons(day.lessons)
+      }))
+
     const lessons = sortLessons(
       calendar.days.find(day => day.date === date)?.lessons ?? []
     )
@@ -301,6 +331,14 @@ export class DailyWorkspaceRepository {
 
     return {
       date,
+      weekStartDate:
+        weekDays[0]?.date ?? calendar.primaryStartDate,
+      weekEndDate:
+        weekDays[weekDays.length - 1]?.date ??
+        calendar.primaryEndDate,
+      previousWeekDate: calendar.previousAnchorDate,
+      nextWeekDate: calendar.nextAnchorDate,
+      weekDays,
       lessons,
       selectedLessonId,
       selectedLesson: selectedLessonId
