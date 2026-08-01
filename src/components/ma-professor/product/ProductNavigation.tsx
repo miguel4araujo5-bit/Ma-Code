@@ -2,11 +2,14 @@ import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
 
 export type ProductWorkspace = 'daily' | 'calendar' | 'menu'
+export type ProductTheme = 'light' | 'dark'
 
 interface ProductNavigationProps {
   workspace: ProductWorkspace
   academicYearName: string | null
+  theme: ProductTheme
   onSelect: (workspace: ProductWorkspace) => void
+  onToggleTheme: () => void
 }
 
 const items: Array<{
@@ -34,13 +37,18 @@ const items: Array<{
 export function ProductNavigation({
   workspace,
   academicYearName,
-  onSelect
+  theme,
+  onSelect,
+  onToggleTheme
 }: ProductNavigationProps) {
   const { session } = useMAProfessorAccess()
 
+  const nextThemeLabel =
+    theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'
+
   return (
     <header className="sticky top-0 z-[70] border-b border-white/10 bg-slate-950/95 text-white shadow-xl shadow-black/20 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-2 py-2 sm:px-5">
+      <div className="mx-auto flex max-w-[1800px] items-center gap-2 px-2 py-2 sm:gap-3 sm:px-5">
         <button
           type="button"
           onClick={() => onSelect('daily')}
@@ -88,6 +96,19 @@ export function ProductNavigation({
           })}
         </nav>
 
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={nextThemeLabel}
+          aria-pressed={theme === 'light'}
+          title={nextThemeLabel}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+        >
+          <span aria-hidden="true">
+            {theme === 'dark' ? '☀' : '☾'}
+          </span>
+        </button>
+
         <div className="hidden min-w-0 text-right lg:block">
           <p className="max-w-48 truncate text-xs font-bold text-slate-300">
             {session.email}
@@ -95,7 +116,6 @@ export function ProductNavigation({
 
           <p className="text-[0.65rem] font-semibold text-emerald-300">
             {getLicenseStatusLabel(session.license.status)}
-
             {session.license.daysRemaining !== null
               ? ` · ${session.license.daysRemaining} dias`
               : ''}
