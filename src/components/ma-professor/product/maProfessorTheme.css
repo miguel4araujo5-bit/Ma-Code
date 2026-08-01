@@ -1,0 +1,232 @@
+.ma-professor-product {
+  --ma-professor-accent: #67e8f9;
+  --ma-professor-accent-strong: #22d3ee;
+  color-scheme: dark;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.ma-professor-product[data-theme='light'] {
+  --ma-professor-accent: #2563eb;
+  --ma-professor-accent-strong: #1d4ed8;
+  background: #f8fafc;
+  color: #0f172a;
+  color-scheme: light;
+}
+
+.ma-professor-product[data-theme='light'] ::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: #0f172a;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/95'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/90'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/85'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/80'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/75'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/70'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/65'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/60'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/55'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/50'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-950/45'] {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/95'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/90'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/85'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/80'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/75'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/70'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/60'],
+.ma-professor-product[data-theme='light'] [class~='bg-slate-900/55'] {
+  background-color: #f8fafc !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.025]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.03]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.035]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.04]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.05]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.06]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.07]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.08]'],
+.ma-professor-product[data-theme='light'] [class~='bg-white/[0.09]'] {
+  background-color: #f1f5f9 !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-white'] {
+  color: #0f172a !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-100'] {
+  color: #1e293b !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-200'] {
+  color: #334155 !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-300'] {
+  color: #475569 !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-400'] {
+  color: #64748b !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-500'] {
+  color: #64748b !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-slate-600'] {
+  color: #94a3b8 !important;
+}
+
+.ma-professor-product[data-theme='light']
+  [class~='placeholder:text-slate-600']::placeholder {
+  color: #94a3b8 !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='border-white/5'],
+.ma-professor-product[data-theme='light'] [class~='border-white/10'],
+.ma-professor-product[data-theme='light'] [class~='border-white/15'],
+.ma-professor-product[data-theme='light'] [class~='border-white/20'] {
+  border-color: #e2e8f0 !important;
+}
+
+.ma-professor-product[data-theme='light']
+  [class~='border-slate-300/10'],
+.ma-professor-product[data-theme='light']
+  [class~='border-slate-300/15'],
+.ma-professor-product[data-theme='light']
+  [class~='border-slate-300/20'] {
+  border-color: #cbd5e1 !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-cyan-300'],
+.ma-professor-product[data-theme='light'] [class~='bg-cyan-400'] {
+  background-color: #2563eb !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-cyan-300/15'],
+.ma-professor-product[data-theme='light'] [class~='bg-cyan-300/10'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.09]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.08]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.07]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.06]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.055]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.05]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.04]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300/[0.035]'] {
+  background-color: #eff6ff !important;
+}
+
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-200/25'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-200/30'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/15'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/20'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/25'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/30'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/35'],
+.ma-professor-product[data-theme='light']
+  [class~='border-cyan-300/50'] {
+  border-color: #93c5fd !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-cyan-50'],
+.ma-professor-product[data-theme='light'] [class~='text-cyan-100'],
+.ma-professor-product[data-theme='light'] [class~='text-cyan-200'],
+.ma-professor-product[data-theme='light'] [class~='text-cyan-300'] {
+  color: #1d4ed8 !important;
+}
+
+.ma-professor-product[data-theme='light']
+  [class~='bg-cyan-300'][class~='text-slate-950'],
+.ma-professor-product[data-theme='light']
+  [class~='from-cyan-300'][class~='text-slate-950'] {
+  color: #ffffff !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='from-cyan-300'] {
+  --tw-gradient-from: #2563eb var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(37 99 235 / 0)
+    var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from),
+    var(--tw-gradient-to) !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='to-sky-300'] {
+  --tw-gradient-to: #38bdf8 var(--tw-gradient-to-position) !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='bg-violet-300/10'],
+.ma-professor-product[data-theme='light'] [class~='bg-violet-300/15'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-violet-300/[0.08]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-violet-300/[0.055]'],
+.ma-professor-product[data-theme='light']
+  [class~='bg-violet-300/[0.035]'] {
+  background-color: #f5f3ff !important;
+}
+
+.ma-professor-product[data-theme='light']
+  [class~='border-violet-300/15'],
+.ma-professor-product[data-theme='light']
+  [class~='border-violet-300/20'],
+.ma-professor-product[data-theme='light']
+  [class~='border-violet-200/25'] {
+  border-color: #c4b5fd !important;
+}
+
+.ma-professor-product[data-theme='light'] [class~='text-violet-50'],
+.ma-professor-product[data-theme='light'] [class~='text-violet-100'],
+.ma-professor-product[data-theme='light'] [class~='text-violet-200'],
+.ma-professor-product[data-theme='light'] [class~='text-violet-300'] {
+  color: #6d28d9 !important;
+}
+
+.ma-professor-product[data-theme='light'] input,
+.ma-professor-product[data-theme='light'] select,
+.ma-professor-product[data-theme='light'] textarea {
+  color: #0f172a;
+}
+
+.ma-professor-product[data-theme='light'] input[type='checkbox'],
+.ma-professor-product[data-theme='light'] input[type='radio'] {
+  accent-color: #2563eb;
+}
+
+.ma-professor-product[data-theme='light'] button:focus-visible,
+.ma-professor-product[data-theme='light'] a:focus-visible,
+.ma-professor-product[data-theme='light'] input:focus-visible,
+.ma-professor-product[data-theme='light'] select:focus-visible,
+.ma-professor-product[data-theme='light'] textarea:focus-visible {
+  outline-color: #2563eb;
+}
+
+.ma-professor-product[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+.ma-professor-product[data-theme='light'] ::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
