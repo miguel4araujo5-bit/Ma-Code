@@ -1,207 +1,104 @@
-import {
-  useCallback,
-  useEffect,
-  useState
-} from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import MAProfessorApp from '../MAProfessorApp'
-
-import {
-  AccessGate
-} from '../access/AccessGate'
-
+import { AccessGate } from '../access/AccessGate'
 import DailyWorkspaceView from '../daily/DailyWorkspaceView'
-
-import {
-  maProfessorRepository
-} from '../repository'
-
-import {
-  SettingsWorkspaceView
-} from '../settings/SettingsWorkspaceView'
-
-import type {
-  AcademicYear
-} from '../types'
-
-import {
-  AttendanceProductWorkspace
-} from './AttendanceProductWorkspace'
-
+import { maProfessorRepository } from '../repository'
+import type { AcademicYear, EntityId, ISODate } from '../types'
+import { CalendarProductWorkspace } from './CalendarProductWorkspace'
+import { ProductMenuWorkspace } from './ProductMenuWorkspace'
 import {
   ProductNavigation,
   type ProductWorkspace
 } from './ProductNavigation'
 
-import {
-  ScheduleProductWorkspace
-} from './ScheduleProductWorkspace'
+interface DailyTarget {
+  date?: ISODate
+  lessonId?: EntityId
+}
 
 function ProductContent() {
-  const [
-    workspace,
-    setWorkspace
-  ] =
-    useState<ProductWorkspace>(
-      'daily'
-    )
+  const [workspace, setWorkspace] = useState<ProductWorkspace>('daily')
+  const [academicYear, setAcademicYear] =
+    useState<AcademicYear | null>(null)
+  const [checkingYear, setCheckingYear] = useState(true)
+  const [dailyTarget, setDailyTarget] = useState<DailyTarget>({})
 
-  const [
-    academicYear,
-    setAcademicYear
-  ] =
-    useState<AcademicYear | null>(
-      null
-    )
+  const refreshAcademicYear = useCallback(async () => {
+    setCheckingYear(true)
 
-  const [
-    checkingYear,
-    setCheckingYear
-  ] =
-    useState(true)
-
-  const refreshAcademicYear =
-    useCallback(
-      async () => {
-        setCheckingYear(
-          true
-        )
-
-        try {
-          const activeYear =
-            await maProfessorRepository.getActiveAcademicYear()
-
-          setAcademicYear(
-            activeYear ??
-            null
-          )
-
-          return (
-            activeYear ??
-            null
-          )
-        } catch {
-          setAcademicYear(
-            null
-          )
-
-          return null
-        } finally {
-          setCheckingYear(
-            false
-          )
-        }
-      },
-      []
-    )
-
-  useEffect(
-    () => {
-      void refreshAcademicYear().then(
-        (
-          activeYear
-        ) => {
-          if (
-            !activeYear
-              ?.setupCompletedAt
-          ) {
-            setWorkspace(
-              'application'
-            )
-          }
-        }
-      )
-    },
-    [
-      refreshAcademicYear
-    ]
-  )
-
-  const handleSelect =
-    async (
-      nextWorkspace:
-        ProductWorkspace
-    ) => {
-      if (
-        nextWorkspace ===
-          'application' ||
-        nextWorkspace ===
-          'settings'
-      ) {
-        setWorkspace(
-          nextWorkspace
-        )
-
-        return
-      }
-
+    try {
       const activeYear =
-        await refreshAcademicYear()
+        await maProfessorRepository.getActiveAcademicYear()
 
-      if (
-        !activeYear
-      ) {
-        setWorkspace(
-          'application'
-        )
+      setAcademicYear(activeYear ?? null)
 
-        return
+      return activeYear ?? null
+    } catch {
+      setAcademicYear(null)
+
+      return null
+    } finally {
+      setCheckingYear(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshAcademicYear().then(activeYear => {
+      if (!activeYear?.setupCompletedAt) {
+        setWorkspace('menu')
       }
+    })
+  }, [refreshAcademicYear])
 
-      if (
-        nextWorkspace ===
-          'daily' &&
-        !activeYear.setupCompletedAt
-      ) {
-        setWorkspace(
-          'application'
-        )
+  const handleSelect = async (nextWorkspace: ProductWorkspace) => {
+    if (nextWorkspace === 'menu') {
+      await refreshAcademicYear()
+      setWorkspace('menu')
 
-        return
-      }
-
-      setWorkspace(
-        nextWorkspace
-      )
+      return
     }
 
-  const handleDataChanged =
-    async () => {
-      const activeYear =
-        await refreshAcademicYear()
+    const activeYear = await refreshAcademicYear()
 
-      setWorkspace(
-        activeYear
-          ?.setupCompletedAt
-          ? 'daily'
-          : 'application'
-      )
+    if (!activeYear?.setupCompletedAt) {
+      setWorkspace('menu')
+
+      return
     }
+
+    if (nextWorkspace === 'daily') {
+      setDailyTarget({})
+    }
+
+    setWorkspace(nextWorkspace)
+  }
+
+  const handleDataChanged = async () => {
+    await refreshAcademicYear()
+  }
+
+  const openLessonFromCalendar = (
+    date: ISODate,
+    lessonId: EntityId
+  ) => {
+    setDailyTarget({
+      date,
+      lessonId
+    })
+
+    setWorkspace('daily')
+  }
 
   const showLoading =
-    workspace !==
-      'application' &&
-    workspace !==
-      'settings' &&
+    workspace !== 'menu' &&
     checkingYear
 
   return (
     <div className="ma-professor-product min-h-screen bg-slate-950">
       <ProductNavigation
-        workspace={
-          workspace
-        }
-        academicYearName={
-          academicYear
-            ?.name ??
-          null
-        }
-        onSelect={
-          next =>
-            void handleSelect(
-              next
-            )
-        }
+        workspace={workspace}
+        academicYearName={academicYear?.name ?? null}
+        onSelect={next => void handleSelect(next)}
       />
 
       {showLoading ? (
@@ -216,63 +113,38 @@ function ProductContent() {
         </main>
       ) : null}
 
-      {workspace ===
-        'daily' &&
-      academicYear
-        ?.setupCompletedAt &&
+      {workspace === 'daily' &&
+      academicYear?.setupCompletedAt &&
       !checkingYear ? (
         <DailyWorkspaceView
-          academicYearId={
-            academicYear.id
-          }
+          key={`${dailyTarget.date ?? 'today'}-${
+            dailyTarget.lessonId ?? 'auto'
+          }`}
+          academicYearId={academicYear.id}
+          initialDate={dailyTarget.date}
+          initialLessonId={dailyTarget.lessonId}
         />
       ) : null}
 
-      {workspace ===
-      'application' ? (
-        <MAProfessorApp />
-      ) : null}
-
-      {workspace ===
-        'attendance' &&
-      academicYear &&
+      {workspace === 'calendar' &&
+      academicYear?.setupCompletedAt &&
       !checkingYear ? (
-        <AttendanceProductWorkspace
-          academicYearId={
-            academicYear.id
-          }
+        <CalendarProductWorkspace
+          academicYearId={academicYear.id}
+          onOpenLesson={openLessonFromCalendar}
         />
       ) : null}
 
-      {workspace ===
-        'schedule' &&
-      academicYear &&
-      !checkingYear ? (
-        <ScheduleProductWorkspace
-          academicYearId={
-            academicYear.id
-          }
+      {workspace === 'menu' ? (
+        <ProductMenuWorkspace
+          academicYear={academicYear}
+          onDataChanged={handleDataChanged}
+          onOpenDaily={() => void handleSelect('daily')}
+          onOpenCalendar={() => void handleSelect('calendar')}
         />
       ) : null}
 
-      {workspace ===
-      'settings' ? (
-        <SettingsWorkspaceView
-          academicYearId={
-            academicYear
-              ?.id ??
-            null
-          }
-          onDataChanged={() =>
-            void handleDataChanged()
-          }
-        />
-      ) : null}
-
-      {workspace !==
-        'application' &&
-      workspace !==
-        'settings' &&
+      {workspace !== 'menu' &&
       !checkingYear &&
       !academicYear ? (
         <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-4 py-10 text-white">
@@ -286,16 +158,13 @@ function ProductContent() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Crie o ano letivo, as turmas, as disciplinas e os módulos antes de abrir esta área.
+              Crie o ano letivo, as turmas, as disciplinas e os
+              módulos antes de abrir esta área.
             </p>
 
             <button
               type="button"
-              onClick={() =>
-                setWorkspace(
-                  'application'
-                )
-              }
+              onClick={() => setWorkspace('menu')}
               className="mt-5 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
             >
               Abrir configuração
@@ -303,12 +172,6 @@ function ProductContent() {
           </section>
         </main>
       ) : null}
-
-      <style>{`
-        .ma-professor-product > div:not(header) aside button[title="Em breve"] {
-          display: none;
-        }
-      `}</style>
     </div>
   )
 }
