@@ -58,12 +58,6 @@ interface StudentEditorRow extends DailyStudentRow {
   assessmentScoreText: string
 }
 
-const fieldClassName =
-  'w-full rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-55'
-
-const compactFieldClassName =
-  'w-full min-w-0 rounded-lg border border-white/10 bg-slate-950/75 px-2.5 py-2 text-xs text-white outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-55'
-
 const activityTypeOptions: AssessmentActivityType[] = [
   'participation',
   'practical_work',
@@ -95,6 +89,12 @@ const assessmentStatusOptions: Array<{
   }
 ]
 
+const inputClassName =
+  'w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-2.5 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45'
+
+const compactInputClassName =
+  'w-full min-w-0 rounded border border-white/10 bg-slate-950 px-2 py-1.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45'
+
 function todayISO(): ISODate {
   const date = new Date()
 
@@ -105,74 +105,165 @@ function todayISO(): ISODate {
   ].join('-')
 }
 
-function addDays(value: ISODate, amount: number): ISODate {
-  const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
+function addDays(
+  value: ISODate,
+  amount: number
+): ISODate {
+  const [
+    year,
+    month,
+    day
+  ] = value
+    .split('-')
+    .map(Number)
 
-  date.setUTCDate(date.getUTCDate() + amount)
+  const date = new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
+  )
+
+  date.setUTCDate(
+    date.getUTCDate() +
+      amount
+  )
 
   return [
-    String(date.getUTCFullYear()).padStart(4, '0'),
-    String(date.getUTCMonth() + 1).padStart(2, '0'),
-    String(date.getUTCDate()).padStart(2, '0')
+    String(
+      date.getUTCFullYear()
+    ).padStart(
+      4,
+      '0'
+    ),
+    String(
+      date.getUTCMonth() + 1
+    ).padStart(
+      2,
+      '0'
+    ),
+    String(
+      date.getUTCDate()
+    ).padStart(
+      2,
+      '0'
+    )
   ].join('-')
 }
 
-function formatLongDate(value: ISODate) {
-  const [year, month, day] = value.split('-').map(Number)
+function formatLongDate(
+  value: ISODate
+) {
+  const [
+    year,
+    month,
+    day
+  ] = value
+    .split('-')
+    .map(Number)
 
-  return new Intl.DateTimeFormat('pt-PT', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  }).format(new Date(year, month - 1, day))
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }
+  ).format(
+    new Date(
+      year,
+      month - 1,
+      day
+    )
+  )
 }
 
-function formatScore(value: Score | null) {
-  if (value === null) {
+function formatScore(
+  value: Score | null
+) {
+  if (
+    value === null
+  ) {
     return '—'
   }
 
-  return new Intl.NumberFormat('pt-PT', {
-    maximumFractionDigits: 2
-  }).format(value)
+  return new Intl.NumberFormat(
+    'pt-PT',
+    {
+      maximumFractionDigits: 2
+    }
+  ).format(
+    value
+  )
 }
 
-function formatPercent(value: number | null) {
-  if (value === null) {
+function formatPercent(
+  value: number | null
+) {
+  if (
+    value === null
+  ) {
     return '—'
   }
 
-  return `${new Intl.NumberFormat('pt-PT', {
-    maximumFractionDigits: 1
-  }).format(value)}%`
+  return `${new Intl.NumberFormat(
+    'pt-PT',
+    {
+      maximumFractionDigits: 1
+    }
+  ).format(value)}%`
 }
 
-function getModuleLabel(code: string, name: string) {
-  return code.trim() ? `${code.trim()} · ${name}` : name
+function getModuleLabel(
+  code: string,
+  name: string
+) {
+  return code.trim()
+    ? `${code.trim()} — ${name}`
+    : name
 }
 
-function getSubjectLabel(shortName: string, name: string) {
-  return shortName.trim() || name
+function getSubjectLabel(
+  shortName: string,
+  name: string
+) {
+  return (
+    shortName.trim() ||
+    name
+  )
 }
 
-function lessonStatusLabel(status: LessonStatus) {
-  const labels: Record<LessonStatus, string> = {
+function lessonStatusLabel(
+  status: LessonStatus
+) {
+  const labels: Record<
+    LessonStatus,
+    string
+  > = {
     planned: 'Planeada',
     taught: 'Dada',
     cancelled: 'Cancelada'
   }
 
-  return labels[status]
+  return labels[
+    status
+  ]
 }
 
-function lessonStatusClasses(status: LessonStatus) {
-  if (status === 'taught') {
+function lessonStatusClasses(
+  status: LessonStatus
+) {
+  if (
+    status === 'taught'
+  ) {
     return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
   }
 
-  if (status === 'cancelled') {
+  if (
+    status === 'cancelled'
+  ) {
     return 'border-rose-300/25 bg-rose-300/10 text-rose-100'
   }
 
@@ -180,324 +271,753 @@ function lessonStatusClasses(status: LessonStatus) {
 }
 
 function buildLessonForm(
-  workspace: NonNullable<DailyDateWorkspace['selectedLesson']>
+  workspace:
+    NonNullable<
+      DailyDateWorkspace[
+        'selectedLesson'
+      ]
+    >
 ): LessonFormState {
-  const lesson = workspace.context.lessonRow.lesson
+  const lesson =
+    workspace
+      .context
+      .lessonRow
+      .lesson
 
   return {
-    status: lesson.status,
-    startTime: lesson.startTime,
-    endTime: lesson.endTime,
-    periodCount: String(lesson.periodCount),
-    countTowardProgress: lesson.countTowardProgress,
-    plannedActivity: lesson.plannedActivity,
-    summary: lesson.summary,
-    summarySource: lesson.summarySource,
-    planificationItemIds: [...lesson.planificationItemIds],
-    notes: lesson.notes,
-    giaeStatus: lesson.giaeStatus
+    status:
+      lesson.status,
+
+    startTime:
+      lesson.startTime,
+
+    endTime:
+      lesson.endTime,
+
+    periodCount:
+      String(
+        lesson.periodCount
+      ),
+
+    countTowardProgress:
+      lesson.countTowardProgress,
+
+    plannedActivity:
+      lesson.plannedActivity,
+
+    summary:
+      lesson.summary,
+
+    summarySource:
+      lesson.summarySource,
+
+    planificationItemIds: [
+      ...lesson.planificationItemIds
+    ],
+
+    notes:
+      lesson.notes,
+
+    giaeStatus:
+      lesson.giaeStatus
   }
 }
 
 function buildAssessmentForm(
-  workspace: NonNullable<DailyDateWorkspace['selectedLesson']>
+  workspace:
+    NonNullable<
+      DailyDateWorkspace[
+        'selectedLesson'
+      ]
+    >
 ): AssessmentFormState {
-  if (workspace.selectedAssessment) {
+  if (
+    workspace.selectedAssessment
+  ) {
     return {
-      choice: workspace.selectedAssessment.id,
-      criterionId: workspace.selectedAssessment.criterionId,
-      title: workspace.selectedAssessment.title,
-      activityType: workspace.selectedAssessment.activityType,
-      description: workspace.selectedAssessment.description
+      choice:
+        workspace
+          .selectedAssessment
+          .id,
+
+      criterionId:
+        workspace
+          .selectedAssessment
+          .criterionId,
+
+      title:
+        workspace
+          .selectedAssessment
+          .title,
+
+      activityType:
+        workspace
+          .selectedAssessment
+          .activityType,
+
+      description:
+        workspace
+          .selectedAssessment
+          .description
     }
   }
 
   return {
-    choice: 'none',
-    criterionId: workspace.assessmentWorkspace.criteria[0]?.id ?? '',
-    title: '',
-    activityType: 'practical_work',
-    description: ''
+    choice:
+      'none',
+
+    criterionId:
+      workspace
+        .assessmentWorkspace
+        .criteria[0]
+        ?.id ??
+      '',
+
+    title:
+      '',
+
+    activityType:
+      'practical_work',
+
+    description:
+      ''
   }
 }
 
-function buildStudentRows(rows: DailyStudentRow[]): StudentEditorRow[] {
-  return rows.map(row => ({
-    ...row,
-    assessmentScoreText:
-      row.assessmentStatus === 'evaluated' &&
-      row.assessmentScore !== null
-        ? String(row.assessmentScore)
-        : ''
-  }))
+function buildStudentRows(
+  rows: DailyStudentRow[]
+): StudentEditorRow[] {
+  return rows.map(
+    (
+      row
+    ) => ({
+      ...row,
+
+      assessmentScoreText:
+        row.assessmentStatus ===
+          'evaluated' &&
+        row.assessmentScore !==
+          null
+          ? String(
+              row.assessmentScore
+            )
+          : ''
+    })
+  )
 }
 
 export default function DailyWorkspaceView({
   academicYearId,
   onSaved
 }: DailyWorkspaceViewProps) {
-  const [date, setDate] = useState<ISODate>(todayISO)
-  const [workspace, setWorkspace] =
-    useState<DailyDateWorkspace | null>(null)
-  const [lessonForm, setLessonForm] =
-    useState<LessonFormState | null>(null)
-  const [assessmentForm, setAssessmentForm] =
-    useState<AssessmentFormState | null>(null)
-  const [students, setStudents] = useState<StudentEditorRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [
+    date,
+    setDate
+  ] =
+    useState<ISODate>(
+      todayISO
+    )
 
-  const hydrate = useCallback((nextWorkspace: DailyDateWorkspace) => {
-    setWorkspace(nextWorkspace)
+  const [
+    workspace,
+    setWorkspace
+  ] =
+    useState<DailyDateWorkspace | null>(
+      null
+    )
 
-    if (!nextWorkspace.selectedLesson) {
-      setLessonForm(null)
-      setAssessmentForm(null)
-      setStudents([])
-      return
-    }
+  const [
+    lessonForm,
+    setLessonForm
+  ] =
+    useState<LessonFormState | null>(
+      null
+    )
 
-    setLessonForm(buildLessonForm(nextWorkspace.selectedLesson))
-    setAssessmentForm(buildAssessmentForm(nextWorkspace.selectedLesson))
-    setStudents(buildStudentRows(nextWorkspace.selectedLesson.students))
-  }, [])
+  const [
+    assessmentForm,
+    setAssessmentForm
+  ] =
+    useState<AssessmentFormState | null>(
+      null
+    )
 
-  const loadDate = useCallback(
-    async (
-      nextDate: ISODate,
-      requestedLessonId?: EntityId | null,
-      requestedAssessmentId?: EntityId | null
-    ) => {
-      setLoading(true)
-      setError('')
-      setSuccess('')
+  const [
+    students,
+    setStudents
+  ] =
+    useState<StudentEditorRow[]>(
+      []
+    )
 
-      try {
-        const nextWorkspace =
-          await dailyWorkspaceRepository.getDateWorkspace(
-            academicYearId,
-            nextDate,
-            requestedLessonId,
-            requestedAssessmentId
+  const [
+    loading,
+    setLoading
+  ] =
+    useState(true)
+
+  const [
+    saving,
+    setSaving
+  ] =
+    useState(false)
+
+  const [
+    error,
+    setError
+  ] =
+    useState('')
+
+  const [
+    success,
+    setSuccess
+  ] =
+    useState('')
+
+  const hydrate =
+    useCallback(
+      (
+        nextWorkspace:
+          DailyDateWorkspace
+      ) => {
+        setWorkspace(
+          nextWorkspace
+        )
+
+        if (
+          !nextWorkspace.selectedLesson
+        ) {
+          setLessonForm(
+            null
           )
 
-        hydrate(nextWorkspace)
-      } catch (loadError) {
-        setError(dailyWorkspaceRepository.describeError(loadError))
-      } finally {
-        setLoading(false)
-      }
+          setAssessmentForm(
+            null
+          )
+
+          setStudents(
+            []
+          )
+
+          return
+        }
+
+        setLessonForm(
+          buildLessonForm(
+            nextWorkspace.selectedLesson
+          )
+        )
+
+        setAssessmentForm(
+          buildAssessmentForm(
+            nextWorkspace.selectedLesson
+          )
+        )
+
+        setStudents(
+          buildStudentRows(
+            nextWorkspace
+              .selectedLesson
+              .students
+          )
+        )
+      },
+      []
+    )
+
+  const loadDate =
+    useCallback(
+      async (
+        nextDate: ISODate,
+        requestedLessonId?:
+          EntityId |
+          null,
+        requestedAssessmentId?:
+          EntityId |
+          null
+      ) => {
+        setLoading(
+          true
+        )
+
+        setError(
+          ''
+        )
+
+        setSuccess(
+          ''
+        )
+
+        try {
+          const nextWorkspace =
+            await dailyWorkspaceRepository.getDateWorkspace(
+              academicYearId,
+              nextDate,
+              requestedLessonId,
+              requestedAssessmentId
+            )
+
+          hydrate(
+            nextWorkspace
+          )
+        } catch (
+          loadError
+        ) {
+          setError(
+            dailyWorkspaceRepository.describeError(
+              loadError
+            )
+          )
+        } finally {
+          setLoading(
+            false
+          )
+        }
+      },
+      [
+        academicYearId,
+        hydrate
+      ]
+    )
+
+  useEffect(
+    () => {
+      void loadDate(
+        date
+      )
     },
-    [academicYearId, hydrate]
+    [
+      date,
+      loadDate
+    ]
   )
 
-  useEffect(() => {
-    void loadDate(date)
-  }, [date, loadDate])
+  const selectedLesson =
+    workspace
+      ?.selectedLesson ??
+    null
 
-  const selectedLesson = workspace?.selectedLesson ?? null
-  const lessonRow = selectedLesson?.context.lessonRow ?? null
-  const assessmentWorkspace = selectedLesson?.assessmentWorkspace ?? null
+  const lessonRow =
+    selectedLesson
+      ?.context
+      .lessonRow ??
+    null
+
+  const assessmentWorkspace =
+    selectedLesson
+      ?.assessmentWorkspace ??
+    null
 
   const assessmentEnabled =
-    assessmentForm !== null && assessmentForm.choice !== 'none'
+    assessmentForm !==
+      null &&
+    assessmentForm.choice !==
+      'none'
 
   const selectedAssessmentId =
     assessmentForm &&
-    assessmentForm.choice !== 'none' &&
-    assessmentForm.choice !== 'new'
+    assessmentForm.choice !==
+      'none' &&
+    assessmentForm.choice !==
+      'new'
       ? assessmentForm.choice
       : null
 
-  const presentCount = useMemo(
-    () => students.filter(row => row.attendanceStatus === 'present').length,
-    [students]
-  )
+  const presentCount =
+    useMemo(
+      () =>
+        students.filter(
+          (
+            row
+          ) =>
+            row.attendanceStatus ===
+            'present'
+        ).length,
+      [
+        students
+      ]
+    )
 
-  const absentCount = students.length - presentCount
+  const absentCount =
+    students.length -
+    presentCount
 
-  function updateLessonForm<Key extends keyof LessonFormState>(
+  function updateLessonForm<
+    Key extends keyof LessonFormState
+  >(
     key: Key,
-    value: LessonFormState[Key]
+    value:
+      LessonFormState[Key]
   ) {
-    setLessonForm(current =>
-      current
-        ? {
-            ...current,
-            [key]: value
-          }
-        : current
+    setLessonForm(
+      (
+        current
+      ) =>
+        current
+          ? {
+              ...current,
+              [key]: value
+            }
+          : current
     )
   }
 
   function updateStudent(
     studentId: EntityId,
-    changes: Partial<StudentEditorRow>
+    changes:
+      Partial<StudentEditorRow>
   ) {
-    setStudents(current =>
-      current.map(row =>
-        row.student.id === studentId
-          ? {
-              ...row,
-              ...changes
-            }
-          : row
-      )
+    setStudents(
+      (
+        current
+      ) =>
+        current.map(
+          (
+            row
+          ) =>
+            row.student.id ===
+            studentId
+              ? {
+                  ...row,
+                  ...changes
+                }
+              : row
+        )
     )
   }
 
-  async function selectLesson(lessonId: EntityId) {
-    if (loading || saving || workspace?.selectedLessonId === lessonId) {
+  async function selectLesson(
+    lessonId: EntityId
+  ) {
+    if (
+      loading ||
+      saving ||
+      workspace
+        ?.selectedLessonId ===
+        lessonId
+    ) {
       return
     }
 
-    await loadDate(date, lessonId)
+    await loadDate(
+      date,
+      lessonId
+    )
   }
 
-  async function changeAssessment(choice: string) {
-    if (!selectedLesson || !assessmentWorkspace || saving) {
+  async function changeAssessment(
+    choice: string
+  ) {
+    if (
+      !selectedLesson ||
+      !assessmentWorkspace ||
+      saving
+    ) {
       return
     }
 
-    if (choice === 'none') {
+    if (
+      choice === 'none'
+    ) {
       setAssessmentForm({
-        choice: 'none',
-        criterionId: assessmentWorkspace.criteria[0]?.id ?? '',
-        title: '',
-        activityType: 'practical_work',
-        description: ''
+        choice:
+          'none',
+
+        criterionId:
+          assessmentWorkspace
+            .criteria[0]
+            ?.id ??
+          '',
+
+        title:
+          '',
+
+        activityType:
+          'practical_work',
+
+        description:
+          ''
       })
 
-      setStudents(current =>
-        current.map(row => ({
-          ...row,
-          assessmentStatus: 'not_evaluated',
-          assessmentScore: null,
-          assessmentScoreText: '',
-          assessmentNote: ''
-        }))
+      setStudents(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              row
+            ) => ({
+              ...row,
+
+              assessmentStatus:
+                'not_evaluated',
+
+              assessmentScore:
+                null,
+
+              assessmentScoreText:
+                '',
+
+              assessmentNote:
+                ''
+            })
+          )
       )
+
       return
     }
 
-    if (choice === 'new') {
+    if (
+      choice === 'new'
+    ) {
       setAssessmentForm({
-        choice: 'new',
-        criterionId: assessmentWorkspace.criteria[0]?.id ?? '',
-        title: '',
-        activityType: 'practical_work',
-        description: ''
+        choice:
+          'new',
+
+        criterionId:
+          assessmentWorkspace
+            .criteria[0]
+            ?.id ??
+          '',
+
+        title:
+          '',
+
+        activityType:
+          'practical_work',
+
+        description:
+          ''
       })
 
-      setStudents(current =>
-        current.map(row => ({
-          ...row,
-          assessmentStatus: 'not_evaluated',
-          assessmentScore: null,
-          assessmentScoreText: '',
-          assessmentNote: ''
-        }))
+      setStudents(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              row
+            ) => ({
+              ...row,
+
+              assessmentStatus:
+                'not_evaluated',
+
+              assessmentScore:
+                null,
+
+              assessmentScoreText:
+                '',
+
+              assessmentNote:
+                ''
+            })
+          )
       )
+
       return
     }
 
-    setLoading(true)
-    setError('')
-    setSuccess('')
+    setLoading(
+      true
+    )
+
+    setError(
+      ''
+    )
+
+    setSuccess(
+      ''
+    )
 
     try {
       const nextSelectedLesson =
         await dailyWorkspaceRepository.getLessonWorkspace(
           academicYearId,
-          selectedLesson.context.lessonRow.lesson.id,
+          selectedLesson
+            .context
+            .lessonRow
+            .lesson
+            .id,
           choice
         )
 
-      setWorkspace(current =>
-        current
-          ? {
-              ...current,
-              selectedLesson: nextSelectedLesson
-            }
-          : current
+      setWorkspace(
+        (
+          current
+        ) =>
+          current
+            ? {
+                ...current,
+
+                selectedLesson:
+                  nextSelectedLesson
+              }
+            : current
       )
 
-      setAssessmentForm(buildAssessmentForm(nextSelectedLesson))
-
-      setStudents(current => {
-        const currentAttendanceByStudent = new Map(
-          current.map(row => [
-            row.student.id,
-            {
-              attendanceStatus: row.attendanceStatus,
-              attendanceCode: row.attendanceCode,
-              attendanceNote: row.attendanceNote
-            }
-          ])
+      setAssessmentForm(
+        buildAssessmentForm(
+          nextSelectedLesson
         )
+      )
 
-        return buildStudentRows(nextSelectedLesson.students).map(row => ({
-          ...row,
-          ...(currentAttendanceByStudent.get(row.student.id) ?? {})
-        }))
-      })
-    } catch (loadError) {
-      setError(dailyWorkspaceRepository.describeError(loadError))
+      setStudents(
+        (
+          current
+        ) => {
+          const currentAttendanceByStudent =
+            new Map(
+              current.map(
+                (
+                  row
+                ) => [
+                  row.student.id,
+                  {
+                    attendanceStatus:
+                      row.attendanceStatus,
+
+                    attendanceCode:
+                      row.attendanceCode,
+
+                    attendanceNote:
+                      row.attendanceNote
+                  }
+                ]
+              )
+            )
+
+          return buildStudentRows(
+            nextSelectedLesson.students
+          ).map(
+            (
+              row
+            ) => ({
+              ...row,
+              ...(
+                currentAttendanceByStudent.get(
+                  row.student.id
+                ) ??
+                {}
+              )
+            })
+          )
+        }
+      )
+    } catch (
+      loadError
+    ) {
+      setError(
+        dailyWorkspaceRepository.describeError(
+          loadError
+        )
+      )
     } finally {
-      setLoading(false)
+      setLoading(
+        false
+      )
     }
   }
 
   function useNextPlanificationItem() {
-    if (!selectedLesson || !lessonForm) {
+    if (
+      !selectedLesson ||
+      !lessonForm
+    ) {
       return
     }
 
-    const item = selectedLesson.context.nextPlanificationItem
+    const item =
+      selectedLesson
+        .context
+        .nextPlanificationItem
 
-    if (!item) {
+    if (
+      !item
+    ) {
       return
     }
 
     setLessonForm({
       ...lessonForm,
-      plannedActivity: item.activity.trim() || item.content.trim(),
-      summary: item.suggestedSummary.trim() || item.content.trim(),
-      summarySource: 'planification',
-      planificationItemIds: [item.id]
+
+      plannedActivity:
+        item.activity.trim() ||
+        item.content.trim(),
+
+      summary:
+        item.suggestedSummary.trim() ||
+        item.content.trim(),
+
+      summarySource:
+        'planification',
+
+      planificationItemIds: [
+        item.id
+      ]
     })
   }
 
   function copyPreviousLesson() {
-    if (!selectedLesson || !lessonForm) {
+    if (
+      !selectedLesson ||
+      !lessonForm
+    ) {
       return
     }
 
-    const previous = selectedLesson.context.previousLessonTemplate
+    const previous =
+      selectedLesson
+        .context
+        .previousLessonTemplate
 
-    if (!previous) {
+    if (
+      !previous
+    ) {
       return
     }
 
     setLessonForm({
       ...lessonForm,
-      plannedActivity: previous.plannedActivity,
-      summary: previous.summary,
-      summarySource: 'manual',
-      planificationItemIds: [],
-      notes: previous.notes
+
+      plannedActivity:
+        previous.plannedActivity,
+
+      summary:
+        previous.summary,
+
+      summarySource:
+        'manual',
+
+      planificationItemIds:
+        [],
+
+      notes:
+        previous.notes
     })
   }
 
   function markAllPresent() {
-    setStudents(current =>
-      current.map(row => ({
-        ...row,
-        attendanceStatus: 'present',
-        attendanceCode: ''
-      }))
+    setStudents(
+      (
+        current
+      ) =>
+        current.map(
+          (
+            row
+          ) => ({
+            ...row,
+
+            attendanceStatus:
+              'present',
+
+            attendanceCode:
+              '',
+
+            attendanceNote:
+              ''
+          })
+        )
     )
   }
 
@@ -511,59 +1031,133 @@ export default function DailyWorkspaceView({
       return
     }
 
-    const periodCount = Number(lessonForm.periodCount)
+    const periodCount =
+      Number(
+        lessonForm.periodCount
+      )
 
-    setSaving(true)
-    setError('')
-    setSuccess('')
+    setSaving(
+      true
+    )
+
+    setError(
+      ''
+    )
+
+    setSuccess(
+      ''
+    )
 
     try {
-      const result = await dailyWorkspaceRepository.saveLesson({
-        lessonId: selectedLesson.context.lessonRow.lesson.id,
-        status: lessonForm.status,
-        startTime: lessonForm.startTime,
-        endTime: lessonForm.endTime,
-        periodCount,
-        countTowardProgress: lessonForm.countTowardProgress,
-        plannedActivity: lessonForm.plannedActivity,
-        summary: lessonForm.summary,
-        summarySource: lessonForm.summarySource,
-        planificationItemIds: lessonForm.planificationItemIds,
-        notes: lessonForm.notes,
-        giaeStatus: lessonForm.giaeStatus,
-        students: students.map(row => {
-          const normalizedScore = Number(
-            row.assessmentScoreText.replace(',', '.')
-          )
+      const result =
+        await dailyWorkspaceRepository.saveLesson({
+          lessonId:
+            selectedLesson
+              .context
+              .lessonRow
+              .lesson
+              .id,
 
-          return {
-            studentId: row.student.id,
-            attendanceStatus: row.attendanceStatus,
-            attendanceCode: row.attendanceCode,
-            attendanceNote: row.attendanceNote,
-            assessmentStatus: row.assessmentStatus,
-            assessmentScore:
-              row.assessmentStatus === 'evaluated' &&
-              row.assessmentScoreText.trim()
-                ? normalizedScore
-                : null,
-            assessmentNote: row.assessmentNote
+          status:
+            lessonForm.status,
+
+          startTime:
+            lessonForm.startTime,
+
+          endTime:
+            lessonForm.endTime,
+
+          periodCount,
+
+          countTowardProgress:
+            lessonForm.countTowardProgress,
+
+          plannedActivity:
+            lessonForm.plannedActivity,
+
+          summary:
+            lessonForm.summary,
+
+          summarySource:
+            lessonForm.summarySource,
+
+          planificationItemIds:
+            lessonForm.planificationItemIds,
+
+          notes:
+            lessonForm.notes,
+
+          giaeStatus:
+            lessonForm.giaeStatus,
+
+          students:
+            students.map(
+              (
+                row
+              ) => {
+                const normalizedScore =
+                  Number(
+                    row.assessmentScoreText.replace(
+                      ',',
+                      '.'
+                    )
+                  )
+
+                return {
+                  studentId:
+                    row.student.id,
+
+                  attendanceStatus:
+                    row.attendanceStatus,
+
+                  attendanceCode:
+                    row.attendanceCode,
+
+                  attendanceNote:
+                    row.attendanceNote,
+
+                  assessmentStatus:
+                    row.assessmentStatus,
+
+                  assessmentScore:
+                    row.assessmentStatus ===
+                      'evaluated' &&
+                    row.assessmentScoreText.trim()
+                      ? normalizedScore
+                      : null,
+
+                  assessmentNote:
+                    row.assessmentNote
+                }
+              }
+            ),
+
+          assessment: {
+            mode:
+              assessmentForm.choice ===
+              'none'
+                ? 'none'
+                : assessmentForm.choice ===
+                    'new'
+                  ? 'new'
+                  : 'existing',
+
+            assessmentId:
+              selectedAssessmentId,
+
+            criterionId:
+              assessmentForm.criterionId,
+
+            title:
+              assessmentForm.title,
+
+            activityType:
+              assessmentForm.activityType,
+
+            description:
+              assessmentForm.description
           }
-        }),
-        assessment: {
-          mode:
-            assessmentForm.choice === 'none'
-              ? 'none'
-              : assessmentForm.choice === 'new'
-                ? 'new'
-                : 'existing',
-          assessmentId: selectedAssessmentId,
-          criterionId: assessmentForm.criterionId,
-          title: assessmentForm.title,
-          activityType: assessmentForm.activityType,
-          description: assessmentForm.description
-        }
-      })
+        })
 
       await loadDate(
         date,
@@ -571,737 +1165,1418 @@ export default function DailyWorkspaceView({
         result.assessmentId
       )
 
-      setSuccess('Aula, sumário, faltas e avaliações guardados.')
+      setSuccess(
+        'Aula, sumário, faltas e avaliações guardados.'
+      )
 
-      if (onSaved) {
+      if (
+        onSaved
+      ) {
         await onSaved()
       }
-    } catch (saveError) {
-      setError(dailyWorkspaceRepository.describeError(saveError))
+    } catch (
+      saveError
+    ) {
+      setError(
+        dailyWorkspaceRepository.describeError(
+          saveError
+        )
+      )
     } finally {
-      setSaving(false)
+      setSaving(
+        false
+      )
     }
   }
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-slate-950/85 shadow-2xl shadow-cyan-950/25">
-      <header className="border-b border-white/10 bg-gradient-to-r from-cyan-300/[0.08] via-slate-950 to-violet-300/[0.07] px-4 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-              Registo diário
-            </p>
-            <h1 className="mt-1 text-2xl font-black capitalize text-white sm:text-3xl">
-              {formatLongDate(date)}
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDate(current => addDays(current, -1))}
-              disabled={loading || saving}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-black text-white transition hover:bg-white/[0.08] disabled:opacity-50"
-              aria-label="Dia anterior"
-            >
-              ‹
-            </button>
-
-            <input
-              type="date"
-              value={date}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                setDate(event.target.value)
-              }
-              disabled={loading || saving}
-              className={`${fieldClassName} w-auto`}
-            />
-
-            <button
-              type="button"
-              onClick={() => setDate(current => addDays(current, 1))}
-              disabled={loading || saving}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-black text-white transition hover:bg-white/[0.08] disabled:opacity-50"
-              aria-label="Dia seguinte"
-            >
-              ›
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDate(todayISO())}
-              disabled={loading || saving || date === todayISO()}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-45"
-            >
-              Hoje
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void saveAll()}
-              disabled={
-                loading ||
-                saving ||
-                !selectedLesson ||
-                !lessonForm
-              }
-              className="rounded-xl border border-cyan-200/30 bg-cyan-300 px-5 py-2.5 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {saving ? 'A guardar...' : 'Guardar tudo'}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="border-b border-white/10 px-4 py-3 sm:px-6">
-        {loading && !workspace ? (
-          <p className="py-3 text-sm text-slate-400">
-            A carregar as aulas do dia...
-          </p>
-        ) : workspace && workspace.lessons.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {workspace.lessons.map(row => {
-              const selected =
-                workspace.selectedLessonId === row.lesson.id
-
-              return (
-                <button
-                  key={row.lesson.id}
-                  type="button"
-                  onClick={() => void selectLesson(row.lesson.id)}
-                  disabled={loading || saving}
-                  className={`min-w-[15rem] shrink-0 rounded-xl border px-4 py-3 text-left transition disabled:opacity-50 ${
-                    selected
-                      ? 'border-cyan-300/40 bg-cyan-300/10 shadow-lg shadow-cyan-950/20'
-                      : 'border-white/10 bg-white/[0.025] hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-black text-white">
-                      {row.lesson.startTime}–{row.lesson.endTime}
-                    </span>
-                    <span
-                      className={`rounded-full border px-2 py-1 text-[0.62rem] font-black uppercase ${lessonStatusClasses(
-                        row.lesson.status
-                      )}`}
-                    >
-                      {lessonStatusLabel(row.lesson.status)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm font-black text-cyan-100">
-                    {row.group.name} ·{' '}
-                    {getSubjectLabel(
-                      row.subject.shortName,
-                      row.subject.name
-                    )}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-slate-500">
-                    {getModuleLabel(row.module.code, row.module.name)}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-5 text-center">
-            <p className="font-black text-white">Sem aulas neste dia.</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Escolha outro dia ou crie a aula no Calendário.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {selectedLesson && lessonRow && lessonForm && assessmentForm ? (
-        <div className="p-4 sm:p-6">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+    <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-2 py-3 text-white sm:px-4 lg:px-6">
+      <div className="mx-auto max-w-[1800px] overflow-hidden border border-white/10 bg-slate-900/55 shadow-2xl shadow-black/25">
+        <header className="border-b border-white/10 bg-slate-900 px-3 py-3 sm:px-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100">
-                  {lessonRow.group.name}
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-slate-200">
-                  {getSubjectLabel(
-                    lessonRow.subject.shortName,
-                    lessonRow.subject.name
-                  )}
-                </span>
-                <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1.5 text-xs font-black text-violet-100">
-                  {getModuleLabel(
-                    lessonRow.module.code,
-                    lessonRow.module.name
-                  )}
-                </span>
-              </div>
+              <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-300">
+                Aulas do dia
+              </p>
+
+              <h1 className="mt-1 truncate text-lg font-black capitalize text-white sm:text-xl">
+                {formatLongDate(
+                  date
+                )}
+              </h1>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <label>
-                <span className="mb-1 block text-[0.62rem] font-black uppercase text-slate-500">
-                  Início
-                </span>
-                <input
-                  type="time"
-                  value={lessonForm.startTime}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    updateLessonForm('startTime', event.target.value)
-                  }
-                  disabled={saving}
-                  className={compactFieldClassName}
-                />
-              </label>
-
-              <label>
-                <span className="mb-1 block text-[0.62rem] font-black uppercase text-slate-500">
-                  Fim
-                </span>
-                <input
-                  type="time"
-                  value={lessonForm.endTime}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    updateLessonForm('endTime', event.target.value)
-                  }
-                  disabled={saving}
-                  className={compactFieldClassName}
-                />
-              </label>
-
-              <label>
-                <span className="mb-1 block text-[0.62rem] font-black uppercase text-slate-500">
-                  Tempos
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={lessonForm.periodCount}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    updateLessonForm('periodCount', event.target.value)
-                  }
-                  disabled={saving}
-                  className={compactFieldClassName}
-                />
-              </label>
-
-              <label>
-                <span className="mb-1 block text-[0.62rem] font-black uppercase text-slate-500">
-                  Estado
-                </span>
-                <select
-                  value={lessonForm.status}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    updateLessonForm(
-                      'status',
-                      event.target.value as LessonStatus
-                    )
-                  }
-                  disabled={saving}
-                  className={compactFieldClassName}
-                >
-                  <option value="planned">Planeada</option>
-                  <option value="taught">Dada</option>
-                  <option value="cancelled">Cancelada</option>
-                </select>
-              </label>
-
-              <label className="flex items-end">
-                <span className="flex min-h-[2.2rem] w-full items-center gap-2 rounded-lg border border-white/10 bg-slate-950/75 px-2.5 py-2 text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={lessonForm.countTowardProgress}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      updateLessonForm(
-                        'countTowardProgress',
-                        event.target.checked
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setDate(
+                    current =>
+                      addDays(
+                        current,
+                        -1
                       )
-                    }
-                    disabled={saving || lessonForm.status === 'cancelled'}
-                  />
-                  Contabilizar
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
-            <label>
-              <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-cyan-200">
-                Sumário
-              </span>
-              <textarea
-                value={lessonForm.summary}
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                  setLessonForm(current =>
-                    current
-                      ? {
-                          ...current,
-                          summary: event.target.value,
-                          summarySource: 'manual',
-                          planificationItemIds: []
-                        }
-                      : current
-                  )
-                }
-                disabled={saving}
-                rows={4}
-                placeholder="Escreva o sumário da aula."
-                className={`${fieldClassName} resize-y text-base leading-7`}
-              />
-            </label>
-
-            <div className="grid gap-3">
-              <label>
-                <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                  Atividade prevista
-                </span>
-                <textarea
-                  value={lessonForm.plannedActivity}
-                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                    updateLessonForm(
-                      'plannedActivity',
-                      event.target.value
-                    )
-                  }
-                  disabled={saving}
-                  rows={2}
-                  className={`${fieldClassName} resize-y`}
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                  Nota privada
-                </span>
-                <input
-                  type="text"
-                  value={lessonForm.notes}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    updateLessonForm('notes', event.target.value)
-                  }
-                  disabled={saving}
-                  className={fieldClassName}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={useNextPlanificationItem}
-              disabled={
-                saving || !selectedLesson.context.nextPlanificationItem
-              }
-              className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 disabled:opacity-40"
-            >
-              Usar próximo da planificação
-            </button>
-
-            <button
-              type="button"
-              onClick={copyPreviousLesson}
-              disabled={
-                saving || !selectedLesson.context.previousLessonTemplate
-              }
-              className="rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-4 py-2 text-xs font-black text-violet-100 transition hover:bg-violet-300/10 disabled:opacity-40"
-            >
-              Copiar aula anterior
-            </button>
-
-            <label className="ml-auto flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold text-slate-300">
-              <input
-                type="checkbox"
-                checked={lessonForm.giaeStatus === 'submitted'}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  updateLessonForm(
-                    'giaeStatus',
-                    event.target.checked ? 'submitted' : 'pending'
                   )
                 }
                 disabled={
-                  saving ||
-                  lessonForm.status !== 'taught' ||
-                  !lessonForm.summary.trim()
+                  loading ||
+                  saving
                 }
+                className="h-9 rounded-md border border-white/10 bg-slate-950 px-3 text-sm font-black text-white transition hover:bg-white/5 disabled:opacity-40"
+                aria-label="Dia anterior"
+              >
+                ‹
+              </button>
+
+              <input
+                type="date"
+                value={
+                  date
+                }
+                onChange={(
+                  event:
+                    ChangeEvent<HTMLInputElement>
+                ) =>
+                  setDate(
+                    event.target.value
+                  )
+                }
+                disabled={
+                  loading ||
+                  saving
+                }
+                className={`${inputClassName} h-9 w-auto py-1.5`}
               />
-              GIAE submetido
-            </label>
-          </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:p-4">
-            <div className="grid gap-3 xl:grid-cols-[minmax(14rem,0.7fr)_minmax(15rem,1fr)_minmax(12rem,0.8fr)_minmax(12rem,0.8fr)]">
-              <label>
-                <span className="mb-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-amber-200">
-                  Avaliação desta aula
-                </span>
-                <select
-                  value={assessmentForm.choice}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    void changeAssessment(event.target.value)
-                  }
-                  disabled={saving || loading}
-                  className={compactFieldClassName}
-                >
-                  <option value="none">Sem avaliação nesta aula</option>
-                  {assessmentWorkspace?.assessments.map(item => (
-                    <option
-                      key={item.assessment.id}
-                      value={item.assessment.id}
-                    >
-                      {item.assessment.title}
-                    </option>
-                  ))}
-                  <option value="new">+ Nova avaliação</option>
-                </select>
-              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setDate(
+                    current =>
+                      addDays(
+                        current,
+                        1
+                      )
+                  )
+                }
+                disabled={
+                  loading ||
+                  saving
+                }
+                className="h-9 rounded-md border border-white/10 bg-slate-950 px-3 text-sm font-black text-white transition hover:bg-white/5 disabled:opacity-40"
+                aria-label="Dia seguinte"
+              >
+                ›
+              </button>
 
-              <label>
-                <span className="mb-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
-                  Atividade
-                </span>
-                <input
-                  type="text"
-                  value={assessmentForm.title}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setAssessmentForm(current =>
-                      current
-                        ? {
-                            ...current,
-                            title: event.target.value
-                          }
-                        : current
-                    )
-                  }
-                  disabled={saving || !assessmentEnabled}
-                  placeholder="Ex.: Trabalho prático"
-                  className={compactFieldClassName}
-                />
-              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setDate(
+                    todayISO()
+                  )
+                }
+                disabled={
+                  loading ||
+                  saving ||
+                  date ===
+                    todayISO()
+                }
+                className="h-9 rounded-md border border-white/10 bg-slate-950 px-3 text-xs font-black text-slate-200 transition hover:bg-white/5 disabled:opacity-40"
+              >
+                Hoje
+              </button>
 
-              <label>
-                <span className="mb-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
-                  Critério
-                </span>
-                <select
-                  value={assessmentForm.criterionId}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    setAssessmentForm(current =>
-                      current
-                        ? {
-                            ...current,
-                            criterionId: event.target.value
-                          }
-                        : current
-                    )
-                  }
-                  disabled={saving || !assessmentEnabled}
-                  className={compactFieldClassName}
-                >
-                  {assessmentWorkspace?.criteria.map(criterion => (
-                    <option key={criterion.id} value={criterion.id}>
-                      {criterion.name} · {criterion.weightPercent}%
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  void loadDate(
+                    date,
+                    workspace
+                      ?.selectedLessonId
+                  )
+                }
+                disabled={
+                  loading ||
+                  saving
+                }
+                className="h-9 rounded-md border border-white/10 bg-slate-950 px-3 text-xs font-black text-slate-200 transition hover:bg-white/5 disabled:opacity-40"
+              >
+                Atualizar
+              </button>
 
-              <label>
-                <span className="mb-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
-                  Tipo
-                </span>
-                <select
-                  value={assessmentForm.activityType}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    setAssessmentForm(current =>
-                      current
-                        ? {
-                            ...current,
-                            activityType:
-                              event.target.value as AssessmentActivityType
-                          }
-                        : current
-                    )
-                  }
-                  disabled={saving || !assessmentEnabled}
-                  className={compactFieldClassName}
-                >
-                  {activityTypeOptions.map(activityType => (
-                    <option key={activityType} value={activityType}>
-                      {getAssessmentActivityTypeLabel(activityType)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  void saveAll()
+                }
+                disabled={
+                  loading ||
+                  saving ||
+                  !selectedLesson ||
+                  !lessonForm
+                }
+                className="h-9 rounded-md bg-cyan-300 px-4 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {saving
+                  ? 'A guardar…'
+                  : 'Guardar tudo'}
+              </button>
             </div>
           </div>
+        </header>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 font-black text-emerald-100">
-                {presentCount} presentes
-              </span>
-              <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1.5 font-black text-rose-100">
-                {absentCount} faltas
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={markAllPresent}
-              disabled={saving || students.length === 0}
-              className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-2 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/10 disabled:opacity-40"
-            >
-              Marcar todos presentes
-            </button>
-          </div>
-
-          <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
-            <table className="w-full min-w-[78rem] border-collapse text-left">
-              <thead className="bg-slate-900/90 text-[0.65rem] uppercase tracking-[0.1em] text-slate-500">
+        <section
+          aria-label="Aulas do dia"
+          className="border-b border-white/10"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] border-collapse text-left">
+              <thead className="bg-slate-950 text-[0.65rem] uppercase tracking-[0.1em] text-slate-500">
                 <tr>
-                  <th className="px-3 py-3 font-black">N.º</th>
-                  <th className="px-3 py-3 font-black">Aluno</th>
-                  <th className="px-3 py-3 font-black">Assiduidade</th>
-                  <th className="px-3 py-3 font-black">Avaliação</th>
-                  <th className="px-3 py-3 font-black">Nota</th>
-                  <th className="px-3 py-3 font-black">Observação</th>
-                  <th className="px-3 py-3 text-center font-black">
-                    Média
+                  <th className="w-32 border-r border-white/10 px-3 py-2 font-black">
+                    Hora
                   </th>
-                  <th className="px-3 py-3 text-center font-black">
-                    Faltas
+
+                  <th className="w-28 border-r border-white/10 px-3 py-2 font-black">
+                    Turma
+                  </th>
+
+                  <th className="w-40 border-r border-white/10 px-3 py-2 font-black">
+                    Disciplina
+                  </th>
+
+                  <th className="w-72 border-r border-white/10 px-3 py-2 font-black">
+                    UFCD / módulo
+                  </th>
+
+                  <th className="w-28 border-r border-white/10 px-3 py-2 font-black">
+                    Estado
+                  </th>
+
+                  <th className="px-3 py-2 font-black">
+                    Sumário
                   </th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-white/10">
-                {students.map(row => {
-                  const warningLevel = row.absenceSummary?.warningLevel
-                  const warning = warningLevel === 'warning'
-                  const recovery = warningLevel === 'recovery_required'
+                {workspace
+                  ?.lessons
+                  .map(
+                    (
+                      row
+                    ) => {
+                      const selected =
+                        workspace.selectedLessonId ===
+                        row.lesson.id
 
-                  return (
-                    <tr
-                      key={row.student.id}
-                      className={`align-middle ${
-                        recovery
-                          ? 'bg-rose-300/[0.045]'
-                          : warning
-                            ? 'bg-amber-300/[0.035]'
-                            : 'bg-white/[0.012]'
-                      }`}
-                    >
-                      <td className="px-3 py-2.5 text-center text-xs font-black text-slate-400">
-                        {row.student.number || '—'}
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <p className="text-sm font-black text-white">
-                          {row.student.name}
-                        </p>
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <div className="grid grid-cols-[minmax(7rem,1fr)_4rem] gap-2">
-                          <select
-                            value={row.attendanceStatus}
-                            onChange={(
-                              event: ChangeEvent<HTMLSelectElement>
-                            ) => {
-                              const attendanceStatus = event.target.value as
-                                | 'present'
-                                | 'absent'
-
-                              updateStudent(row.student.id, {
-                                attendanceStatus,
-                                attendanceCode:
-                                  attendanceStatus === 'absent'
-                                    ? row.attendanceCode || 'F'
-                                    : '',
-                                assessmentStatus:
-                                  attendanceStatus === 'absent' &&
-                                  row.assessmentStatus ===
-                                    'not_evaluated' &&
-                                  assessmentEnabled
-                                    ? 'absent'
-                                    : row.assessmentStatus
-                              })
-                            }}
-                            disabled={
-                              saving || lessonForm.status !== 'taught'
-                            }
-                            className={compactFieldClassName}
-                          >
-                            <option value="present">Presente</option>
-                            <option value="absent">Faltou</option>
-                          </select>
-
-                          <input
-                            type="text"
-                            value={row.attendanceCode}
-                            onChange={(
-                              event: ChangeEvent<HTMLInputElement>
-                            ) =>
-                              updateStudent(row.student.id, {
-                                attendanceCode: event.target.value
-                              })
-                            }
-                            disabled={
-                              saving ||
-                              lessonForm.status !== 'taught' ||
-                              row.attendanceStatus !== 'absent'
-                            }
-                            title="Código da falta"
-                            placeholder="F"
-                            className={compactFieldClassName}
-                          />
-                        </div>
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <select
-                          value={row.assessmentStatus}
-                          onChange={(
-                            event: ChangeEvent<HTMLSelectElement>
-                          ) => {
-                            const assessmentStatus =
-                              event.target.value as DailyAssessmentStatus
-
-                            updateStudent(row.student.id, {
-                              assessmentStatus,
-                              assessmentScore:
-                                assessmentStatus === 'evaluated'
-                                  ? row.assessmentScore
-                                  : null,
-                              assessmentScoreText:
-                                assessmentStatus === 'evaluated'
-                                  ? row.assessmentScoreText
-                                  : ''
-                            })
-                          }}
-                          disabled={
-                            saving ||
-                            lessonForm.status !== 'taught' ||
-                            !assessmentEnabled
+                      return (
+                        <tr
+                          key={
+                            row.lesson.id
                           }
-                          className={compactFieldClassName}
-                        >
-                          {assessmentStatusOptions.map(option => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                            >
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={row.assessmentScoreText}
-                          onChange={(
-                            event: ChangeEvent<HTMLInputElement>
-                          ) =>
-                            updateStudent(row.student.id, {
-                              assessmentScoreText: event.target.value
-                            })
+                          onClick={() =>
+                            void selectLesson(
+                              row.lesson.id
+                            )
                           }
-                          disabled={
-                            saving ||
-                            lessonForm.status !== 'taught' ||
-                            !assessmentEnabled ||
-                            row.assessmentStatus !== 'evaluated'
-                          }
-                          placeholder="0–20"
-                          className={compactFieldClassName}
-                        />
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <input
-                          type="text"
-                          value={row.assessmentNote}
-                          onChange={(
-                            event: ChangeEvent<HTMLInputElement>
-                          ) =>
-                            updateStudent(row.student.id, {
-                              assessmentNote: event.target.value
-                            })
-                          }
-                          disabled={saving || !assessmentEnabled}
-                          placeholder="Opcional"
-                          className={compactFieldClassName}
-                        />
-                      </td>
-
-                      <td className="px-3 py-2.5 text-center text-sm font-black text-cyan-100">
-                        {formatScore(row.provisionalAverage)}
-                      </td>
-
-                      <td className="px-3 py-2.5 text-center">
-                        <span
-                          className={`inline-flex min-w-[4.5rem] justify-center rounded-full border px-2.5 py-1.5 text-xs font-black ${
-                            recovery
-                              ? 'border-rose-300/25 bg-rose-300/10 text-rose-100'
-                              : warning
-                                ? 'border-amber-300/25 bg-amber-300/10 text-amber-100'
-                                : 'border-white/10 bg-white/[0.03] text-slate-400'
+                          className={`cursor-pointer transition ${
+                            selected
+                              ? 'bg-cyan-300/10'
+                              : 'bg-slate-900/20 hover:bg-white/[0.035]'
                           }`}
                         >
-                          {formatPercent(
-                            row.absenceSummary?.absencePercent ?? null
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                          <td className="border-r border-white/10 px-3 py-2 text-xs font-black text-white">
+                            {
+                              row.lesson
+                                .startTime
+                            }
+                            –
+                            {
+                              row.lesson
+                                .endTime
+                            }
+                          </td>
+
+                          <td className="border-r border-white/10 px-3 py-2 text-xs font-black text-cyan-100">
+                            {
+                              row.group
+                                .name
+                            }
+                          </td>
+
+                          <td className="border-r border-white/10 px-3 py-2 text-xs font-bold text-slate-200">
+                            {getSubjectLabel(
+                              row.subject
+                                .shortName,
+                              row.subject
+                                .name
+                            )}
+                          </td>
+
+                          <td className="border-r border-white/10 px-3 py-2 text-xs text-slate-300">
+                            {getModuleLabel(
+                              row.module
+                                .code,
+                              row.module
+                                .name
+                            )}
+                          </td>
+
+                          <td className="border-r border-white/10 px-3 py-2">
+                            <span
+                              className={`inline-flex rounded border px-2 py-1 text-[0.62rem] font-black uppercase ${lessonStatusClasses(
+                                row.lesson
+                                  .status
+                              )}`}
+                            >
+                              {lessonStatusLabel(
+                                row.lesson
+                                  .status
+                              )}
+                            </span>
+                          </td>
+
+                          <td className="max-w-xl px-3 py-2 text-xs leading-5 text-slate-300">
+                            <span className="line-clamp-2">
+                              {row.lesson
+                                .summary ||
+                                row.lesson
+                                  .plannedActivity ||
+                                'Sem sumário preenchido.'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    }
+                  )}
+
+                {!loading &&
+                (
+                  workspace
+                    ?.lessons
+                    .length ??
+                  0
+                ) ===
+                  0 ? (
+                  <tr>
+                    <td
+                      colSpan={
+                        6
+                      }
+                      className="px-4 py-8 text-center text-sm text-slate-500"
+                    >
+                      Não existem aulas neste dia. Pode criá-las na área de gestão/calendário.
+                    </td>
+                  </tr>
+                ) : null}
+
+                {loading &&
+                !workspace ? (
+                  <tr>
+                    <td
+                      colSpan={
+                        6
+                      }
+                      className="px-4 py-8 text-center text-sm text-slate-400"
+                    >
+                      A carregar as aulas do dia…
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
+        </section>
 
-          {students.length === 0 ? (
-            <div className="mt-3 rounded-xl border border-dashed border-white/10 px-4 py-5 text-center text-sm text-slate-500">
-              Esta turma ainda não possui alunos ativos.
-            </div>
-          ) : null}
+        {selectedLesson &&
+        lessonRow &&
+        lessonForm &&
+        assessmentForm ? (
+          <>
+            <section className="border-b border-white/10 bg-slate-900/80">
+              <div className="grid border-b border-white/10 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="min-w-0 border-b border-white/10 px-3 py-3 lg:border-b-0 lg:border-r">
+                  <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">
+                    Aula selecionada
+                  </p>
 
-          {assessmentEnabled &&
-          (assessmentWorkspace?.criteria.length ?? 0) === 0 ? (
-            <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">
-              Configure primeiro os critérios desta disciplina ou UFCD.
-            </div>
-          ) : null}
+                  <p className="mt-1 truncate text-sm font-black text-white sm:text-base">
+                    {
+                      lessonRow
+                        .group
+                        .name
+                    }{' '}
+                    ·{' '}
+                    {getSubjectLabel(
+                      lessonRow
+                        .subject
+                        .shortName,
+                      lessonRow
+                        .subject
+                        .name
+                    )}{' '}
+                    ·{' '}
+                    {getModuleLabel(
+                      lessonRow
+                        .module
+                        .code,
+                      lessonRow
+                        .module
+                        .name
+                    )}
+                  </p>
+                </div>
 
-          {error ? (
-            <div
-              role="alert"
-              className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.07] px-4 py-3 text-sm text-rose-100"
-            >
-              {error}
-            </div>
-          ) : null}
+                <div className="grid grid-cols-2 gap-2 px-3 py-3 sm:grid-cols-5">
+                  <label>
+                    <span className="mb-1 block text-[0.6rem] font-black uppercase text-slate-500">
+                      Início
+                    </span>
 
-          {success ? (
-            <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm font-bold text-emerald-100">
-              {success}
-            </div>
-          ) : null}
-        </div>
-      ) : loading ? (
-        <div className="px-6 py-12 text-center text-sm text-slate-400">
-          A preparar o registo diário...
-        </div>
-      ) : error ? (
-        <div className="px-6 py-8">
-          <div className="rounded-xl border border-rose-300/20 bg-rose-300/[0.07] px-4 py-3 text-sm text-rose-100">
-            {error}
+                    <input
+                      type="time"
+                      value={
+                        lessonForm.startTime
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLInputElement>
+                      ) =>
+                        updateLessonForm(
+                          'startTime',
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      className={
+                        compactInputClassName
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span className="mb-1 block text-[0.6rem] font-black uppercase text-slate-500">
+                      Fim
+                    </span>
+
+                    <input
+                      type="time"
+                      value={
+                        lessonForm.endTime
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLInputElement>
+                      ) =>
+                        updateLessonForm(
+                          'endTime',
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      className={
+                        compactInputClassName
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span className="mb-1 block text-[0.6rem] font-black uppercase text-slate-500">
+                      Tempos
+                    </span>
+
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={
+                        lessonForm.periodCount
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLInputElement>
+                      ) =>
+                        updateLessonForm(
+                          'periodCount',
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      className={
+                        compactInputClassName
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span className="mb-1 block text-[0.6rem] font-black uppercase text-slate-500">
+                      Estado
+                    </span>
+
+                    <select
+                      value={
+                        lessonForm.status
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLSelectElement>
+                      ) =>
+                        updateLessonForm(
+                          'status',
+                          event.target
+                            .value as LessonStatus
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      className={
+                        compactInputClassName
+                      }
+                    >
+                      <option value="planned">
+                        Planeada
+                      </option>
+
+                      <option value="taught">
+                        Dada
+                      </option>
+
+                      <option value="cancelled">
+                        Cancelada
+                      </option>
+                    </select>
+                  </label>
+
+                  <label className="flex items-end">
+                    <span className="flex min-h-8 w-full items-center gap-2 rounded border border-white/10 bg-slate-950 px-2 text-[0.68rem] font-bold text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={
+                          lessonForm.countTowardProgress
+                        }
+                        onChange={(
+                          event:
+                            ChangeEvent<HTMLInputElement>
+                        ) =>
+                          updateLessonForm(
+                            'countTowardProgress',
+                            event.target
+                              .checked
+                          )
+                        }
+                        disabled={
+                          saving ||
+                          lessonForm.status ===
+                            'cancelled'
+                        }
+                      />
+
+                      Contabilizar
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+                <label className="border-b border-white/10 p-3 xl:border-b-0 xl:border-r">
+                  <span className="mb-1.5 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-cyan-300">
+                    Sumário
+                  </span>
+
+                  <textarea
+                    value={
+                      lessonForm.summary
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLTextAreaElement>
+                    ) =>
+                      setLessonForm(
+                        (
+                          current
+                        ) =>
+                          current
+                            ? {
+                                ...current,
+
+                                summary:
+                                  event.target
+                                    .value,
+
+                                summarySource:
+                                  'manual',
+
+                                planificationItemIds:
+                                  []
+                              }
+                            : current
+                      )
+                    }
+                    disabled={
+                      saving
+                    }
+                    rows={
+                      4
+                    }
+                    placeholder="Escreva o sumário da aula."
+                    className={`${inputClassName} resize-y text-sm leading-6`}
+                  />
+                </label>
+
+                <div className="grid sm:grid-cols-2 xl:grid-cols-1">
+                  <label className="border-b border-white/10 p-3 sm:border-r xl:border-r-0">
+                    <span className="mb-1.5 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
+                      Atividade prevista
+                    </span>
+
+                    <textarea
+                      value={
+                        lessonForm.plannedActivity
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLTextAreaElement>
+                      ) =>
+                        updateLessonForm(
+                          'plannedActivity',
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      rows={
+                        2
+                      }
+                      className={`${inputClassName} resize-y`}
+                    />
+                  </label>
+
+                  <label className="p-3">
+                    <span className="mb-1.5 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
+                      Nota privada
+                    </span>
+
+                    <textarea
+                      value={
+                        lessonForm.notes
+                      }
+                      onChange={(
+                        event:
+                          ChangeEvent<HTMLTextAreaElement>
+                      ) =>
+                        updateLessonForm(
+                          'notes',
+                          event.target
+                            .value
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                      rows={
+                        2
+                      }
+                      className={`${inputClassName} resize-y`}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-3 py-2.5">
+                <button
+                  type="button"
+                  onClick={
+                    useNextPlanificationItem
+                  }
+                  disabled={
+                    saving ||
+                    !selectedLesson
+                      .context
+                      .nextPlanificationItem
+                  }
+                  className="rounded border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 disabled:opacity-40"
+                >
+                  Usar próximo da planificação
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    copyPreviousLesson
+                  }
+                  disabled={
+                    saving ||
+                    !selectedLesson
+                      .context
+                      .previousLessonTemplate
+                  }
+                  className="rounded border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-xs font-black text-violet-100 transition hover:bg-violet-300/10 disabled:opacity-40"
+                >
+                  Copiar aula anterior
+                </button>
+
+                <label className="ml-auto flex items-center gap-2 rounded border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={
+                      lessonForm.giaeStatus ===
+                      'submitted'
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLInputElement>
+                    ) =>
+                      updateLessonForm(
+                        'giaeStatus',
+                        event.target
+                          .checked
+                          ? 'submitted'
+                          : 'pending'
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      lessonForm.status !==
+                        'taught' ||
+                      !lessonForm.summary.trim()
+                    }
+                  />
+
+                  Sumário submetido no GIAE
+                </label>
+              </div>
+            </section>
+
+            <section className="border-b border-white/10 bg-slate-900/35">
+              <div className="grid lg:grid-cols-[220px_minmax(180px,1fr)_minmax(180px,0.8fr)_minmax(170px,0.7fr)]">
+                <label className="border-b border-white/10 p-3 lg:border-b-0 lg:border-r">
+                  <span className="mb-1 block text-[0.6rem] font-black uppercase tracking-[0.1em] text-amber-300">
+                    Avaliação desta aula
+                  </span>
+
+                  <select
+                    value={
+                      assessmentForm.choice
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      void changeAssessment(
+                        event.target
+                          .value
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      loading
+                    }
+                    className={
+                      compactInputClassName
+                    }
+                  >
+                    <option value="none">
+                      Sem avaliação
+                    </option>
+
+                    {assessmentWorkspace
+                      ?.assessments
+                      .map(
+                        (
+                          item
+                        ) => (
+                          <option
+                            key={
+                              item
+                                .assessment
+                                .id
+                            }
+                            value={
+                              item
+                                .assessment
+                                .id
+                            }
+                          >
+                            {
+                              item
+                                .assessment
+                                .title
+                            }
+                          </option>
+                        )
+                      )}
+
+                    <option value="new">
+                      + Nova avaliação
+                    </option>
+                  </select>
+                </label>
+
+                <label className="border-b border-white/10 p-3 lg:border-b-0 lg:border-r">
+                  <span className="mb-1 block text-[0.6rem] font-black uppercase tracking-[0.1em] text-slate-500">
+                    Nome da atividade
+                  </span>
+
+                  <input
+                    type="text"
+                    value={
+                      assessmentForm.title
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLInputElement>
+                    ) =>
+                      setAssessmentForm(
+                        (
+                          current
+                        ) =>
+                          current
+                            ? {
+                                ...current,
+
+                                title:
+                                  event.target
+                                    .value
+                              }
+                            : current
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      !assessmentEnabled
+                    }
+                    placeholder="Ex.: Apresentação do projeto"
+                    className={
+                      compactInputClassName
+                    }
+                  />
+                </label>
+
+                <label className="border-b border-white/10 p-3 lg:border-b-0 lg:border-r">
+                  <span className="mb-1 block text-[0.6rem] font-black uppercase tracking-[0.1em] text-slate-500">
+                    Critério
+                  </span>
+
+                  <select
+                    value={
+                      assessmentForm.criterionId
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      setAssessmentForm(
+                        (
+                          current
+                        ) =>
+                          current
+                            ? {
+                                ...current,
+
+                                criterionId:
+                                  event.target
+                                    .value
+                              }
+                            : current
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      !assessmentEnabled
+                    }
+                    className={
+                      compactInputClassName
+                    }
+                  >
+                    {assessmentWorkspace
+                      ?.criteria
+                      .map(
+                        (
+                          criterion
+                        ) => (
+                          <option
+                            key={
+                              criterion.id
+                            }
+                            value={
+                              criterion.id
+                            }
+                          >
+                            {
+                              criterion.name
+                            }{' '}
+                            ·{' '}
+                            {
+                              criterion.weightPercent
+                            }
+                            %
+                          </option>
+                        )
+                      )}
+                  </select>
+                </label>
+
+                <label className="p-3">
+                  <span className="mb-1 block text-[0.6rem] font-black uppercase tracking-[0.1em] text-slate-500">
+                    Tipo
+                  </span>
+
+                  <select
+                    value={
+                      assessmentForm.activityType
+                    }
+                    onChange={(
+                      event:
+                        ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      setAssessmentForm(
+                        (
+                          current
+                        ) =>
+                          current
+                            ? {
+                                ...current,
+
+                                activityType:
+                                  event.target
+                                    .value as AssessmentActivityType
+                              }
+                            : current
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      !assessmentEnabled
+                    }
+                    className={
+                      compactInputClassName
+                    }
+                  >
+                    {activityTypeOptions.map(
+                      (
+                        activityType
+                      ) => (
+                        <option
+                          key={
+                            activityType
+                          }
+                          value={
+                            activityType
+                          }
+                        >
+                          {getAssessmentActivityTypeLabel(
+                            activityType
+                          )}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+              </div>
+
+              {assessmentEnabled &&
+              (
+                assessmentWorkspace
+                  ?.criteria
+                  .length ??
+                0
+              ) ===
+                0 ? (
+                <p className="border-t border-amber-300/20 bg-amber-300/[0.06] px-3 py-2 text-xs text-amber-100">
+                  Configure primeiro os critérios desta disciplina ou UFCD.
+                </p>
+              ) : null}
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-950 px-3 py-2">
+                <div className="flex flex-wrap gap-2 text-[0.68rem] font-black">
+                  <span className="rounded border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-emerald-100">
+                    {
+                      presentCount
+                    }{' '}
+                    presentes
+                  </span>
+
+                  <span className="rounded border border-rose-300/20 bg-rose-300/10 px-2 py-1 text-rose-100">
+                    {
+                      absentCount
+                    }{' '}
+                    faltas
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    markAllPresent
+                  }
+                  disabled={
+                    saving ||
+                    students.length ===
+                      0
+                  }
+                  className="rounded border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-1.5 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/10 disabled:opacity-40"
+                >
+                  Marcar todos presentes
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1320px] border-collapse text-left">
+                  <thead className="bg-slate-950 text-[0.62rem] uppercase tracking-[0.08em] text-slate-500">
+                    <tr>
+                      <th className="w-14 border-r border-white/10 px-2 py-2 font-black">
+                        N.º
+                      </th>
+
+                      <th className="w-56 border-r border-white/10 px-3 py-2 font-black">
+                        Aluno
+                      </th>
+
+                      <th className="w-64 border-r border-white/10 px-3 py-2 font-black">
+                        Assiduidade
+                      </th>
+
+                      <th className="w-40 border-r border-white/10 px-3 py-2 font-black">
+                        Avaliação
+                      </th>
+
+                      <th className="w-24 border-r border-white/10 px-3 py-2 font-black">
+                        Nota
+                      </th>
+
+                      <th className="border-r border-white/10 px-3 py-2 font-black">
+                        Observação da avaliação
+                      </th>
+
+                      <th className="w-20 border-r border-white/10 px-3 py-2 text-center font-black">
+                        Média
+                      </th>
+
+                      <th className="w-24 px-3 py-2 text-center font-black">
+                        Faltas
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-white/10">
+                    {students.map(
+                      (
+                        row
+                      ) => {
+                        const warningLevel =
+                          row.absenceSummary
+                            ?.warningLevel
+
+                        const warning =
+                          warningLevel ===
+                          'warning'
+
+                        const recovery =
+                          warningLevel ===
+                          'recovery_required'
+
+                        return (
+                          <tr
+                            key={
+                              row.student.id
+                            }
+                            className={`align-middle ${
+                              recovery
+                                ? 'bg-rose-300/[0.045]'
+                                : warning
+                                  ? 'bg-amber-300/[0.035]'
+                                  : 'bg-slate-900/20'
+                            }`}
+                          >
+                            <td className="border-r border-white/10 px-2 py-2 text-center text-xs font-black text-slate-400">
+                              {row.student
+                                .number ||
+                                '—'}
+                            </td>
+
+                            <td className="border-r border-white/10 px-3 py-2 text-sm font-black text-white">
+                              {
+                                row.student
+                                  .name
+                              }
+                            </td>
+
+                            <td className="border-r border-white/10 px-2 py-1.5">
+                              <div className="grid grid-cols-[100px_44px_minmax(100px,1fr)] gap-1.5">
+                                <select
+                                  value={
+                                    row.attendanceStatus
+                                  }
+                                  onChange={(
+                                    event:
+                                      ChangeEvent<HTMLSelectElement>
+                                  ) => {
+                                    const attendanceStatus =
+                                      event.target
+                                        .value as
+                                        | 'present'
+                                        | 'absent'
+
+                                    updateStudent(
+                                      row.student.id,
+                                      {
+                                        attendanceStatus,
+
+                                        attendanceCode:
+                                          attendanceStatus ===
+                                          'absent'
+                                            ? row.attendanceCode ||
+                                              'F'
+                                            : '',
+
+                                        attendanceNote:
+                                          attendanceStatus ===
+                                          'absent'
+                                            ? row.attendanceNote
+                                            : '',
+
+                                        assessmentStatus:
+                                          attendanceStatus ===
+                                            'absent' &&
+                                          row.assessmentStatus ===
+                                            'not_evaluated' &&
+                                          assessmentEnabled
+                                            ? 'absent'
+                                            : row.assessmentStatus
+                                      }
+                                    )
+                                  }}
+                                  disabled={
+                                    saving ||
+                                    lessonForm.status !==
+                                      'taught'
+                                  }
+                                  className={
+                                    compactInputClassName
+                                  }
+                                >
+                                  <option value="present">
+                                    Presente
+                                  </option>
+
+                                  <option value="absent">
+                                    Faltou
+                                  </option>
+                                </select>
+
+                                <input
+                                  type="text"
+                                  value={
+                                    row.attendanceCode
+                                  }
+                                  onChange={(
+                                    event:
+                                      ChangeEvent<HTMLInputElement>
+                                  ) =>
+                                    updateStudent(
+                                      row.student.id,
+                                      {
+                                        attendanceCode:
+                                          event.target
+                                            .value
+                                      }
+                                    )
+                                  }
+                                  disabled={
+                                    saving ||
+                                    lessonForm.status !==
+                                      'taught' ||
+                                    row.attendanceStatus !==
+                                      'absent'
+                                  }
+                                  title="Código da falta"
+                                  placeholder="F"
+                                  className={
+                                    compactInputClassName
+                                  }
+                                />
+
+                                <input
+                                  type="text"
+                                  value={
+                                    row.attendanceNote
+                                  }
+                                  onChange={(
+                                    event:
+                                      ChangeEvent<HTMLInputElement>
+                                  ) =>
+                                    updateStudent(
+                                      row.student.id,
+                                      {
+                                        attendanceNote:
+                                          event.target
+                                            .value
+                                      }
+                                    )
+                                  }
+                                  disabled={
+                                    saving ||
+                                    lessonForm.status !==
+                                      'taught' ||
+                                    row.attendanceStatus !==
+                                      'absent'
+                                  }
+                                  placeholder="Motivo / nota"
+                                  className={
+                                    compactInputClassName
+                                  }
+                                />
+                              </div>
+                            </td>
+
+                            <td className="border-r border-white/10 px-2 py-1.5">
+                              <select
+                                value={
+                                  row.assessmentStatus
+                                }
+                                onChange={(
+                                  event:
+                                    ChangeEvent<HTMLSelectElement>
+                                ) => {
+                                  const assessmentStatus =
+                                    event.target
+                                      .value as DailyAssessmentStatus
+
+                                  updateStudent(
+                                    row.student.id,
+                                    {
+                                      assessmentStatus,
+
+                                      assessmentScore:
+                                        assessmentStatus ===
+                                        'evaluated'
+                                          ? row.assessmentScore
+                                          : null,
+
+                                      assessmentScoreText:
+                                        assessmentStatus ===
+                                        'evaluated'
+                                          ? row.assessmentScoreText
+                                          : ''
+                                    }
+                                  )
+                                }}
+                                disabled={
+                                  saving ||
+                                  lessonForm.status !==
+                                    'taught' ||
+                                  !assessmentEnabled
+                                }
+                                className={
+                                  compactInputClassName
+                                }
+                              >
+                                {assessmentStatusOptions.map(
+                                  (
+                                    option
+                                  ) => (
+                                    <option
+                                      key={
+                                        option.value
+                                      }
+                                      value={
+                                        option.value
+                                      }
+                                    >
+                                      {
+                                        option.label
+                                      }
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </td>
+
+                            <td className="border-r border-white/10 px-2 py-1.5">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={
+                                  row.assessmentScoreText
+                                }
+                                onChange={(
+                                  event:
+                                    ChangeEvent<HTMLInputElement>
+                                ) =>
+                                  updateStudent(
+                                    row.student.id,
+                                    {
+                                      assessmentScoreText:
+                                        event.target
+                                          .value
+                                    }
+                                  )
+                                }
+                                disabled={
+                                  saving ||
+                                  lessonForm.status !==
+                                    'taught' ||
+                                  !assessmentEnabled ||
+                                  row.assessmentStatus !==
+                                    'evaluated'
+                                }
+                                placeholder="0–20"
+                                className={
+                                  compactInputClassName
+                                }
+                              />
+                            </td>
+
+                            <td className="border-r border-white/10 px-2 py-1.5">
+                              <input
+                                type="text"
+                                value={
+                                  row.assessmentNote
+                                }
+                                onChange={(
+                                  event:
+                                    ChangeEvent<HTMLInputElement>
+                                ) =>
+                                  updateStudent(
+                                    row.student.id,
+                                    {
+                                      assessmentNote:
+                                        event.target
+                                          .value
+                                    }
+                                  )
+                                }
+                                disabled={
+                                  saving ||
+                                  !assessmentEnabled
+                                }
+                                placeholder="Observação opcional"
+                                className={
+                                  compactInputClassName
+                                }
+                              />
+                            </td>
+
+                            <td className="border-r border-white/10 px-3 py-2 text-center text-sm font-black text-cyan-100">
+                              {formatScore(
+                                row.provisionalAverage
+                              )}
+                            </td>
+
+                            <td className="px-3 py-2 text-center">
+                              <span
+                                className={`inline-flex min-w-[4.5rem] justify-center rounded border px-2 py-1 text-xs font-black ${
+                                  recovery
+                                    ? 'border-rose-300/25 bg-rose-300/10 text-rose-100'
+                                    : warning
+                                      ? 'border-amber-300/25 bg-amber-300/10 text-amber-100'
+                                      : 'border-white/10 bg-white/[0.03] text-slate-400'
+                                }`}
+                              >
+                                {formatPercent(
+                                  row.absenceSummary
+                                    ?.absencePercent ??
+                                    null
+                                )}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      }
+                    )}
+
+                    {students.length ===
+                    0 ? (
+                      <tr>
+                        <td
+                          colSpan={
+                            8
+                          }
+                          className="px-4 py-8 text-center text-sm text-slate-500"
+                        >
+                          Esta turma ainda não possui alunos ativos.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <footer className="flex flex-col gap-2 border-t border-white/10 bg-slate-900 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-h-5 text-xs">
+                {error ? (
+                  <p
+                    role="alert"
+                    className="font-bold text-rose-200"
+                  >
+                    {
+                      error
+                    }
+                  </p>
+                ) : null}
+
+                {success ? (
+                  <p className="font-bold text-emerald-200">
+                    {
+                      success
+                    }
+                  </p>
+                ) : null}
+
+                {!error &&
+                !success ? (
+                  <p className="text-slate-500">
+                    Tudo nesta grelha é guardado pelo mesmo botão.
+                  </p>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveAll()
+                }
+                disabled={
+                  loading ||
+                  saving
+                }
+                className="rounded-md bg-cyan-300 px-5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:brightness-110 disabled:opacity-40"
+              >
+                {saving
+                  ? 'A guardar…'
+                  : 'Guardar aula completa'}
+              </button>
+            </footer>
+          </>
+        ) : loading ? (
+          <div className="px-4 py-12 text-center text-sm text-slate-400">
+            A preparar o registo diário…
           </div>
-        </div>
-      ) : null}
-    </section>
+        ) : error ? (
+          <div className="px-4 py-8 text-sm text-rose-200">
+            {
+              error
+            }
+          </div>
+        ) : null}
+      </div>
+    </main>
   )
 }
