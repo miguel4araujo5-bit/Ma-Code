@@ -8,12 +8,38 @@ import { CalendarProductWorkspace } from './CalendarProductWorkspace'
 import { ProductMenuWorkspace } from './ProductMenuWorkspace'
 import {
   ProductNavigation,
+  type ProductTheme,
   type ProductWorkspace
 } from './ProductNavigation'
+
+import './maProfessorTheme.css'
 
 interface DailyTarget {
   date?: ISODate
   lessonId?: EntityId
+}
+
+const THEME_STORAGE_KEY = 'ma-professor-theme'
+
+function getInitialTheme(): ProductTheme {
+  if (typeof window === 'undefined') {
+    return 'dark'
+  }
+
+  try {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme
+    }
+  } catch {
+    // O tema continua a funcionar mesmo que o armazenamento esteja bloqueado.
+  }
+
+  return typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: light)').matches
+    ? 'light'
+    : 'dark'
 }
 
 function ProductContent() {
@@ -22,6 +48,7 @@ function ProductContent() {
     useState<AcademicYear | null>(null)
   const [checkingYear, setCheckingYear] = useState(true)
   const [dailyTarget, setDailyTarget] = useState<DailyTarget>({})
+  const [theme, setTheme] = useState<ProductTheme>(getInitialTheme)
 
   const refreshAcademicYear = useCallback(async () => {
     setCheckingYear(true)
@@ -49,6 +76,14 @@ function ProductContent() {
       }
     })
   }, [refreshAcademicYear])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+    } catch {
+      // O seletor mantém-se funcional durante a sessão atual.
+    }
+  }, [theme])
 
   const handleSelect = async (nextWorkspace: ProductWorkspace) => {
     if (nextWorkspace === 'menu') {
@@ -89,16 +124,25 @@ function ProductContent() {
     setWorkspace('daily')
   }
 
-  const showLoading =
-    workspace !== 'menu' &&
-    checkingYear
+  const showLoading = workspace !== 'menu' && checkingYear
 
   return (
-    <div className="ma-professor-product min-h-screen bg-slate-950">
+    <div
+      className={`ma-professor-product min-h-screen ${
+        theme === 'dark'
+          ? 'bg-slate-950 text-white'
+          : 'bg-slate-50 text-slate-950'
+      }`}
+      data-theme={theme}
+    >
       <ProductNavigation
         workspace={workspace}
         academicYearName={academicYear?.name ?? null}
+        theme={theme}
         onSelect={next => void handleSelect(next)}
+        onToggleTheme={() =>
+          setTheme(current => (current === 'dark' ? 'light' : 'dark'))
+        }
       />
 
       {showLoading ? (
@@ -158,8 +202,8 @@ function ProductContent() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Crie o ano letivo, as turmas, as disciplinas e os
-              módulos antes de abrir esta área.
+              Crie o ano letivo, as turmas, as disciplinas e os módulos
+              antes de abrir esta área.
             </p>
 
             <button
