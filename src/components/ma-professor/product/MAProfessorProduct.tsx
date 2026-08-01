@@ -5,77 +5,210 @@ import {
 } from 'react'
 
 import MAProfessorApp from '../MAProfessorApp'
-import { AccessGate } from '../access/AccessGate'
-import { maProfessorRepository } from '../repository'
-import { SettingsWorkspaceView } from '../settings/SettingsWorkspaceView'
-import type { AcademicYear } from '../types'
-import { AttendanceProductWorkspace } from './AttendanceProductWorkspace'
+
+import {
+  AccessGate
+} from '../access/AccessGate'
+
+import DailyWorkspaceView from '../daily/DailyWorkspaceView'
+
+import {
+  maProfessorRepository
+} from '../repository'
+
+import {
+  SettingsWorkspaceView
+} from '../settings/SettingsWorkspaceView'
+
+import type {
+  AcademicYear
+} from '../types'
+
+import {
+  AttendanceProductWorkspace
+} from './AttendanceProductWorkspace'
+
 import {
   ProductNavigation,
   type ProductWorkspace
 } from './ProductNavigation'
-import { ScheduleProductWorkspace } from './ScheduleProductWorkspace'
+
+import {
+  ScheduleProductWorkspace
+} from './ScheduleProductWorkspace'
 
 function ProductContent() {
-  const [workspace, setWorkspace] =
-    useState<ProductWorkspace>('application')
-  const [academicYear, setAcademicYear] =
-    useState<AcademicYear | null>(null)
-  const [checkingYear, setCheckingYear] = useState(true)
+  const [
+    workspace,
+    setWorkspace
+  ] =
+    useState<ProductWorkspace>(
+      'daily'
+    )
 
-  const refreshAcademicYear = useCallback(async () => {
-    setCheckingYear(true)
+  const [
+    academicYear,
+    setAcademicYear
+  ] =
+    useState<AcademicYear | null>(
+      null
+    )
 
-    try {
+  const [
+    checkingYear,
+    setCheckingYear
+  ] =
+    useState(true)
+
+  const refreshAcademicYear =
+    useCallback(
+      async () => {
+        setCheckingYear(
+          true
+        )
+
+        try {
+          const activeYear =
+            await maProfessorRepository.getActiveAcademicYear()
+
+          setAcademicYear(
+            activeYear ??
+            null
+          )
+
+          return (
+            activeYear ??
+            null
+          )
+        } catch {
+          setAcademicYear(
+            null
+          )
+
+          return null
+        } finally {
+          setCheckingYear(
+            false
+          )
+        }
+      },
+      []
+    )
+
+  useEffect(
+    () => {
+      void refreshAcademicYear().then(
+        (
+          activeYear
+        ) => {
+          if (
+            !activeYear
+              ?.setupCompletedAt
+          ) {
+            setWorkspace(
+              'application'
+            )
+          }
+        }
+      )
+    },
+    [
+      refreshAcademicYear
+    ]
+  )
+
+  const handleSelect =
+    async (
+      nextWorkspace:
+        ProductWorkspace
+    ) => {
+      if (
+        nextWorkspace ===
+          'application' ||
+        nextWorkspace ===
+          'settings'
+      ) {
+        setWorkspace(
+          nextWorkspace
+        )
+
+        return
+      }
+
       const activeYear =
-        await maProfessorRepository.getActiveAcademicYear()
-      setAcademicYear(activeYear ?? null)
-      return activeYear ?? null
-    } catch {
-      setAcademicYear(null)
-      return null
-    } finally {
-      setCheckingYear(false)
+        await refreshAcademicYear()
+
+      if (
+        !activeYear
+      ) {
+        setWorkspace(
+          'application'
+        )
+
+        return
+      }
+
+      if (
+        nextWorkspace ===
+          'daily' &&
+        !activeYear.setupCompletedAt
+      ) {
+        setWorkspace(
+          'application'
+        )
+
+        return
+      }
+
+      setWorkspace(
+        nextWorkspace
+      )
     }
-  }, [])
 
-  useEffect(() => {
-    void refreshAcademicYear()
-  }, [refreshAcademicYear])
+  const handleDataChanged =
+    async () => {
+      const activeYear =
+        await refreshAcademicYear()
 
-  const handleSelect = async (nextWorkspace: ProductWorkspace) => {
-    if (nextWorkspace === 'application') {
-      setWorkspace(nextWorkspace)
-      return
+      setWorkspace(
+        activeYear
+          ?.setupCompletedAt
+          ? 'daily'
+          : 'application'
+      )
     }
 
-    const activeYear = await refreshAcademicYear()
-
-    if (!activeYear && nextWorkspace !== 'settings') {
-      setWorkspace('application')
-      return
-    }
-
-    setWorkspace(nextWorkspace)
-  }
-
-  const handleDataChanged = () => {
-    void refreshAcademicYear()
-    setWorkspace('application')
-  }
+  const showLoading =
+    workspace !==
+      'application' &&
+    workspace !==
+      'settings' &&
+    checkingYear
 
   return (
     <div className="ma-professor-product min-h-screen bg-slate-950">
       <ProductNavigation
-        workspace={workspace}
-        academicYearName={academicYear?.name ?? null}
-        onSelect={next => void handleSelect(next)}
+        workspace={
+          workspace
+        }
+        academicYearName={
+          academicYear
+            ?.name ??
+          null
+        }
+        onSelect={
+          next =>
+            void handleSelect(
+              next
+            )
+        }
       />
 
-      {workspace !== 'application' && checkingYear ? (
+      {showLoading ? (
         <main className="flex min-h-[calc(100vh-58px)] items-center justify-center bg-slate-950 px-6 text-white">
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+
             <p className="mt-4 text-sm font-semibold text-slate-400">
               A preparar o ano letivo…
             </p>
@@ -83,43 +216,86 @@ function ProductContent() {
         </main>
       ) : null}
 
-      {workspace === 'application' ? <MAProfessorApp /> : null}
+      {workspace ===
+        'daily' &&
+      academicYear
+        ?.setupCompletedAt &&
+      !checkingYear ? (
+        <DailyWorkspaceView
+          academicYearId={
+            academicYear.id
+          }
+        />
+      ) : null}
 
-      {workspace === 'attendance' && academicYear ? (
+      {workspace ===
+      'application' ? (
+        <MAProfessorApp />
+      ) : null}
+
+      {workspace ===
+        'attendance' &&
+      academicYear &&
+      !checkingYear ? (
         <AttendanceProductWorkspace
-          academicYearId={academicYear.id}
+          academicYearId={
+            academicYear.id
+          }
         />
       ) : null}
 
-      {workspace === 'schedule' && academicYear ? (
+      {workspace ===
+        'schedule' &&
+      academicYear &&
+      !checkingYear ? (
         <ScheduleProductWorkspace
-          academicYearId={academicYear.id}
+          academicYearId={
+            academicYear.id
+          }
         />
       ) : null}
 
-      {workspace === 'settings' ? (
+      {workspace ===
+      'settings' ? (
         <SettingsWorkspaceView
-          academicYearId={academicYear?.id ?? null}
-          onDataChanged={handleDataChanged}
+          academicYearId={
+            academicYear
+              ?.id ??
+            null
+          }
+          onDataChanged={() =>
+            void handleDataChanged()
+          }
         />
       ) : null}
 
-      {workspace !== 'application' && !checkingYear && !academicYear && workspace !== 'settings' ? (
+      {workspace !==
+        'application' &&
+      workspace !==
+        'settings' &&
+      !checkingYear &&
+      !academicYear ? (
         <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-4 py-10 text-white">
           <section className="mx-auto max-w-2xl rounded-3xl border border-amber-300/20 bg-slate-900 p-8 text-center">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
               Configuração necessária
             </p>
+
             <h1 className="mt-3 text-2xl font-black">
               Termine primeiro a configuração inicial.
             </h1>
+
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Crie o ano letivo, as turmas, as disciplinas e os módulos
-              antes de abrir esta área.
+              Crie o ano letivo, as turmas, as disciplinas e os módulos antes de abrir esta área.
             </p>
+
             <button
               type="button"
-              onClick={() => setWorkspace('application')}
+              onClick={() =>
+                setWorkspace(
+                  'application'
+                )
+              }
               className="mt-5 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
             >
               Abrir configuração
