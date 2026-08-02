@@ -9,6 +9,10 @@ import {
 } from '../assessments/assessmentWorkspaceRepository'
 
 import {
+  maProfessorDb
+} from '../db'
+
+import {
   attendanceRepository,
   type AttendanceEntryDraft,
   type LessonAttendanceRegister
@@ -183,6 +187,117 @@ function todayISO(): ISODate {
       '0'
     )
   ].join('-')
+}
+
+async function getLegacyScheduleRepairChanges(
+  lessonId: EntityId
+): Promise<{
+  scheduleSlotId?: EntityId | null
+  origin?: 'scheduled' | 'extra'
+}> {
+  const lesson =
+    await lessonRepository.getLesson(
+      lessonId
+    )
+
+  if (!lesson) {
+    throw new Error(
+      'A aula indicada não existe.'
+    )
+  }
+
+  if (
+    lesson.origin !==
+    'scheduled'
+  ) {
+    return {}
+  }
+
+  const weekday =
+    getISOWeekday(
+      lesson.date
+    )
+
+  const slots =
+    await maProfessorDb
+      .weeklyScheduleSlots
+      .where(
+        'academicYearId'
+      )
+      .equals(
+        lesson.academicYearId
+      )
+      .toArray()
+
+  const validCurrentSlot =
+    lesson.scheduleSlotId
+      ? slots.find(
+          slot =>
+            slot.id ===
+              lesson.scheduleSlotId &&
+            slot.teachingAssignmentId ===
+              lesson.teachingAssignmentId &&
+            slot.weekday ===
+              weekday &&
+            lesson.date >=
+              slot.validFrom &&
+            lesson.date <=
+              slot.validUntil
+        )
+      : null
+
+  if (validCurrentSlot) {
+    return {}
+  }
+
+  const candidates =
+    slots.filter(
+      slot =>
+        slot.teachingAssignmentId ===
+          lesson.teachingAssignmentId &&
+        slot.weekday ===
+          weekday &&
+        lesson.date >=
+          slot.validFrom &&
+        lesson.date <=
+          slot.validUntil
+    )
+
+  const exactMatch =
+    candidates.find(
+      slot =>
+        slot.startTime ===
+          lesson.startTime &&
+        slot.endTime ===
+          lesson.endTime
+    )
+
+  const startTimeMatch =
+    candidates.find(
+      slot =>
+        slot.startTime ===
+        lesson.startTime
+    )
+
+  const matchingSlot =
+    exactMatch ??
+    startTimeMatch ??
+    (candidates.length === 1
+      ? candidates[0]
+      : null)
+
+  if (matchingSlot) {
+    return {
+      scheduleSlotId:
+        matchingSlot.id,
+      origin: 'scheduled'
+    }
+  }
+
+  return {
+    scheduleSlotId: null,
+    origin: 'extra'
+  }
 }
 
 function getISOWeekday(
@@ -812,10 +927,16 @@ export class DailyWorkspaceRepository {
       }
     }
 
+    const scheduleRepairChanges =
+      await getLegacyScheduleRepairChanges(
+        input.lessonId
+      )
+
     let updated =
       await lessonRepository.updateLesson(
         input.lessonId,
         {
+          ...scheduleRepairChanges,
           status:
             input.status,
           startTime:
