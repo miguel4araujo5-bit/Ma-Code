@@ -1227,9 +1227,10 @@ export default function DailyWorkspaceView({
             }
 
             const assessmentId =
-                assessmentForm?.choice !==
+                assessmentForm &&
+                assessmentForm.choice !==
                     'none' &&
-                assessmentForm?.choice !==
+                assessmentForm.choice !==
                     'new'
                     ? assessmentForm.choice
                     : selectedLesson
