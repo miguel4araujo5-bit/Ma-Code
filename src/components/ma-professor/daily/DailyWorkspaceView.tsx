@@ -1,7 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getAssessmentActivityTypeLabel } from '../assessments/assessmentRepository';
-import type { AssessmentActivityType, EntityId, GIAEStatus, ISODate, LessonStatus, Score, SummarySource } from '../types';
-import { dailyWorkspaceRepository, type DailyAssessmentStatus, type DailyDateWorkspace, type DailyStudentRow } from './dailyWorkspaceRepository';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from 'react';
+
+import {
+    getAssessmentActivityTypeLabel
+} from '../assessments/assessmentRepository';
+
+import type {
+    AssessmentActivityType,
+    EntityId,
+    GIAEStatus,
+    ISODate,
+    LessonStatus,
+    Score,
+    SummarySource
+} from '../types';
+
+import {
+    dailyWorkspaceRepository,
+    type DailyAssessmentStatus,
+    type DailyDateWorkspace,
+    type DailyStudentRow
+} from './dailyWorkspaceRepository';
 
 interface DailyWorkspaceViewProps {
     academicYearId: EntityId;
@@ -54,10 +78,22 @@ const assessmentStatusOptions: Array<{
     value: DailyAssessmentStatus;
     label: string;
 }> = [
-    { value: 'not_evaluated', label: 'Não avaliado' },
-    { value: 'evaluated', label: 'Avaliado' },
-    { value: 'absent', label: 'Faltou' },
-    { value: 'exempt', label: 'Dispensado' }
+    {
+        value: 'not_evaluated',
+        label: 'Não avaliado'
+    },
+    {
+        value: 'evaluated',
+        label: 'Avaliado'
+    },
+    {
+        value: 'absent',
+        label: 'Faltou'
+    },
+    {
+        value: 'exempt',
+        label: 'Dispensado'
+    }
 ];
 
 const inputClassName =
@@ -76,11 +112,21 @@ function todayISO(): ISODate {
     ].join('-');
 }
 
-function addDays(value: ISODate, amount: number): ISODate {
-    const [year, month, day] = value.split('-').map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day));
+function addDays(
+    value: ISODate,
+    amount: number
+): ISODate {
+    const [year, month, day] = value
+        .split('-')
+        .map(Number);
 
-    date.setUTCDate(date.getUTCDate() + amount);
+    const date = new Date(
+        Date.UTC(year, month - 1, day)
+    );
+
+    date.setUTCDate(
+        date.getUTCDate() + amount
+    );
 
     return [
         String(date.getUTCFullYear()).padStart(4, '0'),
@@ -90,41 +136,62 @@ function addDays(value: ISODate, amount: number): ISODate {
 }
 
 function parseISODate(value: ISODate) {
-    const [year, month, day] = value.split('-').map(Number);
+    const [year, month, day] = value
+        .split('-')
+        .map(Number);
 
-    return new Date(year, month - 1, day);
+    return new Date(
+        year,
+        month - 1,
+        day
+    );
 }
 
 function formatShortWeekday(value: ISODate) {
     const date = parseISODate(value);
 
-    const weekday = new Intl.DateTimeFormat('pt-PT', {
-        weekday: 'short'
-    })
-        .format(date)
-        .replace('.', '');
+    const weekday =
+        new Intl.DateTimeFormat('pt-PT', {
+            weekday: 'short'
+        })
+            .format(date)
+            .replace('.', '');
 
-    return `${weekday} ${String(date.getDate()).padStart(2, '0')}/${String(
+    return `${weekday} ${String(
+        date.getDate()
+    ).padStart(2, '0')}/${String(
         date.getMonth() + 1
     ).padStart(2, '0')}`;
 }
 
-function formatWeekRange(startDate: ISODate, endDate: ISODate) {
+function formatWeekRange(
+    startDate: ISODate,
+    endDate: ISODate
+) {
     const start = parseISODate(startDate);
     const end = parseISODate(endDate);
-    const sameYear = start.getFullYear() === end.getFullYear();
 
-    const startLabel = new Intl.DateTimeFormat('pt-PT', {
-        day: 'numeric',
-        month: 'long',
-        ...(sameYear ? {} : { year: 'numeric' })
-    }).format(start);
+    const sameYear =
+        start.getFullYear() ===
+        end.getFullYear();
 
-    const endLabel = new Intl.DateTimeFormat('pt-PT', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    }).format(end);
+    const startLabel =
+        new Intl.DateTimeFormat('pt-PT', {
+            day: 'numeric',
+            month: 'long',
+            ...(sameYear
+                ? {}
+                : {
+                      year: 'numeric'
+                  })
+        }).format(start);
+
+    const endLabel =
+        new Intl.DateTimeFormat('pt-PT', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }).format(end);
 
     return `${startLabel} — ${endLabel}`;
 }
@@ -145,16 +212,29 @@ function formatPercent(value: number | null) {
           }).format(value)}%`;
 }
 
-function getModuleLabel(code: string, name: string) {
-    return code.trim() ? `${code.trim()} — ${name}` : name;
+function getModuleLabel(
+    code: string,
+    name: string
+) {
+    return code.trim()
+        ? `${code.trim()} — ${name}`
+        : name;
 }
 
-function getSubjectLabel(shortName: string, name: string) {
+function getSubjectLabel(
+    shortName: string,
+    name: string
+) {
     return shortName.trim() || name;
 }
 
-function lessonStatusLabel(status: LessonStatus) {
-    const labels: Record<LessonStatus, string> = {
+function lessonStatusLabel(
+    status: LessonStatus
+) {
+    const labels: Record<
+        LessonStatus,
+        string
+    > = {
         planned: 'Planeada',
         taught: 'Dada',
         cancelled: 'Cancelada'
@@ -163,7 +243,9 @@ function lessonStatusLabel(status: LessonStatus) {
     return labels[status];
 }
 
-function lessonStatusClasses(status: LessonStatus) {
+function lessonStatusClasses(
+    status: LessonStatus
+) {
     if (status === 'taught') {
         return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
     }
@@ -176,64 +258,96 @@ function lessonStatusClasses(status: LessonStatus) {
 }
 
 function buildLessonForm(
-    workspace: NonNullable<DailyDateWorkspace['selectedLesson']>
+    workspace: NonNullable<
+        DailyDateWorkspace['selectedLesson']
+    >
 ): LessonFormState {
-    const lesson = workspace.context.lessonRow.lesson;
+    const lesson =
+        workspace.context.lessonRow.lesson;
 
     return {
         status: lesson.status,
         startTime: lesson.startTime,
         endTime: lesson.endTime,
-        periodCount: String(lesson.periodCount),
-        countTowardProgress: lesson.countTowardProgress,
-        plannedActivity: lesson.plannedActivity,
+        periodCount: String(
+            lesson.periodCount
+        ),
+        countTowardProgress:
+            lesson.countTowardProgress,
+        plannedActivity:
+            lesson.plannedActivity,
         summary: lesson.summary,
-        summarySource: lesson.summarySource,
-        planificationItemIds: [...lesson.planificationItemIds],
+        summarySource:
+            lesson.summarySource,
+        planificationItemIds: [
+            ...lesson.planificationItemIds
+        ],
         notes: lesson.notes,
         giaeStatus: lesson.giaeStatus
     };
 }
 
 function buildAssessmentForm(
-    workspace: NonNullable<DailyDateWorkspace['selectedLesson']>
+    workspace: NonNullable<
+        DailyDateWorkspace['selectedLesson']
+    >
 ): AssessmentFormState {
     if (workspace.selectedAssessment) {
         return {
-            choice: workspace.selectedAssessment.id,
-            criterionId: workspace.selectedAssessment.criterionId,
-            title: workspace.selectedAssessment.title,
-            activityType: workspace.selectedAssessment.activityType,
-            description: workspace.selectedAssessment.description
+            choice:
+                workspace.selectedAssessment.id,
+            criterionId:
+                workspace.selectedAssessment
+                    .criterionId,
+            title:
+                workspace.selectedAssessment.title,
+            activityType:
+                workspace.selectedAssessment
+                    .activityType,
+            description:
+                workspace.selectedAssessment
+                    .description
         };
     }
 
     return {
         choice: 'none',
-        criterionId: workspace.assessmentWorkspace.criteria[0]?.id ?? '',
+        criterionId:
+            workspace.assessmentWorkspace
+                .criteria[0]?.id ?? '',
         title: '',
         activityType: 'practical_work',
         description: ''
     };
 }
 
-function buildStudentRows(rows: DailyStudentRow[]): StudentEditorRow[] {
+function buildStudentRows(
+    rows: DailyStudentRow[]
+): StudentEditorRow[] {
     return rows.map(row => ({
         ...row,
         assessmentScoreText:
-            row.assessmentStatus === 'evaluated' &&
+            row.assessmentStatus ===
+                'evaluated' &&
             row.assessmentScore !== null
-                ? String(row.assessmentScore)
+                ? String(
+                      row.assessmentScore
+                  )
                 : ''
     }));
 }
 
 function buildEditorSignature(
     lessonForm: LessonFormState | null,
-    assessmentForm: AssessmentFormState | null,
+    assessmentForm:
+        | AssessmentFormState
+        | null,
     students: StudentEditorRow[]
 ) {
-    if (!lessonForm || !assessmentForm) {
+    if (
+        !lessonForm ||
+        !assessmentForm
+    ) {
         return '';
     }
 
@@ -242,12 +356,18 @@ function buildEditorSignature(
         assessment: assessmentForm,
         students: students.map(row => ({
             studentId: row.student.id,
-            attendanceStatus: row.attendanceStatus,
-            attendanceCode: row.attendanceCode,
-            attendanceNote: row.attendanceNote,
-            assessmentStatus: row.assessmentStatus,
-            assessmentScoreText: row.assessmentScoreText,
-            assessmentNote: row.assessmentNote
+            attendanceStatus:
+                row.attendanceStatus,
+            attendanceCode:
+                row.attendanceCode,
+            attendanceNote:
+                row.attendanceNote,
+            assessmentStatus:
+                row.assessmentStatus,
+            assessmentScoreText:
+                row.assessmentScoreText,
+            assessmentNote:
+                row.assessmentNote
         }))
     });
 }
@@ -258,43 +378,99 @@ export default function DailyWorkspaceView({
     initialLessonId,
     onSaved
 }: DailyWorkspaceViewProps) {
-    const [date, setDate] = useState<ISODate>(
-        initialDate ?? todayISO()
-    );
+    const [date, setDate] =
+        useState<ISODate>(
+            initialDate ?? todayISO()
+        );
 
-    const [workspace, setWorkspace] =
-        useState<DailyDateWorkspace | null>(null);
+    const [
+        workspace,
+        setWorkspace
+    ] =
+        useState<DailyDateWorkspace | null>(
+            null
+        );
 
-    const [lessonForm, setLessonForm] =
-        useState<LessonFormState | null>(null);
+    const [
+        lessonForm,
+        setLessonForm
+    ] =
+        useState<LessonFormState | null>(
+            null
+        );
 
-    const [assessmentForm, setAssessmentForm] =
-        useState<AssessmentFormState | null>(null);
+    const [
+        assessmentForm,
+        setAssessmentForm
+    ] =
+        useState<AssessmentFormState | null>(
+            null
+        );
 
     const [students, setStudents] =
         useState<StudentEditorRow[]>([]);
 
-    const [savedSignature, setSavedSignature] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [showWeekOverview, setShowWeekOverview] = useState(true);
-    const [showAdvanced, setShowAdvanced] = useState(false);
-    const [showAssessmentDetails, setShowAssessmentDetails] =
+    const [
+        savedSignature,
+        setSavedSignature
+    ] = useState('');
+
+    const [
+        assessmentIdToDelete,
+        setAssessmentIdToDelete
+    ] = useState<EntityId | null>(
+        null
+    );
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [saving, setSaving] =
         useState(false);
-    const [showStudentDetails, setShowStudentDetails] =
-        useState(false);
+
+    const [error, setError] =
+        useState('');
+
+    const [success, setSuccess] =
+        useState('');
+
+    const [
+        showWeekOverview,
+        setShowWeekOverview
+    ] = useState(true);
+
+    const [
+        showAdvanced,
+        setShowAdvanced
+    ] = useState(false);
+
+    const [
+        showAssessmentDetails,
+        setShowAssessmentDetails
+    ] = useState(false);
+
+    const [
+        showStudentDetails,
+        setShowStudentDetails
+    ] = useState(false);
 
     const loadRequestRef = useRef(0);
     const savingRef = useRef(false);
 
     const hydrate = useCallback(
-        (nextWorkspace: DailyDateWorkspace) => {
+        (
+            nextWorkspace:
+                DailyDateWorkspace
+        ) => {
             setWorkspace(nextWorkspace);
             setDate(nextWorkspace.date);
+            setAssessmentIdToDelete(
+                null
+            );
 
-            if (!nextWorkspace.selectedLesson) {
+            if (
+                !nextWorkspace.selectedLesson
+            ) {
                 setLessonForm(null);
                 setAssessmentForm(null);
                 setStudents([]);
@@ -302,20 +478,30 @@ export default function DailyWorkspaceView({
                 return;
             }
 
-            const nextLessonForm = buildLessonForm(
-                nextWorkspace.selectedLesson
+            const nextLessonForm =
+                buildLessonForm(
+                    nextWorkspace.selectedLesson
+                );
+
+            const nextAssessmentForm =
+                buildAssessmentForm(
+                    nextWorkspace.selectedLesson
+                );
+
+            const nextStudents =
+                buildStudentRows(
+                    nextWorkspace
+                        .selectedLesson.students
+                );
+
+            setLessonForm(
+                nextLessonForm
             );
 
-            const nextAssessmentForm = buildAssessmentForm(
-                nextWorkspace.selectedLesson
+            setAssessmentForm(
+                nextAssessmentForm
             );
 
-            const nextStudents = buildStudentRows(
-                nextWorkspace.selectedLesson.students
-            );
-
-            setLessonForm(nextLessonForm);
-            setAssessmentForm(nextAssessmentForm);
             setStudents(nextStudents);
 
             setSavedSignature(
@@ -332,10 +518,15 @@ export default function DailyWorkspaceView({
     const loadDate = useCallback(
         async (
             nextDate: ISODate,
-            requestedLessonId?: EntityId | null,
-            requestedAssessmentId?: EntityId | null
+            requestedLessonId?:
+                | EntityId
+                | null,
+            requestedAssessmentId?:
+                | EntityId
+                | null
         ) => {
-            const requestId = ++loadRequestRef.current;
+            const requestId =
+                ++loadRequestRef.current;
 
             setLoading(true);
             setError('');
@@ -350,39 +541,68 @@ export default function DailyWorkspaceView({
                         requestedAssessmentId
                     );
 
-                if (requestId !== loadRequestRef.current) {
+                if (
+                    requestId !==
+                    loadRequestRef.current
+                ) {
                     return false;
                 }
 
                 hydrate(nextWorkspace);
+
                 return true;
             } catch (loadError) {
-                if (requestId === loadRequestRef.current) {
+                if (
+                    requestId ===
+                    loadRequestRef.current
+                ) {
                     setError(
-                        dailyWorkspaceRepository.describeError(loadError)
+                        dailyWorkspaceRepository.describeError(
+                            loadError
+                        )
                     );
                 }
 
                 return false;
             } finally {
-                if (requestId === loadRequestRef.current) {
+                if (
+                    requestId ===
+                    loadRequestRef.current
+                ) {
                     setLoading(false);
                 }
             }
         },
-        [academicYearId, hydrate]
+        [
+            academicYearId,
+            hydrate
+        ]
     );
 
     useEffect(() => {
-        const nextDate = initialDate ?? todayISO();
+        const nextDate =
+            initialDate ?? todayISO();
 
-        void loadDate(nextDate, initialLessonId);
-    }, [initialDate, initialLessonId, loadDate]);
+        void loadDate(
+            nextDate,
+            initialLessonId
+        );
+    }, [
+        initialDate,
+        initialLessonId,
+        loadDate
+    ]);
 
-    const selectedLesson = workspace?.selectedLesson ?? null;
-    const lessonRow = selectedLesson?.context.lessonRow ?? null;
+    const selectedLesson =
+        workspace?.selectedLesson ?? null;
+
+    const lessonRow =
+        selectedLesson?.context
+            .lessonRow ?? null;
+
     const assessmentWorkspace =
-        selectedLesson?.assessmentWorkspace ?? null;
+        selectedLesson
+            ?.assessmentWorkspace ?? null;
 
     const assessmentEnabled =
         assessmentForm !== null &&
@@ -390,65 +610,105 @@ export default function DailyWorkspaceView({
 
     const selectedAssessmentId =
         assessmentForm &&
-        assessmentForm.choice !== 'none' &&
-        assessmentForm.choice !== 'new'
+        assessmentForm.choice !==
+            'none' &&
+        assessmentForm.choice !==
+            'new'
             ? assessmentForm.choice
             : null;
 
     const presentCount = useMemo(
         () =>
             students.filter(
-                row => row.attendanceStatus === 'present'
+                row =>
+                    row.attendanceStatus ===
+                    'present'
             ).length,
         [students]
     );
 
-    const absentCount = students.length - presentCount;
+    const absentCount =
+        students.length - presentCount;
 
-    const currentEditorSignature = useMemo(
-        () =>
-            buildEditorSignature(
-                lessonForm,
+    const currentEditorSignature =
+        useMemo(
+            () =>
+                buildEditorSignature(
+                    lessonForm,
+                    assessmentForm,
+                    students
+                ),
+            [
                 assessmentForm,
+                lessonForm,
                 students
-            ),
-        [assessmentForm, lessonForm, students]
-    );
-
-    const hasUnsavedChanges = Boolean(
-        currentEditorSignature &&
-            currentEditorSignature !== savedSignature
-    );
-
-    const weekTimeSlots = useMemo(() => {
-        const slots = new Map<
-            string,
-            {
-                startTime: string;
-                endTime: string;
-            }
-        >();
-
-        workspace?.weekDays.forEach(day => {
-            day.lessons.forEach(row => {
-                const current = slots.get(row.lesson.startTime);
-
-                if (
-                    !current ||
-                    row.lesson.endTime > current.endTime
-                ) {
-                    slots.set(row.lesson.startTime, {
-                        startTime: row.lesson.startTime,
-                        endTime: row.lesson.endTime
-                    });
-                }
-            });
-        });
-
-        return [...slots.values()].sort((left, right) =>
-            left.startTime.localeCompare(right.startTime)
+            ]
         );
-    }, [workspace?.weekDays]);
+
+    const hasUnsavedChanges =
+        Boolean(
+            currentEditorSignature &&
+                currentEditorSignature !==
+                    savedSignature
+        );
+
+    const weekTimeSlots = useMemo(
+        () => {
+            const slots = new Map<
+                string,
+                {
+                    startTime: string;
+                    endTime: string;
+                }
+            >();
+
+            workspace?.weekDays.forEach(
+                day => {
+                    day.lessons.forEach(
+                        row => {
+                            const current =
+                                slots.get(
+                                    row.lesson
+                                        .startTime
+                                );
+
+                            if (
+                                !current ||
+                                row.lesson
+                                    .endTime >
+                                    current.endTime
+                            ) {
+                                slots.set(
+                                    row.lesson
+                                        .startTime,
+                                    {
+                                        startTime:
+                                            row
+                                                .lesson
+                                                .startTime,
+                                        endTime:
+                                            row
+                                                .lesson
+                                                .endTime
+                                    }
+                                );
+                            }
+                        }
+                    );
+                }
+            );
+
+            return [
+                ...slots.values()
+            ].sort(
+                (left, right) =>
+                    left.startTime.localeCompare(
+                        right.startTime
+                    )
+            );
+        },
+        [workspace?.weekDays]
+    );
 
     useEffect(() => {
         if (!hasUnsavedChanges) {
@@ -509,7 +769,9 @@ export default function DailyWorkspaceView({
 
     function closeSecondaryPanels() {
         setShowAdvanced(false);
-        setShowAssessmentDetails(false);
+        setShowAssessmentDetails(
+            false
+        );
         setShowStudentDetails(false);
     }
 
@@ -544,34 +806,45 @@ export default function DailyWorkspaceView({
             return false;
         }
 
-        const periodCount = Number(lessonForm.periodCount);
+        const periodCount = Number(
+            lessonForm.periodCount
+        );
 
         if (
-            !Number.isInteger(periodCount) ||
+            !Number.isInteger(
+                periodCount
+            ) ||
             periodCount <= 0
         ) {
             setError(
                 'O número de tempos deve ser um número inteiro superior a zero.'
             );
+
             setSuccess('');
+
             return false;
         }
 
-        const effectiveStatus: LessonStatus =
-            lessonForm.status === 'cancelled'
+        const effectiveStatus:
+            LessonStatus =
+            lessonForm.status ===
+            'cancelled'
                 ? 'cancelled'
                 : lessonForm.summary.trim()
                   ? 'taught'
                   : lessonForm.status;
 
         if (
-            effectiveStatus !== 'taught' &&
+            effectiveStatus !==
+                'taught' &&
             absentCount > 0
         ) {
             setError(
                 'Escreva o sumário antes de guardar faltas nesta aula.'
             );
+
             setSuccess('');
+
             return false;
         }
 
@@ -585,84 +858,134 @@ export default function DailyWorkspaceView({
 
         try {
             const result =
-                await dailyWorkspaceRepository.saveLesson({
-                    lessonId:
-                        selectedLesson.context.lessonRow.lesson.id,
-                    status: effectiveStatus,
-                    startTime: lessonForm.startTime,
-                    endTime: lessonForm.endTime,
-                    periodCount,
-                    countTowardProgress:
-                        lessonForm.countTowardProgress,
-                    plannedActivity:
-                        lessonForm.plannedActivity,
-                    summary: lessonForm.summary,
-                    summarySource:
-                        lessonForm.summarySource,
-                    planificationItemIds:
-                        lessonForm.planificationItemIds,
-                    notes: lessonForm.notes,
-                    giaeStatus: lessonForm.giaeStatus,
-                    students: students.map(row => {
-                        const normalizedScore = Number(
-                            row.assessmentScoreText.replace(',', '.')
-                        );
+                await dailyWorkspaceRepository.saveLesson(
+                    {
+                        lessonId:
+                            selectedLesson
+                                .context
+                                .lessonRow
+                                .lesson.id,
+                        status:
+                            effectiveStatus,
+                        startTime:
+                            lessonForm.startTime,
+                        endTime:
+                            lessonForm.endTime,
+                        periodCount,
+                        countTowardProgress:
+                            lessonForm
+                                .countTowardProgress,
+                        plannedActivity:
+                            lessonForm
+                                .plannedActivity,
+                        summary:
+                            lessonForm.summary,
+                        summarySource:
+                            lessonForm
+                                .summarySource,
+                        planificationItemIds:
+                            lessonForm
+                                .planificationItemIds,
+                        notes:
+                            lessonForm.notes,
+                        giaeStatus:
+                            lessonForm
+                                .giaeStatus,
+                        students:
+                            students.map(
+                                row => {
+                                    const normalizedScore =
+                                        Number(
+                                            row.assessmentScoreText.replace(
+                                                ',',
+                                                '.'
+                                            )
+                                        );
 
-                        return {
-                            studentId: row.student.id,
-                            attendanceStatus:
-                                row.attendanceStatus,
-                            attendanceCode:
-                                row.attendanceCode,
-                            attendanceNote:
-                                row.attendanceNote,
-                            assessmentStatus:
-                                row.assessmentStatus,
-                            assessmentScore:
-                                row.assessmentStatus ===
-                                    'evaluated' &&
-                                row.assessmentScoreText.trim()
-                                    ? normalizedScore
-                                    : null,
-                            assessmentNote:
-                                row.assessmentNote
-                        };
-                    }),
-                    assessment: {
-                        mode:
-                            assessmentForm.choice === 'none'
-                                ? 'none'
-                                : assessmentForm.choice === 'new'
-                                  ? 'new'
-                                  : 'existing',
-                        assessmentId: selectedAssessmentId,
-                        criterionId:
-                            assessmentForm.criterionId,
-                        title: assessmentForm.title,
-                        activityType:
-                            assessmentForm.activityType,
-                        description:
-                            assessmentForm.description
+                                    return {
+                                        studentId:
+                                            row
+                                                .student
+                                                .id,
+                                        attendanceStatus:
+                                            row
+                                                .attendanceStatus,
+                                        attendanceCode:
+                                            row
+                                                .attendanceCode,
+                                        attendanceNote:
+                                            row
+                                                .attendanceNote,
+                                        assessmentStatus:
+                                            row
+                                                .assessmentStatus,
+                                        assessmentScore:
+                                            row.assessmentStatus ===
+                                                'evaluated' &&
+                                            row.assessmentScoreText.trim()
+                                                ? normalizedScore
+                                                : null,
+                                        assessmentNote:
+                                            row
+                                                .assessmentNote
+                                    };
+                                }
+                            ),
+                        assessment: {
+                            mode:
+                                assessmentForm.choice ===
+                                'none'
+                                    ? 'none'
+                                    : assessmentForm.choice ===
+                                        'new'
+                                      ? 'new'
+                                      : 'existing',
+                            assessmentId:
+                                assessmentForm.choice ===
+                                'none'
+                                    ? assessmentIdToDelete
+                                    : selectedAssessmentId,
+                            criterionId:
+                                assessmentForm
+                                    .criterionId,
+                            title:
+                                assessmentForm.title,
+                            activityType:
+                                assessmentForm
+                                    .activityType,
+                            description:
+                                assessmentForm
+                                    .description
+                        }
                     }
-                });
-
-            if (reload) {
-                const reloaded = await loadDate(
-                    date,
-                    result.lesson.id,
-                    result.assessmentId
                 );
 
+            if (reload) {
+                const reloaded =
+                    await loadDate(
+                        date,
+                        result.lesson.id,
+                        result.assessmentId
+                    );
+
                 if (!reloaded) {
-                    setSavedSignature(currentEditorSignature);
+                    setSavedSignature(
+                        currentEditorSignature
+                    );
 
                     setSuccess(
                         'Os dados foram guardados. Atualize a página se a aula não refletir imediatamente as alterações.'
                     );
                 }
             } else {
-                setSavedSignature(currentEditorSignature);
+                setSavedSignature(
+                    currentEditorSignature
+                );
             }
+
+            setAssessmentIdToDelete(
+                null
+            );
 
             if (announce) {
                 setSuccess(
@@ -671,11 +994,15 @@ export default function DailyWorkspaceView({
             }
 
             await notifySaved();
+
             return true;
         } catch (saveError) {
             setError(
-                dailyWorkspaceRepository.describeError(saveError)
+                dailyWorkspaceRepository.describeError(
+                    saveError
+                )
             );
+
             return false;
         } finally {
             savingRef.current = false;
@@ -696,29 +1023,39 @@ export default function DailyWorkspaceView({
 
     async function changeDate(
         nextDate: ISODate,
-        requestedLessonId?: EntityId | null
+        requestedLessonId?:
+            | EntityId
+            | null
     ) {
-        if (loading || savingRef.current) {
+        if (
+            loading ||
+            savingRef.current
+        ) {
             return;
         }
 
         if (
             nextDate === date &&
-            (
-                !requestedLessonId ||
+            (!requestedLessonId ||
                 requestedLessonId ===
-                    workspace?.selectedLessonId
-            )
+                    workspace
+                        ?.selectedLessonId)
         ) {
             return;
         }
 
-        if (!(await saveBeforeNavigation())) {
+        if (
+            !(await saveBeforeNavigation())
+        ) {
             return;
         }
 
         closeSecondaryPanels();
-        await loadDate(nextDate, requestedLessonId);
+
+        await loadDate(
+            nextDate,
+            requestedLessonId
+        );
     }
 
     async function selectLesson(
@@ -728,18 +1065,23 @@ export default function DailyWorkspaceView({
         if (
             loading ||
             savingRef.current ||
-            (
-                lessonDate === date &&
-                workspace?.selectedLessonId === lessonId
-            )
+            (lessonDate === date &&
+                workspace
+                    ?.selectedLessonId ===
+                    lessonId)
         ) {
             return;
         }
 
-        await changeDate(lessonDate, lessonId);
+        await changeDate(
+            lessonDate,
+            lessonId
+        );
     }
 
-    async function changeAssessment(choice: string) {
+    async function changeAssessment(
+        choice: string
+    ) {
         if (
             !selectedLesson ||
             !assessmentWorkspace ||
@@ -748,25 +1090,46 @@ export default function DailyWorkspaceView({
             return;
         }
 
-        if (choice === assessmentForm?.choice) {
+        if (
+            choice ===
+            assessmentForm?.choice
+        ) {
             return;
         }
 
         if (choice === 'new') {
+            if (assessmentIdToDelete) {
+                setError(
+                    'Guarde primeiro a remoção da avaliação anterior.'
+                );
+
+                setSuccess('');
+
+                return;
+            }
+
             if (
                 hasUnsavedChanges &&
-                assessmentForm?.choice !== 'none' &&
+                assessmentForm?.choice !==
+                    'none' &&
                 !(await saveBeforeNavigation())
             ) {
                 return;
             }
 
+            setAssessmentIdToDelete(
+                null
+            );
+
             setAssessmentForm({
                 choice: 'new',
                 criterionId:
-                    assessmentWorkspace.criteria[0]?.id ?? '',
+                    assessmentWorkspace
+                        .criteria[0]?.id ??
+                    '',
                 title: '',
-                activityType: 'practical_work',
+                activityType:
+                    'practical_work',
                 description: ''
             });
 
@@ -774,98 +1137,158 @@ export default function DailyWorkspaceView({
                 current.map(row => ({
                     ...row,
                     assessmentStatus:
-                        row.attendanceStatus === 'absent'
+                        row.attendanceStatus ===
+                        'absent'
                             ? 'absent'
                             : 'not_evaluated',
                     assessmentScore: null,
-                    assessmentScoreText: '',
+                    assessmentScoreText:
+                        '',
                     assessmentNote: ''
                 }))
             );
 
-            setShowAssessmentDetails(true);
+            setShowAssessmentDetails(
+                true
+            );
+
             return;
         }
 
         if (choice === 'none') {
-            if (assessmentForm?.choice === 'new') {
-                const attendanceByStudent = new Map(
-                    students.map(row => [
-                        row.student.id,
-                        {
-                            attendanceStatus:
-                                row.attendanceStatus,
-                            attendanceCode:
-                                row.attendanceCode,
-                            attendanceNote:
-                                row.attendanceNote
-                        }
-                    ])
-                );
+            if (
+                assessmentForm?.choice ===
+                'new'
+            ) {
+                const attendanceByStudent =
+                    new Map(
+                        students.map(row => [
+                            row.student.id,
+                            {
+                                attendanceStatus:
+                                    row
+                                        .attendanceStatus,
+                                attendanceCode:
+                                    row
+                                        .attendanceCode,
+                                attendanceNote:
+                                    row
+                                        .attendanceNote
+                            }
+                        ])
+                    );
 
                 const fallbackAssessmentForm =
-                    selectedLesson.selectedAssessment
-                        ? buildAssessmentForm(selectedLesson)
+                    selectedLesson
+                        .selectedAssessment
+                        ? buildAssessmentForm(
+                              selectedLesson
+                          )
                         : {
-                              choice: 'none' as const,
+                              choice:
+                                  'none' as const,
                               criterionId:
                                   assessmentWorkspace
-                                      .criteria[0]?.id ?? '',
+                                      .criteria[0]
+                                      ?.id ?? '',
                               title: '',
                               activityType:
                                   'practical_work' as AssessmentActivityType,
                               description: ''
                           };
 
-                const fallbackStudents = buildStudentRows(
-                    selectedLesson.students
-                ).map(row => ({
-                    ...row,
-                    ...(attendanceByStudent.get(row.student.id) ?? {})
-                }));
+                const fallbackStudents =
+                    buildStudentRows(
+                        selectedLesson.students
+                    ).map(row => ({
+                        ...row,
+                        ...(attendanceByStudent.get(
+                            row.student.id
+                        ) ?? {})
+                    }));
 
-                setAssessmentForm(fallbackAssessmentForm);
-                setStudents(fallbackStudents);
-                setShowAssessmentDetails(false);
+                setAssessmentIdToDelete(
+                    null
+                );
+
+                setAssessmentForm(
+                    fallbackAssessmentForm
+                );
+
+                setStudents(
+                    fallbackStudents
+                );
+
+                setShowAssessmentDetails(
+                    false
+                );
+
                 return;
             }
 
+            const assessmentId =
+                assessmentForm?.choice !==
+                    'none' &&
+                assessmentForm?.choice !==
+                    'new'
+                    ? assessmentForm.choice
+                    : selectedLesson
+                          .selectedAssessment
+                          ?.id ?? null;
+
             if (
-                hasUnsavedChanges &&
-                !(await saveBeforeNavigation())
+                assessmentId &&
+                !window.confirm(
+                    'Pretende remover esta avaliação e todas as classificações associadas?'
+                )
             ) {
                 return;
             }
 
-            const nextAssessmentForm: AssessmentFormState = {
+            const nextAssessmentForm:
+                AssessmentFormState = {
                 choice: 'none',
                 criterionId:
-                    assessmentWorkspace.criteria[0]?.id ?? '',
+                    assessmentWorkspace
+                        .criteria[0]?.id ??
+                    '',
                 title: '',
-                activityType: 'practical_work',
+                activityType:
+                    'practical_work',
                 description: ''
             };
 
-            const nextStudents = students.map(row => ({
-                ...row,
-                assessmentStatus: 'not_evaluated' as const,
-                assessmentScore: null,
-                assessmentScoreText: '',
-                assessmentNote: ''
-            }));
+            const nextStudents =
+                students.map(row => ({
+                    ...row,
+                    assessmentStatus:
+                        'not_evaluated' as const,
+                    assessmentScore: null,
+                    assessmentScoreText:
+                        '',
+                    assessmentNote: ''
+                }));
 
-            setAssessmentForm(nextAssessmentForm);
-            setStudents(nextStudents);
-
-            setSavedSignature(
-                buildEditorSignature(
-                    lessonForm,
-                    nextAssessmentForm,
-                    nextStudents
-                )
+            setAssessmentIdToDelete(
+                assessmentId
             );
 
-            setShowAssessmentDetails(false);
+            setAssessmentForm(
+                nextAssessmentForm
+            );
+
+            setStudents(nextStudents);
+
+            setShowAssessmentDetails(
+                false
+            );
+
+            setSuccess('');
+
+            if (assessmentId) {
+                setError('');
+            }
+
             return;
         }
 
@@ -876,6 +1299,10 @@ export default function DailyWorkspaceView({
             return;
         }
 
+        setAssessmentIdToDelete(
+            null
+        );
+
         setLoading(true);
         setError('');
         setSuccess('');
@@ -884,30 +1311,46 @@ export default function DailyWorkspaceView({
             const nextSelectedLesson =
                 await dailyWorkspaceRepository.getLessonWorkspace(
                     academicYearId,
-                    selectedLesson.context.lessonRow.lesson.id,
+                    selectedLesson
+                        .context
+                        .lessonRow
+                        .lesson.id,
                     choice
                 );
 
             const nextLessonForm =
-                buildLessonForm(nextSelectedLesson);
+                buildLessonForm(
+                    nextSelectedLesson
+                );
 
             const nextAssessmentForm =
-                buildAssessmentForm(nextSelectedLesson);
+                buildAssessmentForm(
+                    nextSelectedLesson
+                );
 
             const nextStudents =
-                buildStudentRows(nextSelectedLesson.students);
+                buildStudentRows(
+                    nextSelectedLesson.students
+                );
 
             setWorkspace(current =>
                 current
                     ? {
                           ...current,
-                          selectedLesson: nextSelectedLesson
+                          selectedLesson:
+                              nextSelectedLesson
                       }
                     : current
             );
 
-            setLessonForm(nextLessonForm);
-            setAssessmentForm(nextAssessmentForm);
+            setLessonForm(
+                nextLessonForm
+            );
+
+            setAssessmentForm(
+                nextAssessmentForm
+            );
+
             setStudents(nextStudents);
 
             setSavedSignature(
@@ -919,7 +1362,9 @@ export default function DailyWorkspaceView({
             );
         } catch (loadError) {
             setError(
-                dailyWorkspaceRepository.describeError(loadError)
+                dailyWorkspaceRepository.describeError(
+                    loadError
+                )
             );
         } finally {
             setLoading(false);
@@ -927,12 +1372,16 @@ export default function DailyWorkspaceView({
     }
 
     function useNextPlanificationItem() {
-        if (!selectedLesson || !lessonForm) {
+        if (
+            !selectedLesson ||
+            !lessonForm
+        ) {
             return;
         }
 
         const item =
-            selectedLesson.context.nextPlanificationItem;
+            selectedLesson.context
+                .nextPlanificationItem;
 
         if (!item) {
             return;
@@ -941,26 +1390,35 @@ export default function DailyWorkspaceView({
         setLessonForm({
             ...lessonForm,
             status:
-                lessonForm.status === 'planned'
+                lessonForm.status ===
+                'planned'
                     ? 'taught'
                     : lessonForm.status,
             plannedActivity:
-                item.activity.trim() || item.content.trim(),
+                item.activity.trim() ||
+                item.content.trim(),
             summary:
                 item.suggestedSummary.trim() ||
                 item.content.trim(),
-            summarySource: 'planification',
-            planificationItemIds: [item.id]
+            summarySource:
+                'planification',
+            planificationItemIds: [
+                item.id
+            ]
         });
     }
 
     function copyPreviousLesson() {
-        if (!selectedLesson || !lessonForm) {
+        if (
+            !selectedLesson ||
+            !lessonForm
+        ) {
             return;
         }
 
         const previous =
-            selectedLesson.context.previousLessonTemplate;
+            selectedLesson.context
+                .previousLessonTemplate;
 
         if (!previous) {
             return;
@@ -969,7 +1427,8 @@ export default function DailyWorkspaceView({
         setLessonForm({
             ...lessonForm,
             status:
-                lessonForm.status === 'planned'
+                lessonForm.status ===
+                'planned'
                     ? 'taught'
                     : lessonForm.status,
             plannedActivity:
@@ -985,59 +1444,76 @@ export default function DailyWorkspaceView({
         setStudents(current =>
             current.map(row => ({
                 ...row,
-                attendanceStatus: 'present',
+                attendanceStatus:
+                    'present',
                 attendanceCode: '',
                 attendanceNote: '',
                 assessmentStatus:
                     assessmentEnabled &&
-                    row.assessmentStatus === 'absent'
+                    row.assessmentStatus ===
+                        'absent'
                         ? 'not_evaluated'
                         : row.assessmentStatus,
                 assessmentScore:
                     assessmentEnabled &&
-                    row.assessmentStatus === 'absent'
+                    row.assessmentStatus ===
+                        'absent'
                         ? null
                         : row.assessmentScore,
                 assessmentScoreText:
                     assessmentEnabled &&
-                    row.assessmentStatus === 'absent'
+                    row.assessmentStatus ===
+                        'absent'
                         ? ''
                         : row.assessmentScoreText
             }))
         );
     }
 
-    function toggleAttendance(row: StudentEditorRow) {
+    function toggleAttendance(
+        row: StudentEditorRow
+    ) {
         const willBeAbsent =
-            row.attendanceStatus === 'present';
+            row.attendanceStatus ===
+            'present';
 
-        updateStudent(row.student.id, {
-            attendanceStatus:
-                willBeAbsent ? 'absent' : 'present',
-            attendanceCode:
-                willBeAbsent
-                    ? row.attendanceCode || 'F'
-                    : '',
-            attendanceNote:
-                willBeAbsent
-                    ? row.attendanceNote
-                    : '',
-            assessmentStatus:
-                assessmentEnabled && willBeAbsent
-                    ? 'absent'
-                    : assessmentEnabled &&
-                        row.assessmentStatus === 'absent'
-                      ? 'not_evaluated'
-                      : row.assessmentStatus,
-            assessmentScore:
-                assessmentEnabled && willBeAbsent
-                    ? null
-                    : row.assessmentScore,
-            assessmentScoreText:
-                assessmentEnabled && willBeAbsent
-                    ? ''
-                    : row.assessmentScoreText
-        });
+        updateStudent(
+            row.student.id,
+            {
+                attendanceStatus:
+                    willBeAbsent
+                        ? 'absent'
+                        : 'present',
+                attendanceCode:
+                    willBeAbsent
+                        ? row.attendanceCode ||
+                          'F'
+                        : '',
+                attendanceNote:
+                    willBeAbsent
+                        ? row.attendanceNote
+                        : '',
+                assessmentStatus:
+                    assessmentEnabled &&
+                    willBeAbsent
+                        ? 'absent'
+                        : assessmentEnabled &&
+                            row.assessmentStatus ===
+                                'absent'
+                          ? 'not_evaluated'
+                          : row.assessmentStatus,
+                assessmentScore:
+                    assessmentEnabled &&
+                    willBeAbsent
+                        ? null
+                        : row.assessmentScore,
+                assessmentScoreText:
+                    assessmentEnabled &&
+                    willBeAbsent
+                        ? ''
+                        : row.assessmentScoreText
+            }
+        );
     }
 
     function changeScore(
@@ -1046,10 +1522,15 @@ export default function DailyWorkspaceView({
     ) {
         const cleanedValue = value
             .replace(',', '.')
-            .replace(/[^0-9.]/g, '');
+            .replace(
+                /[^0-9.]/g,
+                ''
+            );
 
-        const [integerPart = '', ...decimalParts] =
-            cleanedValue.split('.');
+        const [
+            integerPart = '',
+            ...decimalParts
+        ] = cleanedValue.split('.');
 
         const normalizedValue =
             decimalParts.length > 0
@@ -1058,14 +1539,18 @@ export default function DailyWorkspaceView({
                       .slice(0, 2)}`
                 : integerPart;
 
-        updateStudent(row.student.id, {
-            assessmentScoreText: normalizedValue,
-            assessmentStatus:
-                normalizedValue.trim()
-                    ? 'evaluated'
-                    : 'not_evaluated',
-            assessmentScore: null
-        });
+        updateStudent(
+            row.student.id,
+            {
+                assessmentScoreText:
+                    normalizedValue,
+                assessmentStatus:
+                    normalizedValue.trim()
+                        ? 'evaluated'
+                        : 'not_evaluated',
+                assessmentScore: null
+            }
+        );
     }
 
     return (
@@ -1079,10 +1564,16 @@ export default function DailyWorkspaceView({
                                 onClick={() =>
                                     void changeDate(
                                         workspace?.previousWeekDate ??
-                                            addDays(date, -7)
+                                            addDays(
+                                                date,
+                                                -7
+                                            )
                                     )
                                 }
-                                disabled={loading || saving}
+                                disabled={
+                                    loading ||
+                                    saving
+                                }
                                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-base font-black text-slate-200 transition hover:border-cyan-300/30 hover:text-white disabled:opacity-40"
                                 aria-label="Semana anterior"
                             >
@@ -1109,10 +1600,16 @@ export default function DailyWorkspaceView({
                                 onClick={() =>
                                     void changeDate(
                                         workspace?.nextWeekDate ??
-                                            addDays(date, 7)
+                                            addDays(
+                                                date,
+                                                7
+                                            )
                                     )
                                 }
-                                disabled={loading || saving}
+                                disabled={
+                                    loading ||
+                                    saving
+                                }
                                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-base font-black text-slate-200 transition hover:border-cyan-300/30 hover:text-white disabled:opacity-40"
                                 aria-label="Semana seguinte"
                             >
@@ -1125,22 +1622,35 @@ export default function DailyWorkspaceView({
                                 type="date"
                                 value={date}
                                 onChange={event => {
-                                    if (event.target.value) {
+                                    if (
+                                        event.target
+                                            .value
+                                    ) {
                                         void changeDate(
-                                            event.target.value
+                                            event
+                                                .target
+                                                .value
                                         );
                                     }
                                 }}
-                                disabled={loading || saving}
+                                disabled={
+                                    loading ||
+                                    saving
+                                }
                                 className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs font-bold text-white outline-none focus:border-cyan-300/50 disabled:opacity-50 sm:flex-none"
                             />
 
                             <button
                                 type="button"
                                 onClick={() =>
-                                    void changeDate(todayISO())
+                                    void changeDate(
+                                        todayISO()
+                                    )
                                 }
-                                disabled={loading || saving}
+                                disabled={
+                                    loading ||
+                                    saving
+                                }
                                 className="rounded-lg bg-cyan-300 px-3 py-1.5 text-xs font-black text-slate-950 transition hover:brightness-110 disabled:opacity-40"
                             >
                                 Hoje
@@ -1150,7 +1660,8 @@ export default function DailyWorkspaceView({
                                 type="button"
                                 onClick={() =>
                                     setShowWeekOverview(
-                                        current => !current
+                                        current =>
+                                            !current
                                     )
                                 }
                                 className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-cyan-300/30 hover:text-white"
@@ -1170,182 +1681,197 @@ export default function DailyWorkspaceView({
                                         Hora
                                     </div>
 
-                                    {workspace?.weekDays.map(day => {
-                                        const selected =
-                                            day.date === date;
+                                    {workspace?.weekDays.map(
+                                        day => {
+                                            const selected =
+                                                day.date ===
+                                                date;
 
-                                        return (
-                                            <button
-                                                key={day.date}
-                                                type="button"
-                                                onClick={() =>
-                                                    void changeDate(
+                                            return (
+                                                <button
+                                                    key={
                                                         day.date
-                                                    )
-                                                }
-                                                disabled={
-                                                    loading ||
-                                                    saving
-                                                }
-                                                className={`border-r border-white/10 px-1.5 py-1.5 text-center text-[0.64rem] font-black capitalize transition last:border-r-0 ${
-                                                    selected
-                                                        ? 'bg-cyan-300/10 text-cyan-100'
-                                                        : day.isToday
-                                                          ? 'text-cyan-200 hover:bg-white/[0.04]'
-                                                          : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
-                                                }`}
-                                            >
-                                                {formatShortWeekday(
-                                                    day.date
-                                                )}
-                                            </button>
-                                        );
-                                    })}
+                                                    }
+                                                    type="button"
+                                                    onClick={() =>
+                                                        void changeDate(
+                                                            day.date
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        loading ||
+                                                        saving
+                                                    }
+                                                    className={`border-r border-white/10 px-1.5 py-1.5 text-center text-[0.64rem] font-black capitalize transition last:border-r-0 ${
+                                                        selected
+                                                            ? 'bg-cyan-300/10 text-cyan-100'
+                                                            : day.isToday
+                                                              ? 'text-cyan-200 hover:bg-white/[0.04]'
+                                                              : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+                                                    }`}
+                                                >
+                                                    {formatShortWeekday(
+                                                        day.date
+                                                    )}
+                                                </button>
+                                            );
+                                        }
+                                    )}
                                 </div>
 
-                                {weekTimeSlots.map(slot => (
-                                    <div
-                                        key={slot.startTime}
-                                        className="grid grid-cols-[5.25rem_repeat(5,minmax(0,1fr))] border-b border-white/10 last:border-b-0"
-                                    >
-                                        <div className="flex items-center justify-center border-r border-white/10 bg-slate-900/35 px-1 py-1 text-center text-[0.58rem] font-black leading-tight text-slate-300">
-                                            {slot.startTime}
+                                {weekTimeSlots.map(
+                                    slot => (
+                                        <div
+                                            key={
+                                                slot.startTime
+                                            }
+                                            className="grid grid-cols-[5.25rem_repeat(5,minmax(0,1fr))] border-b border-white/10 last:border-b-0"
+                                        >
+                                            <div className="flex items-center justify-center border-r border-white/10 bg-slate-900/35 px-1 py-1 text-center text-[0.58rem] font-black leading-tight text-slate-300">
+                                                {
+                                                    slot.startTime
+                                                }
 
-                                            <span className="mx-0.5 text-slate-600">
-                                                –
-                                            </span>
+                                                <span className="mx-0.5 text-slate-600">
+                                                    –
+                                                </span>
 
-                                            {slot.endTime}
-                                        </div>
+                                                {
+                                                    slot.endTime
+                                                }
+                                            </div>
 
-                                        {workspace?.weekDays.map(
-                                            day => {
-                                                const lessons =
-                                                    day.lessons.filter(
-                                                        row =>
-                                                            row
-                                                                .lesson
-                                                                .startTime ===
-                                                            slot.startTime
-                                                    );
+                                            {workspace?.weekDays.map(
+                                                day => {
+                                                    const lessons =
+                                                        day.lessons.filter(
+                                                            row =>
+                                                                row
+                                                                    .lesson
+                                                                    .startTime ===
+                                                                slot.startTime
+                                                        );
 
-                                                return (
-                                                    <div
-                                                        key={`${day.date}-${slot.startTime}`}
-                                                        className={`min-h-9 border-r border-white/10 p-0.5 last:border-r-0 ${
-                                                            day.date ===
-                                                            date
-                                                                ? 'bg-cyan-300/[0.025]'
-                                                                : ''
-                                                        }`}
-                                                    >
-                                                        <div className="space-y-0.5">
-                                                            {lessons.map(
-                                                                row => {
-                                                                    const active =
-                                                                        workspace.selectedLessonId ===
-                                                                        row
-                                                                            .lesson
-                                                                            .id;
+                                                    return (
+                                                        <div
+                                                            key={`${day.date}-${slot.startTime}`}
+                                                            className={`min-h-9 border-r border-white/10 p-0.5 last:border-r-0 ${
+                                                                day.date ===
+                                                                date
+                                                                    ? 'bg-cyan-300/[0.025]'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            <div className="space-y-0.5">
+                                                                {lessons.map(
+                                                                    row => {
+                                                                        const active =
+                                                                            workspace.selectedLessonId ===
+                                                                            row
+                                                                                .lesson
+                                                                                .id;
 
-                                                                    const cancelled =
-                                                                        row
-                                                                            .lesson
-                                                                            .status ===
-                                                                        'cancelled';
+                                                                        const cancelled =
+                                                                            row
+                                                                                .lesson
+                                                                                .status ===
+                                                                            'cancelled';
 
-                                                                    return (
-                                                                        <button
-                                                                            key={
-                                                                                row
-                                                                                    .lesson
-                                                                                    .id
-                                                                            }
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                void selectLesson(
-                                                                                    day.date,
+                                                                        return (
+                                                                            <button
+                                                                                key={
                                                                                     row
                                                                                         .lesson
                                                                                         .id
-                                                                                )
-                                                                            }
-                                                                            disabled={
-                                                                                loading ||
-                                                                                saving
-                                                                            }
-                                                                            title={`${row.group.name} · ${getSubjectLabel(
-                                                                                row
-                                                                                    .subject
-                                                                                    .shortName,
-                                                                                row
-                                                                                    .subject
-                                                                                    .name
-                                                                            )} · ${
-                                                                                row
-                                                                                    .module
-                                                                                    .code ||
-                                                                                row
-                                                                                    .module
-                                                                                    .name
-                                                                            }`}
-                                                                            className={`w-full rounded-md border px-1.5 py-0.5 text-left leading-tight transition disabled:opacity-50 ${
-                                                                                active
-                                                                                    ? 'border-cyan-300/60 bg-cyan-300/15'
-                                                                                    : cancelled
-                                                                                      ? 'border-rose-300/20 bg-rose-300/[0.06] opacity-70'
-                                                                                      : 'border-white/10 bg-slate-900/65 hover:border-cyan-300/30 hover:bg-cyan-300/[0.055]'
-                                                                            }`}
-                                                                        >
-                                                                            <span
-                                                                                className={`block truncate text-[0.61rem] font-black ${
-                                                                                    active
-                                                                                        ? 'text-cyan-100'
-                                                                                        : cancelled
-                                                                                          ? 'text-rose-100'
-                                                                                          : 'text-white'
-                                                                                }`}
-                                                                            >
-                                                                                {
-                                                                                    row
-                                                                                        .group
-                                                                                        .name
-                                                                                }{' '}
-                                                                                ·{' '}
-                                                                                {getSubjectLabel(
+                                                                                }
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    void selectLesson(
+                                                                                        day.date,
+                                                                                        row
+                                                                                            .lesson
+                                                                                            .id
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    loading ||
+                                                                                    saving
+                                                                                }
+                                                                                title={`${row.group.name} · ${getSubjectLabel(
                                                                                     row
                                                                                         .subject
                                                                                         .shortName,
                                                                                     row
                                                                                         .subject
                                                                                         .name
-                                                                                )}
-                                                                            </span>
-
-                                                                            <span className="block truncate text-[0.55rem] font-semibold text-slate-500">
-                                                                                {row
-                                                                                    .module
-                                                                                    .code ||
+                                                                                )} · ${
                                                                                     row
                                                                                         .module
-                                                                                        .name}
-                                                                            </span>
-                                                                        </button>
-                                                                    );
-                                                                }
-                                                            )}
+                                                                                        .code ||
+                                                                                    row
+                                                                                        .module
+                                                                                        .name
+                                                                                }`}
+                                                                                className={`w-full rounded-md border px-1.5 py-0.5 text-left leading-tight transition disabled:opacity-50 ${
+                                                                                    active
+                                                                                        ? 'border-cyan-300/60 bg-cyan-300/15'
+                                                                                        : cancelled
+                                                                                          ? 'border-rose-300/20 bg-rose-300/[0.06] opacity-70'
+                                                                                          : 'border-white/10 bg-slate-900/65 hover:border-cyan-300/30 hover:bg-cyan-300/[0.055]'
+                                                                                }`}
+                                                                            >
+                                                                                <span
+                                                                                    className={`block truncate text-[0.61rem] font-black ${
+                                                                                        active
+                                                                                            ? 'text-cyan-100'
+                                                                                            : cancelled
+                                                                                              ? 'text-rose-100'
+                                                                                              : 'text-white'
+                                                                                    }`}
+                                                                                >
+                                                                                    {
+                                                                                        row
+                                                                                            .group
+                                                                                            .name
+                                                                                    }{' '}
+                                                                                    ·{' '}
+                                                                                    {getSubjectLabel(
+                                                                                        row
+                                                                                            .subject
+                                                                                            .shortName,
+                                                                                        row
+                                                                                            .subject
+                                                                                            .name
+                                                                                    )}
+                                                                                </span>
+
+                                                                                <span className="block truncate text-[0.55rem] font-semibold text-slate-500">
+                                                                                    {row
+                                                                                        .module
+                                                                                        .code ||
+                                                                                        row
+                                                                                            .module
+                                                                                            .name}
+                                                                                </span>
+                                                                            </button>
+                                                                        );
+                                                                    }
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            }
-                                        )}
-                                    </div>
-                                ))}
+                                                    );
+                                                }
+                                            )}
+                                        </div>
+                                    )
+                                )}
 
                                 {!loading &&
-                                weekTimeSlots.length === 0 ? (
+                                weekTimeSlots.length ===
+                                    0 ? (
                                     <div className="px-4 py-5 text-center text-xs text-slate-500">
-                                        Não existem aulas nesta
+                                        Não existem
+                                        aulas nesta
                                         semana.
                                     </div>
                                 ) : null}
@@ -1355,13 +1881,15 @@ export default function DailyWorkspaceView({
 
                     <div className="mt-1.5 flex flex-col gap-1 text-[0.66rem] sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-slate-500">
-                            Selecione uma aula na semana e trabalhe
+                            Selecione uma aula
+                            na semana e trabalhe
                             no painel abaixo.
                         </p>
 
                         {hasUnsavedChanges ? (
                             <p className="font-black text-amber-200">
-                                Alterações por guardar.
+                                Alterações por
+                                guardar.
                             </p>
                         ) : lessonRow ? (
                             <p className="font-bold text-emerald-200">
@@ -1371,12 +1899,14 @@ export default function DailyWorkspaceView({
                     </div>
                 </section>
 
-                {loading && !lessonRow ? (
+                {loading &&
+                !lessonRow ? (
                     <section className="rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-10 text-center">
                         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
 
                         <p className="mt-3 text-sm font-semibold text-slate-400">
-                            A preparar a aula…
+                            A preparar a
+                            aula…
                         </p>
                     </section>
                 ) : null}
@@ -1391,11 +1921,19 @@ export default function DailyWorkspaceView({
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <h2 className="text-base font-black sm:text-lg">
-                                            {lessonRow.group.name} ·{' '}
+                                            {
+                                                lessonRow
+                                                    .group
+                                                    .name
+                                            }{' '}
+                                            ·{' '}
                                             {getSubjectLabel(
-                                                lessonRow.subject
+                                                lessonRow
+                                                    .subject
                                                     .shortName,
-                                                lessonRow.subject.name
+                                                lessonRow
+                                                    .subject
+                                                    .name
                                             )}
                                         </h2>
 
@@ -1412,12 +1950,25 @@ export default function DailyWorkspaceView({
 
                                     <p className="mt-0.5 truncate text-[0.7rem] font-semibold text-slate-400">
                                         {getModuleLabel(
-                                            lessonRow.module.code,
-                                            lessonRow.module.name
+                                            lessonRow
+                                                .module
+                                                .code,
+                                            lessonRow
+                                                .module
+                                                .name
                                         )}{' '}
-                                        · {lessonForm.startTime}–
-                                        {lessonForm.endTime} ·{' '}
-                                        {lessonForm.periodCount}{' '}
+                                        ·{' '}
+                                        {
+                                            lessonForm.startTime
+                                        }
+                                        –
+                                        {
+                                            lessonForm.endTime
+                                        }{' '}
+                                        ·{' '}
+                                        {
+                                            lessonForm.periodCount
+                                        }{' '}
                                         {lessonForm.periodCount ===
                                         '1'
                                             ? 'tempo'
@@ -1429,7 +1980,8 @@ export default function DailyWorkspaceView({
                                     type="button"
                                     onClick={() =>
                                         setShowAdvanced(
-                                            current => !current
+                                            current =>
+                                                !current
                                         )
                                     }
                                     className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-black transition ${
@@ -1446,11 +1998,13 @@ export default function DailyWorkspaceView({
                         </header>
 
                         <div className="p-3 sm:p-4">
-                            {lessonForm.status === 'cancelled' ? (
+                            {lessonForm.status ===
+                            'cancelled' ? (
                                 <div className="mb-3 rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-2.5 text-sm font-bold text-rose-100">
-                                    Esta aula está cancelada. Pode
-                                    alterar o estado em “Mais
-                                    opções”.
+                                    Esta aula está
+                                    cancelada. Pode
+                                    alterar o estado
+                                    em “Mais opções”.
                                 </div>
                             ) : null}
 
@@ -1464,8 +2018,12 @@ export default function DailyWorkspaceView({
 
                                             <div className="mt-0.5 flex flex-wrap items-center gap-2">
                                                 <h3 className="text-sm font-black">
-                                                    O que foi feito
-                                                    nesta aula?
+                                                    O
+                                                    que
+                                                    foi
+                                                    feito
+                                                    nesta
+                                                    aula?
                                                 </h3>
 
                                                 <span
@@ -1516,7 +2074,8 @@ export default function DailyWorkspaceView({
                                                 }
                                                 className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-35"
                                             >
-                                                Copiar anterior
+                                                Copiar
+                                                anterior
                                             </button>
 
                                             <button
@@ -1542,10 +2101,14 @@ export default function DailyWorkspaceView({
 
                                     <div className="flex min-h-0 flex-1 flex-col p-3">
                                         <textarea
-                                            value={lessonForm.summary}
+                                            value={
+                                                lessonForm.summary
+                                            }
                                             onChange={event => {
                                                 const value =
-                                                    event.target.value;
+                                                    event
+                                                        .target
+                                                        .value;
 
                                                 setLessonForm(
                                                     current =>
@@ -1578,8 +2141,9 @@ export default function DailyWorkspaceView({
 
                                         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="text-[0.68rem] leading-4 text-slate-500">
-                                                Ao escrever um
-                                                sumário, a aula passa
+                                                Ao escrever
+                                                um sumário,
+                                                a aula passa
                                                 a dada quando
                                                 guardar.
                                             </p>
@@ -1610,7 +2174,8 @@ export default function DailyWorkspaceView({
                                                     className="h-4 w-4 accent-cyan-300"
                                                 />
 
-                                                Submetido no GIAE
+                                                Submetido no
+                                                GIAE
                                             </label>
                                         </div>
                                     </div>
@@ -1625,15 +2190,21 @@ export default function DailyWorkspaceView({
                                                 </p>
 
                                                 <span className="text-[0.66rem] font-semibold text-slate-500">
-                                                    {presentCount}{' '}
-                                                    presentes ·{' '}
-                                                    {absentCount}{' '}
+                                                    {
+                                                        presentCount
+                                                    }{' '}
+                                                    presentes
+                                                    ·{' '}
+                                                    {
+                                                        absentCount
+                                                    }{' '}
                                                     faltas
                                                 </span>
                                             </div>
 
                                             <h3 className="mt-0.5 text-sm font-black">
-                                                Faltas e avaliação
+                                                Faltas e
+                                                avaliação
                                             </h3>
                                         </div>
 
@@ -1650,7 +2221,8 @@ export default function DailyWorkspaceView({
                                                 }
                                                 className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-white/20 disabled:opacity-35"
                                             >
-                                                Todos presentes
+                                                Todos
+                                                presentes
                                             </button>
 
                                             {!assessmentEnabled ? (
@@ -1671,7 +2243,8 @@ export default function DailyWorkspaceView({
                                                     }
                                                     className="rounded-lg bg-cyan-300 px-2.5 py-1.5 text-[0.68rem] font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
                                                 >
-                                                    + Avaliação
+                                                    +
+                                                    Avaliação
                                                 </button>
                                             ) : (
                                                 <button
@@ -1708,12 +2281,16 @@ export default function DailyWorkspaceView({
                                     </div>
 
                                     {!assessmentWorkspace
-                                        ?.criteria.length ? (
+                                        ?.criteria
+                                        .length ? (
                                         <div className="border-b border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
-                                            Ainda não existem
-                                            critérios de avaliação
-                                            para esta disciplina ou
-                                            UFCD. Pode criá-los no
+                                            Ainda não
+                                            existem
+                                            critérios de
+                                            avaliação para
+                                            esta disciplina
+                                            ou UFCD. Pode
+                                            criá-los no
                                             Menu.
                                         </div>
                                     ) : null}
@@ -1821,7 +2398,7 @@ export default function DailyWorkspaceView({
                                                     {assessmentForm.choice ===
                                                     'new'
                                                         ? 'Cancelar'
-                                                        : 'Fechar'}
+                                                        : 'Remover'}
                                                 </button>
                                             </div>
 
@@ -1968,7 +2545,9 @@ export default function DailyWorkspaceView({
                                             N.º
                                         </span>
 
-                                        <span>Aluno</span>
+                                        <span>
+                                            Aluno
+                                        </span>
 
                                         <span className="text-center">
                                             Falta
@@ -1983,7 +2562,10 @@ export default function DailyWorkspaceView({
 
                                     <div className="min-h-0 flex-1 divide-y divide-white/10 overflow-y-auto">
                                         {students.map(
-                                            (row, index) => {
+                                            (
+                                                row,
+                                                index
+                                            ) => {
                                                 const absencePercent =
                                                     row
                                                         .absenceSummary
@@ -2291,19 +2873,26 @@ export default function DailyWorkspaceView({
                                             }
                                         )}
 
-                                        {students.length === 0 ? (
+                                        {students.length ===
+                                        0 ? (
                                             <div className="px-4 py-8 text-center text-sm text-slate-500">
-                                                Esta turma ainda não
-                                                possui alunos ativos.
+                                                Esta turma
+                                                ainda não
+                                                possui
+                                                alunos
+                                                ativos.
                                             </div>
                                         ) : null}
                                     </div>
 
                                     <div className="shrink-0 border-t border-white/10 bg-slate-900/50 px-3 py-1.5 text-[0.62rem] text-slate-500">
-                                        A lista tem deslocamento
-                                        próprio para manter o sumário
-                                        e os alunos visíveis no mesmo
-                                        ecrã.
+                                        A lista tem
+                                        deslocamento
+                                        próprio para
+                                        manter o sumário
+                                        e os alunos
+                                        visíveis no
+                                        mesmo ecrã.
                                     </div>
                                 </section>
                             </div>
@@ -2311,17 +2900,20 @@ export default function DailyWorkspaceView({
                             {showAdvanced ? (
                                 <section className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
                                     <p className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-amber-300">
-                                        Opções menos frequentes
+                                        Opções menos
+                                        frequentes
                                     </p>
 
                                     <h3 className="mt-1 text-base font-black">
-                                        Estado, horário e notas
+                                        Estado,
+                                        horário e notas
                                         internas
                                     </h3>
 
                                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                         <label className="text-xs font-bold text-slate-400">
-                                            Estado da aula
+                                            Estado da
+                                            aula
 
                                             <select
                                                 value={
@@ -2335,7 +2927,9 @@ export default function DailyWorkspaceView({
                                                             .value as LessonStatus
                                                     )
                                                 }
-                                                disabled={saving}
+                                                disabled={
+                                                    saving
+                                                }
                                                 className={`${inputClassName} mt-1.5`}
                                             >
                                                 <option value="planned">
@@ -2353,7 +2947,8 @@ export default function DailyWorkspaceView({
                                         </label>
 
                                         <label className="text-xs font-bold text-slate-400">
-                                            Hora de início
+                                            Hora de
+                                            início
 
                                             <input
                                                 type="time"
@@ -2363,17 +2958,21 @@ export default function DailyWorkspaceView({
                                                 onChange={event =>
                                                     updateLessonForm(
                                                         'startTime',
-                                                        event.target
+                                                        event
+                                                            .target
                                                             .value
                                                     )
                                                 }
-                                                disabled={saving}
+                                                disabled={
+                                                    saving
+                                                }
                                                 className={`${inputClassName} mt-1.5`}
                                             />
                                         </label>
 
                                         <label className="text-xs font-bold text-slate-400">
-                                            Hora de fim
+                                            Hora de
+                                            fim
 
                                             <input
                                                 type="time"
@@ -2383,17 +2982,21 @@ export default function DailyWorkspaceView({
                                                 onChange={event =>
                                                     updateLessonForm(
                                                         'endTime',
-                                                        event.target
+                                                        event
+                                                            .target
                                                             .value
                                                     )
                                                 }
-                                                disabled={saving}
+                                                disabled={
+                                                    saving
+                                                }
                                                 className={`${inputClassName} mt-1.5`}
                                             />
                                         </label>
 
                                         <label className="text-xs font-bold text-slate-400">
-                                            Número de tempos
+                                            Número de
+                                            tempos
 
                                             <input
                                                 type="number"
@@ -2405,11 +3008,14 @@ export default function DailyWorkspaceView({
                                                 onChange={event =>
                                                     updateLessonForm(
                                                         'periodCount',
-                                                        event.target
+                                                        event
+                                                            .target
                                                             .value
                                                     )
                                                 }
-                                                disabled={saving}
+                                                disabled={
+                                                    saving
+                                                }
                                                 className={`${inputClassName} mt-1.5`}
                                             />
                                         </label>
@@ -2424,7 +3030,8 @@ export default function DailyWorkspaceView({
                                             onChange={event =>
                                                 updateLessonForm(
                                                     'countTowardProgress',
-                                                    event.target
+                                                    event
+                                                        .target
                                                         .checked
                                                 )
                                             }
@@ -2436,13 +3043,16 @@ export default function DailyWorkspaceView({
                                             className="h-4 w-4 accent-cyan-300"
                                         />
 
-                                        Contabilizar estes tempos no
-                                        progresso da UFCD
+                                        Contabilizar
+                                        estes tempos no
+                                        progresso da
+                                        UFCD
                                     </label>
 
                                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                         <label className="text-xs font-bold text-slate-400">
-                                            Atividade prevista
+                                            Atividade
+                                            prevista
 
                                             <textarea
                                                 value={
@@ -2451,19 +3061,25 @@ export default function DailyWorkspaceView({
                                                 onChange={event =>
                                                     updateLessonForm(
                                                         'plannedActivity',
-                                                        event.target
+                                                        event
+                                                            .target
                                                             .value
                                                     )
                                                 }
-                                                disabled={saving}
-                                                rows={3}
+                                                disabled={
+                                                    saving
+                                                }
+                                                rows={
+                                                    3
+                                                }
                                                 placeholder="Atividade prevista para esta aula"
                                                 className={`${inputClassName} mt-1.5 resize-y`}
                                             />
                                         </label>
 
                                         <label className="text-xs font-bold text-slate-400">
-                                            Nota privada do professor
+                                            Nota privada
+                                            do professor
 
                                             <textarea
                                                 value={
@@ -2472,12 +3088,17 @@ export default function DailyWorkspaceView({
                                                 onChange={event =>
                                                     updateLessonForm(
                                                         'notes',
-                                                        event.target
+                                                        event
+                                                            .target
                                                             .value
                                                     )
                                                 }
-                                                disabled={saving}
-                                                rows={3}
+                                                disabled={
+                                                    saving
+                                                }
+                                                rows={
+                                                    3
+                                                }
                                                 placeholder="Observações que não fazem parte do sumário"
                                                 className={`${inputClassName} mt-1.5 resize-y`}
                                             />
@@ -2500,11 +3121,14 @@ export default function DailyWorkspaceView({
 
                                 {success ? (
                                     <p className="font-bold text-emerald-200">
-                                        {success}
+                                        {
+                                            success
+                                        }
                                     </p>
                                 ) : null}
 
-                                {!error && !success ? (
+                                {!error &&
+                                !success ? (
                                     <p
                                         className={
                                             hasUnsavedChanges
@@ -2521,7 +3145,9 @@ export default function DailyWorkspaceView({
 
                             <button
                                 type="button"
-                                onClick={() => void saveAll()}
+                                onClick={() =>
+                                    void saveAll()
+                                }
                                 disabled={
                                     loading ||
                                     saving ||
@@ -2537,7 +3163,8 @@ export default function DailyWorkspaceView({
                             </button>
                         </footer>
                     </article>
-                ) : !loading && error ? (
+                ) : !loading &&
+                  error ? (
                     <section className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-5 py-8 text-center text-sm font-bold text-rose-100">
                         {error}
                     </section>
