@@ -257,6 +257,69 @@ function lessonStatusClasses(
     return 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100';
 }
 
+async function copyTextToClipboard(
+    value: string
+) {
+    if (
+        typeof navigator !==
+            'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText ===
+            'function'
+    ) {
+        await navigator.clipboard.writeText(
+            value
+        );
+        return;
+    }
+
+    if (
+        typeof document ===
+        'undefined'
+    ) {
+        throw new Error(
+            'Clipboard indisponível.'
+        );
+    }
+
+    const textarea =
+        document.createElement(
+            'textarea'
+        );
+
+    textarea.value = value;
+    textarea.setAttribute(
+        'readonly',
+        'true'
+    );
+    textarea.style.position =
+        'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents =
+        'none';
+
+    document.body.appendChild(
+        textarea
+    );
+    textarea.focus();
+    textarea.select();
+
+    const successful =
+        document.execCommand(
+            'copy'
+        );
+
+    document.body.removeChild(
+        textarea
+    );
+
+    if (!successful) {
+        throw new Error(
+            'Não foi possível copiar.'
+        );
+    }
+}
+
 function buildLessonForm(
     workspace: NonNullable<
         DailyDateWorkspace['selectedLesson']
@@ -786,6 +849,45 @@ export default function DailyWorkspaceView({
             setSuccess(
                 'Os dados foram guardados, mas o resumo geral não foi atualizado.'
             );
+        }
+    }
+
+    async function handleCopySummary() {
+        const summary =
+            lessonForm?.summary.trim() ?? '';
+
+        if (!summary) {
+            setError(
+                'Escreva primeiro o sumário antes de copiar.'
+            );
+            setSuccess('');
+            return;
+        }
+
+        try {
+            await copyTextToClipboard(
+                summary
+            );
+
+            setLessonForm(current =>
+                current
+                    ? {
+                          ...current,
+                          giaeStatus:
+                              'submitted'
+                      }
+                    : current
+            );
+
+            setError('');
+            setSuccess(
+                'Sumário copiado. O estado “Submetido no GIAE” foi assinalado.'
+            );
+        } catch {
+            setError(
+                'Não foi possível copiar o sumário.'
+            );
+            setSuccess('');
         }
     }
 
@@ -2018,17 +2120,8 @@ export default function DailyWorkspaceView({
                                             </p>
 
                                             <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                                                <h3 className="text-sm font-black">
-                                                    O
-                                                    que
-                                                    foi
-                                                    feito
-                                                    nesta
-                                                    aula?
-                                                </h3>
-
                                                 <span
-                                                    className={`text-[0.64rem] font-bold ${
+                                                    className={`text-[0.78rem] font-bold ${
                                                         hasUnsavedChanges
                                                             ? 'text-amber-200'
                                                             : 'text-emerald-200'
@@ -2149,22 +2242,11 @@ export default function DailyWorkspaceView({
                                                 guardar.
                                             </p>
 
-                                            <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={
-                                                        lessonForm.giaeStatus ===
-                                                        'submitted'
-                                                    }
-                                                    onChange={event =>
-                                                        updateLessonForm(
-                                                            'giaeStatus',
-                                                            event
-                                                                .target
-                                                                .checked
-                                                                ? 'submitted'
-                                                                : 'pending'
-                                                        )
+                                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        void handleCopySummary()
                                                     }
                                                     disabled={
                                                         saving ||
@@ -2172,12 +2254,61 @@ export default function DailyWorkspaceView({
                                                             'cancelled' ||
                                                         !lessonForm.summary.trim()
                                                     }
-                                                    className="h-4 w-4 accent-cyan-300"
-                                                />
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-cyan-300/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                                                >
+                                                    <svg
+                                                        aria-hidden="true"
+                                                        viewBox="0 0 24 24"
+                                                        className="h-4 w-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    >
+                                                        <rect
+                                                            x="9"
+                                                            y="9"
+                                                            width="11"
+                                                            height="11"
+                                                            rx="2"
+                                                        />
+                                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                                    </svg>
 
-                                                Submetido no
-                                                GIAE
-                                            </label>
+                                                    Copiar
+                                                </button>
+
+                                                <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            lessonForm.giaeStatus ===
+                                                            'submitted'
+                                                        }
+                                                        onChange={event =>
+                                                            updateLessonForm(
+                                                                'giaeStatus',
+                                                                event
+                                                                    .target
+                                                                    .checked
+                                                                    ? 'submitted'
+                                                                    : 'pending'
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving ||
+                                                            lessonForm.status ===
+                                                                'cancelled' ||
+                                                            !lessonForm.summary.trim()
+                                                        }
+                                                        className="h-4 w-4 accent-cyan-300"
+                                                    />
+
+                                                    Submetido no
+                                                    GIAE
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </section>
