@@ -319,18 +319,30 @@ export class DailyWorkspaceRepository {
         lessons: sortLessons(day.lessons)
       }))
 
+    const requestedLessonDay = requestedLessonId
+      ? weekDays.find(day =>
+          day.lessons.some(row => row.lesson.id === requestedLessonId)
+        ) ?? null
+      : null
+
+    const effectiveDate =
+      requestedLessonDay?.date ??
+      (calendar.days.some(day => day.date === date)
+        ? date
+        : calendar.anchorDate)
+
     const lessons = sortLessons(
-      calendar.days.find(day => day.date === date)?.lessons ?? []
+      calendar.days.find(day => day.date === effectiveDate)?.lessons ?? []
     )
 
     const selectedLessonId = resolveSelectedLessonId(
-      date,
+      effectiveDate,
       lessons,
       requestedLessonId
     )
 
     return {
-      date,
+      date: effectiveDate,
       weekStartDate:
         weekDays[0]?.date ?? calendar.primaryStartDate,
       weekEndDate:
