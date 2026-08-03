@@ -1,11 +1,37 @@
-import { useCallback, useEffect, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useState
+} from 'react'
 
-import { AccessGate } from '../access/AccessGate'
+import {
+  AccessGate
+} from '../access/AccessGate'
+
 import DailyWorkspaceView from '../daily/DailyWorkspaceView'
-import { maProfessorRepository } from '../repository'
-import type { AcademicYear, EntityId, ISODate } from '../types'
-import { CalendarProductWorkspace } from './CalendarProductWorkspace'
-import { ProductMenuWorkspace } from './ProductMenuWorkspace'
+
+import {
+  maProfessorRepository
+} from '../repository'
+
+import {
+  CryptoSetupGate
+} from '../sync/CryptoSetupGate'
+
+import type {
+  AcademicYear,
+  EntityId,
+  ISODate
+} from '../types'
+
+import {
+  CalendarProductWorkspace
+} from './CalendarProductWorkspace'
+
+import {
+  ProductMenuWorkspace
+} from './ProductMenuWorkspace'
+
 import {
   ProductNavigation,
   type ProductTheme,
@@ -23,30 +49,46 @@ interface RefreshAcademicYearOptions {
   showLoading?: boolean
 }
 
-const THEME_STORAGE_KEY = 'ma-professor-theme'
+const THEME_STORAGE_KEY =
+  'ma-professor-theme'
 
-function getInitialTheme(): ProductTheme {
-  if (typeof window === 'undefined') {
+function getInitialTheme():
+  ProductTheme {
+  if (
+    typeof window ===
+      'undefined'
+  ) {
     return 'dark'
   }
 
   try {
-    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+    const savedTheme =
+      window.localStorage.getItem(
+        THEME_STORAGE_KEY
+      )
 
-    if (savedTheme === 'light' || savedTheme === 'dark') {
+    if (
+      savedTheme === 'light' ||
+      savedTheme === 'dark'
+    ) {
       return savedTheme
     }
   } catch {
     // O tema continua a funcionar mesmo que o armazenamento esteja bloqueado.
   }
 
-  return typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-color-scheme: light)').matches
+  return typeof window.matchMedia ===
+      'function' &&
+    window.matchMedia(
+      '(prefers-color-scheme: light)'
+    ).matches
     ? 'light'
     : 'dark'
 }
 
-function describeAcademicYearError(error: unknown) {
+function describeAcademicYearError(
+  error: unknown
+) {
   if (
     error instanceof Error &&
     error.message.trim()
@@ -58,76 +100,129 @@ function describeAcademicYearError(error: unknown) {
 }
 
 function ProductContent() {
-  const [workspace, setWorkspace] =
-    useState<ProductWorkspace>('daily')
+  const [
+    workspace,
+    setWorkspace
+  ] =
+    useState<ProductWorkspace>(
+      'daily'
+    )
 
-  const [academicYear, setAcademicYear] =
-    useState<AcademicYear | null>(null)
+  const [
+    academicYear,
+    setAcademicYear
+  ] =
+    useState<AcademicYear | null>(
+      null
+    )
 
-  const [checkingYear, setCheckingYear] = useState(true)
-  const [changingWorkspace, setChangingWorkspace] =
+  const [
+    checkingYear,
+    setCheckingYear
+  ] =
+    useState(true)
+
+  const [
+    changingWorkspace,
+    setChangingWorkspace
+  ] =
     useState(false)
 
-  const [academicYearError, setAcademicYearError] =
+  const [
+    academicYearError,
+    setAcademicYearError
+  ] =
     useState('')
 
-  const [dailyTarget, setDailyTarget] =
+  const [
+    dailyTarget,
+    setDailyTarget
+  ] =
     useState<DailyTarget>({})
 
-  const [theme, setTheme] =
-    useState<ProductTheme>(getInitialTheme)
+  const [
+    theme,
+    setTheme
+  ] =
+    useState<ProductTheme>(
+      getInitialTheme
+    )
 
-  const refreshAcademicYear = useCallback(
-    async (
-      options: RefreshAcademicYearOptions = {}
-    ) => {
-      const { showLoading = false } = options
+  const refreshAcademicYear =
+    useCallback(
+      async (
+        options:
+          RefreshAcademicYearOptions = {}
+      ) => {
+        const {
+          showLoading = false
+        } = options
 
-      if (showLoading) {
-        setCheckingYear(true)
-      }
+        if (showLoading) {
+          setCheckingYear(
+            true
+          )
+        }
 
-      setAcademicYearError('')
-
-      try {
-        const activeYear =
-          await maProfessorRepository.getActiveAcademicYear()
-
-        setAcademicYear(activeYear ?? null)
-
-        return activeYear ?? null
-      } catch (error) {
         setAcademicYearError(
-          describeAcademicYearError(error)
+          ''
         )
 
-        /*
-         * Não eliminamos academicYear aqui.
-         *
-         * Se já existirem dados carregados e uma atualização de
-         * segundo plano falhar, a aplicação deve continuar a mostrar
-         * os dados existentes em vez de fingir que a configuração
-         * desapareceu.
-         */
-        return null
-      } finally {
-        if (showLoading) {
-          setCheckingYear(false)
+        try {
+          const activeYear =
+            await maProfessorRepository
+              .getActiveAcademicYear()
+
+          setAcademicYear(
+            activeYear ?? null
+          )
+
+          return activeYear ?? null
+        } catch (error) {
+          setAcademicYearError(
+            describeAcademicYearError(
+              error
+            )
+          )
+
+          /*
+           * Não eliminamos academicYear aqui.
+           *
+           * Se já existirem dados carregados e uma atualização de
+           * segundo plano falhar, a aplicação deve continuar a mostrar
+           * os dados existentes em vez de fingir que a configuração
+           * desapareceu.
+           */
+          return null
+        } finally {
+          if (showLoading) {
+            setCheckingYear(
+              false
+            )
+          }
         }
-      }
-    },
-    []
-  )
+      },
+      []
+    )
 
   useEffect(() => {
     void refreshAcademicYear({
       showLoading: true
-    }).then(activeYear => {
-      if (!activeYear?.setupCompletedAt) {
-        setWorkspace('menu')
+    }).then(
+      activeYear => {
+        if (
+          !activeYear
+            ?.setupCompletedAt
+        ) {
+          setWorkspace(
+            'menu'
+          )
+        }
       }
-    })
-  }, [refreshAcademicYear])
+    )
+  }, [
+    refreshAcademicYear
+  ])
 
   useEffect(() => {
     try {
@@ -138,112 +233,159 @@ function ProductContent() {
     } catch {
       // O seletor mantém-se funcional durante a sessão atual.
     }
-  }, [theme])
+  }, [
+    theme
+  ])
 
-  const handleSelect = async (
-    nextWorkspace: ProductWorkspace
-  ) => {
-    if (changingWorkspace) {
-      return
-    }
-
-    if (
-      workspace === nextWorkspace &&
-      nextWorkspace !== 'daily'
-    ) {
-      return
-    }
-
-    /*
-     * O DailyWorkspaceView já protege o fecho e a atualização do
-     * browser quando existem alterações por guardar, mas ainda não
-     * comunica esse estado diretamente ao menu principal.
-     *
-     * Até essa comunicação ser adicionada no DailyWorkspaceView,
-     * esta confirmação impede que a mudança de área descarte
-     * silenciosamente o trabalho do professor.
-     */
-    if (
-      workspace === 'daily' &&
-      nextWorkspace !== 'daily'
-    ) {
-      const confirmed = window.confirm(
-        'Vai sair do ecrã da aula. Confirme que carregou em “Guardar tudo”. Pretende continuar?'
-      )
-
-      if (!confirmed) {
-        return
-      }
-    }
-
-    setChangingWorkspace(true)
-
-    try {
-      if (nextWorkspace === 'menu') {
-        setWorkspace('menu')
+  const handleSelect =
+    async (
+      nextWorkspace:
+        ProductWorkspace
+    ) => {
+      if (changingWorkspace) {
         return
       }
 
-      let activeYear = academicYear
+      if (
+        workspace ===
+          nextWorkspace &&
+        nextWorkspace !==
+          'daily'
+      ) {
+        return
+      }
 
       /*
-       * Não voltamos a consultar a base de dados em todas as
-       * mudanças de área. Isso desmontava o DailyWorkspaceView e
-       * podia apagar alterações ainda não guardadas.
+       * O DailyWorkspaceView já protege o fecho e a atualização do
+       * browser quando existem alterações por guardar, mas ainda não
+       * comunica esse estado diretamente ao menu principal.
        *
-       * Só atualizamos quando não existe um ano letivo carregado ou
-       * quando a configuração ainda não está concluída.
+       * Até essa comunicação ser adicionada no DailyWorkspaceView,
+       * esta confirmação impede que a mudança de área descarte
+       * silenciosamente o trabalho do professor.
        */
-      if (!activeYear?.setupCompletedAt) {
-        activeYear = await refreshAcademicYear({
-          showLoading: !activeYear
+      if (
+        workspace ===
+          'daily' &&
+        nextWorkspace !==
+          'daily'
+      ) {
+        const confirmed =
+          window.confirm(
+            'Vai sair do ecrã da aula. Confirme que carregou em “Guardar tudo”. Pretende continuar?'
+          )
+
+        if (!confirmed) {
+          return
+        }
+      }
+
+      setChangingWorkspace(
+        true
+      )
+
+      try {
+        if (
+          nextWorkspace ===
+          'menu'
+        ) {
+          setWorkspace(
+            'menu'
+          )
+
+          return
+        }
+
+        let activeYear =
+          academicYear
+
+        /*
+         * Não voltamos a consultar a base de dados em todas as
+         * mudanças de área. Isso desmontava o DailyWorkspaceView e
+         * podia apagar alterações ainda não guardadas.
+         *
+         * Só atualizamos quando não existe um ano letivo carregado ou
+         * quando a configuração ainda não está concluída.
+         */
+        if (
+          !activeYear
+            ?.setupCompletedAt
+        ) {
+          activeYear =
+            await refreshAcademicYear({
+              showLoading:
+                !activeYear
+            })
+        }
+
+        if (
+          !activeYear
+            ?.setupCompletedAt
+        ) {
+          setWorkspace(
+            'menu'
+          )
+
+          return
+        }
+
+        if (
+          nextWorkspace ===
+          'daily'
+        ) {
+          setDailyTarget({})
+        }
+
+        setWorkspace(
+          nextWorkspace
+        )
+      } finally {
+        setChangingWorkspace(
+          false
+        )
+      }
+    }
+
+  const handleDataChanged =
+    async () => {
+      /*
+       * Esta é uma atualização de segundo plano.
+       * Não deve desmontar o ecrã que estiver aberto.
+       */
+      await refreshAcademicYear()
+    }
+
+  const openLessonFromCalendar =
+    (
+      date: ISODate,
+      lessonId: EntityId
+    ) => {
+      setDailyTarget({
+        date,
+        lessonId
+      })
+
+      setWorkspace(
+        'daily'
+      )
+    }
+
+  const retryAcademicYear =
+    async () => {
+      const activeYear =
+        await refreshAcademicYear({
+          showLoading: true
         })
-      }
 
-      if (!activeYear?.setupCompletedAt) {
-        setWorkspace('menu')
-        return
+      if (
+        !activeYear
+          ?.setupCompletedAt
+      ) {
+        setWorkspace(
+          'menu'
+        )
       }
-
-      if (nextWorkspace === 'daily') {
-        setDailyTarget({})
-      }
-
-      setWorkspace(nextWorkspace)
-    } finally {
-      setChangingWorkspace(false)
     }
-  }
-
-  const handleDataChanged = async () => {
-    /*
-     * Esta é uma atualização de segundo plano.
-     * Não deve desmontar o ecrã que estiver aberto.
-     */
-    await refreshAcademicYear()
-  }
-
-  const openLessonFromCalendar = (
-    date: ISODate,
-    lessonId: EntityId
-  ) => {
-    setDailyTarget({
-      date,
-      lessonId
-    })
-
-    setWorkspace('daily')
-  }
-
-  const retryAcademicYear = async () => {
-    const activeYear = await refreshAcademicYear({
-      showLoading: true
-    })
-
-    if (!activeYear?.setupCompletedAt) {
-      setWorkspace('menu')
-    }
-  }
 
   const showLoading =
     workspace !== 'menu' &&
@@ -254,7 +396,9 @@ function ProductContent() {
     workspace !== 'menu' &&
     !checkingYear &&
     !academicYear &&
-    Boolean(academicYearError)
+    Boolean(
+      academicYearError
+    )
 
   const showSetupRequired =
     workspace !== 'menu' &&
@@ -269,16 +413,34 @@ function ProductContent() {
           ? 'bg-slate-950 text-white'
           : 'bg-slate-50 text-slate-950'
       }`}
-      data-theme={theme}
+      data-theme={
+        theme
+      }
     >
       <ProductNavigation
-        workspace={workspace}
-        academicYearName={academicYear?.name ?? null}
-        theme={theme}
-        onSelect={next => void handleSelect(next)}
+        workspace={
+          workspace
+        }
+        academicYearName={
+          academicYear?.name ??
+          null
+        }
+        theme={
+          theme
+        }
+        onSelect={
+          next =>
+            void handleSelect(
+              next
+            )
+        }
         onToggleTheme={() =>
-          setTheme(current =>
-            current === 'dark' ? 'light' : 'dark'
+          setTheme(
+            current =>
+              current ===
+              'dark'
+                ? 'light'
+                : 'dark'
           )
         }
       />
@@ -295,37 +457,61 @@ function ProductContent() {
         </main>
       ) : null}
 
-      {workspace === 'daily' &&
-      academicYear?.setupCompletedAt &&
+      {workspace ===
+        'daily' &&
+      academicYear
+        ?.setupCompletedAt &&
       !showLoading ? (
         <DailyWorkspaceView
           key={`${dailyTarget.date ?? 'today'}-${
-            dailyTarget.lessonId ?? 'auto'
+            dailyTarget.lessonId ??
+            'auto'
           }`}
-          academicYearId={academicYear.id}
-          initialDate={dailyTarget.date}
-          initialLessonId={dailyTarget.lessonId}
+          academicYearId={
+            academicYear.id
+          }
+          initialDate={
+            dailyTarget.date
+          }
+          initialLessonId={
+            dailyTarget.lessonId
+          }
         />
       ) : null}
 
-      {workspace === 'calendar' &&
-      academicYear?.setupCompletedAt &&
+      {workspace ===
+        'calendar' &&
+      academicYear
+        ?.setupCompletedAt &&
       !showLoading ? (
         <CalendarProductWorkspace
-          academicYearId={academicYear.id}
-          onOpenLesson={openLessonFromCalendar}
+          academicYearId={
+            academicYear.id
+          }
+          onOpenLesson={
+            openLessonFromCalendar
+          }
         />
       ) : null}
 
-      {workspace === 'menu' ? (
+      {workspace ===
+      'menu' ? (
         <ProductMenuWorkspace
-          academicYear={academicYear}
-          onDataChanged={handleDataChanged}
+          academicYear={
+            academicYear
+          }
+          onDataChanged={
+            handleDataChanged
+          }
           onOpenDaily={() =>
-            void handleSelect('daily')
+            void handleSelect(
+              'daily'
+            )
           }
           onOpenCalendar={() =>
-            void handleSelect('calendar')
+            void handleSelect(
+              'calendar'
+            )
           }
         />
       ) : null}
@@ -346,9 +532,7 @@ function ProductContent() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Os dados existentes não foram eliminados.
-              Tente novamente antes de iniciar uma nova
-              configuração.
+              Os dados existentes não foram eliminados. Tente novamente antes de iniciar uma nova configuração.
             </p>
 
             <div className="mt-5 flex flex-wrap justify-center gap-3">
@@ -365,7 +549,9 @@ function ProductContent() {
               <button
                 type="button"
                 onClick={() =>
-                  setWorkspace('menu')
+                  setWorkspace(
+                    'menu'
+                  )
                 }
                 className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-white"
               >
@@ -388,14 +574,15 @@ function ProductContent() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Crie o ano letivo, as turmas, as disciplinas
-              e os módulos antes de abrir esta área.
+              Crie o ano letivo, as turmas, as disciplinas e os módulos antes de abrir esta área.
             </p>
 
             <button
               type="button"
               onClick={() =>
-                setWorkspace('menu')
+                setWorkspace(
+                  'menu'
+                )
               }
               className="mt-5 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
             >
@@ -411,7 +598,9 @@ function ProductContent() {
 export function MAProfessorProduct() {
   return (
     <AccessGate>
-      <ProductContent />
+      <CryptoSetupGate>
+        <ProductContent />
+      </CryptoSetupGate>
     </AccessGate>
   )
 }
