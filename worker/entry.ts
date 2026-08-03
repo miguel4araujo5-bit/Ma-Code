@@ -17,6 +17,12 @@ import {
 } from './maProfessorAccess'
 
 import {
+  handleMAProfessorSnapshotApiRequest,
+  isMAProfessorSnapshotApiPath,
+  type MaProfessorSnapshotEnv
+} from './maProfessorSnapshot'
+
+import {
   handleMAProfessorSyncApiRequest,
   isMAProfessorSyncApiPath,
   type MaProfessorSyncEnv
@@ -30,7 +36,8 @@ export {
 export interface Env
   extends BaseEnv,
     BtcAlertsEnv,
-    MaProfessorSyncEnv {}
+    MaProfessorSyncEnv,
+    MaProfessorSnapshotEnv {}
 
 type ExecutionContextLike = {
   waitUntil(
@@ -43,7 +50,10 @@ export default {
     request: Request,
     env: Env
   ) {
-    const url = new URL(request.url)
+    const url =
+      new URL(
+        request.url
+      )
 
     if (
       isBtcAlertsApiPath(
@@ -73,6 +83,17 @@ export default {
       )
     ) {
       return handleMAProfessorSyncApiRequest(
+        request,
+        env
+      )
+    }
+
+    if (
+      isMAProfessorSnapshotApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorSnapshotApiRequest(
         request,
         env
       )
