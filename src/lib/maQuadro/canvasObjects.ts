@@ -1207,12 +1207,11 @@ selectAllMAQuadroObjects(
   canvas.requestRenderAll()
 }
 
-export type
-  MAQuadroArrangeAction =
-    | 'front'
-    | 'forward'
-    | 'backward'
-    | 'back'
+export type MAQuadroArrangeAction =
+  | 'front'
+  | 'forward'
+  | 'backward'
+  | 'back'
 
 export function
 arrangeMAQuadroObject(
@@ -1268,14 +1267,13 @@ arrangeMAQuadroObject(
   canvas.requestRenderAll()
 }
 
-export type
-  MAQuadroAlignAction =
-    | 'left'
-    | 'center-x'
-    | 'right'
-    | 'top'
-    | 'center-y'
-    | 'bottom'
+export type MAQuadroAlignAction =
+  | 'left'
+  | 'center-x'
+  | 'right'
+  | 'top'
+  | 'center-y'
+  | 'bottom'
 
 export function
 alignMAQuadroSelection(
@@ -1352,8 +1350,7 @@ distributeMAQuadroSelection(
     | 'vertical'
 ) {
   const objects =
-    canvas.getActiveObjects()
-      as MAQuadroFabricObject[]
+  canvas.getActiveObjects() as MAQuadroFabricObject[]
 
   if (
     objects.length < 3
