@@ -41,6 +41,10 @@ const MAProfessorPage = lazy(
   () => import('./MAProfessorPage')
 )
 
+const MAQuadroPage = lazy(
+  () => import('./MAQuadroPage')
+)
+
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
@@ -69,6 +73,9 @@ type AppPage =
     }
   | {
       type: 'ma-professor'
+    }
+  | {
+      type: 'ma-quadro'
     }
   | {
       type: 'service'
@@ -142,6 +149,15 @@ function getPageFromPath(): AppPage {
   ) {
     return {
       type: 'ma-professor'
+    }
+  }
+
+  if (
+    path ===
+    '/produtos/ma-quadro'
+  ) {
+    return {
+      type: 'ma-quadro'
     }
   }
 
@@ -230,6 +246,15 @@ export default function App() {
   ) {
     return (
       <MAProfessorPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'ma-quadro'
+  ) {
+    return (
+      <MAQuadroPage />
     )
   }
 
