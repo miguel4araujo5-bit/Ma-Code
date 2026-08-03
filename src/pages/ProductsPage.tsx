@@ -105,6 +105,27 @@ const products:
   },
   {
     name:
+      'MA-Quadro',
+    eyebrow:
+      'Editor de design',
+    description:
+      'Crie publicações, stories, cabeçalhos e cartazes com texto, imagens, formas, camadas, modelos e exportação local, sem conta nem telemetria.',
+    href:
+      '/produtos/ma-quadro',
+    status:
+      'Em desenvolvimento',
+    badge: '▦',
+    badgeClassName:
+      'border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30',
+    highlights: [
+      'Modelos',
+      'Camadas',
+      'PNG e PDF',
+      'Tudo local'
+    ]
+  },
+  {
+    name:
       'MA-Professor',
     eyebrow:
       'Gestão pedagógica',
@@ -297,7 +318,9 @@ function ProductCardItem({
               product.badge ===
                 '₿' ||
               product.badge ===
-                '✂'
+                '✂' ||
+              product.badge ===
+                '▦'
                 ? 'text-3xl'
                 : ''
             }`}
@@ -381,12 +404,12 @@ export default function ProductsPage() {
 
     updateMeta(
       'description',
-      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes e o futuro MA-Professor para gestão pedagógica.'
+      'Conheça os produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes, MA-Quadro e o futuro MA-Professor para gestão pedagógica.'
     )
 
     updateMeta(
       'keywords',
-      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, MA-Professor, gestão de sumários, UFCD, apps web, ferramentas digitais'
+      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, MA-Quadro, editor de design, criar post Instagram, MA-Professor, gestão de sumários, UFCD, apps web, ferramentas digitais'
     )
 
     updateMeta(
@@ -421,7 +444,7 @@ export default function ProductsPage() {
 
     updatePropertyMeta(
       'og:description',
-      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers e soluções de gestão pedagógica.'
+      'Produtos próprios da MA-Code: ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers, edição de design local e soluções de gestão pedagógica.'
     )
 
     updatePropertyMeta(
@@ -451,7 +474,7 @@ export default function ProductsPage() {
 
     updateMeta(
       'twitter:description',
-      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes e MA-Professor.'
+      'Produtos próprios da MA-Code: MA PDF, MA Carteira, MA-BTC ALERTAS, MA-Recortes, MA-Quadro e MA-Professor.'
     )
 
     updateMeta(
@@ -486,7 +509,7 @@ export default function ProductsPage() {
             inLanguage:
               'pt-PT',
             description:
-              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers e uma futura aplicação de gestão pedagógica.',
+              'Página de produtos próprios da MA-Code, incluindo ferramentas PDF, carteira digital, alertas Bitcoin, criação de stickers, um editor de design local e uma futura aplicação de gestão pedagógica.',
             isPartOf: {
               '@id':
                 `${siteUrl}/#website`
@@ -611,10 +634,10 @@ export default function ProductsPage() {
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 md:text-lg">
               Esta área reúne produtos próprios da MA-Code, como o
-              MA PDF, a MA Carteira, a MA-BTC ALERTAS, o MA-Recortes
-              e o futuro MA-Professor, mantendo a estrutura preparada
-              para acrescentar novas automações, ferramentas para
-              negócios e apps web.
+              MA PDF, a MA Carteira, a MA-BTC ALERTAS, o MA-Recortes,
+              o MA-Quadro e o futuro MA-Professor, mantendo a estrutura
+              preparada para acrescentar novas automações, ferramentas
+              para negócios e apps web.
             </p>
 
             <div className="hero-actions">
