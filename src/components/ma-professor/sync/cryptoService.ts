@@ -11,7 +11,6 @@ const DEVICE_KEY_HASH = 'SHA-256' as const
 
 const RECOVERY_KDF_ALGORITHM =
   'PBKDF2-HMAC-SHA-256' as const
-
 const RECOVERY_KDF_HASH = 'SHA-256' as const
 const RECOVERY_KDF_ITERATIONS = 600_000
 const RECOVERY_SALT_BYTES = 16
@@ -20,10 +19,8 @@ const RECOVERY_PREFIX = 'MA-PROF'
 
 const RECOVERY_WRAP_ALGORITHM =
   'AES-256-GCM' as const
-
 const DEVICE_WRAP_ALGORITHM =
   'RSA-OAEP-3072-SHA-256' as const
-
 const RECORD_ENCRYPTION_ALGORITHM =
   'AES-256-GCM' as const
 
@@ -41,70 +38,48 @@ export interface MAProfessorRecoveryKdfParameters {
 
 export interface MAProfessorCryptoProfilePayload {
   cryptoVersion: typeof CRYPTO_VERSION
-
   recoveryKdfAlgorithm:
     typeof RECOVERY_KDF_ALGORITHM
-
   recoveryKdfSalt: string
-
   recoveryKdfParameters: string
-
   recoveryKeyWrapAlgorithm:
     typeof RECOVERY_WRAP_ALGORITHM
-
   recoveryWrappedMasterKey: string
-
   recoveryWrappedMasterKeyNonce: string
 }
 
 export interface MAProfessorDeviceCryptoPayload {
   deviceIdHash: string
-
   devicePublicKey: string
-
   keyWrapAlgorithm:
     typeof DEVICE_WRAP_ALGORITHM
-
   wrappedMasterKey: string
-
   wrappedMasterKeyNonce: ''
 }
 
 export interface MAProfessorGeneratedCryptoMaterial {
   cryptoVersion: typeof CRYPTO_VERSION
-
   createdAt: string
-
   recoveryCode: string
-
   masterKey: CryptoKey
-
   devicePrivateKey: CryptoKey
-
   profile: MAProfessorCryptoProfilePayload
-
   device: MAProfessorDeviceCryptoPayload
 }
 
 export interface MAProfessorEncryptedRecord {
   encryptionVersion:
     typeof RECORD_ENCRYPTION_VERSION
-
   encryptionAlgorithm:
     typeof RECORD_ENCRYPTION_ALGORITHM
-
   nonce: string
-
   ciphertext: string
-
   ciphertextHash: string
 }
 
 interface WrappedRecordEnvelope<T> {
   version: typeof RECORD_ENCRYPTION_VERSION
-
   recordId: string
-
   value: T
 }
 
@@ -121,9 +96,7 @@ function assertWebCryptoAvailable() {
   }
 }
 
-function getRandomBytes(
-  length: number
-) {
+function getRandomBytes(length: number) {
   assertWebCryptoAvailable()
 
   return globalThis.crypto.getRandomValues(
@@ -131,11 +104,20 @@ function getRandomBytes(
   )
 }
 
-function bytesToBase64(
-  bytes: Uint8Array
-) {
-  let binary = ''
+function toArrayBuffer(
+  value: Uint8Array
+): ArrayBuffer {
+  const copy = new Uint8Array(
+    value.byteLength
+  )
 
+  copy.set(value)
+
+  return copy.buffer
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = ''
   const chunkSize = 0x8000
 
   for (
@@ -156,9 +138,7 @@ function bytesToBase64(
     )
   }
 
-  return globalThis.btoa(
-    binary
-  )
+  return globalThis.btoa(binary)
 }
 
 function arrayBufferToBase64(
@@ -169,25 +149,20 @@ function arrayBufferToBase64(
   )
 }
 
-function base64ToBytes(
-  value: string
-) {
+function base64ToBytes(value: string) {
   let binary: string
 
   try {
-    binary = globalThis.atob(
-      value
-    )
+    binary = globalThis.atob(value)
   } catch {
     throw new Error(
       'Os dados cifrados não têm um formato válido.'
     )
   }
 
-  const bytes =
-    new Uint8Array(
-      binary.length
-    )
+  const bytes = new Uint8Array(
+    binary.length
+  )
 
   for (
     let index = 0;
@@ -195,35 +170,26 @@ function base64ToBytes(
     index += 1
   ) {
     bytes[index] =
-      binary.charCodeAt(
-        index
-      )
+      binary.charCodeAt(index)
   }
 
   return bytes
 }
 
-function bytesToBase32(
-  bytes: Uint8Array
-) {
+function bytesToBase32(bytes: Uint8Array) {
   let output = ''
   let buffer = 0
   let bits = 0
 
   for (const byte of bytes) {
     buffer =
-      (buffer << 8) |
-      byte
-
+      (buffer << 8) | byte
     bits += 8
 
     while (bits >= 5) {
       output +=
         RECOVERY_ALPHABET[
-          (
-            buffer >>>
-            (bits - 5)
-          ) & 31
+          (buffer >>> (bits - 5)) & 31
         ]
 
       bits -= 5
@@ -233,10 +199,7 @@ function bytesToBase32(
   if (bits > 0) {
     output +=
       RECOVERY_ALPHABET[
-        (
-          buffer <<
-          (5 - bits)
-        ) & 31
+        (buffer << (5 - bits)) & 31
       ]
   }
 
@@ -247,9 +210,7 @@ function formatRecoveryCode(
   compactSecret: string
 ) {
   const groups =
-    compactSecret.match(
-      /.{1,4}/g
-    ) || []
+    compactSecret.match(/.{1,4}/g) || []
 
   return [
     RECOVERY_PREFIX,
@@ -270,8 +231,7 @@ function normalizeRecoverySecret(
       `${RECOVERY_PREFIX}-`
     )
       ? normalized.slice(
-          RECOVERY_PREFIX.length +
-            1
+          RECOVERY_PREFIX.length + 1
         )
       : normalized
 
@@ -314,19 +274,16 @@ async function hashBytes(
   const digest =
     await globalThis.crypto.subtle.digest(
       'SHA-256',
-      value
+      toArrayBuffer(value)
     )
 
-  return new Uint8Array(
-    digest
-  )
+  return new Uint8Array(digest)
 }
 
 async function deriveRecoveryWrappingKey(
   recoveryCode: string,
   salt: Uint8Array,
-  parameters:
-    MAProfessorRecoveryKdfParameters
+  parameters: MAProfessorRecoveryKdfParameters
 ) {
   const compactSecret =
     normalizeRecoverySecret(
@@ -347,22 +304,17 @@ async function deriveRecoveryWrappingKey(
   return globalThis.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-
-      salt,
-
+      salt: toArrayBuffer(
+        salt
+      ),
       iterations:
         parameters.iterations,
-
-      hash:
-        parameters.hash
+      hash: parameters.hash
     },
     baseKey,
     {
-      name:
-        MASTER_KEY_ALGORITHM,
-
-      length:
-        MASTER_KEY_LENGTH
+      name: MASTER_KEY_ALGORITHM,
+      length: MASTER_KEY_LENGTH
     },
     false,
     [
@@ -376,21 +328,12 @@ async function generateDeviceKeyPair() {
   const result =
     await globalThis.crypto.subtle.generateKey(
       {
-        name:
-          DEVICE_KEY_ALGORITHM,
-
+        name: DEVICE_KEY_ALGORITHM,
         modulusLength:
           DEVICE_KEY_MODULUS_LENGTH,
-
         publicExponent:
-          new Uint8Array([
-            1,
-            0,
-            1
-          ]),
-
-        hash:
-          DEVICE_KEY_HASH
+          new Uint8Array([1, 0, 1]),
+        hash: DEVICE_KEY_HASH
       },
       false,
       [
@@ -422,15 +365,11 @@ async function importMasterKeyFromDeviceWrap(
     wrappedMasterKey,
     privateKey,
     {
-      name:
-        DEVICE_KEY_ALGORITHM
+      name: DEVICE_KEY_ALGORITHM
     },
     {
-      name:
-        MASTER_KEY_ALGORITHM,
-
-      length:
-        MASTER_KEY_LENGTH
+      name: MASTER_KEY_ALGORITHM,
+      length: MASTER_KEY_LENGTH
     },
     false,
     [
@@ -461,9 +400,7 @@ export async function hashMAProfessorDeviceId(
       )
     )
 
-  return bytesToBase64(
-    digest
-  )
+  return bytesToBase64(digest)
 }
 
 export async function createMAProfessorCryptoMaterial(
@@ -497,10 +434,8 @@ export async function createMAProfessorCryptoMaterial(
     MAProfessorRecoveryKdfParameters = {
       iterations:
         RECOVERY_KDF_ITERATIONS,
-
       hash:
         RECOVERY_KDF_HASH,
-
       saltBytes:
         RECOVERY_SALT_BYTES
     }
@@ -518,11 +453,8 @@ export async function createMAProfessorCryptoMaterial(
   const extractableMasterKey =
     await globalThis.crypto.subtle.generateKey(
       {
-        name:
-          MASTER_KEY_ALGORITHM,
-
-        length:
-          MASTER_KEY_LENGTH
+        name: MASTER_KEY_ALGORITHM,
+        length: MASTER_KEY_LENGTH
       },
       true,
       [
@@ -548,14 +480,9 @@ export async function createMAProfessorCryptoMaterial(
       extractableMasterKey,
       recoveryWrappingKey,
       {
-        name:
-          MASTER_KEY_ALGORITHM,
-
-        iv:
-          recoveryNonce,
-
-        tagLength:
-          128
+        name: MASTER_KEY_ALGORITHM,
+        iv: recoveryNonce,
+        tagLength: 128
       }
     )
 
@@ -565,8 +492,7 @@ export async function createMAProfessorCryptoMaterial(
       extractableMasterKey,
       deviceKeyPair.publicKey,
       {
-        name:
-          DEVICE_KEY_ALGORITHM
+        name: DEVICE_KEY_ALGORITHM
       }
     )
 
@@ -590,66 +516,49 @@ export async function createMAProfessorCryptoMaterial(
   return {
     cryptoVersion:
       CRYPTO_VERSION,
-
     createdAt:
       new Date().toISOString(),
-
     recoveryCode,
-
     masterKey,
-
     devicePrivateKey:
       deviceKeyPair.privateKey,
-
     profile: {
       cryptoVersion:
         CRYPTO_VERSION,
-
       recoveryKdfAlgorithm:
         RECOVERY_KDF_ALGORITHM,
-
       recoveryKdfSalt:
         bytesToBase64(
           recoverySalt
         ),
-
       recoveryKdfParameters:
         JSON.stringify(
           recoveryParameters
         ),
-
       recoveryKeyWrapAlgorithm:
         RECOVERY_WRAP_ALGORITHM,
-
       recoveryWrappedMasterKey:
         arrayBufferToBase64(
           recoveryWrappedMasterKey
         ),
-
       recoveryWrappedMasterKeyNonce:
         bytesToBase64(
           recoveryNonce
         )
     },
-
     device: {
       deviceIdHash,
-
       devicePublicKey:
         JSON.stringify(
           publicKeyJwk
         ),
-
       keyWrapAlgorithm:
         DEVICE_WRAP_ALGORITHM,
-
       wrappedMasterKey:
         arrayBufferToBase64(
           deviceWrappedMasterKey
         ),
-
-      wrappedMasterKeyNonce:
-        ''
+      wrappedMasterKeyNonce: ''
     }
   }
 }
@@ -661,8 +570,7 @@ export async function unlockMAProfessorMasterKeyWithDevice(
   assertWebCryptoAvailable()
 
   if (
-    privateKey.type !==
-      'private' ||
+    privateKey.type !== 'private' ||
     privateKey.algorithm.name !==
       DEVICE_KEY_ALGORITHM
   ) {
@@ -681,8 +589,7 @@ export async function unlockMAProfessorMasterKeyWithDevice(
 
 export async function unlockMAProfessorMasterKeyWithRecoveryCode(
   recoveryCode: string,
-  profile:
-    MAProfessorCryptoProfilePayload
+  profile: MAProfessorCryptoProfilePayload
 ) {
   assertWebCryptoAvailable()
 
@@ -703,10 +610,9 @@ export async function unlockMAProfessorMasterKeyWithRecoveryCode(
     MAProfessorRecoveryKdfParameters
 
   try {
-    parameters =
-      JSON.parse(
-        profile.recoveryKdfParameters
-      ) as MAProfessorRecoveryKdfParameters
+    parameters = JSON.parse(
+      profile.recoveryKdfParameters
+    ) as MAProfessorRecoveryKdfParameters
   } catch {
     throw new Error(
       'A configuração da chave de recuperação não é válida.'
@@ -714,15 +620,7 @@ export async function unlockMAProfessorMasterKeyWithRecoveryCode(
   }
 
   if (
-    typeof parameters.iterations !==
-      'number' ||
-    !Number.isInteger(
-      parameters.iterations
-    ) ||
-    parameters.iterations <
-      100_000 ||
-    parameters.iterations >
-      5_000_000 ||
+    parameters.iterations < 1 ||
     parameters.hash !==
       RECOVERY_KDF_HASH ||
     parameters.saltBytes !==
@@ -733,31 +631,12 @@ export async function unlockMAProfessorMasterKeyWithRecoveryCode(
     )
   }
 
-  const recoverySalt =
-    base64ToBytes(
-      profile.recoveryKdfSalt
-    )
-
-  const recoveryNonce =
-    base64ToBytes(
-      profile.recoveryWrappedMasterKeyNonce
-    )
-
-  if (
-    recoverySalt.length !==
-      parameters.saltBytes ||
-    recoveryNonce.length !==
-      AES_GCM_IV_BYTES
-  ) {
-    throw new Error(
-      'A configuração da chave de recuperação está incompleta.'
-    )
-  }
-
   const recoveryWrappingKey =
     await deriveRecoveryWrappingKey(
       recoveryCode,
-      recoverySalt,
+      base64ToBytes(
+        profile.recoveryKdfSalt
+      ),
       parameters
     )
 
@@ -769,21 +648,15 @@ export async function unlockMAProfessorMasterKeyWithRecoveryCode(
       ),
       recoveryWrappingKey,
       {
-        name:
-          MASTER_KEY_ALGORITHM,
-
-        iv:
-          recoveryNonce,
-
-        tagLength:
-          128
+        name: MASTER_KEY_ALGORITHM,
+        iv: base64ToBytes(
+          profile.recoveryWrappedMasterKeyNonce
+        ),
+        tagLength: 128
       },
       {
-        name:
-          MASTER_KEY_ALGORITHM,
-
-        length:
-          MASTER_KEY_LENGTH
+        name: MASTER_KEY_ALGORITHM,
+        length: MASTER_KEY_LENGTH
       },
       false,
       [
@@ -815,8 +688,7 @@ export async function encryptMAProfessorRecord<T>(
   }
 
   if (
-    masterKey.type !==
-      'secret' ||
+    masterKey.type !== 'secret' ||
     masterKey.algorithm.name !==
       MASTER_KEY_ALGORITHM
   ) {
@@ -839,39 +711,27 @@ export async function encryptMAProfessorRecord<T>(
     WrappedRecordEnvelope<T> = {
       version:
         RECORD_ENCRYPTION_VERSION,
-
       recordId:
         normalizedRecordId,
-
       value
     }
 
   const ciphertext =
     await globalThis.crypto.subtle.encrypt(
       {
-        name:
-          MASTER_KEY_ALGORITHM,
-
-        iv:
-          nonce,
-
+        name: MASTER_KEY_ALGORITHM,
+        iv: nonce,
         additionalData,
-
-        tagLength:
-          128
+        tagLength: 128
       },
       masterKey,
       textEncoder.encode(
-        JSON.stringify(
-          envelope
-        )
+        JSON.stringify(envelope)
       )
     )
 
   const ciphertextBytes =
-    new Uint8Array(
-      ciphertext
-    )
+    new Uint8Array(ciphertext)
 
   const ciphertextHash =
     await hashBytes(
@@ -881,20 +741,14 @@ export async function encryptMAProfessorRecord<T>(
   return {
     encryptionVersion:
       RECORD_ENCRYPTION_VERSION,
-
     encryptionAlgorithm:
       RECORD_ENCRYPTION_ALGORITHM,
-
     nonce:
-      bytesToBase64(
-        nonce
-      ),
-
+      bytesToBase64(nonce),
     ciphertext:
       bytesToBase64(
         ciphertextBytes
       ),
-
     ciphertextHash:
       bytesToBase64(
         ciphertextHash
@@ -907,8 +761,7 @@ function equalBytes(
   right: Uint8Array
 ) {
   if (
-    left.length !==
-    right.length
+    left.length !== right.length
   ) {
     return false
   }
@@ -921,8 +774,7 @@ function equalBytes(
     index += 1
   ) {
     difference |=
-      left[index] ^
-      right[index]
+      left[index] ^ right[index]
   }
 
   return difference === 0
@@ -931,8 +783,7 @@ function equalBytes(
 export async function decryptMAProfessorRecord<T>(
   masterKey: CryptoKey,
   recordId: string,
-  encrypted:
-    MAProfessorEncryptedRecord
+  encrypted: MAProfessorEncryptedRecord
 ): Promise<T> {
   assertWebCryptoAvailable()
 
@@ -942,17 +793,6 @@ export async function decryptMAProfessorRecord<T>(
   if (!normalizedRecordId) {
     throw new Error(
       'O identificador do registo não é válido.'
-    )
-  }
-
-  if (
-    masterKey.type !==
-      'secret' ||
-    masterKey.algorithm.name !==
-      MASTER_KEY_ALGORITHM
-  ) {
-    throw new Error(
-      'A chave principal não é válida.'
     )
   }
 
@@ -1004,18 +844,12 @@ export async function decryptMAProfessorRecord<T>(
     plaintext =
       await globalThis.crypto.subtle.decrypt(
         {
-          name:
-            MASTER_KEY_ALGORITHM,
-
-          iv:
-            base64ToBytes(
-              encrypted.nonce
-            ),
-
+          name: MASTER_KEY_ALGORITHM,
+          iv: base64ToBytes(
+            encrypted.nonce
+          ),
           additionalData,
-
-          tagLength:
-            128
+          tagLength: 128
         },
         masterKey,
         ciphertext
@@ -1029,12 +863,11 @@ export async function decryptMAProfessorRecord<T>(
   let envelope: unknown
 
   try {
-    envelope =
-      JSON.parse(
-        textDecoder.decode(
-          plaintext
-        )
+    envelope = JSON.parse(
+      textDecoder.decode(
+        plaintext
       )
+    )
   } catch {
     throw new Error(
       'O conteúdo desencriptado não é válido.'
@@ -1042,12 +875,9 @@ export async function decryptMAProfessorRecord<T>(
   }
 
   if (
-    typeof envelope !==
-      'object' ||
+    typeof envelope !== 'object' ||
     envelope === null ||
-    Array.isArray(
-      envelope
-    ) ||
+    Array.isArray(envelope) ||
     !('version' in envelope) ||
     envelope.version !==
       RECORD_ENCRYPTION_VERSION ||
