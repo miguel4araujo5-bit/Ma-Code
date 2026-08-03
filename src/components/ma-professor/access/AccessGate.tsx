@@ -41,7 +41,8 @@ interface AccessContextValue {
   refreshing: boolean
 
   syncStatus:
-    MAProfessorSyncStatus | null
+    | MAProfessorSyncStatus
+    | null
 
   syncChecking: boolean
   syncError: string
@@ -281,9 +282,18 @@ export function AccessGate({
             nextSession
           )
 
-          void checkSyncStatus(
-            nextSession
-          )
+          if (
+            isLicenseUsable(
+              nextSession.license
+            )
+          ) {
+            void checkSyncStatus(
+              nextSession
+            )
+          } else {
+            setSyncStatus(null)
+            setSyncError('')
+          }
         } catch {
           clearMAProfessorAccessSession()
 
@@ -337,9 +347,18 @@ export function AccessGate({
             nextSession
           )
 
-          void checkSyncStatus(
-            nextSession
-          )
+          if (
+            isLicenseUsable(
+              nextSession.license
+            )
+          ) {
+            void checkSyncStatus(
+              nextSession
+            )
+          } else {
+            setSyncStatus(null)
+            setSyncError('')
+          }
         } finally {
           setRefreshing(false)
         }
@@ -402,9 +421,15 @@ export function AccessGate({
           nextSession
         )
 
-        void checkSyncStatus(
-          nextSession
-        )
+        if (
+          isLicenseUsable(
+            nextSession.license
+          )
+        ) {
+          void checkSyncStatus(
+            nextSession
+          )
+        }
 
         return response.message
       },
@@ -496,9 +521,15 @@ export function AccessGate({
           nextSession
         )
 
-        void checkSyncStatus(
-          nextSession
-        )
+        if (
+          isLicenseUsable(
+            nextSession.license
+          )
+        ) {
+          void checkSyncStatus(
+            nextSession
+          )
+        }
       } catch (
         startError
       ) {
