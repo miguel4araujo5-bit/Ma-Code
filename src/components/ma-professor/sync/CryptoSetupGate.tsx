@@ -52,6 +52,7 @@ function fallbackCopyText(
     )
 
   textarea.value = value
+
   textarea.setAttribute(
     'readonly',
     ''
@@ -144,6 +145,7 @@ function ShieldIcon() {
         strokeLinejoin="round"
       >
         <path d="M12 3 5 6v5c0 4.6 2.7 8.2 7 10 4.3-1.8 7-5.4 7-10V6l-7-3Z" />
+
         <path d="m9.5 12 1.7 1.7 3.6-4" />
       </svg>
     </div>
@@ -298,6 +300,7 @@ export function CryptoSetupGate({
           ) {
             if (!local) {
               setError('')
+
               setStage(
                 'remote-existing'
               )
@@ -315,6 +318,7 @@ export function CryptoSetupGate({
             }
 
             setError('')
+
             setStage(
               'ready'
             )
@@ -341,6 +345,7 @@ export function CryptoSetupGate({
           }
 
           setError('')
+
           setStage(
             'setup'
           )
@@ -364,6 +369,7 @@ export function CryptoSetupGate({
             }
 
             setError('')
+
             setStage(
               'ready'
             )
@@ -423,6 +429,7 @@ export function CryptoSetupGate({
   const handleRetry =
     () => {
       setError('')
+
       setStage(
         'checking'
       )
@@ -553,8 +560,14 @@ export function CryptoSetupGate({
           '',
           pendingSetup.recoveryCode,
           '',
-          'Guarde este ficheiro num local seguro.',
-          'A MA-CODE não guarda nem consegue recuperar esta chave.',
+          'IMPORTANTE',
+          '',
+          'Esta chave é a única forma de autorizar outro dispositivo e recuperar os dados cifrados.',
+          'A MA-CODE não guarda, não conhece e não consegue reconstruir esta chave.',
+          'Redefinir a palavra-passe da conta não recupera esta chave nem desencripta os dados.',
+          'Se perder esta chave, poderá perder definitivamente o acesso à cópia cifrada.',
+          '',
+          'Guarde este ficheiro num local seguro e não partilhe a chave.',
           '',
           `Conta: ${session.email}`
         ].join(
@@ -702,11 +715,11 @@ export function CryptoSetupGate({
             </p>
 
             <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-              Proteja os seus dados
+              Os seus dados ficam cifrados
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Vamos criar neste dispositivo a chave que será usada para cifrar os seus dados antes da sincronização.
+              Os dados sensíveis são cifrados neste dispositivo antes de serem enviados. O servidor recebe apenas dados cifrados e metadados técnicos, sem a chave necessária para ler o conteúdo.
             </p>
           </div>
         </div>
@@ -719,11 +732,11 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-white">
-                Chave criada no dispositivo
+                Cifragem antes do envio
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                A chave principal legível não é enviada para a MA-CODE.
+                Alunos, sumários, faltas, avaliações e restantes dados são cifrados no seu dispositivo antes de chegarem ao servidor.
               </p>
             </div>
           </div>
@@ -735,11 +748,11 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-white">
-                Recuperação controlada por si
+                Servidor sem conteúdo legível
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                Receberá uma chave para recuperar os dados noutro dispositivo.
+                Com os elementos guardados no servidor, a MA-CODE não consegue consultar o conteúdo dos dados cifrados.
               </p>
             </div>
           </div>
@@ -751,15 +764,29 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-white">
-                Utilização responsável
+                Recuperação controlada por si
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                Introduza apenas dados que está autorizado a tratar. O MA-Professor não substitui o GIAE ou outro sistema oficial.
+                Receberá uma chave de recuperação única para autorizar outro dispositivo e recuperar os dados cifrados.
               </p>
             </div>
           </div>
         </div>
+
+        <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
+          <p className="text-sm font-black text-amber-100">
+            Importante antes de continuar
+          </p>
+
+          <p className="mt-2 text-xs leading-6 text-amber-100/80">
+            A MA-CODE não guarda nem consegue reconstruir a sua chave de recuperação. Se a perder, não conseguiremos recuperar os dados cifrados. Redefinir a palavra-passe da conta recupera apenas o acesso à conta e não recupera a chave de cifragem.
+          </p>
+        </div>
+
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Introduza apenas dados que está autorizado a tratar. O MA-Professor não substitui o GIAE ou outro sistema oficial.
+        </p>
 
         <ErrorMessage
           message={error}
@@ -821,7 +848,9 @@ export function CryptoSetupGate({
               />
 
               <path d="m11 12 8-8" />
+
               <path d="m15 8 2 2" />
+
               <path d="m17 6 2 2" />
             </svg>
           </div>
@@ -835,7 +864,7 @@ export function CryptoSetupGate({
           </h1>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
-            Esta chave permite recuperar os seus dados noutro dispositivo. A MA-CODE não a guarda nem consegue recuperá-la.
+            Esta é a única chave que permite autorizar outro dispositivo e recuperar os dados cifrados. A MA-CODE não a guarda, não a conhece e não consegue recriá-la.
           </p>
         </div>
 
@@ -897,7 +926,9 @@ export function CryptoSetupGate({
               strokeLinejoin="round"
             >
               <path d="M12 3v12" />
+
               <path d="m7 10 5 5 5-5" />
+
               <path d="M5 21h14" />
             </svg>
 
@@ -910,6 +941,16 @@ export function CryptoSetupGate({
             ✓ {recoveryAction}
           </p>
         ) : null}
+
+        <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
+          <p className="text-sm font-black text-amber-100">
+            Não é possível recuperar esta chave
+          </p>
+
+          <p className="mt-2 text-xs leading-6 text-amber-100/80">
+            Se perder a chave, poderá perder definitivamente o acesso à cópia cifrada. Redefinir a palavra-passe da conta não recupera esta chave nem desencripta os dados.
+          </p>
+        </div>
 
         <ErrorMessage
           message={error}
