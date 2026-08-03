@@ -3,64 +3,118 @@ import Dexie, {
 } from 'dexie'
 
 import type {
-  MAQuadroDesign,
+  MAQuadroProject,
   MAQuadroStoredFont
 } from '../../types/maQuadro'
+import {
+  migrateLegacyMAQuadroDesign
+} from './project'
 
 type MAQuadroDatabase = Dexie & {
-  designs: EntityTable<MAQuadroDesign, 'id'>
-  fonts: EntityTable<MAQuadroStoredFont, 'id'>
+  designs: EntityTable<
+    MAQuadroProject,
+    'id'
+  >
+  fonts: EntityTable<
+    MAQuadroStoredFont,
+    'id'
+  >
 }
 
-export const maQuadroDb = new Dexie(
-  'ma-quadro-local'
-) as MAQuadroDatabase
+export const maQuadroDb =
+  new Dexie(
+    'ma-quadro-local'
+  ) as MAQuadroDatabase
 
 maQuadroDb.version(1).stores({
-  designs: 'id, name, updatedAt, isStarter',
-  fonts: 'id, family, createdAt'
+  designs:
+    'id, name, updatedAt, isStarter',
+  fonts:
+    'id, family, createdAt'
 })
 
-export async function listMAQuadroDesigns() {
-  const designs = await maQuadroDb.designs.toArray()
-
-  return designs.sort((first, second) => {
-    if (first.isStarter !== second.isStarter) {
-      return first.isStarter ? 1 : -1
-    }
-
-    return second.updatedAt.localeCompare(
-      first.updatedAt
-    )
+maQuadroDb
+  .version(2)
+  .stores({
+    designs:
+      'id, name, updatedAt, isTemplate, category',
+    fonts:
+      'id, family, createdAt'
   })
+  .upgrade(async (transaction) => {
+    const table =
+      transaction.table('designs')
+    const records =
+      await table.toArray()
+
+    for (const record of records) {
+      const migrated =
+        migrateLegacyMAQuadroDesign(
+          record
+        )
+
+      if (migrated) {
+        await table.put(migrated)
+      }
+    }
+  })
+
+export async function listMAQuadroProjects() {
+  const projects =
+    await maQuadroDb.designs.toArray()
+
+  return projects.sort(
+    (first, second) => {
+      if (
+        first.isTemplate !==
+        second.isTemplate
+      ) {
+        return first.isTemplate
+          ? 1
+          : -1
+      }
+
+      return second.updatedAt.localeCompare(
+        first.updatedAt
+      )
+    }
+  )
 }
 
-export function getMAQuadroDesign(
-  designId: string
+export function getMAQuadroProject(
+  projectId: string
 ) {
-  return maQuadroDb.designs.get(designId)
+  return maQuadroDb.designs.get(
+    projectId
+  )
 }
 
-export function saveMAQuadroDesign(
-  design: MAQuadroDesign
+export function saveMAQuadroProject(
+  project: MAQuadroProject
 ) {
-  return maQuadroDb.designs.put(design)
+  return maQuadroDb.designs.put(
+    project
+  )
 }
 
-export function deleteMAQuadroDesign(
-  designId: string
+export function deleteMAQuadroProject(
+  projectId: string
 ) {
-  return maQuadroDb.designs.delete(designId)
+  return maQuadroDb.designs.delete(
+    projectId
+  )
 }
 
 export async function listMAQuadroFonts() {
-  const fonts = await maQuadroDb.fonts.toArray()
+  const fonts =
+    await maQuadroDb.fonts.toArray()
 
-  return fonts.sort((first, second) =>
-    first.family.localeCompare(
-      second.family,
-      'pt-PT'
-    )
+  return fonts.sort(
+    (first, second) =>
+      first.family.localeCompare(
+        second.family,
+        'pt-PT'
+      )
   )
 }
 
@@ -73,5 +127,7 @@ export function saveMAQuadroFont(
 export function deleteMAQuadroFont(
   fontId: string
 ) {
-  return maQuadroDb.fonts.delete(fontId)
+  return maQuadroDb.fonts.delete(
+    fontId
+  )
 }
