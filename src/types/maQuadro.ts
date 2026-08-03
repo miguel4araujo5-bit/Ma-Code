@@ -23,18 +23,48 @@ export type MAQuadroCanvasPreset = {
   description: string
   width: number
   height: number
+  category: MAQuadroProjectCategory
 }
 
-export type MAQuadroDesign = {
+export type MAQuadroBackgroundType =
+  | 'solid'
+  | 'transparent'
+  | 'gradient'
+
+export type MAQuadroBackground = {
+  type: MAQuadroBackgroundType
+  color: string
+  gradientFrom: string
+  gradientTo: string
+  gradientAngle: number
+}
+
+export type MAQuadroPage = {
   id: string
   name: string
   width: number
   height: number
-  backgroundColor: string
-  transparentBackground: boolean
+  background: MAQuadroBackground
   canvasJson: MAQuadroCanvasJson
   thumbnail?: string
-  isStarter: boolean
+}
+
+export type MAQuadroProjectCategory =
+  | 'social'
+  | 'story'
+  | 'presentation'
+  | 'print'
+  | 'invitation'
+  | 'custom'
+
+export type MAQuadroProject = {
+  schemaVersion: 2
+  id: string
+  name: string
+  pages: MAQuadroPage[]
+  activePageId: string
+  category: MAQuadroProjectCategory
+  isTemplate: boolean
   createdAt: string
   updatedAt: string
 }
@@ -49,9 +79,64 @@ export type MAQuadroStoredFont = {
 }
 
 export type MAQuadroHistorySnapshot = {
-  backgroundColor: string
-  transparentBackground: boolean
+  pageId: string
+  background: MAQuadroBackground
   canvasJson: MAQuadroCanvasJson
 }
 
-export type MAQuadroExportScale = 1 | 2
+export type MAQuadroExportScale = 1 | 2 | 3
+
+export type MAQuadroExportFormat =
+  | 'png'
+  | 'jpg'
+  | 'svg'
+  | 'pdf'
+  | 'zip'
+  | 'project'
+
+export type MAQuadroImageFilterState = {
+  brightness: number
+  contrast: number
+  saturation: number
+  blur: number
+  grayscale: boolean
+}
+
+export type MAQuadroObjectRole =
+  | 'text'
+  | 'shape'
+  | 'image'
+  | 'line'
+  | 'arrow'
+  | 'drawing'
+  | 'group'
+
+export type MAQuadroTextPreset =
+  | 'heading'
+  | 'subheading'
+  | 'body'
+  | 'caption'
+
+export type MAQuadroShapeKind =
+  | 'rectangle'
+  | 'circle'
+  | 'ellipse'
+  | 'triangle'
+  | 'star'
+  | 'line'
+  | 'arrow'
+
+export type MAQuadroPanelId =
+  | 'templates'
+  | 'elements'
+  | 'uploads'
+  | 'text'
+  | 'brand'
+  | 'projects'
+
+export type MAQuadroSaveState =
+  | 'ready'
+  | 'dirty'
+  | 'saving'
+  | 'saved'
+  | 'error'
