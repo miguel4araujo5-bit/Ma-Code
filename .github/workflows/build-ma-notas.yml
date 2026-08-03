@@ -1,0 +1,70 @@
+name: Build MA-Notas
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/ma-notas/**'
+      - '.github/workflows/build-ma-notas.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple-Silicon
+            runner: macos-15
+            architecture: arm64
+
+          - name: Intel
+            runner: macos-15-intel
+            architecture: x64
+
+    runs-on: ${{ matrix.runner }}
+
+    defaults:
+      run:
+        working-directory: apps/ma-notas
+
+    steps:
+      - name: Obter repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+
+      - name: Validar JavaScript
+        run: |
+          node --check src/main.cjs
+          node --check src/preload.cjs
+          node --check src/config.cjs
+          node --check src/pipeline.cjs
+          node --check src/renderer/renderer.js
+
+      - name: Construir aplicação macOS
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:mac -- --${{ matrix.architecture }}
+
+      - name: Guardar instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: MA-Notas-${{ matrix.name }}
+          path: |
+            apps/ma-notas/release/*.dmg
+            apps/ma-notas/release/*.zip
+          if-no-files-found: error
+          retention-days: 30
