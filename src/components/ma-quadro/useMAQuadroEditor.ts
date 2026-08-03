@@ -1922,8 +1922,8 @@ useMAQuadroEditor():
             response.ok
           ) {
             setBrand(
-  (await response.json()) as MAQuadroBrand
-)
+              (await response.json()) as MAQuadroBrand
+            )
           }
         } catch (error) {
           console.error(
@@ -3568,7 +3568,7 @@ useMAQuadroEditor():
               ActiveSelection
           ) {
             const objects =
-  clone.removeAll() as MAQuadroFabricObject[]
+              clone.removeAll() as MAQuadroFabricObject[]
 
             for (
               const object
@@ -4317,10 +4317,10 @@ useMAQuadroEditor():
         const canvas =
           canvasRef.current
 
-       const objects =
-  canvas?.getActiveObjects() as
-    | MAQuadroFabricObject[]
-    | undefined
+        const objects =
+          canvas?.getActiveObjects() as
+            | MAQuadroFabricObject[]
+            | undefined
 
         if (
           !canvas ||
@@ -4847,10 +4847,11 @@ useMAQuadroEditor():
         return null
       }
 
-      return activeObjects[0]
-        as
+      return (
+        activeObjects[0] as
           FabricImage &
           MAQuadroFabricObject
+      )
     }, [])
 
   const setImageFilters =
