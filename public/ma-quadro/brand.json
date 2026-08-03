@@ -16,6 +16,22 @@
     {
       "name": "Azul noite",
       "value": "#0F172A"
+    },
+    {
+      "name": "Branco",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "Cinza claro",
+      "value": "#E2E8F0"
+    },
+    {
+      "name": "Rosa",
+      "value": "#F472B6"
+    },
+    {
+      "name": "Âmbar",
+      "value": "#F59E0B"
     }
   ],
   "fonts": [
@@ -27,6 +43,16 @@
     {
       "name": "Serif editorial",
       "family": "Georgia",
+      "fallback": "serif"
+    },
+    {
+      "name": "Geométrica",
+      "family": "Trebuchet MS",
+      "fallback": "sans-serif"
+    },
+    {
+      "name": "Clássica",
+      "family": "Times New Roman",
       "fallback": "serif"
     }
   ]
