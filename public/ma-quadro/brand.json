@@ -1,0 +1,33 @@
+{
+  "name": "MA-Code",
+  "colors": [
+    {
+      "name": "Ciano MA",
+      "value": "#22D3EE"
+    },
+    {
+      "name": "Azul MA",
+      "value": "#38BDF8"
+    },
+    {
+      "name": "Violeta MA",
+      "value": "#8B5CF6"
+    },
+    {
+      "name": "Azul noite",
+      "value": "#0F172A"
+    }
+  ],
+  "fonts": [
+    {
+      "name": "Sans moderna",
+      "family": "Arial",
+      "fallback": "sans-serif"
+    },
+    {
+      "name": "Serif editorial",
+      "family": "Georgia",
+      "fallback": "serif"
+    }
+  ]
+}
