@@ -3,7 +3,6 @@ import {
   MA_PROFESSOR_DATABASE_VERSION,
   openMAProfessorDatabase
 } from '../db'
-
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -28,17 +27,14 @@ import type {
   TeachingAssignment,
   WeeklyScheduleSlot
 } from '../types'
-
 import {
   decryptMAProfessorRecord,
   encryptMAProfessorRecord,
   type MAProfessorEncryptedRecord
 } from './cryptoService'
-
 import {
   unlockMAProfessorLocalMasterKey
 } from './cryptoStorage'
-
 import {
   getMAProfessorEncryptedSnapshot,
   pushMAProfessorEncryptedSnapshot,
@@ -155,7 +151,8 @@ export interface MAProfessorDatabaseSnapshot {
   databaseVersion:
     typeof MA_PROFESSOR_DATABASE_VERSION
 
-  createdAt: string
+  createdAt:
+    string
 
   tables:
     MAProfessorSnapshotTables
@@ -168,7 +165,8 @@ export interface MAProfessorPreparedEncryptedSnapshot {
   recordId:
     typeof MA_PROFESSOR_DATABASE_SNAPSHOT_RECORD_ID
 
-  plaintextBytes: number
+  plaintextBytes:
+    number
 
   snapshot:
     MAProfessorDatabaseSnapshot
@@ -178,30 +176,44 @@ export interface MAProfessorPreparedEncryptedSnapshot {
 }
 
 export interface MAProfessorUploadSnapshotOptions {
-  token: string
-  email: string
-  deviceId: string
-  expectedServerRevision: number
+  token:
+    string
+
+  email:
+    string
+
+  deviceId:
+    string
+
+  expectedServerRevision:
+    number
 }
 
 export interface MAProfessorUploadSnapshotResult {
   snapshot:
     MAProfessorDatabaseSnapshot
 
-  plaintextBytes: number
+  plaintextBytes:
+    number
 
   remote:
     MAProfessorSnapshotPushResult
 }
 
 export interface MAProfessorDownloadSnapshotOptions {
-  token: string
-  email: string
-  deviceId: string
+  token:
+    string
+
+  email:
+    string
+
+  deviceId:
+    string
 }
 
 export interface MAProfessorDownloadedSnapshotFound {
-  found: true
+  found:
+    true
 
   snapshot:
     MAProfessorDatabaseSnapshot
@@ -210,27 +222,70 @@ export interface MAProfessorDownloadedSnapshotFound {
     Extract<
       MAProfessorSnapshotGetResult,
       {
-        found: true
+        found:
+          true
       }
     >
 }
 
 export interface MAProfessorDownloadedSnapshotNotFound {
-  found: false
+  found:
+    false
 
-  serverRevision: number
+  serverRevision:
+    number
 }
 
 export type MAProfessorDownloadedSnapshot =
   | MAProfessorDownloadedSnapshotFound
   | MAProfessorDownloadedSnapshotNotFound
 
+export interface MAProfessorRestoreSnapshotResult {
+  snapshot:
+    MAProfessorDatabaseSnapshot
+
+  recordCounts:
+    MAProfessorSnapshotRecordCounts
+
+  totalRecords:
+    number
+}
+
+const SNAPSHOT_TABLE_NAMES: Array<
+  keyof MAProfessorSnapshotTables
+> = [
+  'teacherProfiles',
+  'academicYears',
+  'groups',
+  'subjects',
+  'teachingAssignments',
+  'modules',
+  'students',
+  'assessmentSchemes',
+  'assessmentCriteria',
+  'planifications',
+  'planificationItems',
+  'weeklyScheduleSlots',
+  'schoolCalendarEvents',
+  'lessons',
+  'summarySuggestions',
+  'lessonAttendance',
+  'lessonAssessments',
+  'assessmentResults',
+  'moduleFinalGrades',
+  'learningRecoveries',
+  'settings',
+  'setupProgress'
+]
+
 function sortById<
   RecordType extends {
-    id: string
+    id:
+      string
   }
 >(
-  records: RecordType[]
+  records:
+    RecordType[]
 ) {
   return [
     ...records
@@ -340,7 +395,8 @@ function getSnapshotPlaintextBytes(
 }
 
 function isObject(
-  value: unknown
+  value:
+    unknown
 ): value is Record<
   string,
   unknown
@@ -348,7 +404,8 @@ function isObject(
   return (
     typeof value ===
       'object' &&
-    value !== null &&
+    value !==
+      null &&
     !Array.isArray(
       value
     )
@@ -356,7 +413,8 @@ function isObject(
 }
 
 function isValidDateString(
-  value: unknown
+  value:
+    unknown
 ) {
   return (
     typeof value ===
@@ -372,35 +430,52 @@ function isValidDateString(
   )
 }
 
-const SNAPSHOT_TABLE_NAMES: Array<
-  keyof MAProfessorSnapshotTables
-> = [
-  'teacherProfiles',
-  'academicYears',
-  'groups',
-  'subjects',
-  'teachingAssignments',
-  'modules',
-  'students',
-  'assessmentSchemes',
-  'assessmentCriteria',
-  'planifications',
-  'planificationItems',
-  'weeklyScheduleSlots',
-  'schoolCalendarEvents',
-  'lessons',
-  'summarySuggestions',
-  'lessonAttendance',
-  'lessonAssessments',
-  'assessmentResults',
-  'moduleFinalGrades',
-  'learningRecoveries',
-  'settings',
-  'setupProgress'
-]
+function validateTableRecords(
+  tableName:
+    keyof MAProfessorSnapshotTables,
+
+  records:
+    unknown[]
+) {
+  const recordIds =
+    new Set<string>()
+
+  for (
+    const record of
+    records
+  ) {
+    if (
+      !isObject(
+        record
+      ) ||
+      typeof record.id !==
+        'string' ||
+      !record.id.trim()
+    ) {
+      throw new Error(
+        `A tabela “${tableName}” contém um registo sem identificador válido.`
+      )
+    }
+
+    if (
+      recordIds.has(
+        record.id
+      )
+    ) {
+      throw new Error(
+        `A tabela “${tableName}” contém o identificador repetido “${record.id}”.`
+      )
+    }
+
+    recordIds.add(
+      record.id
+    )
+  }
+}
 
 function validateDatabaseSnapshot(
-  value: unknown
+  value:
+    unknown
 ): MAProfessorDatabaseSnapshot {
   if (
     !isObject(
@@ -452,7 +527,8 @@ function validateDatabaseSnapshot(
       !Number.isInteger(
         count
       ) ||
-      count < 0 ||
+      count <
+        0 ||
       count !==
         records.length
     ) {
@@ -460,10 +536,33 @@ function validateDatabaseSnapshot(
         `A tabela “${tableName}” da cópia desencriptada está incompleta.`
       )
     }
+
+    validateTableRecords(
+      tableName,
+      records
+    )
   }
 
   return value as unknown as
     MAProfessorDatabaseSnapshot
+}
+
+function countSnapshotRecords(
+  recordCounts:
+    MAProfessorSnapshotRecordCounts
+) {
+  return SNAPSHOT_TABLE_NAMES
+    .reduce(
+      (
+        total,
+        tableName
+      ) =>
+        total +
+        recordCounts[
+          tableName
+        ],
+      0
+    )
 }
 
 export async function createMAProfessorDatabaseSnapshot():
@@ -710,9 +809,397 @@ export async function createMAProfessorDatabaseSnapshot():
   )
 }
 
+export async function restoreMAProfessorDatabaseSnapshot(
+  value:
+    unknown
+): Promise<MAProfessorRestoreSnapshotResult> {
+  const snapshot =
+    validateDatabaseSnapshot(
+      value
+    )
+
+  const database =
+    await openMAProfessorDatabase()
+
+  await database.transaction(
+    'rw',
+
+    database.tables,
+
+    async () => {
+      await database.teacherProfiles
+        .clear()
+
+      await database.academicYears
+        .clear()
+
+      await database.groups
+        .clear()
+
+      await database.subjects
+        .clear()
+
+      await database.teachingAssignments
+        .clear()
+
+      await database.modules
+        .clear()
+
+      await database.students
+        .clear()
+
+      await database.assessmentSchemes
+        .clear()
+
+      await database.assessmentCriteria
+        .clear()
+
+      await database.planifications
+        .clear()
+
+      await database.planificationItems
+        .clear()
+
+      await database.weeklyScheduleSlots
+        .clear()
+
+      await database.schoolCalendarEvents
+        .clear()
+
+      await database.lessons
+        .clear()
+
+      await database.summarySuggestions
+        .clear()
+
+      await database.lessonAttendance
+        .clear()
+
+      await database.lessonAssessments
+        .clear()
+
+      await database.assessmentResults
+        .clear()
+
+      await database.moduleFinalGrades
+        .clear()
+
+      await database.learningRecoveries
+        .clear()
+
+      await database.settings
+        .clear()
+
+      await database.setupProgress
+        .clear()
+
+      if (
+        snapshot.tables
+          .teacherProfiles
+          .length >
+          0
+      ) {
+        await database.teacherProfiles
+          .bulkAdd(
+            snapshot.tables
+              .teacherProfiles
+          )
+      }
+
+      if (
+        snapshot.tables
+          .academicYears
+          .length >
+          0
+      ) {
+        await database.academicYears
+          .bulkAdd(
+            snapshot.tables
+              .academicYears
+          )
+      }
+
+      if (
+        snapshot.tables
+          .groups
+          .length >
+          0
+      ) {
+        await database.groups
+          .bulkAdd(
+            snapshot.tables
+              .groups
+          )
+      }
+
+      if (
+        snapshot.tables
+          .subjects
+          .length >
+          0
+      ) {
+        await database.subjects
+          .bulkAdd(
+            snapshot.tables
+              .subjects
+          )
+      }
+
+      if (
+        snapshot.tables
+          .teachingAssignments
+          .length >
+          0
+      ) {
+        await database.teachingAssignments
+          .bulkAdd(
+            snapshot.tables
+              .teachingAssignments
+          )
+      }
+
+      if (
+        snapshot.tables
+          .modules
+          .length >
+          0
+      ) {
+        await database.modules
+          .bulkAdd(
+            snapshot.tables
+              .modules
+          )
+      }
+
+      if (
+        snapshot.tables
+          .students
+          .length >
+          0
+      ) {
+        await database.students
+          .bulkAdd(
+            snapshot.tables
+              .students
+          )
+      }
+
+      if (
+        snapshot.tables
+          .assessmentSchemes
+          .length >
+          0
+      ) {
+        await database.assessmentSchemes
+          .bulkAdd(
+            snapshot.tables
+              .assessmentSchemes
+          )
+      }
+
+      if (
+        snapshot.tables
+          .assessmentCriteria
+          .length >
+          0
+      ) {
+        await database.assessmentCriteria
+          .bulkAdd(
+            snapshot.tables
+              .assessmentCriteria
+          )
+      }
+
+      if (
+        snapshot.tables
+          .planifications
+          .length >
+          0
+      ) {
+        await database.planifications
+          .bulkAdd(
+            snapshot.tables
+              .planifications
+          )
+      }
+
+      if (
+        snapshot.tables
+          .planificationItems
+          .length >
+          0
+      ) {
+        await database.planificationItems
+          .bulkAdd(
+            snapshot.tables
+              .planificationItems
+          )
+      }
+
+      if (
+        snapshot.tables
+          .weeklyScheduleSlots
+          .length >
+          0
+      ) {
+        await database.weeklyScheduleSlots
+          .bulkAdd(
+            snapshot.tables
+              .weeklyScheduleSlots
+          )
+      }
+
+      if (
+        snapshot.tables
+          .schoolCalendarEvents
+          .length >
+          0
+      ) {
+        await database.schoolCalendarEvents
+          .bulkAdd(
+            snapshot.tables
+              .schoolCalendarEvents
+          )
+      }
+
+      if (
+        snapshot.tables
+          .lessons
+          .length >
+          0
+      ) {
+        await database.lessons
+          .bulkAdd(
+            snapshot.tables
+              .lessons
+          )
+      }
+
+      if (
+        snapshot.tables
+          .summarySuggestions
+          .length >
+          0
+      ) {
+        await database.summarySuggestions
+          .bulkAdd(
+            snapshot.tables
+              .summarySuggestions
+          )
+      }
+
+      if (
+        snapshot.tables
+          .lessonAttendance
+          .length >
+          0
+      ) {
+        await database.lessonAttendance
+          .bulkAdd(
+            snapshot.tables
+              .lessonAttendance
+          )
+      }
+
+      if (
+        snapshot.tables
+          .lessonAssessments
+          .length >
+          0
+      ) {
+        await database.lessonAssessments
+          .bulkAdd(
+            snapshot.tables
+              .lessonAssessments
+          )
+      }
+
+      if (
+        snapshot.tables
+          .assessmentResults
+          .length >
+          0
+      ) {
+        await database.assessmentResults
+          .bulkAdd(
+            snapshot.tables
+              .assessmentResults
+          )
+      }
+
+      if (
+        snapshot.tables
+          .moduleFinalGrades
+          .length >
+          0
+      ) {
+        await database.moduleFinalGrades
+          .bulkAdd(
+            snapshot.tables
+              .moduleFinalGrades
+          )
+      }
+
+      if (
+        snapshot.tables
+          .learningRecoveries
+          .length >
+          0
+      ) {
+        await database.learningRecoveries
+          .bulkAdd(
+            snapshot.tables
+              .learningRecoveries
+          )
+      }
+
+      if (
+        snapshot.tables
+          .settings
+          .length >
+          0
+      ) {
+        await database.settings
+          .bulkAdd(
+            snapshot.tables
+              .settings
+          )
+      }
+
+      if (
+        snapshot.tables
+          .setupProgress
+          .length >
+          0
+      ) {
+        await database.setupProgress
+          .bulkAdd(
+            snapshot.tables
+              .setupProgress
+          )
+      }
+    }
+  )
+
+  return {
+    snapshot,
+
+    recordCounts:
+      snapshot.recordCounts,
+
+    totalRecords:
+      countSnapshotRecords(
+        snapshot.recordCounts
+      )
+  }
+}
+
 export async function prepareEncryptedMAProfessorDatabaseSnapshot(
-  email: string,
-  deviceId: string
+  email:
+    string,
+
+  deviceId:
+    string
 ): Promise<MAProfessorPreparedEncryptedSnapshot> {
   const [
     snapshot,
