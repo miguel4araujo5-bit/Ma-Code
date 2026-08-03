@@ -43,8 +43,7 @@ export default {
     request: Request,
     env: Env
   ) {
-    const url =
-      new URL(request.url)
+    const url = new URL(request.url)
 
     if (
       isBtcAlertsApiPath(
