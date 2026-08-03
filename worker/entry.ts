@@ -33,11 +33,11 @@ export {
   MaProfessorAccessDurableObject
 }
 
-export interface Env
-  extends BaseEnv,
-    BtcAlertsEnv,
-    MaProfessorSyncEnv,
-    MaProfessorSnapshotEnv {}
+export type Env =
+  BaseEnv &
+  BtcAlertsEnv &
+  MaProfessorSyncEnv &
+  MaProfessorSnapshotEnv
 
 type ExecutionContextLike = {
   waitUntil(
