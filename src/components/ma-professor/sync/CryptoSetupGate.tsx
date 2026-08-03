@@ -133,7 +133,7 @@ function ProtectionShell({
 
 function ShieldIcon() {
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
@@ -235,6 +235,12 @@ export function CryptoSetupGate({
   const [
     recoverySaved,
     setRecoverySaved
+  ] =
+    useState(false)
+
+  const [
+    recoveryAcknowledged,
+    setRecoveryAcknowledged
   ] =
     useState(false)
 
@@ -492,6 +498,10 @@ export function CryptoSetupGate({
           false
         )
 
+        setRecoveryAcknowledged(
+          false
+        )
+
         setStage(
           'recovery'
         )
@@ -556,16 +566,16 @@ export function CryptoSetupGate({
       try {
         const content = [
           'MA-PROFESSOR',
-          'Chave de recuperação',
+          'CHAVE DE RECUPERAÇÃO',
           '',
           pendingSetup.recoveryCode,
           '',
-          'IMPORTANTE',
+          'INFORMAÇÃO IMPORTANTE',
           '',
-          'Esta chave é a única forma de autorizar outro dispositivo e recuperar os dados cifrados.',
-          'A MA-CODE não guarda, não conhece e não consegue reconstruir esta chave.',
-          'Redefinir a palavra-passe da conta não recupera esta chave nem desencripta os dados.',
-          'Se perder esta chave, poderá perder definitivamente o acesso à cópia cifrada.',
+          'Esta chave permite autorizar outro dispositivo e recuperar a cópia cifrada dos seus dados.',
+          'A chave não é guardada pela MA-CODE e não pode ser reconstruída a partir dos elementos armazenados no servidor.',
+          'Redefinir a palavra-passe da conta não recupera esta chave nem permite desencriptar a cópia.',
+          'Se perder esta chave e deixar de ter acesso a todos os dispositivos autorizados, poderá perder definitivamente o acesso aos dados sincronizados.',
           '',
           'Guarde este ficheiro num local seguro e não partilhe a chave.',
           '',
@@ -634,6 +644,7 @@ export function CryptoSetupGate({
       if (
         !pendingSetup ||
         !recoverySaved ||
+        !recoveryAcknowledged ||
         completing
       ) {
         return
@@ -711,81 +722,102 @@ export function CryptoSetupGate({
 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">
-              Privacidade
+              Proteção de dados
             </p>
 
             <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-              Os seus dados ficam cifrados
+              Proteção dos dados sincronizados
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Os dados sensíveis são cifrados neste dispositivo antes de serem enviados. O servidor recebe apenas dados cifrados e metadados técnicos, sem a chave necessária para ler o conteúdo.
+              Ao ativar a sincronização, o MA-Professor cria neste dispositivo a chave usada para cifrar os dados pedagógicos antes do envio.
             </p>
           </div>
         </div>
 
-        <div className="mt-7 grid gap-3">
-          <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-300/10 text-sm font-black text-cyan-200">
+        <div className="mt-7 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55">
+          <div className="flex items-start gap-3 border-b border-white/10 p-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-300/10 text-sm font-black text-cyan-200">
               1
             </span>
 
             <div>
               <p className="text-sm font-black text-white">
-                Cifragem antes do envio
+                Cifragem no dispositivo
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                Alunos, sumários, faltas, avaliações e restantes dados são cifrados no seu dispositivo antes de chegarem ao servidor.
+                Nomes de alunos, sumários, faltas, avaliações e restantes dados são cifrados localmente antes de serem transmitidos.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-300/10 text-sm font-black text-violet-200">
+          <div className="flex items-start gap-3 border-b border-white/10 p-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-300/10 text-sm font-black text-violet-200">
               2
             </span>
 
             <div>
               <p className="text-sm font-black text-white">
-                Servidor sem conteúdo legível
+                Armazenamento cifrado
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                Com os elementos guardados no servidor, a MA-CODE não consegue consultar o conteúdo dos dados cifrados.
+                O servidor recebe a cópia cifrada e os metadados técnicos necessários. A chave principal legível não é enviada.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-300/10 text-sm font-black text-amber-200">
+          <div className="flex items-start gap-3 p-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-300/10 text-sm font-black text-emerald-200">
               3
             </span>
 
             <div>
               <p className="text-sm font-black text-white">
-                Recuperação controlada por si
+                Recuperação sob o seu controlo
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                Receberá uma chave de recuperação única para autorizar outro dispositivo e recuperar os dados cifrados.
+                Receberá uma chave de recuperação única para autorizar outro dispositivo e recuperar a cópia cifrada.
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
-          <p className="text-sm font-black text-amber-100">
-            Importante antes de continuar
-          </p>
+          <div className="flex items-start gap-3">
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0 text-amber-200"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 9v4" />
 
-          <p className="mt-2 text-xs leading-6 text-amber-100/80">
-            A MA-CODE não guarda nem consegue reconstruir a sua chave de recuperação. Se a perder, não conseguiremos recuperar os dados cifrados. Redefinir a palavra-passe da conta recupera apenas o acesso à conta e não recupera a chave de cifragem.
-          </p>
+              <path d="M12 17h.01" />
+
+              <path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z" />
+            </svg>
+
+            <div>
+              <p className="text-sm font-black text-amber-100">
+                Responsabilidade pela chave de recuperação
+              </p>
+
+              <p className="mt-2 text-xs leading-6 text-amber-100/80">
+                A MA-CODE não guarda esta chave. Redefinir a palavra-passe da conta não a recupera. Se perder a chave e deixar de ter acesso a todos os dispositivos autorizados, poderá perder definitivamente o acesso à cópia sincronizada.
+              </p>
+            </div>
+          </div>
         </div>
 
         <p className="mt-4 text-xs leading-5 text-slate-500">
-          Introduza apenas dados que está autorizado a tratar. O MA-Professor não substitui o GIAE ou outro sistema oficial.
+          A cifragem é uma medida de segurança. Utilize apenas dados que está autorizado a tratar e respeite as regras aplicáveis da sua instituição. O MA-Professor não substitui o GIAE ou outro sistema oficial.
         </p>
 
         <ErrorMessage
@@ -802,7 +834,7 @@ export function CryptoSetupGate({
         >
           {creating
             ? 'A criar proteção segura…'
-            : 'Criar proteção segura'}
+            : 'Criar proteção e chave de recuperação'}
         </button>
 
         <button
@@ -817,7 +849,7 @@ export function CryptoSetupGate({
         </button>
 
         <p className="mt-4 text-center text-xs leading-5 text-slate-500">
-          Os dados atuais não são enviados nem alterados neste passo.
+          Nenhum dado pedagógico é enviado durante esta configuração.
         </p>
       </ProtectionShell>
     )
@@ -827,6 +859,11 @@ export function CryptoSetupGate({
     stage === 'recovery' &&
     pendingSetup
   ) {
+    const canComplete =
+      recoverySaved &&
+      recoveryAcknowledged &&
+      !completing
+
     return (
       <ProtectionShell>
         <div className="text-center">
@@ -856,15 +893,15 @@ export function CryptoSetupGate({
           </div>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-violet-300">
-            Último passo
+            Chave de recuperação
           </p>
 
           <h1 className="mt-2 text-2xl font-black sm:text-3xl">
-            Guarde a sua chave
+            Guarde-a antes de continuar
           </h1>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
-            Esta é a única chave que permite autorizar outro dispositivo e recuperar os dados cifrados. A MA-CODE não a guarda, não a conhece e não consegue recriá-la.
+            Esta chave permite autorizar outro dispositivo e recuperar a cópia cifrada. Não é uma palavra-passe e não pode ser reconstruída pela MA-CODE.
           </p>
         </div>
 
@@ -937,20 +974,43 @@ export function CryptoSetupGate({
         </div>
 
         {recoveryAction ? (
-          <p className="mt-4 text-center text-sm font-bold text-emerald-300">
+          <p
+            role="status"
+            className="mt-4 text-center text-sm font-bold text-emerald-300"
+          >
             ✓ {recoveryAction}
           </p>
         ) : null}
 
         <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
           <p className="text-sm font-black text-amber-100">
-            Não é possível recuperar esta chave
+            Consequência da perda da chave
           </p>
 
           <p className="mt-2 text-xs leading-6 text-amber-100/80">
-            Se perder a chave, poderá perder definitivamente o acesso à cópia cifrada. Redefinir a palavra-passe da conta não recupera esta chave nem desencripta os dados.
+            Redefinir a palavra-passe da conta não recupera esta chave. Sem a chave e sem acesso a um dispositivo já autorizado, a cópia cifrada poderá ficar definitivamente inacessível.
           </p>
         </div>
+
+        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-4 transition hover:border-white/20">
+          <input
+            type="checkbox"
+            checked={
+              recoveryAcknowledged
+            }
+            onChange={event =>
+              setRecoveryAcknowledged(
+                event.target.checked
+              )
+            }
+            disabled={completing}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-slate-950 text-cyan-300 accent-cyan-300"
+          />
+
+          <span className="text-xs leading-5 text-slate-300">
+            Confirmo que guardei a chave de recuperação num local seguro e compreendo que a MA-CODE não a poderá recuperar por mim.
+          </span>
+        </label>
 
         <ErrorMessage
           message={error}
@@ -958,10 +1018,7 @@ export function CryptoSetupGate({
 
         <button
           type="button"
-          disabled={
-            !recoverySaved ||
-            completing
-          }
+          disabled={!canComplete}
           onClick={() =>
             void handleCompleteProtection()
           }
@@ -969,13 +1026,15 @@ export function CryptoSetupGate({
         >
           {completing
             ? 'A ativar proteção…'
-            : recoverySaved
-              ? 'Já guardei — continuar'
-              : 'Copie ou guarde a chave primeiro'}
+            : !recoverySaved
+              ? 'Copie ou guarde a chave primeiro'
+              : !recoveryAcknowledged
+                ? 'Confirme que guardou a chave'
+                : 'Ativar proteção e continuar'}
         </button>
 
-        <p className="mt-4 text-center text-xs leading-5 text-amber-200/80">
-          Não guarde esta chave juntamente com um dispositivo desbloqueado.
+        <p className="mt-4 text-center text-xs leading-5 text-slate-500">
+          Recomenda-se guardar a chave fora deste dispositivo.
         </p>
       </ProtectionShell>
     )
