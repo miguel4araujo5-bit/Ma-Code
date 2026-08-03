@@ -28,6 +28,14 @@
       }
     ]
   },
+  "d1_databases": [
+    {
+      "binding": "MA_PROFESSOR_DB",
+      "database_name": "ma-professor-production",
+      "database_id": "86f36fb8-dace-4544-9340-8bb4d742dd94",
+      "migrations_dir": "migrations/ma-professor"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1-ma-btc-alertas",
