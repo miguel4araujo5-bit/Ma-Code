@@ -4,6 +4,11 @@ import {
 } from 'react'
 
 import {
+  ColorField,
+  NumberField,
+  RangeField
+} from './PropertyControls'
+import {
   useMAQuadroEditorContext
 } from './editorContext'
 
@@ -48,7 +53,7 @@ function Section({
           ) : null}
         </span>
 
-        <span>
+        <span aria-hidden="true">
           {open ? '−' : '+'}
         </span>
       </button>
@@ -62,156 +67,6 @@ function Section({
   )
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-  suffix,
-  disabled = false
-}: {
-  label: string
-  value: number
-  onChange: (
-    value: number
-  ) => void
-  min?: number
-  max?: number
-  step?: number
-  suffix?: string
-  disabled?: boolean
-}) {
-  return (
-    <label className="mq-field">
-      <span>
-        {label}
-      </span>
-
-      <span className="mq-number-field">
-        <input
-          type="number"
-          value={
-            Number.isFinite(value)
-              ? value
-              : 0
-          }
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange(
-              Number(
-                event.target.value
-              )
-            )
-          }
-        />
-
-        {suffix ? (
-          <small>
-            {suffix}
-          </small>
-        ) : null}
-      </span>
-    </label>
-  )
-}
-
-function RangeField({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-  suffix = ''
-}: {
-  label: string
-  value: number
-  onChange: (
-    value: number
-  ) => void
-  min: number
-  max: number
-  step?: number
-  suffix?: string
-}) {
-  return (
-    <label className="mq-range-field">
-      <span>
-        <strong>
-          {label}
-        </strong>
-
-        <output>
-          {value}
-          {suffix}
-        </output>
-      </span>
-
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) =>
-          onChange(
-            Number(
-              event.target.value
-            )
-          )
-        }
-      />
-    </label>
-  )
-}
-
-function ColorField({
-  label,
-  value,
-  onChange
-}: {
-  label: string
-  value: string
-  onChange: (
-    value: string
-  ) => void
-}) {
-  return (
-    <label className="mq-field mq-field--color">
-      <span>
-        {label}
-      </span>
-
-      <span>
-        <input
-          type="color"
-          value={value}
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-        />
-
-        <input
-          type="text"
-          value={value}
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-        />
-      </span>
-    </label>
-  )
-}
-
 function BackgroundProperties() {
   const editor =
     useMAQuadroEditorContext()
@@ -221,6 +76,58 @@ function BackgroundProperties() {
 
   if (!page) {
     return null
+  }
+
+  const resizePages = () => {
+    const widthInput =
+      window.prompt(
+        'Nova largura em píxeis:',
+        String(page.width)
+      )
+
+    if (
+      widthInput === null
+    ) {
+      return
+    }
+
+    const heightInput =
+      window.prompt(
+        'Nova altura em píxeis:',
+        String(page.height)
+      )
+
+    if (
+      heightInput === null
+    ) {
+      return
+    }
+
+    const width =
+      Number(widthInput)
+
+    const height =
+      Number(heightInput)
+
+    if (
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width < 100 ||
+      height < 100 ||
+      width > 8000 ||
+      height > 8000
+    ) {
+      window.alert(
+        'Use medidas entre 100 e 8000 píxeis.'
+      )
+
+      return
+    }
+
+    void editor.resizeAllPages(
+      Math.round(width),
+      Math.round(height)
+    )
   }
 
   return (
@@ -244,18 +151,12 @@ function BackgroundProperties() {
               'Transparente'
             ]
           ] as const).map(
-            (
-              [
-                type,
-                label
-              ]
-            ) => (
+            ([type, label]) => (
               <button
                 key={type}
                 type="button"
                 className={
-                  page.background
-                    .type ===
+                  page.background.type ===
                   type
                     ? 'is-active'
                     : ''
@@ -277,10 +178,9 @@ function BackgroundProperties() {
           <ColorField
             label="Cor"
             value={
-              page.background
-                .color
+              page.background.color
             }
-            onChange={(color) =>
+            onCommit={(color) =>
               editor.setBackground({
                 color
               })
@@ -297,9 +197,7 @@ function BackgroundProperties() {
                 page.background
                   .gradientFrom
               }
-              onChange={(
-                gradientFrom
-              ) =>
+              onCommit={(gradientFrom) =>
                 editor.setBackground({
                   gradientFrom
                 })
@@ -312,9 +210,7 @@ function BackgroundProperties() {
                 page.background
                   .gradientTo
               }
-              onChange={(
-                gradientTo
-              ) =>
+              onCommit={(gradientTo) =>
                 editor.setBackground({
                   gradientTo
                 })
@@ -327,9 +223,7 @@ function BackgroundProperties() {
                 page.background
                   .gradientAngle
               }
-              onChange={(
-                gradientAngle
-              ) =>
+              onCommit={(gradientAngle) =>
                 editor.setBackground({
                   gradientAngle
                 })
@@ -350,7 +244,7 @@ function BackgroundProperties() {
           <NumberField
             label="Largura"
             value={page.width}
-            onChange={() =>
+            onCommit={() =>
               undefined
             }
             suffix="px"
@@ -360,7 +254,7 @@ function BackgroundProperties() {
           <NumberField
             label="Altura"
             value={page.height}
-            onChange={() =>
+            onCommit={() =>
               undefined
             }
             suffix="px"
@@ -370,54 +264,16 @@ function BackgroundProperties() {
 
         <p className="mq-control-note">
           Para evitar alterações
-          acidentais, use o botão
-          abaixo para redimensionar
-          todas as páginas de uma só
-          vez.
+          acidentais, o redimensionamento
+          é aplicado a todas as páginas.
         </p>
 
         <button
           type="button"
           className="mq-panel-action"
-          onClick={() => {
-            const width =
-              Number(
-                window.prompt(
-                  'Nova largura em píxeis:',
-                  String(
-                    page.width
-                  )
-                )
-              )
-
-            const height =
-              Number(
-                window.prompt(
-                  'Nova altura em píxeis:',
-                  String(
-                    page.height
-                  )
-                )
-              )
-
-            if (
-              Number.isFinite(
-                width
-              ) &&
-              Number.isFinite(
-                height
-              )
-            ) {
-              void editor
-                .resizeAllPages(
-                  width,
-                  height
-                )
-            }
-          }}
+          onClick={resizePages}
         >
-          Redimensionar todas as
-          páginas
+          Redimensionar todas as páginas
         </button>
       </Section>
     </>
@@ -430,6 +286,10 @@ function SelectionGeometry() {
 
   const selection =
     editor.selection
+
+  const textSelected =
+    selection.count === 1 &&
+    selection.role === 'text'
 
   return (
     <Section
@@ -444,12 +304,11 @@ function SelectionGeometry() {
         <NumberField
           label="X"
           value={selection.x}
-          onChange={(value) =>
-            editor
-              .setSelectionGeometry(
-                'x',
-                value
-              )
+          onCommit={(value) =>
+            editor.setSelectionGeometry(
+              'x',
+              value
+            )
           }
           suffix="px"
         />
@@ -457,60 +316,66 @@ function SelectionGeometry() {
         <NumberField
           label="Y"
           value={selection.y}
-          onChange={(value) =>
-            editor
-              .setSelectionGeometry(
-                'y',
-                value
-              )
+          onCommit={(value) =>
+            editor.setSelectionGeometry(
+              'y',
+              value
+            )
           }
           suffix="px"
         />
 
-        <NumberField
-          label="Largura"
-          value={
-            selection.width
-          }
-          onChange={(value) =>
-            editor
-              .setSelectionGeometry(
-                'width',
-                value
-              )
-          }
-          min={1}
-          suffix="px"
-        />
+        {!textSelected ? (
+          <>
+            <NumberField
+              label="Largura"
+              value={
+                selection.width
+              }
+              onCommit={(value) =>
+                editor.setSelectionGeometry(
+                  'width',
+                  value
+                )
+              }
+              min={1}
+              suffix="px"
+            />
 
-        <NumberField
-          label="Altura"
-          value={
-            selection.height
-          }
-          onChange={(value) =>
-            editor
-              .setSelectionGeometry(
-                'height',
-                value
-              )
-          }
-          min={1}
-          suffix="px"
-        />
+            <NumberField
+              label="Altura"
+              value={
+                selection.height
+              }
+              onCommit={(value) =>
+                editor.setSelectionGeometry(
+                  'height',
+                  value
+                )
+              }
+              min={1}
+              suffix="px"
+            />
+          </>
+        ) : null}
       </div>
+
+      {textSelected ? (
+        <p className="mq-control-note">
+          Para alterar a caixa de texto sem
+          deformar as letras, use os
+          controlos diretamente no quadro.
+        </p>
+      ) : null}
 
       <RangeField
         label="Rotação"
-        value={
-          selection.angle
-        }
-        onChange={(value) =>
-          editor
-            .setSelectionGeometry(
-              'angle',
-              value
-            )
+        value={selection.angle}
+        onCommit={(value) =>
+          editor.setSelectionGeometry(
+            'angle',
+            value
+          )
         }
         min={-180}
         max={180}
@@ -521,10 +386,7 @@ function SelectionGeometry() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .setSelectionFlip(
-                'x'
-              )
+            editor.setSelectionFlip('x')
           }
         >
           Virar horizontal
@@ -533,10 +395,7 @@ function SelectionGeometry() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .setSelectionFlip(
-                'y'
-              )
+            editor.setSelectionFlip('y')
           }
         >
           Virar vertical
@@ -554,10 +413,26 @@ function AppearanceProperties() {
     editor.selection
 
   const supportsFill =
-    selection.role !==
-      'image' &&
-    selection.role !==
-      'group'
+    selection.role !== 'image' &&
+    selection.role !== 'group'
+
+  const normalisedName =
+    selection.name
+      .toLocaleLowerCase(
+        'pt-PT'
+      )
+
+  const supportsCornerRadius =
+    selection.count === 1 &&
+    selection.role === 'shape' &&
+    (
+      normalisedName.includes(
+        'retângulo'
+      ) ||
+      normalisedName.includes(
+        'rectangle'
+      )
+    )
 
   return (
     <Section
@@ -567,25 +442,21 @@ function AppearanceProperties() {
       {supportsFill ? (
         <ColorField
           label="Preenchimento"
-          value={
-            selection.fill
+          value={selection.fill}
+          onCommit={
+            editor.setSelectionFill
           }
-          onChange={
-            editor
-              .setSelectionFill
-          }
+          allowTransparent
         />
       ) : null}
 
       <ColorField
         label="Contorno"
-        value={
-          selection.stroke
+        value={selection.stroke}
+        onCommit={
+          editor.setSelectionStroke
         }
-        onChange={
-          editor
-            .setSelectionStroke
-        }
+        allowTransparent
       />
 
       <RangeField
@@ -593,9 +464,8 @@ function AppearanceProperties() {
         value={
           selection.strokeWidth
         }
-        onChange={
-          editor
-            .setSelectionStrokeWidth
+        onCommit={
+          editor.setSelectionStrokeWidth
         }
         min={0}
         max={100}
@@ -604,29 +474,23 @@ function AppearanceProperties() {
 
       <RangeField
         label="Opacidade"
-        value={
-          selection.opacity
-        }
-        onChange={
-          editor
-            .setSelectionOpacity
+        value={selection.opacity}
+        onCommit={
+          editor.setSelectionOpacity
         }
         min={0}
         max={100}
         suffix="%"
       />
 
-      {selection.role ===
-      'shape' ? (
+      {supportsCornerRadius ? (
         <RangeField
           label="Cantos arredondados"
           value={
-            selection
-              .cornerRadius
+            selection.cornerRadius
           }
-          onChange={
-            editor
-              .setCornerRadius
+          onCommit={
+            editor.setCornerRadius
           }
           min={0}
           max={400}
@@ -645,8 +509,7 @@ function TextProperties() {
     editor.selection
 
   if (
-    selection.role !==
-    'text'
+    selection.role !== 'text'
   ) {
     return null
   }
@@ -675,12 +538,8 @@ function TextProperties() {
           {editor.availableFonts.map(
             (font) => (
               <option
-                key={
-                  font.family
-                }
-                value={
-                  font.family
-                }
+                key={font.family}
+                value={font.family}
               >
                 {font.name}
               </option>
@@ -692,10 +551,8 @@ function TextProperties() {
       <div className="mq-two-columns">
         <NumberField
           label="Tamanho"
-          value={
-            selection.fontSize
-          }
-          onChange={(value) =>
+          value={selection.fontSize}
+          onCommit={(value) =>
             editor.setTextProperty(
               'fontSize',
               value
@@ -753,13 +610,14 @@ function TextProperties() {
           onClick={() =>
             editor.setTextProperty(
               'fontWeight',
-              selection
-                .fontWeight ===
+              selection.fontWeight ===
               '700'
                 ? '400'
                 : '700'
             )
           }
+          aria-label="Negrito"
+          title="Negrito"
         >
           <strong>
             B
@@ -777,13 +635,14 @@ function TextProperties() {
           onClick={() =>
             editor.setTextProperty(
               'fontStyle',
-              selection
-                .fontStyle ===
+              selection.fontStyle ===
               'italic'
                 ? 'normal'
                 : 'italic'
             )
           }
+          aria-label="Itálico"
+          title="Itálico"
         >
           <em>
             I
@@ -800,10 +659,11 @@ function TextProperties() {
           onClick={() =>
             editor.setTextProperty(
               'underline',
-              !selection
-                .underline
+              !selection.underline
             )
           }
+          aria-label="Sublinhado"
+          title="Sublinhado"
         >
           <u>
             U
@@ -820,10 +680,11 @@ function TextProperties() {
           onClick={() =>
             editor.setTextProperty(
               'linethrough',
-              !selection
-                .linethrough
+              !selection.linethrough
             )
           }
+          aria-label="Riscado"
+          title="Riscado"
         >
           <s>
             S
@@ -833,10 +694,8 @@ function TextProperties() {
 
       <RangeField
         label="Altura da linha"
-        value={
-          selection.lineHeight
-        }
-        onChange={(value) =>
+        value={selection.lineHeight}
+        onCommit={(value) =>
           editor.setTextProperty(
             'lineHeight',
             value
@@ -849,10 +708,8 @@ function TextProperties() {
 
       <RangeField
         label="Espaçamento das letras"
-        value={
-          selection.charSpacing
-        }
-        onChange={(value) =>
+        value={selection.charSpacing}
+        onCommit={(value) =>
           editor.setTextProperty(
             'charSpacing',
             value
@@ -867,10 +724,9 @@ function TextProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .transformTextCase(
-                'upper'
-              )
+            editor.transformTextCase(
+              'upper'
+            )
           }
         >
           ABC
@@ -879,10 +735,9 @@ function TextProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .transformTextCase(
-                'lower'
-              )
+            editor.transformTextCase(
+              'lower'
+            )
           }
         >
           abc
@@ -891,10 +746,9 @@ function TextProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .transformTextCase(
-                'title'
-              )
+            editor.transformTextCase(
+              'title'
+            )
           }
         >
           Título
@@ -912,12 +766,12 @@ function EffectsProperties() {
     editor.selection
 
   const supportsGradient =
+    selection.count === 1 &&
     [
       'shape',
       'text'
     ].includes(
-      selection.role ||
-      ''
+      selection.role || ''
     )
 
   return (
@@ -933,41 +787,32 @@ function EffectsProperties() {
           </strong>
 
           <small>
-            Cria profundidade
-            visual
+            Cria profundidade visual
           </small>
         </span>
 
         <input
           type="checkbox"
           checked={
-            selection
-              .shadowEnabled
+            selection.shadowEnabled
           }
           onChange={(event) =>
             editor.setShadow({
               enabled:
-                event.target
-                  .checked
+                event.target.checked
             })
           }
         />
       </label>
 
-      {selection
-        .shadowEnabled ? (
+      {selection.shadowEnabled ? (
         <>
           <ColorField
             label="Cor da sombra"
             value={
-              selection
-                .shadowColor
-                .startsWith('#')
-                ? selection
-                    .shadowColor
-                : '#0F172A'
+              selection.shadowColor
             }
-            onChange={(color) =>
+            onCommit={(color) =>
               editor.setShadow({
                 color
               })
@@ -977,10 +822,9 @@ function EffectsProperties() {
           <RangeField
             label="Desfoque"
             value={
-              selection
-                .shadowBlur
+              selection.shadowBlur
             }
-            onChange={(blur) =>
+            onCommit={(blur) =>
               editor.setShadow({
                 blur
               })
@@ -994,12 +838,9 @@ function EffectsProperties() {
             <NumberField
               label="Deslocamento X"
               value={
-                selection
-                  .shadowOffsetX
+                selection.shadowOffsetX
               }
-              onChange={(
-                offsetX
-              ) =>
+              onCommit={(offsetX) =>
                 editor.setShadow({
                   offsetX
                 })
@@ -1010,12 +851,9 @@ function EffectsProperties() {
             <NumberField
               label="Deslocamento Y"
               value={
-                selection
-                  .shadowOffsetY
+                selection.shadowOffsetY
               }
-              onChange={(
-                offsetY
-              ) =>
+              onCommit={(offsetY) =>
                 editor.setShadow({
                   offsetY
                 })
@@ -1042,29 +880,25 @@ function EffectsProperties() {
             <input
               type="checkbox"
               checked={
-                selection
-                  .gradientEnabled
+                selection.gradientEnabled
               }
               onChange={(event) =>
                 editor.setGradient({
                   enabled:
-                    event.target
-                      .checked
+                    event.target.checked
                 })
               }
             />
           </label>
 
-          {selection
-            .gradientEnabled ? (
+          {selection.gradientEnabled ? (
             <>
               <ColorField
                 label="Cor inicial"
                 value={
-                  selection
-                    .gradientFrom
+                  selection.gradientFrom
                 }
-                onChange={(from) =>
+                onCommit={(from) =>
                   editor.setGradient({
                     from
                   })
@@ -1074,10 +908,9 @@ function EffectsProperties() {
               <ColorField
                 label="Cor final"
                 value={
-                  selection
-                    .gradientTo
+                  selection.gradientTo
                 }
-                onChange={(to) =>
+                onCommit={(to) =>
                   editor.setGradient({
                     to
                   })
@@ -1087,10 +920,9 @@ function EffectsProperties() {
               <RangeField
                 label="Ângulo"
                 value={
-                  selection
-                    .gradientAngle
+                  selection.gradientAngle
                 }
-                onChange={(angle) =>
+                onCommit={(angle) =>
                   editor.setGradient({
                     angle
                   })
@@ -1115,8 +947,7 @@ function ImageProperties() {
     editor.selection
 
   if (
-    selection.role !==
-    'image'
+    selection.role !== 'image'
   ) {
     return null
   }
@@ -1130,11 +961,10 @@ function ImageProperties() {
         <RangeField
           label="Brilho"
           value={
-            selection
-              .imageFilters
+            selection.imageFilters
               .brightness
           }
-          onChange={(brightness) =>
+          onCommit={(brightness) =>
             editor.setImageFilters({
               brightness
             })
@@ -1146,11 +976,10 @@ function ImageProperties() {
         <RangeField
           label="Contraste"
           value={
-            selection
-              .imageFilters
+            selection.imageFilters
               .contrast
           }
-          onChange={(contrast) =>
+          onCommit={(contrast) =>
             editor.setImageFilters({
               contrast
             })
@@ -1162,11 +991,10 @@ function ImageProperties() {
         <RangeField
           label="Saturação"
           value={
-            selection
-              .imageFilters
+            selection.imageFilters
               .saturation
           }
-          onChange={(saturation) =>
+          onCommit={(saturation) =>
             editor.setImageFilters({
               saturation
             })
@@ -1178,11 +1006,9 @@ function ImageProperties() {
         <RangeField
           label="Desfoque"
           value={
-            selection
-              .imageFilters
-              .blur
+            selection.imageFilters.blur
           }
-          onChange={(blur) =>
+          onCommit={(blur) =>
             editor.setImageFilters({
               blur
             })
@@ -1201,15 +1027,13 @@ function ImageProperties() {
           <input
             type="checkbox"
             checked={
-              selection
-                .imageFilters
+              selection.imageFilters
                 .grayscale
             }
             onChange={(event) =>
               editor.setImageFilters({
                 grayscale:
-                  event.target
-                    .checked
+                  event.target.checked
               })
             }
           />
@@ -1219,8 +1043,7 @@ function ImageProperties() {
           type="button"
           className="mq-panel-action"
           onClick={
-            editor
-              .resetImageFilters
+            editor.resetImageFilters
           }
         >
           Repor ajustes
@@ -1235,16 +1058,12 @@ function ImageProperties() {
         <RangeField
           label="Lados"
           value={
-            selection
-              .cropHorizontal
+            selection.cropHorizontal
           }
-          onChange={(
-            horizontal
-          ) =>
+          onCommit={(horizontal) =>
             editor.setImageCrop(
               horizontal,
-              selection
-                .cropVertical
+              selection.cropVertical
             )
           }
           min={0}
@@ -1255,15 +1074,11 @@ function ImageProperties() {
         <RangeField
           label="Topo e fundo"
           value={
-            selection
-              .cropVertical
+            selection.cropVertical
           }
-          onChange={(
-            vertical
-          ) =>
+          onCommit={(vertical) =>
             editor.setImageCrop(
-              selection
-                .cropHorizontal,
+              selection.cropHorizontal,
               vertical
             )
           }
@@ -1276,8 +1091,7 @@ function ImageProperties() {
           type="button"
           className="mq-panel-action"
           onClick={
-            editor
-              .resetImageCrop
+            editor.resetImageCrop
           }
         >
           Repor recorte
@@ -1290,26 +1104,21 @@ function ImageProperties() {
         defaultOpen={false}
       >
         <p className="mq-control-note">
-          Funciona melhor em
-          fotografias com um fundo
-          liso e uniforme. Não envia
-          a imagem para servidores
-          externos.
+          Funciona melhor em fotografias
+          com um fundo liso e uniforme.
+          Não envia a imagem para
+          servidores externos.
         </p>
 
         <button
           type="button"
           className="mq-panel-action mq-panel-action--accent"
           onClick={() =>
-            void editor
-              .removeImageBackground()
+            void editor.removeImageBackground()
           }
-          disabled={
-            editor.busy
-          }
+          disabled={editor.busy}
         >
-          Remover fundo
-          automaticamente
+          Remover fundo automaticamente
         </button>
       </Section>
     </>
@@ -1329,10 +1138,9 @@ function ArrangeProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .arrangeSelection(
-                'front'
-              )
+            editor.arrangeSelection(
+              'front'
+            )
           }
         >
           Trazer à frente
@@ -1341,10 +1149,9 @@ function ArrangeProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .arrangeSelection(
-                'forward'
-              )
+            editor.arrangeSelection(
+              'forward'
+            )
           }
         >
           Avançar
@@ -1353,10 +1160,9 @@ function ArrangeProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .arrangeSelection(
-                'backward'
-              )
+            editor.arrangeSelection(
+              'backward'
+            )
           }
         >
           Recuar
@@ -1365,10 +1171,9 @@ function ArrangeProperties() {
         <button
           type="button"
           onClick={() =>
-            editor
-              .arrangeSelection(
-                'back'
-              )
+            editor.arrangeSelection(
+              'back'
+            )
           }
         >
           Enviar para trás
@@ -1379,8 +1184,7 @@ function ArrangeProperties() {
         <button
           type="button"
           onClick={() =>
-            void editor
-              .duplicateSelection()
+            void editor.duplicateSelection()
           }
         >
           Duplicar
@@ -1390,8 +1194,7 @@ function ArrangeProperties() {
           type="button"
           className="is-danger"
           onClick={
-            editor
-              .deleteSelection
+            editor.deleteSelection
           }
         >
           Eliminar
@@ -1458,6 +1261,7 @@ function LayersPanel() {
                     )
                   }
                   title="Subir"
+                  aria-label={`Subir ${layer.name}`}
                 >
                   ↑
                 </button>
@@ -1471,6 +1275,7 @@ function LayersPanel() {
                     )
                   }
                   title="Descer"
+                  aria-label={`Descer ${layer.name}`}
                 >
                   ↓
                 </button>
@@ -1478,12 +1283,16 @@ function LayersPanel() {
                 <button
                   type="button"
                   onClick={() =>
-                    editor
-                      .toggleLayerVisibility(
-                        layer.id
-                      )
+                    editor.toggleLayerVisibility(
+                      layer.id
+                    )
                   }
                   title="Mostrar ou ocultar"
+                  aria-label={`${
+                    layer.visible
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  } ${layer.name}`}
                 >
                   {layer.visible
                     ? '◉'
@@ -1493,12 +1302,16 @@ function LayersPanel() {
                 <button
                   type="button"
                   onClick={() =>
-                    editor
-                      .toggleLayerLock(
-                        layer.id
-                      )
+                    editor.toggleLayerLock(
+                      layer.id
+                    )
                   }
                   title="Bloquear ou desbloquear"
+                  aria-label={`${
+                    layer.locked
+                      ? 'Desbloquear'
+                      : 'Bloquear'
+                  } ${layer.name}`}
                 >
                   {layer.locked
                     ? '🔒'
@@ -1510,11 +1323,10 @@ function LayersPanel() {
         )}
       </div>
 
-      {editor.layers.length ===
-      0 ? (
+      {editor.layers.length === 0 ? (
         <div className="mq-empty-state">
-          Esta página ainda não
-          tem elementos.
+          Esta página ainda não tem
+          elementos.
         </div>
       ) : null}
     </Section>
@@ -1525,95 +1337,134 @@ export default function PropertiesPanel() {
   const editor =
     useMAQuadroEditorContext()
 
+  const [
+    drawerOpen,
+    setDrawerOpen
+  ] = useState(false)
+
   const hasSelection =
-    editor.selection.count >
-    0
+    editor.selection.count > 0
 
   return (
-    <aside className="mq-properties-panel">
-      <div className="mq-properties-panel__title">
-        <span>
-          <strong>
-            {hasSelection
-              ? 'Editar seleção'
-              : 'Design'}
-          </strong>
+    <>
+      {drawerOpen ? (
+        <button
+          type="button"
+          className="mq-properties-backdrop"
+          onClick={() =>
+            setDrawerOpen(false)
+          }
+          aria-label="Fechar painel de edição"
+        />
+      ) : null}
 
-          <small>
-            {hasSelection
-              ? `${editor.selection.count} elemento${
-                  editor.selection
-                    .count === 1
-                    ? ''
-                    : 's'
-                }`
-              : editor.activePage
-                  ?.name ||
-                'Página'}
-          </small>
-        </span>
+      <aside
+        className={`mq-properties-panel${
+          drawerOpen
+            ? ' is-open'
+            : ''
+        }`}
+        aria-label="Painel de propriedades"
+      >
+        <button
+          type="button"
+          className="mq-properties-toggle"
+          onClick={() =>
+            setDrawerOpen(
+              (current) =>
+                !current
+            )
+          }
+          aria-expanded={drawerOpen}
+          aria-label={
+            drawerOpen
+              ? 'Fechar painel de edição'
+              : 'Abrir painel de edição'
+          }
+        >
+          {drawerOpen
+            ? '×'
+            : 'Editar'}
+        </button>
 
-        {hasSelection ? (
-          <button
-            type="button"
-            onClick={
-              editor
-                .deleteSelection
-            }
-            title="Eliminar seleção"
-          >
-            ⌫
-          </button>
-        ) : null}
-      </div>
+        <div className="mq-properties-panel__title">
+          <span>
+            <strong>
+              {hasSelection
+                ? 'Editar seleção'
+                : 'Design'}
+            </strong>
 
-      <div className="mq-properties-panel__scroll">
-        {hasSelection ? (
-          <>
-            {editor.selection
-              .count === 1 ? (
-              <Section
-                title="Camada"
-                defaultOpen={false}
-              >
-                <label className="mq-field">
-                  <span>
-                    Nome
-                  </span>
+            <small>
+              {hasSelection
+                ? `${editor.selection.count} elemento${
+                    editor.selection.count === 1
+                      ? ''
+                      : 's'
+                  }`
+                : editor.activePage?.name ||
+                  'Página'}
+            </small>
+          </span>
 
-                  <input
-                    type="text"
-                    value={
-                      editor.selection
-                        .name
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      editor
-                        .setSelectionName(
-                          event.target
-                            .value
+          {hasSelection ? (
+            <button
+              type="button"
+              onClick={
+                editor.deleteSelection
+              }
+              title="Eliminar seleção"
+              aria-label="Eliminar seleção"
+            >
+              ⌫
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mq-properties-panel__scroll">
+          {hasSelection ? (
+            <>
+              {editor.selection.count ===
+              1 ? (
+                <Section
+                  title="Camada"
+                  defaultOpen={false}
+                >
+                  <label className="mq-field">
+                    <span>
+                      Nome
+                    </span>
+
+                    <input
+                      type="text"
+                      value={
+                        editor.selection.name
+                      }
+                      maxLength={180}
+                      onChange={(event) =>
+                        editor.setSelectionName(
+                          event.target.value
                         )
-                    }
-                  />
-                </label>
-              </Section>
-            ) : null}
+                      }
+                    />
+                  </label>
+                </Section>
+              ) : null}
 
-            <SelectionGeometry />
-            <AppearanceProperties />
-            <TextProperties />
-            <ImageProperties />
-            <EffectsProperties />
-            <ArrangeProperties />
-          </>
-        ) : (
-          <BackgroundProperties />
-        )}
+              <SelectionGeometry />
+              <AppearanceProperties />
+              <TextProperties />
+              <ImageProperties />
+              <EffectsProperties />
+              <ArrangeProperties />
+            </>
+          ) : (
+            <BackgroundProperties />
+          )}
 
-        <LayersPanel />
-      </div>
-    </aside>
+          <LayersPanel />
+        </div>
+      </aside>
+    </>
   )
 }
