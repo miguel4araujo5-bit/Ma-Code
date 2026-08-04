@@ -750,11 +750,11 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-white">
-                Protegidos antes do envio
+                Protegidos desde o seu dispositivo
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400 sm:text-sm">
-                Nomes de alunos, sumários, faltas e avaliações são protegidos antes de saírem do seu telemóvel ou computador.
+                Nomes de alunos, sumários, faltas e avaliações são protegidos antes de serem guardados online.
               </p>
             </div>
           </div>
@@ -766,18 +766,18 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-white">
-                A MA-CODE não vê os seus dados escolares
+                Privacidade também na cópia online
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400 sm:text-sm">
-                Os dados sincronizados não chegam à MA-CODE em formato legível.
+                A MA-CODE não possui a chave necessária para abrir ou consultar os seus dados escolares.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
-          <div className="flex items-start gap-3">
+        <div className="mt-4 overflow-hidden rounded-2xl border border-amber-300/25 bg-amber-300/[0.07]">
+          <div className="flex items-start gap-3 p-4">
             <svg
               viewBox="0 0 24 24"
               aria-hidden="true"
@@ -801,35 +801,35 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-amber-100">
-                Guarde bem a sua chave de recuperação
+                Guarde a sua chave de recuperação
               </p>
 
               <p className="mt-1.5 text-xs leading-5 text-amber-100/80 sm:text-sm">
-                Vai recebê-la no próximo passo. Se a perder e deixar de ter acesso a todos os dispositivos autorizados, poderá perder o acesso aos dados sincronizados.
+                Vai recebê-la no próximo passo. Guarde-a num local seguro. Sem essa chave e sem acesso a um dispositivo autorizado, poderá perder o acesso aos dados sincronizados.
               </p>
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 border-t border-amber-200/15 bg-slate-950/20 p-4 transition hover:bg-slate-950/30">
+            <input
+              type="checkbox"
+              checked={
+                setupAcknowledged
+              }
+              onChange={event =>
+                setSetupAcknowledged(
+                  event.target.checked
+                )
+              }
+              disabled={creating}
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/20 bg-slate-950 accent-cyan-300"
+            />
+
+            <span className="text-sm leading-6 text-amber-50/90">
+              Compreendo que a MA-CODE não guarda nem consegue recuperar a minha chave de recuperação.
+            </span>
+          </label>
         </div>
-
-        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4 transition hover:border-cyan-300/35">
-          <input
-            type="checkbox"
-            checked={
-              setupAcknowledged
-            }
-            onChange={event =>
-              setSetupAcknowledged(
-                event.target.checked
-              )
-            }
-            disabled={creating}
-            className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/20 bg-slate-950 accent-cyan-300"
-          />
-
-          <span className="text-sm leading-6 text-slate-200">
-            Compreendo que a MA-CODE não guarda a minha chave de recuperação e não poderá repô-la. Se a perder e deixar de ter acesso a todos os dispositivos autorizados, poderei perder o acesso aos dados sincronizados.
-          </span>
-        </label>
 
         <ErrorMessage
           message={error}
@@ -848,9 +848,7 @@ export function CryptoSetupGate({
         >
           {creating
             ? 'A preparar a sua proteção…'
-            : setupAcknowledged
-              ? 'Proteger os meus dados e continuar'
-              : 'Assinale a confirmação para continuar'}
+            : 'Proteger os meus dados e continuar'}
         </button>
 
         <button
@@ -864,12 +862,12 @@ export function CryptoSetupGate({
           Entrar com outra conta
         </button>
 
-        <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+        <p className="mt-3 text-center text-xs leading-5 text-slate-400">
           Este passo demora apenas alguns segundos e não envia dados pedagógicos.
         </p>
 
-        <p className="mt-3 border-t border-white/10 pt-3 text-center text-[11px] leading-5 text-slate-600">
-          Ao continuar, confirma que utiliza apenas dados que está autorizado a tratar. O MA-Professor é uma ferramenta de apoio e não substitui os sistemas oficiais da sua instituição.
+        <p className="mt-3 border-t border-white/10 pt-3 text-center text-[11px] leading-5 text-slate-500">
+          Ao continuar, confirma que está autorizado a tratar os dados introduzidos. O MA-Professor é uma ferramenta de apoio e não substitui os sistemas oficiais da sua instituição.
         </p>
       </ProtectionShell>
     )
