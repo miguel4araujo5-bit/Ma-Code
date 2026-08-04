@@ -1,4 +1,8 @@
 import {
+  useRef
+} from 'react'
+
+import {
   useMAQuadroEditorContext
 } from './editorContext'
 
@@ -13,6 +17,42 @@ const saveLabels = {
 export default function EditorHeader() {
   const editor =
     useMAQuadroEditorContext()
+
+  const menuRef =
+    useRef<
+      HTMLDetailsElement | null
+    >(null)
+
+  const closeMenu = () => {
+    if (
+      menuRef.current
+    ) {
+      menuRef.current.open =
+        false
+    }
+  }
+
+  const openNewDesign = () => {
+    closeMenu()
+
+    editor.setNewDesignOpen(
+      true
+    )
+  }
+
+  const openImport = () => {
+    closeMenu()
+
+    editor.projectInputRef
+      .current
+      ?.click()
+  }
+
+  const saveAsTemplate = () => {
+    closeMenu()
+
+    void editor.saveProjectAsTemplate()
+  }
 
   return (
     <header className="mq-header">
@@ -56,6 +96,7 @@ export default function EditorHeader() {
             editor.project?.name ||
             ''
           }
+          maxLength={180}
           onChange={(event) =>
             editor.setProjectName(
               event.target.value
@@ -78,48 +119,39 @@ export default function EditorHeader() {
       </div>
 
       <div className="mq-header__actions">
-        <button
-          type="button"
-          className="mq-button mq-button--ghost"
-          onClick={() =>
-            editor.setNewDesignOpen(
-              true
-            )
-          }
-        >
-          Novo
-        </button>
+        <div className="mq-header__desktop-actions">
+          <button
+            type="button"
+            className="mq-button mq-button--ghost"
+            onClick={openNewDesign}
+          >
+            Novo
+          </button>
+
+          <button
+            type="button"
+            className="mq-button mq-button--ghost"
+            onClick={openImport}
+          >
+            Importar
+          </button>
+
+          <button
+            type="button"
+            className="mq-button mq-button--ghost mq-hide-tablet"
+            onClick={saveAsTemplate}
+            disabled={
+              !editor.project ||
+              editor.busy
+            }
+          >
+            Guardar como modelo
+          </button>
+        </div>
 
         <button
           type="button"
-          className="mq-button mq-button--ghost mq-hide-mobile"
-          onClick={() =>
-            editor.projectInputRef
-              .current
-              ?.click()
-          }
-        >
-          Importar
-        </button>
-
-        <button
-          type="button"
-          className="mq-button mq-button--ghost mq-hide-tablet"
-          onClick={() =>
-            void editor
-              .saveProjectAsTemplate()
-          }
-          disabled={
-            !editor.project ||
-            editor.busy
-          }
-        >
-          Guardar como modelo
-        </button>
-
-        <button
-          type="button"
-          className="mq-button mq-button--secondary"
+          className="mq-button mq-button--secondary mq-header__save-button"
           onClick={() =>
             void editor.saveProject(
               false
@@ -148,6 +180,62 @@ export default function EditorHeader() {
         >
           Exportar
         </button>
+
+        <details
+          ref={menuRef}
+          className="mq-header-menu"
+        >
+          <summary
+            aria-label="Mais ações"
+            title="Mais ações"
+          >
+            ⋯
+          </summary>
+
+          <div className="mq-header-menu__panel">
+            <button
+              type="button"
+              onClick={openNewDesign}
+            >
+              Novo design
+            </button>
+
+            <button
+              type="button"
+              onClick={openImport}
+            >
+              Importar projeto
+            </button>
+
+            <button
+              type="button"
+              onClick={saveAsTemplate}
+              disabled={
+                !editor.project ||
+                editor.busy
+              }
+            >
+              Guardar como modelo
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                closeMenu()
+
+                void editor.saveProject(
+                  false
+                )
+              }}
+              disabled={
+                !editor.project ||
+                editor.busy
+              }
+            >
+              Guardar projeto
+            </button>
+          </div>
+        </details>
 
         <input
           ref={
