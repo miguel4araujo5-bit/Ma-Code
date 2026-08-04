@@ -1,142 +1,150 @@
-export type MAQuadroCanvasJson = Record<string, unknown>
+export type MAQuadroCanvasJson = Record<string, unknown>;
 
 export type MAQuadroBrandColor = {
-  name: string
-  value: string
-}
+    name: string;
+    value: string;
+};
 
 export type MAQuadroBrandFont = {
-  name: string
-  family: string
-  fallback?: string
-}
+    name: string;
+    family: string;
+    fallback?: string;
+};
 
 export type MAQuadroBrand = {
-  name: string
-  colors: MAQuadroBrandColor[]
-  fonts: MAQuadroBrandFont[]
-}
+    name: string;
+    colors: MAQuadroBrandColor[];
+    fonts: MAQuadroBrandFont[];
+};
 
 export type MAQuadroCanvasPreset = {
-  id: string
-  name: string
-  description: string
-  width: number
-  height: number
-  category: MAQuadroProjectCategory
-}
+    id: string;
+    name: string;
+    description: string;
+    width: number;
+    height: number;
+    category: MAQuadroProjectCategory;
+};
 
 export type MAQuadroBackgroundType =
-  | 'solid'
-  | 'transparent'
-  | 'gradient'
+    | 'solid'
+    | 'transparent'
+    | 'gradient';
 
 export type MAQuadroBackground = {
-  type: MAQuadroBackgroundType
-  color: string
-  gradientFrom: string
-  gradientTo: string
-  gradientAngle: number
-}
+    type: MAQuadroBackgroundType;
+    color: string;
+    gradientFrom: string;
+    gradientTo: string;
+    gradientAngle: number;
+};
 
 export type MAQuadroPage = {
-  id: string
-  name: string
-  width: number
-  height: number
-  background: MAQuadroBackground
-  canvasJson: MAQuadroCanvasJson
-  thumbnail?: string
-}
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    background: MAQuadroBackground;
+    canvasJson: MAQuadroCanvasJson;
+    thumbnail?: string;
+};
 
 export type MAQuadroProjectCategory =
-  | 'social'
-  | 'story'
-  | 'presentation'
-  | 'print'
-  | 'invitation'
-  | 'custom'
+    | 'social'
+    | 'story'
+    | 'presentation'
+    | 'print'
+    | 'invitation'
+    | 'custom';
 
 export type MAQuadroProject = {
-  schemaVersion: 2
-  id: string
-  name: string
-  pages: MAQuadroPage[]
-  activePageId: string
-  category: MAQuadroProjectCategory
-  isTemplate: boolean
-  createdAt: string
-  updatedAt: string
-}
+    schemaVersion: 2;
+    id: string;
+    name: string;
+    pages: MAQuadroPage[];
+    activePageId: string;
+    category: MAQuadroProjectCategory;
+    isTemplate: boolean;
+    createdAt: string;
+    updatedAt: string;
+};
 
 export type MAQuadroStoredFont = {
-  id: string
-  family: string
-  fileName: string
-  mimeType: string
-  data: ArrayBuffer
-  createdAt: string
-}
+    id: string;
+    family: string;
+    fileName: string;
+    mimeType: string;
+    data: ArrayBuffer;
+    createdAt: string;
+};
 
 export type MAQuadroHistorySnapshot = {
-  pageId: string
-  background: MAQuadroBackground
-  canvasJson: MAQuadroCanvasJson
-}
+    pageId: string;
+    background: MAQuadroBackground;
+    canvasJson: MAQuadroCanvasJson;
+};
 
-export type MAQuadroExportScale = 1 | 2 | 3
+export type MAQuadroExportScale =
+    | 1
+    | 2
+    | 3;
 
 export type MAQuadroExportFormat =
-  | 'png'
-  | 'jpg'
-  | 'svg'
-  | 'pdf'
-  | 'zip'
-  | 'project'
+    | 'png'
+    | 'jpg'
+    | 'svg'
+    | 'pdf'
+    | 'zip'
+    | 'project';
 
 export type MAQuadroImageFilterState = {
-  brightness: number
-  contrast: number
-  saturation: number
-  blur: number
-  grayscale: boolean
-}
+    brightness: number;
+    contrast: number;
+    saturation: number;
+    blur: number;
+    grayscale: boolean;
+};
 
 export type MAQuadroObjectRole =
-  | 'text'
-  | 'shape'
-  | 'image'
-  | 'line'
-  | 'arrow'
-  | 'drawing'
-  | 'group'
+    | 'text'
+    | 'shape'
+    | 'image'
+    | 'line'
+    | 'arrow'
+    | 'drawing'
+    | 'group';
 
 export type MAQuadroTextPreset =
-  | 'heading'
-  | 'subheading'
-  | 'body'
-  | 'caption'
+    | 'heading'
+    | 'subheading'
+    | 'body'
+    | 'caption';
 
 export type MAQuadroShapeKind =
-  | 'rectangle'
-  | 'circle'
-  | 'ellipse'
-  | 'triangle'
-  | 'star'
-  | 'line'
-  | 'arrow'
+    | 'rectangle'
+    | 'circle'
+    | 'ellipse'
+    | 'triangle'
+    | 'star'
+    | 'line'
+    | 'arrow';
+
+export type MAQuadroResizeStrategy =
+    | 'scale'
+    | 'keep'
+    | 'center';
 
 export type MAQuadroPanelId =
-  | 'templates'
-  | 'elements'
-  | 'uploads'
-  | 'text'
-  | 'brand'
-  | 'projects'
+    | 'templates'
+    | 'elements'
+    | 'uploads'
+    | 'text'
+    | 'brand'
+    | 'projects';
 
 export type MAQuadroSaveState =
-  | 'ready'
-  | 'dirty'
-  | 'saving'
-  | 'saved'
-  | 'error'
+    | 'ready'
+    | 'dirty'
+    | 'saving'
+    | 'saved'
+    | 'error';
