@@ -50,6 +50,14 @@ export default function CanvasStage() {
   const page =
     editor.activePage
 
+  const canvasWidth =
+    page?.width ||
+    1080
+
+  const canvasHeight =
+    page?.height ||
+    1080
+
   const hasSelection =
     editor.selection.count >
     0
@@ -329,50 +337,44 @@ export default function CanvasStage() {
           handleDrop
         }
       >
-        {page ? (
-          <div
-            className="mq-canvas-shell"
-            style={{
-              width:
-                page.width *
-                editor.zoom /
-                100,
+        <div
+          className="mq-canvas-shell"
+          style={{
+            width:
+              canvasWidth *
+              editor.zoom /
+              100,
 
-              height:
-                page.height *
-                editor.zoom /
-                100
-            }}
-          >
-            <canvas
-              ref={
-                editor.canvasElementRef
-              }
-            />
+            height:
+              canvasHeight *
+              editor.zoom /
+              100
+          }}
+        >
+          <canvas
+            ref={
+              editor.canvasElementRef
+            }
+          />
 
-            {editor.showGrid ? (
-              <div className="mq-canvas-grid" />
-            ) : null}
+          {editor.showGrid ? (
+            <div className="mq-canvas-grid" />
+          ) : null}
 
-            {editor.showSafeArea ? (
-              <div className="mq-safe-area" />
-            ) : null}
+          {editor.showSafeArea ? (
+            <div className="mq-safe-area" />
+          ) : null}
 
-            {editor.guides
-              .vertical ? (
-              <div className="mq-guide mq-guide--vertical" />
-            ) : null}
+          {editor.guides
+            .vertical ? (
+            <div className="mq-guide mq-guide--vertical" />
+          ) : null}
 
-            {editor.guides
-              .horizontal ? (
-              <div className="mq-guide mq-guide--horizontal" />
-            ) : null}
-          </div>
-        ) : (
-          <div className="mq-stage-empty">
-            A preparar o editor…
-          </div>
-        )}
+          {editor.guides
+            .horizontal ? (
+            <div className="mq-guide mq-guide--horizontal" />
+          ) : null}
+        </div>
 
         {dragActive ? (
           <div className="mq-drop-overlay">
