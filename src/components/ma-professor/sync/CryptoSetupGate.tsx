@@ -572,12 +572,11 @@ export function CryptoSetupGate({
           '',
           'INFORMAÇÃO IMPORTANTE',
           '',
-          'Esta chave permite autorizar outro dispositivo e recuperar a cópia cifrada dos seus dados.',
-          'A chave não é guardada pela MA-CODE e não pode ser reconstruída a partir dos elementos armazenados no servidor.',
-          'Redefinir a palavra-passe da conta não recupera esta chave nem permite desencriptar a cópia.',
-          'Se perder esta chave e deixar de ter acesso a todos os dispositivos autorizados, poderá perder definitivamente o acesso aos dados sincronizados.',
+          'Esta chave é diferente da palavra-passe da sua conta.',
+          'A MA-CODE não guarda esta chave de recuperação e não conseguirá recuperá-la ou criá-la novamente por si.',
+          'Se perder a chave e deixar de ter acesso a todos os dispositivos autorizados, poderá perder o acesso aos dados sincronizados.',
           '',
-          'Guarde este ficheiro num local seguro e não partilhe a chave.',
+          'Guarde este ficheiro num local seguro e não partilhe a chave de recuperação.',
           '',
           `Conta: ${session.email}`
         ].join(
@@ -810,11 +809,15 @@ export function CryptoSetupGate({
 
             <div>
               <p className="text-sm font-black text-amber-100">
-                Guarde bem a sua chave
+                Importante: guarde a sua chave de recuperação
               </p>
 
               <p className="mt-1.5 text-xs leading-5 text-amber-100/80 sm:text-sm">
-                Se a perder e deixar de ter acesso a um dispositivo autorizado, poderá perder o acesso à sua cópia sincronizada.
+                No próximo passo vai receber uma chave única. Guarde-a num local seguro: a MA-CODE não a guarda e não poderá recuperá-la por si.
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-amber-100/80 sm:text-sm">
+                Se a perder e deixar de ter acesso a todos os dispositivos autorizados, poderá perder o acesso aos dados sincronizados.
               </p>
             </div>
           </div>
@@ -905,7 +908,7 @@ export function CryptoSetupGate({
           </h1>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
-            Esta chave permite autorizar outro dispositivo e recuperar a cópia cifrada. Não é uma palavra-passe e não pode ser reconstruída pela MA-CODE.
+            Esta chave é necessária para recuperar a sua cópia protegida noutro dispositivo. É diferente da palavra-passe da conta: a MA-CODE não a guarda e não consegue criá-la novamente.
           </p>
         </div>
 
@@ -988,11 +991,11 @@ export function CryptoSetupGate({
 
         <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
           <p className="text-sm font-black text-amber-100">
-            Consequência da perda da chave
+            Importante
           </p>
 
           <p className="mt-2 text-xs leading-6 text-amber-100/80">
-            Redefinir a palavra-passe da conta não recupera esta chave. Sem a chave e sem acesso a um dispositivo já autorizado, a cópia cifrada poderá ficar definitivamente inacessível.
+            A palavra-passe da conta pode ser redefinida. Esta chave de recuperação não. Sem a chave e sem acesso a um dispositivo já autorizado, os dados sincronizados poderão ficar inacessíveis.
           </p>
         </div>
 
@@ -1012,7 +1015,7 @@ export function CryptoSetupGate({
           />
 
           <span className="text-xs leading-5 text-slate-300">
-            Confirmo que guardei a chave de recuperação num local seguro e compreendo que a MA-CODE não a poderá recuperar por mim.
+            Compreendo que a MA-CODE não guarda a minha chave de recuperação e não poderá recuperá-la por mim. Se a perder e deixar de ter acesso a todos os dispositivos autorizados, poderei perder o acesso aos dados sincronizados.
           </span>
         </label>
 
@@ -1033,7 +1036,7 @@ export function CryptoSetupGate({
             : !recoverySaved
               ? 'Copie ou guarde a chave primeiro'
               : !recoveryAcknowledged
-                ? 'Confirme que guardou a chave'
+                ? 'Assinale a confirmação para continuar'
                 : 'Ativar proteção e continuar'}
         </button>
 
