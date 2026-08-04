@@ -374,29 +374,33 @@ function normalizeLoadedObjectTree(
     );
 
     if (object instanceof FabricImage) {
-        object.maOriginalWidth ||=
-            object.width ||
+        const imageObject =
+            object as
+                MAQuadroFabricObject;
+
+        imageObject.maOriginalWidth ||=
+            imageObject.width ||
             1;
 
-        object.maOriginalHeight ||=
-            object.height ||
+        imageObject.maOriginalHeight ||=
+            imageObject.height ||
             1;
 
-        object.maFilterBrightness ||=
+        imageObject.maFilterBrightness ||=
             0;
 
-        object.maFilterContrast ||=
+        imageObject.maFilterContrast ||=
             0;
 
-        object.maFilterSaturation ||=
+        imageObject.maFilterSaturation ||=
             0;
 
-        object.maFilterBlur ||=
+        imageObject.maFilterBlur ||=
             0;
 
-        object.maFilterGrayscale =
+        imageObject.maFilterGrayscale =
             Boolean(
-                object.maFilterGrayscale
+                imageObject.maFilterGrayscale
             );
     }
 
@@ -423,9 +427,8 @@ export function serializeMAQuadroCanvas(
         | Canvas
         | StaticCanvas
 ): MAQuadroCanvasJson {
-    return canvas.toJSON(
-        MA_QUADRO_SERIALIZED_PROPERTIES
-    ) as MAQuadroCanvasJson;
+    return canvas.toJSON()
+        as MAQuadroCanvasJson;
 }
 
 export async function
@@ -585,7 +588,14 @@ const textConfigurations:
             widthRatio: number;
             fontWeight: string;
             lineHeight: number;
-            textAlign: string;
+            textAlign:
+                | 'left'
+                | 'center'
+                | 'right'
+                | 'justify'
+                | 'justify-left'
+                | 'justify-center'
+                | 'justify-right';
         }
     > = {
         heading: {
@@ -1234,7 +1244,10 @@ setMAQuadroObjectShadow(
 }
 
 function gradientAngleFromFill(
-    fill: Gradient,
+    fill:
+        Gradient<
+            'linear'
+        >,
     fallback = 45
 ) {
     const coords =
