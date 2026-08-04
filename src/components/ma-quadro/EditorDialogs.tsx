@@ -1,9 +1,16 @@
 import {
   useEffect,
+  useId,
+  useMemo,
+  useRef,
   useState,
   type ReactNode
 } from 'react'
 
+import {
+  formatMAQuadroExportScale,
+  getMAQuadroExportPlan
+} from '../../lib/maQuadro/export'
 import type {
   MAQuadroExportFormat,
   MAQuadroProjectCategory
@@ -51,6 +58,15 @@ const categories: Array<{
   }
 ]
 
+const focusableSelector = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',')
+
 function Modal({
   title,
   description,
@@ -62,32 +78,195 @@ function Modal({
   onClose: () => void
   children: ReactNode
 }) {
+  const dialogRef =
+    useRef<
+      HTMLElement | null
+    >(null)
+
+  const onCloseRef =
+    useRef(
+      onClose
+    )
+
+  const titleId =
+    useId()
+
+  const descriptionId =
+    useId()
+
   useEffect(() => {
-    const closeWithEscape = (
+    onCloseRef.current =
+      onClose
+  }, [
+    onClose
+  ])
+
+  useEffect(() => {
+    const previousFocus =
+      document.activeElement as
+        HTMLElement | null
+
+    const previousOverflow =
+      document.body
+        .style
+        .overflow
+
+    document.body
+      .style
+      .overflow =
+        'hidden'
+
+    const focusFirst =
+      () => {
+        const dialog =
+          dialogRef.current
+
+        const first =
+          dialog
+            ?.querySelector<
+              HTMLElement
+            >(
+              '[autofocus], ' +
+              focusableSelector
+            )
+
+        const target =
+          first ||
+          dialog
+
+        target?.focus()
+      }
+
+    const frame =
+      window
+        .requestAnimationFrame(
+          focusFirst
+        )
+
+    const handleKeyDown = (
       event:
         KeyboardEvent
     ) => {
+      const dialog =
+        dialogRef.current
+
+      if (!dialog) {
+        return
+      }
+
       if (
         event.key ===
         'Escape'
       ) {
-        onClose()
+        event.preventDefault()
+        event.stopPropagation()
+
+        onCloseRef.current()
+        return
+      }
+
+      if (
+        event.key !==
+        'Tab'
+      ) {
+        return
+      }
+
+      const focusable =
+        Array.from(
+          dialog
+            .querySelectorAll<
+              HTMLElement
+            >(
+              focusableSelector
+            )
+        ).filter(
+          (
+            element
+          ) =>
+            !element.hidden &&
+            element
+              .getAttribute(
+                'aria-hidden'
+              ) !==
+              'true'
+        )
+
+      if (
+        focusable.length ===
+        0
+      ) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const first =
+        focusable[0]
+
+      const last =
+        focusable[
+          focusable.length -
+          1
+        ]
+
+      const active =
+        document.activeElement
+
+      if (
+        event.shiftKey &&
+        (
+          active === first ||
+          !dialog.contains(
+            active
+          )
+        )
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (
+        !event.shiftKey &&
+        active === last
+      ) {
+        event.preventDefault()
+        first.focus()
       }
     }
 
-    window.addEventListener(
+    document.addEventListener(
       'keydown',
-      closeWithEscape
+      handleKeyDown,
+      true
     )
 
-    return () =>
-      window.removeEventListener(
-        'keydown',
-        closeWithEscape
-      )
-  }, [
-    onClose
-  ])
+    return () => {
+      window
+        .cancelAnimationFrame(
+          frame
+        )
+
+      document
+        .removeEventListener(
+          'keydown',
+          handleKeyDown,
+          true
+        )
+
+      document.body
+        .style
+        .overflow =
+          previousOverflow
+
+      if (
+        previousFocus &&
+        document.contains(
+          previousFocus
+        )
+      ) {
+        previousFocus.focus()
+      }
+    }
+  }, [])
 
   return (
     <div
@@ -98,30 +277,50 @@ function Modal({
           event.currentTarget ===
           event.target
         ) {
-          onClose()
+          onCloseRef.current()
         }
       }}
     >
       <section
+        ref={
+          dialogRef
+        }
         className="mq-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={
+          titleId
+        }
+        aria-describedby={
+          descriptionId
+        }
+        tabIndex={-1}
       >
         <header className="mq-modal__header">
           <span>
-            <strong>
+            <strong
+              id={
+                titleId
+              }
+            >
               {title}
             </strong>
 
-            <small>
+            <small
+              id={
+                descriptionId
+              }
+            >
               {description}
             </small>
           </span>
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() =>
+              onCloseRef
+                .current()
+            }
             aria-label="Fechar"
           >
             ×
@@ -148,12 +347,16 @@ function NewDesignDialog() {
   const [
     width,
     setWidth
-  ] = useState(1200)
+  ] = useState(
+    '1200'
+  )
 
   const [
     height,
     setHeight
-  ] = useState(1200)
+  ] = useState(
+    '1200'
+  )
 
   const [
     category,
@@ -163,186 +366,290 @@ function NewDesignDialog() {
   >('custom')
 
   if (
-    !editor.newDesignOpen
+    !editor
+      .newDesignOpen
   ) {
     return null
   }
+
+  const parsedWidth =
+    Number(
+      width
+    )
+
+  const parsedHeight =
+    Number(
+      height
+    )
+
+  const validWidth =
+    Number.isInteger(
+      parsedWidth
+    ) &&
+    parsedWidth >= 100 &&
+    parsedWidth <= 8000
+
+  const validHeight =
+    Number.isInteger(
+      parsedHeight
+    ) &&
+    parsedHeight >= 100 &&
+    parsedHeight <= 8000
+
+  const canCreate =
+    validWidth &&
+    validHeight &&
+    !editor.busy
 
   return (
     <Modal
       title="Criar design personalizado"
       description="Defina o formato exato em píxeis."
       onClose={() =>
-        editor.setNewDesignOpen(
-          false
-        )
+        editor
+          .setNewDesignOpen(
+            false
+          )
       }
     >
-      <div className="mq-modal__body">
-        <label className="mq-field">
-          <span>
-            Nome do projeto
-          </span>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
 
-          <input
-            type="text"
-            value={name}
-            onChange={(event) =>
-              setName(
-                event.target.value
+          if (
+            !canCreate
+          ) {
+            return
+          }
+
+          void editor
+            .createCustomDesign({
+              name,
+
+              width:
+                parsedWidth,
+
+              height:
+                parsedHeight,
+
+              category
+            })
+        }}
+      >
+        <div className="mq-modal__body">
+          <label className="mq-field">
+            <span>
+              Nome do projeto
+            </span>
+
+            <input
+              type="text"
+              value={
+                name
+              }
+              maxLength={
+                180
+              }
+              autoFocus
+              onChange={(event) =>
+                setName(
+                  event
+                    .target
+                    .value
+                )
+              }
+            />
+          </label>
+
+          <div className="mq-two-columns">
+            <label className="mq-field">
+              <span>
+                Largura
+              </span>
+
+              <input
+                type="number"
+                inputMode="numeric"
+                min="100"
+                max="8000"
+                step="1"
+                value={
+                  width
+                }
+                aria-invalid={
+                  !validWidth
+                }
+                onChange={(event) =>
+                  setWidth(
+                    event
+                      .target
+                      .value
+                  )
+                }
+              />
+            </label>
+
+            <label className="mq-field">
+              <span>
+                Altura
+              </span>
+
+              <input
+                type="number"
+                inputMode="numeric"
+                min="100"
+                max="8000"
+                step="1"
+                value={
+                  height
+                }
+                aria-invalid={
+                  !validHeight
+                }
+                onChange={(event) =>
+                  setHeight(
+                    event
+                      .target
+                      .value
+                  )
+                }
+              />
+            </label>
+          </div>
+
+          {(
+            !validWidth ||
+            !validHeight
+          ) ? (
+            <div className="mq-info-card">
+              <strong>
+                Medidas inválidas
+              </strong>
+
+              <p>
+                Use números inteiros
+                entre 100 e 8000
+                píxeis.
+              </p>
+            </div>
+          ) : null}
+
+          <label className="mq-field">
+            <span>
+              Categoria
+            </span>
+
+            <select
+              value={
+                category
+              }
+              onChange={(event) =>
+                setCategory(
+                  event
+                    .target
+                    .value as
+                    MAQuadroProjectCategory
+                )
+              }
+            >
+              {categories.map(
+                (
+                  item
+                ) => (
+                  <option
+                    key={
+                      item.value
+                    }
+                    value={
+                      item.value
+                    }
+                  >
+                    {item.label}
+                  </option>
+                )
+              )}
+            </select>
+          </label>
+
+          <div className="mq-modal__preset-row">
+            {editor.presets
+              .slice(
+                0,
+                4
               )
-            }
-          />
-        </label>
+              .map(
+                (
+                  preset
+                ) => (
+                  <button
+                    key={
+                      preset.id
+                    }
+                    type="button"
+                    onClick={() => {
+                      setName(
+                        preset.name
+                      )
 
-        <div className="mq-two-columns">
-          <label className="mq-field">
-            <span>
-              Largura
-            </span>
+                      setWidth(
+                        String(
+                          preset.width
+                        )
+                      )
 
-            <input
-              type="number"
-              min="100"
-              max="8000"
-              value={width}
-              onChange={(event) =>
-                setWidth(
-                  Number(
-                    event.target
-                      .value
-                  )
+                      setHeight(
+                        String(
+                          preset.height
+                        )
+                      )
+
+                      setCategory(
+                        preset.category
+                      )
+                    }}
+                  >
+                    <strong>
+                      {preset.name}
+                    </strong>
+
+                    <small>
+                      {preset.width}{' '}
+                      ×{' '}
+                      {preset.height}
+                    </small>
+                  </button>
                 )
-              }
-            />
-          </label>
-
-          <label className="mq-field">
-            <span>
-              Altura
-            </span>
-
-            <input
-              type="number"
-              min="100"
-              max="8000"
-              value={height}
-              onChange={(event) =>
-                setHeight(
-                  Number(
-                    event.target
-                      .value
-                  )
-                )
-              }
-            />
-          </label>
+              )}
+          </div>
         </div>
 
-        <label className="mq-field">
-          <span>
-            Categoria
-          </span>
-
-          <select
-            value={category}
-            onChange={(event) =>
-              setCategory(
-                event.target
-                  .value as
-                  MAQuadroProjectCategory
-              )
+        <footer className="mq-modal__footer">
+          <button
+            type="button"
+            className="mq-button mq-button--ghost"
+            onClick={() =>
+              editor
+                .setNewDesignOpen(
+                  false
+                )
             }
           >
-            {categories.map(
-              (item) => (
-                <option
-                  key={
-                    item.value
-                  }
-                  value={
-                    item.value
-                  }
-                >
-                  {item.label}
-                </option>
-              )
-            )}
-          </select>
-        </label>
+            Cancelar
+          </button>
 
-        <div className="mq-modal__preset-row">
-          {editor.presets
-            .slice(0, 4)
-            .map(
-              (preset) => (
-                <button
-                  key={
-                    preset.id
-                  }
-                  type="button"
-                  onClick={() => {
-                    setName(
-                      preset.name
-                    )
-
-                    setWidth(
-                      preset.width
-                    )
-
-                    setHeight(
-                      preset.height
-                    )
-
-                    setCategory(
-                      preset.category
-                    )
-                  }}
-                >
-                  <strong>
-                    {preset.name}
-                  </strong>
-
-                  <small>
-                    {preset.width} ×{' '}
-                    {preset.height}
-                  </small>
-                </button>
-              )
-            )}
-        </div>
-      </div>
-
-      <footer className="mq-modal__footer">
-        <button
-          type="button"
-          className="mq-button mq-button--ghost"
-          onClick={() =>
-            editor
-              .setNewDesignOpen(
-                false
-              )
-          }
-        >
-          Cancelar
-        </button>
-
-        <button
-          type="button"
-          className="mq-button mq-button--primary"
-          onClick={() =>
-            void editor
-              .createCustomDesign({
-                name,
-                width,
-                height,
-                category
-              })
-          }
-        >
-          Criar design
-        </button>
-      </footer>
+          <button
+            type="submit"
+            className="mq-button mq-button--primary"
+            disabled={
+              !canCreate
+            }
+          >
+            {editor.busy
+              ? 'A criar…'
+              : 'Criar design'}
+          </button>
+        </footer>
+      </form>
     </Modal>
   )
 }
@@ -375,7 +682,7 @@ const formatOptions: Array<{
     value: 'pdf',
     label: 'PDF',
     description:
-      'Documento com uma ou todas as páginas'
+      'Documento achatado com uma ou todas as páginas'
   },
   {
     value: 'zip',
@@ -410,26 +717,104 @@ function ExportDialog() {
     options.format ===
     'pdf'
 
-  if (!editor.exportOpen) {
+  const exportPages =
+    useMemo(
+      () => {
+        if (
+          options.format ===
+          'zip'
+        ) {
+          return (
+            editor.project
+              ?.pages ||
+            []
+          )
+        }
+
+        return editor.activePage
+          ? [
+              editor.activePage
+            ]
+          : []
+      },
+      [
+        editor.activePage,
+        editor.project
+          ?.pages,
+        options.format
+      ]
+    )
+
+  const exportPlans =
+    useMemo(
+      () =>
+        imageFormat
+          ? exportPages.map(
+              (
+                page
+              ) =>
+                getMAQuadroExportPlan(
+                  page,
+                  options.scale
+                )
+            )
+          : [],
+      [
+        exportPages,
+        imageFormat,
+        options.scale
+      ]
+    )
+
+  if (
+    !editor.exportOpen
+  ) {
     return null
   }
+
+  const currentPlan =
+    exportPlans[0]
+
+  const reduced =
+    exportPlans.some(
+      (
+        plan
+      ) =>
+        plan.reduced
+    )
+
+  const totalMegapixels =
+    exportPlans.reduce(
+      (
+        total,
+        plan
+      ) =>
+        total +
+        plan.megapixels,
+      0
+    )
 
   return (
     <Modal
       title="Exportar design"
       description="Escolha o formato, qualidade e páginas."
       onClose={() =>
-        editor.setExportOpen(
-          false
-        )
+        editor
+          .setExportOpen(
+            false
+          )
       }
     >
       <div className="mq-modal__body">
         <div className="mq-export-formats">
           {formatOptions.map(
-            (format) => (
+            (
+              format
+            ) => (
               <button
-                key={format.value}
+                key={
+                  format.value
+                }
                 type="button"
                 className={
                   options.format ===
@@ -450,9 +835,7 @@ function ExportDialog() {
                 </strong>
 
                 <small>
-                  {
-                    format.description
-                  }
+                  {format.description}
                 </small>
               </button>
             )
@@ -511,10 +894,7 @@ function ExportDialog() {
                   </strong>
 
                   <output>
-                    {
-                      options.quality
-                    }
-                    %
+                    {options.quality}%
                   </output>
                 </span>
 
@@ -525,9 +905,7 @@ function ExportDialog() {
                   value={
                     options.quality
                   }
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     editor
                       .setExportOptions({
                         quality:
@@ -540,6 +918,40 @@ function ExportDialog() {
                   }
                 />
               </label>
+            ) : null}
+
+            {currentPlan ? (
+              <div
+                className={`mq-info-card${
+                  reduced
+                    ? ''
+                    : ' mq-info-card--accent'
+                }`}
+              >
+                <strong>
+                  {options.format ===
+                  'zip'
+                    ? `${exportPlans.length} páginas preparadas`
+                    : `${currentPlan.width} × ${currentPlan.height} píxeis`}
+                </strong>
+
+                <p>
+                  {options.format ===
+                  'zip'
+                    ? `Carga estimada: ${totalMegapixels.toFixed(1)} megapíxeis, processados página a página.`
+                    : `Escala efetiva: ${formatMAQuadroExportScale(currentPlan.scale)}x · ${currentPlan.megapixels.toFixed(1)} megapíxeis.`}
+                </p>
+
+                {reduced ? (
+                  <p>
+                    A resolução será
+                    reduzida
+                    automaticamente para
+                    evitar bloquear ou
+                    fechar o browser.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </>
         ) : null}
@@ -586,17 +998,49 @@ function ExportDialog() {
           </div>
         ) : null}
 
+        {options.format ===
+        'pdf' ? (
+          <div className="mq-info-card">
+            <strong>
+              PDF para partilha e impressão
+            </strong>
+
+            <p>
+              O tamanho físico dos
+              projetos de impressão é
+              preservado. O conteúdo é
+              achatado numa imagem por
+              página, por isso o texto não
+              fica editável nem pesquisável.
+            </p>
+          </div>
+        ) : null}
+
+        {options.format ===
+        'svg' ? (
+          <div className="mq-info-card">
+            <strong>
+              Página atual em vetor
+            </strong>
+
+            <p>
+              Formas e texto são exportados
+              em SVG. Fotografias e outras
+              imagens incorporadas continuam
+              a ser rasterizadas.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mq-info-card mq-info-card--accent">
           <strong>
             Privacidade
           </strong>
 
           <p>
-            A exportação é
-            processada no browser.
-            Os conteúdos do design
-            não são enviados para a
-            MA-Code.
+            A exportação é processada no
+            browser. Os conteúdos do design
+            não são enviados para a MA-Code.
           </p>
         </div>
       </div>
@@ -606,9 +1050,10 @@ function ExportDialog() {
           type="button"
           className="mq-button mq-button--ghost"
           onClick={() =>
-            editor.setExportOpen(
-              false
-            )
+            editor
+              .setExportOpen(
+                false
+              )
           }
         >
           Cancelar
@@ -618,10 +1063,12 @@ function ExportDialog() {
           type="button"
           className="mq-button mq-button--primary"
           onClick={() =>
-            void editor.runExport()
+            void editor
+              .runExport()
           }
           disabled={
-            editor.busy
+            editor.busy ||
+            !editor.activePage
           }
         >
           {editor.busy
