@@ -51,20 +51,16 @@ export default function CanvasStage() {
     editor.activePage
 
   const canvasWidth =
-    page?.width ||
-    1080
+    page?.width || 1080
 
   const canvasHeight =
-    page?.height ||
-    1080
+    page?.height || 1080
 
   const hasSelection =
-    editor.selection.count >
-    0
+    editor.selection.count > 0
 
   const multiple =
-    editor.selection.count >
-    1
+    editor.selection.count > 1
 
   const isGroup =
     editor.selection.role ===
@@ -83,9 +79,7 @@ export default function CanvasStage() {
       event.dataTransfer.dropEffect =
         'copy'
 
-      setDragActive(
-        true
-      )
+      setDragActive(true)
     }
   }
 
@@ -94,25 +88,24 @@ export default function CanvasStage() {
       DragEvent<HTMLDivElement>
   ) => {
     event.preventDefault()
-
-    setDragActive(
-      false
-    )
+    setDragActive(false)
 
     if (
       event.dataTransfer.files
         .length
     ) {
-      void editor
-        .handleDroppedFiles(
-          event.dataTransfer.files
-        )
+      void editor.handleDroppedFiles(
+        event.dataTransfer.files
+      )
     }
   }
 
   return (
     <section className="mq-stage-section">
-      <div className="mq-context-toolbar">
+      <div
+        className="mq-context-toolbar"
+        aria-label="Ferramentas do quadro"
+      >
         <div className="mq-context-toolbar__group">
           <ToolbarButton
             label="↶"
@@ -120,9 +113,7 @@ export default function CanvasStage() {
             onClick={() =>
               void editor.undo()
             }
-            disabled={
-              !editor.canUndo
-            }
+            disabled={!editor.canUndo}
           />
 
           <ToolbarButton
@@ -131,9 +122,7 @@ export default function CanvasStage() {
             onClick={() =>
               void editor.redo()
             }
-            disabled={
-              !editor.canRedo
-            }
+            disabled={!editor.canRedo}
           />
 
           <span className="mq-toolbar-separator" />
@@ -142,12 +131,9 @@ export default function CanvasStage() {
             label="⧉"
             title="Duplicar seleção"
             onClick={() =>
-              void editor
-                .duplicateSelection()
+              void editor.duplicateSelection()
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -156,9 +142,7 @@ export default function CanvasStage() {
             onClick={
               editor.deleteSelection
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -167,9 +151,7 @@ export default function CanvasStage() {
             onClick={
               editor.groupSelection
             }
-            disabled={
-              !multiple
-            }
+            disabled={!multiple}
           />
 
           <ToolbarButton
@@ -178,9 +160,7 @@ export default function CanvasStage() {
             onClick={
               editor.ungroupSelection
             }
-            disabled={
-              !isGroup
-            }
+            disabled={!isGroup}
           />
         </div>
 
@@ -193,9 +173,7 @@ export default function CanvasStage() {
                 'left'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -206,9 +184,7 @@ export default function CanvasStage() {
                 'center-x'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -219,9 +195,7 @@ export default function CanvasStage() {
                 'right'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -232,9 +206,7 @@ export default function CanvasStage() {
                 'top'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -245,9 +217,7 @@ export default function CanvasStage() {
                 'center-y'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
 
           <ToolbarButton
@@ -258,9 +228,7 @@ export default function CanvasStage() {
                 'bottom'
               )
             }
-            disabled={
-              !hasSelection
-            }
+            disabled={!hasSelection}
           />
         </div>
 
@@ -271,9 +239,7 @@ export default function CanvasStage() {
             onClick={
               editor.toggleGrid
             }
-            active={
-              editor.showGrid
-            }
+            active={editor.showGrid}
           />
 
           <ToolbarButton
@@ -290,17 +256,13 @@ export default function CanvasStage() {
           <ToolbarButton
             label="Ajustar"
             title="Ajustar quadro ao ecrã"
-            onClick={
-              editor.fitCanvas
-            }
+            onClick={editor.fitCanvas}
           />
         </div>
       </div>
 
       <div
-        ref={
-          editor.workspaceRef
-        }
+        ref={editor.workspaceRef}
         className={`mq-workspace${
           editor.isSpacePressed
             ? ' is-panning'
@@ -314,42 +276,37 @@ export default function CanvasStage() {
           editor.onWorkspaceWheel
         }
         onPointerDown={
-          editor
-            .onWorkspacePointerDown
+          editor.onWorkspacePointerDown
         }
-        onDragEnter={
-          handleDragOver
-        }
-        onDragOver={
-          handleDragOver
-        }
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
         onDragLeave={(event) => {
           if (
             event.currentTarget ===
             event.target
           ) {
-            setDragActive(
-              false
-            )
+            setDragActive(false)
           }
         }}
-        onDrop={
-          handleDrop
-        }
+        onDrop={handleDrop}
       >
         <div
-          className="mq-canvas-shell"
+          className={`mq-canvas-shell${
+            page
+              ? ''
+              : ' is-initialising'
+          }`}
           style={{
             width:
               canvasWidth *
               editor.zoom /
               100,
-
             height:
               canvasHeight *
               editor.zoom /
               100
           }}
+          aria-busy={!page}
         >
           <canvas
             ref={
@@ -365,14 +322,21 @@ export default function CanvasStage() {
             <div className="mq-safe-area" />
           ) : null}
 
-          {editor.guides
-            .vertical ? (
+          {editor.guides.vertical ? (
             <div className="mq-guide mq-guide--vertical" />
           ) : null}
 
-          {editor.guides
-            .horizontal ? (
+          {editor.guides.horizontal ? (
             <div className="mq-guide mq-guide--horizontal" />
+          ) : null}
+
+          {!page ? (
+            <div
+              className="mq-stage-empty mq-stage-empty--overlay"
+              role="status"
+            >
+              A preparar o editor…
+            </div>
           ) : null}
         </div>
 
@@ -383,8 +347,8 @@ export default function CanvasStage() {
             </strong>
 
             <span>
-              Serão adicionadas à
-              página atual.
+              Serão adicionadas à página
+              atual.
             </span>
           </div>
         ) : null}
@@ -421,9 +385,7 @@ export default function CanvasStage() {
             type="range"
             min="5"
             max="220"
-            value={
-              editor.zoom
-            }
+            value={editor.zoom}
             onChange={(event) =>
               editor.setZoom(
                 Number(
