@@ -725,67 +725,67 @@ export function CryptoSetupGate({
               Privacidade
             </p>
 
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-              Os seus dados escolares ficam só consigo
+            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+              Os seus dados escolares são só seus
             </h1>
 
-            <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
-              Organize as suas aulas, turmas e avaliações com tranquilidade. Os seus dados são protegidos antes de serem guardados online e a MA-CODE não os recebe em formato legível.
+            <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base">
+              Organize aulas, turmas e avaliações com tranquilidade. Antes de serem guardados online, os seus dados são protegidos no seu dispositivo.
             </p>
           </div>
         </div>
 
-        <div className="mt-7 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55">
-          <div className="flex items-start gap-4 border-b border-white/10 p-5">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55">
+          <div className="flex items-start gap-4 border-b border-white/10 p-4">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-300/10 text-sm font-black text-cyan-200">
               1
             </span>
 
             <div>
-              <p className="text-base font-black text-white">
-                Protegidos no seu dispositivo
+              <p className="text-sm font-black text-white">
+                Protegidos antes do envio
               </p>
 
-              <p className="mt-1.5 text-sm leading-6 text-slate-400">
-                Os nomes dos alunos, sumários, faltas e avaliações são protegidos antes de saírem do seu telemóvel ou computador.
+              <p className="mt-1 text-xs leading-5 text-slate-400 sm:text-sm">
+                Nomes de alunos, sumários, faltas e avaliações são protegidos antes de saírem do seu telemóvel ou computador.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-4 border-b border-white/10 p-5">
+          <div className="flex items-start gap-4 border-b border-white/10 p-4">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-300/10 text-sm font-black text-violet-200">
               2
             </span>
 
             <div>
-              <p className="text-base font-black text-white">
-                A chave fica consigo
+              <p className="text-sm font-black text-white">
+                Privados também online
               </p>
 
-              <p className="mt-1.5 text-sm leading-6 text-slate-400">
-                Receberá uma chave única que deverá guardar num local seguro. Sem essa chave, a MA-CODE não consegue recuperar a sua cópia por si.
+              <p className="mt-1 text-xs leading-5 text-slate-400 sm:text-sm">
+                A MA-CODE não recebe nomes, sumários, faltas ou avaliações em formato legível.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-4 p-5">
+          <div className="flex items-start gap-4 p-4">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-300/10 text-sm font-black text-emerald-200">
               3
             </span>
 
             <div>
-              <p className="text-base font-black text-white">
-                Pode mudar de dispositivo
+              <p className="text-sm font-black text-white">
+                A chave fica consigo
               </p>
 
-              <p className="mt-1.5 text-sm leading-6 text-slate-400">
-                Ao mudar de telemóvel ou computador, poderá usar a sua chave para recuperar os dados sincronizados de forma segura.
+              <p className="mt-1 text-xs leading-5 text-slate-400 sm:text-sm">
+                No próximo passo receberá uma chave única, necessária para recuperar a sua cópia noutro dispositivo.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-5">
+        <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
           <div className="flex items-start gap-3">
             <svg
               viewBox="0 0 24 24"
@@ -809,16 +809,12 @@ export function CryptoSetupGate({
             </svg>
 
             <div>
-              <p className="text-base font-black text-amber-100">
-                Importante
+              <p className="text-sm font-black text-amber-100">
+                Guarde bem a sua chave
               </p>
 
-              <p className="mt-2 text-sm leading-6 text-amber-100/80">
-                No próximo passo vai receber a sua chave de recuperação.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-amber-100/80">
-                Guarde-a bem. Se a perder e deixar de ter acesso a todos os dispositivos já autorizados, poderá perder definitivamente o acesso aos dados sincronizados.
+              <p className="mt-1.5 text-xs leading-5 text-amber-100/80 sm:text-sm">
+                Se a perder e deixar de ter acesso a um dispositivo autorizado, poderá perder o acesso à sua cópia sincronizada.
               </p>
             </div>
           </div>
@@ -834,7 +830,7 @@ export function CryptoSetupGate({
           onClick={() =>
             void handleCreateProtection()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+          className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
         >
           {creating
             ? 'A preparar a sua proteção…'
@@ -847,16 +843,16 @@ export function CryptoSetupGate({
           onClick={() =>
             void signOut()
           }
-          className="mt-3 w-full rounded-xl px-4 py-2 text-xs font-bold text-slate-500 transition hover:text-white disabled:opacity-50"
+          className="mt-2 w-full rounded-xl px-4 py-2 text-xs font-bold text-slate-500 transition hover:text-white disabled:opacity-50"
         >
           Entrar com outra conta
         </button>
 
-        <p className="mt-4 text-center text-xs leading-5 text-slate-500">
+        <p className="mt-3 text-center text-xs leading-5 text-slate-500">
           Este passo demora apenas alguns segundos e não envia dados pedagógicos.
         </p>
 
-        <p className="mt-4 border-t border-white/10 pt-4 text-center text-[11px] leading-5 text-slate-600">
+        <p className="mt-3 border-t border-white/10 pt-3 text-center text-[11px] leading-5 text-slate-600">
           Ao continuar, confirma que utiliza apenas dados que está autorizado a tratar. O MA-Professor é uma ferramenta de apoio e não substitui os sistemas oficiais da sua instituição.
         </p>
       </ProtectionShell>
