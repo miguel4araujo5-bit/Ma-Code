@@ -1,0 +1,328 @@
+.mq-properties-panel::before {
+  display: none !important;
+  content: none !important;
+}
+
+.mq-properties-toggle,
+.mq-properties-backdrop,
+.mq-header-menu {
+  display: none;
+}
+
+.mq-header__desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mq-color-transparent {
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--mq-border);
+  border-radius: 0.45rem;
+  color: #cbd5e1;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.01)
+    );
+  font-size: 0.62rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.mq-color-transparent:hover {
+  color: #ffffff;
+  border-color: rgba(34, 211, 238, 0.55);
+}
+
+.mq-field--color > span:last-child {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.mq-field--color .mq-color-transparent {
+  grid-column: 1 / -1;
+}
+
+.mq-number-field input:focus,
+.mq-field--color input[type="text"]:focus {
+  border-color: rgba(34, 211, 238, 0.72);
+  outline: 2px solid rgba(34, 211, 238, 0.14);
+  outline-offset: 1px;
+}
+
+.mq-range-field input[type="range"] {
+  touch-action: pan-y;
+}
+
+.mq-canvas-shell.is-initialising {
+  min-width: 12rem;
+  min-height: 12rem;
+}
+
+.mq-stage-empty--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  color: #cbd5e1;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(5px);
+  pointer-events: none;
+}
+
+.mq-context-toolbar {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.mq-context-toolbar__group {
+  flex: 0 0 auto;
+}
+
+.mq-header-menu {
+  position: relative;
+}
+
+.mq-header-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 2.45rem;
+  min-width: 2.45rem;
+  height: 2.35rem;
+  border: 1px solid var(--mq-border);
+  border-radius: 0.58rem;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mq-header-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mq-header-menu[open] > summary {
+  color: #cffafe;
+  border-color: rgba(34, 211, 238, 0.52);
+  background: rgba(34, 211, 238, 0.09);
+}
+
+.mq-header-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  z-index: 140;
+  display: grid;
+  width: min(17rem, calc(100vw - 1rem));
+  padding: 0.45rem;
+  border: 1px solid var(--mq-border);
+  border-radius: 0.75rem;
+  background: #080d1a;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.48);
+}
+
+.mq-header-menu__panel button {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #e2e8f0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mq-header-menu__panel button:hover:not(:disabled),
+.mq-header-menu__panel button:focus-visible {
+  color: #ffffff;
+  background: rgba(34, 211, 238, 0.09);
+  outline: none;
+}
+
+.mq-header-menu__panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1080px) {
+  .mq-properties-panel {
+    overflow: visible;
+    transform: translateX(100%) !important;
+  }
+
+  .mq-properties-panel:hover,
+  .mq-properties-panel:focus-within {
+    transform: translateX(100%) !important;
+  }
+
+  .mq-properties-panel.is-open,
+  .mq-properties-panel.is-open:hover,
+  .mq-properties-panel.is-open:focus-within {
+    transform: translateX(0) !important;
+  }
+
+  .mq-properties-toggle {
+    position: absolute;
+    top: 5rem;
+    left: -3.15rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 3.15rem;
+    min-height: 4.6rem;
+    padding: 0.35rem;
+    border: 1px solid var(--mq-border);
+    border-right: 0;
+    border-radius: 0.7rem 0 0 0.7rem;
+    color: #cffafe;
+    background: #080d1a;
+    box-shadow: -12px 0 28px rgba(0, 0, 0, 0.24);
+    font-size: 0.58rem;
+    font-weight: 850;
+    writing-mode: vertical-rl;
+    cursor: pointer;
+  }
+
+  .mq-properties-panel.is-open .mq-properties-toggle {
+    min-height: 3rem;
+    color: #ffffff;
+    font-size: 1.1rem;
+    writing-mode: horizontal-tb;
+  }
+
+  .mq-properties-backdrop {
+    position: fixed;
+    inset: 4.4rem 0 0;
+    z-index: 79;
+    display: block;
+    width: 100%;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: rgba(2, 6, 23, 0.62);
+    backdrop-filter: blur(2px);
+    cursor: default;
+  }
+}
+
+@media (max-width: 800px) {
+  .mq-header {
+    grid-template-columns: auto minmax(7rem, 1fr) auto;
+  }
+
+  .mq-header__desktop-actions {
+    display: none;
+  }
+
+  .mq-header-menu {
+    display: block;
+  }
+
+  .mq-header__actions {
+    gap: 0.35rem;
+  }
+
+  .mq-header__save-button {
+    display: inline-flex !important;
+  }
+
+  .mq-properties-panel {
+    width: min(21rem, calc(100vw - 3.25rem));
+  }
+
+  .mq-context-toolbar__group--center {
+    display: flex;
+  }
+
+  .mq-center-column {
+    min-width: 0;
+  }
+
+  .mq-workspace {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .mq-header {
+    grid-template-columns: auto minmax(5rem, 1fr) auto;
+  }
+
+  .mq-brand span {
+    display: none;
+  }
+
+  .mq-header__save-button {
+    position: relative;
+    width: 2.55rem;
+    min-width: 2.55rem;
+    padding-inline: 0;
+    overflow: hidden;
+    color: transparent;
+  }
+
+  .mq-header__save-button::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #e2e8f0;
+    content: "✓";
+    font-size: 0.9rem;
+    font-weight: 900;
+  }
+
+  .mq-document-name {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mq-properties-toggle {
+    top: 4.1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .mq-header {
+    padding-inline: 0.35rem;
+  }
+
+  .mq-brand__logo {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .mq-header__actions .mq-button--primary {
+    padding-inline: 0.55rem;
+    font-size: 0.66rem;
+  }
+
+  .mq-context-toolbar {
+    padding-inline: 0.35rem;
+  }
+
+  .mq-workspace {
+    padding: 1rem;
+  }
+
+  .mq-properties-panel {
+    width: calc(100vw - 3.1rem);
+  }
+
+  .mq-properties-toggle {
+    left: -3rem;
+    width: 3rem;
+  }
+}
