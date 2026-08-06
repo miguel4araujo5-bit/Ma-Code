@@ -85,8 +85,8 @@ import {
     loadMAQuadroCanvasJson,
     MA_QUADRO_SERIALIZED_PROPERTIES,
     prepareMAQuadroObject,
-    selectAllMAQuadroObjects,
     resizeMAQuadroCanvasJson,
+    selectAllMAQuadroObjects,
     serializeMAQuadroCanvas,
     setMAQuadroObjectFill,
     setMAQuadroObjectGeometry,
@@ -122,105 +122,97 @@ import type {
     MAQuadroSelectionState
 } from './editorTypes';
 
-const fallbackBrand:
-    MAQuadroBrand = {
-        name: 'MA-Code',
+const fallbackBrand: MAQuadroBrand = {
+    name: 'MA-Code',
+    colors: [
+        {
+            name: 'Ciano MA',
+            value: '#22D3EE'
+        },
+        {
+            name: 'Azul MA',
+            value: '#38BDF8'
+        },
+        {
+            name: 'Violeta MA',
+            value: '#8B5CF6'
+        },
+        {
+            name: 'Azul noite',
+            value: '#0F172A'
+        },
+        {
+            name: 'Branco',
+            value: '#FFFFFF'
+        },
+        {
+            name: 'Cinza claro',
+            value: '#E2E8F0'
+        }
+    ],
+    fonts: [
+        {
+            name: 'Sans moderna',
+            family: 'Arial',
+            fallback: 'sans-serif'
+        },
+        {
+            name: 'Serif editorial',
+            family: 'Georgia',
+            fallback: 'serif'
+        }
+    ]
+};
 
-        colors: [
-            {
-                name: 'Ciano MA',
-                value: '#22D3EE'
-            },
-            {
-                name: 'Azul MA',
-                value: '#38BDF8'
-            },
-            {
-                name: 'Violeta MA',
-                value: '#8B5CF6'
-            },
-            {
-                name: 'Azul noite',
-                value: '#0F172A'
-            },
-            {
-                name: 'Branco',
-                value: '#FFFFFF'
-            },
-            {
-                name: 'Cinza claro',
-                value: '#E2E8F0'
-            }
-        ],
+const emptySelection: MAQuadroSelectionState = {
+    count: 0,
+    role: null,
+    shapeKind: null,
+    name: '',
+    fill: '#0F172A',
+    stroke: '#0F172A',
+    strokeWidth: 0,
+    opacity: 100,
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    angle: 0,
+    flipX: false,
+    flipY: false,
+    fontFamily: 'Arial',
+    fontSize: 64,
+    fontWeight: '400',
+    fontStyle: 'normal',
+    textAlign: 'left',
+    lineHeight: 1.16,
+    charSpacing: 0,
+    underline: false,
+    linethrough: false,
+    cornerRadius: 0,
+    shadowEnabled: false,
+    shadowColor: 'rgba(15, 23, 42, 0.32)',
+    shadowBlur: 24,
+    shadowOffsetX: 0,
+    shadowOffsetY: 12,
+    gradientEnabled: false,
+    gradientFrom: '#22D3EE',
+    gradientTo: '#8B5CF6',
+    gradientAngle: 45,
+    imageFilters: DEFAULT_IMAGE_FILTERS,
+    cropHorizontal: 0,
+    cropVertical: 0
+};
 
-        fonts: [
-            {
-                name: 'Sans moderna',
-                family: 'Arial',
-                fallback: 'sans-serif'
-            },
-            {
-                name: 'Serif editorial',
-                family: 'Georgia',
-                fallback: 'serif'
-            }
-        ]
-    };
+const defaultExportOptions: MAQuadroExportOptions = {
+    format: 'png',
+    scale: 2,
+    quality: 92,
+    scope: 'current'
+};
 
-const emptySelection:
-    MAQuadroSelectionState = {
-        count: 0,
-        role: null,
-        shapeKind: null,
-        name: '',
-        fill: '#0F172A',
-        stroke: '#0F172A',
-        strokeWidth: 0,
-        opacity: 100,
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0,
-        angle: 0,
-        flipX: false,
-        flipY: false,
-        fontFamily: 'Arial',
-        fontSize: 64,
-        fontWeight: '400',
-        fontStyle: 'normal',
-        textAlign: 'left',
-        lineHeight: 1.16,
-        charSpacing: 0,
-        underline: false,
-        linethrough: false,
-        cornerRadius: 0,
-        shadowEnabled: false,
-
-        shadowColor:
-            'rgba(15, 23, 42, 0.32)',
-
-        shadowBlur: 24,
-        shadowOffsetX: 0,
-        shadowOffsetY: 12,
-        gradientEnabled: false,
-        gradientFrom: '#22D3EE',
-        gradientTo: '#8B5CF6',
-        gradientAngle: 45,
-
-        imageFilters:
-            DEFAULT_IMAGE_FILTERS,
-
-        cropHorizontal: 0,
-        cropVertical: 0
-    };
-
-const defaultExportOptions:
-    MAQuadroExportOptions = {
-        format: 'png',
-        scale: 2,
-        quality: 92,
-        scope: 'current'
-    };
+const MAX_HISTORY_ENTRIES = 50;
+const MAX_HISTORY_CHARACTERS = 12_000_000;
 
 type HistoryState = {
     entries: string[];
@@ -237,43 +229,34 @@ function colorToString(
 }
 
 function registerLocalFont(
-    font:
-        MAQuadroStoredFont
+    font: MAQuadroStoredFont
 ) {
-    const face =
-        new FontFace(
-            font.family,
-            font.data
-        );
+    const face = new FontFace(
+        font.family,
+        font.data
+    );
 
     return face
         .load()
-        .then(
-            (loaded) => {
-                document.fonts.add(
-                    loaded
-                );
-            }
-        );
+        .then((loaded) => {
+            document.fonts.add(
+                loaded
+            );
+        });
 }
 
 function targetIsFormControl(
-    target:
-        EventTarget | null
+    target: EventTarget | null
 ) {
     const element =
-        target as
-            HTMLElement | null;
+        target as HTMLElement | null;
 
     return Boolean(
         element &&
         (
-            element.tagName ===
-            'INPUT' ||
-            element.tagName ===
-            'TEXTAREA' ||
-            element.tagName ===
-            'SELECT' ||
+            element.tagName === 'INPUT' ||
+            element.tagName === 'TEXTAREA' ||
+            element.tagName === 'SELECT' ||
             element.isContentEditable
         )
     );
@@ -288,18 +271,15 @@ function titleCase(
         )
         .replace(
             /(^|\s|[-–—])\p{L}/gu,
-
             (letter) =>
-                letter
-                    .toLocaleUpperCase(
-                        'pt-PT'
-                    )
+                letter.toLocaleUpperCase(
+                    'pt-PT'
+                )
         );
 }
 
 function renewObjectTreeIdentifiers(
-    object:
-        MAQuadroFabricObject
+    object: MAQuadroFabricObject
 ) {
     object.maId =
         createMAQuadroId(
@@ -312,70 +292,65 @@ function renewObjectTreeIdentifiers(
             of object.getObjects()
         ) {
             renewObjectTreeIdentifiers(
-                child as
-                    MAQuadroFabricObject
+                child as MAQuadroFabricObject
             );
         }
     }
 }
 
-export function
-useMAQuadroEditor():
+export function useMAQuadroEditor():
     MAQuadroEditor {
     const canvasElementRef =
-        useRef<
-            HTMLCanvasElement | null
-        >(null);
+        useRef<HTMLCanvasElement | null>(
+            null
+        );
 
     const workspaceRef =
-        useRef<
-            HTMLDivElement | null
-        >(null);
+        useRef<HTMLDivElement | null>(
+            null
+        );
 
     const imageInputRef =
-        useRef<
-            HTMLInputElement | null
-        >(null);
+        useRef<HTMLInputElement | null>(
+            null
+        );
 
     const fontInputRef =
-        useRef<
-            HTMLInputElement | null
-        >(null);
+        useRef<HTMLInputElement | null>(
+            null
+        );
 
     const projectInputRef =
-        useRef<
-            HTMLInputElement | null
-        >(null);
+        useRef<HTMLInputElement | null>(
+            null
+        );
 
     const canvasRef =
-        useRef<
-            FabricCanvas | null
-        >(null);
+        useRef<FabricCanvas | null>(
+            null
+        );
 
     const projectRef =
-        useRef<
-            MAQuadroProject | null
-        >(null);
+        useRef<MAQuadroProject | null>(
+            null
+        );
 
     const selectedObjectRef =
-        useRef<
-            MAQuadroFabricObject | null
-        >(null);
+        useRef<MAQuadroFabricObject | null>(
+            null
+        );
 
     const clipboardRef =
-        useRef<
-            MAQuadroFabricObject | null
-        >(null);
+        useRef<MAQuadroFabricObject | null>(
+            null
+        );
 
     const clipboardPasteCountRef =
         useRef(0);
 
     const historiesRef =
         useRef<
-            Map<
-                string,
-                HistoryState
-            >
+            Map<string, HistoryState>
         >(
             new Map()
         );
@@ -390,9 +365,9 @@ useMAQuadroEditor():
         useRef(false);
 
     const autosaveTimerRef =
-        useRef<
-            number | null
-        >(null);
+        useRef<number | null>(
+            null
+        );
 
     const saveHandlerRef =
         useRef<
@@ -400,8 +375,7 @@ useMAQuadroEditor():
                 quiet?: boolean
             ) => Promise<boolean>
         >(
-            async () =>
-                false
+            async () => false
         );
 
     const busyCountRef =
@@ -410,10 +384,13 @@ useMAQuadroEditor():
     const structuralLockRef =
         useRef(false);
 
+    const uploadLockRef =
+        useRef(false);
+
     const drawingPathRef =
-        useRef<
-            MAQuadroFabricObject | null
-        >(null);
+        useRef<MAQuadroFabricObject | null>(
+            null
+        );
 
     const saveStateRef =
         useRef<
@@ -467,72 +444,12 @@ useMAQuadroEditor():
         setStructureBusy
     ] = useState(false);
 
-    const setBusy =
-        useCallback(
-            (
-                active: boolean
-            ) => {
-                busyCountRef.current =
-                    active
-                        ? busyCountRef.current +
-                            1
-                        : Math.max(
-                            0,
-
-                            busyCountRef.current -
-                            1
-                        );
-
-                setBusyState(
-                    busyCountRef.current >
-                    0
-                );
-            },
-            []
-        );
-
     const [
         statusMessage,
         setStatusMessage
     ] = useState(
         'Os projetos ficam guardados apenas neste dispositivo.'
     );
-
-    const runStructuralOperation =
-        useCallback(
-            async <T,>(
-                operation:
-                    () => Promise<T>
-            ): Promise<
-                T | undefined
-            > => {
-                if (
-                    structuralLockRef
-                        .current
-                ) {
-                    setStatusMessage(
-                        'Aguarde pela conclusão da operação atual.'
-                    );
-
-                    return undefined;
-                }
-
-                structuralLockRef.current =
-                    true;
-
-                setStructureBusy(true);
-
-                try {
-                    return await operation();
-                } finally {
-                    structuralLockRef.current =
-                        false;
-
-                    setStructureBusy(false);
-                }
-            },
-            []
-        );
 
     const [
         saveState,
@@ -669,6 +586,67 @@ useMAQuadroEditor():
         MAQuadroExportOptions
     >(defaultExportOptions);
 
+    const setBusy =
+        useCallback(
+            (
+                active: boolean
+            ) => {
+                busyCountRef.current =
+                    active
+                        ? busyCountRef.current + 1
+                        : Math.max(
+                            0,
+                            busyCountRef.current - 1
+                        );
+
+                setBusyState(
+                    busyCountRef.current > 0
+                );
+            },
+            []
+        );
+
+    const runStructuralOperation =
+        useCallback(
+            async <T,>(
+                operation:
+                    () => Promise<T>
+            ): Promise<
+                T | undefined
+            > => {
+                if (
+                    structuralLockRef.current ||
+                    uploadLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    setStatusMessage(
+                        'Aguarde pela conclusão da operação atual.'
+                    );
+
+                    return undefined;
+                }
+
+                structuralLockRef.current =
+                    true;
+
+                setStructureBusy(
+                    true
+                );
+
+                try {
+                    return await operation();
+                } finally {
+                    structuralLockRef.current =
+                        false;
+
+                    setStructureBusy(
+                        false
+                    );
+                }
+            },
+            []
+        );
+
     useEffect(() => {
         saveStateRef.current =
             saveState;
@@ -707,7 +685,6 @@ useMAQuadroEditor():
                     {
                         name:
                             font.family,
-
                         family:
                             font.family
                     }
@@ -760,14 +737,12 @@ useMAQuadroEditor():
 
             if (!canvas) {
                 setLayers([]);
-
                 return;
             }
 
             const activeObjects =
                 new Set(
-                    canvas
-                        .getActiveObjects()
+                    canvas.getActiveObjects()
                 );
 
             const next =
@@ -790,29 +765,22 @@ useMAQuadroEditor():
                             return {
                                 id:
                                     editorObject.maId,
-
                                 name:
                                     getMAQuadroObjectLabel(
                                         editorObject,
                                         index
                                     ),
-
                                 type:
                                     getMAQuadroObjectRole(
                                         editorObject
                                     ),
-
                                 visible:
-                                    editorObject
-                                        .visible !==
+                                    editorObject.visible !==
                                     false,
-
                                 locked:
                                     Boolean(
-                                        editorObject
-                                            .maLocked
+                                        editorObject.maLocked
                                     ),
-
                                 active:
                                     activeObjects.has(
                                         editorObject
@@ -846,15 +814,13 @@ useMAQuadroEditor():
 
             if (
                 !active ||
-                activeObjects.length ===
-                0
+                activeObjects.length === 0
             ) {
                 setSelection(
                     emptySelection
                 );
 
                 syncLayers();
-
                 return;
             }
 
@@ -875,13 +841,11 @@ useMAQuadroEditor():
                     : null;
 
             const single =
-                activeObjects.length ===
-                1;
+                activeObjects.length === 1;
 
             const image =
                 single &&
-                active instanceof
-                FabricImage
+                active instanceof FabricImage
                     ? active as
                         FabricImage &
                         MAQuadroFabricObject
@@ -889,8 +853,7 @@ useMAQuadroEditor():
 
             const text =
                 single &&
-                active instanceof
-                Textbox
+                active instanceof Textbox
                     ? active as
                         Textbox &
                         MAQuadroFabricObject
@@ -908,8 +871,7 @@ useMAQuadroEditor():
 
             const actualGroup =
                 single &&
-                active instanceof
-                Group &&
+                active instanceof Group &&
                 !(
                     active instanceof
                     ActiveSelection
@@ -920,8 +882,7 @@ useMAQuadroEditor():
                     activeObjects.length,
 
                 role:
-                    activeObjects.length >
-                    1
+                    activeObjects.length > 1
                         ? null
                         : actualGroup
                             ? 'group'
@@ -937,8 +898,7 @@ useMAQuadroEditor():
                         : null,
 
                 name:
-                    activeObjects.length >
-                    1
+                    activeObjects.length > 1
                         ? `${activeObjects.length} elementos selecionados`
                         : active.maName ||
                             getMAQuadroObjectLabel(
@@ -972,11 +932,16 @@ useMAQuadroEditor():
                         100
                     ),
 
-                x: geometry.x,
-                y: geometry.y,
-                width: geometry.width,
-                height: geometry.height,
-                angle: geometry.angle,
+                x:
+                    geometry.x,
+                y:
+                    geometry.y,
+                width:
+                    geometry.width,
+                height:
+                    geometry.height,
+                angle:
+                    geometry.angle,
 
                 flipX:
                     Boolean(
@@ -1044,7 +1009,9 @@ useMAQuadroEditor():
                         : 0,
 
                 shadowEnabled:
-                    Boolean(shadow),
+                    Boolean(
+                        shadow
+                    ),
 
                 shadowColor:
                     shadow?.color ||
@@ -1127,10 +1094,8 @@ useMAQuadroEditor():
             return JSON.stringify({
                 pageId:
                     page.id,
-
                 background:
                     page.background,
-
                 canvasJson:
                     serializeMAQuadroCanvas(
                         canvas
@@ -1161,8 +1126,7 @@ useMAQuadroEditor():
                 Boolean(
                     history &&
                     history.index <
-                    history.entries.length -
-                    1
+                    history.entries.length - 1
                 )
             );
         }, []);
@@ -1242,7 +1206,6 @@ useMAQuadroEditor():
                 snapshot
             ) {
                 updateHistoryButtons();
-
                 return false;
             }
 
@@ -1252,8 +1215,12 @@ useMAQuadroEditor():
                         0,
                         current.index + 1
                     )
-                    .concat(snapshot)
-                    .slice(-50);
+                    .concat(
+                        snapshot
+                    )
+                    .slice(
+                        -MAX_HISTORY_ENTRIES
+                    );
 
             let totalCharacters =
                 entries.reduce(
@@ -1269,7 +1236,7 @@ useMAQuadroEditor():
             while (
                 entries.length > 1 &&
                 totalCharacters >
-                12_000_000
+                MAX_HISTORY_CHARACTERS
             ) {
                 const removed =
                     entries.shift();
@@ -1283,10 +1250,8 @@ useMAQuadroEditor():
                 pageId,
                 {
                     entries,
-
                     index:
-                        entries.length -
-                        1
+                        entries.length - 1
                 }
             );
 
@@ -1369,7 +1334,9 @@ useMAQuadroEditor():
                     return false;
                 }
 
-                markDirty(message);
+                markDirty(
+                    message
+                );
 
                 return true;
             },
@@ -1395,7 +1362,6 @@ useMAQuadroEditor():
                 const safe =
                     Math.min(
                         220,
-
                         Math.max(
                             5,
                             Math.round(
@@ -1407,25 +1373,24 @@ useMAQuadroEditor():
                 zoomRef.current =
                     safe;
 
-                setZoomState(safe);
+                setZoomState(
+                    safe
+                );
 
                 canvas.setDimensions(
                     {
                         width:
                             `${
                                 Math.round(
-                                    canvas
-                                        .getWidth() *
+                                    canvas.getWidth() *
                                     safe /
                                     100
                                 )
                             }px`,
-
                         height:
                             `${
                                 Math.round(
-                                    canvas
-                                        .getHeight() *
+                                    canvas.getHeight() *
                                     safe /
                                     100
                                 )
@@ -1459,7 +1424,6 @@ useMAQuadroEditor():
             const availableWidth =
                 Math.max(
                     280,
-
                     workspace.clientWidth -
                     72
                 );
@@ -1467,11 +1431,9 @@ useMAQuadroEditor():
             const availableHeight =
                 Math.max(
                     320,
-
                     Math.min(
                         window.innerHeight -
                         250,
-
                         900
                     )
                 );
@@ -1480,19 +1442,17 @@ useMAQuadroEditor():
                 Math.min(
                     availableWidth /
                     canvas.getWidth(),
-
                     availableHeight /
                     canvas.getHeight(),
-
                     1
                 );
 
             setZoom(
                 Math.max(
                     5,
-
                     Math.round(
-                        scale * 100
+                        scale *
+                        100
                     )
                 )
             );
@@ -1524,13 +1484,10 @@ useMAQuadroEditor():
                 const thumbnailScale =
                     Math.max(
                         0.02,
-
                         Math.min(
                             0.18,
-
                             260 /
                             currentPage.width,
-
                             180 /
                             currentPage.height
                         )
@@ -1539,25 +1496,19 @@ useMAQuadroEditor():
                 const updatedPage:
                     MAQuadroPage = {
                         ...currentPage,
-
                         width:
                             canvas.getWidth(),
-
                         height:
                             canvas.getHeight(),
-
                         canvasJson:
                             serializeMAQuadroCanvas(
                                 canvas
                             ),
-
                         thumbnail:
                             canvas.toDataURL({
                                 format: 'png',
-
                                 multiplier:
                                     thumbnailScale,
-
                                 enableRetinaScaling:
                                     false
                             })
@@ -1572,7 +1523,9 @@ useMAQuadroEditor():
                 projectRef.current =
                     next;
 
-                setProject(next);
+                setProject(
+                    next
+                );
 
                 setActivePageState(
                     updatedPage
@@ -1588,9 +1541,7 @@ useMAQuadroEditor():
             async (
                 nextProject:
                     MAQuadroProject,
-
                 pageId: string,
-
                 resetPageHistory =
                     false
             ) => {
@@ -1598,12 +1549,11 @@ useMAQuadroEditor():
                     canvasRef.current;
 
                 const page =
-                    nextProject.pages
-                        .find(
-                            (item) =>
-                                item.id ===
-                                pageId
-                        );
+                    nextProject.pages.find(
+                        (item) =>
+                            item.id ===
+                            pageId
+                    );
 
                 if (
                     !canvas ||
@@ -1640,7 +1590,9 @@ useMAQuadroEditor():
                 isLoadingRef.current =
                     true;
 
-                setBusy(true);
+                setBusy(
+                    true
+                );
 
                 try {
                     canvas
@@ -1651,7 +1603,6 @@ useMAQuadroEditor():
                     canvas.setDimensions({
                         width:
                             page.width,
-
                         height:
                             page.height
                     });
@@ -1670,7 +1621,6 @@ useMAQuadroEditor():
 
                     const withActivePage = {
                         ...nextProject,
-
                         activePageId:
                             page.id
                     };
@@ -1702,10 +1652,9 @@ useMAQuadroEditor():
 
                     syncLayers();
 
-                    window
-                        .requestAnimationFrame(
-                            fitCanvas
-                        );
+                    window.requestAnimationFrame(
+                        fitCanvas
+                    );
 
                     if (
                         resetPageHistory ||
@@ -1730,7 +1679,6 @@ useMAQuadroEditor():
                             canvas.setDimensions({
                                 width:
                                     previousWidth,
-
                                 height:
                                     previousHeight
                             });
@@ -1744,10 +1692,8 @@ useMAQuadroEditor():
                                 canvas,
                                 {
                                     ...previousPage,
-
                                     width:
                                         previousWidth,
-
                                     height:
                                         previousHeight
                                 }
@@ -1783,7 +1729,9 @@ useMAQuadroEditor():
                     isLoadingRef.current =
                         false;
 
-                    setBusy(false);
+                    setBusy(
+                        false
+                    );
                 }
             },
             [
@@ -1802,6 +1750,18 @@ useMAQuadroEditor():
                 quiet = false
             ): Promise<boolean> => {
                 if (
+                    uploadLockRef.current
+                ) {
+                    if (!quiet) {
+                        setStatusMessage(
+                            'Aguarde pelo fim do carregamento das imagens antes de guardar.'
+                        );
+                    }
+
+                    return false;
+                }
+
+                if (
                     autosaveTimerRef.current !==
                     null
                 ) {
@@ -1813,7 +1773,9 @@ useMAQuadroEditor():
                         null;
                 }
 
-                setBusy(true);
+                setBusy(
+                    true
+                );
 
                 saveStateRef.current =
                     'saving';
@@ -1844,7 +1806,6 @@ useMAQuadroEditor():
                         const activeIndex =
                             Math.max(
                                 0,
-
                                 projectRef.current
                                     ?.pages
                                     .findIndex(
@@ -1865,13 +1826,13 @@ useMAQuadroEditor():
 
                     const saved:
                         MAQuadroProject = {
-                            ...current,
-                            isTemplate: false,
-
-                            updatedAt:
-                                new Date()
-                                    .toISOString()
-                        };
+                        ...current,
+                        isTemplate:
+                            false,
+                        updatedAt:
+                            new Date()
+                                .toISOString()
+                    };
 
                     await saveMAQuadroProject(
                         saved
@@ -1880,7 +1841,9 @@ useMAQuadroEditor():
                     projectRef.current =
                         saved;
 
-                    setProject(saved);
+                    setProject(
+                        saved
+                    );
 
                     setActivePageState(
                         getActiveProjectPage(
@@ -1905,7 +1868,9 @@ useMAQuadroEditor():
 
                     return true;
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     saveStateRef.current =
                         'error';
@@ -1920,7 +1885,9 @@ useMAQuadroEditor():
 
                     return false;
                 } finally {
-                    setBusy(false);
+                    setBusy(
+                        false
+                    );
                 }
             },
             [
@@ -2007,15 +1974,12 @@ useMAQuadroEditor():
                     height: 1080,
                     backgroundColor:
                         '#FFFFFF',
-
                     preserveObjectStacking:
                         true,
-
-                    selection: true,
-
+                    selection:
+                        true,
                     stopContextMenu:
                         true,
-
                     fireRightClick:
                         true
                 }
@@ -2150,8 +2114,7 @@ useMAQuadroEditor():
                 }
 
                 const bounds =
-                    target
-                        .getBoundingRect();
+                    target.getBoundingRect();
 
                 const centerX =
                     bounds.left +
@@ -2166,18 +2129,19 @@ useMAQuadroEditor():
                 const threshold =
                     Math.max(
                         6,
-
                         12 /
                         Math.max(
                             zoomRef.current /
                             100,
-
                             0.05
                         )
                     );
 
-                let vertical = false;
-                let horizontal = false;
+                let vertical =
+                    false;
+
+                let horizontal =
+                    false;
 
                 if (
                     Math.abs(
@@ -2191,7 +2155,8 @@ useMAQuadroEditor():
                         2 -
                         centerX;
 
-                    vertical = true;
+                    vertical =
+                        true;
                 } else if (
                     Math.abs(
                         bounds.left
@@ -2200,7 +2165,8 @@ useMAQuadroEditor():
                     target.left +=
                         -bounds.left;
 
-                    vertical = true;
+                    vertical =
+                        true;
                 } else if (
                     Math.abs(
                         bounds.left +
@@ -2215,7 +2181,8 @@ useMAQuadroEditor():
                             bounds.width
                         );
 
-                    vertical = true;
+                    vertical =
+                        true;
                 }
 
                 if (
@@ -2230,7 +2197,8 @@ useMAQuadroEditor():
                         2 -
                         centerY;
 
-                    horizontal = true;
+                    horizontal =
+                        true;
                 } else if (
                     Math.abs(
                         bounds.top
@@ -2239,7 +2207,8 @@ useMAQuadroEditor():
                     target.top +=
                         -bounds.top;
 
-                    horizontal = true;
+                    horizontal =
+                        true;
                 } else if (
                     Math.abs(
                         bounds.top +
@@ -2254,7 +2223,8 @@ useMAQuadroEditor():
                             bounds.height
                         );
 
-                    horizontal = true;
+                    horizontal =
+                        true;
                 }
 
                 target.setCoords();
@@ -2278,13 +2248,17 @@ useMAQuadroEditor():
             'mouse:up',
             () => {
                 setGuides({
-                    vertical: false,
-                    horizontal: false
+                    vertical:
+                        false,
+                    horizontal:
+                        false
                 });
             }
         );
 
-        setCanvasReady(true);
+        setCanvasReady(
+            true
+        );
 
         return () => {
             if (
@@ -2296,7 +2270,12 @@ useMAQuadroEditor():
                 );
             }
 
-            setCanvasReady(false);
+            uploadLockRef.current =
+                false;
+
+            setCanvasReady(
+                false
+            );
 
             canvasRef.current =
                 null;
@@ -2320,7 +2299,9 @@ useMAQuadroEditor():
             true;
 
         async function initialize() {
-            setBusy(true);
+            setBusy(
+                true
+            );
 
             try {
                 try {
@@ -2341,7 +2322,9 @@ useMAQuadroEditor():
                         );
                     }
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
                 }
 
                 await seedMAQuadroTemplates();
@@ -2358,11 +2341,15 @@ useMAQuadroEditor():
                             font
                         );
                     } catch (error) {
-                        console.error(error);
+                        console.error(
+                            error
+                        );
                     }
                 }
 
-                setLocalFonts(fonts);
+                setLocalFonts(
+                    fonts
+                );
 
                 let storedProjects =
                     await listMAQuadroProjects();
@@ -2412,7 +2399,9 @@ useMAQuadroEditor():
                     'saved'
                 );
             } catch (error) {
-                console.error(error);
+                console.error(
+                    error
+                );
 
                 const fallback =
                     createBlankProject(
@@ -2438,7 +2427,9 @@ useMAQuadroEditor():
                     projectRef.current =
                         fallback;
 
-                    setProject(fallback);
+                    setProject(
+                        fallback
+                    );
 
                     setActivePageState(
                         fallback.pages[0]
@@ -2456,8 +2447,13 @@ useMAQuadroEditor():
                     'O armazenamento local está indisponível. Pode editar e exportar, mas o browser poderá não guardar o trabalho.'
                 );
             } finally {
-                setReady(true);
-                setBusy(false);
+                setReady(
+                    true
+                );
+
+                setBusy(
+                    false
+                );
             }
         }
 
@@ -2470,7 +2466,8 @@ useMAQuadroEditor():
 
     useEffect(() => {
         const handleResize =
-            () => fitCanvas();
+            () =>
+                fitCanvas();
 
         window.addEventListener(
             'resize',
@@ -2495,19 +2492,30 @@ useMAQuadroEditor():
                 const current =
                     projectRef.current;
 
-                if (!current) {
+                const nextName =
+                    name.trim();
+
+                if (
+                    !current ||
+                    !nextName ||
+                    current.name ===
+                    nextName
+                ) {
                     return;
                 }
 
                 const next = {
                     ...current,
-                    name
+                    name:
+                        nextName
                 };
 
                 projectRef.current =
                     next;
 
-                setProject(next);
+                setProject(
+                    next
+                );
 
                 markDirty(
                     'Nome do projeto atualizado.'
@@ -2622,7 +2630,9 @@ useMAQuadroEditor():
                             return;
                         }
 
-                        setBusy(true);
+                        setBusy(
+                            true
+                        );
 
                         try {
                             const copy =
@@ -2657,13 +2667,17 @@ useMAQuadroEditor():
                                 'Cópia criada. O projeto original foi preservado.'
                             );
                         } catch (error) {
-                            console.error(error);
+                            console.error(
+                                error
+                            );
 
                             setStatusMessage(
                                 'Não foi possível duplicar o projeto.'
                             );
                         } finally {
-                            setBusy(false);
+                            setBusy(
+                                false
+                            );
                         }
                     }
                 );
@@ -2718,7 +2732,9 @@ useMAQuadroEditor():
                             return;
                         }
 
-                        setBusy(true);
+                        setBusy(
+                            true
+                        );
 
                         try {
                             await deleteMAQuadroProject(
@@ -2773,7 +2789,9 @@ useMAQuadroEditor():
                                     : 'Projeto eliminado deste dispositivo.'
                             );
                         } catch (error) {
-                            console.error(error);
+                            console.error(
+                                error
+                            );
 
                             setStatusMessage(
                                 source.isTemplate
@@ -2781,7 +2799,9 @@ useMAQuadroEditor():
                                     : 'Não foi possível eliminar o projeto.'
                             );
                         } finally {
-                            setBusy(false);
+                            setBusy(
+                                false
+                            );
                         }
                     }
                 );
@@ -2807,7 +2827,9 @@ useMAQuadroEditor():
                             return;
                         }
 
-                        setBusy(true);
+                        setBusy(
+                            true
+                        );
 
                         try {
                             const template =
@@ -2829,13 +2851,17 @@ useMAQuadroEditor():
                                 'Modelo pessoal guardado. Pode duplicá-lo sempre que precisar.'
                             );
                         } catch (error) {
-                            console.error(error);
+                            console.error(
+                                error
+                            );
 
                             setStatusMessage(
                                 'Não foi possível guardar o modelo.'
                             );
                         } finally {
-                            setBusy(false);
+                            setBusy(
+                                false
+                            );
                         }
                     }
                 );
@@ -2972,10 +2998,8 @@ useMAQuadroEditor():
                             createBlankProject(
                                 width,
                                 height,
-
                                 values.name.trim() ||
                                 `Design ${width} × ${height}`,
-
                                 values.category
                             );
 
@@ -3029,7 +3053,8 @@ useMAQuadroEditor():
                 const file =
                     event.target.files?.[0];
 
-                event.target.value = '';
+                event.target.value =
+                    '';
 
                 if (!file) {
                     return;
@@ -3048,7 +3073,9 @@ useMAQuadroEditor():
 
                 await runStructuralOperation(
                     async () => {
-                        setBusy(true);
+                        setBusy(
+                            true
+                        );
 
                         try {
                             const parsed =
@@ -3087,8 +3114,8 @@ useMAQuadroEditor():
                                     normalized,
                                     normalized.name
                                 ),
-
-                                isTemplate: false
+                                isTemplate:
+                                    false
                             };
 
                             await saveMAQuadroProject(
@@ -3118,13 +3145,17 @@ useMAQuadroEditor():
                                 `“${imported.name}” importado e guardado neste dispositivo.`
                             );
                         } catch (error) {
-                            console.error(error);
+                            console.error(
+                                error
+                            );
 
                             setStatusMessage(
                                 'Este ficheiro não é um projeto MA-Quadro válido ou excede os limites de segurança.'
                             );
                         } finally {
-                            setBusy(false);
+                            setBusy(
+                                false
+                            );
                         }
                     }
                 );
@@ -3206,10 +3237,8 @@ useMAQuadroEditor():
 
                         editable = {
                             ...editable,
-
                             activePageId:
                                 targetPageId,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3271,26 +3300,21 @@ useMAQuadroEditor():
                             createBlankPage(
                                 sourcePage.width,
                                 sourcePage.height,
-
                                 `Página ${
                                     editable.pages.length +
                                     1
                                 }`,
-
                                 sourcePage.background
                             );
 
                         const next = {
                             ...editable,
-
                             pages: [
                                 ...editable.pages,
                                 nextPage
                             ],
-
                             activePageId:
                                 nextPage.id,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3367,7 +3391,9 @@ useMAQuadroEditor():
                                 );
 
                         const pages =
-                            [...editable.pages];
+                            [
+                                ...editable.pages
+                            ];
 
                         pages.splice(
                             index + 1,
@@ -3378,10 +3404,8 @@ useMAQuadroEditor():
                         const next = {
                             ...editable,
                             pages,
-
                             activePageId:
                                 copy.id,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3467,12 +3491,11 @@ useMAQuadroEditor():
                                 );
 
                         const pages =
-                            editable.pages
-                                .filter(
-                                    (page) =>
-                                        page.id !==
-                                        editable.activePageId
-                                );
+                            editable.pages.filter(
+                                (page) =>
+                                    page.id !==
+                                    editable.activePageId
+                            );
 
                         const nextPage =
                             pages[
@@ -3488,10 +3511,8 @@ useMAQuadroEditor():
                         const next = {
                             ...editable,
                             pages,
-
                             activePageId:
                                 nextPage.id,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3558,9 +3579,23 @@ useMAQuadroEditor():
                             return;
                         }
 
+                        const originalPage =
+                            current.pages.find(
+                                (page) =>
+                                    page.id ===
+                                    pageId
+                            );
+
+                        if (
+                            !originalPage ||
+                            originalPage.name ===
+                            trimmed
+                        ) {
+                            return;
+                        }
+
                         const next = {
                             ...current,
-
                             pages:
                                 current.pages.map(
                                     (page) =>
@@ -3573,7 +3608,6 @@ useMAQuadroEditor():
                                             }
                                             : page
                                 ),
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3586,7 +3620,9 @@ useMAQuadroEditor():
                         projectRef.current =
                             next;
 
-                        setProject(next);
+                        setProject(
+                            next
+                        );
 
                         setActivePageState(
                             getActiveProjectPage(
@@ -3635,12 +3671,11 @@ useMAQuadroEditor():
                         }
 
                         const index =
-                            current.pages
-                                .findIndex(
-                                    (page) =>
-                                        page.id ===
-                                        pageId
-                                );
+                            current.pages.findIndex(
+                                (page) =>
+                                    page.id ===
+                                    pageId
+                            );
 
                         const target =
                             direction ===
@@ -3658,7 +3693,9 @@ useMAQuadroEditor():
                         }
 
                         const pages =
-                            [...current.pages];
+                            [
+                                ...current.pages
+                            ];
 
                         const [
                             moved
@@ -3676,7 +3713,6 @@ useMAQuadroEditor():
                         const next = {
                             ...current,
                             pages,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3689,7 +3725,9 @@ useMAQuadroEditor():
                         projectRef.current =
                             next;
 
-                        setProject(next);
+                        setProject(
+                            next
+                        );
 
                         await refreshProjectLibrary();
 
@@ -3718,16 +3756,19 @@ useMAQuadroEditor():
             async (
                 width: number,
                 height: number,
-
                 strategy:
                     MAQuadroResizeStrategy =
                     'scale'
             ) => {
                 const safeWidth =
-                    Math.round(width);
+                    Math.round(
+                        width
+                    );
 
                 const safeHeight =
-                    Math.round(height);
+                    Math.round(
+                        height
+                    );
 
                 if (
                     safeWidth < 100 ||
@@ -3760,15 +3801,14 @@ useMAQuadroEditor():
                         const pages =
                             await Promise.all(
                                 editable.pages.map(
-                                    async (page) => ({
+                                    async (
+                                        page
+                                    ) => ({
                                         ...page,
-
                                         width:
                                             safeWidth,
-
                                         height:
                                             safeHeight,
-
                                         canvasJson:
                                             await resizeMAQuadroCanvasJson(
                                                 page.canvasJson,
@@ -3778,7 +3818,6 @@ useMAQuadroEditor():
                                                 safeHeight,
                                                 strategy
                                             ),
-
                                         thumbnail:
                                             undefined
                                     })
@@ -3788,7 +3827,6 @@ useMAQuadroEditor():
                         const next = {
                             ...editable,
                             pages,
-
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3843,7 +3881,12 @@ useMAQuadroEditor():
                 const canvas =
                     canvasRef.current;
 
-                if (!canvas) {
+                if (
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
@@ -3851,13 +3894,14 @@ useMAQuadroEditor():
                     createMAQuadroText(
                         canvas,
                         preset,
-
                         availableFonts[0]
                             ?.family ||
                         'Arial'
                     );
 
-                canvas.add(object);
+                canvas.add(
+                    object
+                );
 
                 canvas.setActiveObject(
                     object
@@ -3883,7 +3927,12 @@ useMAQuadroEditor():
                 const canvas =
                     canvasRef.current;
 
-                if (!canvas) {
+                if (
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
@@ -3891,13 +3940,14 @@ useMAQuadroEditor():
                     createMAQuadroShape(
                         canvas,
                         kind,
-
                         brand.colors[0]
                             ?.value ||
                         '#22D3EE'
                     );
 
-                canvas.add(object);
+                canvas.add(
+                    object
+                );
 
                 canvas.setActiveObject(
                     object
@@ -3921,25 +3971,26 @@ useMAQuadroEditor():
                     | FileList
                     | File[]
             ) => {
+                const imageFiles =
+                    Array.from(
+                        files
+                    ).filter(
+                        (file) =>
+                            file.type.startsWith(
+                                'image/'
+                            )
+                    );
+
                 const canvas =
                     canvasRef.current;
 
-                const imageFiles =
-                    Array.from(files)
-                        .filter(
-                            (file) =>
-                                file.type
-                                    .startsWith(
-                                        'image/'
-                                    )
-                        );
-
                 if (
                     !canvas ||
-                    imageFiles.length ===
-                    0
+                    imageFiles.length === 0
                 ) {
                     if (
+                        imageFiles.length ===
+                        0 &&
                         files.length > 0
                     ) {
                         setStatusMessage(
@@ -3950,130 +4001,163 @@ useMAQuadroEditor():
                     return;
                 }
 
-                setBusy(true);
-
-                isLoadingRef.current =
-                    true;
-
-                const added:
-                    MAQuadroFabricObject[] =
-                    [];
-
-                let failed = 0;
-
-                try {
-                    for (
-                        let index = 0;
-                        index <
-                        imageFiles.length;
-                        index += 1
-                    ) {
-                        try {
-                            const object =
-                                await createMAQuadroImage(
-                                    canvas,
-                                    imageFiles[index]
-                                );
-
-                            object.set({
-                                left:
-                                    (
-                                        object.left ||
-                                        0
-                                    ) +
-                                    added.length *
-                                    32,
-
-                                top:
-                                    (
-                                        object.top ||
-                                        0
-                                    ) +
-                                    added.length *
-                                    32
-                            });
-
-                            object.setCoords();
-
-                            canvas.add(object);
-
-                            added.push(
-                                object
-                            );
-                        } catch (error) {
-                            failed += 1;
-
-                            console.error(
-                                `Não foi possível adicionar “${imageFiles[index].name}”.`,
-                                error
-                            );
-                        }
-                    }
-
-                    if (
-                        added.length ===
-                        1
-                    ) {
-                        canvas.setActiveObject(
-                            added[0]
-                        );
-                    } else if (
-                        added.length > 1
-                    ) {
-                        canvas.setActiveObject(
-                            new ActiveSelection(
-                                added,
-                                {
-                                    canvas
-                                }
-                            )
-                        );
-                    }
-
-                    canvas.requestRenderAll();
-                } finally {
-                    isLoadingRef.current =
-                        false;
-
-                    setBusy(false);
-                }
-
                 if (
-                    added.length ===
-                    0
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     setStatusMessage(
-                        'Não foi possível adicionar as imagens selecionadas.'
+                        'Aguarde pela conclusão da operação atual antes de carregar novas imagens.'
                     );
 
                     return;
                 }
 
-                const message =
-                    failed > 0
-                        ? `${added.length} imagem${
-                            added.length === 1
-                                ? ''
-                                : 'ns'
-                        } adicionada${
-                            added.length === 1
-                                ? ''
-                                : 's'
-                        }; ${failed} não foi${
-                            failed === 1
-                                ? ''
-                                : 'ram'
-                        } carregada${
-                            failed === 1
-                                ? ''
-                                : 's'
-                        }.`
-                        : added.length ===
-                            1
-                            ? 'Imagem adicionada.'
-                            : `${added.length} imagens adicionadas.`;
+                uploadLockRef.current =
+                    true;
 
-                commitChange(message);
+                setBusy(
+                    true
+                );
+
+                const added:
+                    MAQuadroFabricObject[] =
+                    [];
+
+                let failed =
+                    0;
+
+                try {
+                    isLoadingRef.current =
+                        true;
+
+                    try {
+                        for (
+                            let index = 0;
+                            index <
+                            imageFiles.length;
+                            index += 1
+                        ) {
+                            try {
+                                const object =
+                                    await createMAQuadroImage(
+                                        canvas,
+                                        imageFiles[
+                                            index
+                                        ]
+                                    );
+
+                                object.set({
+                                    left:
+                                        (
+                                            object.left ||
+                                            0
+                                        ) +
+                                        added.length *
+                                        32,
+                                    top:
+                                        (
+                                            object.top ||
+                                            0
+                                        ) +
+                                        added.length *
+                                        32
+                                });
+
+                                object.setCoords();
+
+                                canvas.add(
+                                    object
+                                );
+
+                                added.push(
+                                    object
+                                );
+                            } catch (error) {
+                                failed +=
+                                    1;
+
+                                console.error(
+                                    `Não foi possível adicionar “${imageFiles[index].name}”.`,
+                                    error
+                                );
+                            }
+                        }
+
+                        if (
+                            added.length ===
+                            1
+                        ) {
+                            canvas.setActiveObject(
+                                added[0]
+                            );
+                        } else if (
+                            added.length > 1
+                        ) {
+                            canvas.setActiveObject(
+                                new ActiveSelection(
+                                    added,
+                                    {
+                                        canvas
+                                    }
+                                )
+                            );
+                        }
+
+                        canvas.requestRenderAll();
+                    } finally {
+                        isLoadingRef.current =
+                            false;
+                    }
+
+                    if (
+                        added.length ===
+                        0
+                    ) {
+                        setStatusMessage(
+                            'Não foi possível adicionar as imagens selecionadas.'
+                        );
+
+                        return;
+                    }
+
+                    const message =
+                        failed > 0
+                            ? `${added.length} imagem${
+                                added.length === 1
+                                    ? ''
+                                    : 'ns'
+                            } adicionada${
+                                added.length === 1
+                                    ? ''
+                                    : 's'
+                            }; ${failed} não foi${
+                                failed === 1
+                                    ? ''
+                                    : 'ram'
+                            } carregada${
+                                failed === 1
+                                    ? ''
+                                    : 's'
+                            }.`
+                            : added.length === 1
+                                ? 'Imagem adicionada.'
+                                : `${added.length} imagens adicionadas.`;
+
+                    commitChange(
+                        message
+                    );
+                } finally {
+                    uploadLockRef.current =
+                        false;
+
+                    isLoadingRef.current =
+                        false;
+
+                    setBusy(
+                        false
+                    );
+                }
             },
             [
                 commitChange,
@@ -4088,15 +4172,25 @@ useMAQuadroEditor():
                     ChangeEvent<HTMLInputElement>
             ) => {
                 const files =
-                    event.target.files;
-
-                event.target.value = '';
-
-                if (files) {
-                    await addFilesToCanvas(
-                        files
+                    Array.from(
+                        event.currentTarget
+                            .files ||
+                        []
                     );
+
+                event.currentTarget.value =
+                    '';
+
+                if (
+                    files.length ===
+                    0
+                ) {
+                    return;
                 }
+
+                await addFilesToCanvas(
+                    files
+                );
             },
             [
                 addFilesToCanvas
@@ -4110,8 +4204,20 @@ useMAQuadroEditor():
                     | FileList
                     | File[]
             ) => {
+                const stableFiles =
+                    Array.from(
+                        files
+                    );
+
+                if (
+                    stableFiles.length ===
+                    0
+                ) {
+                    return;
+                }
+
                 await addFilesToCanvas(
-                    files
+                    stableFiles
                 );
             },
             [
@@ -4127,12 +4233,16 @@ useMAQuadroEditor():
                 const canvas =
                     canvasRef.current;
 
-                if (!canvas) {
+                if (
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
-                canvas
-                    .discardActiveObject();
+                canvas.discardActiveObject();
 
                 canvas.isDrawingMode =
                     enabled;
@@ -4195,7 +4305,6 @@ useMAQuadroEditor():
                 const safe =
                     Math.min(
                         120,
-
                         Math.max(
                             1,
                             width
@@ -4232,8 +4341,10 @@ useMAQuadroEditor():
 
             if (
                 !canvas ||
-                objects.length ===
-                0
+                objects.length === 0 ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
             ) {
                 return;
             }
@@ -4242,8 +4353,7 @@ useMAQuadroEditor():
                 true;
 
             try {
-                canvas
-                    .discardActiveObject();
+                canvas.discardActiveObject();
 
                 canvas.remove(
                     ...objects
@@ -4276,7 +4386,12 @@ useMAQuadroEditor():
                         | MAQuadroFabricObject
                         | undefined;
 
-                if (!active) {
+                if (
+                    !active ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
@@ -4307,7 +4422,10 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !source
+                    !source ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -4329,8 +4447,7 @@ useMAQuadroEditor():
                     true;
 
                 try {
-                    canvas
-                        .discardActiveObject();
+                    canvas.discardActiveObject();
 
                     if (
                         clone instanceof
@@ -4351,16 +4468,16 @@ useMAQuadroEditor():
                                         0
                                     ) +
                                     offset,
-
                                 top:
                                     (
                                         object.top ||
                                         0
                                     ) +
                                     offset,
-
-                                evented: true,
-                                selectable: true
+                                evented:
+                                    true,
+                                selectable:
+                                    true
                             });
 
                             renewObjectTreeIdentifiers(
@@ -4384,11 +4501,14 @@ useMAQuadroEditor():
 
                             object.setCoords();
 
-                            canvas.add(object);
+                            canvas.add(
+                                object
+                            );
                         }
 
                         if (
-                            objects.length > 0
+                            objects.length >
+                            0
                         ) {
                             canvas.setActiveObject(
                                 new ActiveSelection(
@@ -4407,16 +4527,16 @@ useMAQuadroEditor():
                                     0
                                 ) +
                                 offset,
-
                             top:
                                 (
                                     source.top ||
                                     0
                                 ) +
                                 offset,
-
-                            evented: true,
-                            selectable: true
+                            evented:
+                                true,
+                            selectable:
+                                true
                         });
 
                         renewObjectTreeIdentifiers(
@@ -4440,7 +4560,9 @@ useMAQuadroEditor():
 
                         clone.setCoords();
 
-                        canvas.add(clone);
+                        canvas.add(
+                            clone
+                        );
 
                         canvas.setActiveObject(
                             clone
@@ -4482,7 +4604,12 @@ useMAQuadroEditor():
             const canvas =
                 canvasRef.current;
 
-            if (!canvas) {
+            if (
+                !canvas ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
+            ) {
                 return;
             }
 
@@ -4502,10 +4629,11 @@ useMAQuadroEditor():
 
             if (
                 !canvas ||
-                canvas
-                    .getActiveObjects()
-                    .length <
-                2
+                canvas.getActiveObjects()
+                    .length < 2 ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
             ) {
                 return;
             }
@@ -4545,7 +4673,10 @@ useMAQuadroEditor():
                     Group
                 ) ||
                 active instanceof
-                ActiveSelection
+                ActiveSelection ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
             ) {
                 return;
             }
@@ -4586,7 +4717,10 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !active
+                    !active ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -4607,8 +4741,7 @@ useMAQuadroEditor():
                 }
 
                 commitChange(
-                    canvas
-                        .getActiveObjects()
+                    canvas.getActiveObjects()
                         .length > 1
                         ? 'Elementos alinhados entre si.'
                         : 'Elemento alinhado à página.'
@@ -4629,7 +4762,12 @@ useMAQuadroEditor():
                 const canvas =
                     canvasRef.current;
 
-                if (!canvas) {
+                if (
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
@@ -4673,7 +4811,10 @@ useMAQuadroEditor():
                 if (
                     !canvas ||
                     !selected ||
-                    selected.length === 0
+                    selected.length === 0 ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -4685,8 +4826,7 @@ useMAQuadroEditor():
                     );
 
                 if (
-                    editable.length ===
-                    0
+                    editable.length === 0
                 ) {
                     setStatusMessage(
                         'Os elementos selecionados estão bloqueados.'
@@ -4696,10 +4836,14 @@ useMAQuadroEditor():
                 }
 
                 const orderBefore =
-                    [...canvas.getObjects()];
+                    [
+                        ...canvas.getObjects()
+                    ];
 
                 const ordered =
-                    [...editable].sort(
+                    [
+                        ...editable
+                    ].sort(
                         (
                             first,
                             second
@@ -4717,17 +4861,19 @@ useMAQuadroEditor():
                     'forward' ||
                     action ===
                     'front'
-                        ? [...ordered].reverse()
+                        ? [
+                            ...ordered
+                        ].reverse()
                         : ordered;
 
-                let changed = false;
+                let changed =
+                    false;
 
                 isLoadingRef.current =
                     true;
 
                 try {
-                    canvas
-                        .discardActiveObject();
+                    canvas.discardActiveObject();
 
                     for (
                         const object
@@ -4803,7 +4949,10 @@ useMAQuadroEditor():
                 if (
                     !canvas ||
                     !active ||
-                    active.maLocked
+                    active.maLocked ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -4815,7 +4964,6 @@ useMAQuadroEditor():
                             0
                         ) +
                         x,
-
                     top:
                         (
                             active.top ||
@@ -4850,7 +4998,9 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !current
+                    !current ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current
                 ) {
                     return false;
                 }
@@ -4880,10 +5030,11 @@ useMAQuadroEditor():
                     snapshot =
                         JSON.parse(
                             serialized
-                        ) as
-                            typeof snapshot;
+                        ) as typeof snapshot;
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     setStatusMessage(
                         'Este ponto do histórico está danificado e não foi aplicado.'
@@ -4910,8 +5061,7 @@ useMAQuadroEditor():
                     true;
 
                 try {
-                    canvas
-                        .discardActiveObject();
+                    canvas.discardActiveObject();
 
                     canvas.clear();
 
@@ -4922,10 +5072,8 @@ useMAQuadroEditor():
 
                     const updatedPage = {
                         ...page,
-
                         background:
                             snapshot.background,
-
                         canvasJson:
                             snapshot.canvasJson
                     };
@@ -4944,7 +5092,9 @@ useMAQuadroEditor():
                     projectRef.current =
                         next;
 
-                    setProject(next);
+                    setProject(
+                        next
+                    );
 
                     setActivePageState(
                         updatedPage
@@ -4967,7 +5117,9 @@ useMAQuadroEditor():
 
                     return true;
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     try {
                         canvas.clear();
@@ -4985,7 +5137,9 @@ useMAQuadroEditor():
                         projectRef.current =
                             current;
 
-                        setProject(current);
+                        setProject(
+                            current
+                        );
 
                         setActivePageState(
                             previousPage
@@ -5027,6 +5181,14 @@ useMAQuadroEditor():
     const undo =
         useCallback(
             async () => {
+                if (
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    return;
+                }
+
                 const pageId =
                     projectRef.current
                         ?.activePageId;
@@ -5070,6 +5232,14 @@ useMAQuadroEditor():
     const redo =
         useCallback(
             async () => {
+                if (
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    return;
+                }
+
                 const pageId =
                     projectRef.current
                         ?.activePageId;
@@ -5083,8 +5253,7 @@ useMAQuadroEditor():
                 if (
                     !history ||
                     history.index >=
-                    history.entries.length -
-                    1
+                    history.entries.length - 1
                 ) {
                     return;
                 }
@@ -5130,7 +5299,10 @@ useMAQuadroEditor():
                     !object ||
                     object.maLocked ||
                     object.visible ===
-                    false
+                    false ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5164,7 +5336,10 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !object
+                    !object ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5175,8 +5350,7 @@ useMAQuadroEditor():
                         false
                 });
 
-                canvas
-                    .discardActiveObject();
+                canvas.discardActiveObject();
 
                 canvas.requestRenderAll();
 
@@ -5205,7 +5379,10 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !object
+                    !object ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5215,8 +5392,7 @@ useMAQuadroEditor():
                     !object.maLocked
                 );
 
-                canvas
-                    .discardActiveObject();
+                canvas.discardActiveObject();
 
                 canvas.requestRenderAll();
 
@@ -5250,20 +5426,26 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !object
+                    !object ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
 
-                arrangeMAQuadroObject(
-                    canvas,
-                    object,
-
-                    direction ===
-                    'up'
-                        ? 'forward'
-                        : 'backward'
-                );
+                if (
+                    !arrangeMAQuadroObject(
+                        canvas,
+                        object,
+                        direction ===
+                        'up'
+                            ? 'forward'
+                            : 'backward'
+                    )
+                ) {
+                    return;
+                }
 
                 commitChange(
                     'Ordem da camada atualizada.'
@@ -5285,9 +5467,7 @@ useMAQuadroEditor():
                     ) =>
                         | boolean
                         | void,
-
                 message: string,
-
                 noChangeMessage =
                     'Esta alteração não se aplica à seleção atual.'
             ) => {
@@ -5303,26 +5483,37 @@ useMAQuadroEditor():
                 if (
                     !canvas ||
                     !objects ||
-                    objects.length === 0
+                    objects.length === 0 ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return false;
                 }
 
-                let changed = false;
+                let changed =
+                    false;
 
                 for (
                     const object
                     of objects
                 ) {
-                    if (object.maLocked) {
+                    if (
+                        object.maLocked
+                    ) {
                         continue;
                     }
 
                     const result =
-                        operation(object);
+                        operation(
+                            object
+                        );
 
-                    if (result !== false) {
-                        changed = true;
+                    if (
+                        result !== false
+                    ) {
+                        changed =
+                            true;
 
                         object.setCoords();
                     }
@@ -5340,7 +5531,9 @@ useMAQuadroEditor():
 
                 syncSelection();
 
-                commitChange(message);
+                commitChange(
+                    message
+                );
 
                 return true;
             },
@@ -5361,11 +5554,23 @@ useMAQuadroEditor():
                         | MAQuadroFabricObject
                         | undefined;
 
-                if (!active) {
+                const nextName =
+                    name.trim();
+
+                if (
+                    !active ||
+                    !nextName ||
+                    active.maName ===
+                    nextName ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
-                active.maName = name;
+                active.maName =
+                    nextName;
 
                 syncSelection();
 
@@ -5390,9 +5595,7 @@ useMAQuadroEditor():
                             object,
                             color
                         ),
-
                     'Cor atualizada.',
-
                     'A cor de preenchimento não se aplica às imagens selecionadas ou os elementos estão bloqueados.'
                 );
             },
@@ -5412,7 +5615,6 @@ useMAQuadroEditor():
                             object,
                             color
                         ),
-
                     'Contorno atualizado.'
                 );
             },
@@ -5429,7 +5631,6 @@ useMAQuadroEditor():
                 const safe =
                     Math.min(
                         200,
-
                         Math.max(
                             0,
                             width
@@ -5442,7 +5643,6 @@ useMAQuadroEditor():
                             object,
                             safe
                         ),
-
                     'Espessura do contorno atualizada.'
                 );
             },
@@ -5459,7 +5659,6 @@ useMAQuadroEditor():
                 const safe =
                     Math.min(
                         100,
-
                         Math.max(
                             0,
                             opacity
@@ -5470,10 +5669,10 @@ useMAQuadroEditor():
                     (object) => {
                         object.set({
                             opacity:
-                                safe / 100
+                                safe /
+                                100
                         });
                     },
-
                     'Opacidade atualizada.'
                 );
             },
@@ -5491,7 +5690,6 @@ useMAQuadroEditor():
                     | 'width'
                     | 'height'
                     | 'angle',
-
                 value: number
             ) => {
                 const canvas =
@@ -5508,7 +5706,10 @@ useMAQuadroEditor():
                     !active ||
                     !Number.isFinite(
                         value
-                    )
+                    ) ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5545,7 +5746,8 @@ useMAQuadroEditor():
                 applyToSelectedObjects(
                     (object) => {
                         object.set(
-                            axis === 'x'
+                            axis ===
+                            'x'
                                 ? {
                                     flipX:
                                         !object.flipX
@@ -5556,8 +5758,8 @@ useMAQuadroEditor():
                                 }
                         );
                     },
-
-                    axis === 'x'
+                    axis ===
+                    'x'
                         ? 'Elemento virado horizontalmente.'
                         : 'Elemento virado verticalmente.'
                 );
@@ -5580,7 +5782,6 @@ useMAQuadroEditor():
                     | 'charSpacing'
                     | 'underline'
                     | 'linethrough',
-
                 value:
                     | string
                     | number
@@ -5589,17 +5790,23 @@ useMAQuadroEditor():
                 applyToSelectedObjects(
                     (object) => {
                         if (
-                            object instanceof
-                            Textbox
+                            !(
+                                object instanceof
+                                Textbox
+                            )
                         ) {
-                            object.set({
-                                [property]:
-                                    value
-                            });
+                            return false;
                         }
-                    },
 
-                    'Texto atualizado.'
+                        object.set({
+                            [property]:
+                                value
+                        });
+
+                        return true;
+                    },
+                    'Texto atualizado.',
+                    'Esta alteração só se aplica a texto desbloqueado.'
                 );
             },
             [
@@ -5623,7 +5830,7 @@ useMAQuadroEditor():
                                 Textbox
                             )
                         ) {
-                            return;
+                            return false;
                         }
 
                         const value =
@@ -5634,23 +5841,23 @@ useMAQuadroEditor():
                             text:
                                 mode ===
                                 'upper'
-                                    ? value
-                                        .toLocaleUpperCase(
-                                            'pt-PT'
-                                        )
+                                    ? value.toLocaleUpperCase(
+                                        'pt-PT'
+                                    )
                                     : mode ===
                                         'lower'
-                                        ? value
-                                            .toLocaleLowerCase(
-                                                'pt-PT'
-                                            )
+                                        ? value.toLocaleLowerCase(
+                                            'pt-PT'
+                                        )
                                         : titleCase(
                                             value
                                         )
                         });
-                    },
 
-                    'Capitalização do texto atualizada.'
+                        return true;
+                    },
+                    'Capitalização do texto atualizada.',
+                    'Esta alteração só se aplica a texto desbloqueado.'
                 );
             },
             [
@@ -5666,7 +5873,6 @@ useMAQuadroEditor():
                 const safe =
                     Math.min(
                         1000,
-
                         Math.max(
                             0,
                             value
@@ -5685,15 +5891,15 @@ useMAQuadroEditor():
                         }
 
                         object.set({
-                            rx: safe,
-                            ry: safe
+                            rx:
+                                safe,
+                            ry:
+                                safe
                         });
 
                         return true;
                     },
-
                     'Cantos arredondados atualizados.',
-
                     'Os cantos arredondados só se aplicam a retângulos desbloqueados.'
                 );
             },
@@ -5718,19 +5924,15 @@ useMAQuadroEditor():
                     enabled:
                         values.enabled ??
                         selection.shadowEnabled,
-
                     color:
                         values.color ??
                         selection.shadowColor,
-
                     blur:
                         values.blur ??
                         selection.shadowBlur,
-
                     offsetX:
                         values.offsetX ??
                         selection.shadowOffsetX,
-
                     offsetY:
                         values.offsetY ??
                         selection.shadowOffsetY
@@ -5747,7 +5949,6 @@ useMAQuadroEditor():
                             next.offsetY
                         );
                     },
-
                     'Sombra atualizada.'
                 );
             },
@@ -5772,15 +5973,12 @@ useMAQuadroEditor():
                     enabled:
                         values.enabled ??
                         selection.gradientEnabled,
-
                     from:
                         values.from ??
                         selection.gradientFrom,
-
                     to:
                         values.to ??
                         selection.gradientTo,
-
                     angle:
                         values.angle ??
                         selection.gradientAngle
@@ -5794,8 +5992,10 @@ useMAQuadroEditor():
                             );
 
                         if (
-                            role === 'image' ||
-                            role === 'line'
+                            role ===
+                            'image' ||
+                            role ===
+                            'line'
                         ) {
                             return false;
                         }
@@ -5812,9 +6012,7 @@ useMAQuadroEditor():
                                 next.from
                             );
                     },
-
                     'Gradiente atualizado.',
-
                     'O gradiente não se aplica às imagens ou linhas selecionadas.'
                 );
             },
@@ -5846,11 +6044,9 @@ useMAQuadroEditor():
                 return null;
             }
 
-            return (
-                activeObjects[0] as
-                    FabricImage &
-                    MAQuadroFabricObject
-            );
+            return activeObjects[0] as
+                FabricImage &
+                MAQuadroFabricObject;
         }, []);
 
     const setImageFilters =
@@ -5869,7 +6065,10 @@ useMAQuadroEditor():
 
                 if (
                     !image ||
-                    !canvas
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5909,7 +6108,10 @@ useMAQuadroEditor():
 
             if (
                 !image ||
-                !canvas
+                !canvas ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
             ) {
                 return;
             }
@@ -5934,8 +6136,10 @@ useMAQuadroEditor():
     const setImageCrop =
         useCallback(
             (
-                horizontal: number,
-                vertical: number
+                horizontal:
+                    number,
+                vertical:
+                    number
             ) => {
                 const image =
                     getSelectedImage();
@@ -5945,7 +6149,10 @@ useMAQuadroEditor():
 
                 if (
                     !image ||
-                    !canvas
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -5981,7 +6188,10 @@ useMAQuadroEditor():
 
             if (
                 !image ||
-                !canvas
+                !canvas ||
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0
             ) {
                 return;
             }
@@ -6014,7 +6224,10 @@ useMAQuadroEditor():
 
                 if (
                     !image ||
-                    !canvas
+                    !canvas ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -6045,7 +6258,6 @@ useMAQuadroEditor():
                 const oldSourceWidth =
                     Math.max(
                         1,
-
                         image.maOriginalWidth ||
                         image.width ||
                         1
@@ -6054,13 +6266,14 @@ useMAQuadroEditor():
                 const oldSourceHeight =
                     Math.max(
                         1,
-
                         image.maOriginalHeight ||
                         image.height ||
                         1
                     );
 
-                setBusy(true);
+                setBusy(
+                    true
+                );
 
                 setStatusMessage(
                     'A remover o fundo localmente…'
@@ -6077,13 +6290,12 @@ useMAQuadroEditor():
                             .fromURL(
                                 transparentDataUrl
                             ) as
-                                FabricImage &
-                                MAQuadroFabricObject;
+                            FabricImage &
+                            MAQuadroFabricObject;
 
                     const newSourceWidth =
                         Math.max(
                             1,
-
                             replacement.width ||
                             1
                         );
@@ -6091,7 +6303,6 @@ useMAQuadroEditor():
                     const newSourceHeight =
                         Math.max(
                             1,
-
                             replacement.height ||
                             1
                         );
@@ -6106,43 +6317,30 @@ useMAQuadroEditor():
                     replacement.set({
                         left:
                             image.left,
-
                         top:
                             image.top,
-
                         originX:
                             image.originX,
-
                         originY:
                             image.originY,
-
                         angle:
                             image.angle,
-
                         skewX:
                             image.skewX,
-
                         skewY:
                             image.skewY,
-
                         flipX:
                             image.flipX,
-
                         flipY:
                             image.flipY,
-
                         opacity:
                             image.opacity,
-
                         stroke:
                             image.stroke,
-
                         strokeWidth:
                             image.strokeWidth,
-
                         shadow:
                             image.shadow,
-
                         scaleX:
                             Number(
                                 image.scaleX ||
@@ -6150,7 +6348,6 @@ useMAQuadroEditor():
                             ) *
                             oldSourceWidth /
                             newSourceWidth,
-
                         scaleY:
                             Number(
                                 image.scaleY ||
@@ -6158,13 +6355,10 @@ useMAQuadroEditor():
                             ) *
                             oldSourceHeight /
                             newSourceHeight,
-
                         cropX: 0,
                         cropY: 0,
-
                         width:
                             newSourceWidth,
-
                         height:
                             newSourceHeight
                     });
@@ -6190,7 +6384,6 @@ useMAQuadroEditor():
                     prepareMAQuadroObject(
                         replacement,
                         'image',
-
                         image.maName ||
                         'Imagem sem fundo'
                     );
@@ -6210,8 +6403,7 @@ useMAQuadroEditor():
                         true;
 
                     try {
-                        canvas
-                            .discardActiveObject();
+                        canvas.discardActiveObject();
 
                         canvas.remove(
                             image
@@ -6245,13 +6437,17 @@ useMAQuadroEditor():
                         'Fundo removido localmente. O recorte e os ajustes foram preservados.'
                     );
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     setStatusMessage(
                         'Não foi possível remover este fundo automaticamente. Esta ferramenta funciona melhor com fundos lisos e uniformes.'
                     );
                 } finally {
-                    setBusy(false);
+                    setBusy(
+                        false
+                    );
                 }
             },
             [
@@ -6278,7 +6474,10 @@ useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    !current
+                    !current ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
                 ) {
                     return;
                 }
@@ -6290,7 +6489,6 @@ useMAQuadroEditor():
 
                 const updatedPage = {
                     ...page,
-
                     background: {
                         ...page.background,
                         ...background
@@ -6306,7 +6504,9 @@ useMAQuadroEditor():
                 projectRef.current =
                     next;
 
-                setProject(next);
+                setProject(
+                    next
+                );
 
                 setActivePageState(
                     updatedPage
@@ -6336,6 +6536,14 @@ useMAQuadroEditor():
             ) => {
                 const canvas =
                     canvasRef.current;
+
+                if (
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    return;
+                }
 
                 const selected =
                     canvas
@@ -6370,7 +6578,8 @@ useMAQuadroEditor():
                     );
                 } else {
                     setBackground({
-                        type: 'solid',
+                        type:
+                            'solid',
                         color
                     });
                 }
@@ -6390,13 +6599,21 @@ useMAQuadroEditor():
                 const file =
                     event.target.files?.[0];
 
-                event.target.value = '';
+                event.target.value =
+                    '';
 
-                if (!file) {
+                if (
+                    !file ||
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
                     return;
                 }
 
-                setBusy(true);
+                setBusy(
+                    true
+                );
 
                 try {
                     const family =
@@ -6419,39 +6636,31 @@ useMAQuadroEditor():
                                     .toLocaleLowerCase(
                                         'pt-PT'
                                     ) ===
-                                family
-                                    .toLocaleLowerCase(
-                                        'pt-PT'
-                                    )
+                                family.toLocaleLowerCase(
+                                    'pt-PT'
+                                )
                         );
 
                     const record:
                         MAQuadroStoredFont = {
-                            id:
-                                existing?.id ||
-                                createMAQuadroId(
-                                    'font'
-                                ),
-
-                            family,
-
-                            fileName:
-                                file.name,
-
-                            mimeType:
-                                file.type ||
-                                'font/ttf',
-
-                            data:
-                                await file
-                                    .arrayBuffer(),
-
-                            createdAt:
-                                existing
-                                    ?.createdAt ||
-                                new Date()
-                                    .toISOString()
-                        };
+                        id:
+                            existing?.id ||
+                            createMAQuadroId(
+                                'font'
+                            ),
+                        family,
+                        fileName:
+                            file.name,
+                        mimeType:
+                            file.type ||
+                            'font/ttf',
+                        data:
+                            await file.arrayBuffer(),
+                        createdAt:
+                            existing?.createdAt ||
+                            new Date()
+                                .toISOString()
+                    };
 
                     await registerLocalFont(
                         record
@@ -6469,17 +6678,22 @@ useMAQuadroEditor():
                         `Fonte “${record.family}” adicionada localmente.`
                     );
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     setStatusMessage(
                         'Não foi possível carregar esta fonte.'
                     );
                 } finally {
-                    setBusy(false);
+                    setBusy(
+                        false
+                    );
                 }
             },
             [
-                localFonts
+                localFonts,
+                setBusy
             ]
         );
 
@@ -6488,6 +6702,14 @@ useMAQuadroEditor():
             async (
                 fontId: string
             ) => {
+                if (
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    return;
+                }
+
                 try {
                     await deleteMAQuadroFont(
                         fontId
@@ -6501,7 +6723,9 @@ useMAQuadroEditor():
                         'Fonte eliminada do armazenamento local. Deixará de estar ativa depois de recarregar a página.'
                     );
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     setStatusMessage(
                         'Não foi possível eliminar a fonte.'
@@ -6582,7 +6806,8 @@ useMAQuadroEditor():
                 event.preventDefault();
 
                 panStateRef.current = {
-                    active: true,
+                    active:
+                        true,
                     startX:
                         event.clientX,
                     startY:
@@ -6619,20 +6844,21 @@ useMAQuadroEditor():
                         );
                 };
 
-                const finish = () => {
-                    panStateRef.current.active =
-                        false;
+                const finish =
+                    () => {
+                        panStateRef.current.active =
+                            false;
 
-                    window.removeEventListener(
-                        'pointermove',
-                        move
-                    );
+                        window.removeEventListener(
+                            'pointermove',
+                            move
+                        );
 
-                    window.removeEventListener(
-                        'pointerup',
-                        finish
-                    );
-                };
+                        window.removeEventListener(
+                            'pointerup',
+                            finish
+                        );
+                    };
 
                 window.addEventListener(
                     'pointermove',
@@ -6668,6 +6894,18 @@ useMAQuadroEditor():
     const runExport =
         useCallback(
             async () => {
+                if (
+                    uploadLockRef.current ||
+                    structuralLockRef.current ||
+                    busyCountRef.current > 0
+                ) {
+                    setStatusMessage(
+                        'Aguarde pela conclusão da operação atual antes de exportar.'
+                    );
+
+                    return;
+                }
+
                 const captured =
                     captureCurrentPage();
 
@@ -6680,7 +6918,9 @@ useMAQuadroEditor():
                         captured
                     );
 
-                setBusy(true);
+                setBusy(
+                    true
+                );
 
                 setStatusMessage(
                     'A preparar a exportação…'
@@ -6700,10 +6940,11 @@ useMAQuadroEditor():
                     ) {
                         await exportMAQuadroPdf(
                             captured,
-
                             exportOptions.scope ===
                             'current'
-                                ? [page.id]
+                                ? [
+                                    page.id
+                                ]
                                 : undefined
                         );
                     } else if (
@@ -6714,7 +6955,6 @@ useMAQuadroEditor():
                             captured,
                             'png',
                             exportOptions.scale,
-
                             exportOptions.quality /
                             100
                         );
@@ -6732,30 +6972,36 @@ useMAQuadroEditor():
                             page,
                             exportOptions.format,
                             exportOptions.scale,
-
                             exportOptions.quality /
                             100
                         );
                     }
 
-                    setExportOpen(false);
+                    setExportOpen(
+                        false
+                    );
 
                     setStatusMessage(
                         'Exportação concluída.'
                     );
                 } catch (error) {
-                    console.error(error);
+                    console.error(
+                        error
+                    );
 
                     setStatusMessage(
                         'Não foi possível concluir a exportação.'
                     );
                 } finally {
-                    setBusy(false);
+                    setBusy(
+                        false
+                    );
                 }
             },
             [
                 captureCurrentPage,
-                exportOptions
+                exportOptions,
+                setBusy
             ]
         );
 
@@ -6803,12 +7049,37 @@ useMAQuadroEditor():
                 return;
             }
 
+            const operationLocked =
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                isLoadingRef.current ||
+                isApplyingHistoryRef.current ||
+                busyCountRef.current > 0;
+
+            if (operationLocked) {
+                if (
+                    modifier ||
+                    event.key ===
+                    'Delete' ||
+                    event.key ===
+                    'Backspace' ||
+                    event.key.startsWith(
+                        'Arrow'
+                    )
+                ) {
+                    event.preventDefault();
+                }
+
+                return;
+            }
+
             if (
                 modifier &&
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'z'
+                    ) ===
+                'z'
             ) {
                 event.preventDefault();
 
@@ -6822,7 +7093,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'y'
+                    ) ===
+                'y'
             ) {
                 event.preventDefault();
 
@@ -6832,7 +7104,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'c'
+                    ) ===
+                'c'
             ) {
                 event.preventDefault();
 
@@ -6842,7 +7115,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'v'
+                    ) ===
+                'v'
             ) {
                 event.preventDefault();
 
@@ -6852,7 +7126,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'd'
+                    ) ===
+                'd'
             ) {
                 event.preventDefault();
 
@@ -6862,7 +7137,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 'a'
+                    ) ===
+                'a'
             ) {
                 event.preventDefault();
 
@@ -6872,7 +7148,8 @@ useMAQuadroEditor():
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) === 's'
+                    ) ===
+                's'
             ) {
                 event.preventDefault();
 
@@ -6924,7 +7201,6 @@ useMAQuadroEditor():
                     event.shiftKey
                         ? -10
                         : -1,
-
                     0
                 );
             } else if (
@@ -6937,7 +7213,6 @@ useMAQuadroEditor():
                     event.shiftKey
                         ? 10
                         : 1,
-
                     0
                 );
             } else if (
@@ -6948,7 +7223,6 @@ useMAQuadroEditor():
 
                 moveSelection(
                     0,
-
                     event.shiftKey
                         ? -10
                         : -1
@@ -6961,7 +7235,6 @@ useMAQuadroEditor():
 
                 moveSelection(
                     0,
-
                     event.shiftKey
                         ? 10
                         : 1
@@ -6986,14 +7259,15 @@ useMAQuadroEditor():
             }
         };
 
-        const handleBlur = () => {
-            spacePressedRef.current =
-                false;
+        const handleBlur =
+            () => {
+                spacePressedRef.current =
+                    false;
 
-            setIsSpacePressed(
-                false
-            );
-        };
+                setIsSpacePressed(
+                    false
+                );
+            };
 
         window.addEventListener(
             'keydown',
@@ -7073,21 +7347,16 @@ useMAQuadroEditor():
         exportOpen,
         newDesignOpen,
         exportOptions,
-
         presets:
             MA_QUADRO_PRESETS,
-
         setActivePanel,
         setProjectName,
         saveProject,
         openProject,
-
         duplicateProject:
             duplicateProjectAction,
-
         deleteProject:
             deleteProjectAction,
-
         saveProjectAsTemplate,
         createFromPreset,
         createCustomDesign,
