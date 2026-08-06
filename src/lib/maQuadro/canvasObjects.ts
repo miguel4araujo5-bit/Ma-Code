@@ -1244,11 +1244,10 @@ setMAQuadroObjectShadow(
 
 function gradientAngleFromFill(
     fill:
-        Gradient<
-            'linear'
-        >,
+        | Gradient<'linear'>
+        | Gradient<'radial'>,
     fallback = 45
-) {
+): number {
     const coords =
         fill.coords as unknown as {
             x1?: number;
@@ -1257,17 +1256,10 @@ function gradientAngleFromFill(
             y2?: number;
         };
 
-    const x1 =
-        Number(coords.x1);
-
-    const y1 =
-        Number(coords.y1);
-
-    const x2 =
-        Number(coords.x2);
-
-    const y2 =
-        Number(coords.y2);
+    const x1 = Number(coords.x1);
+    const y1 = Number(coords.y1);
+    const x2 = Number(coords.x2);
+    const y2 = Number(coords.y2);
 
     if (
         ![
@@ -1275,9 +1267,7 @@ function gradientAngleFromFill(
             y1,
             x2,
             y2
-        ].every(
-            Number.isFinite
-        )
+        ].every(Number.isFinite)
     ) {
         return fallback;
     }
@@ -1287,8 +1277,8 @@ function gradientAngleFromFill(
             y2 - y1,
             x2 - x1
         ) *
-        180 /
-        Math.PI +
+            180 /
+            Math.PI +
         360
     ) % 360;
 }
