@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Protótipo matemático do jogo Conquistador: Terras e Rotas do Atlântico" />
+    <title>Conquistador — Motor Matemático</title>
+    <link rel="stylesheet" href="./styles/base.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <p class="eyebrow">Fase 1A · Motor matemático</p>
+      <h1>Conquistador</h1>
+      <p>Terras e Rotas do Atlântico</p>
+    </header>
+
+    <main class="app-shell">
+      <section class="panel controls" aria-labelledby="generator-title">
+        <h2 id="generator-title">Gerador do tabuleiro</h2>
+        <label for="seed">Seed reproduzível</label>
+        <div class="field-row">
+          <input id="seed" type="text" autocomplete="off" />
+          <button id="generate-board" type="button">Gerar</button>
+          <button id="random-seed" class="button-secondary" type="button">Nova seed</button>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="workspace">
+        <div class="panel board-panel">
+          <div id="board" class="board" aria-label="Tabuleiro gerado"></div>
+        </div>
+
+        <aside class="sidebar">
+          <section class="panel">
+            <h2>Validação</h2>
+            <div id="metrics"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Dados</h2>
+            <button id="roll-dice" type="button">Lançar dois dados</button>
+            <output id="dice-result" class="dice-result">—</output>
+          </section>
+
+          <section class="panel">
+            <h2>Simulação em lote</h2>
+            <label for="simulation-quantity">Tabuleiros</label>
+            <div class="field-row compact">
+              <input id="simulation-quantity" type="number" min="1" max="5000" value="250" />
+              <button id="run-simulation" type="button">Simular</button>
+            </div>
+            <pre id="simulation-result">Ainda não executada.</pre>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
