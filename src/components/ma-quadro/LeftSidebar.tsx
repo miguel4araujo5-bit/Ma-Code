@@ -595,11 +595,24 @@ function UploadsPanel() {
                 type="file"
                 multiple
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={(event) =>
-                    void editor.addImages(
-                        event
-                    )
-                }
+                onChange={(event) => {
+                    const files =
+                        Array.from(
+                            event.currentTarget
+                                .files ||
+                            []
+                        );
+
+                    event.currentTarget
+                        .value = '';
+
+                    if (files.length > 0) {
+                        void editor
+                            .handleDroppedFiles(
+                                files
+                            );
+                    }
+                }}
                 hidden
             />
 
