@@ -427,8 +427,7 @@ export function serializeMAQuadroCanvas(
         | Canvas
         | StaticCanvas
 ): MAQuadroCanvasJson {
-    return canvas.toJSON()
-        as MAQuadroCanvasJson;
+    return canvas.toJSON() as MAQuadroCanvasJson;
 }
 
 export async function
