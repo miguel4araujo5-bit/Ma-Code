@@ -2587,14 +2587,19 @@ useMAQuadroEditor():
                             )
                         );
 
-                    const sourceWidth =
-                        Math.max((
-                            1,
-                            Number(target as FabricImage & MAQuadroFabricObject).maOriginalWidth ||
-                                target.width ||
-                                1
-                            )
-                        );
+                   const sourceHeight =
+    Math.max(
+        1,
+        Number(
+            (
+                target as
+                    FabricImage &
+                    MAQuadroFabricObject
+            ).maOriginalHeight ||
+            target.height ||
+            1
+        )
+    );
 
                     const sourceHeight =
                         Math.max(
