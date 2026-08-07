@@ -1,5 +1,8 @@
 import {
+  useEffect,
+  useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode
 } from 'react'
 
@@ -8,6 +11,7 @@ import {
   NumberField,
   RangeField
 } from './PropertyControls'
+
 import {
   useMAQuadroEditorContext
 } from './editorContext'
@@ -67,6 +71,123 @@ function Section({
   )
 }
 
+function LayerNameField() {
+  const editor =
+    useMAQuadroEditorContext()
+
+  const currentName =
+    editor.selection.name
+
+  const [
+    draft,
+    setDraft
+  ] = useState(
+    currentName
+  )
+
+  const skipCommitRef =
+    useRef(false)
+
+  useEffect(() => {
+    setDraft(
+      currentName
+    )
+
+    skipCommitRef.current =
+      false
+  }, [
+    currentName
+  ])
+
+  const commit = () => {
+    if (
+      skipCommitRef.current
+    ) {
+      skipCommitRef.current =
+        false
+
+      setDraft(
+        currentName
+      )
+
+      return
+    }
+
+    const next =
+      draft.trim()
+
+    if (!next) {
+      setDraft(
+        currentName
+      )
+
+      return
+    }
+
+    setDraft(next)
+
+    if (
+      next !== currentName
+    ) {
+      editor.setSelectionName(
+        next
+      )
+    }
+  }
+
+  const handleKeyDown = (
+    event:
+      KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (
+      event.key === 'Enter'
+    ) {
+      event.preventDefault()
+      event.currentTarget.blur()
+    } else if (
+      event.key === 'Escape'
+    ) {
+      event.preventDefault()
+
+      skipCommitRef.current =
+        true
+
+      setDraft(
+        currentName
+      )
+
+      event.currentTarget.blur()
+    }
+  }
+
+  return (
+    <label className="mq-field">
+      <span>
+        Nome
+      </span>
+
+      <input
+        type="text"
+        value={draft}
+        maxLength={180}
+        disabled={
+          editor.busy ||
+          editor.structureBusy
+        }
+        onChange={(event) =>
+          setDraft(
+            event.target.value
+          )
+        }
+        onBlur={commit}
+        onKeyDown={
+          handleKeyDown
+        }
+      />
+    </label>
+  )
+}
+
 function BackgroundProperties() {
   const editor =
     useMAQuadroEditorContext()
@@ -77,6 +198,10 @@ function BackgroundProperties() {
   if (!page) {
     return null
   }
+
+  const locked =
+    editor.busy ||
+    editor.structureBusy
 
   const resizePages = () => {
     const widthInput =
@@ -155,6 +280,7 @@ function BackgroundProperties() {
               <button
                 key={type}
                 type="button"
+                disabled={locked}
                 className={
                   page.background.type ===
                   type
@@ -271,6 +397,7 @@ function BackgroundProperties() {
         <button
           type="button"
           className="mq-panel-action"
+          disabled={locked}
           onClick={resizePages}
         >
           Redimensionar todas as páginas
@@ -385,8 +512,14 @@ function SelectionGeometry() {
       <div className="mq-action-grid mq-action-grid--2">
         <button
           type="button"
+          disabled={
+            editor.busy ||
+            editor.structureBusy
+          }
           onClick={() =>
-            editor.setSelectionFlip('x')
+            editor.setSelectionFlip(
+              'x'
+            )
           }
         >
           Virar horizontal
@@ -394,8 +527,14 @@ function SelectionGeometry() {
 
         <button
           type="button"
+          disabled={
+            editor.busy ||
+            editor.structureBusy
+          }
           onClick={() =>
-            editor.setSelectionFlip('y')
+            editor.setSelectionFlip(
+              'y'
+            )
           }
         >
           Virar vertical
@@ -416,23 +555,11 @@ function AppearanceProperties() {
     selection.role !== 'image' &&
     selection.role !== 'group'
 
-  const normalisedName =
-    selection.name
-      .toLocaleLowerCase(
-        'pt-PT'
-      )
-
   const supportsCornerRadius =
     selection.count === 1 &&
     selection.role === 'shape' &&
-    (
-      normalisedName.includes(
-        'retângulo'
-      ) ||
-      normalisedName.includes(
-        'rectangle'
-      )
-    )
+    selection.shapeKind ===
+      'rectangle'
 
   return (
     <Section
@@ -514,6 +641,10 @@ function TextProperties() {
     return null
   }
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy
+
   return (
     <Section
       title="Tipografia"
@@ -528,6 +659,7 @@ function TextProperties() {
           value={
             selection.fontFamily
           }
+          disabled={locked}
           onChange={(event) =>
             editor.setTextProperty(
               'fontFamily',
@@ -572,6 +704,7 @@ function TextProperties() {
             value={
               selection.textAlign
             }
+            disabled={locked}
             onChange={(event) =>
               editor.setTextProperty(
                 'textAlign',
@@ -601,6 +734,7 @@ function TextProperties() {
       <div className="mq-style-buttons">
         <button
           type="button"
+          disabled={locked}
           className={
             selection.fontWeight ===
             '700'
@@ -626,6 +760,7 @@ function TextProperties() {
 
         <button
           type="button"
+          disabled={locked}
           className={
             selection.fontStyle ===
             'italic'
@@ -651,6 +786,7 @@ function TextProperties() {
 
         <button
           type="button"
+          disabled={locked}
           className={
             selection.underline
               ? 'is-active'
@@ -672,6 +808,7 @@ function TextProperties() {
 
         <button
           type="button"
+          disabled={locked}
           className={
             selection.linethrough
               ? 'is-active'
@@ -723,6 +860,7 @@ function TextProperties() {
       <div className="mq-action-grid mq-action-grid--3">
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.transformTextCase(
               'upper'
@@ -734,6 +872,7 @@ function TextProperties() {
 
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.transformTextCase(
               'lower'
@@ -745,6 +884,7 @@ function TextProperties() {
 
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.transformTextCase(
               'title'
@@ -774,6 +914,10 @@ function EffectsProperties() {
       selection.role || ''
     )
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy
+
   return (
     <Section
       title="Efeitos"
@@ -796,6 +940,7 @@ function EffectsProperties() {
           checked={
             selection.shadowEnabled
           }
+          disabled={locked}
           onChange={(event) =>
             editor.setShadow({
               enabled:
@@ -882,6 +1027,7 @@ function EffectsProperties() {
               checked={
                 selection.gradientEnabled
               }
+              disabled={locked}
               onChange={(event) =>
                 editor.setGradient({
                   enabled:
@@ -951,6 +1097,10 @@ function ImageProperties() {
   ) {
     return null
   }
+
+  const locked =
+    editor.busy ||
+    editor.structureBusy
 
   return (
     <>
@@ -1030,6 +1180,7 @@ function ImageProperties() {
               selection.imageFilters
                 .grayscale
             }
+            disabled={locked}
             onChange={(event) =>
               editor.setImageFilters({
                 grayscale:
@@ -1042,6 +1193,7 @@ function ImageProperties() {
         <button
           type="button"
           className="mq-panel-action"
+          disabled={locked}
           onClick={
             editor.resetImageFilters
           }
@@ -1090,6 +1242,7 @@ function ImageProperties() {
         <button
           type="button"
           className="mq-panel-action"
+          disabled={locked}
           onClick={
             editor.resetImageCrop
           }
@@ -1113,10 +1266,10 @@ function ImageProperties() {
         <button
           type="button"
           className="mq-panel-action mq-panel-action--accent"
+          disabled={locked}
           onClick={() =>
             void editor.removeImageBackground()
           }
-          disabled={editor.busy}
         >
           Remover fundo automaticamente
         </button>
@@ -1129,6 +1282,10 @@ function ArrangeProperties() {
   const editor =
     useMAQuadroEditorContext()
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy
+
   return (
     <Section
       title="Organizar"
@@ -1137,6 +1294,7 @@ function ArrangeProperties() {
       <div className="mq-action-grid mq-action-grid--2">
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.arrangeSelection(
               'front'
@@ -1148,6 +1306,7 @@ function ArrangeProperties() {
 
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.arrangeSelection(
               'forward'
@@ -1159,6 +1318,7 @@ function ArrangeProperties() {
 
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.arrangeSelection(
               'backward'
@@ -1170,6 +1330,7 @@ function ArrangeProperties() {
 
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             editor.arrangeSelection(
               'back'
@@ -1183,6 +1344,7 @@ function ArrangeProperties() {
       <div className="mq-action-grid mq-action-grid--2">
         <button
           type="button"
+          disabled={locked}
           onClick={() =>
             void editor.duplicateSelection()
           }
@@ -1193,6 +1355,7 @@ function ArrangeProperties() {
         <button
           type="button"
           className="is-danger"
+          disabled={locked}
           onClick={
             editor.deleteSelection
           }
@@ -1207,6 +1370,10 @@ function ArrangeProperties() {
 function LayersPanel() {
   const editor =
     useMAQuadroEditorContext()
+
+  const locked =
+    editor.busy ||
+    editor.structureBusy
 
   return (
     <Section
@@ -1228,6 +1395,7 @@ function LayersPanel() {
               <button
                 type="button"
                 className="mq-layer-row__main"
+                disabled={locked}
                 onClick={() =>
                   editor.selectLayer(
                     layer.id
@@ -1254,6 +1422,7 @@ function LayersPanel() {
               <div className="mq-layer-row__actions">
                 <button
                   type="button"
+                  disabled={locked}
                   onClick={() =>
                     editor.moveLayer(
                       layer.id,
@@ -1268,6 +1437,7 @@ function LayersPanel() {
 
                 <button
                   type="button"
+                  disabled={locked}
                   onClick={() =>
                     editor.moveLayer(
                       layer.id,
@@ -1282,6 +1452,7 @@ function LayersPanel() {
 
                 <button
                   type="button"
+                  disabled={locked}
                   onClick={() =>
                     editor.toggleLayerVisibility(
                       layer.id
@@ -1301,6 +1472,7 @@ function LayersPanel() {
 
                 <button
                   type="button"
+                  disabled={locked}
                   onClick={() =>
                     editor.toggleLayerLock(
                       layer.id
@@ -1345,6 +1517,10 @@ export default function PropertiesPanel() {
   const hasSelection =
     editor.selection.count > 0
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy
+
   return (
     <>
       {drawerOpen ? (
@@ -1365,6 +1541,7 @@ export default function PropertiesPanel() {
             : ''
         }`}
         aria-label="Painel de propriedades"
+        aria-busy={locked}
       >
         <button
           type="button"
@@ -1410,6 +1587,7 @@ export default function PropertiesPanel() {
           {hasSelection ? (
             <button
               type="button"
+              disabled={locked}
               onClick={
                 editor.deleteSelection
               }
@@ -1430,24 +1608,7 @@ export default function PropertiesPanel() {
                   title="Camada"
                   defaultOpen={false}
                 >
-                  <label className="mq-field">
-                    <span>
-                      Nome
-                    </span>
-
-                    <input
-                      type="text"
-                      value={
-                        editor.selection.name
-                      }
-                      maxLength={180}
-                      onChange={(event) =>
-                        editor.setSelectionName(
-                          event.target.value
-                        )
-                      }
-                    />
-                  </label>
+                  <LayerNameField />
                 </Section>
               ) : null}
 
