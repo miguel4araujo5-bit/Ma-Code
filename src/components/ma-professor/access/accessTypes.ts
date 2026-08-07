@@ -9,6 +9,20 @@ export const MA_PROFESSOR_ACCESS_STORAGE_KEY =
 export const MA_PROFESSOR_DEVICE_STORAGE_KEY =
   'ma-professor-device-v1'
 
+export type MAProfessorAccessRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+
+export interface MAProfessorAccessRequestSummary {
+  email: string
+  status: MAProfessorAccessRequestStatus
+  requestedAt: string | null
+  approvedAt: string | null
+  rejectedAt: string | null
+  activatedAt: string | null
+}
+
 export interface MAProfessorAccessSession {
   token: string
   deviceId: string
@@ -21,6 +35,13 @@ export interface MAProfessorAccessResponse {
   success: true
   token: string
   license: LicenseSummary
+}
+
+export interface MAProfessorAccessRequestResponse {
+  success: true
+  request: MAProfessorAccessRequestSummary
+  canActivate: boolean
+  message: string
 }
 
 export interface MAProfessorLicenseResponse {
@@ -41,23 +62,44 @@ export interface MAProfessorAccessErrorResponse {
 
 export type MAProfessorAccessApiResult =
   | MAProfessorAccessResponse
+  | MAProfessorAccessRequestResponse
   | MAProfessorLicenseResponse
   | MAProfessorRenewalResponse
   | MAProfessorAccessErrorResponse
 
-export type RenewableLicensePlan = Extract<
-  LicensePlan,
-  'paid_30_days' | 'school_year'
->
+export type RenewableLicensePlan =
+  Extract<
+    LicensePlan,
+    | 'paid_30_days'
+    | 'school_year'
+  >
 
 export function isLicenseUsable(
   license: LicenseSummary
 ) {
-  return (
-    license.status === 'active' ||
-    license.status === 'expiring' ||
-    license.status === 'renewal_pending'
-  )
+  if (
+    license.status ===
+      'active' ||
+    license.status ===
+      'expiring'
+  ) {
+    return true
+  }
+
+  if (
+    license.status ===
+      'renewal_pending' &&
+    license.validUntil
+  ) {
+    return (
+      new Date(
+        license.validUntil
+      ).getTime() >
+      Date.now()
+    )
+  }
+
+  return false
 }
 
 export function getLicensePlanLabel(
@@ -65,35 +107,62 @@ export function getLicensePlanLabel(
 ) {
   switch (plan) {
     case 'beta_30_days':
-      return 'Beta gratuita · 4 meses'
+      return 'Beta gratuita · 30 dias'
+
     case 'paid_30_days':
       return 'Mensal'
+
     case 'school_year':
-      return 'Até ao fim do ano letivo'
+      return 'Até ao final do ano letivo'
+
     case 'courtesy_30_days':
       return 'Oferta de 30 dias'
+
     case 'courtesy_school_year':
-      return 'Oferta até ao fim do ano letivo'
+      return 'Oferta até ao final do ano letivo'
+
     default:
       return 'Sem plano ativo'
   }
 }
 
 export function getLicenseStatusLabel(
-  status: LicenseSummary['status']
+  status:
+    LicenseSummary['status']
 ) {
   switch (status) {
     case 'active':
       return 'Ativa'
+
     case 'expiring':
       return 'A terminar'
+
     case 'renewal_pending':
       return 'Renovação pedida'
+
     case 'expired':
       return 'Terminada'
+
     case 'revoked':
       return 'Revogada'
+
     default:
       return 'Inativa'
+  }
+}
+
+export function getAccessRequestStatusLabel(
+  status:
+    MAProfessorAccessRequestStatus
+) {
+  switch (status) {
+    case 'approved':
+      return 'Aprovado'
+
+    case 'rejected':
+      return 'Rejeitado'
+
+    default:
+      return 'Pendente'
   }
 }
