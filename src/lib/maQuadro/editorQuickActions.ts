@@ -232,11 +232,9 @@ function dashArrayForStyle(
 }
 
 function applyStrokeStyleToTree(
-    object:
-        MAQuadroFabricObject,
-    style:
-        MAQuadroStrokeStyle
-) {
+    object: MAQuadroFabricObject,
+    style: MAQuadroStrokeStyle
+): boolean {
     if (
         object instanceof
         Group
