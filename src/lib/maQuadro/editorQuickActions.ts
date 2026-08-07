@@ -249,12 +249,11 @@ function applyStrokeStyleToTree(
                 child as
                     MAQuadroFabricObject;
 
-            if (
-                object.maShapeKind ===
-                'arrow' &&
-                !(editorChild instanceof
-                    Line)
-            ) {
+          if (
+    (object as Group & MAQuadroFabricObject).maShapeKind ===
+    'arrow' &&
+    !(editorChild instanceof Line)
+) {
                 continue;
             }
 
