@@ -555,6 +555,38 @@ function SelectionGeometry() {
         </p>
       ) : null}
 
+      {selection.count === 1 &&
+      selection.role !== 'text' &&
+      selection.role !== 'line' &&
+      selection.role !== 'arrow' ? (
+        <label className="mq-switch-row">
+          <span>
+            <strong>
+              Bloquear proporção
+            </strong>
+
+            <small>
+              Mantém a relação entre
+              largura e altura ao
+              redimensionar.
+            </small>
+          </span>
+
+          <input
+            type="checkbox"
+            checked={
+              selection.aspectLocked
+            }
+            disabled={locked}
+            onChange={(event) =>
+              editor.setSelectionAspectLocked(
+                event.target.checked
+              )
+            }
+          />
+        </label>
+      ) : null}
+
       <RangeField
         label="Rotação"
         value={
@@ -666,6 +698,68 @@ function AppearanceProperties() {
         max={100}
         suffix="px"
       />
+
+      <label className="mq-field">
+        <span>
+          Estilo do traço
+        </span>
+
+        <select
+          value={
+            selection.strokeStyle
+          }
+          disabled={locked}
+          onChange={(event) =>
+            editor.setSelectionStrokeStyle(
+              event.target.value as
+                | 'solid'
+                | 'dashed'
+                | 'dotted'
+            )
+          }
+        >
+          <option value="solid">
+            Contínuo
+          </option>
+
+          <option value="dashed">
+            Tracejado
+          </option>
+
+          <option value="dotted">
+            Pontilhado
+          </option>
+        </select>
+      </label>
+
+      {selection.count === 1 &&
+      selection.shapeKind === 'arrow' ? (
+        <label className="mq-switch-row">
+          <span>
+            <strong>
+              Ponta da seta
+            </strong>
+
+            <small>
+              Mostra ou oculta a ponta
+              mantendo a haste.
+            </small>
+          </span>
+
+          <input
+            type="checkbox"
+            checked={
+              selection.arrowHeadEnabled
+            }
+            disabled={locked}
+            onChange={(event) =>
+              editor.setArrowHeadEnabled(
+                event.target.checked
+              )
+            }
+          />
+        </label>
+      ) : null}
 
       <RangeField
         label="Opacidade"
@@ -1204,6 +1298,64 @@ function ImageProperties() {
   return (
     <>
       <Section
+        title="Imagem"
+        description="Substituir, usar como fundo ou copiar o estilo"
+      >
+        <input
+          ref={
+            editor.replacementImageInputRef
+          }
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          disabled={
+            regularControlsLocked
+          }
+          onChange={(event) =>
+            void editor.replaceSelectedImage(
+              event
+            )
+          }
+          hidden
+        />
+
+        <div className="mq-action-grid mq-action-grid--2">
+          <button
+            type="button"
+            className="mq-panel-action mq-panel-action--accent"
+            disabled={
+              regularControlsLocked
+            }
+            onClick={() =>
+              editor.replacementImageInputRef
+                .current
+                ?.click()
+            }
+          >
+            Substituir imagem
+          </button>
+
+          <button
+            type="button"
+            className="mq-panel-action"
+            disabled={
+              regularControlsLocked
+            }
+            onClick={
+              editor.setImageAsBackground
+            }
+          >
+            Definir como fundo
+          </button>
+        </div>
+
+        <p className="mq-control-note">
+          “Substituir imagem” mantém a
+          posição, tamanho, recorte,
+          filtros e moldura atuais.
+        </p>
+      </Section>
+
+      <Section
         title="Ajustar imagem"
         description="Filtros não destrutivos"
       >
@@ -1544,6 +1696,31 @@ function ArrangeProperties() {
       title="Organizar"
       defaultOpen={false}
     >
+      <div className="mq-action-grid mq-action-grid--2">
+        <button
+          type="button"
+          disabled={locked}
+          onClick={
+            editor.copySelectionStyle
+          }
+        >
+          Copiar estilo
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            locked ||
+            !editor.hasCopiedStyle
+          }
+          onClick={
+            editor.pasteSelectionStyle
+          }
+        >
+          Colar estilo
+        </button>
+      </div>
+
       <div className="mq-action-grid mq-action-grid--2">
         <button
           type="button"
