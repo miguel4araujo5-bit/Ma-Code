@@ -38,6 +38,21 @@ import {
 } from '../../lib/maQuadro/editorEnhancements';
 
 import {
+    applyMAQuadroCopiedStyle,
+    captureMAQuadroStyle,
+    getMAQuadroArrowHeadEnabled,
+    getMAQuadroAspectLocked,
+    getMAQuadroStrokeStyle,
+    replaceMAQuadroImage,
+    setMAQuadroArrowHeadEnabled,
+    setMAQuadroAspectLocked,
+    setMAQuadroImageAsBackground,
+    setMAQuadroStrokeStyle,
+    type MAQuadroCopiedStyle,
+    type MAQuadroStrokeStyle
+} from '../../lib/maQuadro/editorQuickActions';
+
+import {
     exportMAQuadroPageImage,
     exportMAQuadroPageSvg,
     exportMAQuadroPagesZip,
@@ -225,7 +240,10 @@ const emptySelection:
         cropZoom: 100,
         cropPositionX: 50,
         cropPositionY: 50,
-        imageFrame: 'none'
+        imageFrame: 'none',
+        aspectLocked: false,
+        strokeStyle: 'solid',
+        arrowHeadEnabled: true
     };
 
 const defaultExportOptions:
@@ -523,6 +541,11 @@ useMAQuadroEditor():
             HTMLInputElement | null
         >(null);
 
+    const replacementImageInputRef =
+        useRef<
+            HTMLInputElement | null
+        >(null);
+
     const fontInputRef =
         useRef<
             HTMLInputElement | null
@@ -546,6 +569,11 @@ useMAQuadroEditor():
     const clipboardRef =
         useRef<
             MAQuadroFabricObject | null
+        >(null);
+
+    const styleClipboardRef =
+        useRef<
+            MAQuadroCopiedStyle | null
         >(null);
 
     const clipboardPasteCountRef =
@@ -744,6 +772,11 @@ useMAQuadroEditor():
     const [
         canRedo,
         setCanRedo
+    ] = useState(false);
+
+    const [
+        hasCopiedStyle,
+        setHasCopiedStyle
     ] = useState(false);
 
     const [
@@ -1351,7 +1384,29 @@ useMAQuadroEditor():
                         ? getMAQuadroImageFrameKind(
                             image
                         )
-                        : 'none'
+                        : 'none',
+
+                aspectLocked:
+                    single
+                        ? getMAQuadroAspectLocked(
+                            active
+                        )
+                        : false,
+
+                strokeStyle:
+                    getMAQuadroStrokeStyle(
+                        active
+                    ),
+
+                arrowHeadEnabled:
+                    single &&
+                    getMAQuadroShapeKind(
+                        active
+                    ) === 'arrow'
+                        ? getMAQuadroArrowHeadEnabled(
+                            active
+                        )
+                        : true
             });
 
             syncLayers();
@@ -2333,6 +2388,8 @@ useMAQuadroEditor():
                         true,
 
                     selection: true,
+                    uniformScaling: true,
+                    uniScaleKey: null,
 
                     stopContextMenu:
                         true,
@@ -2521,7 +2578,7 @@ useMAQuadroEditor():
                     cropSession &&
                     target instanceof
                     FabricImage &&
-                    (target as FabricImage & MAQuadroFabricObject).maId ===
+                    target.maId ===
                     cropSession.objectId
                 ) {
                     const worldX =
@@ -2586,25 +2643,35 @@ useMAQuadroEditor():
                                 )
                             )
                         );
-const sourceWidth =
-    Math.max(
-        1,
-        Number(
-            (target as FabricImage & MAQuadroFabricObject).maOriginalWidth ||
-            target.width ||
-            1
-        )
-    );
 
-const sourceHeight =
-    Math.max(
-        1,
-        Number(
-            (target as FabricImage & MAQuadroFabricObject).maOriginalHeight ||
-            target.height ||
-            1
-        )
-    );
+                    const sourceWidth =
+                        Math.max(
+                            1,
+                            Number(
+                                (
+                                    target as
+                                        FabricImage &
+                                        MAQuadroFabricObject
+                                ).maOriginalWidth ||
+                                target.width ||
+                                1
+                            )
+                        );
+
+                    const sourceHeight =
+                        Math.max(
+                            1,
+                            Number(
+                                (
+                                    target as
+                                        FabricImage &
+                                        MAQuadroFabricObject
+                                ).maOriginalHeight ||
+                                target.height ||
+                                1
+                            )
+                        );
+
                     const maximumX =
                         Math.max(
                             0,
@@ -6123,6 +6190,64 @@ const sourceHeight =
             ]
         );
 
+    const copySelectionStyle =
+        useCallback(() => {
+            const canvas =
+                canvasRef.current;
+
+            const active =
+                canvas
+                    ?.getActiveObject() as
+                    | MAQuadroFabricObject
+                    | undefined;
+
+            if (
+                !active ||
+                interactionLocked()
+            ) {
+                return;
+            }
+
+            styleClipboardRef.current =
+                captureMAQuadroStyle(
+                    active
+                );
+
+            setHasCopiedStyle(
+                true
+            );
+
+            setStatusMessage(
+                'Estilo copiado. Selecione outro elemento e escolha “Colar estilo”.'
+            );
+        }, [
+            interactionLocked
+        ]);
+
+    const pasteSelectionStyle =
+        useCallback(() => {
+            const style =
+                styleClipboardRef.current;
+
+            if (!style) {
+                setStatusMessage(
+                    'Copie primeiro o estilo de um elemento.'
+                );
+                return;
+            }
+
+            applyToSelectedObjects(
+                (object) =>
+                    applyMAQuadroCopiedStyle(
+                        object,
+                        style
+                    ),
+                'Estilo aplicado à seleção.'
+            );
+        }, [
+            applyToSelectedObjects
+        ]);
+
     const setSelectionName =
         useCallback(
             (
@@ -6220,17 +6345,162 @@ const sourceHeight =
                     );
 
                 applyToSelectedObjects(
-                    (object) =>
+                    (object) => {
+                        const strokeStyle =
+                            getMAQuadroStrokeStyle(
+                                object
+                            );
+
                         setMAQuadroObjectStrokeWidth(
                             object,
                             safe
-                        ),
+                        );
+
+                        setMAQuadroStrokeStyle(
+                            object,
+                            strokeStyle
+                        );
+
+                        return true;
+                    },
 
                     'Espessura do contorno atualizada.'
                 );
             },
             [
                 applyToSelectedObjects
+            ]
+        );
+
+    const setSelectionStrokeStyle =
+        useCallback(
+            (
+                style:
+                    MAQuadroStrokeStyle
+            ) => {
+                applyToSelectedObjects(
+                    (object) =>
+                        setMAQuadroStrokeStyle(
+                            object,
+                            style
+                        ),
+                    style === 'solid'
+                        ? 'Traço contínuo aplicado.'
+                        : style === 'dashed'
+                            ? 'Traço tracejado aplicado.'
+                            : 'Traço pontilhado aplicado.'
+                );
+            },
+            [
+                applyToSelectedObjects
+            ]
+        );
+
+    const setSelectionAspectLocked =
+        useCallback(
+            (
+                locked: boolean
+            ) => {
+                const canvas =
+                    canvasRef.current;
+
+                const activeObjects =
+                    canvas
+                        ?.getActiveObjects() as
+                        | MAQuadroFabricObject[]
+                        | undefined;
+
+                if (
+                    !canvas ||
+                    !activeObjects ||
+                    activeObjects.length !== 1 ||
+                    interactionLocked()
+                ) {
+                    return;
+                }
+
+                const active =
+                    activeObjects[0];
+
+                if (
+                    active.maLocked ||
+                    getMAQuadroObjectRole(
+                        active
+                    ) === 'text'
+                ) {
+                    return;
+                }
+
+                if (
+                    !setMAQuadroAspectLocked(
+                        active,
+                        locked
+                    )
+                ) {
+                    syncSelection();
+                    return;
+                }
+
+                canvas.requestRenderAll();
+                syncSelection();
+
+                commitChange(
+                    locked
+                        ? 'Proporção bloqueada.'
+                        : 'Proporção desbloqueada.'
+                );
+            },
+            [
+                commitChange,
+                interactionLocked,
+                syncSelection
+            ]
+        );
+
+    const setArrowHeadEnabled =
+        useCallback(
+            (
+                enabled: boolean
+            ) => {
+                const canvas =
+                    canvasRef.current;
+
+                const active =
+                    canvas
+                        ?.getActiveObject() as
+                        | MAQuadroFabricObject
+                        | undefined;
+
+                if (
+                    !canvas ||
+                    !active ||
+                    interactionLocked()
+                ) {
+                    return;
+                }
+
+                if (
+                    !setMAQuadroArrowHeadEnabled(
+                        active,
+                        enabled
+                    )
+                ) {
+                    return;
+                }
+
+                canvas.requestRenderAll();
+                syncSelection();
+
+                commitChange(
+                    enabled
+                        ? 'Ponta da seta ativada.'
+                        : 'Ponta da seta ocultada.'
+                );
+            },
+            [
+                commitChange,
+                interactionLocked,
+                syncSelection
             ]
         );
 
@@ -6299,13 +6569,55 @@ const sourceHeight =
                     return;
                 }
 
-                setMAQuadroObjectGeometry(
-                    active,
-                    {
-                        [field]:
-                            value
-                    }
-                );
+                if (
+                    (
+                        field === 'width' ||
+                        field === 'height'
+                    ) &&
+                    getMAQuadroAspectLocked(
+                        active
+                    )
+                ) {
+                    const geometry =
+                        getMAQuadroObjectGeometry(
+                            active
+                        );
+
+                    const ratio =
+                        geometry.width /
+                        Math.max(
+                            0.0001,
+                            geometry.height
+                        );
+
+                    setMAQuadroObjectGeometry(
+                        active,
+                        field === 'width'
+                            ? {
+                                width: value,
+                                height:
+                                    value /
+                                    Math.max(
+                                        0.0001,
+                                        ratio
+                                    )
+                            }
+                            : {
+                                width:
+                                    value *
+                                    ratio,
+                                height: value
+                            }
+                    );
+                } else {
+                    setMAQuadroObjectGeometry(
+                        active,
+                        {
+                            [field]:
+                                value
+                        }
+                    );
+                }
 
                 canvas.requestRenderAll();
 
@@ -7344,6 +7656,138 @@ const sourceHeight =
             syncSelection
         ]);
 
+    const setImageAsBackground =
+        useCallback(() => {
+            const canvas =
+                canvasRef.current;
+
+            const image =
+                getSelectedImage();
+
+            if (
+                !canvas ||
+                !image ||
+                interactionLocked()
+            ) {
+                return;
+            }
+
+            setMAQuadroImageAsBackground(
+                canvas,
+                image
+            );
+
+            syncSelection();
+            syncLayers();
+
+            commitChange(
+                'Imagem definida como fundo e bloqueada na camada inferior.'
+            );
+        }, [
+            commitChange,
+            getSelectedImage,
+            interactionLocked,
+            syncLayers,
+            syncSelection
+        ]);
+
+    const replaceSelectedImage =
+        useCallback(
+            async (
+                event:
+                    ChangeEvent<HTMLInputElement>
+            ) => {
+                const file =
+                    event.currentTarget
+                        .files?.[0];
+
+                event.currentTarget.value =
+                    '';
+
+                if (!file) {
+                    return;
+                }
+
+                const canvas =
+                    canvasRef.current;
+
+                const image =
+                    getSelectedImage();
+
+                if (
+                    !canvas ||
+                    !image ||
+                    interactionLocked()
+                ) {
+                    return;
+                }
+
+                setBusy(
+                    true
+                );
+
+                setStatusMessage(
+                    'A substituir a imagem…'
+                );
+
+                try {
+                    isLoadingRef.current =
+                        true;
+
+                    let replacement:
+                        FabricImage &
+                        MAQuadroFabricObject;
+
+                    try {
+                        replacement =
+                            await replaceMAQuadroImage(
+                                canvas,
+                                image,
+                                file
+                            );
+                    } finally {
+                        isLoadingRef.current =
+                            false;
+                    }
+
+                    canvas.setActiveObject(
+                        replacement
+                    );
+
+                    canvas.requestRenderAll();
+                    syncSelection();
+                    syncLayers();
+
+                    commitChange(
+                        'Imagem substituída. A posição, tamanho, enquadramento, filtros e moldura foram preservados.'
+                    );
+                } catch (error) {
+                    console.error(
+                        error
+                    );
+
+                    setStatusMessage(
+                        'Não foi possível substituir esta imagem.'
+                    );
+                } finally {
+                    isLoadingRef.current =
+                        false;
+
+                    setBusy(
+                        false
+                    );
+                }
+            },
+            [
+                commitChange,
+                getSelectedImage,
+                interactionLocked,
+                setBusy,
+                syncLayers,
+                syncSelection
+            ]
+        );
+
     const removeImageBackground =
         useCallback(
             async () => {
@@ -8339,6 +8783,20 @@ const sourceHeight =
 
             if (
                 modifier &&
+                event.altKey &&
+                key === 'c'
+            ) {
+                event.preventDefault();
+                copySelectionStyle();
+            } else if (
+                modifier &&
+                event.altKey &&
+                key === 'v'
+            ) {
+                event.preventDefault();
+                pasteSelectionStyle();
+            } else if (
+                modifier &&
                 key ===
                 'z'
             ) {
@@ -8548,11 +9006,13 @@ const sourceHeight =
     }, [
         cancelImageCrop,
         copySelection,
+        copySelectionStyle,
         deleteSelection,
         duplicateSelection,
         finishImageCrop,
         moveSelection,
         pasteSelection,
+        pasteSelectionStyle,
         redo,
         saveProject,
         selectAll,
@@ -8565,6 +9025,7 @@ const sourceHeight =
         canvasElementRef,
         workspaceRef,
         imageInputRef,
+        replacementImageInputRef,
         fontInputRef,
         projectInputRef,
 
@@ -8590,6 +9051,7 @@ const sourceHeight =
 
         canUndo,
         canRedo,
+        hasCopiedStyle,
 
         drawingMode,
         brushColor,
@@ -8648,6 +9110,8 @@ const sourceHeight =
         duplicateSelection,
         copySelection,
         pasteSelection,
+        copySelectionStyle,
+        pasteSelectionStyle,
         selectAll,
 
         groupSelection,
@@ -8669,6 +9133,9 @@ const sourceHeight =
         setSelectionFill,
         setSelectionStroke,
         setSelectionStrokeWidth,
+        setSelectionStrokeStyle,
+        setSelectionAspectLocked,
+        setArrowHeadEnabled,
         setSelectionOpacity,
         setSelectionGeometry,
         setSelectionFlip,
@@ -8693,6 +9160,8 @@ const sourceHeight =
         setImageCropZoom,
         setImageCropPosition,
         setImageFrame,
+        setImageAsBackground,
+        replaceSelectedImage,
 
         removeImageBackground,
 
