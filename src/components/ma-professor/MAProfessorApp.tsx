@@ -455,15 +455,15 @@ function AcademicYearSetup({
           </h1>
 
           <p className="mt-5 text-sm leading-7 text-slate-300 sm:text-base">
-            O MA-Professor começa vazio. As suas turmas, alunos, planificações, critérios, aulas e classificações serão introduzidos por si e guardados neste dispositivo.
+            O MA-Professor começa vazio. As suas turmas, alunos, planificações, critérios, aulas e classificações serão introduzidos por si e guardados localmente, com opção de criar cópias cifradas online controladas por si.
           </p>
 
           <div className="mt-7 space-y-4">
             {[
               'Nenhum dado de demonstração será criado.',
-              'Os dados escolares ficam guardados localmente.',
+              'Os dados escolares são guardados localmente no seu dispositivo.',
               'Pode alterar a configuração posteriormente.',
-              'As cópias de segurança serão adicionadas antes do lançamento.'
+              'Pode criar e verificar cópias cifradas online nas Definições.'
             ].map(
               item => (
                 <div
@@ -2478,11 +2478,11 @@ export default function MAProfessorApp() {
 
           <div className="mt-auto rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-              Dados locais
+              Dados protegidos
             </p>
 
             <p className="mt-2 text-xs leading-6 text-slate-400">
-              Os dados escolares estão guardados neste dispositivo.
+              Os dados escolares ficam guardados localmente e podem ter uma cópia cifrada online.
             </p>
           </div>
         </aside>
@@ -2522,7 +2522,7 @@ export default function MAProfessorApp() {
 
               <div className="flex items-center gap-3">
                 <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-100">
-                  Beta privada
+                  Beta gratuita
                 </span>
 
                 <a
