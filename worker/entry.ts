@@ -17,6 +17,12 @@ import {
 } from './maProfessorAccess'
 
 import {
+  handleMAProfessorRecoveryApiRequest,
+  isMAProfessorRecoveryApiPath,
+  type MaProfessorRecoveryEnv
+} from './maProfessorRecovery'
+
+import {
   handleMAProfessorSnapshotApiRequest,
   isMAProfessorSnapshotApiPath,
   type MaProfessorSnapshotEnv
@@ -37,7 +43,8 @@ export type Env =
   BaseEnv &
   BtcAlertsEnv &
   MaProfessorSyncEnv &
-  MaProfessorSnapshotEnv
+  MaProfessorSnapshotEnv &
+  MaProfessorRecoveryEnv
 
 type ExecutionContextLike = {
   waitUntil(
@@ -83,6 +90,17 @@ export default {
       )
     ) {
       return handleMAProfessorSyncApiRequest(
+        request,
+        env
+      )
+    }
+
+    if (
+      isMAProfessorRecoveryApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorRecoveryApiRequest(
         request,
         env
       )
