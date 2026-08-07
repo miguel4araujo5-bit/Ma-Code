@@ -150,6 +150,16 @@ export default function CanvasContextMenu({
     editor.selection.role ===
       'image'
 
+  const canLockRatio =
+    editor.selection.count ===
+      1 &&
+    editor.selection.role !==
+      'text' &&
+    editor.selection.role !==
+      'line' &&
+    editor.selection.role !==
+      'arrow'
+
   useLayoutEffect(() => {
     setAdjustedPosition(
       position
@@ -494,7 +504,78 @@ export default function CanvasContextMenu({
             )
           }
         />
+
+        <MenuItem
+          icon="◈"
+          label="Copiar estilo"
+          shortcut="⌘/Ctrl Alt C"
+          disabled={locked}
+          onClick={() =>
+            run(
+              editor.copySelectionStyle
+            )
+          }
+        />
+
+        <MenuItem
+          icon="◆"
+          label="Colar estilo"
+          shortcut="⌘/Ctrl Alt V"
+          disabled={
+            locked ||
+            !editor.hasCopiedStyle
+          }
+          onClick={() =>
+            run(
+              editor.pasteSelectionStyle
+            )
+          }
+        />
       </MenuGroup>
+
+      {isImage ? (
+        <>
+          <MenuSeparator />
+
+          <MenuGroup label="Imagem">
+            <MenuItem
+              icon="↻"
+              label="Substituir imagem"
+              disabled={locked}
+              onClick={() =>
+                run(
+                  () =>
+                    editor.replacementImageInputRef
+                      .current
+                      ?.click()
+                )
+              }
+            />
+
+            <MenuItem
+              icon="▣"
+              label="Definir como fundo"
+              disabled={locked}
+              onClick={() =>
+                run(
+                  editor.setImageAsBackground
+                )
+              }
+            />
+
+            <MenuItem
+              icon="⌗"
+              label="Recortar imagem"
+              disabled={locked}
+              onClick={() =>
+                run(
+                  editor.beginImageCrop
+                )
+              }
+            />
+          </MenuGroup>
+        </>
+      ) : null}
 
       <MenuSeparator />
 
@@ -654,14 +735,28 @@ export default function CanvasContextMenu({
           }
         />
 
-        {isImage ? (
+        {canLockRatio ? (
           <MenuItem
-            icon="⌗"
-            label="Recortar imagem"
+            icon={
+              editor.selection
+                .aspectLocked
+                ? '🔒'
+                : '🔓'
+            }
+            label={
+              editor.selection
+                .aspectLocked
+                ? 'Desbloquear proporção'
+                : 'Bloquear proporção'
+            }
             disabled={locked}
             onClick={() =>
               run(
-                editor.beginImageCrop
+                () =>
+                  editor.setSelectionAspectLocked(
+                    !editor.selection
+                      .aspectLocked
+                  )
               )
             }
           />
