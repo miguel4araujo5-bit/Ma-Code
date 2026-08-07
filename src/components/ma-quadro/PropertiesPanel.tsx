@@ -127,7 +127,8 @@ function LayerNameField() {
     setDraft(next)
 
     if (
-      next !== currentName
+      next !==
+      currentName
     ) {
       editor.setSelectionName(
         next
@@ -140,12 +141,16 @@ function LayerNameField() {
       KeyboardEvent<HTMLInputElement>
   ) => {
     if (
-      event.key === 'Enter'
+      event.key ===
+      'Enter'
     ) {
       event.preventDefault()
-      event.currentTarget.blur()
+
+      event.currentTarget
+        .blur()
     } else if (
-      event.key === 'Escape'
+      event.key ===
+      'Escape'
     ) {
       event.preventDefault()
 
@@ -156,7 +161,8 @@ function LayerNameField() {
         currentName
       )
 
-      event.currentTarget.blur()
+      event.currentTarget
+        .blur()
     }
   }
 
@@ -172,7 +178,8 @@ function LayerNameField() {
         maxLength={180}
         disabled={
           editor.busy ||
-          editor.structureBusy
+          editor.structureBusy ||
+          editor.imageCropEditing
         }
         onChange={(event) =>
           setDraft(
@@ -201,17 +208,21 @@ function BackgroundProperties() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   const resizePages = () => {
     const widthInput =
       window.prompt(
         'Nova largura em píxeis:',
-        String(page.width)
+        String(
+          page.width
+        )
       )
 
     if (
-      widthInput === null
+      widthInput ===
+      null
     ) {
       return
     }
@@ -219,24 +230,35 @@ function BackgroundProperties() {
     const heightInput =
       window.prompt(
         'Nova altura em píxeis:',
-        String(page.height)
+        String(
+          page.height
+        )
       )
 
     if (
-      heightInput === null
+      heightInput ===
+      null
     ) {
       return
     }
 
     const width =
-      Number(widthInput)
+      Number(
+        widthInput
+      )
 
     const height =
-      Number(heightInput)
+      Number(
+        heightInput
+      )
 
     if (
-      !Number.isFinite(width) ||
-      !Number.isFinite(height) ||
+      !Number.isFinite(
+        width
+      ) ||
+      !Number.isFinite(
+        height
+      ) ||
       width < 100 ||
       height < 100 ||
       width > 8000 ||
@@ -250,8 +272,12 @@ function BackgroundProperties() {
     }
 
     void editor.resizeAllPages(
-      Math.round(width),
-      Math.round(height)
+      Math.round(
+        width
+      ),
+      Math.round(
+        height
+      )
     )
   }
 
@@ -276,7 +302,12 @@ function BackgroundProperties() {
               'Transparente'
             ]
           ] as const).map(
-            ([type, label]) => (
+            (
+              [
+                type,
+                label
+              ]
+            ) => (
               <button
                 key={type}
                 type="button"
@@ -323,7 +354,9 @@ function BackgroundProperties() {
                 page.background
                   .gradientFrom
               }
-              onCommit={(gradientFrom) =>
+              onCommit={(
+                gradientFrom
+              ) =>
                 editor.setBackground({
                   gradientFrom
                 })
@@ -336,7 +369,9 @@ function BackgroundProperties() {
                 page.background
                   .gradientTo
               }
-              onCommit={(gradientTo) =>
+              onCommit={(
+                gradientTo
+              ) =>
                 editor.setBackground({
                   gradientTo
                 })
@@ -349,7 +384,9 @@ function BackgroundProperties() {
                 page.background
                   .gradientAngle
               }
-              onCommit={(gradientAngle) =>
+              onCommit={(
+                gradientAngle
+              ) =>
                 editor.setBackground({
                   gradientAngle
                 })
@@ -369,7 +406,9 @@ function BackgroundProperties() {
         <div className="mq-two-columns">
           <NumberField
             label="Largura"
-            value={page.width}
+            value={
+              page.width
+            }
             onCommit={() =>
               undefined
             }
@@ -379,7 +418,9 @@ function BackgroundProperties() {
 
           <NumberField
             label="Altura"
-            value={page.height}
+            value={
+              page.height
+            }
             onCommit={() =>
               undefined
             }
@@ -390,17 +431,21 @@ function BackgroundProperties() {
 
         <p className="mq-control-note">
           Para evitar alterações
-          acidentais, o redimensionamento
-          é aplicado a todas as páginas.
+          acidentais, o
+          redimensionamento é aplicado
+          a todas as páginas.
         </p>
 
         <button
           type="button"
           className="mq-panel-action"
           disabled={locked}
-          onClick={resizePages}
+          onClick={
+            resizePages
+          }
         >
-          Redimensionar todas as páginas
+          Redimensionar todas as
+          páginas
         </button>
       </Section>
     </>
@@ -414,9 +459,15 @@ function SelectionGeometry() {
   const selection =
     editor.selection
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy ||
+    editor.imageCropEditing
+
   const textSelected =
     selection.count === 1 &&
-    selection.role === 'text'
+    selection.role ===
+      'text'
 
   return (
     <Section
@@ -430,7 +481,9 @@ function SelectionGeometry() {
       <div className="mq-two-columns">
         <NumberField
           label="X"
-          value={selection.x}
+          value={
+            selection.x
+          }
           onCommit={(value) =>
             editor.setSelectionGeometry(
               'x',
@@ -438,11 +491,14 @@ function SelectionGeometry() {
             )
           }
           suffix="px"
+          disabled={locked}
         />
 
         <NumberField
           label="Y"
-          value={selection.y}
+          value={
+            selection.y
+          }
           onCommit={(value) =>
             editor.setSelectionGeometry(
               'y',
@@ -450,6 +506,7 @@ function SelectionGeometry() {
             )
           }
           suffix="px"
+          disabled={locked}
         />
 
         {!textSelected ? (
@@ -467,6 +524,7 @@ function SelectionGeometry() {
               }
               min={1}
               suffix="px"
+              disabled={locked}
             />
 
             <NumberField
@@ -482,6 +540,7 @@ function SelectionGeometry() {
               }
               min={1}
               suffix="px"
+              disabled={locked}
             />
           </>
         ) : null}
@@ -489,15 +548,18 @@ function SelectionGeometry() {
 
       {textSelected ? (
         <p className="mq-control-note">
-          Para alterar a caixa de texto sem
-          deformar as letras, use os
-          controlos diretamente no quadro.
+          Para alterar a caixa de
+          texto sem deformar as
+          letras, use os controlos
+          diretamente no quadro.
         </p>
       ) : null}
 
       <RangeField
         label="Rotação"
-        value={selection.angle}
+        value={
+          selection.angle
+        }
         onCommit={(value) =>
           editor.setSelectionGeometry(
             'angle',
@@ -512,10 +574,7 @@ function SelectionGeometry() {
       <div className="mq-action-grid mq-action-grid--2">
         <button
           type="button"
-          disabled={
-            editor.busy ||
-            editor.structureBusy
-          }
+          disabled={locked}
           onClick={() =>
             editor.setSelectionFlip(
               'x'
@@ -527,10 +586,7 @@ function SelectionGeometry() {
 
         <button
           type="button"
-          disabled={
-            editor.busy ||
-            editor.structureBusy
-          }
+          disabled={locked}
           onClick={() =>
             editor.setSelectionFlip(
               'y'
@@ -551,13 +607,21 @@ function AppearanceProperties() {
   const selection =
     editor.selection
 
+  const locked =
+    editor.busy ||
+    editor.structureBusy ||
+    editor.imageCropEditing
+
   const supportsFill =
-    selection.role !== 'image' &&
-    selection.role !== 'group'
+    selection.role !==
+      'image' &&
+    selection.role !==
+      'group'
 
   const supportsCornerRadius =
     selection.count === 1 &&
-    selection.role === 'shape' &&
+    selection.role ===
+      'shape' &&
     selection.shapeKind ===
       'rectangle'
 
@@ -569,7 +633,9 @@ function AppearanceProperties() {
       {supportsFill ? (
         <ColorField
           label="Preenchimento"
-          value={selection.fill}
+          value={
+            selection.fill
+          }
           onCommit={
             editor.setSelectionFill
           }
@@ -579,7 +645,9 @@ function AppearanceProperties() {
 
       <ColorField
         label="Contorno"
-        value={selection.stroke}
+        value={
+          selection.stroke
+        }
         onCommit={
           editor.setSelectionStroke
         }
@@ -601,7 +669,9 @@ function AppearanceProperties() {
 
       <RangeField
         label="Opacidade"
-        value={selection.opacity}
+        value={
+          selection.opacity
+        }
         onCommit={
           editor.setSelectionOpacity
         }
@@ -624,6 +694,13 @@ function AppearanceProperties() {
           suffix="px"
         />
       ) : null}
+
+      {locked ? (
+        <p className="mq-control-note">
+          Conclua a operação atual
+          antes de alterar o aspeto.
+        </p>
+      ) : null}
     </Section>
   )
 }
@@ -636,14 +713,16 @@ function TextProperties() {
     editor.selection
 
   if (
-    selection.role !== 'text'
+    selection.role !==
+    'text'
   ) {
     return null
   }
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   return (
     <Section
@@ -670,8 +749,12 @@ function TextProperties() {
           {editor.availableFonts.map(
             (font) => (
               <option
-                key={font.family}
-                value={font.family}
+                key={
+                  font.family
+                }
+                value={
+                  font.family
+                }
               >
                 {font.name}
               </option>
@@ -683,7 +766,9 @@ function TextProperties() {
       <div className="mq-two-columns">
         <NumberField
           label="Tamanho"
-          value={selection.fontSize}
+          value={
+            selection.fontSize
+          }
           onCommit={(value) =>
             editor.setTextProperty(
               'fontSize',
@@ -693,6 +778,7 @@ function TextProperties() {
           min={6}
           max={600}
           suffix="px"
+          disabled={locked}
         />
 
         <label className="mq-field">
@@ -831,7 +917,9 @@ function TextProperties() {
 
       <RangeField
         label="Altura da linha"
-        value={selection.lineHeight}
+        value={
+          selection.lineHeight
+        }
         onCommit={(value) =>
           editor.setTextProperty(
             'lineHeight',
@@ -845,7 +933,9 @@ function TextProperties() {
 
       <RangeField
         label="Espaçamento das letras"
-        value={selection.charSpacing}
+        value={
+          selection.charSpacing
+        }
         onCommit={(value) =>
           editor.setTextProperty(
             'charSpacing',
@@ -911,12 +1001,14 @@ function EffectsProperties() {
       'shape',
       'text'
     ].includes(
-      selection.role || ''
+      selection.role ||
+      ''
     )
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   return (
     <Section
@@ -991,6 +1083,7 @@ function EffectsProperties() {
                 })
               }
               suffix="px"
+              disabled={locked}
             />
 
             <NumberField
@@ -1004,6 +1097,7 @@ function EffectsProperties() {
                 })
               }
               suffix="px"
+              disabled={locked}
             />
           </div>
         </>
@@ -1093,7 +1187,8 @@ function ImageProperties() {
     editor.selection
 
   if (
-    selection.role !== 'image'
+    selection.role !==
+    'image'
   ) {
     return null
   }
@@ -1102,142 +1197,225 @@ function ImageProperties() {
     editor.busy ||
     editor.structureBusy
 
+  const regularControlsLocked =
+    locked ||
+    editor.imageCropEditing
+
   return (
     <>
       <Section
         title="Ajustar imagem"
         description="Filtros não destrutivos"
       >
-        <RangeField
-          label="Brilho"
-          value={
-            selection.imageFilters
-              .brightness
+        <fieldset
+          disabled={
+            regularControlsLocked
           }
-          onCommit={(brightness) =>
-            editor.setImageFilters({
-              brightness
-            })
-          }
-          min={-100}
-          max={100}
-        />
-
-        <RangeField
-          label="Contraste"
-          value={
-            selection.imageFilters
-              .contrast
-          }
-          onCommit={(contrast) =>
-            editor.setImageFilters({
-              contrast
-            })
-          }
-          min={-100}
-          max={100}
-        />
-
-        <RangeField
-          label="Saturação"
-          value={
-            selection.imageFilters
-              .saturation
-          }
-          onCommit={(saturation) =>
-            editor.setImageFilters({
-              saturation
-            })
-          }
-          min={-100}
-          max={100}
-        />
-
-        <RangeField
-          label="Desfoque"
-          value={
-            selection.imageFilters.blur
-          }
-          onCommit={(blur) =>
-            editor.setImageFilters({
-              blur
-            })
-          }
-          min={0}
-          max={100}
-        />
-
-        <label className="mq-switch-row">
-          <span>
-            <strong>
-              Preto e branco
-            </strong>
-          </span>
-
-          <input
-            type="checkbox"
-            checked={
+          style={{
+            border: 0,
+            margin: 0,
+            minInlineSize: 0,
+            padding: 0
+          }}
+        >
+          <RangeField
+            label="Brilho"
+            value={
               selection.imageFilters
-                .grayscale
+                .brightness
             }
-            disabled={locked}
-            onChange={(event) =>
+            onCommit={(brightness) =>
               editor.setImageFilters({
-                grayscale:
-                  event.target.checked
+                brightness
               })
             }
+            min={-100}
+            max={100}
           />
-        </label>
 
-        <button
-          type="button"
-          className="mq-panel-action"
-          disabled={locked}
-          onClick={
-            editor.resetImageFilters
-          }
-        >
-          Repor ajustes
-        </button>
+          <RangeField
+            label="Contraste"
+            value={
+              selection.imageFilters
+                .contrast
+            }
+            onCommit={(contrast) =>
+              editor.setImageFilters({
+                contrast
+              })
+            }
+            min={-100}
+            max={100}
+          />
+
+          <RangeField
+            label="Saturação"
+            value={
+              selection.imageFilters
+                .saturation
+            }
+            onCommit={(saturation) =>
+              editor.setImageFilters({
+                saturation
+              })
+            }
+            min={-100}
+            max={100}
+          />
+
+          <RangeField
+            label="Desfoque"
+            value={
+              selection.imageFilters
+                .blur
+            }
+            onCommit={(blur) =>
+              editor.setImageFilters({
+                blur
+              })
+            }
+            min={0}
+            max={100}
+          />
+
+          <label className="mq-switch-row">
+            <span>
+              <strong>
+                Preto e branco
+              </strong>
+            </span>
+
+            <input
+              type="checkbox"
+              checked={
+                selection.imageFilters
+                  .grayscale
+              }
+              disabled={
+                regularControlsLocked
+              }
+              onChange={(event) =>
+                editor.setImageFilters({
+                  grayscale:
+                    event.target.checked
+                })
+              }
+            />
+          </label>
+
+          <button
+            type="button"
+            className="mq-panel-action"
+            disabled={
+              regularControlsLocked
+            }
+            onClick={
+              editor.resetImageFilters
+            }
+          >
+            Repor ajustes
+          </button>
+        </fieldset>
       </Section>
 
       <Section
-        title="Recortar"
-        description="Recorte simétrico local"
-        defaultOpen={false}
+        title="Recortar e reposicionar"
+        description="Zoom, enquadramento e arrasto direto"
+        defaultOpen={
+          editor.imageCropEditing
+        }
       >
-        <RangeField
-          label="Lados"
-          value={
-            selection.cropHorizontal
-          }
-          onCommit={(horizontal) =>
-            editor.setImageCrop(
-              horizontal,
-              selection.cropVertical
-            )
-          }
-          min={0}
-          max={45}
-          suffix="%"
-        />
+        <p className="mq-control-note">
+          Entre no modo de recorte e
+          arraste a imagem dentro da
+          própria área visível, como
+          num editor de design
+          profissional.
+        </p>
 
-        <RangeField
-          label="Topo e fundo"
-          value={
-            selection.cropVertical
-          }
-          onCommit={(vertical) =>
-            editor.setImageCrop(
-              selection.cropHorizontal,
-              vertical
-            )
-          }
-          min={0}
-          max={45}
-          suffix="%"
-        />
+        {!editor.imageCropEditing ? (
+          <button
+            type="button"
+            className="mq-panel-action mq-panel-action--accent"
+            disabled={locked}
+            onClick={
+              editor.beginImageCrop
+            }
+          >
+            Editar recorte no quadro
+          </button>
+        ) : (
+          <>
+            <RangeField
+              label="Zoom da imagem"
+              value={
+                selection.cropZoom
+              }
+              onCommit={
+                editor.setImageCropZoom
+              }
+              min={100}
+              max={400}
+              suffix="%"
+            />
+
+            <RangeField
+              label="Posição horizontal"
+              value={
+                selection.cropPositionX
+              }
+              onCommit={(positionX) =>
+                editor.setImageCropPosition(
+                  positionX,
+                  selection.cropPositionY
+                )
+              }
+              min={0}
+              max={100}
+              suffix="%"
+            />
+
+            <RangeField
+              label="Posição vertical"
+              value={
+                selection.cropPositionY
+              }
+              onCommit={(positionY) =>
+                editor.setImageCropPosition(
+                  selection.cropPositionX,
+                  positionY
+                )
+              }
+              min={0}
+              max={100}
+              suffix="%"
+            />
+
+            <div className="mq-action-grid mq-action-grid--2">
+              <button
+                type="button"
+                className="mq-panel-action mq-panel-action--accent"
+                disabled={locked}
+                onClick={
+                  editor.finishImageCrop
+                }
+              >
+                Concluir recorte
+              </button>
+
+              <button
+                type="button"
+                className="mq-panel-action"
+                disabled={locked}
+                onClick={
+                  editor.cancelImageCrop
+                }
+              >
+                Cancelar
+              </button>
+            </div>
+          </>
+        )}
 
         <button
           type="button"
@@ -1252,26 +1430,100 @@ function ImageProperties() {
       </Section>
 
       <Section
+        title="Moldura"
+        description="Máscaras para imagens"
+        defaultOpen={false}
+      >
+        <div className="mq-action-grid mq-action-grid--2">
+          {([
+            [
+              'none',
+              'Sem moldura'
+            ],
+            [
+              'rounded',
+              'Arredondada'
+            ],
+            [
+              'circle',
+              'Círculo'
+            ],
+            [
+              'ellipse',
+              'Elipse'
+            ],
+            [
+              'triangle',
+              'Triângulo'
+            ],
+            [
+              'star',
+              'Estrela'
+            ]
+          ] as const).map(
+            (
+              [
+                kind,
+                label
+              ]
+            ) => (
+              <button
+                key={kind}
+                type="button"
+                className={
+                  selection.imageFrame ===
+                  kind
+                    ? 'is-active'
+                    : ''
+                }
+                disabled={
+                  regularControlsLocked
+                }
+                onClick={() =>
+                  editor.setImageFrame(
+                    kind
+                  )
+                }
+              >
+                {label}
+              </button>
+            )
+          )}
+        </div>
+
+        <p className="mq-control-note">
+          A moldura fica incorporada no
+          objeto da imagem e é
+          preservada ao guardar e
+          exportar o design.
+        </p>
+      </Section>
+
+      <Section
         title="Remover fundo"
         description="Processamento totalmente local"
         defaultOpen={false}
       >
         <p className="mq-control-note">
-          Funciona melhor em fotografias
-          com um fundo liso e uniforme.
-          Não envia a imagem para
-          servidores externos.
+          Funciona melhor em
+          fotografias com um fundo
+          liso e uniforme. Não envia a
+          imagem para servidores
+          externos.
         </p>
 
         <button
           type="button"
           className="mq-panel-action mq-panel-action--accent"
-          disabled={locked}
+          disabled={
+            regularControlsLocked
+          }
           onClick={() =>
             void editor.removeImageBackground()
           }
         >
-          Remover fundo automaticamente
+          Remover fundo
+          automaticamente
         </button>
       </Section>
     </>
@@ -1284,7 +1536,8 @@ function ArrangeProperties() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   return (
     <Section
@@ -1373,7 +1626,8 @@ function LayersPanel() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   return (
     <Section
@@ -1404,7 +1658,10 @@ function LayersPanel() {
               >
                 <span className="mq-layer-row__type">
                   {layer.type
-                    .slice(0, 1)
+                    .slice(
+                      0,
+                      1
+                    )
                     .toUpperCase()}
                 </span>
 
@@ -1495,7 +1752,8 @@ function LayersPanel() {
         )}
       </div>
 
-      {editor.layers.length === 0 ? (
+      {editor.layers.length ===
+      0 ? (
         <div className="mq-empty-state">
           Esta página ainda não tem
           elementos.
@@ -1519,7 +1777,8 @@ export default function PropertiesPanel() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   return (
     <>
@@ -1528,7 +1787,9 @@ export default function PropertiesPanel() {
           type="button"
           className="mq-properties-backdrop"
           onClick={() =>
-            setDrawerOpen(false)
+            setDrawerOpen(
+              false
+            )
           }
           aria-label="Fechar painel de edição"
         />
@@ -1541,7 +1802,10 @@ export default function PropertiesPanel() {
             : ''
         }`}
         aria-label="Painel de propriedades"
-        aria-busy={locked}
+        aria-busy={
+          editor.busy ||
+          editor.structureBusy
+        }
       >
         <button
           type="button"
@@ -1552,7 +1816,9 @@ export default function PropertiesPanel() {
                 !current
             )
           }
-          aria-expanded={drawerOpen}
+          aria-expanded={
+            drawerOpen
+          }
           aria-label={
             drawerOpen
               ? 'Fechar painel de edição'
@@ -1575,11 +1841,13 @@ export default function PropertiesPanel() {
             <small>
               {hasSelection
                 ? `${editor.selection.count} elemento${
-                    editor.selection.count === 1
+                    editor.selection.count ===
+                    1
                       ? ''
                       : 's'
                   }`
-                : editor.activePage?.name ||
+                : editor.activePage
+                    ?.name ||
                   'Página'}
             </small>
           </span>
@@ -1602,7 +1870,8 @@ export default function PropertiesPanel() {
         <div className="mq-properties-panel__scroll">
           {hasSelection ? (
             <>
-              {editor.selection.count ===
+              {!editor.imageCropEditing &&
+              editor.selection.count ===
               1 ? (
                 <Section
                   title="Camada"
@@ -1612,12 +1881,21 @@ export default function PropertiesPanel() {
                 </Section>
               ) : null}
 
-              <SelectionGeometry />
-              <AppearanceProperties />
-              <TextProperties />
+              {!editor.imageCropEditing ? (
+                <>
+                  <SelectionGeometry />
+
+                  <AppearanceProperties />
+
+                  <TextProperties />
+
+                  <EffectsProperties />
+
+                  <ArrangeProperties />
+                </>
+              ) : null}
+
               <ImageProperties />
-              <EffectsProperties />
-              <ArrangeProperties />
             </>
           ) : (
             <BackgroundProperties />
