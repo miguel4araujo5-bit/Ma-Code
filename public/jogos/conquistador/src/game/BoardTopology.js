@@ -1,4 +1,6 @@
 import { GAME_CONFIG } from '../data/gameConfig.js';
+import { classifyCoast } from './CoastTopology.js';
+import { createPorts } from './PortManager.js';
 
 const SQRT3 = Math.sqrt(3);
 const DEFAULT_HEX_SIZE = 62;
@@ -12,166 +14,316 @@ function pointKey(x, y) {
 }
 
 function edgeKey(firstVertexId, secondVertexId) {
-  return [firstVertexId, secondVertexId].sort().join('|');
+  return [firstVertexId, secondVertexId]
+    .sort()
+    .join('|');
 }
 
-export function axialToPixel(q, r, size = DEFAULT_HEX_SIZE) {
+export function axialToPixel(
+  q,
+  r,
+  size = DEFAULT_HEX_SIZE,
+) {
   return {
-    x: size * SQRT3 * (q + r / 2),
-    y: size * 1.5 * r,
+    x:
+      size *
+      SQRT3 *
+      (q + r / 2),
+
+    y:
+      size *
+      1.5 *
+      r,
   };
 }
 
-function calculateCorner(center, size, index) {
-  const angle = ((60 * index - 30) * Math.PI) / 180;
+function calculateCorner(
+  center,
+  size,
+  index,
+) {
+  const angle =
+    ((60 * index - 30) *
+      Math.PI) /
+    180;
 
   return {
-    x: center.x + size * Math.cos(angle),
-    y: center.y + size * Math.sin(angle),
+    x:
+      center.x +
+      size *
+        Math.cos(angle),
+
+    y:
+      center.y +
+      size *
+        Math.sin(angle),
   };
 }
 
-function assertBoardTopology(vertices, edges) {
-  const expectedVertices = GAME_CONFIG.board.expectedVertexCount;
-  const expectedEdges = GAME_CONFIG.board.expectedEdgeCount;
+function assertBoardTopology(
+  vertices,
+  edges,
+) {
+  const expectedVertices =
+    GAME_CONFIG
+      .board
+      .expectedVertexCount;
 
-  if (vertices.length !== expectedVertices) {
+  const expectedEdges =
+    GAME_CONFIG
+      .board
+      .expectedEdgeCount;
+
+  const expectedBoundaryEdges =
+    GAME_CONFIG
+      .board
+      .expectedBoundaryEdgeCount;
+
+  if (
+    vertices.length !==
+    expectedVertices
+  ) {
     throw new Error(
       `Topologia inválida: esperavam-se ${expectedVertices} vértices e foram gerados ${vertices.length}.`,
     );
   }
 
-  if (edges.length !== expectedEdges) {
+  if (
+    edges.length !==
+    expectedEdges
+  ) {
     throw new Error(
       `Topologia inválida: esperavam-se ${expectedEdges} arestas e foram geradas ${edges.length}.`,
     );
   }
+
+  const boundaryEdgeCount =
+    edges.filter(
+      (edge) =>
+        edge.isBoundary,
+    ).length;
+
+  if (
+    Number.isInteger(
+      expectedBoundaryEdges,
+    ) &&
+    boundaryEdgeCount !==
+      expectedBoundaryEdges
+  ) {
+    throw new Error(
+      `Topologia costeira inválida: esperavam-se ${expectedBoundaryEdges} arestas de perímetro e foram geradas ${boundaryEdgeCount}.`,
+    );
+  }
 }
 
-export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
-  if (!board?.territories?.length) {
+export function buildBoardTopology(
+  board,
+  size = DEFAULT_HEX_SIZE,
+) {
+  if (
+    !board
+      ?.territories
+      ?.length
+  ) {
     throw new Error(
       'Não é possível criar a topologia de um tabuleiro sem territórios.',
     );
   }
 
-  const verticesByPosition = new Map();
-  const edgesByVertices = new Map();
+  const verticesByPosition =
+    new Map();
 
-  for (const territory of board.territories) {
-    const center = axialToPixel(
-      territory.q,
-      territory.r,
-      size,
-    );
+  const edgesByVertices =
+    new Map();
 
-    const territoryVertexIds = [];
-    const territoryEdgeIds = [];
+  for (
+    const territory
+    of board.territories
+  ) {
+    const center =
+      axialToPixel(
+        territory.q,
+        territory.r,
+        size,
+      );
+
+    const territoryVertexIds =
+      [];
+
+    const territoryEdgeIds =
+      [];
 
     territory.center = {
-      x: roundCoordinate(center.x),
-      y: roundCoordinate(center.y),
+      x:
+        roundCoordinate(
+          center.x,
+        ),
+
+      y:
+        roundCoordinate(
+          center.y,
+        ),
     };
 
-    for (let index = 0; index < 6; index += 1) {
-      const point = calculateCorner(
-        center,
-        size,
-        index,
-      );
+    for (
+      let index = 0;
+      index < 6;
+      index += 1
+    ) {
+      const point =
+        calculateCorner(
+          center,
+          size,
+          index,
+        );
 
-      const positionKey = pointKey(
-        point.x,
-        point.y,
-      );
+      const positionKey =
+        pointKey(
+          point.x,
+          point.y,
+        );
 
       let vertex =
-        verticesByPosition.get(positionKey);
+        verticesByPosition
+          .get(
+            positionKey,
+          );
 
       if (!vertex) {
         vertex = {
-          id: `vertex-${verticesByPosition.size + 1}`,
-          x: roundCoordinate(point.x),
-          y: roundCoordinate(point.y),
+          id:
+            `vertex-${verticesByPosition.size + 1}`,
+
+          x:
+            roundCoordinate(
+              point.x,
+            ),
+
+          y:
+            roundCoordinate(
+              point.y,
+            ),
+
           territoryIds: [],
           edgeIds: [],
-          neighborVertexIds: [],
+          neighborVertexIds:
+            [],
+
           building: null,
           ownerId: null,
-          isBoundary: false,
+
+          isBoundary:
+            false,
+
+          isCoastal:
+            false,
         };
 
-        verticesByPosition.set(
-          positionKey,
-          vertex,
-        );
+        verticesByPosition
+          .set(
+            positionKey,
+            vertex,
+          );
       }
 
       if (
-        !vertex.territoryIds.includes(
-          territory.id,
-        )
+        !vertex
+          .territoryIds
+          .includes(
+            territory.id,
+          )
       ) {
-        vertex.territoryIds.push(
-          territory.id,
-        );
+        vertex
+          .territoryIds
+          .push(
+            territory.id,
+          );
       }
 
-      territoryVertexIds.push(
-        vertex.id,
-      );
+      territoryVertexIds
+        .push(
+          vertex.id,
+        );
     }
 
-    for (let index = 0; index < 6; index += 1) {
+    for (
+      let index = 0;
+      index < 6;
+      index += 1
+    ) {
       const firstVertexId =
-        territoryVertexIds[index];
+        territoryVertexIds[
+          index
+        ];
 
       const secondVertexId =
         territoryVertexIds[
           (index + 1) % 6
         ];
 
-      const key = edgeKey(
-        firstVertexId,
-        secondVertexId,
-      );
+      const key =
+        edgeKey(
+          firstVertexId,
+          secondVertexId,
+        );
 
       let edge =
-        edgesByVertices.get(key);
+        edgesByVertices
+          .get(
+            key,
+          );
 
       if (!edge) {
         edge = {
-          id: `edge-${edgesByVertices.size + 1}`,
+          id:
+            `edge-${edgesByVertices.size + 1}`,
+
           vertexIds: [
             firstVertexId,
             secondVertexId,
           ],
-          territoryIds: [],
+
+          territoryIds:
+            [],
+
           segment: null,
           ownerId: null,
-          type: 'land',
-          isBoundary: false,
+
+          type:
+            'land',
+
+          isBoundary:
+            false,
+
+          isCoastal:
+            false,
         };
 
-        edgesByVertices.set(
-          key,
-          edge,
-        );
+        edgesByVertices
+          .set(
+            key,
+            edge,
+          );
       }
 
       if (
-        !edge.territoryIds.includes(
-          territory.id,
-        )
+        !edge
+          .territoryIds
+          .includes(
+            territory.id,
+          )
       ) {
-        edge.territoryIds.push(
-          territory.id,
-        );
+        edge
+          .territoryIds
+          .push(
+            territory.id,
+          );
       }
 
-      territoryEdgeIds.push(
-        edge.id,
-      );
+      territoryEdgeIds
+        .push(
+          edge.id,
+        );
     }
 
     territory.vertexIds =
@@ -182,27 +334,34 @@ export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
   }
 
   const vertices = [
-    ...verticesByPosition.values(),
+    ...verticesByPosition
+      .values(),
   ];
 
   const edges = [
-    ...edgesByVertices.values(),
+    ...edgesByVertices
+      .values(),
   ];
 
-  const vertexMap = new Map(
-    vertices.map(
-      (vertex) => [
-        vertex.id,
-        vertex,
-      ],
-    ),
-  );
+  const vertexMap =
+    new Map(
+      vertices.map(
+        (vertex) => [
+          vertex.id,
+          vertex,
+        ],
+      ),
+    );
 
-  for (const edge of edges) {
+  for (
+    const edge
+    of edges
+  ) {
     const [
       firstVertexId,
       secondVertexId,
-    ] = edge.vertexIds;
+    ] =
+      edge.vertexIds;
 
     const firstVertex =
       vertexMap.get(
@@ -223,13 +382,17 @@ export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
       );
     }
 
-    firstVertex.edgeIds.push(
-      edge.id,
-    );
+    firstVertex
+      .edgeIds
+      .push(
+        edge.id,
+      );
 
-    secondVertex.edgeIds.push(
-      edge.id,
-    );
+    secondVertex
+      .edgeIds
+      .push(
+        edge.id,
+      );
 
     if (
       !firstVertex
@@ -260,11 +423,31 @@ export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
     }
 
     edge.isBoundary =
-      edge.territoryIds.length === 1;
+      edge
+        .territoryIds
+        .length === 1;
 
-    if (edge.isBoundary) {
-      firstVertex.isBoundary = true;
-      secondVertex.isBoundary = true;
+    edge.isCoastal =
+      edge.isBoundary;
+
+    if (
+      edge.isBoundary
+    ) {
+      firstVertex
+        .isBoundary =
+        true;
+
+      secondVertex
+        .isBoundary =
+        true;
+
+      firstVertex
+        .isCoastal =
+        true;
+
+      secondVertex
+        .isCoastal =
+        true;
     }
   }
 
@@ -273,7 +456,7 @@ export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
     edges,
   );
 
-  return {
+  const topologicalBoard = {
     ...board,
 
     vertices,
@@ -281,16 +464,71 @@ export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
 
     topology: {
       version: 2,
-      hexSize: size,
+
+      coastVersion: 1,
+
+      hexSize:
+        size,
+
       vertexCount:
         vertices.length,
+
       edgeCount:
         edges.length,
+
       boundaryEdgeCount:
         edges.filter(
           (edge) =>
             edge.isBoundary,
         ).length,
+
+      coastalVertexCount:
+        vertices.filter(
+          (vertex) =>
+            vertex.isCoastal,
+        ).length,
+    },
+  };
+
+  const coast =
+    classifyCoast(
+      topologicalBoard,
+    );
+
+  const ports =
+    createPorts(
+      coast,
+      {
+        seed:
+          board.seed,
+      },
+    );
+
+  return {
+    ...topologicalBoard,
+
+    ports,
+
+    maritime: {
+      version: 1,
+
+      coastalEdgeCount:
+        coast
+          .stats
+          .coastalEdges,
+
+      coastalVertexCount:
+        coast
+          .stats
+          .coastalVertices,
+
+      perimeterLoopCount:
+        coast
+          .stats
+          .perimeterLoops,
+
+      portCount:
+        ports.length,
     },
   };
 }
