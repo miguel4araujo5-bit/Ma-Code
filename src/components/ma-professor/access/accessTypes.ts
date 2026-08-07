@@ -65,7 +65,7 @@ export function getLicensePlanLabel(
 ) {
   switch (plan) {
     case 'beta_30_days':
-      return 'Beta de 30 dias'
+      return 'Beta gratuita · 4 meses'
     case 'paid_30_days':
       return 'Mensal'
     case 'school_year':
@@ -96,4 +96,4 @@ export function getLicenseStatusLabel(
     default:
       return 'Inativa'
   }
-} 
+}
