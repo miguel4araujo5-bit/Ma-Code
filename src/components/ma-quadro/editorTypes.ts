@@ -16,6 +16,10 @@ import type {
 } from '../../lib/maQuadro/editorEnhancements';
 
 import type {
+    MAQuadroStrokeStyle
+} from '../../lib/maQuadro/editorQuickActions';
+
+import type {
     MAQuadroBackground,
     MAQuadroBrand,
     MAQuadroCanvasPreset,
@@ -104,6 +108,13 @@ export type MAQuadroSelectionState = {
 
     imageFrame:
         MAQuadroImageFrameKind;
+
+    aspectLocked: boolean;
+
+    strokeStyle:
+        MAQuadroStrokeStyle;
+
+    arrowHeadEnabled: boolean;
 };
 
 export type MAQuadroExportOptions = {
@@ -141,6 +152,11 @@ export type MAQuadroEditor = {
         >;
 
     imageInputRef:
+        MutableRefObject<
+            HTMLInputElement | null
+        >;
+
+    replacementImageInputRef:
         MutableRefObject<
             HTMLInputElement | null
         >;
@@ -199,6 +215,8 @@ export type MAQuadroEditor = {
 
     canUndo: boolean;
     canRedo: boolean;
+
+    hasCopiedStyle: boolean;
 
     drawingMode: boolean;
 
@@ -344,6 +362,12 @@ export type MAQuadroEditor = {
     pasteSelection:
         () => Promise<void>;
 
+    copySelectionStyle:
+        () => void;
+
+    pasteSelectionStyle:
+        () => void;
+
     selectAll:
         () => void;
 
@@ -413,6 +437,19 @@ export type MAQuadroEditor = {
 
     setSelectionStrokeWidth: (
         width: number
+    ) => void;
+
+    setSelectionStrokeStyle: (
+        style:
+            MAQuadroStrokeStyle
+    ) => void;
+
+    setSelectionAspectLocked: (
+        locked: boolean
+    ) => void;
+
+    setArrowHeadEnabled: (
+        enabled: boolean
     ) => void;
 
     setSelectionOpacity: (
@@ -524,6 +561,14 @@ export type MAQuadroEditor = {
         kind:
             MAQuadroImageFrameKind
     ) => void;
+
+    setImageAsBackground:
+        () => void;
+
+    replaceSelectedImage: (
+        event:
+            ChangeEvent<HTMLInputElement>
+    ) => Promise<void>;
 
     removeImageBackground:
         () => Promise<void>;
