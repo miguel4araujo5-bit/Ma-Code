@@ -1,8 +1,13 @@
 import {
+  useCallback,
   useEffect,
   useState,
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
+
+import CanvasContextMenu, {
+  type MAQuadroContextMenuPosition
+} from './CanvasContextMenu'
 
 import CanvasStage from './CanvasStage'
 import EditorDialogs from './EditorDialogs'
@@ -44,6 +49,7 @@ function targetUsesNativeKeyboard(
         'a',
         '[contenteditable="true"]',
         '[role="dialog"]',
+        '[role="menu"]',
         'summary'
       ].join(',')
     )
@@ -59,8 +65,62 @@ export default function MAQuadroApp() {
     setShortcutsOpen
   ] = useState(false)
 
+  const [
+    contextMenu,
+    setContextMenu
+  ] = useState<
+    MAQuadroContextMenuPosition |
+    null
+  >(null)
+
+  const closeContextMenu =
+    useCallback(
+      () => {
+        setContextMenu(
+          null
+        )
+      },
+      []
+    )
+
+  const openContextMenu =
+    useCallback(
+      (
+        position:
+          MAQuadroContextMenuPosition
+      ) => {
+        if (
+          editor.selection.count ===
+            0 ||
+          editor.busy ||
+          editor.structureBusy ||
+          editor.imageCropEditing
+        ) {
+          return
+        }
+
+        setContextMenu(
+          position
+        )
+      },
+      [
+        editor.busy,
+        editor.imageCropEditing,
+        editor.selection.count,
+        editor.structureBusy
+      ]
+    )
+
   useEffect(() => {
-    const handleShortcutHelp = (
+    closeContextMenu()
+  }, [
+    closeContextMenu,
+    editor.activePage?.id,
+    editor.project?.id
+  ])
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (
       event:
         KeyboardEvent
     ) => {
@@ -74,11 +134,45 @@ export default function MAQuadroApp() {
       }
 
       if (
-        event.key !==
-        '?' ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey
+        event.key ===
+          '?' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        closeContextMenu()
+
+        setShortcutsOpen(
+          true
+        )
+
+        return
+      }
+
+      const contextMenuKey =
+        event.key ===
+          'ContextMenu' ||
+        (
+          event.shiftKey &&
+          event.key ===
+            'F10'
+        )
+
+      if (
+        !contextMenuKey
+      ) {
+        return
+      }
+
+      if (
+        editor.selection.count ===
+          0 ||
+        editor.busy ||
+        editor.structureBusy ||
+        editor.imageCropEditing
       ) {
         return
       }
@@ -86,23 +180,61 @@ export default function MAQuadroApp() {
       event.preventDefault()
       event.stopPropagation()
 
-      setShortcutsOpen(
-        true
-      )
+      const workspace =
+        editor.workspaceRef
+          .current
+
+      const bounds =
+        workspace
+          ?.getBoundingClientRect()
+
+      openContextMenu({
+        x:
+          bounds
+            ? bounds.left +
+              Math.min(
+                bounds.width *
+                  0.55,
+                bounds.width -
+                  32
+              )
+            : window.innerWidth /
+              2,
+
+        y:
+          bounds
+            ? bounds.top +
+              Math.min(
+                bounds.height *
+                  0.4,
+                bounds.height -
+                  32
+              )
+            : window.innerHeight /
+              2
+      })
     }
 
     window.addEventListener(
       'keydown',
-      handleShortcutHelp
+      handleGlobalKeyDown
     )
 
     return () => {
       window.removeEventListener(
         'keydown',
-        handleShortcutHelp
+        handleGlobalKeyDown
       )
     }
-  }, [])
+  }, [
+    closeContextMenu,
+    editor.busy,
+    editor.imageCropEditing,
+    editor.selection.count,
+    editor.structureBusy,
+    editor.workspaceRef,
+    openContextMenu
+  ])
 
   const protectNativeKeyboard = (
     event:
@@ -155,18 +287,24 @@ export default function MAQuadroApp() {
         }
       >
         <EditorHeader
-          onOpenShortcuts={() =>
+          onOpenShortcuts={() => {
+            closeContextMenu()
+
             setShortcutsOpen(
               true
             )
-          }
+          }}
         />
 
         <div className="mq-editor-layout">
           <LeftSidebar />
 
           <div className="mq-center-column">
-            <CanvasStage />
+            <CanvasStage
+              onOpenContextMenu={
+                openContextMenu
+              }
+            />
 
             <PagesStrip />
           </div>
@@ -186,6 +324,17 @@ export default function MAQuadroApp() {
             )
           }
         />
+
+        {contextMenu ? (
+          <CanvasContextMenu
+            position={
+              contextMenu
+            }
+            onClose={
+              closeContextMenu
+            }
+          />
+        ) : null}
 
         {!editor.ready ? (
           <div
