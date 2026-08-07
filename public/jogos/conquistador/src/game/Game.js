@@ -1,4 +1,8 @@
 import {
+  GAME_CONFIG,
+} from '../data/gameConfig.js';
+
+import {
   BoardGenerator,
 } from './BoardGenerator.js';
 
@@ -51,7 +55,7 @@ const HOUSE_PRESETS =
       id: 'atlantic',
       name:
         'Casa do Atlântico',
-      color: '#164E73',
+      color: '#176b78',
       symbol: '≈',
     }),
 
@@ -59,7 +63,7 @@ const HOUSE_PRESETS =
       id: 'mountain',
       name:
         'Casa da Serra',
-      color: '#276749',
+      color: '#44643c',
       symbol: '▲',
     }),
 
@@ -67,7 +71,7 @@ const HOUSE_PRESETS =
       id: 'sun',
       name:
         'Casa do Sol',
-      color: '#B7791F',
+      color: '#b7791f',
       symbol: '☀',
     }),
 
@@ -75,7 +79,7 @@ const HOUSE_PRESETS =
       id: 'tagus',
       name:
         'Casa do Tejo',
-      color: '#8C2F39',
+      color: '#8c2f39',
       symbol: '◆',
     }),
   ]);
@@ -122,13 +126,9 @@ function createSetupOrder(
   ];
 }
 
-function cloneBoard(
-  board,
-) {
+function clone(value) {
   return JSON.parse(
-    JSON.stringify(
-      board,
-    ),
+    JSON.stringify(value),
   );
 }
 
@@ -155,9 +155,7 @@ function normalizePlayers(
       index,
     ) => {
       const house =
-        HOUSE_PRESETS[
-          index
-        ];
+        HOUSE_PRESETS[index];
 
       return new Player({
         id:
@@ -188,9 +186,107 @@ function normalizePlayers(
 
         prestige:
           configuration.prestige,
+
+        usedGuardCaptains:
+          configuration
+            .usedGuardCaptains,
+
+        contractPrestige:
+          configuration
+            .contractPrestige,
+
+        hasLargestNetwork:
+          configuration
+            .hasLargestNetwork,
+
+        hasLargestMilitary:
+          configuration
+            .hasLargestMilitary,
       });
     },
   );
+}
+
+function restoreBank(
+  bankData,
+) {
+  const bank =
+    new Bank();
+
+  if (
+    bankData?.inventory
+  ) {
+    bank.inventory = {
+      ...bank.inventory,
+      ...bankData.inventory,
+    };
+  }
+
+  return bank;
+}
+
+function prepareBoard(
+  seed,
+  boardData,
+) {
+  if (!boardData) {
+    return buildBoardTopology(
+      new BoardGenerator()
+        .generate(
+          seed,
+        ),
+    );
+  }
+
+  if (
+    boardData.shape !==
+      GAME_CONFIG
+        .board
+        .shape ||
+    boardData.maskVersion !==
+      GAME_CONFIG
+        .board
+        .maskVersion
+  ) {
+    throw new Error(
+      'A gravação usa uma versão antiga do mapa e não pode ser retomada.',
+    );
+  }
+
+  const board =
+    clone(
+      boardData,
+    );
+
+  if (
+    !Array.isArray(
+      board.vertices,
+    ) ||
+    !Array.isArray(
+      board.edges,
+    )
+  ) {
+    return buildBoardTopology(
+      board,
+    );
+  }
+
+  if (
+    board.vertices.length !==
+      GAME_CONFIG
+        .board
+        .expectedVertexCount ||
+    board.edges.length !==
+      GAME_CONFIG
+        .board
+        .expectedEdgeCount
+  ) {
+    throw new Error(
+      'A topologia guardada não corresponde ao mapa atual de Portugal Continental.',
+    );
+  }
+
+  return board;
 }
 
 export class Game {
@@ -214,12 +310,14 @@ export class Game {
     currentPlayerIndex = 0,
 
     setupOrder = null,
+
     setupStep = 0,
 
     pendingInitialVertexId =
       null,
 
-    setupVillageCounts = null,
+    setupVillageCounts =
+      null,
 
     lastRoll = null,
 
@@ -228,10 +326,17 @@ export class Game {
     winnerId = null,
 
     createdAt = null,
+
     updatedAt = null,
+
+    diceState = null,
+
+    turnNumber = 1,
   }) {
     this.id = id;
-    this.seed = seed;
+
+    this.seed =
+      String(seed);
 
     this.players =
       normalizePlayers(
@@ -246,42 +351,32 @@ export class Game {
 
     this.dice =
       new DiceEngine(
-        `${seed}-DICE`,
+        `${this.seed}-DICE`,
       );
 
-    this.bank =
-      bank instanceof Bank
-        ? bank
-        : new Bank();
-
     if (
-      bank &&
-      !(bank instanceof Bank)
+      Number.isInteger(
+        diceState,
+      ) &&
+      diceState >= 0
     ) {
-      this.bank.inventory = {
-        ...this.bank.inventory,
-        ...(bank.inventory ||
-          bank),
-      };
+      this.dice.random.state =
+        diceState >>> 0;
     }
 
-    if (board) {
-      this.board =
-        cloneBoard(
-          board,
-        );
-    } else {
-      const generated =
-        new BoardGenerator()
-          .generate(
-            seed,
+    this.bank =
+      bank instanceof
+        Bank
+        ? bank
+        : restoreBank(
+            bank,
           );
 
-      this.board =
-        buildBoardTopology(
-          generated,
-        );
-    }
+    this.board =
+      prepareBoard(
+        this.seed,
+        board,
+      );
 
     this.phase =
       phase;
@@ -302,7 +397,8 @@ export class Game {
       pendingInitialVertexId;
 
     this.setupVillageCounts =
-      setupVillageCounts || Object.fromEntries(
+      setupVillageCounts ||
+      Object.fromEntries(
         this.players.map(
           (player) => [
             player.id,
@@ -315,12 +411,22 @@ export class Game {
       lastRoll;
 
     this.history =
-      Array.isArray(history)
+      Array.isArray(
+        history,
+      )
         ? [...history]
         : [];
 
     this.winnerId =
       winnerId;
+
+    this.turnNumber =
+      Math.max(
+        1,
+        Number(
+          turnNumber,
+        ) || 1,
+      );
 
     this.createdAt =
       createdAt ||
@@ -358,12 +464,15 @@ export class Game {
 
   synchronizeCurrentPlayer() {
     if (
-      this.phase ===
+      [
         GAME_PHASES
-          .SETUP_VILLAGE ||
-      this.phase ===
+          .SETUP_VILLAGE,
+
         GAME_PHASES
-          .SETUP_ROAD
+          .SETUP_ROAD,
+      ].includes(
+        this.phase,
+      )
     ) {
       const setupPlayerIndex =
         this.setupOrder[
@@ -391,6 +500,9 @@ export class Game {
     type,
     message,
     details = {},
+    playerId =
+      this.currentPlayer
+        ?.id || null,
   ) {
     const entry = {
       id:
@@ -403,11 +515,11 @@ export class Game {
           .toISOString(),
 
       type,
-      playerId:
-        this.currentPlayer
-          ?.id || null,
+
+      playerId,
 
       message,
+
       details,
     };
 
@@ -443,7 +555,9 @@ export class Game {
         .validateInitialVillage({
           board:
             this.board,
+
           player,
+
           vertexId,
         });
 
@@ -457,9 +571,6 @@ export class Game {
       };
     }
 
-    const vertex =
-      validation.vertex;
-
     if (
       !player.usePiece(
         'villages',
@@ -472,10 +583,14 @@ export class Game {
       };
     }
 
-    vertex.building =
+    validation
+      .vertex
+      .building =
       'village';
 
-    vertex.ownerId =
+    validation
+      .vertex
+      .ownerId =
       player.id;
 
     player.addPrestige(
@@ -492,7 +607,7 @@ export class Game {
       ) + 1;
 
     this.pendingInitialVertexId =
-      vertex.id;
+      validation.vertex.id;
 
     this.phase =
       GAME_PHASES
@@ -500,16 +615,21 @@ export class Game {
 
     this.addHistory(
       'initial-village',
+
       `${player.name} fundou uma Vila inicial.`,
+
       {
         vertexId:
-          vertex.id,
+          validation
+            .vertex
+            .id,
       },
     );
 
     return {
       success: true,
-      vertex,
+      vertex:
+        validation.vertex,
     };
   }
 
@@ -536,10 +656,14 @@ export class Game {
         .validateInitialRoad({
           board:
             this.board,
+
           player,
+
           edgeId,
+
           requiredVertexId:
-            this.pendingInitialVertexId,
+            this
+              .pendingInitialVertexId,
         });
 
     if (
@@ -551,9 +675,6 @@ export class Game {
           validation.reason,
       };
     }
-
-    const edge =
-      validation.edge;
 
     if (
       !player.usePiece(
@@ -567,10 +688,14 @@ export class Game {
       };
     }
 
-    edge.segment =
+    validation
+      .edge
+      .segment =
       'road';
 
-    edge.ownerId =
+    validation
+      .edge
+      .ownerId =
       player.id;
 
     const villageCount =
@@ -589,20 +714,29 @@ export class Game {
           .grantInitialResources({
             board:
               this.board,
+
             player,
+
             bank:
               this.bank,
+
             vertexId:
-              this.pendingInitialVertexId,
+              this
+                .pendingInitialVertexId,
           });
     }
 
     this.addHistory(
       'initial-road',
+
       `${player.name} construiu um Caminho Real inicial.`,
+
       {
         edgeId:
-          edge.id,
+          validation
+            .edge
+            .id,
+
         initialResources,
       },
     );
@@ -623,9 +757,13 @@ export class Game {
       this.currentPlayerIndex =
         0;
 
+      this.turnNumber = 1;
+
       this.addHistory(
         'setup-complete',
         'A preparação inicial terminou.',
+        {},
+        null,
       );
     } else {
       this.phase =
@@ -639,7 +777,8 @@ export class Game {
 
     return {
       success: true,
-      edge,
+      edge:
+        validation.edge,
       initialResources,
     };
   }
@@ -671,7 +810,9 @@ export class Game {
     ) {
       this.addHistory(
         'roll-seven',
-        `${this.currentPlayer.name} lançou 7. O evento especial será resolvido numa fase posterior.`,
+
+        `${this.currentPlayer.name} lançou 7. A Tempestade será implementada na fase seguinte.`,
+
         {
           roll,
         },
@@ -682,19 +823,25 @@ export class Game {
           .distribute({
             board:
               this.board,
+
             players:
               this.players,
+
             bank:
               this.bank,
+
             diceTotal:
               roll.total,
           });
 
       this.addHistory(
         'production',
+
         `${this.currentPlayer.name} lançou ${roll.total}.`,
+
         {
           roll,
+
           production:
             productionResult,
         },
@@ -738,7 +885,9 @@ export class Game {
         .validateRoad({
           board:
             this.board,
+
           player,
+
           edgeId,
         });
 
@@ -779,27 +928,25 @@ export class Game {
       );
     }
 
-    if (
-      !player.usePiece(
-        'segments',
-      )
-    ) {
-      return {
-        success: false,
-        reason:
-          'Não possui segmentos disponíveis.',
-      };
-    }
+    player.usePiece(
+      'segments',
+    );
 
-    validation.edge.segment =
+    validation
+      .edge
+      .segment =
       'road';
 
-    validation.edge.ownerId =
+    validation
+      .edge
+      .ownerId =
       player.id;
 
     this.addHistory(
       'build-road',
+
       `${player.name} construiu um Caminho Real.`,
+
       {
         edgeId,
       },
@@ -835,7 +982,9 @@ export class Game {
         .validateVillage({
           board:
             this.board,
+
           player,
+
           vertexId,
         });
 
@@ -876,22 +1025,18 @@ export class Game {
       );
     }
 
-    if (
-      !player.usePiece(
-        'villages',
-      )
-    ) {
-      return {
-        success: false,
-        reason:
-          'Não possui Vilas disponíveis.',
-      };
-    }
+    player.usePiece(
+      'villages',
+    );
 
-    validation.vertex.building =
+    validation
+      .vertex
+      .building =
       'village';
 
-    validation.vertex.ownerId =
+    validation
+      .vertex
+      .ownerId =
       player.id;
 
     player.addPrestige(
@@ -900,7 +1045,9 @@ export class Game {
 
     this.addHistory(
       'build-village',
+
       `${player.name} fundou uma Vila.`,
+
       {
         vertexId,
       },
@@ -938,7 +1085,9 @@ export class Game {
         .validateCity({
           board:
             this.board,
+
           player,
+
           vertexId,
         });
 
@@ -979,24 +1128,18 @@ export class Game {
       );
     }
 
-    if (
-      !player.usePiece(
-        'cities',
-      )
-    ) {
-      return {
-        success: false,
-        reason:
-          'Não possui Cidades disponíveis.',
-      };
-    }
+    player.usePiece(
+      'cities',
+    );
 
     player.returnPiece(
       'villages',
       1,
     );
 
-    validation.vertex.building =
+    validation
+      .vertex
+      .building =
       'city';
 
     player.addPrestige(
@@ -1005,7 +1148,9 @@ export class Game {
 
     this.addHistory(
       'build-city',
+
       `${player.name} ergueu uma Cidade Muralhada.`,
+
       {
         vertexId,
       },
@@ -1026,7 +1171,9 @@ export class Game {
 
     if (
       player &&
-      player.prestige >= 12
+      player.prestige >=
+        GAME_CONFIG
+          .victoryPrestige
     ) {
       this.winnerId =
         player.id;
@@ -1037,6 +1184,7 @@ export class Game {
 
       this.addHistory(
         'victory',
+
         `${player.name} venceu a partida com ${player.prestige} pontos de Prestígio.`,
       );
 
@@ -1072,12 +1220,36 @@ export class Game {
     const previousPlayer =
       this.currentPlayer;
 
-    this.currentPlayerIndex =
+    const nextIndex =
       (
         this.currentPlayerIndex +
         1
       ) %
       this.players.length;
+
+    const nextPlayer =
+      this.players[
+        nextIndex
+      ];
+
+    this.addHistory(
+      'end-turn',
+
+      `${previousPlayer.name} concluiu a Jornada. É agora a vez de ${nextPlayer.name}.`,
+
+      {},
+
+      previousPlayer.id,
+    );
+
+    this.currentPlayerIndex =
+      nextIndex;
+
+    if (
+      nextIndex === 0
+    ) {
+      this.turnNumber += 1;
+    }
 
     this.phase =
       GAME_PHASES
@@ -1085,11 +1257,6 @@ export class Game {
 
     this.lastRoll =
       null;
-
-    this.addHistory(
-      'end-turn',
-      `${previousPlayer.name} concluiu a Jornada. É agora a vez de ${this.currentPlayer.name}.`,
-    );
 
     this.touch();
 
@@ -1113,8 +1280,10 @@ export class Game {
       .getValidVillageVertexIds({
         board:
           this.board,
+
         player:
           this.currentPlayer,
+
         initialPlacement:
           true,
       });
@@ -1133,12 +1302,16 @@ export class Game {
       .getValidRoadEdgeIds({
         board:
           this.board,
+
         player:
           this.currentPlayer,
+
         initialPlacement:
           true,
+
         requiredVertexId:
-          this.pendingInitialVertexId,
+          this
+            .pendingInitialVertexId,
       });
   }
 
@@ -1155,6 +1328,7 @@ export class Game {
       .getValidVillageVertexIds({
         board:
           this.board,
+
         player:
           this.currentPlayer,
       });
@@ -1173,9 +1347,46 @@ export class Game {
       .getValidRoadEdgeIds({
         board:
           this.board,
+
         player:
           this.currentPlayer,
       });
+  }
+
+  getValidCityIds() {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .TURN_ACTIONS
+    ) {
+      return [];
+    }
+
+    return this.board
+      .vertices
+      .filter(
+        (vertex) =>
+          vertex.ownerId ===
+            this.currentPlayer.id &&
+          vertex.building ===
+            'village' &&
+          this.rules
+            .validateCity({
+              board:
+                this.board,
+
+              player:
+                this.currentPlayer,
+
+              vertexId:
+                vertex.id,
+            })
+            .valid,
+      )
+      .map(
+        (vertex) =>
+          vertex.id,
+      );
   }
 
   toJSON() {
@@ -1193,7 +1404,7 @@ export class Game {
         ),
 
       board:
-        cloneBoard(
+        clone(
           this.board,
         ),
 
@@ -1216,10 +1427,12 @@ export class Game {
         this.setupStep,
 
       pendingInitialVertexId:
-        this.pendingInitialVertexId,
+        this
+          .pendingInitialVertexId,
 
       setupVillageCounts: {
-        ...this.setupVillageCounts,
+        ...this
+          .setupVillageCounts,
       },
 
       lastRoll:
@@ -1231,9 +1444,10 @@ export class Game {
 
       history:
         this.history.map(
-          (entry) => ({
-            ...entry,
-          }),
+          (entry) =>
+            clone(
+              entry,
+            ),
         ),
 
       winnerId:
@@ -1244,6 +1458,14 @@ export class Game {
 
       updatedAt:
         this.updatedAt,
+
+      diceState:
+        this.dice
+          .random
+          .state >>> 0,
+
+      turnNumber:
+        this.turnNumber,
     };
   }
 
@@ -1265,14 +1487,7 @@ export class Game {
       ...data,
 
       players:
-        data.players.map(
-          (player) =>
-            Player
-              .fromJSON(
-                player,
-              )
-              .toJSON(),
-        ),
+        data.players,
     });
   }
 }
