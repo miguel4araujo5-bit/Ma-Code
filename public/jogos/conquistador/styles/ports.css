@@ -1,0 +1,71 @@
+/*
+ * CONQUISTADOR — Portos v1
+ * Camada visual isolada. Não altera os territórios nem o desenho atual do mapa.
+ */
+
+.conquistador-ports {
+  pointer-events: none;
+}
+
+.conquistador-port {
+  cursor: default;
+  pointer-events: auto;
+  outline: none;
+}
+
+.conquistador-port__connector {
+  stroke: rgba(244, 230, 189, 0.82);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.conquistador-port__marker-outer {
+  fill: rgba(8, 45, 60, 0.96);
+  stroke: #d8c284;
+  stroke-width: 2.5;
+}
+
+.conquistador-port__marker {
+  fill: #f4e6bd;
+  stroke: rgba(65, 45, 25, 0.58);
+  stroke-width: 1;
+}
+
+.conquistador-port__symbol {
+  fill: #123f50;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-weight: 800;
+  user-select: none;
+}
+
+.conquistador-port--general .conquistador-port__symbol {
+  font-size: 15px;
+}
+
+.conquistador-port__rate {
+  paint-order: stroke;
+  fill: #fff8e8;
+  stroke: rgba(8, 45, 60, 0.9);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.conquistador-port:focus-visible .conquistador-port__marker-outer,
+.conquistador-port:hover .conquistador-port__marker-outer {
+  stroke: #fff0a8;
+  stroke-width: 4;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .conquistador-port__marker-outer {
+    transition:
+      stroke-width 140ms ease,
+      stroke 140ms ease;
+  }
+}
