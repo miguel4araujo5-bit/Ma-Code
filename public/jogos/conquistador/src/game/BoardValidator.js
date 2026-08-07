@@ -64,6 +64,288 @@ function coordinateKey(
   return `${q},${r}`;
 }
 
+function buildAdjacencyMap(
+  territories,
+) {
+  const byId =
+    new Map(
+      territories.map(
+        (territory) => [
+          territory.id,
+          territory,
+        ],
+      ),
+    );
+
+  const adjacency =
+    new Map();
+
+  for (
+    const territory
+    of territories
+  ) {
+    adjacency.set(
+      territory.id,
+      new Set(
+        (
+          territory
+            .neighborIds ||
+          []
+        ).filter(
+          (neighborId) =>
+            byId.has(
+              neighborId,
+            ),
+        ),
+      ),
+    );
+  }
+
+  return {
+    byId,
+    adjacency,
+  };
+}
+
+function isConnected(
+  territories,
+  adjacency,
+) {
+  if (
+    territories.length ===
+    0
+  ) {
+    return false;
+  }
+
+  const visited =
+    new Set();
+
+  const queue = [
+    territories[0].id,
+  ];
+
+  while (
+    queue.length > 0
+  ) {
+    const currentId =
+      queue.shift();
+
+    if (
+      visited.has(
+        currentId,
+      )
+    ) {
+      continue;
+    }
+
+    visited.add(
+      currentId,
+    );
+
+    for (
+      const neighborId
+      of adjacency.get(
+        currentId,
+      ) || []
+    ) {
+      if (
+        !visited.has(
+          neighborId,
+        )
+      ) {
+        queue.push(
+          neighborId,
+        );
+      }
+    }
+  }
+
+  return (
+    visited.size ===
+    territories.length
+  );
+}
+
+function findArticulationPoints(
+  territories,
+  adjacency,
+) {
+  let time = 0;
+
+  const discovery =
+    new Map();
+
+  const low =
+    new Map();
+
+  const parent =
+    new Map();
+
+  const articulation =
+    new Set();
+
+  function visit(
+    vertexId,
+  ) {
+    time += 1;
+
+    discovery.set(
+      vertexId,
+      time,
+    );
+
+    low.set(
+      vertexId,
+      time,
+    );
+
+    let children = 0;
+
+    for (
+      const neighborId
+      of adjacency.get(
+        vertexId,
+      ) || []
+    ) {
+      if (
+        !discovery.has(
+          neighborId,
+        )
+      ) {
+        children += 1;
+
+        parent.set(
+          neighborId,
+          vertexId,
+        );
+
+        visit(
+          neighborId,
+        );
+
+        low.set(
+          vertexId,
+          Math.min(
+            low.get(
+              vertexId,
+            ),
+            low.get(
+              neighborId,
+            ),
+          ),
+        );
+
+        const hasParent =
+          parent.has(
+            vertexId,
+          );
+
+        if (
+          !hasParent &&
+          children > 1
+        ) {
+          articulation.add(
+            vertexId,
+          );
+        }
+
+        if (
+          hasParent &&
+          low.get(
+            neighborId,
+          ) >=
+            discovery.get(
+              vertexId,
+            )
+        ) {
+          articulation.add(
+            vertexId,
+          );
+        }
+      } else if (
+        neighborId !==
+        parent.get(
+          vertexId,
+        )
+      ) {
+        low.set(
+          vertexId,
+          Math.min(
+            low.get(
+              vertexId,
+            ),
+            discovery.get(
+              neighborId,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  for (
+    const territory
+    of territories
+  ) {
+    if (
+      !discovery.has(
+        territory.id,
+      )
+    ) {
+      visit(
+        territory.id,
+      );
+    }
+  }
+
+  return [
+    ...articulation,
+  ];
+}
+
+function getRowLengths(
+  territories,
+) {
+  const rows =
+    new Map();
+
+  for (
+    const territory
+    of territories
+  ) {
+    rows.set(
+      territory.r,
+      (
+        rows.get(
+          territory.r,
+        ) || 0
+      ) + 1,
+    );
+  }
+
+  return [
+    ...rows.entries(),
+  ]
+    .sort(
+      (
+        [firstR],
+        [secondR],
+      ) =>
+        firstR -
+        secondR,
+    )
+    .map(
+      (
+        [
+          ,
+          quantity,
+        ],
+      ) =>
+        quantity,
+    );
+}
+
 export function
 calculateResourceProbability(
   territories,
@@ -109,6 +391,10 @@ export class BoardValidator {
       board?.territories ??
       [];
 
+    /*
+     * 1. Quantidade total
+     */
+
     if (
       territories.length !==
       GAME_CONFIG
@@ -119,6 +405,10 @@ export class BoardValidator {
         `Esperavam-se ${GAME_CONFIG.board.territoryCount} territórios; existem ${territories.length}.`,
       );
     }
+
+    /*
+     * 2. Coordenadas únicas
+     */
 
     const coordinateKeys =
       territories.map(
@@ -142,6 +432,10 @@ export class BoardValidator {
         'Existem coordenadas de território duplicadas.',
       );
     }
+
+    /*
+     * 3. Máscara oficial
+     */
 
     const expectedMaskKeys =
       new Set(
@@ -183,6 +477,10 @@ export class BoardValidator {
       );
     }
 
+    /*
+     * 4. Versão do mapa
+     */
+
     if (
       board?.shape !==
       GAME_CONFIG
@@ -190,7 +488,7 @@ export class BoardValidator {
         .shape
     ) {
       errors.push(
-        'A forma do tabuleiro não corresponde à versão Portugal Continental.',
+        'A forma do tabuleiro não corresponde a Portugal Continental.',
       );
     }
 
@@ -205,12 +503,49 @@ export class BoardValidator {
       );
     }
 
+    /*
+     * 5. Forma Norte -> Sul
+     */
+
+    const rowLengths =
+      getRowLengths(
+        territories,
+      );
+
+    if (
+      !sameCounts(
+        rowLengths,
+        GAME_CONFIG
+          .board
+          .rowLengthsNorthToSouth,
+      ) ||
+      rowLengths.some(
+        (
+          quantity,
+          index,
+        ) =>
+          quantity !==
+          GAME_CONFIG
+            .board
+            .rowLengthsNorthToSouth[
+            index
+          ],
+      )
+    ) {
+      errors.push(
+        `A silhueta Norte-Sul deve seguir ${GAME_CONFIG.board.rowLengthsNorthToSouth.join('–')}; foi encontrada ${rowLengths.join('–')}.`,
+      );
+    }
+
+    /*
+     * 6. Recursos
+     */
+
     const resourceCounts =
       countValues(
         territories.map(
           (territory) =>
-            territory
-              .resourceId,
+            territory.resourceId,
         ),
       );
 
@@ -239,17 +574,26 @@ export class BoardValidator {
       }
     }
 
+    /*
+     * 7. Terras Ermas
+     */
+
     const abandoned =
       territories.filter(
         (territory) =>
-          territory
-            .resourceId ===
+          territory.resourceId ===
           'abandoned',
       );
 
     if (
-      abandoned.length !==
-        1 ||
+      abandoned.length !== 1
+    ) {
+      errors.push(
+        'Deve existir exatamente um território de Terras Ermas.',
+      );
+    }
+
+    if (
       abandoned.some(
         (territory) =>
           territory.number !==
@@ -257,17 +601,31 @@ export class BoardValidator {
       )
     ) {
       errors.push(
-        'As Terras Abandonadas devem ser únicas e não podem possuir marcador numérico.',
+        'As Terras Ermas não podem possuir marcador numérico.',
       );
     }
+
+    /*
+     * 8. Marcadores
+     */
 
     const productive =
       territories.filter(
         (territory) =>
-          territory
-            .resourceId !==
+          territory.resourceId !==
           'abandoned',
       );
+
+    if (
+      productive.length !==
+      GAME_CONFIG
+        .board
+        .productiveTerritoryCount
+    ) {
+      errors.push(
+        `Esperavam-se ${GAME_CONFIG.board.productiveTerritoryCount} territórios produtivos; existem ${productive.length}.`,
+      );
+    }
 
     const numberTokens =
       productive.map(
@@ -287,18 +645,35 @@ export class BoardValidator {
       );
     }
 
-    const totalProbability =
-      productive.reduce(
-        (
-          total,
-          territory,
-        ) =>
-          total +
-          probabilityPointsFor(
-            territory.number,
-          ),
-        0,
+    /*
+     * 9. Probabilidade global
+     */
+
+    let totalProbability =
+      0;
+
+    try {
+      totalProbability =
+        productive.reduce(
+          (
+            total,
+            territory,
+          ) =>
+            total +
+            probabilityPointsFor(
+              territory.number,
+            ),
+          0,
+        );
+    } catch (
+      error
+    ) {
+      errors.push(
+        error instanceof Error
+          ? error.message
+          : 'Existe um marcador numérico inválido.',
       );
+    }
 
     if (
       totalProbability !==
@@ -310,14 +685,16 @@ export class BoardValidator {
       );
     }
 
-    const byId =
-      new Map(
-        territories.map(
-          (territory) => [
-            territory.id,
-            territory,
-          ],
-        ),
+    /*
+     * 10. Grafo territorial
+     */
+
+    const {
+      byId,
+      adjacency,
+    } =
+      buildAdjacencyMap(
+        territories,
       );
 
     let adjacencyLinks = 0;
@@ -326,11 +703,49 @@ export class BoardValidator {
       const territory
       of territories
     ) {
+      const neighborIds =
+        territory.neighborIds ||
+        [];
+
+      const uniqueNeighborIds =
+        new Set(
+          neighborIds,
+        );
+
+      if (
+        uniqueNeighborIds.size !==
+        neighborIds.length
+      ) {
+        errors.push(
+          `${territory.id}: possui vizinhos duplicados.`,
+        );
+      }
+
+      if (
+        neighborIds.length <
+        GAME_CONFIG
+          .board
+          .minimumTerritoryNeighbors
+      ) {
+        errors.push(
+          `${territory.id}: possui apenas ${neighborIds.length} vizinho(s).`,
+        );
+      }
+
+      if (
+        neighborIds.length >
+        GAME_CONFIG
+          .board
+          .maximumTerritoryNeighbors
+      ) {
+        errors.push(
+          `${territory.id}: possui demasiados vizinhos.`,
+        );
+      }
+
       for (
         const neighborId
-        of territory
-          .neighborIds ??
-        []
+        of neighborIds
       ) {
         const neighbor =
           byId.get(
@@ -339,7 +754,7 @@ export class BoardValidator {
 
         if (!neighbor) {
           errors.push(
-            `${territory.id}: referência a vizinho inexistente ${neighborId}.`,
+            `${territory.id}: referencia o vizinho inexistente ${neighborId}.`,
           );
 
           continue;
@@ -348,7 +763,7 @@ export class BoardValidator {
         if (
           !(
             neighbor
-              .neighborIds ??
+              .neighborIds ||
             []
           ).includes(
             territory.id,
@@ -376,9 +791,53 @@ export class BoardValidator {
         .expectedHexAdjacencyCount
     ) {
       errors.push(
-        `A máscara deve ter ${GAME_CONFIG.board.expectedHexAdjacencyCount} adjacências entre territórios; tem ${adjacencyLinks}.`,
+        `A máscara deve possuir ${GAME_CONFIG.board.expectedHexAdjacencyCount} adjacências; possui ${adjacencyLinks}.`,
       );
     }
+
+    /*
+     * 11. Todo o país tem de estar ligado
+     */
+
+    const connected =
+      isConnected(
+        territories,
+        adjacency,
+      );
+
+    if (!connected) {
+      errors.push(
+        'A máscara de Portugal Continental contém territórios desligados.',
+      );
+    }
+
+    /*
+     * 12. Não permitir gargalos de um único território
+     *
+     * Remover um território não deve partir
+     * o mapa em dois blocos independentes.
+     */
+
+    const articulationPoints =
+      connected
+        ? findArticulationPoints(
+            territories,
+            adjacency,
+          )
+        : [];
+
+    if (
+      articulationPoints.length >
+      0
+    ) {
+      errors.push(
+        `A máscara contém ${articulationPoints.length} ponto(s) de articulação: ${articulationPoints.join(', ')}.`,
+      );
+    }
+
+    /*
+     * 13. 6 e 8 nunca adjacentes
+     */
 
     const highNumberConflicts =
       [];
@@ -400,7 +859,8 @@ export class BoardValidator {
 
       for (
         const neighborId
-        of territory.neighborIds
+        of territory
+          .neighborIds
       ) {
         const neighbor =
           byId.get(
@@ -437,10 +897,28 @@ export class BoardValidator {
       );
     }
 
-    const resourceProbability =
-      calculateResourceProbability(
-        territories,
+    /*
+     * 14. Equilíbrio por recurso
+     */
+
+    let resourceProbability = {
+      cork: 0,
+      wheat: 0,
+      cod: 0,
+      stone: 0,
+      iron: 0,
+    };
+
+    try {
+      resourceProbability =
+        calculateResourceProbability(
+          territories,
+        );
+    } catch {
+      errors.push(
+        'Não foi possível calcular a produção dos recursos.',
       );
+    }
 
     for (
       const [
@@ -489,9 +967,13 @@ export class BoardValidator {
         .iron <= 9
     ) {
       warnings.push(
-        'O Ferro está no limite inferior; deve ser acompanhado nas simulações económicas.',
+        'O Ferro está no limite inferior recomendado.',
       );
     }
+
+    /*
+     * 15. Topologia prevista
+     */
 
     const boundaryEdgeCount =
       (
@@ -511,12 +993,11 @@ export class BoardValidator {
       adjacencyLinks;
 
     /*
-     * Para uma máscara ligada e sem buracos:
+     * Euler para um mapa ligado e sem buracos:
      *
      * V - E + F = 2
      *
-     * F inclui os 19 territórios
-     * mais a face exterior.
+     * F = 19 territórios + exterior.
      */
     const uniqueVertexCount =
       uniqueEdgeCount -
@@ -530,7 +1011,7 @@ export class BoardValidator {
         .expectedBoundaryEdgeCount
     ) {
       errors.push(
-        `O perímetro deve ter ${GAME_CONFIG.board.expectedBoundaryEdgeCount} arestas; tem ${boundaryEdgeCount}.`,
+        `O perímetro deve possuir ${GAME_CONFIG.board.expectedBoundaryEdgeCount} arestas; possui ${boundaryEdgeCount}.`,
       );
     }
 
@@ -558,9 +1039,11 @@ export class BoardValidator {
 
     return {
       valid:
-        errors.length === 0,
+        errors.length ===
+        0,
 
       errors,
+
       warnings,
 
       metrics: {
@@ -582,6 +1065,16 @@ export class BoardValidator {
         resourceCounts,
 
         resourceProbability,
+
+        rowLengths,
+
+        connected,
+
+        articulationPointCount:
+          articulationPoints
+            .length,
+
+        articulationPoints,
 
         hexAdjacencyCount:
           adjacencyLinks,
