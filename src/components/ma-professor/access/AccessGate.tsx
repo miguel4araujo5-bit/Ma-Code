@@ -15,9 +15,10 @@ import {
 } from '../sync/syncApi'
 
 import {
+  activateMAProfessorAccess,
   endMAProfessorSession,
+  requestMAProfessorAccess,
   requestMAProfessorRenewal,
-  startMAProfessorBeta,
   verifyMAProfessorAccess
 } from './accessApi'
 
@@ -29,38 +30,56 @@ import {
 } from './accessStorage'
 
 import {
+  AccessEntryScreen,
+  type MAProfessorEntryMode
+} from './AccessEntryScreen'
+
+import {
   getLicensePlanLabel,
   getLicenseStatusLabel,
   isLicenseUsable,
+  type MAProfessorAccessRequestStatus,
   type MAProfessorAccessSession,
   type RenewableLicensePlan
 } from './accessTypes'
 
 interface AccessContextValue {
-  session: MAProfessorAccessSession
-  refreshing: boolean
+  session:
+    MAProfessorAccessSession
+
+  refreshing:
+    boolean
 
   syncStatus:
     | MAProfessorSyncStatus
     | null
 
-  syncChecking: boolean
-  syncError: string
+  syncChecking:
+    boolean
 
-  refresh: () => Promise<void>
+  syncError:
+    string
+
+  refresh:
+    () => Promise<void>
 
   refreshSyncStatus:
     () => Promise<void>
 
-  requestRenewal: (
-    plan: RenewableLicensePlan
-  ) => Promise<string>
+  requestRenewal:
+    (
+      plan:
+        RenewableLicensePlan
+    ) => Promise<string>
 
-  signOut: () => Promise<void>
+  signOut:
+    () => Promise<void>
 }
 
 const AccessContext =
-  createContext<AccessContextValue | null>(
+  createContext<
+    AccessContextValue | null
+  >(
     null
   )
 
@@ -83,28 +102,41 @@ function isValidEmail(
 function getErrorMessage(
   error: unknown
 ) {
-  return error instanceof Error
+  return error instanceof
+    Error
     ? error.message
     : 'Ocorreu um erro inesperado.'
 }
 
 function formatDate(
-  value: string | null
+  value:
+    string | null
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return '—'
   }
 
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }
-  ).format(
-    new Date(value)
-  )
+  return new Intl
+    .DateTimeFormat(
+      'pt-PT',
+      {
+        day:
+          '2-digit',
+
+        month:
+          'long',
+
+        year:
+          'numeric'
+      }
+    )
+    .format(
+      new Date(
+        value
+      )
+    )
 }
 
 export function useMAProfessorAccess() {
@@ -113,7 +145,9 @@ export function useMAProfessorAccess() {
       AccessContext
     )
 
-  if (!context) {
+  if (
+    !context
+  ) {
     throw new Error(
       'useMAProfessorAccess deve ser utilizado dentro de AccessGate.'
     )
@@ -125,13 +159,16 @@ export function useMAProfessorAccess() {
 export function AccessGate({
   children
 }: {
-  children: ReactNode
+  children:
+    ReactNode
 }) {
   const [
     session,
     setSession
   ] =
-    useState<MAProfessorAccessSession | null>(
+    useState<
+      MAProfessorAccessSession | null
+    >(
       null
     )
 
@@ -139,19 +176,63 @@ export function AccessGate({
     loading,
     setLoading
   ] =
-    useState(true)
+    useState(
+      true
+    )
 
   const [
     refreshing,
     setRefreshing
   ] =
-    useState(false)
+    useState(
+      false
+    )
+
+  const [
+    entryMode,
+    setEntryMode
+  ] =
+    useState<
+      MAProfessorEntryMode
+    >(
+      'request'
+    )
 
   const [
     email,
     setEmail
   ] =
     useState('')
+
+  const [
+    password,
+    setPassword
+  ] =
+    useState('')
+
+  const [
+    entryMessage,
+    setEntryMessage
+  ] =
+    useState('')
+
+  const [
+    requestStatus,
+    setRequestStatus
+  ] =
+    useState<
+      MAProfessorAccessRequestStatus | null
+    >(
+      null
+    )
+
+  const [
+    canActivate,
+    setCanActivate
+  ] =
+    useState(
+      false
+    )
 
   const [
     error,
@@ -163,13 +244,17 @@ export function AccessGate({
     submitting,
     setSubmitting
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const [
     renewingPlan,
     setRenewingPlan
   ] =
-    useState<RenewableLicensePlan | null>(
+    useState<
+      RenewableLicensePlan | null
+    >(
       null
     )
 
@@ -177,7 +262,9 @@ export function AccessGate({
     syncStatus,
     setSyncStatus
   ] =
-    useState<MAProfessorSyncStatus | null>(
+    useState<
+      MAProfessorSyncStatus | null
+    >(
       null
     )
 
@@ -185,7 +272,9 @@ export function AccessGate({
     syncChecking,
     setSyncChecking
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const [
     syncError,
@@ -216,7 +305,10 @@ export function AccessGate({
         targetSession:
           MAProfessorAccessSession
       ) => {
-        setSyncChecking(true)
+        setSyncChecking(
+          true
+        )
+
         setSyncError('')
 
         try {
@@ -232,7 +324,9 @@ export function AccessGate({
         } catch (
           syncStatusError
         ) {
-          setSyncStatus(null)
+          setSyncStatus(
+            null
+          )
 
           setSyncError(
             getErrorMessage(
@@ -240,7 +334,9 @@ export function AccessGate({
             )
           )
         } finally {
-          setSyncChecking(false)
+          setSyncChecking(
+            false
+          )
         }
       },
       []
@@ -252,11 +348,23 @@ export function AccessGate({
         const stored =
           readMAProfessorAccessSession()
 
-        if (!stored) {
-          setSession(null)
-          setSyncStatus(null)
+        if (
+          !stored
+        ) {
+          setSession(
+            null
+          )
+
+          setSyncStatus(
+            null
+          )
+
           setSyncError('')
-          setLoading(false)
+
+          setLoading(
+            false
+          )
+
           return
         }
 
@@ -269,14 +377,21 @@ export function AccessGate({
 
           const nextSession:
             MAProfessorAccessSession = {
-              ...stored,
-              email:
-                response.license.email,
-              license:
-                response.license,
-              checkedAt:
-                new Date().toISOString()
-            }
+            ...stored,
+
+            email:
+              response
+                .license
+                .email,
+
+            license:
+              response
+                .license,
+
+            checkedAt:
+              new Date()
+                .toISOString()
+          }
 
           persistSession(
             nextSession
@@ -284,24 +399,36 @@ export function AccessGate({
 
           if (
             isLicenseUsable(
-              nextSession.license
+              nextSession
+                .license
             )
           ) {
             void checkSyncStatus(
               nextSession
             )
           } else {
-            setSyncStatus(null)
+            setSyncStatus(
+              null
+            )
+
             setSyncError('')
           }
         } catch {
           clearMAProfessorAccessSession()
 
-          setSession(null)
-          setSyncStatus(null)
+          setSession(
+            null
+          )
+
+          setSyncStatus(
+            null
+          )
+
           setSyncError('')
         } finally {
-          setLoading(false)
+          setLoading(
+            false
+          )
         }
       },
       [
@@ -310,20 +437,27 @@ export function AccessGate({
       ]
     )
 
-  useEffect(() => {
-    void verifyStoredSession()
-  }, [
-    verifyStoredSession
-  ])
+  useEffect(
+    () => {
+      void verifyStoredSession()
+    },
+    [
+      verifyStoredSession
+    ]
+  )
 
   const refresh =
     useCallback(
       async () => {
-        if (!session) {
+        if (
+          !session
+        ) {
           return
         }
 
-        setRefreshing(true)
+        setRefreshing(
+          true
+        )
 
         try {
           const response =
@@ -334,14 +468,21 @@ export function AccessGate({
 
           const nextSession:
             MAProfessorAccessSession = {
-              ...session,
-              email:
-                response.license.email,
-              license:
-                response.license,
-              checkedAt:
-                new Date().toISOString()
-            }
+            ...session,
+
+            email:
+              response
+                .license
+                .email,
+
+            license:
+              response
+                .license,
+
+            checkedAt:
+              new Date()
+                .toISOString()
+          }
 
           persistSession(
             nextSession
@@ -349,18 +490,24 @@ export function AccessGate({
 
           if (
             isLicenseUsable(
-              nextSession.license
+              nextSession
+                .license
             )
           ) {
             void checkSyncStatus(
               nextSession
             )
           } else {
-            setSyncStatus(null)
+            setSyncStatus(
+              null
+            )
+
             setSyncError('')
           }
         } finally {
-          setRefreshing(false)
+          setRefreshing(
+            false
+          )
         }
       },
       [
@@ -373,9 +520,15 @@ export function AccessGate({
   const refreshSyncStatus =
     useCallback(
       async () => {
-        if (!session) {
-          setSyncStatus(null)
+        if (
+          !session
+        ) {
+          setSyncStatus(
+            null
+          )
+
           setSyncError('')
+
           return
         }
 
@@ -395,7 +548,9 @@ export function AccessGate({
         plan:
           RenewableLicensePlan
       ) => {
-        if (!session) {
+        if (
+          !session
+        ) {
           throw new Error(
             'A sessão já não está disponível.'
           )
@@ -410,12 +565,16 @@ export function AccessGate({
 
         const nextSession:
           MAProfessorAccessSession = {
-            ...session,
-            license:
-              response.license,
-            checkedAt:
-              new Date().toISOString()
-          }
+          ...session,
+
+          license:
+            response
+              .license,
+
+          checkedAt:
+            new Date()
+              .toISOString()
+        }
 
         persistSession(
           nextSession
@@ -423,15 +582,23 @@ export function AccessGate({
 
         if (
           isLicenseUsable(
-            nextSession.license
+            nextSession
+              .license
           )
         ) {
           void checkSyncStatus(
             nextSession
           )
+        } else {
+          setSyncStatus(
+            null
+          )
+
+          setSyncError('')
         }
 
-        return response.message
+        return response
+          .message
       },
       [
         checkSyncStatus,
@@ -448,19 +615,51 @@ export function AccessGate({
 
         clearMAProfessorAccessSession()
 
-        setSession(null)
-        setSyncStatus(null)
-        setSyncError('')
-        setSyncChecking(false)
+        setSession(
+          null
+        )
 
-        if (current) {
+        setSyncStatus(
+          null
+        )
+
+        setSyncError('')
+
+        setSyncChecking(
+          false
+        )
+
+        setPassword('')
+
+        setError('')
+
+        setEntryMessage('')
+
+        setRequestStatus(
+          null
+        )
+
+        setCanActivate(
+          false
+        )
+
+        setEntryMode(
+          'activate'
+        )
+
+        if (
+          current
+        ) {
           try {
             await endMAProfessorSession(
               current.token,
               current.deviceId
             )
           } catch {
-            // A sessão local fica terminada mesmo que o servidor esteja indisponível.
+            /*
+             * A sessão local fica terminada mesmo
+             * se o servidor estiver temporariamente indisponível.
+             */
           }
         }
       },
@@ -469,12 +668,16 @@ export function AccessGate({
       ]
     )
 
-  const handleStart =
+  const handleRequestAccess =
     async (
-      event: FormEvent
+      event:
+        FormEvent<HTMLFormElement>
     ) => {
       event.preventDefault()
+
       setError('')
+
+      setEntryMessage('')
 
       const normalizedEmail =
         normalizeEmail(
@@ -489,33 +692,148 @@ export function AccessGate({
         setError(
           'Indique um email válido.'
         )
+
         return
       }
 
-      setSubmitting(true)
+      setSubmitting(
+        true
+      )
+
+      try {
+        const response =
+          await requestMAProfessorAccess(
+            normalizedEmail
+          )
+
+        setEmail(
+          response
+            .request
+            .email
+        )
+
+        setRequestStatus(
+          response
+            .request
+            .status
+        )
+
+        setCanActivate(
+          response
+            .canActivate
+        )
+
+        setEntryMessage(
+          response
+            .message
+        )
+
+        setPassword('')
+
+        setEntryMode(
+          'request-sent'
+        )
+      } catch (
+        requestError
+      ) {
+        setError(
+          getErrorMessage(
+            requestError
+          )
+        )
+      } finally {
+        setSubmitting(
+          false
+        )
+      }
+    }
+
+  const handleActivate =
+    async (
+      event:
+        FormEvent<HTMLFormElement>
+    ) => {
+      event.preventDefault()
+
+      setError('')
+
+      const normalizedEmail =
+        normalizeEmail(
+          email
+        )
+
+      const normalizedPassword =
+        password.trim()
+
+      if (
+        !isValidEmail(
+          normalizedEmail
+        )
+      ) {
+        setError(
+          'Indique um email válido.'
+        )
+
+        return
+      }
+
+      if (
+        !normalizedPassword
+      ) {
+        setError(
+          'Indique a senha recebida da MA-CODE.'
+        )
+
+        return
+      }
+
+      setSubmitting(
+        true
+      )
 
       try {
         const deviceId =
           getOrCreateMAProfessorDeviceId()
 
         const response =
-          await startMAProfessorBeta(
+          await activateMAProfessorAccess(
             normalizedEmail,
+            normalizedPassword,
             deviceId
           )
 
         const nextSession:
           MAProfessorAccessSession = {
-            token:
-              response.token,
-            deviceId,
-            email:
-              response.license.email,
-            license:
-              response.license,
-            checkedAt:
-              new Date().toISOString()
-          }
+          token:
+            response.token,
+
+          deviceId,
+
+          email:
+            response
+              .license
+              .email,
+
+          license:
+            response
+              .license,
+
+          checkedAt:
+            new Date()
+              .toISOString()
+        }
+
+        setPassword('')
+
+        setEntryMessage('')
+
+        setRequestStatus(
+          null
+        )
+
+        setCanActivate(
+          false
+        )
 
         persistSession(
           nextSession
@@ -523,7 +841,8 @@ export function AccessGate({
 
         if (
           isLicenseUsable(
-            nextSession.license
+            nextSession
+              .license
           )
         ) {
           void checkSyncStatus(
@@ -531,16 +850,50 @@ export function AccessGate({
           )
         }
       } catch (
-        startError
+        activationError
       ) {
         setError(
           getErrorMessage(
-            startError
+            activationError
           )
         )
       } finally {
-        setSubmitting(false)
+        setSubmitting(
+          false
+        )
       }
+    }
+
+  const showRequest =
+    () => {
+      setError('')
+
+      setPassword('')
+
+      setEntryMessage('')
+
+      setRequestStatus(
+        null
+      )
+
+      setCanActivate(
+        false
+      )
+
+      setEntryMode(
+        'request'
+      )
+    }
+
+  const showActivation =
+    () => {
+      setError('')
+
+      setPassword('')
+
+      setEntryMode(
+        'activate'
+      )
     }
 
   const handleRenewFromGate =
@@ -549,6 +902,7 @@ export function AccessGate({
         RenewableLicensePlan
     ) => {
       setError('')
+
       setRenewingPlan(
         plan
       )
@@ -566,7 +920,9 @@ export function AccessGate({
           )
         )
       } finally {
-        setRenewingPlan(null)
+        setRenewingPlan(
+          null
+        )
       }
     }
 
@@ -578,13 +934,21 @@ export function AccessGate({
         session
           ? {
               session,
+
               refreshing,
+
               syncStatus,
+
               syncChecking,
+
               syncError,
+
               refresh,
+
               refreshSyncStatus,
+
               requestRenewal,
+
               signOut
             }
           : null,
@@ -601,143 +965,89 @@ export function AccessGate({
       ]
     )
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
 
           <p className="mt-4 text-sm font-semibold text-slate-400">
-            A verificar o acesso ao
-            MA-Professor…
+            A verificar o acesso ao MA-Professor…
           </p>
         </div>
       </main>
     )
   }
 
-  if (!session) {
+  if (
+    !session
+  ) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-10 text-white sm:px-6">
-        <section className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80 shadow-2xl shadow-cyan-950/30 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="border-b border-white/10 p-7 sm:p-10 lg:border-b-0 lg:border-r">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
-              MA-CODE · Beta gratuita
-            </p>
+      <AccessEntryScreen
+        mode={
+          entryMode
+        }
+        email={
+          email
+        }
+        password={
+          password
+        }
+        submitting={
+          submitting
+        }
+        error={
+          error
+        }
+        message={
+          entryMessage
+        }
+        requestStatus={
+          requestStatus
+        }
+        canActivate={
+          canActivate
+        }
+        onEmailChange={
+          value => {
+            setEmail(
+              value
+            )
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-              O seu ano letivo num único
-              lugar.
-            </h1>
+            setError('')
+          }
+        }
+        onPasswordChange={
+          value => {
+            setPassword(
+              value
+            )
 
-            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-              Sumários, aulas, turmas,
-              avaliações, faltas,
-              planificações e horários,
-              com os dados guardados neste
-              dispositivo e cópias de
-              segurança controladas por si.
-            </p>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              {[
-                'Configuração guiada e simples',
-                'Avaliações por UFCD ou módulo',
-                'Controlo de faltas e recuperações',
-                'Exportação e restauro de dados'
-              ].map(
-                item => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-semibold text-slate-200"
-                  >
-                    <span className="mr-2 text-cyan-300">
-                      ✓
-                    </span>
-
-                    {item}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-
-          <form
-            className="flex flex-col justify-center p-7 sm:p-10"
-            onSubmit={
-              handleStart
-            }
-          >
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-              Começar
-            </p>
-
-            <h2 className="mt-3 text-2xl font-black">
-              Ativar 4 meses de beta
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Use o email que ficará
-              associado à sua licença.
-              Não é necessário criar uma
-              palavra-passe de conta para
-              começar.
-            </p>
-
-            <label className="mt-7 text-sm font-bold text-slate-200">
-              Email
-
-              <input
-                type="email"
-                autoComplete="email"
-                value={
-                  email
-                }
-                onChange={
-                  event =>
-                    setEmail(
-                      event.target.value
-                    )
-                }
-                placeholder="professor@escola.pt"
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
-              />
-            </label>
-
-            {error ? (
-              <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
-                {error}
-              </p>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={
-                submitting
-              }
-              className="mt-5 rounded-2xl bg-cyan-300 px-5 py-3.5 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
-            >
-              {submitting
-                ? 'A ativar…'
-                : 'Começar beta gratuita'}
-            </button>
-
-            <p className="mt-4 text-xs leading-5 text-slate-500">
-              Os dados ficam guardados
-              localmente. As cópias online,
-              quando utilizadas, são
-              cifradas neste dispositivo
-              antes de serem enviadas.
-            </p>
-          </form>
-        </section>
-      </main>
+            setError('')
+          }
+        }
+        onRequest={
+          handleRequestAccess
+        }
+        onActivate={
+          handleActivate
+        }
+        onShowRequest={
+          showRequest
+        }
+        onShowActivation={
+          showActivation
+        }
+      />
     )
   }
 
   if (
     !isLicenseUsable(
-      session.license
+      session
+        .license
     )
   ) {
     return (
@@ -746,7 +1056,9 @@ export function AccessGate({
           <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
             Licença{' '}
             {getLicenseStatusLabel(
-              session.license.status
+              session
+                .license
+                .status
             )}
           </p>
 
@@ -757,20 +1069,32 @@ export function AccessGate({
           <p className="mt-3 text-sm leading-7 text-slate-300">
             O plano{' '}
             {getLicensePlanLabel(
-              session.license.plan
+              session
+                .license
+                .plan
             )}{' '}
             terminou em{' '}
-
             <strong className="text-white">
               {formatDate(
-                session.license.validUntil
+                session
+                  .license
+                  .validUntil
               )}
             </strong>
-            . Os seus dados continuam
-            guardados neste dispositivo.
+            . A conta e os seus dados não são apagados por causa da expiração da licença.
           </p>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+            <p className="text-sm font-black text-white">
+              Escolha como pretende continuar
+            </p>
+
+            <p className="mt-1.5 text-xs leading-5 text-slate-400">
+              O pedido fica pendente até a MA-CODE confirmar o pagamento e autorizar o novo período. Não existe renovação automática.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               disabled={
@@ -785,12 +1109,23 @@ export function AccessGate({
               }
               className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-left transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-60"
             >
-              <span className="block text-base font-black text-cyan-200">
-                3,49 € / mês
+              <span className="block text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
+                Mensal
               </span>
 
-              <span className="mt-1 block text-xs text-slate-400">
-                Renovação mensal
+              <span className="mt-2 block text-2xl font-black text-white">
+                3,49 €
+              </span>
+
+              <span className="mt-1 block text-xs leading-5 text-slate-400">
+                30 dias de acesso · renovação manual
+              </span>
+
+              <span className="mt-4 block text-sm font-black text-cyan-200">
+                {renewingPlan ===
+                'paid_30_days'
+                  ? 'A registar…'
+                  : 'Escolher mensal'}
               </span>
             </button>
 
@@ -808,15 +1143,30 @@ export function AccessGate({
               }
               className="rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-4 text-left transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
             >
-              <span className="block text-base font-black text-violet-200">
+              <span className="block text-xs font-black uppercase tracking-[0.14em] text-violet-300">
+                Até ao final do ano letivo
+              </span>
+
+              <span className="mt-2 block text-2xl font-black text-white">
                 15 €
               </span>
 
-              <span className="mt-1 block text-xs text-slate-400">
-                Até ao final do ano letivo
+              <span className="mt-1 block text-xs leading-5 text-slate-400">
+                Acesso até 1 de agosto · sem ativações mensais
+              </span>
+
+              <span className="mt-4 block text-sm font-black text-violet-200">
+                {renewingPlan ===
+                'school_year'
+                  ? 'A registar…'
+                  : 'Escolher ano letivo'}
               </span>
             </button>
           </div>
+
+          <p className="mt-4 text-xs leading-5 text-slate-500">
+            Pagamento por MB WAY automático: disponível brevemente. Nesta fase a confirmação é manual pela MA-CODE.
+          </p>
 
           {error ? (
             <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
