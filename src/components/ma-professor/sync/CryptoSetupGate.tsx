@@ -20,24 +20,34 @@ import {
   initializeMAProfessorSync
 } from './syncApi'
 
+import {
+  ensureMAProfessorRecoveryVerifier,
+  recoverMAProfessorOnNewDevice,
+  type MAProfessorNewDeviceRecoveryResult
+} from './deviceRecoveryService'
+
 type ProtectionStage =
   | 'checking'
   | 'setup'
   | 'recovery'
   | 'ready'
   | 'remote-existing'
+  | 'recovery-complete'
   | 'service-error'
   | 'error'
 
 interface PendingCryptoSetup {
   recoveryCode: string
-  local: MAProfessorLocalCryptoMaterial
+
+  local:
+    MAProfessorLocalCryptoMaterial
 }
 
 function getErrorMessage(
   error: unknown
 ) {
-  return error instanceof Error &&
+  return error instanceof
+    Error &&
     error.message.trim()
     ? error.message
     : 'Ocorreu um erro inesperado.'
@@ -51,7 +61,8 @@ function fallbackCopyText(
       'textarea'
     )
 
-  textarea.value = value
+  textarea.value =
+    value
 
   textarea.setAttribute(
     'readonly',
@@ -99,11 +110,14 @@ async function copyText(
   if (
     navigator.clipboard &&
     typeof navigator.clipboard
-      .writeText === 'function'
+      .writeText ===
+      'function'
   ) {
-    await navigator.clipboard.writeText(
-      value
-    )
+    await navigator
+      .clipboard
+      .writeText(
+        value
+      )
 
     return
   }
@@ -116,7 +130,8 @@ async function copyText(
 function ProtectionShell({
   children
 }: {
-  children: ReactNode
+  children:
+    ReactNode
 }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-white sm:px-6">
@@ -189,10 +204,62 @@ function LoadingProtection() {
   )
 }
 
+function RecoveryResultCard({
+  result
+}: {
+  result:
+    MAProfessorNewDeviceRecoveryResult
+}) {
+  const restored =
+    result.dataStatus ===
+      'restored'
+
+  const alreadyCurrent =
+    result.dataStatus ===
+      'already-current'
+
+  const warning =
+    result.dataStatus ===
+      'manual-restore-required' ||
+    result.dataStatus ===
+      'restore-deferred'
+
+  return (
+    <div
+      className={`mt-5 rounded-2xl border p-4 ${
+        warning
+          ? 'border-amber-300/20 bg-amber-300/[0.06]'
+          : 'border-emerald-300/20 bg-emerald-300/[0.06]'
+      }`}
+    >
+      <p
+        className={`text-sm font-black ${
+          warning
+            ? 'text-amber-100'
+            : 'text-emerald-100'
+        }`}
+      >
+        {restored
+          ? '✓ Cópia recuperada'
+          : alreadyCurrent
+            ? '✓ Dados confirmados'
+            : warning
+              ? 'Dispositivo autorizado'
+              : '✓ Dispositivo autorizado'}
+      </p>
+
+      <p className="mt-2 text-sm leading-6 text-slate-300">
+        {result.message}
+      </p>
+    </div>
+  )
+}
+
 export function CryptoSetupGate({
   children
 }: {
-  children: ReactNode
+  children:
+    ReactNode
 }) {
   const {
     session,
@@ -257,6 +324,26 @@ export function CryptoSetupGate({
     useState('')
 
   const [
+    recoveryCodeInput,
+    setRecoveryCodeInput
+  ] =
+    useState('')
+
+  const [
+    recoveringDevice,
+    setRecoveringDevice
+  ] =
+    useState(false)
+
+  const [
+    recoveredDeviceResult,
+    setRecoveredDeviceResult
+  ] =
+    useState<MAProfessorNewDeviceRecoveryResult | null>(
+      null
+    )
+
+  const [
     error,
     setError
   ] =
@@ -275,19 +362,25 @@ export function CryptoSetupGate({
     useState(0)
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled =
+      false
 
     if (
       pendingSetup ||
-      protectionReady
+      protectionReady ||
+      stage ===
+        'recovery-complete'
     ) {
       return () => {
-        cancelled = true
+        cancelled =
+          true
       }
     }
 
     async function inspectProtection() {
-      if (syncChecking) {
+      if (
+        syncChecking
+      ) {
         setStage(
           'checking'
         )
@@ -302,15 +395,22 @@ export function CryptoSetupGate({
             session.deviceId
           )
 
-        if (cancelled) {
+        if (
+          cancelled
+        ) {
           return
         }
 
-        if (syncStatus) {
+        if (
+          syncStatus
+        ) {
           if (
-            syncStatus.profileExists
+            syncStatus
+              .profileExists
           ) {
-            if (!local) {
+            if (
+              !local
+            ) {
               setError('')
 
               setStage(
@@ -325,7 +425,28 @@ export function CryptoSetupGate({
               session.deviceId
             )
 
-            if (cancelled) {
+            /*
+             * Perfis criados antes desta versão ainda podem não ter
+             * a prova necessária para autorizar um novo dispositivo.
+             *
+             * Prepará-la não bloqueia a utilização normal da app.
+             */
+            try {
+              await ensureMAProfessorRecoveryVerifier(
+                session.token,
+                session.email,
+                session.deviceId
+              )
+            } catch {
+              /*
+               * O professor continua a poder trabalhar localmente.
+               * A preparação será tentada novamente numa visita futura.
+               */
+            }
+
+            if (
+              cancelled
+            ) {
               return
             }
 
@@ -338,7 +459,9 @@ export function CryptoSetupGate({
             return
           }
 
-          if (local) {
+          if (
+            local
+          ) {
             /*
              * Não existe perfil no servidor.
              *
@@ -352,7 +475,9 @@ export function CryptoSetupGate({
             )
           }
 
-          if (cancelled) {
+          if (
+            cancelled
+          ) {
             return
           }
 
@@ -365,18 +490,24 @@ export function CryptoSetupGate({
           return
         }
 
-        if (syncError) {
+        if (
+          syncError
+        ) {
           /*
            * Uma falha temporária do serviço não deve impedir o
            * professor de utilizar uma proteção local já válida.
            */
-          if (local) {
+          if (
+            local
+          ) {
             await unlockMAProfessorLocalMasterKey(
               session.email,
               session.deviceId
             )
 
-            if (cancelled) {
+            if (
+              cancelled
+            ) {
               return
             }
 
@@ -406,7 +537,9 @@ export function CryptoSetupGate({
       } catch (
         inspectionError
       ) {
-        if (cancelled) {
+        if (
+          cancelled
+        ) {
           return
         }
 
@@ -425,7 +558,8 @@ export function CryptoSetupGate({
     void inspectProtection()
 
     return () => {
-      cancelled = true
+      cancelled =
+        true
     }
   }, [
     pendingSetup,
@@ -433,6 +567,8 @@ export function CryptoSetupGate({
     retryNonce,
     session.deviceId,
     session.email,
+    session.token,
+    stage,
     syncChecking,
     syncError,
     syncStatus
@@ -441,6 +577,10 @@ export function CryptoSetupGate({
   const handleRetry =
     () => {
       setError('')
+      setRecoveredDeviceResult(
+        null
+      )
+      setRecoveryCodeInput('')
 
       setStage(
         'checking'
@@ -448,7 +588,8 @@ export function CryptoSetupGate({
 
       setRetryNonce(
         current =>
-          current + 1
+          current +
+          1
       )
 
       void refreshSyncStatus()
@@ -464,7 +605,10 @@ export function CryptoSetupGate({
         return
       }
 
-      setCreating(true)
+      setCreating(
+        true
+      )
+
       setError('')
       setRecoveryAction('')
 
@@ -475,7 +619,9 @@ export function CryptoSetupGate({
             session.deviceId
           )
 
-        if (existing) {
+        if (
+          existing
+        ) {
           await deleteMAProfessorLocalCryptoMaterial(
             session.email,
             session.deviceId
@@ -525,13 +671,17 @@ export function CryptoSetupGate({
           'setup'
         )
       } finally {
-        setCreating(false)
+        setCreating(
+          false
+        )
       }
     }
 
   const handleCopyRecoveryCode =
     async () => {
-      if (!pendingSetup) {
+      if (
+        !pendingSetup
+      ) {
         return
       }
 
@@ -540,7 +690,8 @@ export function CryptoSetupGate({
 
       try {
         await copyText(
-          pendingSetup.recoveryCode
+          pendingSetup
+            .recoveryCode
         )
 
         setRecoverySaved(
@@ -563,7 +714,9 @@ export function CryptoSetupGate({
 
   const handleDownloadRecoveryCode =
     () => {
-      if (!pendingSetup) {
+      if (
+        !pendingSetup
+      ) {
         return
       }
 
@@ -612,7 +765,8 @@ export function CryptoSetupGate({
             'a'
           )
 
-        anchor.href = url
+        anchor.href =
+          url
 
         anchor.download =
           'ma-professor-chave-recuperacao.txt'
@@ -657,7 +811,10 @@ export function CryptoSetupGate({
         return
       }
 
-      setCompleting(true)
+      setCompleting(
+        true
+      )
+
       setError('')
       setRecoveryAction('')
 
@@ -665,15 +822,31 @@ export function CryptoSetupGate({
         await initializeMAProfessorSync(
           session.token,
           session.deviceId,
-          pendingSetup.local.profile,
-          pendingSetup.local.device
+          pendingSetup
+            .local
+            .profile,
+          pendingSetup
+            .local
+            .device
         )
 
         /*
-         * Impede que o efeito interprete o estado antigo de /status
-         * como um perfil ainda inexistente enquanto a atualização do
-         * contexto está a decorrer.
+         * Prepara imediatamente a prova necessária para recuperar
+         * esta conta num dispositivo novo.
+         *
+         * Uma falha temporária aqui não bloqueia a conta: um
+         * dispositivo autorizado voltará a tentar automaticamente.
          */
+        try {
+          await ensureMAProfessorRecoveryVerifier(
+            session.token,
+            session.email,
+            session.deviceId
+          )
+        } catch {
+          // A utilização normal da aplicação continua disponível.
+        }
+
         setProtectionReady(
           true
         )
@@ -700,19 +873,92 @@ export function CryptoSetupGate({
           'recovery'
         )
       } finally {
-        setCompleting(false)
+        setCompleting(
+          false
+        )
       }
     }
 
+  const handleRecoverDevice =
+    async () => {
+      if (
+        recoveringDevice ||
+        !recoveryCodeInput
+          .trim()
+      ) {
+        return
+      }
+
+      setRecoveringDevice(
+        true
+      )
+
+      setError('')
+      setRecoveredDeviceResult(
+        null
+      )
+
+      try {
+        const result =
+          await recoverMAProfessorOnNewDevice(
+            session.token,
+            session.email,
+            session.deviceId,
+            recoveryCodeInput
+          )
+
+        setRecoveredDeviceResult(
+          result
+        )
+
+        setRecoveryCodeInput('')
+
+        setStage(
+          'recovery-complete'
+        )
+
+        await refreshSyncStatus()
+      } catch (
+        recoveryError
+      ) {
+        setError(
+          getErrorMessage(
+            recoveryError
+          )
+        )
+
+        setStage(
+          'remote-existing'
+        )
+      } finally {
+        setRecoveringDevice(
+          false
+        )
+      }
+    }
+
+  const handleEnterAfterRecovery =
+    () => {
+      setProtectionReady(
+        true
+      )
+
+      setStage(
+        'ready'
+      )
+    }
+
   if (
-    stage === 'ready' ||
+    stage ===
+      'ready' ||
     protectionReady
   ) {
     return children
   }
 
   if (
-    stage === 'checking'
+    stage ===
+      'checking'
   ) {
     return (
       <LoadingProtection />
@@ -720,7 +966,8 @@ export function CryptoSetupGate({
   }
 
   if (
-    stage === 'setup'
+    stage ===
+      'setup'
   ) {
     return (
       <ProtectionShell>
@@ -816,12 +1063,16 @@ export function CryptoSetupGate({
               checked={
                 setupAcknowledged
               }
-              onChange={event =>
-                setSetupAcknowledged(
-                  event.target.checked
-                )
+              onChange={
+                event =>
+                  setSetupAcknowledged(
+                    event.target
+                      .checked
+                  )
               }
-              disabled={creating}
+              disabled={
+                creating
+              }
               className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/20 bg-slate-950 accent-cyan-300"
             />
 
@@ -832,7 +1083,9 @@ export function CryptoSetupGate({
         </div>
 
         <ErrorMessage
-          message={error}
+          message={
+            error
+          }
         />
 
         <button
@@ -853,7 +1106,9 @@ export function CryptoSetupGate({
 
         <button
           type="button"
-          disabled={creating}
+          disabled={
+            creating
+          }
           onClick={() =>
             void signOut()
           }
@@ -874,7 +1129,8 @@ export function CryptoSetupGate({
   }
 
   if (
-    stage === 'recovery' &&
+    stage ===
+      'recovery' &&
     pendingSetup
   ) {
     const canComplete =
@@ -925,14 +1181,17 @@ export function CryptoSetupGate({
 
         <div className="mt-6 overflow-x-auto rounded-2xl border border-cyan-300/25 bg-slate-950 p-4 text-center shadow-inner">
           <code className="whitespace-nowrap font-mono text-sm font-black tracking-wider text-cyan-200 sm:text-base">
-            {pendingSetup.recoveryCode}
+            {pendingSetup
+              .recoveryCode}
           </code>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            disabled={completing}
+            disabled={
+              completing
+            }
             onClick={() =>
               void handleCopyRecoveryCode()
             }
@@ -964,7 +1223,9 @@ export function CryptoSetupGate({
 
           <button
             type="button"
-            disabled={completing}
+            disabled={
+              completing
+            }
             onClick={
               handleDownloadRecoveryCode
             }
@@ -1016,12 +1277,16 @@ export function CryptoSetupGate({
             checked={
               recoveryAcknowledged
             }
-            onChange={event =>
-              setRecoveryAcknowledged(
-                event.target.checked
-              )
+            onChange={
+              event =>
+                setRecoveryAcknowledged(
+                  event.target
+                    .checked
+                )
             }
-            disabled={completing}
+            disabled={
+              completing
+            }
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-slate-950 text-cyan-300 accent-cyan-300"
           />
 
@@ -1031,12 +1296,16 @@ export function CryptoSetupGate({
         </label>
 
         <ErrorMessage
-          message={error}
+          message={
+            error
+          }
         />
 
         <button
           type="button"
-          disabled={!canComplete}
+          disabled={
+            !canComplete
+          }
           onClick={() =>
             void handleCompleteProtection()
           }
@@ -1059,49 +1328,210 @@ export function CryptoSetupGate({
   }
 
   if (
-    stage === 'remote-existing'
+    stage ===
+      'remote-existing'
   ) {
     return (
       <ProtectionShell>
-        <ShieldIcon />
+        <div className="flex items-start gap-4">
+          <ShieldIcon />
 
-        <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-violet-300">
-          Dispositivo novo
-        </p>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">
+              Novo dispositivo
+            </p>
 
-        <h1 className="mt-2 text-2xl font-black">
-          Esta conta já está protegida
-        </h1>
+            <h1 className="mt-2 text-2xl font-black sm:text-3xl">
+              Recupere os seus dados
+            </h1>
 
-        <p className="mt-3 text-sm leading-7 text-slate-400">
-          Este dispositivo ainda não possui a chave necessária para abrir os dados cifrados. A autorização através da chave de recuperação será adicionada antes da disponibilização da sincronização na versão beta.
-        </p>
-
-        <p className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4 text-sm leading-6 text-emerald-100">
-          Nenhum dado existente foi eliminado ou substituído.
-        </p>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={
-              handleRetry
-            }
-            className="flex-1 rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950"
-          >
-            Verificar novamente
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              void signOut()
-            }
-            className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white"
-          >
-            Usar outra conta
-          </button>
+            <p className="mt-3 text-sm leading-7 text-slate-400">
+              Esta conta já está protegida. Introduza a chave de recuperação que guardou quando ativou o MA-Professor.
+            </p>
+          </div>
         </div>
+
+        <div className="mt-6 rounded-2xl border border-violet-300/20 bg-violet-300/[0.05] p-4">
+          <p className="text-sm font-black text-violet-100">
+            A sua chave fica neste dispositivo
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            A chave é usada no browser para recuperar a proteção da conta. A chave de recuperação não é enviada para a MA-CODE.
+          </p>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+            Chave de recuperação
+          </span>
+
+          <input
+            type="text"
+            value={
+              recoveryCodeInput
+            }
+            onChange={
+              event =>
+                setRecoveryCodeInput(
+                  event.target
+                    .value
+                )
+            }
+            onKeyDown={
+              event => {
+                if (
+                  event.key ===
+                    'Enter' &&
+                  recoveryCodeInput
+                    .trim() &&
+                  !recoveringDevice
+                ) {
+                  event.preventDefault()
+
+                  void handleRecoverDevice()
+                }
+              }
+            }
+            disabled={
+              recoveringDevice
+            }
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            placeholder="MA-PROF-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3.5 font-mono text-sm font-bold tracking-wide text-white outline-none transition placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-600 focus:border-violet-300/50 disabled:cursor-wait disabled:opacity-60"
+          />
+        </label>
+
+        <ErrorMessage
+          message={
+            error
+          }
+        />
+
+        <button
+          type="button"
+          disabled={
+            recoveringDevice ||
+            !recoveryCodeInput
+              .trim()
+          }
+          onClick={() =>
+            void handleRecoverDevice()
+          }
+          className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-300 to-cyan-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-violet-950/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {recoveringDevice
+            ? 'A verificar a chave e recuperar…'
+            : 'Recuperar neste dispositivo'}
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            recoveringDevice
+          }
+          onClick={() =>
+            void signOut()
+          }
+          className="mt-3 w-full rounded-xl px-4 py-2 text-xs font-bold text-slate-500 transition hover:text-white disabled:opacity-50"
+        >
+          Entrar com outra conta
+        </button>
+
+        <p className="mt-4 text-center text-xs leading-5 text-slate-500">
+          Nenhum dado local é substituído sem uma verificação prévia.
+        </p>
+      </ProtectionShell>
+    )
+  }
+
+  if (
+    stage ===
+      'recovery-complete' &&
+    recoveredDeviceResult
+  ) {
+    const needsAttention =
+      recoveredDeviceResult
+        .dataStatus ===
+        'manual-restore-required' ||
+      recoveredDeviceResult
+        .dataStatus ===
+        'restore-deferred'
+
+    return (
+      <ProtectionShell>
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-200">
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="h-7 w-7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+              />
+
+              <path d="m8 12 2.5 2.5L16 9" />
+            </svg>
+          </div>
+
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
+            Dispositivo autorizado
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">
+            {recoveredDeviceResult
+              .dataStatus ===
+              'restored'
+              ? 'Os seus dados estão de volta'
+              : 'Este dispositivo está pronto'}
+          </h1>
+
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
+            A sua chave de recuperação foi validada neste dispositivo sem ser enviada para a MA-CODE.
+          </p>
+        </div>
+
+        <RecoveryResultCard
+          result={
+            recoveredDeviceResult
+          }
+        />
+
+        {needsAttention ? (
+          <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
+            <p className="text-sm font-black text-cyan-100">
+              Os dados existentes foram preservados
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              Entre no MA-Professor e abra Definições → Dados e cópias para comparar e escolher a versão que pretende manter.
+            </p>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={
+            handleEnterAfterRecovery
+          }
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110"
+        >
+          Entrar no MA-Professor
+        </button>
+
+        <p className="mt-4 text-center text-xs leading-5 text-slate-500">
+          Este dispositivo passa a ter a sua própria chave local protegida.
+        </p>
       </ProtectionShell>
     )
   }
@@ -1125,7 +1555,9 @@ export function CryptoSetupGate({
       </p>
 
       <ErrorMessage
-        message={error}
+        message={
+          error
+        }
       />
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
