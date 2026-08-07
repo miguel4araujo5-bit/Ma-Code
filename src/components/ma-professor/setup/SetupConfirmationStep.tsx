@@ -1174,7 +1174,7 @@ export default function SetupConfirmationStep({
       !confirmedLocalStorage
     ) {
       setError(
-        'Confirme que compreende onde os dados escolares ficam guardados.'
+        'Confirme que compreende como os dados escolares são guardados.'
       )
 
       return
@@ -1874,13 +1874,11 @@ export default function SetupConfirmationStep({
 
             <span>
               <span className="block font-black text-white">
-                Compreendo que os dados escolares ficam neste
-                dispositivo.
+                Compreendo como os dados escolares são guardados e protegidos.
               </span>
 
               <span className="mt-1 block text-sm leading-6 text-slate-400">
-                Nesta fase, não devo limpar os dados do browser ou
-                utilizar outro dispositivo sem uma cópia de segurança.
+                Os dados principais ficam guardados localmente. Posso criar cópias cifradas online e utilizar a chave de recuperação para autorizar outro dispositivo.
               </span>
             </span>
           </label>
