@@ -28,7 +28,6 @@ const ProductsPage = lazy(
 const MAPdfPage = lazy(
   () => import('./MAPdfPage')
 )
-
 const MABtcAlertsPage = lazy(
   () => import('./MABtcAlertsPage')
 )
@@ -45,10 +44,13 @@ const MAQuadroPage = lazy(
   () => import('./MAQuadroPage')
 )
 
+const AdminPage = lazy(
+  () => import('./AdminPage')
+)
+
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
-
 type AppPage =
   | {
       type: 'home'
@@ -78,13 +80,15 @@ type AppPage =
       type: 'ma-quadro'
     }
   | {
+      type: 'admin'
+    }
+  | {
       type: 'service'
       slug: ServicePageSlug
     }
   | {
       type: 'not-found'
     }
-
 function getPageFromPath(): AppPage {
   const path =
     window.location.pathname.replace(
@@ -115,7 +119,6 @@ function getPageFromPath(): AppPage {
       type: 'products'
     }
   }
-
   if (
     path === '/produtos/mapdf' ||
     path === '/produtos/ma-pdf'
@@ -151,13 +154,18 @@ function getPageFromPath(): AppPage {
       type: 'ma-professor'
     }
   }
-
   if (
     path ===
     '/produtos/ma-quadro'
   ) {
     return {
       type: 'ma-quadro'
+    }
+  }
+
+  if (path === '/admin') {
+    return {
+      type: 'admin'
     }
   }
 
@@ -189,7 +197,6 @@ export default function App() {
   ) {
     return <PortfolioPage />
   }
-
   if (
     page.type ===
     'contact'
@@ -230,7 +237,6 @@ export default function App() {
       <MABtcAlertsPage />
     )
   }
-
   if (
     page.type ===
     'ma-recortes'
@@ -256,6 +262,13 @@ export default function App() {
     return (
       <MAQuadroPage />
     )
+  }
+
+  if (
+    page.type ===
+    'admin'
+  ) {
+    return <AdminPage />
   }
 
   if (
