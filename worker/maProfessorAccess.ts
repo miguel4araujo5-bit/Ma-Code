@@ -4,11 +4,11 @@ export const MA_PROFESSOR_ACCESS_API_PREFIX =
 const STORAGE_KEY = 'ma-professor-access-state-v1'
 const PRODUCT_NAME = 'MA-Professor'
 const MAX_BODY_BYTES = 12_000
-const BETA_DAYS = 30
+const BETA_MONTHS = 4
 const EXPIRING_DAYS = 7
 const RENEWAL_GRACE_HOURS = 24
 const MAX_SESSIONS_PER_EMAIL = 4
-const SESSION_MAX_AGE_DAYS = 120
+const SESSION_MAX_AGE_DAYS = 180
 
 export type LicensePlan =
   | 'beta_30_days'
@@ -236,6 +236,12 @@ function addDays(timestamp: number, days: number) {
   return timestamp + days * 24 * 60 * 60 * 1000
 }
 
+function addMonths(timestamp: number, months: number) {
+  const date = new Date(timestamp)
+  date.setUTCMonth(date.getUTCMonth() + months)
+  return date.getTime()
+}
+
 function getDaysRemaining(validUntil: number, now: number) {
   return Math.max(
     0,
@@ -440,6 +446,7 @@ export class MaProfessorAccessDurableObject {
         this.storedState =
           (await this.state.storage.get<AccessState>(STORAGE_KEY)) ||
           createInitialState()
+        this.extendLegacyBetaLicenses(this.storedState)
         this.pruneSessions(this.storedState)
         await this.save()
       }
@@ -464,6 +471,7 @@ export class MaProfessorAccessDurableObject {
       this.storedState =
         (await this.state.storage.get<AccessState>(STORAGE_KEY)) ||
         createInitialState()
+      this.extendLegacyBetaLicenses(this.storedState)
     }
 
     return this.storedState
@@ -476,6 +484,24 @@ export class MaProfessorAccessDurableObject {
 
     this.storedState.updatedAt = Date.now()
     await this.state.storage.put(STORAGE_KEY, this.storedState)
+  }
+
+  private extendLegacyBetaLicenses(state: AccessState) {
+    for (const license of Object.values(state.licenses)) {
+      if (license.plan !== 'beta_30_days') {
+        continue
+      }
+
+      const fourMonthValidUntil = addMonths(
+        license.validFrom,
+        BETA_MONTHS
+      )
+
+      if (license.validUntil < fourMonthValidUntil) {
+        license.validUntil = fourMonthValidUntil
+        license.updatedAt = Date.now()
+      }
+    }
   }
 
   private pruneSessions(state: AccessState) {
@@ -621,7 +647,7 @@ export class MaProfessorAccessDurableObject {
         email,
         plan: 'beta_30_days',
         validFrom: now,
-        validUntil: addDays(now, BETA_DAYS),
+        validUntil: addMonths(now, BETA_MONTHS),
         revokedAt: null,
         renewalRequestedAt: null,
         renewalRequestedPlan: null,
