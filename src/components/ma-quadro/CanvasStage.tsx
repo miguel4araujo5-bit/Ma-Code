@@ -66,10 +66,26 @@ export default function CanvasStage() {
     editor.selection.role ===
     'group'
 
+  const isImage =
+    editor.selection.count === 1 &&
+    editor.selection.role ===
+    'image'
+
+  const locked =
+    editor.busy ||
+    editor.structureBusy
+
   const handleDragOver = (
     event:
       DragEvent<HTMLDivElement>
   ) => {
+    if (
+      locked ||
+      editor.imageCropEditing
+    ) {
+      return
+    }
+
     if (
       event.dataTransfer.types
         .includes('Files')
@@ -88,17 +104,51 @@ export default function CanvasStage() {
       DragEvent<HTMLDivElement>
   ) => {
     event.preventDefault()
+
     setDragActive(false)
+
+    if (
+      locked ||
+      editor.imageCropEditing
+    ) {
+      return
+    }
 
     if (
       event.dataTransfer.files
         .length
     ) {
       void editor.handleDroppedFiles(
-        event.dataTransfer.files
+        Array.from(
+          event.dataTransfer.files
+        )
       )
     }
   }
+
+  const verticalGuidePosition =
+    editor.guides.vertical ===
+    null
+      ? null
+      : `${(
+          editor.guides.vertical /
+          Math.max(
+            1,
+            canvasWidth
+          )
+        ) * 100}%`
+
+  const horizontalGuidePosition =
+    editor.guides.horizontal ===
+    null
+      ? null
+      : `${(
+          editor.guides.horizontal /
+          Math.max(
+            1,
+            canvasHeight
+          )
+        ) * 100}%`
 
   return (
     <section className="mq-stage-section">
@@ -113,7 +163,11 @@ export default function CanvasStage() {
             onClick={() =>
               void editor.undo()
             }
-            disabled={!editor.canUndo}
+            disabled={
+              !editor.canUndo ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -122,7 +176,11 @@ export default function CanvasStage() {
             onClick={() =>
               void editor.redo()
             }
-            disabled={!editor.canRedo}
+            disabled={
+              !editor.canRedo ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <span className="mq-toolbar-separator" />
@@ -133,7 +191,11 @@ export default function CanvasStage() {
             onClick={() =>
               void editor.duplicateSelection()
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -142,7 +204,11 @@ export default function CanvasStage() {
             onClick={
               editor.deleteSelection
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -151,7 +217,11 @@ export default function CanvasStage() {
             onClick={
               editor.groupSelection
             }
-            disabled={!multiple}
+            disabled={
+              !multiple ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -160,7 +230,11 @@ export default function CanvasStage() {
             onClick={
               editor.ungroupSelection
             }
-            disabled={!isGroup}
+            disabled={
+              !isGroup ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
         </div>
 
@@ -173,7 +247,11 @@ export default function CanvasStage() {
                 'left'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -184,7 +262,11 @@ export default function CanvasStage() {
                 'center-x'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -195,7 +277,11 @@ export default function CanvasStage() {
                 'right'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -206,7 +292,11 @@ export default function CanvasStage() {
                 'top'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -217,7 +307,11 @@ export default function CanvasStage() {
                 'center-y'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
 
           <ToolbarButton
@@ -228,9 +322,107 @@ export default function CanvasStage() {
                 'bottom'
               )
             }
-            disabled={!hasSelection}
+            disabled={
+              !hasSelection ||
+              locked ||
+              editor.imageCropEditing
+            }
           />
         </div>
+
+        {isImage ? (
+          <div className="mq-context-toolbar__group">
+            <ToolbarButton
+              label={
+                editor.imageCropEditing
+                  ? 'Concluir recorte'
+                  : 'Recortar'
+              }
+              title={
+                editor.imageCropEditing
+                  ? 'Concluir edição do recorte'
+                  : 'Editar o enquadramento da imagem'
+              }
+              active={
+                editor.imageCropEditing
+              }
+              disabled={locked}
+              onClick={() => {
+                if (
+                  editor.imageCropEditing
+                ) {
+                  editor.finishImageCrop()
+                } else {
+                  editor.beginImageCrop()
+                }
+              }}
+            />
+
+            {editor.imageCropEditing ? (
+              <ToolbarButton
+                label="Cancelar"
+                title="Cancelar alterações do recorte"
+                onClick={
+                  editor.cancelImageCrop
+                }
+                disabled={locked}
+              />
+            ) : (
+              <label
+                className="mq-field"
+                title="Aplicar uma moldura à imagem"
+              >
+                <span className="sr-only">
+                  Moldura
+                </span>
+
+                <select
+                  value={
+                    editor.selection
+                      .imageFrame
+                  }
+                  disabled={locked}
+                  onChange={(event) =>
+                    editor.setImageFrame(
+                      event.target.value as
+                        | 'none'
+                        | 'rounded'
+                        | 'circle'
+                        | 'ellipse'
+                        | 'triangle'
+                        | 'star'
+                    )
+                  }
+                  aria-label="Moldura da imagem"
+                >
+                  <option value="none">
+                    Sem moldura
+                  </option>
+
+                  <option value="rounded">
+                    Cantos arredondados
+                  </option>
+
+                  <option value="circle">
+                    Círculo
+                  </option>
+
+                  <option value="ellipse">
+                    Elipse
+                  </option>
+
+                  <option value="triangle">
+                    Triângulo
+                  </option>
+
+                  <option value="star">
+                    Estrela
+                  </option>
+                </select>
+              </label>
+            )}
+          </div>
+        ) : null}
 
         <div className="mq-context-toolbar__group">
           <ToolbarButton
@@ -239,7 +431,9 @@ export default function CanvasStage() {
             onClick={
               editor.toggleGrid
             }
-            active={editor.showGrid}
+            active={
+              editor.showGrid
+            }
           />
 
           <ToolbarButton
@@ -256,10 +450,104 @@ export default function CanvasStage() {
           <ToolbarButton
             label="Ajustar"
             title="Ajustar quadro ao ecrã"
-            onClick={editor.fitCanvas}
+            onClick={
+              editor.fitCanvas
+            }
           />
         </div>
       </div>
+
+      {isImage &&
+      editor.imageCropEditing ? (
+        <div
+          className="mq-context-toolbar"
+          aria-label="Controlos do recorte"
+        >
+          <div className="mq-context-toolbar__group">
+            <label className="mq-field">
+              <span>
+                Zoom{' '}
+                {editor.selection.cropZoom}%
+              </span>
+
+              <input
+                type="range"
+                min="100"
+                max="400"
+                value={
+                  editor.selection.cropZoom
+                }
+                disabled={locked}
+                onChange={(event) =>
+                  editor.setImageCropZoom(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+
+            <label className="mq-field">
+              <span>
+                Horizontal
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={
+                  editor.selection
+                    .cropPositionX
+                }
+                disabled={locked}
+                onChange={(event) =>
+                  editor.setImageCropPosition(
+                    Number(
+                      event.target.value
+                    ),
+                    editor.selection
+                      .cropPositionY
+                  )
+                }
+              />
+            </label>
+
+            <label className="mq-field">
+              <span>
+                Vertical
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={
+                  editor.selection
+                    .cropPositionY
+                }
+                disabled={locked}
+                onChange={(event) =>
+                  editor.setImageCropPosition(
+                    editor.selection
+                      .cropPositionX,
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+
+            <span className="mq-control-note">
+              Também pode arrastar a
+              imagem no quadro para
+              reposicionar o recorte.
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       <div
         ref={editor.workspaceRef}
@@ -271,6 +559,10 @@ export default function CanvasStage() {
           dragActive
             ? ' is-dragging'
             : ''
+        }${
+          editor.imageCropEditing
+            ? ' is-cropping'
+            : ''
         }`}
         onWheel={
           editor.onWorkspaceWheel
@@ -278,8 +570,12 @@ export default function CanvasStage() {
         onPointerDown={
           editor.onWorkspacePointerDown
         }
-        onDragEnter={handleDragOver}
-        onDragOver={handleDragOver}
+        onDragEnter={
+          handleDragOver
+        }
+        onDragOver={
+          handleDragOver
+        }
         onDragLeave={(event) => {
           if (
             event.currentTarget ===
@@ -288,7 +584,9 @@ export default function CanvasStage() {
             setDragActive(false)
           }
         }}
-        onDrop={handleDrop}
+        onDrop={
+          handleDrop
+        }
       >
         <div
           className={`mq-canvas-shell${
@@ -301,6 +599,7 @@ export default function CanvasStage() {
               canvasWidth *
               editor.zoom /
               100,
+
             height:
               canvasHeight *
               editor.zoom /
@@ -322,12 +621,36 @@ export default function CanvasStage() {
             <div className="mq-safe-area" />
           ) : null}
 
-          {editor.guides.vertical ? (
-            <div className="mq-guide mq-guide--vertical" />
+          {verticalGuidePosition !==
+          null ? (
+            <div
+              className={`mq-guide mq-guide--vertical${
+                editor.guides.source ===
+                'object'
+                  ? ' is-object-guide'
+                  : ''
+              }`}
+              style={{
+                left:
+                  verticalGuidePosition
+              }}
+            />
           ) : null}
 
-          {editor.guides.horizontal ? (
-            <div className="mq-guide mq-guide--horizontal" />
+          {horizontalGuidePosition !==
+          null ? (
+            <div
+              className={`mq-guide mq-guide--horizontal${
+                editor.guides.source ===
+                'object'
+                  ? ' is-object-guide'
+                  : ''
+              }`}
+              style={{
+                top:
+                  horizontalGuidePosition
+              }}
+            />
           ) : null}
 
           {!page ? (
@@ -365,6 +688,14 @@ export default function CanvasStage() {
             </strong>
           ) : null}
 
+          {editor.imageCropEditing ? (
+            <strong>
+              Recorte ativo — arraste a
+              imagem ou use os controlos
+              acima.{' '}
+            </strong>
+          ) : null}
+
           {editor.statusMessage}
         </span>
 
@@ -385,7 +716,9 @@ export default function CanvasStage() {
             type="range"
             min="5"
             max="220"
-            value={editor.zoom}
+            value={
+              editor.zoom
+            }
             onChange={(event) =>
               editor.setZoom(
                 Number(
