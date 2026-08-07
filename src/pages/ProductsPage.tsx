@@ -7,8 +7,8 @@ const siteUrl =
   'https://ma-code.pt'
 
 type ProductStatus =
+  | 'Disponível'
   | 'Brevemente disponível'
-  | 'Disponível em breve'
   | 'Em desenvolvimento'
   | 'Planeado'
 
@@ -34,7 +34,7 @@ const products:
     href:
       '/produtos/mapdf',
     status:
-      'Disponível em breve',
+      'Disponível',
     badge: 'PDF',
     highlights: [
       'Juntar PDF',
@@ -71,7 +71,7 @@ const products:
     href:
       '/produtos/ma-btc-alertas',
     status:
-      'Em desenvolvimento',
+      'Disponível',
     badge: '₿',
     badgeClassName:
       'border-orange-300/35 bg-[#f7931a]/15 text-orange-100 shadow-orange-950/30',
@@ -92,7 +92,7 @@ const products:
     href:
       '/produtos/ma-recortes',
     status:
-      'Em desenvolvimento',
+      'Disponível',
     badge: '✂',
     badgeClassName:
       'border-violet-300/30 bg-violet-300/10 text-violet-100 shadow-violet-950/30',
@@ -721,14 +721,15 @@ export default function ProductsPage() {
                 </span>
 
                 <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  A página fica preparada para acrescentar mais
-                  produtos MA.
+                  Em breve, mais novidades.
                 </h2>
 
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Quando houver outro produto, basta criar uma nova
-                  página como /produtos/nomedoproduto e acrescentar o
-                  respetivo cartão nesta página de catálogo.
+                  Estamos continuamente a desenvolver novas soluções
+                  para particulares, profissionais e empresas. Em breve
+                  serão apresentados novos produtos para simplificar
+                  tarefas, aumentar a produtividade e acelerar a
+                  transformação digital.
                 </p>
               </div>
 
