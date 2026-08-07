@@ -5,6 +5,10 @@ import {
 } from './game/Game.js';
 
 import {
+  BUILD_COSTS,
+} from './game/RulesEngine.js';
+
+import {
   SaveManager,
 } from './storage/SaveManager.js';
 
@@ -23,37 +27,68 @@ const saveManager =
 
 let game = null;
 
-let selectedAction = null;
+let selectedAction =
+  null;
 
-let statusMessage = '';
+let statusMessage =
+  '';
 
-let statusType = 'info';
+let statusType =
+  'info';
 
-const RESOURCE_LABELS = {
-  cork: 'Cortiça',
-  stone: 'Pedra',
-  wheat: 'Trigo',
-  cod: 'Bacalhau',
-  iron: 'Ferro',
-};
+const RESOURCE_VISUALS =
+  Object.freeze({
+    cork:
+      Object.freeze({
+        label: 'Cortiça',
+        icon: '◉',
+        fill:
+          'url(#tile-cork)',
+      }),
 
-const RESOURCE_SYMBOLS = {
-  cork: '◉',
-  stone: '⬟',
-  wheat: '✦',
-  cod: '≈',
-  iron: '◆',
-};
+    stone:
+      Object.freeze({
+        label: 'Pedra',
+        icon: '▰',
+        fill:
+          'url(#tile-stone)',
+      }),
 
-const RESOURCE_CLASSES = {
-  cork: 'resource-cork',
-  stone: 'resource-stone',
-  wheat: 'resource-wheat',
-  cod: 'resource-cod',
-  iron: 'resource-iron',
-  abandoned:
-    'resource-abandoned',
-};
+    wheat:
+      Object.freeze({
+        label: 'Trigo',
+        icon: '♨',
+        fill:
+          'url(#tile-wheat)',
+      }),
+
+    cod:
+      Object.freeze({
+        label: 'Bacalhau',
+        icon: '≈',
+        fill:
+          'url(#tile-cod)',
+      }),
+
+    iron:
+      Object.freeze({
+        label: 'Ferro',
+        icon: '◆',
+        fill:
+          'url(#tile-iron)',
+      }),
+
+    abandoned:
+      Object.freeze({
+        label:
+          'Terras Ermas',
+
+        icon: '✦',
+
+        fill:
+          'url(#tile-abandoned)',
+      }),
+  });
 
 function escapeHtml(
   value,
@@ -113,71 +148,67 @@ function renderStatus() {
     statusMessage;
 }
 
-function getResourceDefinition(
-  resourceId,
-) {
-  if (
-    Array.isArray(
-      RESOURCES,
-    )
-  ) {
-    return RESOURCES.find(
-      (resource) =>
-        resource.id ===
-        resourceId,
-    );
-  }
-
-  return RESOURCES?.[
-    resourceId
-  ];
-}
-
-function getResourceLabel(
+function getResource(
   resourceId,
 ) {
   return (
-    getResourceDefinition(
-      resourceId,
-    )?.name ||
-    RESOURCE_LABELS[
+    RESOURCES[
       resourceId
-    ] ||
-    resourceId
+    ] || {
+      id:
+        resourceId,
+
+      name:
+        RESOURCE_VISUALS[
+          resourceId
+        ]?.label ||
+        resourceId,
+
+      shortName:
+        RESOURCE_VISUALS[
+          resourceId
+        ]?.label ||
+        resourceId,
+
+      icon:
+        RESOURCE_VISUALS[
+          resourceId
+        ]?.icon ||
+        '●',
+    }
   );
 }
 
 function getPhaseLabel() {
-  if (!game) {
-    return '';
-  }
-
   const labels = {
     [GAME_PHASES.SETUP_VILLAGE]:
-      'Colocar Vila inicial',
+      'Fundar Vila inicial',
 
     [GAME_PHASES.SETUP_ROAD]:
-      'Colocar Caminho inicial',
+      'Traçar Caminho inicial',
 
     [GAME_PHASES.TURN_ROLL]:
       'Lançar os dados',
 
     [GAME_PHASES.TURN_ACTIONS]:
-      'Construir ou terminar o turno',
+      'Construir ou concluir a Jornada',
 
     [GAME_PHASES.GAME_OVER]:
       'Partida terminada',
   };
 
   return (
-    labels[game.phase] ||
-    game.phase
+    labels[
+      game?.phase
+    ] || ''
   );
 }
 
-function saveGame() {
+function saveGame({
+  silent = true,
+} = {}) {
   if (!game) {
-    return;
+    return false;
   }
 
   const result =
@@ -192,19 +223,18 @@ function saveGame() {
       result.reason,
       'error',
     );
+
+    return false;
   }
-}
 
-function setAction(
-  action,
-) {
-  selectedAction =
-    selectedAction ===
-    action
-      ? null
-      : action;
+  if (!silent) {
+    setStatus(
+      'Partida guardada neste dispositivo.',
+      'success',
+    );
+  }
 
-  renderGame();
+  return true;
 }
 
 function createPlayerFields(
@@ -212,7 +242,8 @@ function createPlayerFields(
 ) {
   return Array.from(
     {
-      length: count,
+      length:
+        count,
     },
     (
       _,
@@ -227,10 +258,7 @@ function createPlayerFields(
         <label class="player-config-card">
           <span
             class="player-house-marker"
-            style="
-              --player-color:
-                ${house.color};
-            "
+            style="--player-color:${house.color}"
           >
             ${escapeHtml(
               house.symbol,
@@ -259,12 +287,26 @@ function createPlayerFields(
 }
 
 function renderHome() {
-  selectedAction = null;
+  selectedAction =
+    null;
 
   app.innerHTML = `
     <main class="home-screen">
       <section class="hero-panel">
-        <div class="hero-crest">
+        <div
+          class="hero-azulejo hero-azulejo-left"
+          aria-hidden="true"
+        ></div>
+
+        <div
+          class="hero-azulejo hero-azulejo-right"
+          aria-hidden="true"
+        ></div>
+
+        <div
+          class="hero-compass"
+          aria-hidden="true"
+        >
           <span>✦</span>
         </div>
 
@@ -277,9 +319,10 @@ function renderHome() {
         </h1>
 
         <p class="hero-description">
-          Desenvolva Vilas, construa Caminhos
-          Reais e faça crescer a influência
-          da sua Casa Portuguesa.
+          Faça crescer a influência da sua Casa,
+          funde povoações e construa uma rede
+          através de um território inspirado
+          em Portugal Continental.
         </p>
 
         <div class="hero-actions">
@@ -306,10 +349,17 @@ function renderHome() {
           }
         </div>
 
-        <p class="prototype-notice">
-          Versão jogável em desenvolvimento:
-          Vilas, Caminhos, produção e turnos.
-        </p>
+        <div class="hero-version">
+          <span>
+            Mapa Portugal Continental
+          </span>
+
+          <span>•</span>
+
+          <span>
+            Núcleo jogável
+          </span>
+        </div>
       </section>
     </main>
   `;
@@ -320,9 +370,8 @@ function renderHome() {
     )
     ?.addEventListener(
       'click',
-      () => {
-        renderNewGame();
-      },
+      () =>
+        renderNewGame(),
     );
 
   document
@@ -345,6 +394,8 @@ function renderHome() {
             'error',
           );
 
+          renderHome();
+
           return;
         }
 
@@ -354,12 +405,13 @@ function renderHome() {
         selectedAction =
           null;
 
-        renderGame();
+        statusMessage =
+          'Partida retomada.';
 
-        setStatus(
-          'Partida retomada.',
-          'success',
-        );
+        statusType =
+          'success';
+
+        renderGame();
       },
     );
 }
@@ -378,13 +430,21 @@ function renderNewGame(
           ← Voltar
         </button>
 
-        <p class="eyebrow">
-          Preparar expedição
-        </p>
+        <div class="setup-heading">
+          <p class="eyebrow">
+            Preparar expedição
+          </p>
 
-        <h1>
-          Nova partida
-        </h1>
+          <h1>
+            Nova partida
+          </h1>
+
+          <p>
+            Escolha os jogadores. O território
+            e os marcadores serão gerados
+            a partir da seed.
+          </p>
+        </div>
 
         <form id="new-game-form">
           <fieldset class="player-count-fieldset">
@@ -393,9 +453,15 @@ function renderNewGame(
             </legend>
 
             <div class="segmented-control">
-              ${[2, 3, 4]
+              ${[
+                2,
+                3,
+                4,
+              ]
                 .map(
-                  (count) => `
+                  (
+                    count,
+                  ) => `
                     <button
                       class="
                         segmented-option
@@ -428,7 +494,7 @@ function renderNewGame(
 
           <label class="seed-field">
             <span>
-              Seed do tabuleiro
+              Seed do território
             </span>
 
             <input
@@ -439,12 +505,13 @@ function renderNewGame(
             />
 
             <small>
-              A mesma seed gera o mesmo tabuleiro.
+              A mesma seed gera exatamente
+              o mesmo território.
             </small>
           </label>
 
           <button
-            class="button button-primary button-large"
+            class="button button-primary button-large setup-submit"
             type="submit"
           >
             Iniciar Jornada
@@ -471,14 +538,14 @@ function renderNewGame(
       (button) => {
         button.addEventListener(
           'click',
-          () => {
+          () =>
             renderNewGame(
               Number(
-                button.dataset
+                button
+                  .dataset
                   .playerCount,
               ),
-            );
-          },
+            ),
         );
       },
     );
@@ -514,17 +581,20 @@ function renderNewGame(
                   index
                 ];
 
+              const rawName =
+                String(
+                  formData.get(
+                    `player-${index}`,
+                  ) || '',
+                ).trim();
+
               return {
                 id:
                   `player-${index + 1}`,
 
                 name:
-                  String(
-                    formData.get(
-                      `player-${index}`,
-                    ) ||
-                    `Jogador ${index + 1}`,
-                  ).trim(),
+                  rawName ||
+                  `Jogador ${index + 1}`,
 
                 houseId:
                   house.id,
@@ -556,22 +626,26 @@ function renderNewGame(
           selectedAction =
             null;
 
+          statusMessage =
+            `${game.currentPlayer.name}: selecione um local destacado para a primeira Vila.`;
+
+          statusType =
+            'info';
+
           saveGame();
 
           renderGame();
-
-          setStatus(
-            `${game.currentPlayer.name}: selecione um local para a sua primeira Vila.`,
-            'info',
-          );
         } catch (
           error
         ) {
-          setStatus(
-            error instanceof Error
+          const message =
+            error instanceof
+            Error
               ? error.message
-              : 'Não foi possível iniciar a partida.',
-            'error',
+              : 'Não foi possível iniciar a partida.';
+
+          alert(
+            message,
           );
         }
       },
@@ -614,28 +688,34 @@ function computeBoardGeometry() {
       ),
     );
 
-  const padding = 90;
+  const padding = {
+    left: 180,
+    right: 110,
+    top: 100,
+    bottom: 110,
+  };
 
   return {
     minimumX,
     minimumY,
-    padding,
 
     width:
       maximumX -
       minimumX +
-      padding * 2,
+      padding.left +
+      padding.right,
 
     height:
       maximumY -
       minimumY +
-      padding * 2,
+      padding.top +
+      padding.bottom,
 
     mapX(x) {
       return (
         x -
         minimumX +
-        padding
+        padding.left
       );
     },
 
@@ -643,7 +723,7 @@ function computeBoardGeometry() {
       return (
         y -
         minimumY +
-        padding
+        padding.top
       );
     },
   };
@@ -652,18 +732,32 @@ function computeBoardGeometry() {
 function getTerritoryCenter(
   territory,
 ) {
+  if (
+    territory.center
+  ) {
+    return territory.center;
+  }
+
   const vertices =
-    territory.vertexIds
+    territory
+      .vertexIds
       .map(
-        (vertexId) =>
-          game.board.vertices
+        (
+          vertexId,
+        ) =>
+          game.board
+            .vertices
             .find(
-              (vertex) =>
+              (
+                vertex,
+              ) =>
                 vertex.id ===
                 vertexId,
             ),
       )
-      .filter(Boolean);
+      .filter(
+        Boolean,
+      );
 
   return {
     x:
@@ -705,42 +799,36 @@ function getValidVertexIds() {
       .SETUP_VILLAGE
   ) {
     return new Set(
-      game.getValidInitialVillageIds(),
+      game
+        .getValidInitialVillageIds(),
     );
   }
 
   if (
-    game.phase ===
-      GAME_PHASES
-        .TURN_ACTIONS &&
+    game.phase !==
+    GAME_PHASES
+      .TURN_ACTIONS
+  ) {
+    return new Set();
+  }
+
+  if (
     selectedAction ===
-      'village'
+    'village'
   ) {
     return new Set(
-      game.getValidVillageIds(),
+      game
+        .getValidVillageIds(),
     );
   }
 
   if (
-    game.phase ===
-      GAME_PHASES
-        .TURN_ACTIONS &&
     selectedAction ===
-      'city'
+    'city'
   ) {
     return new Set(
-      game.board.vertices
-        .filter(
-          (vertex) =>
-            vertex.ownerId ===
-              game.currentPlayer.id &&
-            vertex.building ===
-              'village',
-        )
-        .map(
-          (vertex) =>
-            vertex.id,
-        ),
+      game
+        .getValidCityIds(),
     );
   }
 
@@ -754,7 +842,8 @@ function getValidEdgeIds() {
       .SETUP_ROAD
   ) {
     return new Set(
-      game.getValidInitialRoadIds(),
+      game
+        .getValidInitialRoadIds(),
     );
   }
 
@@ -773,6 +862,198 @@ function getValidEdgeIds() {
   return new Set();
 }
 
+function svgDefs() {
+  return `
+    <defs>
+      <pattern
+        id="tile-cork"
+        width="24"
+        height="24"
+        patternUnits="userSpaceOnUse"
+      >
+        <rect
+          width="24"
+          height="24"
+          fill="#a96d3d"
+        />
+
+        <circle
+          cx="6"
+          cy="7"
+          r="2.2"
+          fill="#d69b66"
+          opacity=".55"
+        />
+
+        <circle
+          cx="18"
+          cy="17"
+          r="2.8"
+          fill="#7e4828"
+          opacity=".32"
+        />
+
+        <path
+          d="M0 22L22 0M10 24L24 10"
+          stroke="#f0c295"
+          stroke-width="1"
+          opacity=".18"
+        />
+      </pattern>
+
+      <pattern
+        id="tile-stone"
+        width="28"
+        height="24"
+        patternUnits="userSpaceOnUse"
+      >
+        <rect
+          width="28"
+          height="24"
+          fill="#9f9b91"
+        />
+
+        <path
+          d="M0 8H12L16 2H28M0 19H8L13 13H28"
+          stroke="#d6d2c8"
+          stroke-width="1.4"
+          opacity=".46"
+        />
+
+        <path
+          d="M6 0L3 8M20 8L17 17"
+          stroke="#716f69"
+          stroke-width="1"
+          opacity=".3"
+        />
+      </pattern>
+
+      <pattern
+        id="tile-wheat"
+        width="22"
+        height="28"
+        patternUnits="userSpaceOnUse"
+      >
+        <rect
+          width="22"
+          height="28"
+          fill="#d7b34f"
+        />
+
+        <path
+          d="M11 28V2M11 8L6 4M11 13L16 8M11 18L6 13M11 23L17 17"
+          stroke="#f7dfa0"
+          stroke-width="2"
+          opacity=".62"
+        />
+      </pattern>
+
+      <pattern
+        id="tile-cod"
+        width="32"
+        height="20"
+        patternUnits="userSpaceOnUse"
+      >
+        <rect
+          width="32"
+          height="20"
+          fill="#5c9cb2"
+        />
+
+        <path
+          d="M-4 7Q4 1 12 7T28 7T44 7M-4 16Q4 10 12 16T28 16T44 16"
+          fill="none"
+          stroke="#bce0e8"
+          stroke-width="1.7"
+          opacity=".55"
+        />
+      </pattern>
+
+      <pattern
+        id="tile-iron"
+        width="24"
+        height="24"
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(25)"
+      >
+        <rect
+          width="24"
+          height="24"
+          fill="#657687"
+        />
+
+        <path
+          d="M0 4H24M0 14H24"
+          stroke="#a8b5bf"
+          stroke-width="2"
+          opacity=".28"
+        />
+
+        <path
+          d="M0 9H24M0 19H24"
+          stroke="#334554"
+          stroke-width="1"
+          opacity=".25"
+        />
+      </pattern>
+
+      <pattern
+        id="tile-abandoned"
+        width="26"
+        height="26"
+        patternUnits="userSpaceOnUse"
+      >
+        <rect
+          width="26"
+          height="26"
+          fill="#8b7d6e"
+        />
+
+        <path
+          d="M0 0L26 26M26 0L0 26"
+          stroke="#c7b8a4"
+          stroke-width="1"
+          opacity=".18"
+        />
+      </pattern>
+
+      <filter
+        id="territory-shadow"
+        x="-30%"
+        y="-30%"
+        width="160%"
+        height="160%"
+      >
+        <feDropShadow
+          dx="0"
+          dy="5"
+          stdDeviation="4"
+          flood-color="#062737"
+          flood-opacity=".34"
+        />
+      </filter>
+
+      <filter
+        id="glow"
+        x="-60%"
+        y="-60%"
+        width="220%"
+        height="220%"
+      >
+        <feGaussianBlur
+          stdDeviation="4"
+          result="blur"
+        />
+
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+  `;
+}
+
 function renderBoardSvg() {
   const geometry =
     computeBoardGeometry();
@@ -784,19 +1065,22 @@ function renderBoardSvg() {
     getValidEdgeIds();
 
   const territoryMarkup =
-    game.board.territories
+    game.board
+      .territories
       .map(
         (
           territory,
         ) => {
           const points =
-            territory.vertexIds
+            territory
+              .vertexIds
               .map(
                 (
                   vertexId,
                 ) => {
                   const vertex =
-                    game.board.vertices
+                    game.board
+                      .vertices
                       .find(
                         (
                           item,
@@ -833,53 +1117,68 @@ function renderBoardSvg() {
               center.y,
             );
 
-          const resourceId =
-            territory.resourceId ||
-            territory.resource ||
-            'abandoned';
-
-          const resourceClass =
-            RESOURCE_CLASSES[
-              resourceId
+          const visual =
+            RESOURCE_VISUALS[
+              territory.resourceId
             ] ||
-            'resource-abandoned';
-
-          const label =
-            resourceId ===
-              'abandoned'
-              ? 'Terras Ermas'
-              : getResourceLabel(
-                  resourceId,
-                );
+            RESOURCE_VISUALS
+              .abandoned;
 
           const number =
             territory.number;
 
+          const isProducing =
+            game.lastRoll
+              ?.total ===
+            number;
+
           return `
-            <g class="territory-group">
+            <g
+              class="
+                territory-group
+                ${
+                  isProducing
+                    ? 'is-producing'
+                    : ''
+                }
+              "
+            >
               <polygon
-                class="
-                  territory
-                  ${resourceClass}
-                  ${
-                    game.lastRoll
-                      ?.total ===
-                    number
-                      ? 'is-producing'
-                      : ''
-                  }
-                "
+                class="territory"
                 points="${points}"
+                fill="${visual.fill}"
+                stroke="${
+                  isProducing
+                    ? '#fff0a8'
+                    : '#f4e6bd'
+                }"
+                stroke-width="${
+                  isProducing
+                    ? 5
+                    : 3
+                }"
+                filter="url(#territory-shadow)"
               />
+
+              <text
+                class="territory-icon"
+                x="${centerX}"
+                y="${centerY - 23}"
+                text-anchor="middle"
+              >
+                ${escapeHtml(
+                  visual.icon,
+                )}
+              </text>
 
               <text
                 class="territory-label"
                 x="${centerX}"
-                y="${centerY - 18}"
+                y="${centerY - 4}"
                 text-anchor="middle"
               >
                 ${escapeHtml(
-                  label,
+                  visual.label,
                 )}
               </text>
 
@@ -890,23 +1189,25 @@ function renderBoardSvg() {
                       class="
                         number-token
                         ${
-                          number ===
-                            6 ||
-                          number ===
-                            8
+                          [
+                            6,
+                            8,
+                          ].includes(
+                            number,
+                          )
                             ? 'is-strong'
                             : ''
                         }
                       "
                       cx="${centerX}"
-                      cy="${centerY + 12}"
-                      r="22"
+                      cy="${centerY + 25}"
+                      r="20"
                     />
 
                     <text
                       class="number-token-text"
                       x="${centerX}"
-                      y="${centerY + 19}"
+                      y="${centerY + 32}"
                       text-anchor="middle"
                     >
                       ${number}
@@ -916,7 +1217,7 @@ function renderBoardSvg() {
                     <text
                       class="territory-empty-mark"
                       x="${centerX}"
-                      y="${centerY + 20}"
+                      y="${centerY + 31}"
                       text-anchor="middle"
                     >
                       ✦
@@ -930,38 +1231,56 @@ function renderBoardSvg() {
       .join('');
 
   const edgeMarkup =
-    game.board.edges
+    game.board
+      .edges
       .map(
         (
           edge,
         ) => {
           const first =
-            game.board.vertices
+            game.board
+              .vertices
               .find(
-                (vertex) =>
+                (
+                  vertex,
+                ) =>
                   vertex.id ===
-                  edge.vertexIds[0],
+                  edge.vertexIds[
+                    0
+                  ],
               );
 
           const second =
-            game.board.vertices
+            game.board
+              .vertices
               .find(
-                (vertex) =>
+                (
+                  vertex,
+                ) =>
                   vertex.id ===
-                  edge.vertexIds[1],
+                  edge.vertexIds[
+                    1
+                  ],
               );
 
           const owner =
-            game.players.find(
-              (player) =>
-                player.id ===
-                edge.ownerId,
-            );
+            game.players
+              .find(
+                (
+                  player,
+                ) =>
+                  player.id ===
+                  edge.ownerId,
+              );
 
           const isValid =
             validEdgeIds.has(
               edge.id,
             );
+
+          const color =
+            owner?.color ||
+            '#f8e9bf';
 
           return `
             <line
@@ -999,13 +1318,21 @@ function renderBoardSvg() {
                   second.y,
                 )
               }"
-              style="
-                --edge-owner-color:
-                  ${
-                    owner?.color ||
-                    '#CBD5E1'
-                  };
-              "
+              stroke="${
+                edge.segment
+                  ? color
+                  : isValid
+                    ? '#fff0a8'
+                    : 'rgba(255,255,255,.08)'
+              }"
+              stroke-width="${
+                edge.segment
+                  ? 11
+                  : isValid
+                    ? 13
+                    : 4
+              }"
+              stroke-linecap="round"
             />
           `;
         },
@@ -1013,17 +1340,21 @@ function renderBoardSvg() {
       .join('');
 
   const vertexMarkup =
-    game.board.vertices
+    game.board
+      .vertices
       .map(
         (
           vertex,
         ) => {
           const owner =
-            game.players.find(
-              (player) =>
-                player.id ===
-                vertex.ownerId,
-            );
+            game.players
+              .find(
+                (
+                  player,
+                ) =>
+                  player.id ===
+                  vertex.ownerId,
+              );
 
           const isValid =
             validVertexIds.has(
@@ -1043,47 +1374,76 @@ function renderBoardSvg() {
           if (
             vertex.building
           ) {
-            const size =
+            const isCity =
               vertex.building ===
-                'city'
-                ? 17
-                : 13;
+              'city';
+
+            const size =
+              isCity
+                ? 16
+                : 12;
 
             return `
               <g
                 class="
                   building
                   building-${vertex.building}
+                  ${
+                    isValid
+                      ? 'is-valid'
+                      : ''
+                  }
                 "
                 data-vertex-id="${vertex.id}"
-                style="
-                  --building-color:
-                    ${
-                      owner?.color ||
-                      '#334155'
-                    };
-                "
+                transform="translate(${x} ${y})"
               >
-                <rect
-                  x="${x - size}"
-                  y="${y - size}"
-                  width="${size * 2}"
-                  height="${size * 2}"
-                  rx="4"
+                <path
+                  d="
+                    M${-size} ${size * 0.55}
+                    V${-size * 0.25}
+                    L0 ${-size}
+                    L${size} ${-size * 0.25}
+                    V${size * 0.55}
+                    Z
+                  "
+                  fill="${
+                    owner?.color ||
+                    '#334155'
+                  }"
+                  stroke="${
+                    isValid
+                      ? '#fff0a8'
+                      : '#fffaf0'
+                  }"
+                  stroke-width="${
+                    isCity
+                      ? 4
+                      : 3
+                  }"
                 />
 
-                <text
-                  x="${x}"
-                  y="${y + 5}"
-                  text-anchor="middle"
-                >
-                  ${
-                    vertex.building ===
-                    'city'
-                      ? '♜'
-                      : '⌂'
-                  }
-                </text>
+                ${
+                  isCity
+                    ? `
+                      <path
+                        d="
+                          M${-size * 0.55} ${-size * 0.25}
+                          V${-size * 0.7}
+                          H${-size * 0.15}
+                          V${-size * 0.25}
+
+                          M${size * 0.15} ${-size * 0.25}
+                          V${-size * 0.7}
+                          H${size * 0.7}
+                          V${-size * 0.25}
+                        "
+                        stroke="#fffaf0"
+                        stroke-width="2.2"
+                        fill="none"
+                      />
+                    `
+                    : ''
+                }
               </g>
             `;
           }
@@ -1104,7 +1464,22 @@ function renderBoardSvg() {
               r="${
                 isValid
                   ? 10
-                  : 5
+                  : 4
+              }"
+              fill="${
+                isValid
+                  ? '#fff0a8'
+                  : 'rgba(255,255,255,.35)'
+              }"
+              stroke="${
+                isValid
+                  ? '#ffffff'
+                  : 'rgba(8,45,60,.5)'
+              }"
+              stroke-width="${
+                isValid
+                  ? 3
+                  : 1.5
               }"
             />
           `;
@@ -1122,26 +1497,68 @@ function renderBoardSvg() {
         ${geometry.height}
       "
       role="img"
-      aria-label="Tabuleiro do Conquistador"
+      aria-label="Tabuleiro do Conquistador inspirado em Portugal Continental"
     >
-      <defs>
-        <filter
-          id="territory-shadow"
-          x="-20%"
-          y="-20%"
-          width="140%"
-          height="140%"
-        >
-          <feDropShadow
-            dx="0"
-            dy="5"
-            stdDeviation="4"
-            flood-opacity="0.22"
-          />
-        </filter>
-      </defs>
+      ${svgDefs()}
 
-      <g filter="url(#territory-shadow)">
+      <g
+        class="map-decoration"
+        aria-hidden="true"
+      >
+        <text
+          x="62"
+          y="${geometry.height * 0.46}"
+          class="atlantic-label"
+          transform="
+            rotate(
+              -90
+              62
+              ${geometry.height * 0.46}
+            )
+          "
+        >
+          OCEANO ATLÂNTICO
+        </text>
+
+        <g
+          transform="
+            translate(
+              ${geometry.width - 75}
+              72
+            )
+          "
+        >
+          <circle
+            r="28"
+            fill="none"
+            stroke="#d8c284"
+            stroke-width="1.3"
+            opacity=".75"
+          />
+
+          <path
+            d="M0 -25L7 -5L0 0L-7 -5Z"
+            fill="#d8c284"
+          />
+
+          <path
+            d="M0 25L6 6L0 1L-6 6Z"
+            fill="#d8c284"
+            opacity=".55"
+          />
+
+          <text
+            x="0"
+            y="-34"
+            text-anchor="middle"
+            class="north-label"
+          >
+            N
+          </text>
+        </g>
+      </g>
+
+      <g class="territory-layer">
         ${territoryMarkup}
       </g>
 
@@ -1175,7 +1592,7 @@ function renderPlayers() {
           "
           style="
             --player-color:
-              ${player.color};
+            ${player.color}
           "
         >
           <div class="player-summary-heading">
@@ -1193,30 +1610,26 @@ function renderPlayers() {
               </strong>
 
               <span>
-                ${
-                  player.prestige
-                } Prestígio
+                ${player.prestige}
+                Prestígio
               </span>
             </div>
           </div>
 
           <div class="player-public-data">
             <span>
-              ${
-                player.getTotalResources()
-              } recursos
+              ${player.getTotalResources()}
+              cartas
             </span>
 
             <span>
-              ${
-                player.pieces.villages
-              } Vilas
+              ${player.pieces.villages}
+              Vilas
             </span>
 
             <span>
-              ${
-                player.pieces.segments
-              } Caminhos
+              ${player.pieces.segments}
+              segmentos
             </span>
           </div>
         </article>
@@ -1233,42 +1646,42 @@ function renderCurrentResources() {
     .map(
       (
         resourceId,
-      ) => `
-        <div
-          class="
-            resource-card
-            ${
-              RESOURCE_CLASSES[
-                resourceId
-              ] || ''
-            }
-          "
-        >
-          <span class="resource-symbol">
-            ${
-              RESOURCE_SYMBOLS[
-                resourceId
-              ] || '●'
-            }
-          </span>
+      ) => {
+        const resource =
+          getResource(
+            resourceId,
+          );
 
-          <span class="resource-name">
-            ${escapeHtml(
-              getResourceLabel(
-                resourceId,
-              ),
-            )}
-          </span>
+        return `
+          <div
+            class="
+              resource-card
+              resource-card-${resourceId}
+            "
+          >
+            <span class="resource-symbol">
+              ${escapeHtml(
+                resource.icon,
+              )}
+            </span>
 
-          <strong>
-            ${
-              player.resources[
-                resourceId
-              ] || 0
-            }
-          </strong>
-        </div>
-      `,
+            <span class="resource-name">
+              ${escapeHtml(
+                resource.shortName ||
+                resource.name,
+              )}
+            </span>
+
+            <strong>
+              ${
+                player.resources[
+                  resourceId
+                ] || 0
+              }
+            </strong>
+          </div>
+        `;
+      },
     )
     .join('');
 }
@@ -1276,7 +1689,7 @@ function renderCurrentResources() {
 function renderHistory() {
   const entries =
     game.history
-      .slice(-8)
+      .slice(-9)
       .reverse();
 
   if (
@@ -1306,6 +1719,28 @@ function renderHistory() {
     .join('');
 }
 
+function formatCost(
+  cost,
+) {
+  return Object.entries(
+    cost,
+  )
+    .map(
+      ([
+        resourceId,
+        quantity,
+      ]) =>
+        `${
+          quantity
+        } ${
+          getResource(
+            resourceId,
+          ).shortName
+        }`,
+    )
+    .join(' · ');
+}
+
 function renderActionButtons() {
   if (
     game.phase ===
@@ -1315,11 +1750,12 @@ function renderActionButtons() {
     return `
       <div class="instruction-card">
         <strong>
-          Coloque uma Vila
+          Fundar Vila
         </strong>
 
         <span>
-          Selecione um dos vértices destacados.
+          Escolha um dos vértices dourados.
+          A regra de distância já está ativa.
         </span>
       </div>
     `;
@@ -1333,12 +1769,12 @@ function renderActionButtons() {
     return `
       <div class="instruction-card">
         <strong>
-          Coloque um Caminho
+          Traçar Caminho
         </strong>
 
         <span>
-          Selecione uma ligação destacada
-          junto da Vila.
+          Escolha uma ligação dourada
+          junto da Vila acabada de fundar.
         </span>
       </div>
     `;
@@ -1352,10 +1788,14 @@ function renderActionButtons() {
     return `
       <button
         id="roll-dice-button"
-        class="button button-primary"
+        class="button button-primary action-main"
         type="button"
       >
-        Lançar os dados
+        <span class="dice-icon">
+          ⚄
+        </span>
+
+        Lançar dois dados
       </button>
     `;
   }
@@ -1365,6 +1805,33 @@ function renderActionButtons() {
     GAME_PHASES
       .TURN_ACTIONS
   ) {
+    const player =
+      game.currentPlayer;
+
+    const roadDisabled =
+      !player.canAfford(
+        BUILD_COSTS.road,
+      ) ||
+      !player.hasPiece(
+        'segments',
+      );
+
+    const villageDisabled =
+      !player.canAfford(
+        BUILD_COSTS.village,
+      ) ||
+      !player.hasPiece(
+        'villages',
+      );
+
+    const cityDisabled =
+      !player.canAfford(
+        BUILD_COSTS.city,
+      ) ||
+      !player.hasPiece(
+        'cities',
+      );
+
     return `
       <div class="build-actions">
         <button
@@ -1373,17 +1840,29 @@ function renderActionButtons() {
             button-build
             ${
               selectedAction ===
-                'road'
+              'road'
                 ? 'is-active'
                 : ''
             }
           "
           data-action="road"
           type="button"
+          ${
+            roadDisabled
+              ? 'disabled'
+              : ''
+          }
         >
-          Caminho
+          <span>
+            Caminho Real
+          </span>
+
           <small>
-            1 Pedra + 1 Cortiça
+            ${escapeHtml(
+              formatCost(
+                BUILD_COSTS.road,
+              ),
+            )}
           </small>
         </button>
 
@@ -1393,17 +1872,29 @@ function renderActionButtons() {
             button-build
             ${
               selectedAction ===
-                'village'
+              'village'
                 ? 'is-active'
                 : ''
             }
           "
           data-action="village"
           type="button"
+          ${
+            villageDisabled
+              ? 'disabled'
+              : ''
+          }
         >
-          Vila
+          <span>
+            Vila
+          </span>
+
           <small>
-            Pedra, Cortiça, Trigo e Bacalhau
+            ${escapeHtml(
+              formatCost(
+                BUILD_COSTS.village,
+              ),
+            )}
           </small>
         </button>
 
@@ -1413,24 +1904,36 @@ function renderActionButtons() {
             button-build
             ${
               selectedAction ===
-                'city'
+              'city'
                 ? 'is-active'
                 : ''
             }
           "
           data-action="city"
           type="button"
+          ${
+            cityDisabled
+              ? 'disabled'
+              : ''
+          }
         >
-          Cidade
+          <span>
+            Cidade Muralhada
+          </span>
+
           <small>
-            3 Ferros + 2 Trigos
+            ${escapeHtml(
+              formatCost(
+                BUILD_COSTS.city,
+              ),
+            )}
           </small>
         </button>
       </div>
 
       <button
         id="end-turn-button"
-        class="button button-secondary"
+        class="button button-secondary action-main"
         type="button"
       >
         Concluir Jornada
@@ -1441,16 +1944,19 @@ function renderActionButtons() {
   return `
     <div class="victory-card">
       <strong>
-        ${
-          escapeHtml(
-            game.winner?.name ||
-            'Vencedor',
-          )
-        }
+        ${escapeHtml(
+          game.winner
+            ?.name ||
+          'Vencedor',
+        )}
       </strong>
 
       <span>
-        conquistou o Reino.
+        alcançou ${
+          game.winner
+            ?.prestige ||
+          12
+        } pontos de Prestígio.
       </span>
     </div>
   `;
@@ -1466,7 +1972,7 @@ function renderGame() {
   app.innerHTML = `
     <main class="game-screen">
       <header class="game-header">
-        <div>
+        <div class="game-brand">
           <p class="eyebrow">
             Terras e Rotas do Atlântico
           </p>
@@ -1474,6 +1980,24 @@ function renderGame() {
           <h1>
             Conquistador
           </h1>
+        </div>
+
+        <div class="game-meta">
+          <span>
+            Portugal Continental
+          </span>
+
+          <span>
+            Seed
+            ${escapeHtml(
+              game.seed,
+            )}
+          </span>
+
+          <span>
+            Jornada
+            ${game.turnNumber}
+          </span>
         </div>
 
         <div class="game-header-actions">
@@ -1495,27 +2019,29 @@ function renderGame() {
         </div>
       </header>
 
-      <section class="turn-banner">
-        <div
-          class="turn-player-symbol"
-          style="
-            --player-color:
-              ${game.currentPlayer.color};
-          "
-        >
+      <section
+        class="turn-banner"
+        style="
+          --player-color:
+          ${game.currentPlayer.color}
+        "
+      >
+        <div class="turn-player-symbol">
           ${escapeHtml(
-            game.currentPlayer.symbol,
+            game.currentPlayer
+              .symbol,
           )}
         </div>
 
-        <div>
+        <div class="turn-copy">
           <span>
             Vez de
           </span>
 
           <strong>
             ${escapeHtml(
-              game.currentPlayer.name,
+              game.currentPlayer
+                .name,
             )}
           </strong>
 
@@ -1529,23 +2055,20 @@ function renderGame() {
         ${
           game.lastRoll
             ? `
-              <div class="dice-result">
+              <div
+                class="dice-result"
+                aria-label="Resultado dos dados ${game.lastRoll.total}"
+              >
                 <span>
-                  ${
-                    game.lastRoll.die1
-                  }
+                  ${game.lastRoll.die1}
                 </span>
 
                 <span>
-                  ${
-                    game.lastRoll.die2
-                  }
+                  ${game.lastRoll.die2}
                 </span>
 
                 <strong>
-                  ${
-                    game.lastRoll.total
-                  }
+                  ${game.lastRoll.total}
                 </strong>
               </div>
             `
@@ -1572,10 +2095,10 @@ function renderGame() {
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel history-panel">
             <div class="panel-heading">
               <h2>
-                Histórico
+                Crónica da Jornada
               </h2>
             </div>
 
@@ -1586,6 +2109,26 @@ function renderGame() {
         </aside>
 
         <section class="board-panel">
+          <div class="board-title-row">
+            <div>
+              <span class="board-kicker">
+                Reino
+              </span>
+
+              <strong>
+                Portugal Continental
+              </strong>
+            </div>
+
+            <span class="board-seed">
+              ${
+                game.board
+                  .generationAttempts
+              }
+              tentativas de geração
+            </span>
+          </div>
+
           <div class="board-frame">
             ${renderBoardSvg()}
           </div>
@@ -1599,11 +2142,10 @@ function renderGame() {
               </h2>
 
               <span>
-                ${
-                  escapeHtml(
-                    game.currentPlayer.name,
-                  )
-                }
+                ${escapeHtml(
+                  game.currentPlayer
+                    .name,
+                )}
               </span>
             </div>
 
@@ -1624,7 +2166,7 @@ function renderGame() {
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel bank-panel">
             <div class="panel-heading">
               <h2>
                 Reserva da Coroa
@@ -1639,9 +2181,9 @@ function renderGame() {
                   ) => `
                     <span>
                       ${escapeHtml(
-                        getResourceLabel(
+                        getResource(
                           resourceId,
-                        ),
+                        ).shortName,
                       )}
 
                       <strong>
@@ -1671,7 +2213,8 @@ function renderGame() {
 function handleVertexClick(
   vertexId,
 ) {
-  let result = null;
+  let result =
+    null;
 
   if (
     game.phase ===
@@ -1724,29 +2267,32 @@ function handleVertexClick(
 
   saveGame();
 
-  renderGame();
-
   if (
     game.phase ===
     GAME_PHASES
       .SETUP_ROAD
   ) {
-    setStatus(
-      'Agora selecione um Caminho ligado à Vila.',
-      'success',
-    );
+    statusMessage =
+      'Agora escolha um Caminho dourado ligado à Vila.';
+
+    statusType =
+      'success';
   } else {
-    setStatus(
-      'Construção concluída.',
-      'success',
-    );
+    statusMessage =
+      'Construção concluída.';
+
+    statusType =
+      'success';
   }
+
+  renderGame();
 }
 
 function handleEdgeClick(
   edgeId,
 ) {
-  let result = null;
+  let result =
+    null;
 
   if (
     game.phase ===
@@ -1788,32 +2334,55 @@ function handleEdgeClick(
 
   saveGame();
 
-  renderGame();
-
   if (
     game.phase ===
     GAME_PHASES
       .SETUP_VILLAGE
   ) {
-    setStatus(
-      `${game.currentPlayer.name}: selecione um local para a sua Vila.`,
-      'success',
-    );
+    statusMessage =
+      `${game.currentPlayer.name}: escolha o local da sua Vila.`;
+
+    statusType =
+      'success';
   } else if (
     game.phase ===
     GAME_PHASES
       .TURN_ROLL
   ) {
-    setStatus(
-      'A preparação terminou. Lance os dados.',
-      'success',
-    );
+    statusMessage =
+      'Preparação concluída. A primeira Jornada pode começar.';
+
+    statusType =
+      'success';
   } else {
-    setStatus(
-      'Caminho construído.',
-      'success',
-    );
+    statusMessage =
+      'Caminho Real construído.';
+
+    statusType =
+      'success';
   }
+
+  renderGame();
+}
+
+function setAction(
+  action,
+) {
+  selectedAction =
+    selectedAction ===
+      action
+      ? null
+      : action;
+
+  statusMessage =
+    selectedAction
+      ? 'Os locais onde esta ação é válida estão destacados a dourado.'
+      : '';
+
+  statusType =
+    'info';
+
+  renderGame();
 }
 
 function attachGameEvents() {
@@ -1825,12 +2394,12 @@ function attachGameEvents() {
       (element) => {
         element.addEventListener(
           'click',
-          () => {
+          () =>
             handleVertexClick(
-              element.dataset
+              element
+                .dataset
                 .vertexId,
-            );
-          },
+            ),
         );
       },
     );
@@ -1843,12 +2412,12 @@ function attachGameEvents() {
       (element) => {
         element.addEventListener(
           'click',
-          () => {
+          () =>
             handleEdgeClick(
-              element.dataset
+              element
+                .dataset
                 .edgeId,
-            );
-          },
+            ),
         );
       },
     );
@@ -1861,12 +2430,12 @@ function attachGameEvents() {
       (button) => {
         button.addEventListener(
           'click',
-          () => {
+          () =>
             setAction(
-              button.dataset
+              button
+                .dataset
                 .action,
-            );
-          },
+            ),
         );
       },
     );
@@ -1894,18 +2463,19 @@ function attachGameEvents() {
 
         saveGame();
 
-        renderGame();
+        statusMessage =
+          result.roll.total ===
+          7
+            ? 'Saiu 7. A Tempestade será ligada ao motor na próxima fase.'
+            : `Resultado ${result.roll.total}: a produção foi resolvida.`;
 
-        setStatus(
+        statusType =
           result.roll.total ===
-            7
-            ? 'Foi lançado 7. O evento especial ainda será implementado.'
-            : `Resultado ${result.roll.total}: produção distribuída.`,
-          result.roll.total ===
-            7
+          7
             ? 'warning'
-            : 'success',
-        );
+            : 'success';
+
+        renderGame();
       },
     );
 
@@ -1935,12 +2505,13 @@ function attachGameEvents() {
 
         saveGame();
 
-        renderGame();
+        statusMessage =
+          `É agora a vez de ${game.currentPlayer.name}.`;
 
-        setStatus(
-          `É agora a vez de ${game.currentPlayer.name}.`,
-          'info',
-        );
+        statusType =
+          'info';
+
+        renderGame();
       },
     );
 
@@ -1950,21 +2521,10 @@ function attachGameEvents() {
     )
     ?.addEventListener(
       'click',
-      () => {
-        const result =
-          saveManager.save(
-            game,
-          );
-
-        setStatus(
-          result.success
-            ? 'Partida guardada neste dispositivo.'
-            : result.reason,
-          result.success
-            ? 'success'
-            : 'error',
-        );
-      },
+      () =>
+        saveGame({
+          silent: false,
+        }),
     );
 
   document
