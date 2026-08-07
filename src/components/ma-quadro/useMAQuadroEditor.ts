@@ -2578,8 +2578,8 @@ useMAQuadroEditor():
                     cropSession &&
                     target instanceof
                     FabricImage &&
-                    target.maId ===
-                    cropSession.objectId
+                   (target as FabricImage & MAQuadroFabricObject).maId ===
+cropSession.objectId
                 ) {
                     const worldX =
                         Number(
