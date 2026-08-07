@@ -11,6 +11,11 @@ import type {
 } from '../../lib/maQuadro/canvasObjects';
 
 import type {
+    MAQuadroGuideState,
+    MAQuadroImageFrameKind
+} from '../../lib/maQuadro/editorEnhancements';
+
+import type {
     MAQuadroBackground,
     MAQuadroBrand,
     MAQuadroCanvasPreset,
@@ -40,24 +45,30 @@ export type MAQuadroLayerItem = {
 
 export type MAQuadroSelectionState = {
     count: number;
+
     role:
         | MAQuadroObjectRole
         | null;
+
     shapeKind:
         | MAQuadroShapeKind
         | null;
+
     name: string;
     fill: string;
     stroke: string;
     strokeWidth: number;
     opacity: number;
+
     x: number;
     y: number;
     width: number;
     height: number;
     angle: number;
+
     flipX: boolean;
     flipY: boolean;
+
     fontFamily: string;
     fontSize: number;
     fontWeight: string;
@@ -67,28 +78,43 @@ export type MAQuadroSelectionState = {
     charSpacing: number;
     underline: boolean;
     linethrough: boolean;
+
     cornerRadius: number;
+
     shadowEnabled: boolean;
     shadowColor: string;
     shadowBlur: number;
     shadowOffsetX: number;
     shadowOffsetY: number;
+
     gradientEnabled: boolean;
     gradientFrom: string;
     gradientTo: string;
     gradientAngle: number;
+
     imageFilters:
         MAQuadroImageFilterState;
+
     cropHorizontal: number;
     cropVertical: number;
+
+    cropZoom: number;
+    cropPositionX: number;
+    cropPositionY: number;
+
+    imageFrame:
+        MAQuadroImageFrameKind;
 };
 
 export type MAQuadroExportOptions = {
     format:
         MAQuadroExportFormat;
+
     scale:
         MAQuadroExportScale;
+
     quality: number;
+
     scope:
         | 'current'
         | 'all';
@@ -98,6 +124,7 @@ export type MAQuadroNewDesignValues = {
     width: number;
     height: number;
     name: string;
+
     category:
         MAQuadroProjectCategory;
 };
@@ -131,17 +158,24 @@ export type MAQuadroEditor = {
     ready: boolean;
     busy: boolean;
     structureBusy: boolean;
+
     statusMessage: string;
+
     saveState:
         MAQuadroSaveState;
+
     project:
         MAQuadroProject | null;
+
     projects:
         MAQuadroProject[];
+
     activePage:
         MAQuadroPage | null;
+
     brand:
         MAQuadroBrand;
+
     localFonts:
         MAQuadroStoredFont[];
 
@@ -162,22 +196,27 @@ export type MAQuadroEditor = {
         MAQuadroPanelId;
 
     zoom: number;
+
     canUndo: boolean;
     canRedo: boolean;
+
     drawingMode: boolean;
+
     brushColor: string;
     brushWidth: number;
+
     showGrid: boolean;
     showSafeArea: boolean;
 
-    guides: {
-        vertical: boolean;
-        horizontal: boolean;
-    };
+    guides:
+        MAQuadroGuideState;
 
     isSpacePressed: boolean;
+
     exportOpen: boolean;
     newDesignOpen: boolean;
+
+    imageCropEditing: boolean;
 
     exportOptions:
         MAQuadroExportOptions;
@@ -407,7 +446,6 @@ export type MAQuadroEditor = {
             | 'charSpacing'
             | 'underline'
             | 'linethrough',
-
         value:
             | string
             | number
@@ -463,6 +501,29 @@ export type MAQuadroEditor = {
 
     resetImageCrop:
         () => void;
+
+    beginImageCrop:
+        () => void;
+
+    finishImageCrop:
+        () => void;
+
+    cancelImageCrop:
+        () => void;
+
+    setImageCropZoom: (
+        zoom: number
+    ) => void;
+
+    setImageCropPosition: (
+        positionX: number,
+        positionY: number
+    ) => void;
+
+    setImageFrame: (
+        kind:
+            MAQuadroImageFrameKind
+    ) => void;
 
     removeImageBackground:
         () => Promise<void>;
