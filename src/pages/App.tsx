@@ -49,6 +49,14 @@ const AdminPage = lazy(
   () => import('./AdminPage')
 )
 
+const MAProfessorAdminPage = lazy(
+  () => import('./MAProfessorAdminPage')
+)
+
+const RedeZeroAdminPage = lazy(
+  () => import('./RedeZeroAdminPage')
+)
+
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
@@ -85,6 +93,14 @@ type AppPage =
       type: 'admin'
     }
   | {
+      type:
+        'admin-ma-professor'
+    }
+  | {
+      type:
+        'admin-redezero'
+    }
+  | {
       type: 'service'
       slug: ServicePageSlug
     }
@@ -105,27 +121,35 @@ function getPageFromPath(): AppPage {
     }
   }
 
-  if (path === '/projetos') {
+  if (
+    path === '/projetos'
+  ) {
     return {
       type: 'portfolio'
     }
   }
 
-  if (path === '/contacto') {
+  if (
+    path === '/contacto'
+  ) {
     return {
       type: 'contact'
     }
   }
 
-  if (path === '/produtos') {
+  if (
+    path === '/produtos'
+  ) {
     return {
       type: 'products'
     }
   }
 
   if (
-    path === '/produtos/mapdf' ||
-    path === '/produtos/ma-pdf'
+    path ===
+      '/produtos/mapdf' ||
+    path ===
+      '/produtos/ma-pdf'
   ) {
     return {
       type: 'ma-pdf'
@@ -137,7 +161,8 @@ function getPageFromPath(): AppPage {
     '/produtos/ma-btc-alertas'
   ) {
     return {
-      type: 'ma-btc-alertas'
+      type:
+        'ma-btc-alertas'
     }
   }
 
@@ -155,7 +180,8 @@ function getPageFromPath(): AppPage {
     '/produtos/ma-professor'
   ) {
     return {
-      type: 'ma-professor'
+      type:
+        'ma-professor'
     }
   }
 
@@ -173,6 +199,26 @@ function getPageFromPath(): AppPage {
   ) {
     return {
       type: 'admin'
+    }
+  }
+
+  if (
+    path ===
+    '/admin/ma-professor'
+  ) {
+    return {
+      type:
+        'admin-ma-professor'
+    }
+  }
+
+  if (
+    path ===
+    '/admin/redezero'
+  ) {
+    return {
+      type:
+        'admin-redezero'
     }
   }
 
@@ -202,14 +248,18 @@ export default function App() {
     page.type ===
     'portfolio'
   ) {
-    return <PortfolioPage />
+    return (
+      <PortfolioPage />
+    )
   }
 
   if (
     page.type ===
     'contact'
   ) {
-    return <ContactPage />
+    return (
+      <ContactPage />
+    )
   }
 
   if (
@@ -227,14 +277,18 @@ export default function App() {
     page.type ===
     'products'
   ) {
-    return <ProductsPage />
+    return (
+      <ProductsPage />
+    )
   }
 
   if (
     page.type ===
     'ma-pdf'
   ) {
-    return <MAPdfPage />
+    return (
+      <MAPdfPage />
+    )
   }
 
   if (
@@ -277,14 +331,36 @@ export default function App() {
     page.type ===
     'admin'
   ) {
-    return <AdminPage />
+    return (
+      <AdminPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'admin-ma-professor'
+  ) {
+    return (
+      <MAProfessorAdminPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'admin-redezero'
+  ) {
+    return (
+      <RedeZeroAdminPage />
+    )
   }
 
   if (
     page.type ===
     'not-found'
   ) {
-    return <NotFoundPage />
+    return (
+      <NotFoundPage />
+    )
   }
 
   return <MACode />
