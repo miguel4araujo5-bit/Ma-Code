@@ -28,7 +28,6 @@ export interface MAProfessorManualSyncState {
   lastOperation:
     MAProfessorManualSyncOperation
 }
-
 function normalizeEmail(
   email: string
 ) {
@@ -54,7 +53,6 @@ function createStorageKey(
     normalizeDeviceId(
       deviceId
     )
-
   if (
     !normalizedEmail ||
     !normalizedDeviceId
@@ -90,10 +88,9 @@ function isObject(
     )
   )
 }
-
 function isValidDate(
   value: unknown
-) {
+): value is string {
   return (
     typeof value ===
       'string' &&
@@ -117,7 +114,6 @@ function isValidOperation(
     value === 'restore'
   )
 }
-
 function parseState(
   value: unknown
 ): MAProfessorManualSyncState | null {
@@ -148,7 +144,6 @@ function parseState(
   ) {
     return null
   }
-
   return {
     version:
       STATE_VERSION,
@@ -180,7 +175,6 @@ export function readMAProfessorManualSyncState(
   ) {
     return null
   }
-
   const key =
     createStorageKey(
       email,
@@ -213,7 +207,6 @@ export function readMAProfessorManualSyncState(
     return null
   }
 }
-
 export function saveMAProfessorManualSyncState(
   email: string,
   deviceId: string,
@@ -244,7 +237,6 @@ export function saveMAProfessorManualSyncState(
 
     ...state
   }
-
   try {
     window.localStorage.setItem(
       key,
@@ -275,7 +267,6 @@ export function clearMAProfessorManualSyncState(
       email,
       deviceId
     )
-
   try {
     window.localStorage.removeItem(
       key
