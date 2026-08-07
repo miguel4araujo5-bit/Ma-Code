@@ -12,12 +12,16 @@ import {
 const saveLabels = {
   ready:
     'Pronto',
+
   dirty:
     'Alterações por guardar',
+
   saving:
     'A guardar…',
+
   saved:
     'Guardado automaticamente',
+
   error:
     'Erro ao guardar'
 } as const
@@ -84,7 +88,8 @@ function ProjectNameField() {
     setDraft(next)
 
     if (
-      next !== currentName
+      next !==
+      currentName
     ) {
       editor.setProjectName(
         next
@@ -97,12 +102,20 @@ function ProjectNameField() {
       KeyboardEvent<HTMLInputElement>
   ) => {
     if (
-      event.key === 'Enter'
+      event.key ===
+      'Enter'
     ) {
       event.preventDefault()
-      event.currentTarget.blur()
-    } else if (
-      event.key === 'Escape'
+
+      event.currentTarget
+        .blur()
+
+      return
+    }
+
+    if (
+      event.key ===
+      'Escape'
     ) {
       event.preventDefault()
 
@@ -113,7 +126,8 @@ function ProjectNameField() {
         currentName
       )
 
-      event.currentTarget.blur()
+      event.currentTarget
+        .blur()
     }
   }
 
@@ -135,13 +149,19 @@ function ProjectNameField() {
       disabled={
         !editor.project ||
         editor.busy ||
-        editor.structureBusy
+        editor.structureBusy ||
+        editor.imageCropEditing
       }
     />
   )
 }
 
-export default function EditorHeader() {
+export default function EditorHeader({
+  onOpenShortcuts
+}: {
+  onOpenShortcuts:
+    () => void
+}) {
   const editor =
     useMAQuadroEditorContext()
 
@@ -152,7 +172,8 @@ export default function EditorHeader() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    editor.imageCropEditing
 
   const closeMenu = () => {
     if (
@@ -209,6 +230,12 @@ export default function EditorHeader() {
     )
   }
 
+  const openShortcuts = () => {
+    closeMenu()
+
+    onOpenShortcuts()
+  }
+
   return (
     <header className="mq-header">
       <div className="mq-header__brand">
@@ -238,7 +265,8 @@ export default function EditorHeader() {
             </strong>
 
             <small>
-              Estúdio de design local
+              Estúdio de design
+              local
             </small>
           </span>
         </a>
@@ -264,7 +292,9 @@ export default function EditorHeader() {
           <button
             type="button"
             className="mq-button mq-button--ghost"
-            onClick={openNewDesign}
+            onClick={
+              openNewDesign
+            }
             disabled={locked}
           >
             Novo
@@ -273,7 +303,9 @@ export default function EditorHeader() {
           <button
             type="button"
             className="mq-button mq-button--ghost"
-            onClick={openImport}
+            onClick={
+              openImport
+            }
             disabled={locked}
           >
             Importar
@@ -282,7 +314,9 @@ export default function EditorHeader() {
           <button
             type="button"
             className="mq-button mq-button--ghost mq-hide-tablet"
-            onClick={saveAsTemplate}
+            onClick={
+              saveAsTemplate
+            }
             disabled={
               !editor.project ||
               locked
@@ -290,12 +324,29 @@ export default function EditorHeader() {
           >
             Guardar como modelo
           </button>
+
+          <button
+            type="button"
+            className="mq-button mq-button--ghost mq-header__shortcuts-button"
+            onClick={
+              openShortcuts
+            }
+            title="Atalhos de teclado (?)"
+          >
+            <span aria-hidden="true">
+              ?
+            </span>
+
+            Atalhos
+          </button>
         </div>
 
         <button
           type="button"
           className="mq-button mq-button--secondary mq-header__save-button"
-          onClick={saveProject}
+          onClick={
+            saveProject
+          }
           disabled={
             !editor.project ||
             locked
@@ -334,7 +385,9 @@ export default function EditorHeader() {
           <div className="mq-header-menu__panel">
             <button
               type="button"
-              onClick={openNewDesign}
+              onClick={
+                openNewDesign
+              }
               disabled={locked}
             >
               Novo design
@@ -342,7 +395,9 @@ export default function EditorHeader() {
 
             <button
               type="button"
-              onClick={openImport}
+              onClick={
+                openImport
+              }
               disabled={locked}
             >
               Importar projeto
@@ -350,7 +405,18 @@ export default function EditorHeader() {
 
             <button
               type="button"
-              onClick={saveAsTemplate}
+              onClick={
+                openShortcuts
+              }
+            >
+              Atalhos de teclado
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                saveAsTemplate
+              }
               disabled={
                 !editor.project ||
                 locked
@@ -361,7 +427,9 @@ export default function EditorHeader() {
 
             <button
               type="button"
-              onClick={saveProject}
+              onClick={
+                saveProject
+              }
               disabled={
                 !editor.project ||
                 locked
