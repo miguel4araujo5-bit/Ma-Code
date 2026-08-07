@@ -28,6 +28,16 @@ import {
 } from '../../lib/maQuadro/db';
 
 import {
+    applyMAQuadroImageFrame,
+    emptyMAQuadroGuides,
+    getMAQuadroCropViewportState,
+    getMAQuadroImageFrameKind,
+    setMAQuadroCropViewport,
+    snapMAQuadroObject,
+    type MAQuadroImageFrameKind
+} from '../../lib/maQuadro/editorEnhancements';
+
+import {
     exportMAQuadroPageImage,
     exportMAQuadroPageSvg,
     exportMAQuadroPagesZip,
@@ -122,142 +132,215 @@ import type {
     MAQuadroSelectionState
 } from './editorTypes';
 
-const fallbackBrand: MAQuadroBrand = {
-    name: 'MA-Code',
-    colors: [
-        {
-            name: 'Ciano MA',
-            value: '#22D3EE'
-        },
-        {
-            name: 'Azul MA',
-            value: '#38BDF8'
-        },
-        {
-            name: 'Violeta MA',
-            value: '#8B5CF6'
-        },
-        {
-            name: 'Azul noite',
-            value: '#0F172A'
-        },
-        {
-            name: 'Branco',
-            value: '#FFFFFF'
-        },
-        {
-            name: 'Cinza claro',
-            value: '#E2E8F0'
-        }
-    ],
-    fonts: [
-        {
-            name: 'Sans moderna',
-            family: 'Arial',
-            fallback: 'sans-serif'
-        },
-        {
-            name: 'Serif editorial',
-            family: 'Georgia',
-            fallback: 'serif'
-        }
-    ]
-};
+const fallbackBrand:
+    MAQuadroBrand = {
+        name: 'MA-Code',
 
-const emptySelection: MAQuadroSelectionState = {
-    count: 0,
-    role: null,
-    shapeKind: null,
-    name: '',
-    fill: '#0F172A',
-    stroke: '#0F172A',
-    strokeWidth: 0,
-    opacity: 100,
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    angle: 0,
-    flipX: false,
-    flipY: false,
-    fontFamily: 'Arial',
-    fontSize: 64,
-    fontWeight: '400',
-    fontStyle: 'normal',
-    textAlign: 'left',
-    lineHeight: 1.16,
-    charSpacing: 0,
-    underline: false,
-    linethrough: false,
-    cornerRadius: 0,
-    shadowEnabled: false,
-    shadowColor: 'rgba(15, 23, 42, 0.32)',
-    shadowBlur: 24,
-    shadowOffsetX: 0,
-    shadowOffsetY: 12,
-    gradientEnabled: false,
-    gradientFrom: '#22D3EE',
-    gradientTo: '#8B5CF6',
-    gradientAngle: 45,
-    imageFilters: DEFAULT_IMAGE_FILTERS,
-    cropHorizontal: 0,
-    cropVertical: 0
-};
+        colors: [
+            {
+                name: 'Ciano MA',
+                value: '#22D3EE'
+            },
+            {
+                name: 'Azul MA',
+                value: '#38BDF8'
+            },
+            {
+                name: 'Violeta MA',
+                value: '#8B5CF6'
+            },
+            {
+                name: 'Azul noite',
+                value: '#0F172A'
+            },
+            {
+                name: 'Branco',
+                value: '#FFFFFF'
+            },
+            {
+                name: 'Cinza claro',
+                value: '#E2E8F0'
+            }
+        ],
 
-const defaultExportOptions: MAQuadroExportOptions = {
-    format: 'png',
-    scale: 2,
-    quality: 92,
-    scope: 'current'
-};
+        fonts: [
+            {
+                name: 'Sans moderna',
+                family: 'Arial',
+                fallback: 'sans-serif'
+            },
+            {
+                name: 'Serif editorial',
+                family: 'Georgia',
+                fallback: 'serif'
+            }
+        ]
+    };
 
-const MAX_HISTORY_ENTRIES = 50;
-const MAX_HISTORY_CHARACTERS = 12_000_000;
+const emptySelection:
+    MAQuadroSelectionState = {
+        count: 0,
+        role: null,
+        shapeKind: null,
+        name: '',
+        fill: '#0F172A',
+        stroke: '#0F172A',
+        strokeWidth: 0,
+        opacity: 100,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        angle: 0,
+        flipX: false,
+        flipY: false,
+        fontFamily: 'Arial',
+        fontSize: 64,
+        fontWeight: '400',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: 1.16,
+        charSpacing: 0,
+        underline: false,
+        linethrough: false,
+        cornerRadius: 0,
+        shadowEnabled: false,
+
+        shadowColor:
+            'rgba(15, 23, 42, 0.32)',
+
+        shadowBlur: 24,
+        shadowOffsetX: 0,
+        shadowOffsetY: 12,
+        gradientEnabled: false,
+        gradientFrom: '#22D3EE',
+        gradientTo: '#8B5CF6',
+        gradientAngle: 45,
+
+        imageFilters:
+            DEFAULT_IMAGE_FILTERS,
+
+        cropHorizontal: 0,
+        cropVertical: 0,
+        cropZoom: 100,
+        cropPositionX: 50,
+        cropPositionY: 50,
+        imageFrame: 'none'
+    };
+
+const defaultExportOptions:
+    MAQuadroExportOptions = {
+        format: 'png',
+        scale: 2,
+        quality: 92,
+        scope: 'current'
+    };
+
+const MAX_HISTORY_ENTRIES =
+    50;
+
+const MAX_HISTORY_CHARACTERS =
+    12_000_000;
 
 type HistoryState = {
     entries: string[];
     index: number;
 };
 
+type ImageCropSession = {
+    objectId: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    cropX: number;
+    cropY: number;
+    scaleX: number;
+    scaleY: number;
+    angle: number;
+    lockScalingX: boolean;
+    lockScalingY: boolean;
+    lockRotation: boolean;
+    hasControls: boolean;
+    startCropX: number;
+    startCropY: number;
+};
+
 function colorToString(
     value: unknown,
     fallback: string
 ) {
-    return typeof value === 'string'
+    return typeof value ===
+        'string'
         ? value
         : fallback;
 }
 
-function registerLocalFont(
-    font: MAQuadroStoredFont
+function clamp(
+    value: number,
+    minimum: number,
+    maximum: number
 ) {
-    const face = new FontFace(
-        font.family,
-        font.data
+    return Math.min(
+        maximum,
+        Math.max(
+            minimum,
+            Number.isFinite(
+                value
+            )
+                ? value
+                : minimum
+        )
     );
+}
+
+function registerLocalFont(
+    font:
+        MAQuadroStoredFont
+) {
+    const face =
+        new FontFace(
+            font.family,
+            font.data
+        );
 
     return face
         .load()
-        .then((loaded) => {
-            document.fonts.add(
-                loaded
-            );
-        });
+        .then(
+            (loaded) => {
+                document.fonts.add(
+                    loaded
+                );
+            }
+        );
 }
 
 function targetIsFormControl(
-    target: EventTarget | null
+    target:
+        EventTarget | null
 ) {
     const element =
-        target as HTMLElement | null;
+        target as
+            HTMLElement | null;
+
+    if (!element) {
+        return false;
+    }
 
     return Boolean(
-        element &&
-        (
-            element.tagName === 'INPUT' ||
-            element.tagName === 'TEXTAREA' ||
-            element.tagName === 'SELECT' ||
-            element.isContentEditable
+        element.tagName ===
+        'INPUT' ||
+        element.tagName ===
+        'TEXTAREA' ||
+        element.tagName ===
+        'SELECT' ||
+        element.tagName ===
+        'BUTTON' ||
+        element.tagName ===
+        'A' ||
+        element.isContentEditable ||
+        element.closest(
+            '[role="dialog"]'
         )
     );
 }
@@ -271,86 +354,209 @@ function titleCase(
         )
         .replace(
             /(^|\s|[-–—])\p{L}/gu,
+
             (letter) =>
-                letter.toLocaleUpperCase(
-                    'pt-PT'
-                )
+                letter
+                    .toLocaleUpperCase(
+                        'pt-PT'
+                    )
         );
 }
 
 function renewObjectTreeIdentifiers(
-    object: MAQuadroFabricObject
+    object:
+        MAQuadroFabricObject
 ) {
     object.maId =
         createMAQuadroId(
             'object'
         );
 
-    if (object instanceof Group) {
+    if (
+        object instanceof
+        Group
+    ) {
         for (
             const child
             of object.getObjects()
         ) {
             renewObjectTreeIdentifiers(
-                child as MAQuadroFabricObject
+                child as
+                    MAQuadroFabricObject
             );
         }
     }
 }
 
-export function useMAQuadroEditor():
+function cropSessionForImage(
+    image:
+        FabricImage &
+        MAQuadroFabricObject,
+    previous?:
+        ImageCropSession | null
+): ImageCropSession {
+    return {
+        objectId:
+            image.maId ||
+            '',
+
+        left:
+            previous?.left ??
+            Number(
+                image.left ||
+                0
+            ),
+
+        top:
+            previous?.top ??
+            Number(
+                image.top ||
+                0
+            ),
+
+        width:
+            previous?.width ??
+            Number(
+                image.width ||
+                1
+            ),
+
+        height:
+            previous?.height ??
+            Number(
+                image.height ||
+                1
+            ),
+
+        cropX:
+            previous?.cropX ??
+            Number(
+                image.cropX ||
+                0
+            ),
+
+        cropY:
+            previous?.cropY ??
+            Number(
+                image.cropY ||
+                0
+            ),
+
+        scaleX:
+            previous?.scaleX ??
+            Number(
+                image.scaleX ||
+                1
+            ),
+
+        scaleY:
+            previous?.scaleY ??
+            Number(
+                image.scaleY ||
+                1
+            ),
+
+        angle:
+            previous?.angle ??
+            Number(
+                image.angle ||
+                0
+            ),
+
+        lockScalingX:
+            previous
+                ?.lockScalingX ??
+            Boolean(
+                image.lockScalingX
+            ),
+
+        lockScalingY:
+            previous
+                ?.lockScalingY ??
+            Boolean(
+                image.lockScalingY
+            ),
+
+        lockRotation:
+            previous
+                ?.lockRotation ??
+            Boolean(
+                image.lockRotation
+            ),
+
+        hasControls:
+            previous
+                ?.hasControls ??
+            Boolean(
+                image.hasControls
+            ),
+
+        startCropX:
+            Number(
+                image.cropX ||
+                0
+            ),
+
+        startCropY:
+            Number(
+                image.cropY ||
+                0
+            )
+    };
+}
+
+export function
+useMAQuadroEditor():
     MAQuadroEditor {
     const canvasElementRef =
-        useRef<HTMLCanvasElement | null>(
-            null
-        );
+        useRef<
+            HTMLCanvasElement | null
+        >(null);
 
     const workspaceRef =
-        useRef<HTMLDivElement | null>(
-            null
-        );
+        useRef<
+            HTMLDivElement | null
+        >(null);
 
     const imageInputRef =
-        useRef<HTMLInputElement | null>(
-            null
-        );
+        useRef<
+            HTMLInputElement | null
+        >(null);
 
     const fontInputRef =
-        useRef<HTMLInputElement | null>(
-            null
-        );
+        useRef<
+            HTMLInputElement | null
+        >(null);
 
     const projectInputRef =
-        useRef<HTMLInputElement | null>(
-            null
-        );
+        useRef<
+            HTMLInputElement | null
+        >(null);
 
     const canvasRef =
-        useRef<FabricCanvas | null>(
-            null
-        );
+        useRef<
+            FabricCanvas | null
+        >(null);
 
     const projectRef =
-        useRef<MAQuadroProject | null>(
-            null
-        );
-
-    const selectedObjectRef =
-        useRef<MAQuadroFabricObject | null>(
-            null
-        );
+        useRef<
+            MAQuadroProject | null
+        >(null);
 
     const clipboardRef =
-        useRef<MAQuadroFabricObject | null>(
-            null
-        );
+        useRef<
+            MAQuadroFabricObject | null
+        >(null);
 
     const clipboardPasteCountRef =
         useRef(0);
 
     const historiesRef =
         useRef<
-            Map<string, HistoryState>
+            Map<
+                string,
+                HistoryState
+            >
         >(
             new Map()
         );
@@ -365,9 +571,9 @@ export function useMAQuadroEditor():
         useRef(false);
 
     const autosaveTimerRef =
-        useRef<number | null>(
-            null
-        );
+        useRef<
+            number | null
+        >(null);
 
     const saveHandlerRef =
         useRef<
@@ -375,7 +581,8 @@ export function useMAQuadroEditor():
                 quiet?: boolean
             ) => Promise<boolean>
         >(
-            async () => false
+            async () =>
+                false
         );
 
     const busyCountRef =
@@ -387,10 +594,18 @@ export function useMAQuadroEditor():
     const uploadLockRef =
         useRef(false);
 
+    const imageCropEditingRef =
+        useRef(false);
+
+    const cropSessionRef =
+        useRef<
+            ImageCropSession | null
+        >(null);
+
     const drawingPathRef =
-        useRef<MAQuadroFabricObject | null>(
-            null
-        );
+        useRef<
+            MAQuadroFabricObject | null
+        >(null);
 
     const saveStateRef =
         useRef<
@@ -401,7 +616,9 @@ export function useMAQuadroEditor():
         useRef(50);
 
     const brushColorRef =
-        useRef('#0F172A');
+        useRef(
+            '#0F172A'
+        );
 
     const brushWidthRef =
         useRef(8);
@@ -559,14 +776,18 @@ export function useMAQuadroEditor():
     const [
         guides,
         setGuides
-    ] = useState({
-        vertical: false,
-        horizontal: false
-    });
+    ] = useState(
+        emptyMAQuadroGuides()
+    );
 
     const [
         isSpacePressed,
         setIsSpacePressed
+    ] = useState(false);
+
+    const [
+        imageCropEditing,
+        setImageCropEditing
     ] = useState(false);
 
     const [
@@ -584,7 +805,9 @@ export function useMAQuadroEditor():
         setExportOptionsState
     ] = useState<
         MAQuadroExportOptions
-    >(defaultExportOptions);
+    >(
+        defaultExportOptions
+    );
 
     const setBusy =
         useCallback(
@@ -593,18 +816,33 @@ export function useMAQuadroEditor():
             ) => {
                 busyCountRef.current =
                     active
-                        ? busyCountRef.current + 1
+                        ? busyCountRef
+                            .current +
+                            1
                         : Math.max(
                             0,
-                            busyCountRef.current - 1
+                            busyCountRef
+                                .current -
+                            1
                         );
 
                 setBusyState(
-                    busyCountRef.current > 0
+                    busyCountRef.current >
+                    0
                 );
             },
             []
         );
+
+    const interactionLocked =
+        useCallback(() => {
+            return (
+                uploadLockRef.current ||
+                structuralLockRef.current ||
+                busyCountRef.current > 0 ||
+                imageCropEditingRef.current
+            );
+        }, []);
 
     const runStructuralOperation =
         useCallback(
@@ -615,18 +853,26 @@ export function useMAQuadroEditor():
                 T | undefined
             > => {
                 if (
-                    structuralLockRef.current ||
+                    structuralLockRef
+                        .current ||
                     uploadLockRef.current ||
-                    busyCountRef.current > 0
+                    busyCountRef.current >
+                    0 ||
+                    imageCropEditingRef
+                        .current
                 ) {
                     setStatusMessage(
-                        'Aguarde pela conclusão da operação atual.'
+                        imageCropEditingRef
+                            .current
+                            ? 'Conclua ou cancele o recorte antes de mudar a estrutura do projeto.'
+                            : 'Aguarde pela conclusão da operação atual.'
                     );
 
                     return undefined;
                 }
 
-                structuralLockRef.current =
+                structuralLockRef
+                    .current =
                     true;
 
                 setStructureBusy(
@@ -636,7 +882,8 @@ export function useMAQuadroEditor():
                 try {
                     return await operation();
                 } finally {
-                    structuralLockRef.current =
+                    structuralLockRef
+                        .current =
                         false;
 
                     setStructureBusy(
@@ -742,7 +989,8 @@ export function useMAQuadroEditor():
 
             const activeObjects =
                 new Set(
-                    canvas.getActiveObjects()
+                    canvas
+                        .getActiveObjects()
                 );
 
             const next =
@@ -764,33 +1012,44 @@ export function useMAQuadroEditor():
 
                             return {
                                 id:
-                                    editorObject.maId,
+                                    editorObject
+                                        .maId,
+
                                 name:
                                     getMAQuadroObjectLabel(
                                         editorObject,
                                         index
                                     ),
+
                                 type:
                                     getMAQuadroObjectRole(
                                         editorObject
                                     ),
+
                                 visible:
-                                    editorObject.visible !==
+                                    editorObject
+                                        .visible !==
                                     false,
+
                                 locked:
                                     Boolean(
-                                        editorObject.maLocked
-                                    ),
-                                active:
-                                    activeObjects.has(
                                         editorObject
-                                    )
+                                            .maLocked
+                                    ),
+
+                                active:
+                                    activeObjects
+                                        .has(
+                                            editorObject
+                                        )
                             };
                         }
                     )
                     .reverse();
 
-            setLayers(next);
+            setLayers(
+                next
+            );
         }, []);
 
     const syncSelection =
@@ -809,12 +1068,10 @@ export function useMAQuadroEditor():
                     ?.getActiveObjects() ||
                 [];
 
-            selectedObjectRef.current =
-                active || null;
-
             if (
                 !active ||
-                activeObjects.length === 0
+                activeObjects.length ===
+                0
             ) {
                 setSelection(
                     emptySelection
@@ -841,11 +1098,13 @@ export function useMAQuadroEditor():
                     : null;
 
             const single =
-                activeObjects.length === 1;
+                activeObjects.length ===
+                1;
 
             const image =
                 single &&
-                active instanceof FabricImage
+                active instanceof
+                FabricImage
                     ? active as
                         FabricImage &
                         MAQuadroFabricObject
@@ -853,7 +1112,8 @@ export function useMAQuadroEditor():
 
             const text =
                 single &&
-                active instanceof Textbox
+                active instanceof
+                Textbox
                     ? active as
                         Textbox &
                         MAQuadroFabricObject
@@ -869,9 +1129,21 @@ export function useMAQuadroEditor():
                         vertical: 0
                     };
 
+            const viewport =
+                image
+                    ? getMAQuadroCropViewportState(
+                        image
+                    )
+                    : {
+                        zoom: 100,
+                        positionX: 50,
+                        positionY: 50
+                    };
+
             const actualGroup =
                 single &&
-                active instanceof Group &&
+                active instanceof
+                Group &&
                 !(
                     active instanceof
                     ActiveSelection
@@ -882,7 +1154,8 @@ export function useMAQuadroEditor():
                     activeObjects.length,
 
                 role:
-                    activeObjects.length > 1
+                    activeObjects.length >
+                    1
                         ? null
                         : actualGroup
                             ? 'group'
@@ -898,7 +1171,8 @@ export function useMAQuadroEditor():
                         : null,
 
                 name:
-                    activeObjects.length > 1
+                    activeObjects.length >
+                    1
                         ? `${activeObjects.length} elementos selecionados`
                         : active.maName ||
                             getMAQuadroObjectLabel(
@@ -932,10 +1206,8 @@ export function useMAQuadroEditor():
                         100
                     ),
 
-                x:
-                    geometry.x,
-                y:
-                    geometry.y,
+                x: geometry.x,
+                y: geometry.y,
                 width:
                     geometry.width,
                 height:
@@ -1063,7 +1335,23 @@ export function useMAQuadroEditor():
                     crop.horizontal,
 
                 cropVertical:
-                    crop.vertical
+                    crop.vertical,
+
+                cropZoom:
+                    viewport.zoom,
+
+                cropPositionX:
+                    viewport.positionX,
+
+                cropPositionY:
+                    viewport.positionY,
+
+                imageFrame:
+                    image
+                        ? getMAQuadroImageFrameKind(
+                            image
+                        )
+                        : 'none'
             });
 
             syncLayers();
@@ -1094,8 +1382,10 @@ export function useMAQuadroEditor():
             return JSON.stringify({
                 pageId:
                     page.id,
+
                 background:
                     page.background,
+
                 canvasJson:
                     serializeMAQuadroCanvas(
                         canvas
@@ -1111,7 +1401,8 @@ export function useMAQuadroEditor():
 
             const history =
                 pageId
-                    ? historiesRef.current
+                    ? historiesRef
+                        .current
                         .get(pageId)
                     : undefined;
 
@@ -1126,7 +1417,9 @@ export function useMAQuadroEditor():
                 Boolean(
                     history &&
                     history.index <
-                    history.entries.length - 1
+                    history.entries
+                        .length -
+                    1
                 )
             );
         }, []);
@@ -1148,15 +1441,16 @@ export function useMAQuadroEditor():
                     return;
                 }
 
-                historiesRef.current.set(
-                    pageId,
-                    {
-                        entries: [
-                            snapshot
-                        ],
-                        index: 0
-                    }
-                );
+                historiesRef.current
+                    .set(
+                        pageId,
+                        {
+                            entries: [
+                                snapshot
+                            ],
+                            index: 0
+                        }
+                    );
 
                 updateHistoryButtons();
             },
@@ -1170,7 +1464,10 @@ export function useMAQuadroEditor():
         useCallback(() => {
             if (
                 isLoadingRef.current ||
-                isApplyingHistoryRef.current
+                isApplyingHistoryRef
+                    .current ||
+                imageCropEditingRef
+                    .current
             ) {
                 return false;
             }
@@ -1213,7 +1510,8 @@ export function useMAQuadroEditor():
                 current.entries
                     .slice(
                         0,
-                        current.index + 1
+                        current.index +
+                        1
                     )
                     .concat(
                         snapshot
@@ -1246,14 +1544,16 @@ export function useMAQuadroEditor():
                     0;
             }
 
-            historiesRef.current.set(
-                pageId,
-                {
-                    entries,
-                    index:
-                        entries.length - 1
-                }
-            );
+            historiesRef.current
+                .set(
+                    pageId,
+                    {
+                        entries,
+                        index:
+                            entries.length -
+                            1
+                    }
+                );
 
             updateHistoryButtons();
 
@@ -1270,7 +1570,10 @@ export function useMAQuadroEditor():
             ) => {
                 if (
                     isLoadingRef.current ||
-                    isApplyingHistoryRef.current
+                    isApplyingHistoryRef
+                        .current ||
+                    imageCropEditingRef
+                        .current
                 ) {
                     return;
                 }
@@ -1287,11 +1590,13 @@ export function useMAQuadroEditor():
                 );
 
                 if (
-                    autosaveTimerRef.current !==
+                    autosaveTimerRef
+                        .current !==
                     null
                 ) {
                     window.clearTimeout(
-                        autosaveTimerRef.current
+                        autosaveTimerRef
+                            .current
                     );
                 }
 
@@ -1302,7 +1607,8 @@ export function useMAQuadroEditor():
                 autosaveTimerRef.current =
                     window.setTimeout(
                         () => {
-                            autosaveTimerRef.current =
+                            autosaveTimerRef
+                                .current =
                                 null;
 
                             if (
@@ -1315,7 +1621,9 @@ export function useMAQuadroEditor():
                             }
 
                             void saveHandlerRef
-                                .current(true);
+                                .current(
+                                    true
+                                );
                         },
                         1100
                     );
@@ -1380,21 +1688,18 @@ export function useMAQuadroEditor():
                 canvas.setDimensions(
                     {
                         width:
-                            `${
-                                Math.round(
-                                    canvas.getWidth() *
-                                    safe /
-                                    100
-                                )
-                            }px`,
+                            `${Math.round(
+                                canvas.getWidth() *
+                                safe /
+                                100
+                            )}px`,
+
                         height:
-                            `${
-                                Math.round(
-                                    canvas.getHeight() *
-                                    safe /
-                                    100
-                                )
-                            }px`
+                            `${Math.round(
+                                canvas.getHeight() *
+                                safe /
+                                100
+                            )}px`
                     },
                     {
                         cssOnly: true
@@ -1442,8 +1747,10 @@ export function useMAQuadroEditor():
                 Math.min(
                     availableWidth /
                     canvas.getWidth(),
+
                     availableHeight /
                     canvas.getHeight(),
+
                     1
                 );
 
@@ -1496,19 +1803,25 @@ export function useMAQuadroEditor():
                 const updatedPage:
                     MAQuadroPage = {
                         ...currentPage,
+
                         width:
                             canvas.getWidth(),
+
                         height:
                             canvas.getHeight(),
+
                         canvasJson:
                             serializeMAQuadroCanvas(
                                 canvas
                             ),
+
                         thumbnail:
                             canvas.toDataURL({
                                 format: 'png',
+
                                 multiplier:
                                     thumbnailScale,
+
                                 enableRetinaScaling:
                                     false
                             })
@@ -1549,11 +1862,12 @@ export function useMAQuadroEditor():
                     canvasRef.current;
 
                 const page =
-                    nextProject.pages.find(
-                        (item) =>
-                            item.id ===
-                            pageId
-                    );
+                    nextProject.pages
+                        .find(
+                            (item) =>
+                                item.id ===
+                                pageId
+                        );
 
                 if (
                     !canvas ||
@@ -1643,8 +1957,20 @@ export function useMAQuadroEditor():
                     canvas.isDrawingMode =
                         false;
 
-                    selectedObjectRef.current =
+                    imageCropEditingRef
+                        .current =
+                        false;
+
+                    cropSessionRef.current =
                         null;
+
+                    setImageCropEditing(
+                        false
+                    );
+
+                    setGuides(
+                        emptyMAQuadroGuides()
+                    );
 
                     setSelection(
                         emptySelection
@@ -1652,9 +1978,10 @@ export function useMAQuadroEditor():
 
                     syncLayers();
 
-                    window.requestAnimationFrame(
-                        fitCanvas
-                    );
+                    window
+                        .requestAnimationFrame(
+                            fitCanvas
+                        );
 
                     if (
                         resetPageHistory ||
@@ -1750,6 +2077,19 @@ export function useMAQuadroEditor():
                 quiet = false
             ): Promise<boolean> => {
                 if (
+                    imageCropEditingRef
+                        .current
+                ) {
+                    if (!quiet) {
+                        setStatusMessage(
+                            'Conclua ou cancele o recorte antes de guardar.'
+                        );
+                    }
+
+                    return false;
+                }
+
+                if (
                     uploadLockRef.current
                 ) {
                     if (!quiet) {
@@ -1762,11 +2102,13 @@ export function useMAQuadroEditor():
                 }
 
                 if (
-                    autosaveTimerRef.current !==
+                    autosaveTimerRef
+                        .current !==
                     null
                 ) {
                     window.clearTimeout(
-                        autosaveTimerRef.current
+                        autosaveTimerRef
+                            .current
                     );
 
                     autosaveTimerRef.current =
@@ -1803,17 +2145,20 @@ export function useMAQuadroEditor():
                                 `${current.name} — cópia`
                             );
 
+                        const source =
+                            projectRef.current;
+
                         const activeIndex =
                             Math.max(
                                 0,
-                                projectRef.current
+                                source
                                     ?.pages
                                     .findIndex(
                                         (page) =>
                                             page.id ===
-                                            projectRef.current
-                                                ?.activePageId
-                                    ) ||
+                                            source
+                                                .activePageId
+                                    ) ??
                                 0
                             );
 
@@ -1821,18 +2166,18 @@ export function useMAQuadroEditor():
                             current.pages[
                                 activeIndex
                             ]?.id ||
-                            current.pages[0].id;
+                            current.pages[0]
+                                .id;
                     }
 
                     const saved:
                         MAQuadroProject = {
-                        ...current,
-                        isTemplate:
-                            false,
-                        updatedAt:
-                            new Date()
-                                .toISOString()
-                    };
+                            ...current,
+                            isTemplate: false,
+                            updatedAt:
+                                new Date()
+                                    .toISOString()
+                        };
 
                     await saveMAQuadroProject(
                         saved
@@ -1913,25 +2258,33 @@ export function useMAQuadroEditor():
                 saveStateRef.current !==
                 'dirty' &&
                 saveStateRef.current !==
-                'saving'
+                'saving' &&
+                !imageCropEditingRef
+                    .current
             ) {
                 return;
             }
 
             event.preventDefault();
-            event.returnValue = '';
+            event.returnValue =
+                '';
         };
 
         const handleVisibilityChange =
             () => {
                 if (
-                    document.visibilityState ===
+                    document
+                        .visibilityState ===
                     'hidden' &&
                     saveStateRef.current ===
-                    'dirty'
+                    'dirty' &&
+                    !imageCropEditingRef
+                        .current
                 ) {
                     void saveHandlerRef
-                        .current(true);
+                        .current(
+                            true
+                        );
                 }
             };
 
@@ -1972,14 +2325,18 @@ export function useMAQuadroEditor():
                 {
                     width: 1080,
                     height: 1080,
+
                     backgroundColor:
                         '#FFFFFF',
+
                     preserveObjectStacking:
                         true,
-                    selection:
-                        true,
+
+                    selection: true,
+
                     stopContextMenu:
                         true,
+
                     fireRightClick:
                         true
                 }
@@ -1996,6 +2353,43 @@ export function useMAQuadroEditor():
 
         const selectionChanged =
             () => {
+                const session =
+                    cropSessionRef.current;
+
+                if (
+                    imageCropEditingRef
+                        .current &&
+                    session
+                ) {
+                    const cropImage =
+                        canvas
+                            .getObjects()
+                            .find(
+                                (object) =>
+                                    (
+                                        object as
+                                            MAQuadroFabricObject
+                                    ).maId ===
+                                    session
+                                        .objectId
+                            );
+
+                    if (
+                        cropImage &&
+                        canvas
+                            .getActiveObject() !==
+                        cropImage
+                    ) {
+                        canvas
+                            .setActiveObject(
+                                cropImage
+                            );
+
+                        canvas
+                            .requestRenderAll();
+                    }
+                }
+
                 syncSelection();
             };
 
@@ -2003,7 +2397,10 @@ export function useMAQuadroEditor():
             () => {
                 if (
                     isLoadingRef.current ||
-                    isApplyingHistoryRef.current
+                    isApplyingHistoryRef
+                        .current ||
+                    imageCropEditingRef
+                        .current
                 ) {
                     return;
                 }
@@ -2076,10 +2473,11 @@ export function useMAQuadroEditor():
             (event) => {
                 const path =
                     (
-                        event as unknown as {
-                            path?:
-                                MAQuadroFabricObject;
-                        }
+                        event as
+                            unknown as {
+                                path?:
+                                    MAQuadroFabricObject;
+                            }
                     ).path ||
                     drawingPathRef.current;
 
@@ -2113,22 +2511,186 @@ export function useMAQuadroEditor():
                     return;
                 }
 
-                const bounds =
-                    target.getBoundingRect();
+                const cropSession =
+                    cropSessionRef
+                        .current;
 
-                const centerX =
-                    bounds.left +
-                    bounds.width /
-                    2;
+                if (
+                    imageCropEditingRef
+                        .current &&
+                    cropSession &&
+                    target instanceof
+                    FabricImage &&
+                    target.maId ===
+                    cropSession.objectId
+                ) {
+                    const worldX =
+                        Number(
+                            target.left ||
+                            0
+                        ) -
+                        cropSession.left;
 
-                const centerY =
-                    bounds.top +
-                    bounds.height /
-                    2;
+                    const worldY =
+                        Number(
+                            target.top ||
+                            0
+                        ) -
+                        cropSession.top;
+
+                    const radians =
+                        cropSession.angle *
+                        Math.PI /
+                        180;
+
+                    const localX =
+                        Math.cos(
+                            radians
+                        ) *
+                        worldX +
+                        Math.sin(
+                            radians
+                        ) *
+                        worldY;
+
+                    const localY =
+                        -Math.sin(
+                            radians
+                        ) *
+                        worldX +
+                        Math.cos(
+                            radians
+                        ) *
+                        worldY;
+
+                    const scaleX =
+                        Math.max(
+                            0.0001,
+                            Math.abs(
+                                Number(
+                                    target
+                                        .scaleX ||
+                                    1
+                                )
+                            )
+                        );
+
+                    const scaleY =
+                        Math.max(
+                            0.0001,
+                            Math.abs(
+                                Number(
+                                    target
+                                        .scaleY ||
+                                    1
+                                )
+                            )
+                        );
+
+                    const sourceWidth =
+                        Math.max(
+                            1,
+                            Number(
+                                target
+                                    .maOriginalWidth ||
+                                target.width ||
+                                1
+                            )
+                        );
+
+                    const sourceHeight =
+                        Math.max(
+                            1,
+                            Number(
+                                target
+                                    .maOriginalHeight ||
+                                target.height ||
+                                1
+                            )
+                        );
+
+                    const maximumX =
+                        Math.max(
+                            0,
+                            sourceWidth -
+                            Number(
+                                target.width ||
+                                1
+                            )
+                        );
+
+                    const maximumY =
+                        Math.max(
+                            0,
+                            sourceHeight -
+                            Number(
+                                target.height ||
+                                1
+                            )
+                        );
+
+                    const directionX =
+                        target.flipX
+                            ? -1
+                            : 1;
+
+                    const directionY =
+                        target.flipY
+                            ? -1
+                            : 1;
+
+                    target.set({
+                        cropX:
+                            clamp(
+                                cropSession
+                                    .startCropX -
+                                localX *
+                                directionX /
+                                scaleX,
+                                0,
+                                maximumX
+                            ),
+
+                        cropY:
+                            clamp(
+                                cropSession
+                                    .startCropY -
+                                localY *
+                                directionY /
+                                scaleY,
+                                0,
+                                maximumY
+                            ),
+
+                        left:
+                            cropSession.left,
+
+                        top:
+                            cropSession.top
+                    });
+
+                    target.setCoords();
+
+                    canvas
+                        .requestRenderAll();
+
+                    setGuides(
+                        emptyMAQuadroGuides()
+                    );
+
+                    return;
+                }
+
+                if (
+                    imageCropEditingRef
+                        .current
+                ) {
+                    return;
+                }
 
                 const threshold =
                     Math.max(
-                        6,
+                        4,
                         12 /
                         Math.max(
                             zoomRef.current /
@@ -2137,109 +2699,12 @@ export function useMAQuadroEditor():
                         )
                     );
 
-                let vertical =
-                    false;
-
-                let horizontal =
-                    false;
-
-                if (
-                    Math.abs(
-                        centerX -
-                        canvas.getWidth() /
-                        2
-                    ) <= threshold
-                ) {
-                    target.left +=
-                        canvas.getWidth() /
-                        2 -
-                        centerX;
-
-                    vertical =
-                        true;
-                } else if (
-                    Math.abs(
-                        bounds.left
-                    ) <= threshold
-                ) {
-                    target.left +=
-                        -bounds.left;
-
-                    vertical =
-                        true;
-                } else if (
-                    Math.abs(
-                        bounds.left +
-                        bounds.width -
-                        canvas.getWidth()
-                    ) <= threshold
-                ) {
-                    target.left +=
-                        canvas.getWidth() -
-                        (
-                            bounds.left +
-                            bounds.width
-                        );
-
-                    vertical =
-                        true;
-                }
-
-                if (
-                    Math.abs(
-                        centerY -
-                        canvas.getHeight() /
-                        2
-                    ) <= threshold
-                ) {
-                    target.top +=
-                        canvas.getHeight() /
-                        2 -
-                        centerY;
-
-                    horizontal =
-                        true;
-                } else if (
-                    Math.abs(
-                        bounds.top
-                    ) <= threshold
-                ) {
-                    target.top +=
-                        -bounds.top;
-
-                    horizontal =
-                        true;
-                } else if (
-                    Math.abs(
-                        bounds.top +
-                        bounds.height -
-                        canvas.getHeight()
-                    ) <= threshold
-                ) {
-                    target.top +=
-                        canvas.getHeight() -
-                        (
-                            bounds.top +
-                            bounds.height
-                        );
-
-                    horizontal =
-                        true;
-                }
-
-                target.setCoords();
-
                 setGuides(
-                    (current) =>
-                        current.vertical ===
-                        vertical &&
-                        current.horizontal ===
-                        horizontal
-                            ? current
-                            : {
-                                vertical,
-                                horizontal
-                            }
+                    snapMAQuadroObject(
+                        canvas,
+                        target,
+                        threshold
+                    )
                 );
             }
         );
@@ -2247,12 +2712,59 @@ export function useMAQuadroEditor():
         canvas.on(
             'mouse:up',
             () => {
-                setGuides({
-                    vertical:
-                        false,
-                    horizontal:
-                        false
-                });
+                setGuides(
+                    emptyMAQuadroGuides()
+                );
+
+                const session =
+                    cropSessionRef.current;
+
+                if (
+                    imageCropEditingRef
+                        .current &&
+                    session
+                ) {
+                    const active =
+                        canvas
+                            .getActiveObject();
+
+                    if (
+                        active instanceof
+                        FabricImage &&
+                        (
+                            active as
+                                FabricImage &
+                                MAQuadroFabricObject
+                        ).maId ===
+                        session.objectId
+                    ) {
+                        session.startCropX =
+                            Number(
+                                active.cropX ||
+                                0
+                            );
+
+                        session.startCropY =
+                            Number(
+                                active.cropY ||
+                                0
+                            );
+
+                        active.set({
+                            left:
+                                session.left,
+                            top:
+                                session.top
+                        });
+
+                        active.setCoords();
+
+                        canvas
+                            .requestRenderAll();
+
+                        syncSelection();
+                    }
+                }
             }
         );
 
@@ -2262,16 +2774,28 @@ export function useMAQuadroEditor():
 
         return () => {
             if (
-                autosaveTimerRef.current !==
+                autosaveTimerRef
+                    .current !==
                 null
             ) {
                 window.clearTimeout(
-                    autosaveTimerRef.current
+                    autosaveTimerRef
+                        .current
                 );
             }
 
             uploadLockRef.current =
                 false;
+
+            structuralLockRef.current =
+                false;
+
+            imageCropEditingRef
+                .current =
+                false;
+
+            cropSessionRef.current =
+                null;
 
             setCanvasReady(
                 false
@@ -2314,11 +2838,15 @@ export function useMAQuadroEditor():
                             }
                         );
 
-                    if (response.ok) {
+                    if (
+                        response.ok
+                    ) {
                         setBrand(
                             (
-                                await response.json()
-                            ) as MAQuadroBrand
+                                await response
+                                    .json()
+                            ) as
+                                MAQuadroBrand
                         );
                     }
                 } catch (error) {
@@ -2414,7 +2942,8 @@ export function useMAQuadroEditor():
                 try {
                     await loadPage(
                         fallback,
-                        fallback.activePageId,
+                        fallback
+                            .activePageId,
                         true
                     );
                 } catch (
@@ -2499,7 +3028,9 @@ export function useMAQuadroEditor():
                     !current ||
                     !nextName ||
                     current.name ===
-                    nextName
+                    nextName ||
+                    imageCropEditingRef
+                        .current
                 ) {
                     return;
                 }
@@ -2711,9 +3242,10 @@ export function useMAQuadroEditor():
 
                         if (
                             source.isTemplate &&
-                            source.id.startsWith(
-                                'template-'
-                            )
+                            source.id
+                                .startsWith(
+                                    'template-'
+                                )
                         ) {
                             setStatusMessage(
                                 'Os modelos de origem permanecem sempre disponíveis.'
@@ -2819,8 +3351,7 @@ export function useMAQuadroEditor():
             async () => {
                 await runStructuralOperation(
                     async () => {
-                        const current:
-                            MAQuadroProject | null =
+                        const current =
                             captureCurrentPage();
 
                         if (!current) {
@@ -2998,8 +3529,11 @@ export function useMAQuadroEditor():
                             createBlankProject(
                                 width,
                                 height,
-                                values.name.trim() ||
+
+                                values.name
+                                    .trim() ||
                                 `Design ${width} × ${height}`,
+
                                 values.category
                             );
 
@@ -3051,7 +3585,8 @@ export function useMAQuadroEditor():
                     ChangeEvent<HTMLInputElement>
             ) => {
                 const file =
-                    event.target.files?.[0];
+                    event.target
+                        .files?.[0];
 
                 event.target.value =
                     '';
@@ -3081,7 +3616,8 @@ export function useMAQuadroEditor():
                             const parsed =
                                 JSON.parse(
                                     await file.text()
-                                ) as unknown;
+                                ) as
+                                    unknown;
 
                             const normalized =
                                 normalizeImportedMAQuadroProject(
@@ -3194,8 +3730,7 @@ export function useMAQuadroEditor():
             ) => {
                 await runStructuralOperation(
                     async () => {
-                        const captured:
-                            MAQuadroProject | null =
+                        const captured =
                             captureCurrentPage();
 
                         if (
@@ -3237,8 +3772,10 @@ export function useMAQuadroEditor():
 
                         editable = {
                             ...editable,
+
                             activePageId:
                                 targetPageId,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3278,8 +3815,7 @@ export function useMAQuadroEditor():
             async () => {
                 await runStructuralOperation(
                     async () => {
-                        const captured:
-                            MAQuadroProject | null =
+                        const captured =
                             captureCurrentPage();
 
                         if (!captured) {
@@ -3300,21 +3836,23 @@ export function useMAQuadroEditor():
                             createBlankPage(
                                 sourcePage.width,
                                 sourcePage.height,
-                                `Página ${
-                                    editable.pages.length +
-                                    1
-                                }`,
+
+                                `Página ${editable.pages.length + 1}`,
+
                                 sourcePage.background
                             );
 
                         const next = {
                             ...editable,
+
                             pages: [
                                 ...editable.pages,
                                 nextPage
                             ],
+
                             activePageId:
                                 nextPage.id,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3359,8 +3897,7 @@ export function useMAQuadroEditor():
             async () => {
                 await runStructuralOperation(
                     async () => {
-                        const captured:
-                            MAQuadroProject | null =
+                        const captured =
                             captureCurrentPage();
 
                         if (!captured) {
@@ -3404,8 +3941,10 @@ export function useMAQuadroEditor():
                         const next = {
                             ...editable,
                             pages,
+
                             activePageId:
                                 copy.id,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3458,8 +3997,7 @@ export function useMAQuadroEditor():
 
                 await runStructuralOperation(
                     async () => {
-                        const captured:
-                            MAQuadroProject | null =
+                        const captured =
                             captureCurrentPage();
 
                         if (!captured) {
@@ -3467,7 +4005,8 @@ export function useMAQuadroEditor():
                         }
 
                         if (
-                            captured.pages.length ===
+                            captured.pages
+                                .length ===
                             1
                         ) {
                             setStatusMessage(
@@ -3491,28 +4030,33 @@ export function useMAQuadroEditor():
                                 );
 
                         const pages =
-                            editable.pages.filter(
-                                (page) =>
-                                    page.id !==
-                                    editable.activePageId
-                            );
+                            editable.pages
+                                .filter(
+                                    (page) =>
+                                        page.id !==
+                                        editable.activePageId
+                                );
 
                         const nextPage =
                             pages[
                                 Math.min(
                                     index,
-                                    pages.length - 1
+                                    pages.length -
+                                    1
                                 )
                             ];
 
                         const deletedPageId =
-                            editable.activePageId;
+                            editable
+                                .activePageId;
 
                         const next = {
                             ...editable,
                             pages,
+
                             activePageId:
                                 nextPage.id,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3571,8 +4115,7 @@ export function useMAQuadroEditor():
 
                 await runStructuralOperation(
                     async () => {
-                        const current:
-                            MAQuadroProject | null =
+                        const current =
                             captureCurrentPage();
 
                         if (!current) {
@@ -3596,6 +4139,7 @@ export function useMAQuadroEditor():
 
                         const next = {
                             ...current,
+
                             pages:
                                 current.pages.map(
                                     (page) =>
@@ -3608,6 +4152,7 @@ export function useMAQuadroEditor():
                                             }
                                             : page
                                 ),
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3662,8 +4207,7 @@ export function useMAQuadroEditor():
             ) => {
                 await runStructuralOperation(
                     async () => {
-                        const current:
-                            MAQuadroProject | null =
+                        const current =
                             captureCurrentPage();
 
                         if (!current) {
@@ -3671,11 +4215,12 @@ export function useMAQuadroEditor():
                         }
 
                         const index =
-                            current.pages.findIndex(
-                                (page) =>
-                                    page.id ===
-                                    pageId
-                            );
+                            current.pages
+                                .findIndex(
+                                    (page) =>
+                                        page.id ===
+                                        pageId
+                                );
 
                         const target =
                             direction ===
@@ -3687,7 +4232,8 @@ export function useMAQuadroEditor():
                             index < 0 ||
                             target < 0 ||
                             target >=
-                            current.pages.length
+                            current.pages
+                                .length
                         ) {
                             return;
                         }
@@ -3713,6 +4259,7 @@ export function useMAQuadroEditor():
                         const next = {
                             ...current,
                             pages,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3756,6 +4303,7 @@ export function useMAQuadroEditor():
             async (
                 width: number,
                 height: number,
+
                 strategy:
                     MAQuadroResizeStrategy =
                     'scale'
@@ -3785,8 +4333,7 @@ export function useMAQuadroEditor():
 
                 await runStructuralOperation(
                     async () => {
-                        const captured:
-                            MAQuadroProject | null =
+                        const captured =
                             captureCurrentPage();
 
                         if (!captured) {
@@ -3800,33 +4347,39 @@ export function useMAQuadroEditor():
 
                         const pages =
                             await Promise.all(
-                                editable.pages.map(
-                                    async (
-                                        page
-                                    ) => ({
-                                        ...page,
-                                        width:
-                                            safeWidth,
-                                        height:
-                                            safeHeight,
-                                        canvasJson:
-                                            await resizeMAQuadroCanvasJson(
-                                                page.canvasJson,
-                                                page.width,
-                                                page.height,
+                                editable.pages
+                                    .map(
+                                        async (
+                                            page
+                                        ) => ({
+                                            ...page,
+
+                                            width:
                                                 safeWidth,
+
+                                            height:
                                                 safeHeight,
-                                                strategy
-                                            ),
-                                        thumbnail:
-                                            undefined
-                                    })
-                                )
+
+                                            canvasJson:
+                                                await resizeMAQuadroCanvasJson(
+                                                    page.canvasJson,
+                                                    page.width,
+                                                    page.height,
+                                                    safeWidth,
+                                                    safeHeight,
+                                                    strategy
+                                                ),
+
+                                            thumbnail:
+                                                undefined
+                                        })
+                                    )
                             );
 
                         const next = {
                             ...editable,
                             pages,
+
                             updatedAt:
                                 new Date()
                                     .toISOString()
@@ -3883,9 +4436,7 @@ export function useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -3894,6 +4445,7 @@ export function useMAQuadroEditor():
                     createMAQuadroText(
                         canvas,
                         preset,
+
                         availableFonts[0]
                             ?.family ||
                         'Arial'
@@ -3914,7 +4466,8 @@ export function useMAQuadroEditor():
                 );
             },
             [
-                availableFonts
+                availableFonts,
+                interactionLocked
             ]
         );
 
@@ -3929,9 +4482,7 @@ export function useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -3940,6 +4491,7 @@ export function useMAQuadroEditor():
                     createMAQuadroShape(
                         canvas,
                         kind,
+
                         brand.colors[0]
                             ?.value ||
                         '#22D3EE'
@@ -3960,7 +4512,8 @@ export function useMAQuadroEditor():
                 );
             },
             [
-                brand.colors
+                brand.colors,
+                interactionLocked
             ]
         );
 
@@ -3976,9 +4529,10 @@ export function useMAQuadroEditor():
                         files
                     ).filter(
                         (file) =>
-                            file.type.startsWith(
-                                'image/'
-                            )
+                            file.type
+                                .startsWith(
+                                    'image/'
+                                )
                     );
 
                 const canvas =
@@ -3986,7 +4540,8 @@ export function useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    imageFiles.length === 0
+                    imageFiles.length ===
+                    0
                 ) {
                     if (
                         imageFiles.length ===
@@ -4004,7 +4559,10 @@ export function useMAQuadroEditor():
                 if (
                     uploadLockRef.current ||
                     structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    imageCropEditingRef
+                        .current ||
+                    busyCountRef.current >
+                    0
                 ) {
                     setStatusMessage(
                         'Aguarde pela conclusão da operação atual antes de carregar novas imagens.'
@@ -4049,14 +4607,15 @@ export function useMAQuadroEditor():
 
                                 object.set({
                                     left:
-                                        (
+                                        Number(
                                             object.left ||
                                             0
                                         ) +
                                         added.length *
                                         32,
+
                                     top:
-                                        (
+                                        Number(
                                             object.top ||
                                             0
                                         ) +
@@ -4092,7 +4651,8 @@ export function useMAQuadroEditor():
                                 added[0]
                             );
                         } else if (
-                            added.length > 1
+                            added.length >
+                            1
                         ) {
                             canvas.setActiveObject(
                                 new ActiveSelection(
@@ -4124,11 +4684,13 @@ export function useMAQuadroEditor():
                     const message =
                         failed > 0
                             ? `${added.length} imagem${
-                                added.length === 1
+                                added.length ===
+                                1
                                     ? ''
                                     : 'ns'
                             } adicionada${
-                                added.length === 1
+                                added.length ===
+                                1
                                     ? ''
                                     : 's'
                             }; ${failed} não foi${
@@ -4140,7 +4702,8 @@ export function useMAQuadroEditor():
                                     ? ''
                                     : 's'
                             }.`
-                            : added.length === 1
+                            : added.length ===
+                                1
                                 ? 'Imagem adicionada.'
                                 : `${added.length} imagens adicionadas.`;
 
@@ -4173,7 +4736,8 @@ export function useMAQuadroEditor():
             ) => {
                 const files =
                     Array.from(
-                        event.currentTarget
+                        event
+                            .currentTarget
                             .files ||
                         []
                     );
@@ -4235,9 +4799,7 @@ export function useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4264,6 +4826,7 @@ export function useMAQuadroEditor():
                 );
             },
             [
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -4341,10 +4904,9 @@ export function useMAQuadroEditor():
 
             if (
                 !canvas ||
-                objects.length === 0 ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                objects.length ===
+                0 ||
+                interactionLocked()
             ) {
                 return;
             }
@@ -4366,12 +4928,14 @@ export function useMAQuadroEditor():
             }
 
             commitChange(
-                objects.length === 1
+                objects.length ===
+                1
                     ? 'Elemento eliminado.'
                     : 'Elementos eliminados.'
             );
         }, [
-            commitChange
+            commitChange,
+            interactionLocked
         ]);
 
     const copySelection =
@@ -4388,9 +4952,7 @@ export function useMAQuadroEditor():
 
                 if (
                     !active ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4408,7 +4970,9 @@ export function useMAQuadroEditor():
                     'Seleção copiada.'
                 );
             },
-            []
+            [
+                interactionLocked
+            ]
         );
 
     const pasteSelection =
@@ -4423,9 +4987,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !source ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4439,7 +5001,8 @@ export function useMAQuadroEditor():
                 const offset =
                     28 *
                     (
-                        clipboardPasteCountRef.current +
+                        clipboardPasteCountRef
+                            .current +
                         1
                     );
 
@@ -4463,21 +5026,21 @@ export function useMAQuadroEditor():
                         ) {
                             object.set({
                                 left:
-                                    (
+                                    Number(
                                         object.left ||
                                         0
                                     ) +
                                     offset,
+
                                 top:
-                                    (
+                                    Number(
                                         object.top ||
                                         0
                                     ) +
                                     offset,
-                                evented:
-                                    true,
-                                selectable:
-                                    true
+
+                                evented: true,
+                                selectable: true
                             });
 
                             renewObjectTreeIdentifiers(
@@ -4485,11 +5048,7 @@ export function useMAQuadroEditor():
                             );
 
                             object.maName =
-                                `${
-                                    getMAQuadroObjectLabel(
-                                        object
-                                    )
-                                } — cópia`;
+                                `${getMAQuadroObjectLabel(object)} — cópia`;
 
                             prepareMAQuadroObject(
                                 object,
@@ -4522,21 +5081,21 @@ export function useMAQuadroEditor():
                     } else {
                         clone.set({
                             left:
-                                (
+                                Number(
                                     source.left ||
                                     0
                                 ) +
                                 offset,
+
                             top:
-                                (
+                                Number(
                                     source.top ||
                                     0
                                 ) +
                                 offset,
-                            evented:
-                                true,
-                            selectable:
-                                true
+
+                            evented: true,
+                            selectable: true
                         });
 
                         renewObjectTreeIdentifiers(
@@ -4544,11 +5103,7 @@ export function useMAQuadroEditor():
                         );
 
                         clone.maName =
-                            `${
-                                getMAQuadroObjectLabel(
-                                    source
-                                )
-                            } — cópia`;
+                            `${getMAQuadroObjectLabel(source)} — cópia`;
 
                         prepareMAQuadroObject(
                             clone,
@@ -4575,7 +5130,8 @@ export function useMAQuadroEditor():
                         false;
                 }
 
-                clipboardPasteCountRef.current +=
+                clipboardPasteCountRef
+                    .current +=
                     1;
 
                 commitChange(
@@ -4583,18 +5139,26 @@ export function useMAQuadroEditor():
                 );
             },
             [
-                commitChange
+                commitChange,
+                interactionLocked
             ]
         );
 
     const duplicateSelection =
         useCallback(
             async () => {
+                if (
+                    interactionLocked()
+                ) {
+                    return;
+                }
+
                 await copySelection();
                 await pasteSelection();
             },
             [
                 copySelection,
+                interactionLocked,
                 pasteSelection
             ]
         );
@@ -4606,9 +5170,7 @@ export function useMAQuadroEditor():
 
             if (
                 !canvas ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                interactionLocked()
             ) {
                 return;
             }
@@ -4619,6 +5181,7 @@ export function useMAQuadroEditor():
 
             syncSelection();
         }, [
+            interactionLocked,
             syncSelection
         ]);
 
@@ -4629,11 +5192,11 @@ export function useMAQuadroEditor():
 
             if (
                 !canvas ||
-                canvas.getActiveObjects()
-                    .length < 2 ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                canvas
+                    .getActiveObjects()
+                    .length <
+                2 ||
+                interactionLocked()
             ) {
                 return;
             }
@@ -4654,7 +5217,8 @@ export function useMAQuadroEditor():
                 'Elementos agrupados.'
             );
         }, [
-            commitChange
+            commitChange,
+            interactionLocked
         ]);
 
     const ungroupSelection =
@@ -4674,9 +5238,7 @@ export function useMAQuadroEditor():
                 ) ||
                 active instanceof
                 ActiveSelection ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                interactionLocked()
             ) {
                 return;
             }
@@ -4697,7 +5259,8 @@ export function useMAQuadroEditor():
                 'Grupo desagrupado.'
             );
         }, [
-            commitChange
+            commitChange,
+            interactionLocked
         ]);
 
     const alignSelection =
@@ -4718,9 +5281,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !active ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4741,14 +5302,17 @@ export function useMAQuadroEditor():
                 }
 
                 commitChange(
-                    canvas.getActiveObjects()
-                        .length > 1
+                    canvas
+                        .getActiveObjects()
+                        .length >
+                    1
                         ? 'Elementos alinhados entre si.'
                         : 'Elemento alinhado à página.'
                 );
             },
             [
-                commitChange
+                commitChange,
+                interactionLocked
             ]
         );
 
@@ -4764,9 +5328,7 @@ export function useMAQuadroEditor():
 
                 if (
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4789,7 +5351,8 @@ export function useMAQuadroEditor():
                 );
             },
             [
-                commitChange
+                commitChange,
+                interactionLocked
             ]
         );
 
@@ -4811,10 +5374,9 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !selected ||
-                    selected.length === 0 ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    selected.length ===
+                    0 ||
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -4826,7 +5388,8 @@ export function useMAQuadroEditor():
                     );
 
                 if (
-                    editable.length === 0
+                    editable.length ===
+                    0
                 ) {
                     setStatusMessage(
                         'Os elementos selecionados estão bloqueados.'
@@ -4921,13 +5484,15 @@ export function useMAQuadroEditor():
                 }
 
                 commitChange(
-                    selected.length === 1
+                    selected.length ===
+                    1
                         ? 'Ordem do elemento atualizada.'
                         : 'Ordem dos elementos atualizada.'
                 );
             },
             [
-                commitChange
+                commitChange,
+                interactionLocked
             ]
         );
 
@@ -4950,22 +5515,21 @@ export function useMAQuadroEditor():
                     !canvas ||
                     !active ||
                     active.maLocked ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
 
                 active.set({
                     left:
-                        (
+                        Number(
                             active.left ||
                             0
                         ) +
                         x,
+
                     top:
-                        (
+                        Number(
                             active.top ||
                             0
                         ) +
@@ -4981,7 +5545,8 @@ export function useMAQuadroEditor():
                 );
             },
             [
-                commitChange
+                commitChange,
+                interactionLocked
             ]
         );
 
@@ -5000,7 +5565,9 @@ export function useMAQuadroEditor():
                     !canvas ||
                     !current ||
                     uploadLockRef.current ||
-                    structuralLockRef.current
+                    structuralLockRef.current ||
+                    imageCropEditingRef
+                        .current
                 ) {
                     return false;
                 }
@@ -5017,8 +5584,10 @@ export function useMAQuadroEditor():
 
                 let snapshot: {
                     pageId: string;
+
                     background:
                         MAQuadroBackground;
+
                     canvasJson:
                         Record<
                             string,
@@ -5030,7 +5599,8 @@ export function useMAQuadroEditor():
                     snapshot =
                         JSON.parse(
                             serialized
-                        ) as typeof snapshot;
+                        ) as
+                            typeof snapshot;
                 } catch (error) {
                     console.error(
                         error
@@ -5054,7 +5624,8 @@ export function useMAQuadroEditor():
                     return false;
                 }
 
-                isApplyingHistoryRef.current =
+                isApplyingHistoryRef
+                    .current =
                     true;
 
                 isLoadingRef.current =
@@ -5072,8 +5643,10 @@ export function useMAQuadroEditor():
 
                     const updatedPage = {
                         ...page,
+
                         background:
                             snapshot.background,
+
                         canvasJson:
                             snapshot.canvasJson
                     };
@@ -5108,7 +5681,8 @@ export function useMAQuadroEditor():
                     isLoadingRef.current =
                         false;
 
-                    isApplyingHistoryRef.current =
+                    isApplyingHistoryRef
+                        .current =
                         false;
 
                     markDirty(
@@ -5167,7 +5741,8 @@ export function useMAQuadroEditor():
                     isLoadingRef.current =
                         false;
 
-                    isApplyingHistoryRef.current =
+                    isApplyingHistoryRef
+                        .current =
                         false;
                 }
             },
@@ -5182,9 +5757,7 @@ export function useMAQuadroEditor():
         useCallback(
             async () => {
                 if (
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5195,19 +5768,24 @@ export function useMAQuadroEditor():
 
                 const history =
                     pageId
-                        ? historiesRef.current
-                            .get(pageId)
+                        ? historiesRef
+                            .current
+                            .get(
+                                pageId
+                            )
                         : undefined;
 
                 if (
                     !history ||
-                    history.index <= 0
+                    history.index <=
+                    0
                 ) {
                     return;
                 }
 
                 const targetIndex =
-                    history.index - 1;
+                    history.index -
+                    1;
 
                 const applied =
                     await applyHistory(
@@ -5225,6 +5803,7 @@ export function useMAQuadroEditor():
             },
             [
                 applyHistory,
+                interactionLocked,
                 updateHistoryButtons
             ]
         );
@@ -5233,9 +5812,7 @@ export function useMAQuadroEditor():
         useCallback(
             async () => {
                 if (
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5246,20 +5823,26 @@ export function useMAQuadroEditor():
 
                 const history =
                     pageId
-                        ? historiesRef.current
-                            .get(pageId)
+                        ? historiesRef
+                            .current
+                            .get(
+                                pageId
+                            )
                         : undefined;
 
                 if (
                     !history ||
                     history.index >=
-                    history.entries.length - 1
+                    history.entries
+                        .length -
+                    1
                 ) {
                     return;
                 }
 
                 const targetIndex =
-                    history.index + 1;
+                    history.index +
+                    1;
 
                 const applied =
                     await applyHistory(
@@ -5277,6 +5860,7 @@ export function useMAQuadroEditor():
             },
             [
                 applyHistory,
+                interactionLocked,
                 updateHistoryButtons
             ]
         );
@@ -5300,9 +5884,7 @@ export function useMAQuadroEditor():
                     object.maLocked ||
                     object.visible ===
                     false ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5317,6 +5899,7 @@ export function useMAQuadroEditor():
             },
             [
                 findCanvasObject,
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -5337,9 +5920,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !object ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5360,7 +5941,8 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
-                findCanvasObject
+                findCanvasObject,
+                interactionLocked
             ]
         );
 
@@ -5380,9 +5962,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !object ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5404,7 +5984,8 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
-                findCanvasObject
+                findCanvasObject,
+                interactionLocked
             ]
         );
 
@@ -5427,9 +6008,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !object ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5438,6 +6017,7 @@ export function useMAQuadroEditor():
                     !arrangeMAQuadroObject(
                         canvas,
                         object,
+
                         direction ===
                         'up'
                             ? 'forward'
@@ -5453,7 +6033,8 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
-                findCanvasObject
+                findCanvasObject,
+                interactionLocked
             ]
         );
 
@@ -5467,7 +6048,9 @@ export function useMAQuadroEditor():
                     ) =>
                         | boolean
                         | void,
+
                 message: string,
+
                 noChangeMessage =
                     'Esta alteração não se aplica à seleção atual.'
             ) => {
@@ -5483,10 +6066,9 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !objects ||
-                    objects.length === 0 ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    objects.length ===
+                    0 ||
+                    interactionLocked()
                 ) {
                     return false;
                 }
@@ -5510,7 +6092,8 @@ export function useMAQuadroEditor():
                         );
 
                     if (
-                        result !== false
+                        result !==
+                        false
                     ) {
                         changed =
                             true;
@@ -5539,6 +6122,7 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -5562,9 +6146,7 @@ export function useMAQuadroEditor():
                     !nextName ||
                     active.maName ===
                     nextName ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5580,6 +6162,7 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -5595,7 +6178,9 @@ export function useMAQuadroEditor():
                             object,
                             color
                         ),
+
                     'Cor atualizada.',
+
                     'A cor de preenchimento não se aplica às imagens selecionadas ou os elementos estão bloqueados.'
                 );
             },
@@ -5615,6 +6200,7 @@ export function useMAQuadroEditor():
                             object,
                             color
                         ),
+
                     'Contorno atualizado.'
                 );
             },
@@ -5643,6 +6229,7 @@ export function useMAQuadroEditor():
                             object,
                             safe
                         ),
+
                     'Espessura do contorno atualizada.'
                 );
             },
@@ -5672,7 +6259,10 @@ export function useMAQuadroEditor():
                                 safe /
                                 100
                         });
+
+                        return true;
                     },
+
                     'Opacidade atualizada.'
                 );
             },
@@ -5690,6 +6280,7 @@ export function useMAQuadroEditor():
                     | 'width'
                     | 'height'
                     | 'angle',
+
                 value: number
             ) => {
                 const canvas =
@@ -5707,9 +6298,7 @@ export function useMAQuadroEditor():
                     !Number.isFinite(
                         value
                     ) ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -5732,6 +6321,7 @@ export function useMAQuadroEditor():
             },
             [
                 commitChange,
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -5757,7 +6347,10 @@ export function useMAQuadroEditor():
                                         !object.flipY
                                 }
                         );
+
+                        return true;
                     },
+
                     axis ===
                     'x'
                         ? 'Elemento virado horizontalmente.'
@@ -5782,6 +6375,7 @@ export function useMAQuadroEditor():
                     | 'charSpacing'
                     | 'underline'
                     | 'linethrough',
+
                 value:
                     | string
                     | number
@@ -5805,7 +6399,9 @@ export function useMAQuadroEditor():
 
                         return true;
                     },
+
                     'Texto atualizado.',
+
                     'Esta alteração só se aplica a texto desbloqueado.'
                 );
             },
@@ -5841,14 +6437,16 @@ export function useMAQuadroEditor():
                             text:
                                 mode ===
                                 'upper'
-                                    ? value.toLocaleUpperCase(
-                                        'pt-PT'
-                                    )
-                                    : mode ===
-                                        'lower'
-                                        ? value.toLocaleLowerCase(
+                                    ? value
+                                        .toLocaleUpperCase(
                                             'pt-PT'
                                         )
+                                    : mode ===
+                                        'lower'
+                                        ? value
+                                            .toLocaleLowerCase(
+                                                'pt-PT'
+                                            )
                                         : titleCase(
                                             value
                                         )
@@ -5856,7 +6454,9 @@ export function useMAQuadroEditor():
 
                         return true;
                     },
+
                     'Capitalização do texto atualizada.',
+
                     'Esta alteração só se aplica a texto desbloqueado.'
                 );
             },
@@ -5899,7 +6499,9 @@ export function useMAQuadroEditor():
 
                         return true;
                     },
+
                     'Cantos arredondados atualizados.',
+
                     'Os cantos arredondados só se aplicam a retângulos desbloqueados.'
                 );
             },
@@ -5923,23 +6525,32 @@ export function useMAQuadroEditor():
                 const next = {
                     enabled:
                         values.enabled ??
-                        selection.shadowEnabled,
+                        selection
+                            .shadowEnabled,
+
                     color:
                         values.color ??
-                        selection.shadowColor,
+                        selection
+                            .shadowColor,
+
                     blur:
                         values.blur ??
-                        selection.shadowBlur,
+                        selection
+                            .shadowBlur,
+
                     offsetX:
                         values.offsetX ??
-                        selection.shadowOffsetX,
+                        selection
+                            .shadowOffsetX,
+
                     offsetY:
                         values.offsetY ??
-                        selection.shadowOffsetY
+                        selection
+                            .shadowOffsetY
                 };
 
                 applyToSelectedObjects(
-                    (object) => {
+                    (object) =>
                         setMAQuadroObjectShadow(
                             object,
                             next.enabled,
@@ -5947,8 +6558,8 @@ export function useMAQuadroEditor():
                             next.blur,
                             next.offsetX,
                             next.offsetY
-                        );
-                    },
+                        ),
+
                     'Sombra atualizada.'
                 );
             },
@@ -5972,16 +6583,23 @@ export function useMAQuadroEditor():
                 const next = {
                     enabled:
                         values.enabled ??
-                        selection.gradientEnabled,
+                        selection
+                            .gradientEnabled,
+
                     from:
                         values.from ??
-                        selection.gradientFrom,
+                        selection
+                            .gradientFrom,
+
                     to:
                         values.to ??
-                        selection.gradientTo,
+                        selection
+                            .gradientTo,
+
                     angle:
                         values.angle ??
-                        selection.gradientAngle
+                        selection
+                            .gradientAngle
                 };
 
                 applyToSelectedObjects(
@@ -6012,7 +6630,9 @@ export function useMAQuadroEditor():
                                 next.from
                             );
                     },
+
                     'Gradiente atualizado.',
+
                     'O gradiente não se aplica às imagens ou linhas selecionadas.'
                 );
             },
@@ -6049,6 +6669,465 @@ export function useMAQuadroEditor():
                 MAQuadroFabricObject;
         }, []);
 
+    const beginImageCrop =
+        useCallback(() => {
+            const canvas =
+                canvasRef.current;
+
+            const image =
+                getSelectedImage();
+
+            if (
+                !canvas ||
+                !image ||
+                image.maLocked ||
+                interactionLocked()
+            ) {
+                return;
+            }
+
+            image.maId ||=
+                createMAQuadroId(
+                    'object'
+                );
+
+            cropSessionRef.current =
+                cropSessionForImage(
+                    image
+                );
+
+            imageCropEditingRef.current =
+                true;
+
+            setImageCropEditing(
+                true
+            );
+
+            setGuides(
+                emptyMAQuadroGuides()
+            );
+
+            image.set({
+                lockScalingX:
+                    true,
+                lockScalingY:
+                    true,
+                lockRotation:
+                    true,
+                hasControls:
+                    false
+            });
+
+            image.setCoords();
+
+            canvas.setActiveObject(
+                image
+            );
+
+            canvas.requestRenderAll();
+
+            syncSelection();
+
+            setStatusMessage(
+                'Modo de recorte ativo. Arraste a imagem para a reposicionar dentro da moldura, ajuste o zoom e conclua quando estiver satisfeito.'
+            );
+        }, [
+            getSelectedImage,
+            interactionLocked,
+            syncSelection
+        ]);
+
+    const finishImageCrop =
+        useCallback(() => {
+            const canvas =
+                canvasRef.current;
+
+            const session =
+                cropSessionRef.current;
+
+            const image =
+                getSelectedImage();
+
+            if (
+                !canvas ||
+                !session ||
+                !image ||
+                image.maId !==
+                session.objectId
+            ) {
+                imageCropEditingRef
+                    .current =
+                    false;
+
+                cropSessionRef.current =
+                    null;
+
+                setImageCropEditing(
+                    false
+                );
+
+                setGuides(
+                    emptyMAQuadroGuides()
+                );
+
+                return;
+            }
+
+            image.set({
+                left:
+                    session.left,
+
+                top:
+                    session.top,
+
+                lockScalingX:
+                    session.lockScalingX,
+
+                lockScalingY:
+                    session.lockScalingY,
+
+                lockRotation:
+                    session.lockRotation,
+
+                hasControls:
+                    session.hasControls
+            });
+
+            image.setCoords();
+
+            imageCropEditingRef
+                .current =
+                false;
+
+            cropSessionRef.current =
+                null;
+
+            setImageCropEditing(
+                false
+            );
+
+            setGuides(
+                emptyMAQuadroGuides()
+            );
+
+            canvas.requestRenderAll();
+
+            syncSelection();
+
+            const changed =
+                commitChange(
+                    'Recorte da imagem atualizado.'
+                );
+
+            if (!changed) {
+                setStatusMessage(
+                    'Recorte concluído sem alterações.'
+                );
+            }
+        }, [
+            commitChange,
+            getSelectedImage,
+            syncSelection
+        ]);
+
+    const cancelImageCrop =
+        useCallback(() => {
+            const canvas =
+                canvasRef.current;
+
+            const session =
+                cropSessionRef.current;
+
+            const image =
+                getSelectedImage();
+
+            if (
+                image &&
+                session &&
+                image.maId ===
+                session.objectId
+            ) {
+                const frameKind =
+                    getMAQuadroImageFrameKind(
+                        image
+                    );
+
+                image.set({
+                    left:
+                        session.left,
+                    top:
+                        session.top,
+                    width:
+                        session.width,
+                    height:
+                        session.height,
+                    cropX:
+                        session.cropX,
+                    cropY:
+                        session.cropY,
+                    scaleX:
+                        session.scaleX,
+                    scaleY:
+                        session.scaleY,
+
+                    lockScalingX:
+                        session.lockScalingX,
+
+                    lockScalingY:
+                        session.lockScalingY,
+
+                    lockRotation:
+                        session.lockRotation,
+
+                    hasControls:
+                        session.hasControls
+                });
+
+                if (
+                    frameKind !==
+                    'none'
+                ) {
+                    applyMAQuadroImageFrame(
+                        image,
+                        frameKind
+                    );
+                }
+
+                image.setCoords();
+            }
+
+            imageCropEditingRef.current =
+                false;
+
+            cropSessionRef.current =
+                null;
+
+            setImageCropEditing(
+                false
+            );
+
+            setGuides(
+                emptyMAQuadroGuides()
+            );
+
+            canvas
+                ?.requestRenderAll();
+
+            syncSelection();
+
+            setStatusMessage(
+                'Alterações de recorte canceladas.'
+            );
+        }, [
+            getSelectedImage,
+            syncSelection
+        ]);
+
+    const refreshCropDragAnchor =
+        useCallback(
+            (
+                image:
+                    FabricImage &
+                    MAQuadroFabricObject
+            ) => {
+                const session =
+                    cropSessionRef.current;
+
+                if (
+                    !session ||
+                    image.maId !==
+                    session.objectId
+                ) {
+                    return;
+                }
+
+                session.startCropX =
+                    Number(
+                        image.cropX ||
+                        0
+                    );
+
+                session.startCropY =
+                    Number(
+                        image.cropY ||
+                        0
+                    );
+
+                image.set({
+                    left:
+                        session.left,
+                    top:
+                        session.top
+                });
+
+                image.setCoords();
+            },
+            []
+        );
+
+    const setImageCropZoom =
+        useCallback(
+            (
+                zoomValue: number
+            ) => {
+                const canvas =
+                    canvasRef.current;
+
+                const image =
+                    getSelectedImage();
+
+                if (
+                    !canvas ||
+                    !image ||
+                    !imageCropEditingRef
+                        .current ||
+                    !cropSessionRef
+                        .current
+                ) {
+                    return;
+                }
+
+                setMAQuadroCropViewport(
+                    image,
+                    {
+                        zoom:
+                            clamp(
+                                zoomValue,
+                                100,
+                                400
+                            )
+                    }
+                );
+
+                refreshCropDragAnchor(
+                    image
+                );
+
+                canvas.requestRenderAll();
+
+                syncSelection();
+            },
+            [
+                getSelectedImage,
+                refreshCropDragAnchor,
+                syncSelection
+            ]
+        );
+
+    const setImageCropPosition =
+        useCallback(
+            (
+                positionX: number,
+                positionY: number
+            ) => {
+                const canvas =
+                    canvasRef.current;
+
+                const image =
+                    getSelectedImage();
+
+                if (
+                    !canvas ||
+                    !image ||
+                    !imageCropEditingRef
+                        .current ||
+                    !cropSessionRef
+                        .current
+                ) {
+                    return;
+                }
+
+                setMAQuadroCropViewport(
+                    image,
+                    {
+                        positionX:
+                            clamp(
+                                positionX,
+                                0,
+                                100
+                            ),
+
+                        positionY:
+                            clamp(
+                                positionY,
+                                0,
+                                100
+                            )
+                    }
+                );
+
+                refreshCropDragAnchor(
+                    image
+                );
+
+                canvas.requestRenderAll();
+
+                syncSelection();
+            },
+            [
+                getSelectedImage,
+                refreshCropDragAnchor,
+                syncSelection
+            ]
+        );
+
+    const setImageFrame =
+        useCallback(
+            (
+                kind:
+                    MAQuadroImageFrameKind
+            ) => {
+                const canvas =
+                    canvasRef.current;
+
+                const image =
+                    getSelectedImage();
+
+                if (
+                    !canvas ||
+                    !image ||
+                    image.maLocked ||
+                    interactionLocked()
+                ) {
+                    return;
+                }
+
+                const current =
+                    getMAQuadroImageFrameKind(
+                        image
+                    );
+
+                if (
+                    current ===
+                    kind
+                ) {
+                    return;
+                }
+
+                applyMAQuadroImageFrame(
+                    image,
+                    kind
+                );
+
+                canvas.requestRenderAll();
+
+                syncSelection();
+
+                commitChange(
+                    kind ===
+                    'none'
+                        ? 'Moldura da imagem removida.'
+                        : 'Moldura da imagem aplicada.'
+                );
+            },
+            [
+                commitChange,
+                getSelectedImage,
+                interactionLocked,
+                syncSelection
+            ]
+        );
+
     const setImageFilters =
         useCallback(
             (
@@ -6066,9 +7145,7 @@ export function useMAQuadroEditor():
                 if (
                     !image ||
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -6094,6 +7171,7 @@ export function useMAQuadroEditor():
             [
                 commitChange,
                 getSelectedImage,
+                interactionLocked,
                 syncSelection
             ]
         );
@@ -6109,9 +7187,7 @@ export function useMAQuadroEditor():
             if (
                 !image ||
                 !canvas ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                interactionLocked()
             ) {
                 return;
             }
@@ -6130,16 +7206,15 @@ export function useMAQuadroEditor():
         }, [
             commitChange,
             getSelectedImage,
+            interactionLocked,
             syncSelection
         ]);
 
     const setImageCrop =
         useCallback(
             (
-                horizontal:
-                    number,
-                vertical:
-                    number
+                horizontal: number,
+                vertical: number
             ) => {
                 const image =
                     getSelectedImage();
@@ -6150,12 +7225,19 @@ export function useMAQuadroEditor():
                 if (
                     !image ||
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    (
+                        !imageCropEditingRef
+                            .current &&
+                        interactionLocked()
+                    )
                 ) {
                     return;
                 }
+
+                const frameKind =
+                    getMAQuadroImageFrameKind(
+                        image
+                    );
 
                 cropMAQuadroImageSymmetrically(
                     image,
@@ -6163,9 +7245,30 @@ export function useMAQuadroEditor():
                     vertical
                 );
 
+                if (
+                    frameKind !==
+                    'none'
+                ) {
+                    applyMAQuadroImageFrame(
+                        image,
+                        frameKind
+                    );
+                }
+
                 canvas.requestRenderAll();
 
                 syncSelection();
+
+                if (
+                    imageCropEditingRef
+                        .current
+                ) {
+                    refreshCropDragAnchor(
+                        image
+                    );
+
+                    return;
+                }
 
                 commitChange(
                     'Recorte da imagem atualizado.'
@@ -6174,6 +7277,8 @@ export function useMAQuadroEditor():
             [
                 commitChange,
                 getSelectedImage,
+                interactionLocked,
+                refreshCropDragAnchor,
                 syncSelection
             ]
         );
@@ -6189,20 +7294,48 @@ export function useMAQuadroEditor():
             if (
                 !image ||
                 !canvas ||
-                uploadLockRef.current ||
-                structuralLockRef.current ||
-                busyCountRef.current > 0
+                (
+                    !imageCropEditingRef
+                        .current &&
+                    interactionLocked()
+                )
             ) {
                 return;
             }
+
+            const frameKind =
+                getMAQuadroImageFrameKind(
+                    image
+                );
 
             resetMAQuadroImageCrop(
                 image
             );
 
+            if (
+                frameKind !==
+                'none'
+            ) {
+                applyMAQuadroImageFrame(
+                    image,
+                    frameKind
+                );
+            }
+
             canvas.requestRenderAll();
 
             syncSelection();
+
+            if (
+                imageCropEditingRef
+                    .current
+            ) {
+                refreshCropDragAnchor(
+                    image
+                );
+
+                return;
+            }
 
             commitChange(
                 'Recorte da imagem reposto.'
@@ -6210,6 +7343,8 @@ export function useMAQuadroEditor():
         }, [
             commitChange,
             getSelectedImage,
+            interactionLocked,
+            refreshCropDragAnchor,
             syncSelection
         ]);
 
@@ -6225,9 +7360,7 @@ export function useMAQuadroEditor():
                 if (
                     !image ||
                     !canvas ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -6252,6 +7385,16 @@ export function useMAQuadroEditor():
 
                 const cropBefore =
                     getMAQuadroImageCropPercentages(
+                        image
+                    );
+
+                const viewportBefore =
+                    getMAQuadroCropViewportState(
+                        image
+                    );
+
+                const frameBefore =
+                    getMAQuadroImageFrameKind(
                         image
                     );
 
@@ -6290,8 +7433,8 @@ export function useMAQuadroEditor():
                             .fromURL(
                                 transparentDataUrl
                             ) as
-                            FabricImage &
-                            MAQuadroFabricObject;
+                                FabricImage &
+                                MAQuadroFabricObject;
 
                     const newSourceWidth =
                         Math.max(
@@ -6317,30 +7460,43 @@ export function useMAQuadroEditor():
                     replacement.set({
                         left:
                             image.left,
+
                         top:
                             image.top,
+
                         originX:
                             image.originX,
+
                         originY:
                             image.originY,
+
                         angle:
                             image.angle,
+
                         skewX:
                             image.skewX,
+
                         skewY:
                             image.skewY,
+
                         flipX:
                             image.flipX,
+
                         flipY:
                             image.flipY,
+
                         opacity:
                             image.opacity,
+
                         stroke:
                             image.stroke,
+
                         strokeWidth:
                             image.strokeWidth,
+
                         shadow:
                             image.shadow,
+
                         scaleX:
                             Number(
                                 image.scaleX ||
@@ -6348,6 +7504,7 @@ export function useMAQuadroEditor():
                             ) *
                             oldSourceWidth /
                             newSourceWidth,
+
                         scaleY:
                             Number(
                                 image.scaleY ||
@@ -6355,10 +7512,13 @@ export function useMAQuadroEditor():
                             ) *
                             oldSourceHeight /
                             newSourceHeight,
+
                         cropX: 0,
                         cropY: 0,
+
                         width:
                             newSourceWidth,
+
                         height:
                             newSourceHeight
                     });
@@ -6384,20 +7544,58 @@ export function useMAQuadroEditor():
                     prepareMAQuadroObject(
                         replacement,
                         'image',
+
                         image.maName ||
                         'Imagem sem fundo'
                     );
 
-                    cropMAQuadroImageSymmetrically(
-                        replacement,
-                        cropBefore.horizontal,
-                        cropBefore.vertical
-                    );
+                    if (
+                        viewportBefore.zoom >
+                        100 ||
+                        Math.abs(
+                            viewportBefore
+                                .positionX -
+                            50
+                        ) >
+                        1 ||
+                        Math.abs(
+                            viewportBefore
+                                .positionY -
+                            50
+                        ) >
+                        1
+                    ) {
+                        setMAQuadroCropViewport(
+                            replacement,
+                            viewportBefore
+                        );
+                    } else if (
+                        cropBefore.horizontal >
+                        0 ||
+                        cropBefore.vertical >
+                        0
+                    ) {
+                        cropMAQuadroImageSymmetrically(
+                            replacement,
+                            cropBefore.horizontal,
+                            cropBefore.vertical
+                        );
+                    }
 
                     applyMAQuadroImageFilters(
                         replacement,
                         filtersBefore
                     );
+
+                    if (
+                        frameBefore !==
+                        'none'
+                    ) {
+                        applyMAQuadroImageFrame(
+                            replacement,
+                            frameBefore
+                        );
+                    }
 
                     isLoadingRef.current =
                         true;
@@ -6434,7 +7632,7 @@ export function useMAQuadroEditor():
                     syncSelection();
 
                     commitChange(
-                        'Fundo removido localmente. O recorte e os ajustes foram preservados.'
+                        'Fundo removido localmente. O recorte, a moldura e os ajustes foram preservados.'
                     );
                 } catch (error) {
                     console.error(
@@ -6453,6 +7651,7 @@ export function useMAQuadroEditor():
             [
                 commitChange,
                 getSelectedImage,
+                interactionLocked,
                 setBusy,
                 syncSelection
             ]
@@ -6475,9 +7674,7 @@ export function useMAQuadroEditor():
                 if (
                     !canvas ||
                     !current ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -6489,6 +7686,7 @@ export function useMAQuadroEditor():
 
                 const updatedPage = {
                     ...page,
+
                     background: {
                         ...page.background,
                         ...background
@@ -6524,6 +7722,7 @@ export function useMAQuadroEditor():
                 );
             },
             [
+                interactionLocked,
                 markDirty,
                 pushHistory
             ]
@@ -6538,9 +7737,7 @@ export function useMAQuadroEditor():
                     canvasRef.current;
 
                 if (
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -6553,7 +7750,8 @@ export function useMAQuadroEditor():
 
                 if (
                     selected &&
-                    selected.length > 0
+                    selected.length >
+                    0
                 ) {
                     const applicable =
                         selected.some(
@@ -6578,13 +7776,13 @@ export function useMAQuadroEditor():
                     );
                 } else {
                     setBackground({
-                        type:
-                            'solid',
+                        type: 'solid',
                         color
                     });
                 }
             },
             [
+                interactionLocked,
                 setBackground,
                 setSelectionFill
             ]
@@ -6597,17 +7795,29 @@ export function useMAQuadroEditor():
                     ChangeEvent<HTMLInputElement>
             ) => {
                 const file =
-                    event.target.files?.[0];
+                    event.target
+                        .files?.[0];
 
                 event.target.value =
                     '';
 
                 if (
                     !file ||
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
+                    return;
+                }
+
+                if (
+                    file.size >
+                    12 *
+                    1024 *
+                    1024
+                ) {
+                    setStatusMessage(
+                        'A fonte ultrapassa o limite de 12 MB.'
+                    );
+
                     return;
                 }
 
@@ -6636,31 +7846,39 @@ export function useMAQuadroEditor():
                                     .toLocaleLowerCase(
                                         'pt-PT'
                                     ) ===
-                                family.toLocaleLowerCase(
-                                    'pt-PT'
-                                )
+                                family
+                                    .toLocaleLowerCase(
+                                        'pt-PT'
+                                    )
                         );
 
                     const record:
                         MAQuadroStoredFont = {
-                        id:
-                            existing?.id ||
-                            createMAQuadroId(
-                                'font'
-                            ),
-                        family,
-                        fileName:
-                            file.name,
-                        mimeType:
-                            file.type ||
-                            'font/ttf',
-                        data:
-                            await file.arrayBuffer(),
-                        createdAt:
-                            existing?.createdAt ||
-                            new Date()
-                                .toISOString()
-                    };
+                            id:
+                                existing?.id ||
+                                createMAQuadroId(
+                                    'font'
+                                ),
+
+                            family,
+
+                            fileName:
+                                file.name,
+
+                            mimeType:
+                                file.type ||
+                                'font/ttf',
+
+                            data:
+                                await file
+                                    .arrayBuffer(),
+
+                            createdAt:
+                                existing
+                                    ?.createdAt ||
+                                new Date()
+                                    .toISOString()
+                        };
 
                     await registerLocalFont(
                         record
@@ -6692,6 +7910,7 @@ export function useMAQuadroEditor():
                 }
             },
             [
+                interactionLocked,
                 localFonts,
                 setBusy
             ]
@@ -6703,9 +7922,7 @@ export function useMAQuadroEditor():
                 fontId: string
             ) => {
                 if (
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     return;
                 }
@@ -6732,7 +7949,9 @@ export function useMAQuadroEditor():
                     );
                 }
             },
-            []
+            [
+                interactionLocked
+            ]
         );
 
     const toggleGrid =
@@ -6769,7 +7988,8 @@ export function useMAQuadroEditor():
                 event.preventDefault();
 
                 const direction =
-                    event.deltaY > 0
+                    event.deltaY >
+                    0
                         ? -5
                         : 5;
 
@@ -6793,8 +8013,13 @@ export function useMAQuadroEditor():
                     workspaceRef.current;
 
                 const shouldPan =
-                    spacePressedRef.current ||
-                    event.button === 1;
+                    !imageCropEditingRef
+                        .current &&
+                    (
+                        spacePressedRef.current ||
+                        event.button ===
+                        1
+                    );
 
                 if (
                     !workspace ||
@@ -6806,8 +8031,7 @@ export function useMAQuadroEditor():
                 event.preventDefault();
 
                 panStateRef.current = {
-                    active:
-                        true,
+                    active: true,
                     startX:
                         event.clientX,
                     startY:
@@ -6846,7 +8070,8 @@ export function useMAQuadroEditor():
 
                 const finish =
                     () => {
-                        panStateRef.current.active =
+                        panStateRef.current
+                            .active =
                             false;
 
                         window.removeEventListener(
@@ -6895,9 +8120,7 @@ export function useMAQuadroEditor():
         useCallback(
             async () => {
                 if (
-                    uploadLockRef.current ||
-                    structuralLockRef.current ||
-                    busyCountRef.current > 0
+                    interactionLocked()
                 ) {
                     setStatusMessage(
                         'Aguarde pela conclusão da operação atual antes de exportar.'
@@ -6940,6 +8163,7 @@ export function useMAQuadroEditor():
                     ) {
                         await exportMAQuadroPdf(
                             captured,
+
                             exportOptions.scope ===
                             'current'
                                 ? [
@@ -6955,6 +8179,7 @@ export function useMAQuadroEditor():
                             captured,
                             'png',
                             exportOptions.scale,
+
                             exportOptions.quality /
                             100
                         );
@@ -6972,6 +8197,7 @@ export function useMAQuadroEditor():
                             page,
                             exportOptions.format,
                             exportOptions.scale,
+
                             exportOptions.quality /
                             100
                         );
@@ -7001,6 +8227,7 @@ export function useMAQuadroEditor():
             [
                 captureCurrentPage,
                 exportOptions,
+                interactionLocked,
                 setBusy
             ]
         );
@@ -7022,6 +8249,37 @@ export function useMAQuadroEditor():
             const modifier =
                 event.ctrlKey ||
                 event.metaKey;
+
+            if (
+                imageCropEditingRef
+                    .current
+            ) {
+                if (
+                    event.key ===
+                    'Enter'
+                ) {
+                    event.preventDefault();
+
+                    finishImageCrop();
+                } else if (
+                    event.key ===
+                    'Escape'
+                ) {
+                    event.preventDefault();
+
+                    cancelImageCrop();
+                } else if (
+                    modifier ||
+                    event.key ===
+                    'Delete' ||
+                    event.key ===
+                    'Backspace'
+                ) {
+                    event.preventDefault();
+                }
+
+                return;
+            }
 
             if (
                 event.code ===
@@ -7053,10 +8311,14 @@ export function useMAQuadroEditor():
                 uploadLockRef.current ||
                 structuralLockRef.current ||
                 isLoadingRef.current ||
-                isApplyingHistoryRef.current ||
-                busyCountRef.current > 0;
+                isApplyingHistoryRef
+                    .current ||
+                busyCountRef.current >
+                0;
 
-            if (operationLocked) {
+            if (
+                operationLocked
+            ) {
                 if (
                     modifier ||
                     event.key ===
@@ -7073,12 +8335,15 @@ export function useMAQuadroEditor():
                 return;
             }
 
-            if (
-                modifier &&
+            const key =
                 event.key
                     .toLocaleLowerCase(
                         'pt-PT'
-                    ) ===
+                    );
+
+            if (
+                modifier &&
+                key ===
                 'z'
             ) {
                 event.preventDefault();
@@ -7090,10 +8355,7 @@ export function useMAQuadroEditor():
                 );
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 'y'
             ) {
                 event.preventDefault();
@@ -7101,10 +8363,7 @@ export function useMAQuadroEditor():
                 void redo();
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 'c'
             ) {
                 event.preventDefault();
@@ -7112,10 +8371,7 @@ export function useMAQuadroEditor():
                 void copySelection();
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 'v'
             ) {
                 event.preventDefault();
@@ -7123,10 +8379,7 @@ export function useMAQuadroEditor():
                 void pasteSelection();
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 'd'
             ) {
                 event.preventDefault();
@@ -7134,10 +8387,7 @@ export function useMAQuadroEditor():
                 void duplicateSelection();
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 'a'
             ) {
                 event.preventDefault();
@@ -7145,10 +8395,7 @@ export function useMAQuadroEditor():
                 selectAll();
             } else if (
                 modifier &&
-                event.key
-                    .toLocaleLowerCase(
-                        'pt-PT'
-                    ) ===
+                key ===
                 's'
             ) {
                 event.preventDefault();
@@ -7223,6 +8470,7 @@ export function useMAQuadroEditor():
 
                 moveSelection(
                     0,
+
                     event.shiftKey
                         ? -10
                         : -1
@@ -7235,6 +8483,7 @@ export function useMAQuadroEditor():
 
                 moveSelection(
                     0,
+
                     event.shiftKey
                         ? 10
                         : 1
@@ -7301,9 +8550,11 @@ export function useMAQuadroEditor():
             );
         };
     }, [
+        cancelImageCrop,
         copySelection,
         deleteSelection,
         duplicateSelection,
+        finishImageCrop,
         moveSelection,
         pasteSelection,
         redo,
@@ -7320,47 +8571,66 @@ export function useMAQuadroEditor():
         imageInputRef,
         fontInputRef,
         projectInputRef,
+
         ready,
         busy,
         structureBusy,
         statusMessage,
         saveState,
+
         project,
         projects,
         activePage,
+
         brand,
         localFonts,
         availableFonts,
+
         layers,
         selection,
+
         activePanel,
         zoom,
+
         canUndo,
         canRedo,
+
         drawingMode,
         brushColor,
         brushWidth,
+
         showGrid,
         showSafeArea,
+
         guides,
         isSpacePressed,
+
+        imageCropEditing,
+
         exportOpen,
         newDesignOpen,
         exportOptions,
+
         presets:
             MA_QUADRO_PRESETS,
+
         setActivePanel,
         setProjectName,
         saveProject,
         openProject,
+
         duplicateProject:
             duplicateProjectAction,
+
         deleteProject:
             deleteProjectAction,
+
         saveProjectAsTemplate,
+
         createFromPreset,
         createCustomDesign,
         importProject,
+
         setActivePage,
         addPage,
         duplicateActivePage,
@@ -7368,30 +8638,37 @@ export function useMAQuadroEditor():
         renamePage,
         movePage,
         resizeAllPages,
+
         addText,
         addShape,
         addImages,
         handleDroppedFiles,
+
         setDrawingMode,
         setBrushColor,
         setBrushWidth,
+
         deleteSelection,
         duplicateSelection,
         copySelection,
         pasteSelection,
         selectAll,
+
         groupSelection,
         ungroupSelection,
         alignSelection,
         distributeSelection,
         arrangeSelection,
         moveSelection,
+
         undo,
         redo,
+
         selectLayer,
         toggleLayerVisibility,
         toggleLayerLock,
         moveLayer,
+
         setSelectionName,
         setSelectionFill,
         setSelectionStroke,
@@ -7399,26 +8676,45 @@ export function useMAQuadroEditor():
         setSelectionOpacity,
         setSelectionGeometry,
         setSelectionFlip,
+
         setTextProperty,
         transformTextCase,
+
         setCornerRadius,
         setShadow,
         setGradient,
+
         setImageFilters,
         resetImageFilters,
+
         setImageCrop,
         resetImageCrop,
+
+        beginImageCrop,
+        finishImageCrop,
+        cancelImageCrop,
+
+        setImageCropZoom,
+        setImageCropPosition,
+        setImageFrame,
+
         removeImageBackground,
+
         setBackground,
         applyBrandColor,
+
         uploadFont,
         deleteFont,
+
         setZoom,
         fitCanvas,
+
         toggleGrid,
         toggleSafeArea,
+
         onWorkspaceWheel,
         onWorkspacePointerDown,
+
         setExportOpen,
         setNewDesignOpen,
         setExportOptions,
