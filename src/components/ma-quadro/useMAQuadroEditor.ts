@@ -2521,7 +2521,7 @@ useMAQuadroEditor():
                     cropSession &&
                     target instanceof
                     FabricImage &&
-                    target.maId ===
+                    (target as FabricImage & MAQuadroFabricObject).maId ===
                     cropSession.objectId
                 ) {
                     const worldX =
@@ -2588,11 +2588,9 @@ useMAQuadroEditor():
                         );
 
                     const sourceWidth =
-                        Math.max(
+                        Math.max((
                             1,
-                            Number(
-                                target
-                                    .maOriginalWidth ||
+                            Number(target as FabricImage & MAQuadroFabricObject).maOriginalWidth ||
                                 target.width ||
                                 1
                             )
@@ -2602,8 +2600,7 @@ useMAQuadroEditor():
                         Math.max(
                             1,
                             Number(
-                                target
-                                    .maOriginalHeight ||
+                               (target as FabricImage & MAQuadroFabricObject).maOriginalHeight ||
                                 target.height ||
                                 1
                             )
