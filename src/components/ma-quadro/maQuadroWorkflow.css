@@ -1,0 +1,458 @@
+.mq-pages-strip__title {
+  min-width: 0;
+}
+
+.mq-pages-strip__hint {
+  overflow: hidden;
+  color: var(--mq-dim);
+  font-size: 0.5rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mq-page-card {
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.mq-page-card.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.975);
+}
+
+.mq-page-card.is-drag-over {
+  border-color: rgba(
+    103,
+    232,
+    249,
+    0.78
+  );
+  background: rgba(
+    34,
+    211,
+    238,
+    0.1
+  );
+  box-shadow:
+    0 0 0 2px
+      rgba(
+        34,
+        211,
+        238,
+        0.1
+      ),
+    0 10px 30px
+      rgba(
+        0,
+        0,
+        0,
+        0.2
+      );
+}
+
+.mq-page-card__drag-handle {
+  cursor: grab !important;
+  user-select: none;
+}
+
+.mq-page-card__drag-handle:not(
+    :disabled
+  ):active {
+  cursor: grabbing !important;
+}
+
+.mq-header__shortcuts-button > span {
+  display: grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.26
+    );
+  border-radius: 0.3rem;
+  color: #cffafe;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.035
+  );
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.mq-shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(
+    2,
+    6,
+    23,
+    0.78
+  );
+  backdrop-filter: blur(7px);
+}
+
+.mq-shortcuts-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(
+    46rem,
+    calc(100vw - 2rem)
+  );
+  max-height: min(
+    46rem,
+    calc(100vh - 2rem)
+  );
+  overflow: hidden;
+  border: 1px solid
+    rgba(
+      103,
+      232,
+      249,
+      0.24
+    );
+  border-radius: 1rem;
+  color: var(--mq-text);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        15,
+        23,
+        42,
+        0.98
+      ),
+      rgba(
+        5,
+        9,
+        20,
+        0.99
+      )
+    );
+  box-shadow:
+    0 36px 100px
+      rgba(
+        0,
+        0,
+        0,
+        0.58
+      );
+}
+
+.mq-shortcuts-dialog:focus {
+  outline: none;
+}
+
+.mq-shortcuts-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 1rem;
+  padding: 1rem 1.05rem;
+  border-bottom: 1px solid
+    var(--mq-border);
+}
+
+.mq-shortcuts-dialog__header > span {
+  display: grid;
+  min-width: 0;
+}
+
+.mq-shortcuts-dialog__header strong {
+  color: #f8fafc;
+  font-size: 0.92rem;
+}
+
+.mq-shortcuts-dialog__header small {
+  margin-top: 0.22rem;
+  color: var(--mq-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.mq-shortcuts-dialog__header > button {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid
+    var(--mq-border);
+  border-radius: 0.6rem;
+  color: #cbd5e1;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.035
+  );
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.mq-shortcuts-dialog__header > button:hover {
+  border-color: rgba(
+    103,
+    232,
+    249,
+    0.38
+  );
+  color: #ffffff;
+  background: rgba(
+    34,
+    211,
+    238,
+    0.08
+  );
+}
+
+.mq-shortcuts-dialog__body {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  gap: 0.75rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  scrollbar-width: thin;
+}
+
+.mq-shortcut-group {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.13
+    );
+  border-radius: 0.78rem;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.022
+  );
+}
+
+.mq-shortcut-group h3 {
+  margin: 0 0 0.55rem;
+  color: #cffafe;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+}
+
+.mq-shortcut-list {
+  display: grid;
+}
+
+.mq-shortcut-row {
+  display: grid;
+  grid-template-columns:
+    minmax(8.7rem, auto)
+    minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.5rem;
+  padding: 0.42rem 0;
+  border-top: 1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.08
+    );
+  color: var(--mq-muted);
+  font-size: 0.58rem;
+}
+
+.mq-shortcut-row:first-child {
+  border-top: 0;
+}
+
+.mq-shortcut-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+}
+
+.mq-shortcuts-dialog kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  min-height: 1.55rem;
+  padding: 0.18rem 0.38rem;
+  border: 1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.27
+    );
+  border-bottom-color:
+    rgba(
+      148,
+      163,
+      184,
+      0.42
+    );
+  border-radius: 0.38rem;
+  color: #e2e8f0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.075
+      ),
+      rgba(
+        255,
+        255,
+        255,
+        0.025
+      )
+    );
+  box-shadow:
+    0 2px 0
+      rgba(
+        0,
+        0,
+        0,
+        0.28
+      );
+  font-family:
+    inherit;
+  font-size: 0.51rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mq-shortcuts-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid
+    var(--mq-border);
+  background: rgba(
+    2,
+    6,
+    23,
+    0.4
+  );
+}
+
+.mq-shortcuts-dialog__footer > span {
+  color: var(--mq-dim);
+  font-size: 0.57rem;
+  line-height: 1.45;
+}
+
+.mq-shortcuts-dialog__footer kbd {
+  margin-inline: 0.15rem;
+}
+
+@media (
+  hover: none
+) and (
+  pointer: coarse
+) {
+  .mq-page-card__actions {
+    opacity: 1;
+  }
+
+  .mq-page-card__drag-handle {
+    display: none;
+  }
+}
+
+@media (
+  max-width: 800px
+) {
+  .mq-pages-strip__hint {
+    display: none;
+  }
+
+  .mq-shortcuts-dialog__body {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+@media (
+  max-width: 520px
+) {
+  .mq-shortcuts-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .mq-shortcuts-dialog {
+    width: 100%;
+    max-height: 88vh;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius:
+      1rem
+      1rem
+      0
+      0;
+  }
+
+  .mq-shortcuts-dialog__header {
+    padding:
+      0.85rem
+      0.8rem;
+  }
+
+  .mq-shortcuts-dialog__body {
+    padding: 0.7rem;
+  }
+
+  .mq-shortcut-group {
+    padding: 0.65rem;
+  }
+
+  .mq-shortcut-row {
+    grid-template-columns:
+      1fr;
+    gap: 0.35rem;
+  }
+
+  .mq-shortcuts-dialog__footer {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.7rem;
+  }
+
+  .mq-shortcuts-dialog__footer .mq-button {
+    width: 100%;
+  }
+}
