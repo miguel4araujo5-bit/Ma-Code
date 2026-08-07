@@ -2121,11 +2121,9 @@ function renderGame() {
             </div>
 
             <span class="board-seed">
-              ${
-                game.board
-                  .generationAttempts
-              }
-              tentativas de geração
+              Seed ${escapeHtml(
+                game.seed,
+              )}
             </span>
           </div>
 
