@@ -3,6 +3,7 @@ import type {
     MAQuadroShapeKind,
     MAQuadroTextPreset
 } from '../../types/maQuadro';
+
 import {
     useMAQuadroEditorContext
 } from './editorContext';
@@ -147,6 +148,10 @@ function TemplatesPanel() {
     const editor =
         useMAQuadroEditorContext();
 
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
+
     const templates =
         editor.projects.filter(
             (project) =>
@@ -183,6 +188,7 @@ function TemplatesPanel() {
                             key={preset.id}
                             type="button"
                             className="mq-preset-card"
+                            disabled={locked}
                             onClick={() =>
                                 void editor
                                     .createFromPreset(
@@ -213,6 +219,7 @@ function TemplatesPanel() {
             <button
                 type="button"
                 className="mq-wide-action"
+                disabled={locked}
                 onClick={() =>
                     editor.setNewDesignOpen(
                         true
@@ -239,6 +246,7 @@ function TemplatesPanel() {
                             key={template.id}
                             type="button"
                             className="mq-template-card"
+                            disabled={locked}
                             onClick={() =>
                                 void editor.openProject(
                                     template.id
@@ -274,7 +282,8 @@ function TemplatesPanel() {
                                     }{' '}
                                     {
                                         template.pages
-                                            .length === 1
+                                            .length ===
+                                        1
                                             ? 'página'
                                             : 'páginas'
                                     }
@@ -315,6 +324,7 @@ function TemplatesPanel() {
                                     <button
                                         type="button"
                                         className="mq-project-card__open"
+                                        disabled={locked}
                                         onClick={() =>
                                             void editor
                                                 .openProject(
@@ -353,6 +363,7 @@ function TemplatesPanel() {
                                     <div className="mq-project-card__actions">
                                         <button
                                             type="button"
+                                            disabled={locked}
                                             onClick={() =>
                                                 void editor
                                                     .openProject(
@@ -365,6 +376,7 @@ function TemplatesPanel() {
 
                                         <button
                                             type="button"
+                                            disabled={locked}
                                             onClick={() =>
                                                 void editor
                                                     .deleteProject(
@@ -389,6 +401,10 @@ function ElementsPanel() {
     const editor =
         useMAQuadroEditorContext();
 
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
+
     return (
         <>
             <PanelHeading
@@ -403,6 +419,7 @@ function ElementsPanel() {
                             key={shape.kind}
                             type="button"
                             className="mq-element-button"
+                            disabled={locked}
                             onClick={() =>
                                 editor.addShape(
                                     shape.kind
@@ -434,6 +451,7 @@ function ElementsPanel() {
                         ? ' is-active'
                         : ''
                 }`}
+                disabled={locked}
                 onClick={() =>
                     editor.setDrawingMode(
                         !editor.drawingMode
@@ -456,6 +474,7 @@ function ElementsPanel() {
                         value={
                             editor.brushColor
                         }
+                        disabled={locked}
                         onChange={(event) =>
                             editor.setBrushColor(
                                 event.target.value
@@ -477,6 +496,7 @@ function ElementsPanel() {
                         value={
                             editor.brushWidth
                         }
+                        disabled={locked}
                         onChange={(event) =>
                             editor.setBrushWidth(
                                 Number(
@@ -501,6 +521,7 @@ function ElementsPanel() {
                         editor.groupSelection
                     }
                     disabled={
+                        locked ||
                         editor.selection.count <
                         2
                     }
@@ -514,6 +535,7 @@ function ElementsPanel() {
                         editor.ungroupSelection
                     }
                     disabled={
+                        locked ||
                         editor.selection.role !==
                         'group'
                     }
@@ -529,6 +551,7 @@ function ElementsPanel() {
                         )
                     }
                     disabled={
+                        locked ||
                         editor.selection.count <
                         3
                     }
@@ -544,6 +567,7 @@ function ElementsPanel() {
                         )
                     }
                     disabled={
+                        locked ||
                         editor.selection.count <
                         3
                     }
@@ -559,6 +583,10 @@ function UploadsPanel() {
     const editor =
         useMAQuadroEditorContext();
 
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
+
     return (
         <>
             <PanelHeading
@@ -569,6 +597,8 @@ function UploadsPanel() {
             <button
                 type="button"
                 className="mq-upload-zone"
+                disabled={locked}
+                aria-busy={editor.busy}
                 onClick={() =>
                     editor.imageInputRef
                         .current
@@ -580,7 +610,9 @@ function UploadsPanel() {
                 </span>
 
                 <strong>
-                    Carregar imagens
+                    {editor.busy
+                        ? 'A carregar…'
+                        : 'Carregar imagens'}
                 </strong>
 
                 <small>
@@ -594,25 +626,13 @@ function UploadsPanel() {
                 }
                 type="file"
                 multiple
+                disabled={locked}
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={(event) => {
-                    const files =
-                        Array.from(
-                            event.currentTarget
-                                .files ||
-                            []
-                        );
-
-                    event.currentTarget
-                        .value = '';
-
-                    if (files.length > 0) {
-                        void editor
-                            .handleDroppedFiles(
-                                files
-                            );
-                    }
-                }}
+                onChange={(event) =>
+                    void editor.addImages(
+                        event
+                    )
+                }
                 hidden
             />
 
@@ -648,6 +668,10 @@ function TextPanel() {
     const editor =
         useMAQuadroEditorContext();
 
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
+
     return (
         <>
             <PanelHeading
@@ -662,6 +686,7 @@ function TextPanel() {
                             key={item.preset}
                             type="button"
                             className={`mq-text-preset ${item.className}`}
+                            disabled={locked}
                             onClick={() =>
                                 editor.addText(
                                     item.preset
@@ -683,14 +708,15 @@ function TextPanel() {
             <div className="mq-action-grid mq-action-grid--3">
                 <button
                     type="button"
+                    disabled={
+                        locked ||
+                        editor.selection.role !==
+                        'text'
+                    }
                     onClick={() =>
                         editor.transformTextCase(
                             'upper'
                         )
-                    }
-                    disabled={
-                        editor.selection.role !==
-                        'text'
                     }
                 >
                     ABC
@@ -698,14 +724,15 @@ function TextPanel() {
 
                 <button
                     type="button"
+                    disabled={
+                        locked ||
+                        editor.selection.role !==
+                        'text'
+                    }
                     onClick={() =>
                         editor.transformTextCase(
                             'lower'
                         )
-                    }
-                    disabled={
-                        editor.selection.role !==
-                        'text'
                     }
                 >
                     abc
@@ -713,14 +740,15 @@ function TextPanel() {
 
                 <button
                     type="button"
+                    disabled={
+                        locked ||
+                        editor.selection.role !==
+                        'text'
+                    }
                     onClick={() =>
                         editor.transformTextCase(
                             'title'
                         )
-                    }
-                    disabled={
-                        editor.selection.role !==
-                        'text'
                     }
                 >
                     Título
@@ -733,6 +761,10 @@ function TextPanel() {
 function BrandPanel() {
     const editor =
         useMAQuadroEditorContext();
+
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
 
     return (
         <>
@@ -754,6 +786,7 @@ function BrandPanel() {
                             key={color.value}
                             type="button"
                             className="mq-color-card"
+                            disabled={locked}
                             onClick={() =>
                                 editor.applyBrandColor(
                                     color.value
@@ -783,6 +816,7 @@ function BrandPanel() {
 
                 <button
                     type="button"
+                    disabled={locked}
                     onClick={() =>
                         editor.fontInputRef
                             .current
@@ -798,6 +832,7 @@ function BrandPanel() {
                     editor.fontInputRef
                 }
                 type="file"
+                disabled={locked}
                 accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
                 onChange={(event) =>
                     void editor.uploadFont(
@@ -814,15 +849,16 @@ function BrandPanel() {
                             key={font.family}
                             type="button"
                             className="mq-font-card"
+                            disabled={
+                                locked ||
+                                editor.selection.role !==
+                                'text'
+                            }
                             onClick={() =>
                                 editor.setTextProperty(
                                     'fontFamily',
                                     font.family
                                 )
-                            }
-                            disabled={
-                                editor.selection.role !==
-                                'text'
                             }
                         >
                             <span
@@ -857,6 +893,7 @@ function BrandPanel() {
 
                                 <button
                                     type="button"
+                                    disabled={locked}
                                     onClick={() =>
                                         void editor
                                             .deleteFont(
@@ -878,6 +915,10 @@ function BrandPanel() {
 function ProjectsPanel() {
     const editor =
         useMAQuadroEditorContext();
+
+    const locked =
+        editor.busy ||
+        editor.structureBusy;
 
     const projects =
         editor.projects.filter(
@@ -907,6 +948,7 @@ function ProjectsPanel() {
                             <button
                                 type="button"
                                 className="mq-project-card__open"
+                                disabled={locked}
                                 onClick={() =>
                                     void editor.openProject(
                                         project.id
@@ -942,7 +984,8 @@ function ProjectsPanel() {
                                         }{' '}
                                         {
                                             project.pages
-                                                .length === 1
+                                                .length ===
+                                            1
                                                 ? 'página'
                                                 : 'páginas'
                                         }
@@ -953,6 +996,7 @@ function ProjectsPanel() {
                             <div className="mq-project-card__actions">
                                 <button
                                     type="button"
+                                    disabled={locked}
                                     onClick={() =>
                                         void editor
                                             .duplicateProject(
@@ -965,6 +1009,7 @@ function ProjectsPanel() {
 
                                 <button
                                     type="button"
+                                    disabled={locked}
                                     onClick={() =>
                                         void editor
                                             .deleteProject(
@@ -990,6 +1035,7 @@ function ProjectsPanel() {
             <button
                 type="button"
                 className="mq-wide-action"
+                disabled={locked}
                 onClick={() =>
                     editor.projectInputRef
                         .current
