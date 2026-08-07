@@ -6,9 +6,8 @@ interface ModuleCard {
   description: string
   href?: string
   status: string
-  statusClassName: string
-  borderClassName: string
   accentClassName: string
+  statusClassName: string
 }
 
 const modules:
@@ -17,47 +16,41 @@ const modules:
       name: 'MA-Professor',
       code: 'MP',
       description:
-        'Pedidos de acesso, utilizadores, senhas, licenças, renovações, pagamentos e histórico.',
+        'Pedidos, utilizadores, senhas, licenças, pagamentos, renovações e histórico.',
       href:
         '/admin/ma-professor',
       status:
-        'Estrutura pronta',
-      statusClassName:
-        'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
-      borderClassName:
-        'border-emerald-300/15 hover:border-emerald-300/30',
+        'Interface em preparação',
       accentClassName:
+        'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
+      statusClassName:
         'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
     },
     {
       name: 'RedeZero',
       code: 'RZ',
       description:
-        'Área reservada para a futura administração do jogo RedeZero dentro do mesmo backoffice MA-CODE.',
+        'Espaço administrativo reservado para o jogo RedeZero, integrado no mesmo backoffice MA-CODE.',
       href:
         '/admin/redezero',
       status:
         'Planeado',
-      statusClassName:
-        'border-violet-300/20 bg-violet-300/10 text-violet-200',
-      borderClassName:
-        'border-violet-300/15 hover:border-violet-300/30',
       accentClassName:
+        'border-violet-300/20 bg-violet-300/10 text-violet-200',
+      statusClassName:
         'border-violet-300/20 bg-violet-300/10 text-violet-200'
     },
     {
       name:
-        'Futuros produtos',
+        'Outros produtos',
       code: '+',
       description:
         'Novos módulos serão acrescentados apenas quando existir uma necessidade administrativa real.',
       status:
         'Sob necessidade',
-      statusClassName:
-        'border-white/10 bg-white/[0.04] text-slate-400',
-      borderClassName:
-        'border-white/10',
       accentClassName:
+        'border-white/10 bg-white/[0.04] text-slate-500',
+      statusClassName:
         'border-white/10 bg-white/[0.04] text-slate-500'
     }
   ]
@@ -132,16 +125,14 @@ export default function AdminPage() {
             </p>
 
             <h2 className="mt-1 text-2xl font-black">
-              Ecossistema
+              Ecossistema MA-CODE
             </h2>
           </div>
 
-          <p className="max-w-xl text-right text-xs leading-5 text-slate-600">
-            Nesta fase o painel contém
-            apenas estrutura visual. Não
-            existem dados, contas ou ações
-            administrativas ligadas.
-          </p>
+          <div className="rounded-full border border-amber-300/15 bg-amber-300/[0.05] px-3 py-1.5 text-xs font-bold text-amber-200">
+            Backend administrativo ainda
+            desligado
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -155,10 +146,7 @@ export default function AdminPage() {
                   href={
                     module.href
                   }
-                  className={[
-                    'rounded-[1.75rem] border bg-slate-900/65 p-5 transition hover:-translate-y-0.5 hover:bg-slate-900',
-                    module.borderClassName
-                  ].join(' ')}
+                  className="rounded-[1.75rem] border border-white/10 bg-slate-900/55 p-5 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-slate-900"
                 >
                   <ModuleContent
                     module={
@@ -171,10 +159,7 @@ export default function AdminPage() {
                   key={
                     module.name
                   }
-                  className={[
-                    'rounded-[1.75rem] border bg-slate-900/40 p-5',
-                    module.borderClassName
-                  ].join(' ')}
+                  className="rounded-[1.75rem] border border-white/10 bg-slate-900/35 p-5"
                 >
                   <ModuleContent
                     module={
@@ -189,49 +174,48 @@ export default function AdminPage() {
 
       <section className="mt-10">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Estado da fundação
+          Estado
         </p>
 
         <h2 className="mt-1 text-2xl font-black">
-          O que estamos a construir
+          Fundação do MA-ADMIN
         </h2>
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-5">
+          <article className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-5">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">
+              Agora
+            </p>
+
+            <h3 className="mt-2 font-black">
+              Interface modular
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Dashboard central e módulos
+              independentes por produto.
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-              01 · Agora
+              A seguir
             </p>
 
             <h3 className="mt-2 font-black">
-              Estrutura modular
+              Dados reais
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Dashboard central e uma
-              área independente para cada
-              produto.
+              Ligação segura ao motor
+              administrativo e aos dados de
+              cada produto.
             </p>
           </article>
 
-          <article className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-5">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-300">
-              02 · Depois
-            </p>
-
-            <h3 className="mt-2 font-black">
-              Backend seguro
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Autenticação, sessão e APIs
-              administrativas protegidas
-              na Cloudflare.
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.045] p-5">
+          <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-300">
-              03 · Evolução
+              Evolução
             </p>
 
             <h3 className="mt-2 font-black">
@@ -239,32 +223,33 @@ export default function AdminPage() {
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              RedeZero e outros produtos
-              reutilizam a mesma fundação
-              administrativa.
+              RedeZero e futuros produtos
+              reutilizam a mesma fundação.
             </p>
           </article>
         </div>
       </section>
 
-      <section className="mt-10 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Regra desta fase
+      <section className="mt-10 rounded-[1.75rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+          Segurança desta fase
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          Nada sensível fica aqui antes do
-          backend.
+          Não existem dados administrativos
+          expostos.
         </h2>
 
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-          Podemos construir e aperfeiçoar
-          toda a experiência administrativa
-          agora. Quando começarmos a mostrar
-          pedidos reais, contas, licenças,
-          jogadores ou executar ações,
-          ligamos primeiro a autenticação e
-          a proteção no Worker.
+          Enquanto o backend permanecer
+          desligado, estas páginas servem
+          apenas para construir e validar a
+          interface. Antes de aparecer o
+          primeiro pedido, licença,
+          utilizador ou jogador real,
+          ativaremos a autenticação
+          administrativa protegida no
+          Worker.
         </p>
       </section>
     </AdminShell>
