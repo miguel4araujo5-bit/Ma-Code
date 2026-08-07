@@ -1,7 +1,8 @@
 const DEFAULT_STORAGE_KEY =
   'ma-code-conquistador-save';
 
-const DEFAULT_SAVE_VERSION = 1;
+const DEFAULT_SAVE_VERSION =
+  2;
 
 function safeParse(
   value,
@@ -22,7 +23,9 @@ function isObject(
     value !== null &&
     typeof value ===
       'object' &&
-    !Array.isArray(value)
+    !Array.isArray(
+      value,
+    )
   );
 }
 
@@ -30,6 +33,7 @@ export class SaveManager {
   constructor({
     storageKey =
       DEFAULT_STORAGE_KEY,
+
     saveVersion =
       DEFAULT_SAVE_VERSION,
   } = {}) {
@@ -68,6 +72,7 @@ export class SaveManager {
     ) {
       return {
         success: false,
+
         reason:
           'O armazenamento local não está disponível.',
       };
@@ -80,6 +85,7 @@ export class SaveManager {
     ) {
       return {
         success: false,
+
         reason:
           'A partida não pode ser serializada.',
       };
@@ -100,6 +106,7 @@ export class SaveManager {
     try {
       localStorage.setItem(
         this.storageKey,
+
         JSON.stringify(
           payload,
         ),
@@ -107,14 +114,19 @@ export class SaveManager {
 
       return {
         success: true,
+
         savedAt:
           payload.savedAt,
       };
-    } catch (error) {
+    } catch (
+      error
+    ) {
       return {
         success: false,
+
         reason:
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : 'Não foi possível guardar a partida.',
       };
@@ -138,10 +150,14 @@ export class SaveManager {
     }
 
     const payload =
-      safeParse(raw);
+      safeParse(
+        raw,
+      );
 
     if (
-      !isObject(payload) ||
+      !isObject(
+        payload,
+      ) ||
       !isObject(
         payload.game,
       )
@@ -169,6 +185,7 @@ export class SaveManager {
       return {
         success: false,
         game: null,
+
         reason:
           'Não existe uma partida válida guardada.',
       };
@@ -182,6 +199,7 @@ export class SaveManager {
       return {
         success: false,
         game: null,
+
         reason:
           'A classe da partida não permite restaurar gravações.',
       };
@@ -196,15 +214,20 @@ export class SaveManager {
       return {
         success: true,
         game,
+
         savedAt:
           payload.savedAt,
       };
-    } catch (error) {
+    } catch (
+      error
+    ) {
       return {
         success: false,
         game: null,
+
         reason:
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : 'Não foi possível restaurar a partida.',
       };
@@ -274,7 +297,9 @@ export class SaveManager {
         : serialized;
 
     if (
-      !isObject(payload) ||
+      !isObject(
+        payload,
+      ) ||
       !isObject(
         payload.game,
       )
