@@ -622,7 +622,7 @@ export function AccessGate({
         <section className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80 shadow-2xl shadow-cyan-950/30 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="border-b border-white/10 p-7 sm:p-10 lg:border-b-0 lg:border-r">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
-              MA-CODE · Beta privada
+              MA-CODE · Beta gratuita
             </p>
 
             <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
@@ -673,15 +673,15 @@ export function AccessGate({
             </p>
 
             <h2 className="mt-3 text-2xl font-black">
-              Ativar 30 dias de beta
+              Ativar 4 meses de beta
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
               Use o email que ficará
               associado à sua licença.
               Não é necessário criar uma
-              palavra-passe nesta fase
-              beta.
+              palavra-passe de conta para
+              começar.
             </p>
 
             <label className="mt-7 text-sm font-bold text-slate-200">
@@ -723,10 +723,11 @@ export function AccessGate({
             </button>
 
             <p className="mt-4 text-xs leading-5 text-slate-500">
-              Os dados escolares não são
-              enviados para o servidor de
-              licenças. Permanecem na base
-              de dados local do browser.
+              Os dados ficam guardados
+              localmente. As cópias online,
+              quando utilizadas, são
+              cifradas neste dispositivo
+              antes de serem enviadas.
             </p>
           </form>
         </section>
