@@ -77,7 +77,8 @@ const shortcutGroups:
       ]
     },
     {
-      title: 'Seleção e movimento',
+      title:
+        'Seleção e movimento',
       items: [
         {
           keys: [
@@ -104,6 +105,21 @@ const shortcutGroups:
           ],
           description:
             'Mover 10 píxeis'
+        },
+        {
+          keys: [
+            'Shift',
+            'F10'
+          ],
+          description:
+            'Abrir o menu contextual da seleção'
+        },
+        {
+          keys: [
+            'Menu'
+          ],
+          description:
+            'Abrir o menu contextual em teclados compatíveis'
         },
         {
           keys: [
@@ -151,7 +167,8 @@ const shortcutGroups:
       ]
     },
     {
-      title: 'Projeto e imagens',
+      title:
+        'Projeto e imagens',
       items: [
         {
           keys: [
@@ -440,7 +457,9 @@ export default function KeyboardShortcutsDialog({
           {shortcutGroups.map(
             (group) => (
               <section
-                key={group.title}
+                key={
+                  group.title
+                }
                 className="mq-shortcut-group"
               >
                 <h3>
