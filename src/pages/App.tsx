@@ -28,6 +28,7 @@ const ProductsPage = lazy(
 const MAPdfPage = lazy(
   () => import('./MAPdfPage')
 )
+
 const MABtcAlertsPage = lazy(
   () => import('./MABtcAlertsPage')
 )
@@ -51,6 +52,7 @@ const AdminPage = lazy(
 const NotFoundPage = lazy(
   () => import('./NotFoundPage')
 )
+
 type AppPage =
   | {
       type: 'home'
@@ -89,6 +91,7 @@ type AppPage =
   | {
       type: 'not-found'
     }
+
 function getPageFromPath(): AppPage {
   const path =
     window.location.pathname.replace(
@@ -119,6 +122,7 @@ function getPageFromPath(): AppPage {
       type: 'products'
     }
   }
+
   if (
     path === '/produtos/mapdf' ||
     path === '/produtos/ma-pdf'
@@ -154,6 +158,7 @@ function getPageFromPath(): AppPage {
       type: 'ma-professor'
     }
   }
+
   if (
     path ===
     '/produtos/ma-quadro'
@@ -163,7 +168,9 @@ function getPageFromPath(): AppPage {
     }
   }
 
-  if (path === '/admin') {
+  if (
+    path === '/admin'
+  ) {
     return {
       type: 'admin'
     }
@@ -197,6 +204,7 @@ export default function App() {
   ) {
     return <PortfolioPage />
   }
+
   if (
     page.type ===
     'contact'
@@ -237,6 +245,7 @@ export default function App() {
       <MABtcAlertsPage />
     )
   }
+
   if (
     page.type ===
     'ma-recortes'
