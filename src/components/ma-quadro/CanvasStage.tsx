@@ -1,7 +1,12 @@
 import {
   useState,
-  type DragEvent
+  type DragEvent,
+  type MouseEvent
 } from 'react'
+
+import type {
+  MAQuadroContextMenuPosition
+} from './CanvasContextMenu'
 
 import {
   useMAQuadroEditorContext
@@ -38,7 +43,14 @@ function ToolbarButton({
   )
 }
 
-export default function CanvasStage() {
+export default function CanvasStage({
+  onOpenContextMenu
+}: {
+  onOpenContextMenu: (
+    position:
+      MAQuadroContextMenuPosition
+  ) => void
+}) {
   const editor =
     useMAQuadroEditorContext()
 
@@ -51,25 +63,30 @@ export default function CanvasStage() {
     editor.activePage
 
   const canvasWidth =
-    page?.width || 1080
+    page?.width ||
+    1080
 
   const canvasHeight =
-    page?.height || 1080
+    page?.height ||
+    1080
 
   const hasSelection =
-    editor.selection.count > 0
+    editor.selection.count >
+    0
 
   const multiple =
-    editor.selection.count > 1
+    editor.selection.count >
+    1
 
   const isGroup =
     editor.selection.role ===
     'group'
 
   const isImage =
-    editor.selection.count === 1 &&
+    editor.selection.count ===
+      1 &&
     editor.selection.role ===
-    'image'
+      'image'
 
   const locked =
     editor.busy ||
@@ -88,14 +105,19 @@ export default function CanvasStage() {
 
     if (
       event.dataTransfer.types
-        .includes('Files')
+        .includes(
+          'Files'
+        )
     ) {
       event.preventDefault()
 
-      event.dataTransfer.dropEffect =
+      event.dataTransfer
+        .dropEffect =
         'copy'
 
-      setDragActive(true)
+      setDragActive(
+        true
+      )
     }
   }
 
@@ -105,7 +127,9 @@ export default function CanvasStage() {
   ) => {
     event.preventDefault()
 
-    setDragActive(false)
+    setDragActive(
+      false
+    )
 
     if (
       locked ||
@@ -124,6 +148,29 @@ export default function CanvasStage() {
         )
       )
     }
+  }
+
+  const handleContextMenu = (
+    event:
+      MouseEvent<HTMLDivElement>
+  ) => {
+    if (
+      !hasSelection ||
+      locked ||
+      editor.imageCropEditing
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    onOpenContextMenu({
+      x:
+        event.clientX,
+      y:
+        event.clientY
+    })
   }
 
   const verticalGuidePosition =
@@ -550,7 +597,9 @@ export default function CanvasStage() {
       ) : null}
 
       <div
-        ref={editor.workspaceRef}
+        ref={
+          editor.workspaceRef
+        }
         className={`mq-workspace${
           editor.isSpacePressed
             ? ' is-panning'
@@ -570,6 +619,9 @@ export default function CanvasStage() {
         onPointerDown={
           editor.onWorkspacePointerDown
         }
+        onContextMenu={
+          handleContextMenu
+        }
         onDragEnter={
           handleDragOver
         }
@@ -581,7 +633,9 @@ export default function CanvasStage() {
             event.currentTarget ===
             event.target
           ) {
-            setDragActive(false)
+            setDragActive(
+              false
+            )
           }
         }}
         onDrop={
@@ -670,8 +724,8 @@ export default function CanvasStage() {
             </strong>
 
             <span>
-              Serão adicionadas à página
-              atual.
+              Serão adicionadas à
+              página atual.
             </span>
           </div>
         ) : null}
@@ -690,9 +744,9 @@ export default function CanvasStage() {
 
           {editor.imageCropEditing ? (
             <strong>
-              Recorte ativo — arraste a
-              imagem ou use os controlos
-              acima.{' '}
+              Recorte ativo — arraste
+              a imagem ou use os
+              controlos acima.{' '}
             </strong>
           ) : null}
 
