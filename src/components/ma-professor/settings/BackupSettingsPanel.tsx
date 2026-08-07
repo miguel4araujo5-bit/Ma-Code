@@ -29,6 +29,10 @@ import {
   EncryptedSyncPanel
 } from './EncryptedSyncPanel'
 
+import {
+  OnlineRestorePanel
+} from './OnlineRestorePanel'
+
 interface BackupSettingsPanelProps {
   onDataChanged?: () => void
 }
@@ -422,6 +426,12 @@ export function BackupSettingsPanel({
   return (
     <div className="space-y-6">
       <EncryptedSyncPanel />
+
+      <OnlineRestorePanel
+        onDataChanged={
+          onDataChanged
+        }
+      />
 
       <section className="rounded-3xl border border-cyan-300/15 bg-slate-900/70 p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
