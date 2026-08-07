@@ -50,11 +50,17 @@ const AdminPage = lazy(
 )
 
 const MAProfessorAdminPage = lazy(
-  () => import('./MAProfessorAdminPage')
+  () =>
+    import(
+      './MAProfessorAdminPage'
+    )
 )
 
 const RedeZeroAdminPage = lazy(
-  () => import('./RedeZeroAdminPage')
+  () =>
+    import(
+      './RedeZeroAdminPage'
+    )
 )
 
 const NotFoundPage = lazy(
