@@ -1,5 +1,8 @@
 import {
-  useRef
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent
 } from 'react'
 
 import {
@@ -7,12 +10,136 @@ import {
 } from './editorContext'
 
 const saveLabels = {
-  ready: 'Pronto',
-  dirty: 'Alterações por guardar',
-  saving: 'A guardar…',
-  saved: 'Guardado automaticamente',
-  error: 'Erro ao guardar'
+  ready:
+    'Pronto',
+  dirty:
+    'Alterações por guardar',
+  saving:
+    'A guardar…',
+  saved:
+    'Guardado automaticamente',
+  error:
+    'Erro ao guardar'
 } as const
+
+function ProjectNameField() {
+  const editor =
+    useMAQuadroEditorContext()
+
+  const projectId =
+    editor.project?.id ||
+    ''
+
+  const currentName =
+    editor.project?.name ||
+    ''
+
+  const [
+    draft,
+    setDraft
+  ] = useState(
+    currentName
+  )
+
+  const skipCommitRef =
+    useRef(false)
+
+  useEffect(() => {
+    setDraft(
+      currentName
+    )
+
+    skipCommitRef.current =
+      false
+  }, [
+    currentName,
+    projectId
+  ])
+
+  const commit = () => {
+    if (
+      skipCommitRef.current
+    ) {
+      skipCommitRef.current =
+        false
+
+      setDraft(
+        currentName
+      )
+
+      return
+    }
+
+    const next =
+      draft.trim()
+
+    if (!next) {
+      setDraft(
+        currentName
+      )
+
+      return
+    }
+
+    setDraft(next)
+
+    if (
+      next !== currentName
+    ) {
+      editor.setProjectName(
+        next
+      )
+    }
+  }
+
+  const handleKeyDown = (
+    event:
+      KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (
+      event.key === 'Enter'
+    ) {
+      event.preventDefault()
+      event.currentTarget.blur()
+    } else if (
+      event.key === 'Escape'
+    ) {
+      event.preventDefault()
+
+      skipCommitRef.current =
+        true
+
+      setDraft(
+        currentName
+      )
+
+      event.currentTarget.blur()
+    }
+  }
+
+  return (
+    <input
+      className="mq-document-name"
+      value={draft}
+      maxLength={180}
+      onChange={(event) =>
+        setDraft(
+          event.target.value
+        )
+      }
+      onBlur={commit}
+      onKeyDown={
+        handleKeyDown
+      }
+      aria-label="Nome do projeto"
+      disabled={
+        !editor.project ||
+        editor.busy ||
+        editor.structureBusy
+      }
+    />
+  )
+}
 
 export default function EditorHeader() {
   const editor =
@@ -22,6 +149,10 @@ export default function EditorHeader() {
     useRef<
       HTMLDetailsElement | null
     >(null)
+
+  const locked =
+    editor.busy ||
+    editor.structureBusy
 
   const closeMenu = () => {
     if (
@@ -33,6 +164,10 @@ export default function EditorHeader() {
   }
 
   const openNewDesign = () => {
+    if (locked) {
+      return
+    }
+
     closeMenu()
 
     editor.setNewDesignOpen(
@@ -41,6 +176,10 @@ export default function EditorHeader() {
   }
 
   const openImport = () => {
+    if (locked) {
+      return
+    }
+
     closeMenu()
 
     editor.projectInputRef
@@ -49,9 +188,25 @@ export default function EditorHeader() {
   }
 
   const saveAsTemplate = () => {
+    if (locked) {
+      return
+    }
+
     closeMenu()
 
     void editor.saveProjectAsTemplate()
+  }
+
+  const saveProject = () => {
+    if (locked) {
+      return
+    }
+
+    closeMenu()
+
+    void editor.saveProject(
+      false
+    )
   }
 
   return (
@@ -90,21 +245,7 @@ export default function EditorHeader() {
       </div>
 
       <div className="mq-header__document">
-        <input
-          className="mq-document-name"
-          value={
-            editor.project?.name ||
-            ''
-          }
-          maxLength={180}
-          onChange={(event) =>
-            editor.setProjectName(
-              event.target.value
-            )
-          }
-          aria-label="Nome do projeto"
-          disabled={!editor.project}
-        />
+        <ProjectNameField />
 
         <span
           className={`mq-save-state mq-save-state--${editor.saveState}`}
@@ -124,6 +265,7 @@ export default function EditorHeader() {
             type="button"
             className="mq-button mq-button--ghost"
             onClick={openNewDesign}
+            disabled={locked}
           >
             Novo
           </button>
@@ -132,6 +274,7 @@ export default function EditorHeader() {
             type="button"
             className="mq-button mq-button--ghost"
             onClick={openImport}
+            disabled={locked}
           >
             Importar
           </button>
@@ -142,7 +285,7 @@ export default function EditorHeader() {
             onClick={saveAsTemplate}
             disabled={
               !editor.project ||
-              editor.busy
+              locked
             }
           >
             Guardar como modelo
@@ -152,14 +295,10 @@ export default function EditorHeader() {
         <button
           type="button"
           className="mq-button mq-button--secondary mq-header__save-button"
-          onClick={() =>
-            void editor.saveProject(
-              false
-            )
-          }
+          onClick={saveProject}
           disabled={
             !editor.project ||
-            editor.busy
+            locked
           }
         >
           Guardar
@@ -175,7 +314,7 @@ export default function EditorHeader() {
           }
           disabled={
             !editor.project ||
-            editor.busy
+            locked
           }
         >
           Exportar
@@ -196,6 +335,7 @@ export default function EditorHeader() {
             <button
               type="button"
               onClick={openNewDesign}
+              disabled={locked}
             >
               Novo design
             </button>
@@ -203,6 +343,7 @@ export default function EditorHeader() {
             <button
               type="button"
               onClick={openImport}
+              disabled={locked}
             >
               Importar projeto
             </button>
@@ -212,7 +353,7 @@ export default function EditorHeader() {
               onClick={saveAsTemplate}
               disabled={
                 !editor.project ||
-                editor.busy
+                locked
               }
             >
               Guardar como modelo
@@ -220,16 +361,10 @@ export default function EditorHeader() {
 
             <button
               type="button"
-              onClick={() => {
-                closeMenu()
-
-                void editor.saveProject(
-                  false
-                )
-              }}
+              onClick={saveProject}
               disabled={
                 !editor.project ||
-                editor.busy
+                locked
               }
             >
               Guardar projeto
@@ -243,6 +378,7 @@ export default function EditorHeader() {
           }
           type="file"
           accept="application/json,.json"
+          disabled={locked}
           onChange={(event) =>
             void editor.importProject(
               event
