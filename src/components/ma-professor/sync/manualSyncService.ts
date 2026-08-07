@@ -6,6 +6,12 @@ import {
 } from './databaseSnapshotService'
 
 import {
+  countMAProfessorSnapshotRecords,
+  createMAProfessorSnapshotFingerprint,
+  getMAProfessorSnapshotBytes
+} from './snapshotFingerprint'
+
+import {
   readMAProfessorManualSyncState,
   saveMAProfessorManualSyncState
 } from './syncStateStorage'
@@ -120,164 +126,6 @@ function assertServerRevision(
   }
 }
 
-function toArrayBuffer(
-  value: Uint8Array
-): ArrayBuffer {
-  const copy =
-    new Uint8Array(
-      value.byteLength
-    )
-
-  copy.set(
-    value
-  )
-
-  return copy.buffer
-}
-
-function bytesToBase64Url(
-  bytes: Uint8Array
-) {
-  let binary = ''
-
-  const chunkSize =
-    0x8000
-
-  for (
-    let offset = 0;
-    offset <
-      bytes.length;
-    offset +=
-      chunkSize
-  ) {
-    const chunk =
-      bytes.subarray(
-        offset,
-        Math.min(
-          offset +
-            chunkSize,
-          bytes.length
-        )
-      )
-
-    binary +=
-      String.fromCharCode(
-        ...chunk
-      )
-  }
-
-  return globalThis
-    .btoa(
-      binary
-    )
-    .replace(
-      /\+/g,
-      '-'
-    )
-    .replace(
-      /\//g,
-      '_'
-    )
-    .replace(
-      /=+$/g,
-      ''
-    )
-}
-
-function countRecords(
-  snapshot:
-    MAProfessorDatabaseSnapshot
-) {
-  return Object
-    .values(
-      snapshot.recordCounts
-    )
-    .reduce(
-      (
-        total,
-        count
-      ) =>
-        total +
-        count,
-      0
-    )
-}
-
-function getSnapshotBytes(
-  snapshot:
-    MAProfessorDatabaseSnapshot
-) {
-  return new TextEncoder()
-    .encode(
-      JSON.stringify(
-        snapshot
-      )
-    )
-    .byteLength
-}
-
-async function createSnapshotFingerprint(
-  snapshot:
-    MAProfessorDatabaseSnapshot
-) {
-  if (
-    !globalThis.crypto ||
-    !globalThis.crypto.subtle
-  ) {
-    throw new Error(
-      'Este browser não suporta a verificação segura da cópia.'
-    )
-  }
-
-  /*
-   * createdAt não entra no fingerprint.
-   *
-   * A criação de um novo snapshot não deve fazer parecer que os
-   * dados mudaram quando o conteúdo das tabelas continua igual.
-   */
-  const canonical =
-    JSON.stringify({
-      format:
-        snapshot.format,
-
-      formatVersion:
-        snapshot.formatVersion,
-
-      databaseName:
-        snapshot.databaseName,
-
-      databaseVersion:
-        snapshot.databaseVersion,
-
-      tables:
-        snapshot.tables,
-
-      recordCounts:
-        snapshot.recordCounts
-    })
-
-  const digest =
-    await globalThis
-      .crypto
-      .subtle
-      .digest(
-        'SHA-256',
-
-        toArrayBuffer(
-          new TextEncoder()
-            .encode(
-              canonical
-            )
-        )
-      )
-
-  return bytesToBase64Url(
-    new Uint8Array(
-      digest
-    )
-  )
-}
-
 function createOverview(
   snapshot:
     MAProfessorDatabaseSnapshot,
@@ -341,12 +189,12 @@ function createOverview(
       fingerprint,
 
     localRecords:
-      countRecords(
+      countMAProfessorSnapshotRecords(
         snapshot
       ),
 
     localBytes:
-      getSnapshotBytes(
+      getMAProfessorSnapshotBytes(
         snapshot
       ),
 
@@ -378,7 +226,7 @@ export async function inspectMAProfessorManualSync(
     await createMAProfessorDatabaseSnapshot()
 
   const fingerprint =
-    await createSnapshotFingerprint(
+    await createMAProfessorSnapshotFingerprint(
       snapshot
     )
 
@@ -408,10 +256,8 @@ export async function uploadAndVerifyMAProfessorManualSync(
     )
 
   /*
-   * Um dispositivo que nunca confirmou a cópia que já existe no
-   * servidor não a pode substituir silenciosamente.
-   *
-   * Primeiro terá de a verificar.
+   * Se este dispositivo nunca confirmou a versão que já existe no
+   * servidor, não permitimos que a substitua silenciosamente.
    */
   if (
     options.serverRevision >
@@ -427,14 +273,14 @@ export async function uploadAndVerifyMAProfessorManualSync(
     )
   }
 
-  const localSnapshot =
-    await createMAProfessorDatabaseSnapshot()
-
-  const localFingerprint =
-    await createSnapshotFingerprint(
-      localSnapshot
-    )
-
+  /*
+   * uploadEncryptedMAProfessorDatabaseSnapshot devolve exatamente
+   * o snapshot que foi cifrado e enviado.
+   *
+   * A impressão digital deve ser calculada sobre esse snapshot e
+   * não sobre uma leitura anterior da base, porque os dados podem
+   * mudar enquanto o envio está em curso.
+   */
   const upload =
     await uploadEncryptedMAProfessorDatabaseSnapshot({
       token:
@@ -450,14 +296,19 @@ export async function uploadAndVerifyMAProfessorManualSync(
         options.serverRevision
     })
 
+  const uploadedFingerprint =
+    await createMAProfessorSnapshotFingerprint(
+      upload.snapshot
+    )
+
   /*
-   * Fazemos uma leitura completa imediatamente depois do upload.
+   * Lemos imediatamente o registo novamente.
    *
-   * Só consideramos a cópia confirmada neste dispositivo se:
-   * 1. conseguir ser descarregada;
-   * 2. conseguir ser desencriptada;
-   * 3. corresponder exatamente ao conteúdo enviado;
-   * 4. continuar na mesma revisão que acabámos de criar.
+   * Só consideramos o upload confirmado se:
+   * - puder ser descarregado;
+   * - puder ser desencriptado;
+   * - tiver a mesma impressão digital;
+   * - continuar na revisão acabada de criar.
    */
   const downloaded =
     await downloadEncryptedMAProfessorDatabaseSnapshot({
@@ -481,7 +332,7 @@ export async function uploadAndVerifyMAProfessorManualSync(
   }
 
   const remoteFingerprint =
-    await createSnapshotFingerprint(
+    await createMAProfessorSnapshotFingerprint(
       downloaded.snapshot
     )
 
@@ -491,7 +342,7 @@ export async function uploadAndVerifyMAProfessorManualSync(
       upload.remote
         .serverRevision ||
     remoteFingerprint !==
-      localFingerprint
+      uploadedFingerprint
   ) {
     throw new Error(
       'A cópia online mudou durante a verificação. Nenhuma versão será considerada confirmada neste dispositivo.'
@@ -511,7 +362,7 @@ export async function uploadAndVerifyMAProfessorManualSync(
           .serverRevision,
 
       fingerprint:
-        localFingerprint,
+        uploadedFingerprint,
 
       syncedAt:
         upload.remote
@@ -524,13 +375,28 @@ export async function uploadAndVerifyMAProfessorManualSync(
     }
   )
 
+  /*
+   * Voltamos a consultar a base local depois da confirmação.
+   *
+   * Se o professor tiver alterado alguma coisa enquanto o upload
+   * decorria, o estado deve passar imediatamente a "alterações por
+   * guardar" em vez de apresentar uma falsa indicação de sincronizado.
+   */
+  const currentSnapshot =
+    await createMAProfessorDatabaseSnapshot()
+
+  const currentFingerprint =
+    await createMAProfessorSnapshotFingerprint(
+      currentSnapshot
+    )
+
   return {
     upload,
 
     overview:
       createOverview(
-        localSnapshot,
-        localFingerprint,
+        currentSnapshot,
+        currentFingerprint,
         options.email,
         options.deviceId,
         upload.remote
@@ -553,7 +419,7 @@ export async function verifyMAProfessorManualSync(
     await createMAProfessorDatabaseSnapshot()
 
   const localFingerprint =
-    await createSnapshotFingerprint(
+    await createMAProfessorSnapshotFingerprint(
       localSnapshot
     )
 
@@ -580,7 +446,7 @@ export async function verifyMAProfessorManualSync(
       localFingerprint,
 
       localRecords:
-        countRecords(
+        countMAProfessorSnapshotRecords(
           localSnapshot
         ),
 
@@ -591,7 +457,7 @@ export async function verifyMAProfessorManualSync(
   }
 
   const remoteFingerprint =
-    await createSnapshotFingerprint(
+    await createMAProfessorSnapshotFingerprint(
       downloaded.snapshot
     )
 
@@ -638,12 +504,12 @@ export async function verifyMAProfessorManualSync(
     remoteFingerprint,
 
     localRecords:
-      countRecords(
+      countMAProfessorSnapshotRecords(
         localSnapshot
       ),
 
     remoteRecords:
-      countRecords(
+      countMAProfessorSnapshotRecords(
         downloaded.snapshot
       ),
 
