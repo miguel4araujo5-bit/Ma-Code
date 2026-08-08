@@ -12,6 +12,8 @@ import CanvasContextMenu, {
 } from './CanvasContextMenu'
 
 import CanvasStage from './CanvasStage'
+import ChartBuilder from './ChartBuilder'
+import ChartEditor from './ChartEditor'
 import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
 
@@ -325,7 +327,11 @@ export default function MAQuadroApp() {
 
         <TableBuilder />
 
+        <ChartBuilder />
+
         <TableEditor />
+
+        <ChartEditor />
 
         <EditorHeader
           onOpenShortcuts={() => {
