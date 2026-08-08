@@ -31,7 +31,6 @@
         0.98
       )
     );
-  pointer-events: none;
   user-select: none;
 }
 
@@ -39,6 +38,16 @@
   overflow: hidden;
   font-variant-numeric:
     tabular-nums;
+  touch-action: none;
+}
+
+.mq-ruler:not(.is-disabled) {
+  pointer-events: auto;
+}
+
+.mq-ruler.is-disabled {
+  pointer-events: none;
+  opacity: 0.62;
 }
 
 .mq-ruler--horizontal {
@@ -59,6 +68,7 @@
       184,
       0.28
     );
+  cursor: row-resize;
 }
 
 .mq-ruler--vertical {
@@ -79,6 +89,7 @@
       184,
       0.28
     );
+  cursor: col-resize;
 }
 
 .mq-ruler-corner {
@@ -125,6 +136,7 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  pointer-events: none;
 }
 
 .mq-ruler-mark {
@@ -137,6 +149,7 @@
       184,
       0.5
     );
+  pointer-events: none;
 }
 
 .mq-ruler-mark.is-major {
@@ -185,6 +198,7 @@
   line-height: 1;
 
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .mq-ruler--horizontal
@@ -207,11 +221,211 @@
     top left;
 }
 
+.mq-manual-guide {
+  position: absolute;
+  z-index: 22;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.mq-manual-guide::before {
+  content: '';
+  position: absolute;
+  background: #22d3ee;
+  box-shadow:
+    0 0 0 1px
+    rgba(
+      8,
+      145,
+      178,
+      0.12
+    );
+}
+
+.mq-manual-guide--vertical {
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  transform:
+    translateX(-4px);
+  cursor: col-resize;
+}
+
+.mq-manual-guide--vertical::before {
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+}
+
+.mq-manual-guide--horizontal {
+  right: 0;
+  left: 0;
+  height: 9px;
+  transform:
+    translateY(-4px);
+  cursor: row-resize;
+}
+
+.mq-manual-guide--horizontal::before {
+  top: 4px;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.mq-manual-guide:hover::before,
+.mq-manual-guide:focus-visible::before,
+.mq-manual-guide.is-dragging::before {
+  background: #67e8f9;
+  box-shadow:
+    0 0 0 1px
+    rgba(
+      34,
+      211,
+      238,
+      0.35
+    ),
+    0 0 10px
+    rgba(
+      34,
+      211,
+      238,
+      0.35
+    );
+}
+
+.mq-manual-guide:focus-visible {
+  outline:
+    2px solid
+    rgba(
+      103,
+      232,
+      249,
+      0.9
+    );
+  outline-offset: 1px;
+}
+
+.mq-manual-guide.is-removing::before {
+  background: #fb7185;
+  box-shadow:
+    0 0 8px
+    rgba(
+      251,
+      113,
+      133,
+      0.45
+    );
+}
+
+.mq-manual-guide__label {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.3rem;
+  padding: 0.18rem 0.38rem;
+  border:
+    1px solid
+    rgba(
+      34,
+      211,
+      238,
+      0.45
+    );
+  border-radius: 0.4rem;
+  color: #e0f2fe;
+  background:
+    rgba(
+      8,
+      47,
+      73,
+      0.96
+    );
+  box-shadow:
+    0 6px 18px
+    rgba(
+      2,
+      6,
+      23,
+      0.32
+    );
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mq-manual-guide--vertical
+  .mq-manual-guide__label {
+  top: 0.45rem;
+  left: 0.65rem;
+}
+
+.mq-manual-guide--horizontal
+  .mq-manual-guide__label {
+  top: 0.65rem;
+  left: 0.45rem;
+}
+
+.mq-manual-guide.is-removing
+  .mq-manual-guide__label {
+  border-color:
+    rgba(
+      251,
+      113,
+      133,
+      0.55
+    );
+  color: #ffe4e6;
+  background:
+    rgba(
+      76,
+      5,
+      25,
+      0.96
+    );
+}
+
+.mq-guide.is-manual-guide {
+  background: #67e8f9;
+  box-shadow:
+    0 0 8px
+    rgba(
+      34,
+      211,
+      238,
+      0.5
+    );
+}
+
+.mq-workspace.is-guide-dragging {
+  cursor: grabbing;
+}
+
+.mq-workspace.is-guide-dragging
+  .mq-canvas-shell {
+  user-select: none;
+}
+
 .mq-workspace.is-cropping
   .mq-ruler,
 .mq-workspace.is-cropping
   .mq-ruler-corner {
   opacity: 0.72;
+}
+
+.mq-workspace.is-cropping
+  .mq-manual-guide {
+  pointer-events: none;
+  opacity: 0.55;
 }
 
 @media (
@@ -223,5 +437,25 @@
 
   .mq-ruler-label {
     font-size: 0.39rem;
+  }
+
+  .mq-manual-guide--vertical {
+    width: 13px;
+    transform:
+      translateX(-6px);
+  }
+
+  .mq-manual-guide--vertical::before {
+    left: 6px;
+  }
+
+  .mq-manual-guide--horizontal {
+    height: 13px;
+    transform:
+      translateY(-6px);
+  }
+
+  .mq-manual-guide--horizontal::before {
+    top: 6px;
   }
 }
