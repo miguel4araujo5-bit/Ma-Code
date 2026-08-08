@@ -167,11 +167,12 @@ export default function MAProfessorAdminPage() {
           alimentadas pelos pedidos,
           credenciais, licenças e renovações
           que já pertencem ao motor do
-          MA-Professor. Os painéis de
-          aprovação e renovação passarão
-          então a executar as ações reais
-          através de endpoints
-          administrativos protegidos.
+          MA-Professor. A ficha completa, a
+          timeline e os painéis de aprovação
+          e renovação passarão então a
+          executar ações reais através de
+          endpoints administrativos
+          protegidos.
         </p>
       </section>
     </AdminShell>
