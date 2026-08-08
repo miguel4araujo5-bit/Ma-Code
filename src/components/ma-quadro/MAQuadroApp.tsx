@@ -22,6 +22,7 @@ import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
 import SmartSpacingOverlay from './SmartSpacingOverlay'
+import TextEffectsToolbar from './TextEffectsToolbar'
 
 import {
   useMAQuadroEditor
@@ -311,6 +312,8 @@ export default function MAQuadroApp() {
             )
           }}
         />
+
+        <TextEffectsToolbar />
 
         <div className="mq-editor-layout">
           <LeftSidebar />
