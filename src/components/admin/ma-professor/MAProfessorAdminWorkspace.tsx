@@ -31,39 +31,83 @@ type RequestStatusFilter =
   | 'approved'
   | 'rejected'
 
+type RequestActionFeedback =
+  | {
+      type:
+        'success' |
+        'error'
+
+      message:
+        string
+    }
+  | null
+
 interface MAProfessorAdminWorkspaceProps {
-  accessRequests?: MAProfessorAccessRequestSummary[]
-  licenses?: LicenseSummary[]
-  renewals?: LicenseRenewalRequest[]
-  dataConnected?: boolean
+  accessRequests?:
+    MAProfessorAccessRequestSummary[]
+
+  licenses?:
+    LicenseSummary[]
+
+  renewals?:
+    LicenseRenewalRequest[]
+
+  dataConnected?:
+    boolean
+
+  onApproveRequest?: (
+    email: string
+  ) => Promise<void>
+
+  onRejectRequest?: (
+    email: string
+  ) => Promise<void>
 }
 
 interface TabDefinition {
-  id: WorkspaceTab
-  label: string
+  id:
+    WorkspaceTab
+
+  label:
+    string
 }
 
 const tabs:
   TabDefinition[] = [
     {
-      id: 'requests',
-      label: 'Pedidos'
+      id:
+        'requests',
+
+      label:
+        'Pedidos'
     },
     {
-      id: 'users',
-      label: 'Utilizadores'
+      id:
+        'users',
+
+      label:
+        'Utilizadores'
     },
     {
-      id: 'licenses',
-      label: 'Licenças'
+      id:
+        'licenses',
+
+      label:
+        'Licenças'
     },
     {
-      id: 'renewals',
-      label: 'Renovações'
+      id:
+        'renewals',
+
+      label:
+        'Renovações'
     },
     {
-      id: 'history',
-      label: 'Histórico'
+      id:
+        'history',
+
+      label:
+        'Histórico'
     }
   ]
 
@@ -75,7 +119,9 @@ function formatDate(
   }
 
   const date =
-    new Date(value)
+    new Date(
+      value
+    )
 
   if (
     Number.isNaN(
@@ -88,11 +134,20 @@ function formatDate(
   return new Intl.DateTimeFormat(
     'pt-PT',
     {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day:
+        '2-digit',
+
+      month:
+        '2-digit',
+
+      year:
+        'numeric',
+
+      hour:
+        '2-digit',
+
+      minute:
+        '2-digit'
     }
   ).format(date)
 }
@@ -104,11 +159,14 @@ function formatMoney(
   return new Intl.NumberFormat(
     'pt-PT',
     {
-      style: 'currency',
+      style:
+        'currency',
+
       currency
     }
   ).format(
-    amountCents / 100
+    amountCents /
+      100
   )
 }
 
@@ -153,12 +211,53 @@ function getLicenseStatusClassName(
   }
 }
 
+function getRenewalStatusLabel(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'Aprovada'
+
+    case 'rejected':
+      return 'Rejeitada'
+
+    case 'cancelled':
+      return 'Cancelada'
+
+    default:
+      return 'Pendente'
+  }
+}
+
+function getRenewalStatusClassName(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
+    case 'rejected':
+      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+
+    case 'cancelled':
+      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+
+    default:
+      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+  }
+}
+
 function EmptyTable({
   title,
   description
 }: {
-  title: string
-  description: string
+  title:
+    string
+
+  description:
+    string
 }) {
   return (
     <div className="flex min-h-64 flex-col items-center justify-center px-6 py-12 text-center">
@@ -182,9 +281,14 @@ function MetricCard({
   value,
   description
 }: {
-  label: string
-  value: string
-  description: string
+  label:
+    string
+
+  value:
+    string
+
+  description:
+    string
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-900/55 p-4">
@@ -203,11 +307,28 @@ function MetricCard({
   )
 }
 
+function getActionErrorMessage(
+  error:
+    unknown
+) {
+  if (
+    error instanceof
+      Error &&
+    error.message
+  ) {
+    return error.message
+  }
+
+  return 'Não foi possível atualizar o pedido.'
+}
+
 export default function MAProfessorAdminWorkspace({
   accessRequests = [],
   licenses = [],
   renewals = [],
-  dataConnected = false
+  dataConnected = false,
+  onApproveRequest,
+  onRejectRequest
 }: MAProfessorAdminWorkspaceProps) {
   const [
     activeTab,
@@ -236,6 +357,22 @@ export default function MAProfessorAdminWorkspace({
     setSelectedEmail
   ] =
     useState<string | null>(
+      null
+    )
+
+  const [
+    requestActionEmail,
+    setRequestActionEmail
+  ] =
+    useState<string | null>(
+      null
+    )
+
+  const [
+    requestActionFeedback,
+    setRequestActionFeedback
+  ] =
+    useState<RequestActionFeedback>(
       null
     )
 
@@ -393,7 +530,8 @@ export default function MAProfessorAdminWorkspace({
               request =>
                 request.email ===
                 selectedEmail
-            ) || null
+            ) ||
+            null
           : null,
       [
         accessRequests,
@@ -409,7 +547,8 @@ export default function MAProfessorAdminWorkspace({
               license =>
                 license.email ===
                 selectedEmail
-            ) || null
+            ) ||
+            null
           : null,
       [
         licenses,
@@ -460,13 +599,106 @@ export default function MAProfessorAdminWorkspace({
     value: number
   ) =>
     dataConnected
-      ? String(value)
+      ? String(
+          value
+        )
       : '—'
+
+  const canManageRequests =
+    dataConnected &&
+    Boolean(
+      onApproveRequest
+    ) &&
+    Boolean(
+      onRejectRequest
+    )
+
+  const handleRequestDecision =
+    async (
+      email: string,
+      decision:
+        'approve' |
+        'reject'
+    ) => {
+      if (
+        !canManageRequests ||
+        requestActionEmail
+      ) {
+        return
+      }
+
+      const confirmed =
+        window.confirm(
+          decision ===
+          'approve'
+            ? `Aprovar o pedido de acesso de ${email}?`
+            : `Rejeitar o pedido de acesso de ${email}?`
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setRequestActionFeedback(
+        null
+      )
+
+      setRequestActionEmail(
+        email
+      )
+
+      try {
+        if (
+          decision ===
+          'approve'
+        ) {
+          await onApproveRequest?.(
+            email
+          )
+
+          setRequestActionFeedback({
+            type:
+              'success',
+
+            message:
+              `Pedido de ${email} aprovado.`
+          })
+        } else {
+          await onRejectRequest?.(
+            email
+          )
+
+          setRequestActionFeedback({
+            type:
+              'success',
+
+            message:
+              `Pedido de ${email} rejeitado.`
+          })
+        }
+      } catch (
+        error
+      ) {
+        setRequestActionFeedback({
+          type:
+            'error',
+
+          message:
+            getActionErrorMessage(
+              error
+            )
+        })
+      } finally {
+        setRequestActionEmail(
+          null
+        )
+      }
+    }
 
   const renderRequests =
     () => (
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left">
+        <table className="w-full min-w-[940px] text-left">
           <thead>
             <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
               <th className="px-4 py-3">
@@ -485,6 +717,10 @@ export default function MAProfessorAdminWorkspace({
                 Ativação
               </th>
 
+              <th className="px-4 py-3">
+                Ações
+              </th>
+
               <th className="px-4 py-3 text-right">
                 Detalhe
               </th>
@@ -493,63 +729,124 @@ export default function MAProfessorAdminWorkspace({
 
           <tbody>
             {filteredRequests.map(
-              request => (
-                <tr
-                  key={
-                    request.email
-                  }
-                  className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
-                >
-                  <td className="px-4 py-4 font-bold text-white">
-                    {
+              request => {
+                const pending =
+                  request.status ===
+                  'pending'
+
+                const busy =
+                  requestActionEmail ===
+                  request.email
+
+                return (
+                  <tr
+                    key={
                       request.email
                     }
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-500">
-                    {formatDate(
-                      request.requestedAt
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <span
-                      className={[
-                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                        getRequestStatusClassName(
-                          request.status
-                        )
-                      ].join(
-                        ' '
-                      )}
-                    >
-                      {getAccessRequestStatusLabel(
-                        request.status
-                      )}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-500">
-                    {formatDate(
-                      request.activatedAt
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedEmail(
-                          request.email
-                        )
+                    className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
+                  >
+                    <td className="px-4 py-4 font-bold text-white">
+                      {
+                        request.email
                       }
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
-                    >
-                      Abrir ficha
-                    </button>
-                  </td>
-                </tr>
-              )
+                    </td>
+
+                    <td className="px-4 py-4 text-xs text-slate-500">
+                      {formatDate(
+                        request.requestedAt
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <span
+                        className={[
+                          'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                          getRequestStatusClassName(
+                            request.status
+                          )
+                        ].join(
+                          ' '
+                        )}
+                      >
+                        {getAccessRequestStatusLabel(
+                          request.status
+                        )}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-4 text-xs text-slate-500">
+                      {formatDate(
+                        request.activatedAt
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      {pending &&
+                      canManageRequests ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(
+                                requestActionEmail
+                              )
+                            }
+                            onClick={() => {
+                              void handleRequestDecision(
+                                request.email,
+                                'approve'
+                              )
+                            }}
+                            className="rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {busy
+                              ? 'A processar…'
+                              : 'Aprovar'}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(
+                                requestActionEmail
+                              )
+                            }
+                            onClick={() => {
+                              void handleRequestDecision(
+                                request.email,
+                                'reject'
+                              )
+                            }}
+                            className="rounded-lg border border-rose-300/20 bg-rose-300/[0.05] px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Rejeitar
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-600">
+                          {pending
+                            ? 'Ações indisponíveis'
+                            : 'Resolvido'}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedEmail(
+                            request.email
+                          )
+                        }
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
+                      >
+                        Abrir ficha
+                      </button>
+                    </td>
+                  </tr>
+                )
+              }
             )}
           </tbody>
         </table>
@@ -852,8 +1149,19 @@ export default function MAProfessorAdminWorkspace({
                   </td>
 
                   <td className="px-4 py-4">
-                    <span className="inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.65rem] font-black text-amber-200">
-                      {renewal.status}
+                    <span
+                      className={[
+                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                        getRenewalStatusClassName(
+                          renewal.status
+                        )
+                      ].join(
+                        ' '
+                      )}
+                    >
+                      {getRenewalStatusLabel(
+                        renewal.status
+                      )}
                     </span>
                   </td>
 
@@ -993,6 +1301,10 @@ export default function MAProfessorAdminWorkspace({
                       setSelectedEmail(
                         null
                       )
+
+                      setRequestActionFeedback(
+                        null
+                      )
                     }}
                     className={[
                       'shrink-0 border-b-2 px-4 py-3 text-xs font-black transition',
@@ -1076,10 +1388,45 @@ export default function MAProfessorAdminWorkspace({
               </label>
             ) : null}
 
-            <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-3 py-2.5 text-xs font-bold text-amber-200">
-              Backend desligado
+            <div
+              className={[
+                'rounded-xl border px-3 py-2.5 text-xs font-bold',
+                dataConnected
+                  ? 'border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200'
+                  : 'border-amber-300/15 bg-amber-300/[0.05] text-amber-200'
+              ].join(
+                ' '
+              )}
+            >
+              {dataConnected
+                ? 'Dados reais ligados'
+                : 'Backend desligado'}
             </div>
           </div>
+
+          {requestActionFeedback ? (
+            <div
+              role={
+                requestActionFeedback.type ===
+                'error'
+                  ? 'alert'
+                  : 'status'
+              }
+              className={[
+                'mt-3 rounded-xl border px-4 py-3 text-xs font-bold',
+                requestActionFeedback.type ===
+                  'success'
+                  ? 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200'
+                  : 'border-rose-300/20 bg-rose-300/[0.06] text-rose-200'
+              ].join(
+                ' '
+              )}
+            >
+              {
+                requestActionFeedback.message
+              }
+            </div>
+          ) : null}
         </div>
 
         <div className="min-w-0">
