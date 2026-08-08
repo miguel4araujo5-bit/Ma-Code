@@ -18,9 +18,18 @@ import {
 
 import {
   handleMAProfessorAccessApiRequest,
-  isMAProfessorAccessApiPath,
-  MaProfessorAccessDurableObject
+  isMAProfessorAccessApiPath
 } from './maProfessorAccess'
+
+import {
+  MaProfessorAccessDurableObject
+} from './maProfessorAccessAdminBridge'
+
+import {
+  handleMAProfessorAdminApiRequest,
+  isMAProfessorAdminApiPath,
+  type MaProfessorAdminEnv
+} from './maProfessorAdmin'
 
 import {
   handleMAProfessorRecoveryApiRequest,
@@ -49,6 +58,7 @@ export type Env =
   BaseEnv &
   BtcAlertsEnv &
   MaCodeAdminEnv &
+  MaProfessorAdminEnv &
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
   MaProfessorRecoveryEnv
@@ -68,6 +78,17 @@ export default {
       new URL(
         request.url
       )
+
+    if (
+      isMAProfessorAdminApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorAdminApiRequest(
+        request,
+        env
+      )
+    }
 
     if (
       isMaCodeAdminApiPath(
