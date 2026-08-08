@@ -1,73 +1,43 @@
-const SVG_NS =
-  'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const backdropUrl =
-  new URL(
-    '../../assets/maps/spain-backdrop-v2.png',
-    import.meta.url,
-  ).href;
+const backdropUrl = new URL(
+  '../../assets/maps/spain-backdrop-v2.png',
+  import.meta.url,
+).href;
 
-const SPAIN_IMAGE_RATIO =
-  641 / 930;
+const SPAIN_IMAGE_RATIO = 641 / 930;
 
-let scheduled =
-  false;
+let scheduled = false;
 
 function getViewBox(svg) {
-  const viewBox =
-    svg?.viewBox?.baseVal;
+  const viewBox = svg?.viewBox?.baseVal;
 
   if (
     viewBox &&
-    Number.isFinite(
-      viewBox.width,
-    ) &&
-    Number.isFinite(
-      viewBox.height,
-    ) &&
+    Number.isFinite(viewBox.width) &&
+    Number.isFinite(viewBox.height) &&
     viewBox.width > 0 &&
     viewBox.height > 0
   ) {
     return {
-      x:
-        viewBox.x,
-
-      y:
-        viewBox.y,
-
-      width:
-        viewBox.width,
-
-      height:
-        viewBox.height,
+      x: viewBox.x,
+      y: viewBox.y,
+      width: viewBox.width,
+      height: viewBox.height,
     };
   }
 
   return null;
 }
 
-function createSvgElement(
-  tag,
-  attributes = {},
-) {
-  const element =
-    document.createElementNS(
-      SVG_NS,
-      tag,
-    );
+function createSvgElement(tag, attributes = {}) {
+  const element = document.createElementNS(
+    SVG_NS,
+    tag,
+  );
 
-  for (
-    const [
-      name,
-      value,
-    ]
-    of Object.entries(
-      attributes,
-    )
-  ) {
-    if (
-      value == null
-    ) {
+  for (const [name, value] of Object.entries(attributes)) {
+    if (value == null) {
       continue;
     }
 
@@ -81,120 +51,63 @@ function createSvgElement(
 }
 
 function renderSpainBackdrop() {
-  const svg =
-    document.querySelector(
-      '.board-svg',
-    );
+  const svg = document.querySelector('.board-svg');
 
   if (!svg) {
     return;
   }
 
-  const viewBox =
-    getViewBox(svg);
+  const viewBox = getViewBox(svg);
 
   if (!viewBox) {
     return;
   }
 
   svg
-    .querySelector(
-      '[data-layer="spain-backdrop"]',
-    )
+    .querySelector('[data-layer="spain-backdrop"]')
     ?.remove();
 
-  const layer =
-    createSvgElement(
-      'g',
-      {
-        class:
-          'spain-backdrop',
+  const layer = createSvgElement(
+    'g',
+    {
+      class: 'spain-backdrop',
+      'data-layer': 'spain-backdrop',
+      'aria-hidden': 'true',
+    },
+  );
 
-        'data-layer':
-          'spain-backdrop',
-
-        'aria-hidden':
-          'true',
-      },
-    );
-
-  /*
-   * Espanha é deliberadamente maior
-   * do que a área visível do tabuleiro.
-   *
-   * Isso aproxima a escala visual
-   * da relação Portugal / Espanha:
-   *
-   * Portugal ocupa a zona central.
-   * Espanha surge sobretudo a Norte
-   * e a Este, sendo parcialmente
-   * cortada pelo próprio viewBox.
-   */
-  const width =
-    viewBox.width *
-    1.16;
+  const width = viewBox.width * 0.78;
 
   const height =
-    width *
-    SPAIN_IMAGE_RATIO;
+    width * SPAIN_IMAGE_RATIO;
 
   const x =
     viewBox.x +
-    viewBox.width *
-      0.48;
+    viewBox.width * 0.63;
 
   const y =
     viewBox.y +
-    viewBox.height *
-      0.015;
+    viewBox.height * 0.025;
 
-  const image =
-    createSvgElement(
-      'image',
-      {
-        class:
-          'spain-backdrop__image',
-
-        href:
-          backdropUrl,
-
-        x,
-        y,
-
-        width,
-        height,
-
-        preserveAspectRatio:
-          'xMinYMin meet',
-      },
-    );
-
-  layer.appendChild(
-    image,
+  const image = createSvgElement(
+    'image',
+    {
+      class: 'spain-backdrop__image',
+      href: backdropUrl,
+      x,
+      y,
+      width,
+      height,
+      preserveAspectRatio: 'xMinYMin meet',
+    },
   );
 
-  /*
-   * Espanha deve ficar:
-   *
-   * oceano
-   * ↓
-   * Espanha
-   * ↓
-   * decoração
-   * ↓
-   * Portugal / territórios
-   *
-   * Não interfere com qualquer
-   * elemento jogável.
-   */
-  const decorationLayer =
-    svg.querySelector(
-      '.map-decoration',
-    );
+  layer.appendChild(image);
 
-  if (
-    decorationLayer
-  ) {
+  const decorationLayer =
+    svg.querySelector('.map-decoration');
+
+  if (decorationLayer) {
     svg.insertBefore(
       layer,
       decorationLayer,
@@ -204,13 +117,9 @@ function renderSpainBackdrop() {
   }
 
   const territoryLayer =
-    svg.querySelector(
-      '.territory-layer',
-    );
+    svg.querySelector('.territory-layer');
 
-  if (
-    territoryLayer
-  ) {
+  if (territoryLayer) {
     svg.insertBefore(
       layer,
       territoryLayer,
@@ -219,9 +128,7 @@ function renderSpainBackdrop() {
     return;
   }
 
-  svg.appendChild(
-    layer,
-  );
+  svg.appendChild(layer);
 }
 
 function scheduleRender() {
@@ -229,23 +136,15 @@ function scheduleRender() {
     return;
   }
 
-  scheduled =
-    true;
+  scheduled = true;
 
-  requestAnimationFrame(
-    () => {
-      scheduled =
-        false;
-
-      renderSpainBackdrop();
-    },
-  );
+  requestAnimationFrame(() => {
+    scheduled = false;
+    renderSpainBackdrop();
+  });
 }
 
-const app =
-  document.querySelector(
-    '#app',
-  );
+const app = document.querySelector('#app');
 
 if (app) {
   new MutationObserver(
@@ -253,11 +152,8 @@ if (app) {
   ).observe(
     app,
     {
-      childList:
-        true,
-
-      subtree:
-        true,
+      childList: true,
+      subtree: true,
     },
   );
 
