@@ -11,6 +11,12 @@ import {
 } from './maBtcAlerts'
 
 import {
+  handleMaCodeAdminApiRequest,
+  isMaCodeAdminApiPath,
+  type MaCodeAdminEnv
+} from './maCodeAdmin'
+
+import {
   handleMAProfessorAccessApiRequest,
   isMAProfessorAccessApiPath,
   MaProfessorAccessDurableObject
@@ -42,6 +48,7 @@ export {
 export type Env =
   BaseEnv &
   BtcAlertsEnv &
+  MaCodeAdminEnv &
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
   MaProfessorRecoveryEnv
@@ -61,6 +68,17 @@ export default {
       new URL(
         request.url
       )
+
+    if (
+      isMaCodeAdminApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMaCodeAdminApiRequest(
+        request,
+        env
+      )
+    }
 
     if (
       isBtcAlertsApiPath(
