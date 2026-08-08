@@ -25,6 +25,7 @@ import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
 import SmartSpacingOverlay from './SmartSpacingOverlay'
+import TableBuilder from './TableBuilder'
 import TextEffectsToolbar from './TextEffectsToolbar'
 
 import {
@@ -38,10 +39,12 @@ import './maQuadroHeaderPolish.css'
 
 function targetUsesNativeKeyboard(
   target:
-    EventTarget | null
+    EventTarget |
+    null
 ) {
   const element =
-    target instanceof Element
+    target instanceof
+      Element
       ? target
       : null
 
@@ -57,7 +60,9 @@ function targetUsesNativeKeyboard(
         '[role="dialog"]',
         '[role="menu"]',
         'summary'
-      ].join(',')
+      ].join(
+        ','
+      )
     )
   )
 }
@@ -79,7 +84,9 @@ export default function MAQuadroApp() {
   ] = useState<
     MAQuadroContextMenuPosition |
     null
-  >(null)
+  >(
+    null
+  )
 
   const closeContextMenu =
     useCallback(
@@ -257,7 +264,9 @@ export default function MAQuadroApp() {
 
   const protectNativeKeyboard = (
     event:
-      ReactKeyboardEvent<HTMLElement>
+      ReactKeyboardEvent<
+        HTMLElement
+      >
   ) => {
     if (
       !targetUsesNativeKeyboard(
@@ -296,7 +305,9 @@ export default function MAQuadroApp() {
 
   return (
     <MAQuadroEditorProvider
-      editor={editor}
+      editor={
+        editor
+      }
     >
       <main
         className="mq-app"
@@ -310,6 +321,8 @@ export default function MAQuadroApp() {
         <FormatPainterController />
 
         <BrandQuickStyles />
+
+        <TableBuilder />
 
         <EditorHeader
           onOpenShortcuts={() => {
