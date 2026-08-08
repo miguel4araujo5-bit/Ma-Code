@@ -5,8 +5,6 @@ import {
 } from 'react'
 
 import AdminShell from '../components/admin/AdminShell'
-import MAProfessorAdminDecisionPanel from '../components/admin/ma-professor/MAProfessorAdminDecisionPanel'
-import MAProfessorAdminRenewalPanel from '../components/admin/ma-professor/MAProfessorAdminRenewalPanel'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 
 import {
@@ -19,6 +17,8 @@ import {
 const workflow = [
   'Pedido',
   'Aprovação',
+  'Plano',
+  'Pagamento',
   'Senha',
   'Ativação',
   'Licença',
@@ -42,17 +42,10 @@ function formatUpdatedAt(
   return new Intl.DateTimeFormat(
     'pt-PT',
     {
-      day:
-        '2-digit',
-
-      month:
-        '2-digit',
-
-      hour:
-        '2-digit',
-
-      minute:
-        '2-digit'
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     }
   ).format(date)
 }
@@ -61,8 +54,7 @@ function getErrorMessage(
   error: unknown
 ) {
   if (
-    error instanceof
-      Error &&
+    error instanceof Error &&
     error.message
   ) {
     return error.message
@@ -95,10 +87,7 @@ function MAProfessorAdminContent() {
   const loadOverview =
     useCallback(
       async () => {
-        setLoading(
-          true
-        )
-
+        setLoading(true)
         setError('')
 
         try {
@@ -108,18 +97,14 @@ function MAProfessorAdminContent() {
           setOverview(
             nextOverview
           )
-        } catch (
-          loadError
-        ) {
+        } catch (loadError) {
           setError(
             getErrorMessage(
               loadError
             )
           )
         } finally {
-          setLoading(
-            false
-          )
+          setLoading(false)
         }
       },
       []
@@ -181,11 +166,12 @@ function MAProfessorAdminContent() {
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
               O administrador acompanha a
-              mesma conta desde o pedido
-              inicial, passando pela
-              aprovação e senha, até à
-              ativação da licença e futuras
-              renovações.
+              mesma conta desde o pedido,
+              passando pela aprovação,
+              escolha do plano, confirmação
+              do pagamento e geração da nova
+              senha, até à ativação da
+              licença e futuras renovações.
             </p>
           </div>
 
@@ -197,9 +183,7 @@ function MAProfessorAdminContent() {
                 : loading
                   ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
                   : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-            ].join(
-              ' '
-            )}
+            ].join(' ')}
           >
             {error
               ? 'Erro na ligação'
@@ -209,7 +193,7 @@ function MAProfessorAdminContent() {
           </span>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
           {workflow.map(
             (
               item,
@@ -264,9 +248,7 @@ function MAProfessorAdminContent() {
               onClick={() => {
                 void loadOverview()
               }}
-              disabled={
-                loading
-              }
+              disabled={loading}
               className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading
@@ -311,24 +293,19 @@ function MAProfessorAdminContent() {
           <div className="mt-5">
             <MAProfessorAdminWorkspace
               accessRequests={
-                overview
-                  ?.accessRequests ||
+                overview?.accessRequests ||
                 []
               }
               licenses={
-                overview
-                  ?.licenses ||
+                overview?.licenses ||
                 []
               }
               renewals={
-                overview
-                  ?.renewals ||
+                overview?.renewals ||
                 []
               }
               dataConnected={
-                Boolean(
-                  overview
-                )
+                Boolean(overview)
               }
               onApproveRequest={
                 handleApproveRequest
@@ -341,30 +318,7 @@ function MAProfessorAdminContent() {
         )}
       </section>
 
-      <section className="mt-7">
-        <MAProfessorAdminDecisionPanel />
-      </section>
-
-      <section className="mt-7">
-        <MAProfessorAdminRenewalPanel />
-      </section>
-
-      <section className="mt-7 grid gap-4 lg:grid-cols-3">
-        <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-            Beta
-          </p>
-
-          <p className="mt-3 text-2xl font-black">
-            30 dias
-          </p>
-
-          <p className="mt-1 text-sm text-slate-400">
-            0 € · começa na primeira
-            ativação válida
-          </p>
-        </article>
-
+      <section className="mt-7 grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
           <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
             Plano 30 dias
@@ -375,8 +329,9 @@ function MAProfessorAdminContent() {
           </p>
 
           <p className="mt-1 text-sm text-slate-400">
-            Renovação manual · sem
-            renovação automática
+            30 dias · renovação manual ·
+            nova autorização e nova senha em
+            cada novo pagamento
           </p>
         </article>
 
@@ -391,9 +346,23 @@ function MAProfessorAdminContent() {
 
           <p className="mt-1 text-sm text-slate-400">
             Até 1 de agosto · sem
-            ativações mensais
+            mensalidades durante a validade
           </p>
         </article>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-slate-300/10 bg-slate-300/[0.025] p-4 sm:p-5">
+        <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
+          Beta
+        </p>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          A antiga referência de beta de 30
+          dias permanece separada do fluxo
+          pago. Não é atribuída
+          automaticamente por aprovação nem
+          pela emissão de uma senha paga.
+        </p>
       </section>
 
       <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
@@ -402,20 +371,21 @@ function MAProfessorAdminContent() {
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          Aprovação e rejeição de pedidos
-          estão ativas.
+          Plano e pagamento passam a
+          controlar a geração da senha.
         </h2>
 
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Os pedidos, licenças e renovações
-          apresentados acima vêm do motor de
-          acesso existente do MA-Professor.
-          Pedidos ainda pendentes podem agora
-          ser aprovados ou rejeitados pelo
-          administrador. A geração de senha,
-          confirmação de pagamento,
-          renovação e revogação continuam
-          bloqueadas até às próximas fases.
+          Pedidos pendentes continuam a ser
+          aprovados ou rejeitados pelo
+          administrador. Depois da aprovação,
+          a conta passa pelo plano escolhido e
+          por confirmação manual do pagamento.
+          O backend só autoriza uma nova senha
+          quando o pagamento daquela
+          autorização estiver confirmado.
+          Ativação e criação da licença paga
+          serão fechadas no bloco seguinte.
         </p>
       </section>
     </>
@@ -428,7 +398,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. Os dados reais estão ligados e os pedidos pendentes já podem ser aprovados ou rejeitados no backend protegido."
+      description="Gestão central de pedidos, planos, pagamentos, credenciais, ativações, licenças e renovações do MA-Professor através do backend protegido da MA-CODE."
     >
       <MAProfessorAdminContent />
     </AdminShell>
