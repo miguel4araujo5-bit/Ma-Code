@@ -11,70 +11,46 @@ function createSvg(
   attributes = {},
 ) {
   const element =
-    document
-      .createElementNS(
-        SVG_NS,
-        tag,
-      );
+    document.createElementNS(
+      SVG_NS,
+      tag,
+    );
 
   for (
-    const [
-      name,
-      value,
-    ]
-    of Object.entries(
-      attributes,
-    )
+    const [name, value]
+    of Object.entries(attributes)
   ) {
-    if (
-      value == null
-    ) {
+    if (value == null) {
       continue;
     }
 
-    element
-      .setAttribute(
-        name,
-        String(value),
-      );
+    element.setAttribute(
+      name,
+      String(value),
+    );
   }
 
   return element;
 }
 
-function point(
-  vertex,
-) {
-  const x =
-    Number(
-      vertex?.x ??
-      vertex
-        ?.position
-        ?.x ??
-      vertex
-        ?.point
-        ?.x,
-    );
+function point(vertex) {
+  const x = Number(
+    vertex?.x ??
+    vertex?.position?.x ??
+    vertex?.point?.x,
+  );
 
-  const y =
-    Number(
-      vertex?.y ??
-      vertex
-        ?.position
-        ?.y ??
-      vertex
-        ?.point
-        ?.y,
-    );
+  const y = Number(
+    vertex?.y ??
+    vertex?.position?.y ??
+    vertex?.point?.y,
+  );
 
   return (
     Number.isFinite(x) &&
     Number.isFinite(y)
   )
-    ? {
-        x,
-        y,
-      }
+    ? { x, y }
     : null;
 }
 
@@ -84,16 +60,12 @@ function midpoint(
 ) {
   return {
     x:
-      (
-        first.x +
-        second.x
-      ) / 2,
+      (first.x + second.x) /
+      2,
 
     y:
-      (
-        first.y +
-        second.y
-      ) / 2,
+      (first.y + second.y) /
+      2,
   };
 }
 
@@ -102,28 +74,21 @@ function normalize(
   y,
 ) {
   const length =
-    Math.hypot(
-      x,
-      y,
-    ) || 1;
+    Math.hypot(x, y) || 1;
 
   return {
     x:
-      x /
-      length,
+      x / length,
 
     y:
-      y /
-      length,
+      y / length,
   };
 }
 
 function boardCenter(
   points,
 ) {
-  if (
-    !points.length
-  ) {
+  if (!points.length) {
     return {
       x: 0,
       y: 0,
@@ -133,28 +98,92 @@ function boardCenter(
   return {
     x:
       points.reduce(
-        (
-          sum,
-          current,
-        ) =>
-          sum +
-          current.x,
+        (sum, current) =>
+          sum + current.x,
         0,
       ) /
       points.length,
 
     y:
       points.reduce(
-        (
-          sum,
-          current,
-        ) =>
-          sum +
-          current.y,
+        (sum, current) =>
+          sum + current.y,
         0,
       ) /
       points.length,
   };
+}
+
+/*
+ * Calcula uma normal verdadeira à aresta.
+ *
+ * Existem sempre duas normais possíveis.
+ * Escolhemos aquela que aponta para fora
+ * do centro do tabuleiro.
+ *
+ * Isto é importante porque simplesmente
+ * usar "midpoint - center" pode deslocar
+ * o Porto na direção de um dos vértices
+ * quando a aresta é diagonal.
+ */
+function outwardNormal(
+  first,
+  second,
+  center,
+) {
+  const dx =
+    second.x -
+    first.x;
+
+  const dy =
+    second.y -
+    first.y;
+
+  const mid =
+    midpoint(
+      first,
+      second,
+    );
+
+  const normalA =
+    normalize(
+      -dy,
+      dx,
+    );
+
+  const normalB = {
+    x:
+      -normalA.x,
+
+    y:
+      -normalA.y,
+  };
+
+  const outwardVector = {
+    x:
+      mid.x -
+      center.x,
+
+    y:
+      mid.y -
+      center.y,
+  };
+
+  const scoreA =
+    normalA.x *
+      outwardVector.x +
+    normalA.y *
+      outwardVector.y;
+
+  const scoreB =
+    normalB.x *
+      outwardVector.x +
+    normalB.y *
+      outwardVector.y;
+
+  return scoreA >= scoreB
+    ? normalA
+    : normalB;
 }
 
 export class PortRenderer {
@@ -194,23 +223,15 @@ export class PortRenderer {
       null;
   }
 
-  project(
-    vertex,
-  ) {
+  project(vertex) {
     const rawPoint =
-      point(
-        vertex,
-      );
+      point(vertex);
 
-    if (
-      !rawPoint
-    ) {
+    if (!rawPoint) {
       return null;
     }
 
-    if (
-      !this.projectPoint
-    ) {
+    if (!this.projectPoint) {
       return rawPoint;
     }
 
@@ -223,14 +244,10 @@ export class PortRenderer {
     if (
       !projected ||
       !Number.isFinite(
-        Number(
-          projected.x,
-        ),
+        Number(projected.x),
       ) ||
       !Number.isFinite(
-        Number(
-          projected.y,
-        ),
+        Number(projected.y),
       )
     ) {
       return null;
@@ -271,30 +288,28 @@ export class PortRenderer {
       onPortClick =
         null,
 
-      offset = 27,
+      /*
+       * 38px afasta suficientemente
+       * o marcador da aresta e dos
+       * vértices de Vila.
+       */
+      offset = 38,
     } = {},
   ) {
     this.clear();
 
     const vertices =
       Array.isArray(
-        this
-          .topology
-          ?.vertices,
+        this.topology?.vertices,
       )
-        ? this
-            .topology
-            .vertices
+        ? this.topology.vertices
         : [];
 
     const vertexById =
       new Map(
         vertices.map(
           (vertex) => [
-            String(
-              vertex.id,
-            ),
-
+            String(vertex.id),
             vertex,
           ],
         ),
@@ -304,13 +319,9 @@ export class PortRenderer {
       vertices
         .map(
           (vertex) =>
-            this.project(
-              vertex,
-            ),
+            this.project(vertex),
         )
-        .filter(
-          Boolean,
-        );
+        .filter(Boolean);
 
     const center =
       boardCenter(
@@ -322,8 +333,7 @@ export class PortRenderer {
         'g',
         {
           class:
-            this
-              .className,
+            this.className,
 
           'data-layer':
             'ports',
@@ -341,25 +351,20 @@ export class PortRenderer {
         firstId,
         secondId,
       ] =
-        port
-          .vertexIds ??
+        port.vertexIds ??
         [];
 
       const first =
         this.project(
           vertexById.get(
-            String(
-              firstId,
-            ),
+            String(firstId),
           ),
         );
 
       const second =
         this.project(
           vertexById.get(
-            String(
-              secondId,
-            ),
+            String(secondId),
           ),
         );
 
@@ -376,13 +381,17 @@ export class PortRenderer {
           second,
         );
 
+      /*
+       * Em vez de empurrar o Porto
+       * radialmente a partir do centro
+       * do tabuleiro, usamos a normal
+       * perpendicular à própria aresta.
+       */
       const outward =
-        normalize(
-          mid.x -
-            center.x,
-
-          mid.y -
-            center.y,
+        outwardNormal(
+          first,
+          second,
+          center,
         );
 
       const x =
@@ -406,10 +415,7 @@ export class PortRenderer {
               `translate(${x} ${y})`,
 
             role:
-              'button',
-
-            tabindex:
-              '0',
+              'img',
 
             'aria-label':
               `${PORT_LABELS[port.type] ?? 'Porto'} — troca ${port.give}:1`,
@@ -430,6 +436,10 @@ export class PortRenderer {
       title.textContent =
         `${PORT_LABELS[port.type] ?? 'Porto'} — troca ${port.give}:1`;
 
+      /*
+       * Liga visualmente o Porto
+       * ao centro exato da aresta.
+       */
       const connector =
         createSvg(
           'line',
@@ -528,52 +538,31 @@ export class PortRenderer {
         rate,
       );
 
-      const activate =
-        () => {
-          if (
-            typeof onPortClick ===
-            'function'
-          ) {
-            onPortClick(
-              port,
-            );
-          }
-        };
-
-      group
-        .addEventListener(
+      /*
+       * Mantemos o callback por compatibilidade
+       * futura, embora a camada esteja atualmente
+       * com pointer-events:none no CSS.
+       */
+      if (
+        typeof onPortClick ===
+        'function'
+      ) {
+        group.addEventListener(
           'click',
-          activate,
-        );
-
-      group
-        .addEventListener(
-          'keydown',
-          (event) => {
-            if (
-              event.key ===
-                'Enter' ||
-              event.key ===
-                ' '
-            ) {
-              event
-                .preventDefault();
-
-              activate();
-            }
+          () => {
+            onPortClick(port);
           },
         );
+      }
 
-      layer
-        .appendChild(
-          group,
-        );
+      layer.appendChild(
+        group,
+      );
     }
 
-    this.svg
-      .appendChild(
-        layer,
-      );
+    this.svg.appendChild(
+      layer,
+    );
 
     this.layer =
       layer;
