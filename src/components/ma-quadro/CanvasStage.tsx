@@ -1,4 +1,5 @@
 import {
+  useMemo,
   useState,
   type DragEvent,
   type MouseEvent
@@ -11,6 +12,252 @@ import type {
 import {
   useMAQuadroEditorContext
 } from './editorContext'
+
+import './maQuadroRulers.css'
+
+type RulerMark = {
+  value: number
+  position: number
+  major: boolean
+}
+
+const RULER_MAJOR_STEPS = [
+  5,
+  10,
+  20,
+  25,
+  50,
+  100,
+  200,
+  250,
+  500,
+  1000,
+  2000,
+  2500,
+  5000,
+  10000,
+  20000,
+  50000
+]
+
+const RULER_MIN_MAJOR_SPACING = 64
+const RULER_MAX_MARKS = 500
+
+function getRulerMajorStep(
+  length: number,
+  zoom: number
+) {
+  const scale = Math.max(
+    0.05,
+    zoom / 100
+  )
+
+  const requestedStep =
+    RULER_MIN_MAJOR_SPACING /
+    scale
+
+  let majorStep =
+    RULER_MAJOR_STEPS.find(
+      (step) =>
+        step >= requestedStep
+    ) ||
+    RULER_MAJOR_STEPS[
+      RULER_MAJOR_STEPS.length - 1
+    ]
+
+  while (
+    length /
+      Math.max(
+        1,
+        majorStep / 5
+      ) >
+    RULER_MAX_MARKS
+  ) {
+    majorStep *= 2
+  }
+
+  return majorStep
+}
+
+function buildRulerMarks(
+  length: number,
+  zoom: number
+): RulerMark[] {
+  const safeLength = Math.max(
+    1,
+    length
+  )
+
+  const scale = Math.max(
+    0.05,
+    zoom / 100
+  )
+
+  const majorStep =
+    getRulerMajorStep(
+      safeLength,
+      zoom
+    )
+
+  const minorStep =
+    majorStep / 5
+
+  const count = Math.min(
+    RULER_MAX_MARKS,
+    Math.floor(
+      safeLength /
+        minorStep
+    )
+  )
+
+  return Array.from(
+    {
+      length:
+        count + 1
+    },
+    (_, index) => {
+      const value =
+        index *
+        minorStep
+
+      return {
+        value,
+        position:
+          value *
+          scale,
+        major:
+          index % 5 === 0
+      }
+    }
+  )
+}
+
+function formatRulerValue(
+  value: number
+) {
+  if (
+    value >= 10000 &&
+    value % 1000 === 0
+  ) {
+    return `${
+      value / 1000
+    }k`
+  }
+
+  return String(
+    Math.round(
+      value
+    )
+  )
+}
+
+function CanvasRulers({
+  width,
+  height,
+  zoom
+}: {
+  width: number
+  height: number
+  zoom: number
+}) {
+  const horizontalMarks =
+    useMemo(
+      () =>
+        buildRulerMarks(
+          width,
+          zoom
+        ),
+      [
+        width,
+        zoom
+      ]
+    )
+
+  const verticalMarks =
+    useMemo(
+      () =>
+        buildRulerMarks(
+          height,
+          zoom
+        ),
+      [
+        height,
+        zoom
+      ]
+    )
+
+  return (
+    <>
+      <div
+        className="mq-ruler-corner"
+        aria-hidden="true"
+        title="Unidades em píxeis"
+      >
+        px
+      </div>
+
+      <div
+        className="mq-ruler mq-ruler--horizontal"
+        aria-hidden="true"
+      >
+        {horizontalMarks.map(
+          (mark) => (
+            <span
+              key={`x-${mark.value}`}
+              className={`mq-ruler-mark${
+                mark.major
+                  ? ' is-major'
+                  : ''
+              }`}
+              style={{
+                left:
+                  mark.position
+              }}
+            >
+              {mark.major ? (
+                <span className="mq-ruler-label">
+                  {formatRulerValue(
+                    mark.value
+                  )}
+                </span>
+              ) : null}
+            </span>
+          )
+        )}
+      </div>
+
+      <div
+        className="mq-ruler mq-ruler--vertical"
+        aria-hidden="true"
+      >
+        {verticalMarks.map(
+          (mark) => (
+            <span
+              key={`y-${mark.value}`}
+              className={`mq-ruler-mark${
+                mark.major
+                  ? ' is-major'
+                  : ''
+              }`}
+              style={{
+                top:
+                  mark.position
+              }}
+            >
+              {mark.major ? (
+                <span className="mq-ruler-label">
+                  {formatRulerValue(
+                    mark.value
+                  )}
+                </span>
+              ) : null}
+            </span>
+          )
+        )}
+      </div>
+    </>
+  )
+}
 
 function ToolbarButton({
   label,
@@ -33,10 +280,18 @@ function ToolbarButton({
           ? ' is-active'
           : ''
       }`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={title}
+      onClick={
+        onClick
+      }
+      disabled={
+        disabled
+      }
+      title={
+        title
+      }
+      aria-label={
+        title
+      }
     >
       {label}
     </button>
@@ -57,7 +312,9 @@ export default function CanvasStage({
   const [
     dragActive,
     setDragActive
-  ] = useState(false)
+  ] = useState(
+    false
+  )
 
   const page =
     editor.activePage
@@ -70,22 +327,37 @@ export default function CanvasStage({
     page?.height ||
     1080
 
+  const displayWidth =
+    canvasWidth *
+    editor.zoom /
+    100
+
+  const displayHeight =
+    canvasHeight *
+    editor.zoom /
+    100
+
   const hasSelection =
-    editor.selection.count >
+    editor.selection
+      .count >
     0
 
   const multiple =
-    editor.selection.count >
+    editor.selection
+      .count >
     1
 
   const isGroup =
-    editor.selection.role ===
+    editor.selection
+      .role ===
     'group'
 
   const isImage =
-    editor.selection.count ===
+    editor.selection
+      .count ===
       1 &&
-    editor.selection.role ===
+    editor.selection
+      .role ===
       'image'
 
   const locked =
@@ -104,14 +376,17 @@ export default function CanvasStage({
     }
 
     if (
-      event.dataTransfer.types
+      event
+        .dataTransfer
+        .types
         .includes(
           'Files'
         )
     ) {
       event.preventDefault()
 
-      event.dataTransfer
+      event
+        .dataTransfer
         .dropEffect =
         'copy'
 
@@ -139,14 +414,19 @@ export default function CanvasStage({
     }
 
     if (
-      event.dataTransfer.files
+      event
+        .dataTransfer
+        .files
         .length
     ) {
-      void editor.handleDroppedFiles(
-        Array.from(
-          event.dataTransfer.files
+      void editor
+        .handleDroppedFiles(
+          Array.from(
+            event
+              .dataTransfer
+              .files
+          )
         )
-      )
     }
   }
 
@@ -174,11 +454,14 @@ export default function CanvasStage({
   }
 
   const verticalGuidePosition =
-    editor.guides.vertical ===
+    editor.guides
+      .vertical ===
     null
       ? null
       : `${(
-          editor.guides.vertical /
+          editor
+            .guides
+            .vertical /
           Math.max(
             1,
             canvasWidth
@@ -186,11 +469,14 @@ export default function CanvasStage({
         ) * 100}%`
 
   const horizontalGuidePosition =
-    editor.guides.horizontal ===
+    editor.guides
+      .horizontal ===
     null
       ? null
       : `${(
-          editor.guides.horizontal /
+          editor
+            .guides
+            .horizontal /
           Math.max(
             1,
             canvasHeight
@@ -236,7 +522,8 @@ export default function CanvasStage({
             label="⧉"
             title="Duplicar seleção"
             onClick={() =>
-              void editor.duplicateSelection()
+              void editor
+                .duplicateSelection()
             }
             disabled={
               !hasSelection ||
@@ -249,7 +536,8 @@ export default function CanvasStage({
             label="⌫"
             title="Eliminar seleção"
             onClick={
-              editor.deleteSelection
+              editor
+                .deleteSelection
             }
             disabled={
               !hasSelection ||
@@ -262,7 +550,8 @@ export default function CanvasStage({
             label="Agrupar"
             title="Agrupar elementos selecionados"
             onClick={
-              editor.groupSelection
+              editor
+                .groupSelection
             }
             disabled={
               !multiple ||
@@ -275,7 +564,8 @@ export default function CanvasStage({
             label="Desagrupar"
             title="Desagrupar grupo"
             onClick={
-              editor.ungroupSelection
+              editor
+                .ungroupSelection
             }
             disabled={
               !isGroup ||
@@ -290,9 +580,10 @@ export default function CanvasStage({
             label="←"
             title="Alinhar à esquerda"
             onClick={() =>
-              editor.alignSelection(
-                'left'
-              )
+              editor
+                .alignSelection(
+                  'left'
+                )
             }
             disabled={
               !hasSelection ||
@@ -305,9 +596,10 @@ export default function CanvasStage({
             label="↔"
             title="Centrar horizontalmente"
             onClick={() =>
-              editor.alignSelection(
-                'center-x'
-              )
+              editor
+                .alignSelection(
+                  'center-x'
+                )
             }
             disabled={
               !hasSelection ||
@@ -320,9 +612,10 @@ export default function CanvasStage({
             label="→"
             title="Alinhar à direita"
             onClick={() =>
-              editor.alignSelection(
-                'right'
-              )
+              editor
+                .alignSelection(
+                  'right'
+                )
             }
             disabled={
               !hasSelection ||
@@ -335,9 +628,10 @@ export default function CanvasStage({
             label="↑"
             title="Alinhar acima"
             onClick={() =>
-              editor.alignSelection(
-                'top'
-              )
+              editor
+                .alignSelection(
+                  'top'
+                )
             }
             disabled={
               !hasSelection ||
@@ -350,9 +644,10 @@ export default function CanvasStage({
             label="↕"
             title="Centrar verticalmente"
             onClick={() =>
-              editor.alignSelection(
-                'center-y'
-              )
+              editor
+                .alignSelection(
+                  'center-y'
+                )
             }
             disabled={
               !hasSelection ||
@@ -365,9 +660,10 @@ export default function CanvasStage({
             label="↓"
             title="Alinhar abaixo"
             onClick={() =>
-              editor.alignSelection(
-                'bottom'
-              )
+              editor
+                .alignSelection(
+                  'bottom'
+                )
             }
             disabled={
               !hasSelection ||
@@ -381,38 +677,50 @@ export default function CanvasStage({
           <div className="mq-context-toolbar__group">
             <ToolbarButton
               label={
-                editor.imageCropEditing
+                editor
+                  .imageCropEditing
                   ? 'Concluir recorte'
                   : 'Recortar'
               }
               title={
-                editor.imageCropEditing
+                editor
+                  .imageCropEditing
                   ? 'Concluir edição do recorte'
                   : 'Editar o enquadramento da imagem'
               }
               active={
-                editor.imageCropEditing
+                editor
+                  .imageCropEditing
               }
-              disabled={locked}
+              disabled={
+                locked
+              }
               onClick={() => {
                 if (
-                  editor.imageCropEditing
+                  editor
+                    .imageCropEditing
                 ) {
-                  editor.finishImageCrop()
+                  editor
+                    .finishImageCrop()
                 } else {
-                  editor.beginImageCrop()
+                  editor
+                    .beginImageCrop()
                 }
               }}
             />
 
-            {editor.imageCropEditing ? (
+            {editor
+              .imageCropEditing ? (
               <ToolbarButton
                 label="Cancelar"
                 title="Cancelar alterações do recorte"
                 onClick={
-                  editor.cancelImageCrop
+                  editor
+                    .cancelImageCrop
                 }
-                disabled={locked}
+                disabled={
+                  locked
+                }
               />
             ) : (
               <label
@@ -425,20 +733,28 @@ export default function CanvasStage({
 
                 <select
                   value={
-                    editor.selection
+                    editor
+                      .selection
                       .imageFrame
                   }
-                  disabled={locked}
-                  onChange={(event) =>
-                    editor.setImageFrame(
-                      event.target.value as
-                        | 'none'
-                        | 'rounded'
-                        | 'circle'
-                        | 'ellipse'
-                        | 'triangle'
-                        | 'star'
-                    )
+                  disabled={
+                    locked
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    editor
+                      .setImageFrame(
+                        event
+                          .target
+                          .value as
+                          | 'none'
+                          | 'rounded'
+                          | 'circle'
+                          | 'ellipse'
+                          | 'triangle'
+                          | 'star'
+                      )
                   }
                   aria-label="Moldura da imagem"
                 >
@@ -476,10 +792,12 @@ export default function CanvasStage({
             label="Grelha"
             title="Mostrar ou ocultar grelha"
             onClick={
-              editor.toggleGrid
+              editor
+                .toggleGrid
             }
             active={
-              editor.showGrid
+              editor
+                .showGrid
             }
           />
 
@@ -487,10 +805,12 @@ export default function CanvasStage({
             label="Margens"
             title="Mostrar ou ocultar área segura"
             onClick={
-              editor.toggleSafeArea
+              editor
+                .toggleSafeArea
             }
             active={
-              editor.showSafeArea
+              editor
+                .showSafeArea
             }
           />
 
@@ -498,14 +818,16 @@ export default function CanvasStage({
             label="Ajustar"
             title="Ajustar quadro ao ecrã"
             onClick={
-              editor.fitCanvas
+              editor
+                .fitCanvas
             }
           />
         </div>
       </div>
 
       {isImage &&
-      editor.imageCropEditing ? (
+      editor
+        .imageCropEditing ? (
         <div
           className="mq-context-toolbar"
           aria-label="Controlos do recorte"
@@ -514,7 +836,12 @@ export default function CanvasStage({
             <label className="mq-field">
               <span>
                 Zoom{' '}
-                {editor.selection.cropZoom}%
+                {
+                  editor
+                    .selection
+                    .cropZoom
+                }
+                %
               </span>
 
               <input
@@ -522,15 +849,24 @@ export default function CanvasStage({
                 min="100"
                 max="400"
                 value={
-                  editor.selection.cropZoom
+                  editor
+                    .selection
+                    .cropZoom
                 }
-                disabled={locked}
-                onChange={(event) =>
-                  editor.setImageCropZoom(
-                    Number(
-                      event.target.value
+                disabled={
+                  locked
+                }
+                onChange={(
+                  event
+                ) =>
+                  editor
+                    .setImageCropZoom(
+                      Number(
+                        event
+                          .target
+                          .value
+                      )
                     )
-                  )
                 }
               />
             </label>
@@ -545,18 +881,27 @@ export default function CanvasStage({
                 min="0"
                 max="100"
                 value={
-                  editor.selection
+                  editor
+                    .selection
                     .cropPositionX
                 }
-                disabled={locked}
-                onChange={(event) =>
-                  editor.setImageCropPosition(
-                    Number(
-                      event.target.value
-                    ),
-                    editor.selection
-                      .cropPositionY
-                  )
+                disabled={
+                  locked
+                }
+                onChange={(
+                  event
+                ) =>
+                  editor
+                    .setImageCropPosition(
+                      Number(
+                        event
+                          .target
+                          .value
+                      ),
+                      editor
+                        .selection
+                        .cropPositionY
+                    )
                 }
               />
             </label>
@@ -571,26 +916,37 @@ export default function CanvasStage({
                 min="0"
                 max="100"
                 value={
-                  editor.selection
+                  editor
+                    .selection
                     .cropPositionY
                 }
-                disabled={locked}
-                onChange={(event) =>
-                  editor.setImageCropPosition(
-                    editor.selection
-                      .cropPositionX,
-                    Number(
-                      event.target.value
+                disabled={
+                  locked
+                }
+                onChange={(
+                  event
+                ) =>
+                  editor
+                    .setImageCropPosition(
+                      editor
+                        .selection
+                        .cropPositionX,
+                      Number(
+                        event
+                          .target
+                          .value
+                      )
                     )
-                  )
                 }
               />
             </label>
 
             <span className="mq-control-note">
-              Também pode arrastar a
-              imagem no quadro para
-              reposicionar o recorte.
+              Também pode
+              arrastar a imagem
+              no quadro para
+              reposicionar o
+              recorte.
             </span>
           </div>
         </div>
@@ -598,10 +954,12 @@ export default function CanvasStage({
 
       <div
         ref={
-          editor.workspaceRef
+          editor
+            .workspaceRef
         }
         className={`mq-workspace${
-          editor.isSpacePressed
+          editor
+            .isSpacePressed
             ? ' is-panning'
             : ''
         }${
@@ -609,15 +967,18 @@ export default function CanvasStage({
             ? ' is-dragging'
             : ''
         }${
-          editor.imageCropEditing
+          editor
+            .imageCropEditing
             ? ' is-cropping'
             : ''
         }`}
         onWheel={
-          editor.onWorkspaceWheel
+          editor
+            .onWorkspaceWheel
         }
         onPointerDown={
-          editor.onWorkspacePointerDown
+          editor
+            .onWorkspacePointerDown
         }
         onContextMenu={
           handleContextMenu
@@ -628,9 +989,12 @@ export default function CanvasStage({
         onDragOver={
           handleDragOver
         }
-        onDragLeave={(event) => {
+        onDragLeave={(
+          event
+        ) => {
           if (
-            event.currentTarget ===
+            event
+              .currentTarget ===
             event.target
           ) {
             setDragActive(
@@ -643,89 +1007,119 @@ export default function CanvasStage({
         }
       >
         <div
-          className={`mq-canvas-shell${
-            page
-              ? ''
-              : ' is-initialising'
-          }`}
+          className="mq-canvas-ruler-frame"
           style={{
             width:
-              canvasWidth *
-              editor.zoom /
-              100,
-
+              displayWidth,
             height:
-              canvasHeight *
-              editor.zoom /
-              100
+              displayHeight
           }}
-          aria-busy={!page}
         >
-          <canvas
-            ref={
-              editor.canvasElementRef
+          {page ? (
+            <CanvasRulers
+              width={
+                canvasWidth
+              }
+              height={
+                canvasHeight
+              }
+              zoom={
+                editor.zoom
+              }
+            />
+          ) : null}
+
+          <div
+            className={`mq-canvas-shell${
+              page
+                ? ''
+                : ' is-initialising'
+            }`}
+            style={{
+              width:
+                displayWidth,
+              height:
+                displayHeight
+            }}
+            aria-busy={
+              !page
             }
-          />
-
-          {editor.showGrid ? (
-            <div className="mq-canvas-grid" />
-          ) : null}
-
-          {editor.showSafeArea ? (
-            <div className="mq-safe-area" />
-          ) : null}
-
-          {verticalGuidePosition !==
-          null ? (
-            <div
-              className={`mq-guide mq-guide--vertical${
-                editor.guides.source ===
-                'object'
-                  ? ' is-object-guide'
-                  : ''
-              }`}
-              style={{
-                left:
-                  verticalGuidePosition
-              }}
+          >
+            <canvas
+              ref={
+                editor
+                  .canvasElementRef
+              }
             />
-          ) : null}
 
-          {horizontalGuidePosition !==
-          null ? (
-            <div
-              className={`mq-guide mq-guide--horizontal${
-                editor.guides.source ===
-                'object'
-                  ? ' is-object-guide'
-                  : ''
-              }`}
-              style={{
-                top:
-                  horizontalGuidePosition
-              }}
-            />
-          ) : null}
+            {editor
+              .showGrid ? (
+              <div className="mq-canvas-grid" />
+            ) : null}
 
-          {!page ? (
-            <div
-              className="mq-stage-empty mq-stage-empty--overlay"
-              role="status"
-            >
-              A preparar o editor…
-            </div>
-          ) : null}
+            {editor
+              .showSafeArea ? (
+              <div className="mq-safe-area" />
+            ) : null}
+
+            {verticalGuidePosition !==
+            null ? (
+              <div
+                className={`mq-guide mq-guide--vertical${
+                  editor
+                    .guides
+                    .source ===
+                  'object'
+                    ? ' is-object-guide'
+                    : ''
+                }`}
+                style={{
+                  left:
+                    verticalGuidePosition
+                }}
+              />
+            ) : null}
+
+            {horizontalGuidePosition !==
+            null ? (
+              <div
+                className={`mq-guide mq-guide--horizontal${
+                  editor
+                    .guides
+                    .source ===
+                  'object'
+                    ? ' is-object-guide'
+                    : ''
+                }`}
+                style={{
+                  top:
+                    horizontalGuidePosition
+                }}
+              />
+            ) : null}
+
+            {!page ? (
+              <div
+                className="mq-stage-empty mq-stage-empty--overlay"
+                role="status"
+              >
+                A preparar o
+                editor…
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {dragActive ? (
           <div className="mq-drop-overlay">
             <strong>
-              Largue as imagens aqui
+              Largue as
+              imagens aqui
             </strong>
 
             <span>
-              Serão adicionadas à
-              página atual.
+              Serão adicionadas
+              à página atual.
             </span>
           </div>
         ) : null}
@@ -742,24 +1136,31 @@ export default function CanvasStage({
             </strong>
           ) : null}
 
-          {editor.imageCropEditing ? (
+          {editor
+            .imageCropEditing ? (
             <strong>
-              Recorte ativo — arraste
-              a imagem ou use os
+              Recorte ativo —
+              arraste a imagem
+              ou use os
               controlos acima.{' '}
             </strong>
           ) : null}
 
-          {editor.statusMessage}
+          {
+            editor
+              .statusMessage
+          }
         </span>
 
         <div className="mq-zoom-control">
           <button
             type="button"
             onClick={() =>
-              editor.setZoom(
-                editor.zoom - 10
-              )
+              editor
+                .setZoom(
+                  editor.zoom -
+                    10
+                )
             }
             aria-label="Diminuir zoom"
           >
@@ -773,12 +1174,17 @@ export default function CanvasStage({
             value={
               editor.zoom
             }
-            onChange={(event) =>
-              editor.setZoom(
-                Number(
-                  event.target.value
+            onChange={(
+              event
+            ) =>
+              editor
+                .setZoom(
+                  Number(
+                    event
+                      .target
+                      .value
+                  )
                 )
-              )
             }
             aria-label="Zoom do quadro"
           />
@@ -786,9 +1192,11 @@ export default function CanvasStage({
           <button
             type="button"
             onClick={() =>
-              editor.setZoom(
-                editor.zoom + 10
-              )
+              editor
+                .setZoom(
+                  editor.zoom +
+                    10
+                )
             }
             aria-label="Aumentar zoom"
           >
