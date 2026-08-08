@@ -16,6 +16,8 @@ import {
   useMAQuadroEditorContext
 } from './editorContext'
 
+import BrandLogos from './BrandLogos'
+
 import './maQuadroBrandQuickStyles.css'
 
 function targetLabel(
@@ -26,18 +28,26 @@ function targetLabel(
     return 'fundo da página'
   }
 
-  if (role === 'text') {
+  if (
+    role ===
+    'text'
+  ) {
     return 'texto selecionado'
   }
 
   if (
-    role === 'line' ||
-    role === 'arrow'
+    role ===
+      'line' ||
+    role ===
+      'arrow'
   ) {
     return 'linha selecionada'
   }
 
-  if (role === 'image') {
+  if (
+    role ===
+    'image'
+  ) {
     return 'imagem selecionada'
   }
 
@@ -51,43 +61,58 @@ export default function BrandQuickStyles() {
   const [
     host,
     setHost
-  ] = useState<HTMLElement | null>(
+  ] = useState<
+    HTMLElement |
+    null
+  >(
     null
   )
 
   useLayoutEffect(() => {
     if (
       !editor.ready ||
-      editor.activePanel !== 'brand'
+      editor.activePanel !==
+        'brand'
     ) {
-      setHost(null)
+      setHost(
+        null
+      )
 
       return
     }
 
     const colorGrid =
-      document.querySelector<HTMLElement>(
+      document.querySelector<
+        HTMLElement
+      >(
         '.mq-left-panel .mq-color-grid'
       )
 
     if (!colorGrid) {
-      setHost(null)
+      setHost(
+        null
+      )
 
       return
     }
 
     const mount =
-      document.createElement('div')
+      document.createElement(
+        'div'
+      )
 
     mount.className =
       'mq-brand-quick-styles-host'
 
-    colorGrid.insertAdjacentElement(
-      'afterend',
+    colorGrid
+      .insertAdjacentElement(
+        'afterend',
+        mount
+      )
+
+    setHost(
       mount
     )
-
-    setHost(mount)
 
     return () => {
       mount.remove()
@@ -107,8 +132,10 @@ export default function BrandQuickStyles() {
     editor.imageCropEditing
 
   const imageSelected =
-    editor.selection.count > 0 &&
-    editor.selection.role === 'image'
+    editor.selection.count >
+      0 &&
+    editor.selection.role ===
+      'image'
 
   const applyColor = (
     color: string
@@ -121,8 +148,10 @@ export default function BrandQuickStyles() {
     }
 
     if (
-      editor.selection.role === 'line' ||
-      editor.selection.role === 'arrow'
+      editor.selection.role ===
+        'line' ||
+      editor.selection.role ===
+        'arrow'
     ) {
       editor.setSelectionStroke(
         color
@@ -148,10 +177,13 @@ export default function BrandQuickStyles() {
     }
 
     if (
-      editor.selection.count === 0
+      editor.selection.count ===
+      0
     ) {
       editor.setBackground({
-        type: 'solid',
+        type:
+          'solid',
+
         color:
           preset.background
       })
@@ -160,8 +192,10 @@ export default function BrandQuickStyles() {
     }
 
     if (
-      editor.selection.role === 'line' ||
-      editor.selection.role === 'arrow'
+      editor.selection.role ===
+        'line' ||
+      editor.selection.role ===
+        'arrow'
     ) {
       editor.setSelectionStroke(
         preset.primary
@@ -175,7 +209,8 @@ export default function BrandQuickStyles() {
     )
 
     if (
-      editor.selection.role === 'text'
+      editor.selection.role ===
+      'text'
     ) {
       editor.setTextProperty(
         'fontFamily',
@@ -213,7 +248,8 @@ export default function BrandQuickStyles() {
             {targetLabel(
               editor.selection.count,
               editor.selection.role
-            )}.
+            )}
+            .
           </small>
         </div>
 
@@ -227,15 +263,25 @@ export default function BrandQuickStyles() {
 
       {imageSelected ? (
         <div className="mq-brand-quick-styles__notice">
-          As paletas não alteram imagens. Selecione texto, formas, linhas ou deixe a seleção vazia para aplicar ao fundo.
+          As paletas não
+          alteram imagens.
+          Selecione texto,
+          formas, linhas ou
+          deixe a seleção
+          vazia para aplicar
+          ao fundo.
         </div>
       ) : null}
 
       <div className="mq-brand-quick-styles__grid">
         {MA_QUADRO_QUICK_STYLE_PRESETS.map(
-          (preset) => (
+          (
+            preset
+          ) => (
             <article
-              key={preset.id}
+              key={
+                preset.id
+              }
               className="mq-brand-quick-style-card"
             >
               <button
@@ -271,7 +317,9 @@ export default function BrandQuickStyles() {
 
                 <span className="mq-brand-quick-style-card__copy">
                   <strong>
-                    {preset.name}
+                    {
+                      preset.name
+                    }
                   </strong>
 
                   <small>
@@ -314,6 +362,8 @@ export default function BrandQuickStyles() {
           )
         )}
       </div>
+
+      <BrandLogos />
     </section>,
     host
   )
