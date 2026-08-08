@@ -1,4 +1,9 @@
 import { GAME_CONFIG } from '../data/gameConfig.js';
+import {
+  EXPECTED_MARITIME_EDGE_COUNT,
+  coastTypeForSlot,
+  isMaritimeSide,
+} from '../data/coastline.js';
 import { classifyCoast } from './CoastTopology.js';
 import { createPorts } from './PortManager.js';
 
@@ -14,525 +19,241 @@ function pointKey(x, y) {
 }
 
 function edgeKey(firstVertexId, secondVertexId) {
-  return [firstVertexId, secondVertexId]
-    .sort()
-    .join('|');
+  return [firstVertexId, secondVertexId].sort().join('|');
 }
 
-export function axialToPixel(
-  q,
-  r,
-  size = DEFAULT_HEX_SIZE,
-) {
+export function axialToPixel(q, r, size = DEFAULT_HEX_SIZE) {
   return {
-    x:
-      size *
-      SQRT3 *
-      (q + r / 2),
-
-    y:
-      size *
-      1.5 *
-      r,
+    x: size * SQRT3 * (q + r / 2),
+    y: size * 1.5 * r,
   };
 }
 
-function calculateCorner(
-  center,
-  size,
-  index,
-) {
-  const angle =
-    ((60 * index - 30) *
-      Math.PI) /
-    180;
-
+function calculateCorner(center, size, index) {
+  const angle = ((60 * index - 30) * Math.PI) / 180;
   return {
-    x:
-      center.x +
-      size *
-        Math.cos(angle),
-
-    y:
-      center.y +
-      size *
-        Math.sin(angle),
+    x: center.x + size * Math.cos(angle),
+    y: center.y + size * Math.sin(angle),
   };
 }
 
-function assertBoardTopology(
-  vertices,
-  edges,
-) {
-  const expectedVertices =
-    GAME_CONFIG
-      .board
-      .expectedVertexCount;
+function assertBoardTopology(vertices, edges) {
+  const expectedVertices = GAME_CONFIG.board.expectedVertexCount;
+  const expectedEdges = GAME_CONFIG.board.expectedEdgeCount;
+  const expectedBoundaryEdges = GAME_CONFIG.board.expectedBoundaryEdgeCount;
 
-  const expectedEdges =
-    GAME_CONFIG
-      .board
-      .expectedEdgeCount;
-
-  const expectedBoundaryEdges =
-    GAME_CONFIG
-      .board
-      .expectedBoundaryEdgeCount;
-
-  if (
-    vertices.length !==
-    expectedVertices
-  ) {
+  if (vertices.length !== expectedVertices) {
     throw new Error(
       `Topologia inválida: esperavam-se ${expectedVertices} vértices e foram gerados ${vertices.length}.`,
     );
   }
 
-  if (
-    edges.length !==
-    expectedEdges
-  ) {
+  if (edges.length !== expectedEdges) {
     throw new Error(
       `Topologia inválida: esperavam-se ${expectedEdges} arestas e foram geradas ${edges.length}.`,
     );
   }
 
-  const boundaryEdgeCount =
-    edges.filter(
-      (edge) =>
-        edge.isBoundary,
-    ).length;
-
+  const boundaryEdgeCount = edges.filter((edge) => edge.isBoundary).length;
   if (
-    Number.isInteger(
-      expectedBoundaryEdges,
-    ) &&
-    boundaryEdgeCount !==
-      expectedBoundaryEdges
+    Number.isInteger(expectedBoundaryEdges) &&
+    boundaryEdgeCount !== expectedBoundaryEdges
   ) {
     throw new Error(
-      `Topologia costeira inválida: esperavam-se ${expectedBoundaryEdges} arestas de perímetro e foram geradas ${boundaryEdgeCount}.`,
+      `Topologia de perímetro inválida: esperavam-se ${expectedBoundaryEdges} arestas e foram geradas ${boundaryEdgeCount}.`,
+    );
+  }
+
+  const maritimeEdgeCount = edges.filter((edge) => edge.isCoastal).length;
+  if (maritimeEdgeCount !== EXPECTED_MARITIME_EDGE_COUNT) {
+    throw new Error(
+      `Linha costeira inválida: esperavam-se ${EXPECTED_MARITIME_EDGE_COUNT} arestas marítimas e foram geradas ${maritimeEdgeCount}.`,
     );
   }
 }
 
-export function buildBoardTopology(
-  board,
-  size = DEFAULT_HEX_SIZE,
-) {
-  if (
-    !board
-      ?.territories
-      ?.length
-  ) {
+function buildEdgeSideUsage(territories) {
+  const usageByEdgeId = new Map();
+
+  for (const territory of territories) {
+    territory.edgeIds.forEach((edgeId, sideIndex) => {
+      if (!usageByEdgeId.has(edgeId)) {
+        usageByEdgeId.set(edgeId, []);
+      }
+
+      usageByEdgeId.get(edgeId).push({
+        territoryId: territory.id,
+        slotId: territory.slotId,
+        sideIndex,
+      });
+    });
+  }
+
+  return usageByEdgeId;
+}
+
+export function buildBoardTopology(board, size = DEFAULT_HEX_SIZE) {
+  if (!board?.territories?.length) {
     throw new Error(
       'Não é possível criar a topologia de um tabuleiro sem territórios.',
     );
   }
 
-  const verticesByPosition =
-    new Map();
+  const verticesByPosition = new Map();
+  const edgesByVertices = new Map();
 
-  const edgesByVertices =
-    new Map();
-
-  for (
-    const territory
-    of board.territories
-  ) {
-    const center =
-      axialToPixel(
-        territory.q,
-        territory.r,
-        size,
-      );
-
-    const territoryVertexIds =
-      [];
-
-    const territoryEdgeIds =
-      [];
+  for (const territory of board.territories) {
+    const center = axialToPixel(territory.q, territory.r, size);
+    const territoryVertexIds = [];
+    const territoryEdgeIds = [];
 
     territory.center = {
-      x:
-        roundCoordinate(
-          center.x,
-        ),
-
-      y:
-        roundCoordinate(
-          center.y,
-        ),
+      x: roundCoordinate(center.x),
+      y: roundCoordinate(center.y),
     };
 
-    for (
-      let index = 0;
-      index < 6;
-      index += 1
-    ) {
-      const point =
-        calculateCorner(
-          center,
-          size,
-          index,
-        );
-
-      const positionKey =
-        pointKey(
-          point.x,
-          point.y,
-        );
-
-      let vertex =
-        verticesByPosition
-          .get(
-            positionKey,
-          );
+    for (let index = 0; index < 6; index += 1) {
+      const point = calculateCorner(center, size, index);
+      const positionKey = pointKey(point.x, point.y);
+      let vertex = verticesByPosition.get(positionKey);
 
       if (!vertex) {
         vertex = {
-          id:
-            `vertex-${verticesByPosition.size + 1}`,
-
-          x:
-            roundCoordinate(
-              point.x,
-            ),
-
-          y:
-            roundCoordinate(
-              point.y,
-            ),
-
+          id: `vertex-${verticesByPosition.size + 1}`,
+          x: roundCoordinate(point.x),
+          y: roundCoordinate(point.y),
           territoryIds: [],
           edgeIds: [],
-          neighborVertexIds:
-            [],
-
+          neighborVertexIds: [],
           building: null,
           ownerId: null,
-
-          isBoundary:
-            false,
-
-          isCoastal:
-            false,
+          isBoundary: false,
+          isCoastal: false,
         };
-
-        verticesByPosition
-          .set(
-            positionKey,
-            vertex,
-          );
+        verticesByPosition.set(positionKey, vertex);
       }
 
-      if (
-        !vertex
-          .territoryIds
-          .includes(
-            territory.id,
-          )
-      ) {
-        vertex
-          .territoryIds
-          .push(
-            territory.id,
-          );
+      if (!vertex.territoryIds.includes(territory.id)) {
+        vertex.territoryIds.push(territory.id);
       }
 
-      territoryVertexIds
-        .push(
-          vertex.id,
-        );
+      territoryVertexIds.push(vertex.id);
     }
 
-    for (
-      let index = 0;
-      index < 6;
-      index += 1
-    ) {
-      const firstVertexId =
-        territoryVertexIds[
-          index
-        ];
-
-      const secondVertexId =
-        territoryVertexIds[
-          (index + 1) % 6
-        ];
-
-      const key =
-        edgeKey(
-          firstVertexId,
-          secondVertexId,
-        );
-
-      let edge =
-        edgesByVertices
-          .get(
-            key,
-          );
+    for (let index = 0; index < 6; index += 1) {
+      const firstVertexId = territoryVertexIds[index];
+      const secondVertexId = territoryVertexIds[(index + 1) % 6];
+      const key = edgeKey(firstVertexId, secondVertexId);
+      let edge = edgesByVertices.get(key);
 
       if (!edge) {
         edge = {
-          id:
-            `edge-${edgesByVertices.size + 1}`,
-
-          vertexIds: [
-            firstVertexId,
-            secondVertexId,
-          ],
-
-          territoryIds:
-            [],
-
+          id: `edge-${edgesByVertices.size + 1}`,
+          vertexIds: [firstVertexId, secondVertexId],
+          territoryIds: [],
           segment: null,
           ownerId: null,
-
-          type:
-            'land',
-
-          isBoundary:
-            false,
-
-          isCoastal:
-            false,
+          type: 'land',
+          isBoundary: false,
+          isCoastal: false,
+          coastType: null,
         };
-
-        edgesByVertices
-          .set(
-            key,
-            edge,
-          );
+        edgesByVertices.set(key, edge);
       }
 
-      if (
-        !edge
-          .territoryIds
-          .includes(
-            territory.id,
-          )
-      ) {
-        edge
-          .territoryIds
-          .push(
-            territory.id,
-          );
+      if (!edge.territoryIds.includes(territory.id)) {
+        edge.territoryIds.push(territory.id);
       }
 
-      territoryEdgeIds
-        .push(
-          edge.id,
-        );
+      territoryEdgeIds.push(edge.id);
     }
 
-    territory.vertexIds =
-      territoryVertexIds;
-
-    territory.edgeIds =
-      territoryEdgeIds;
+    territory.vertexIds = territoryVertexIds;
+    territory.edgeIds = territoryEdgeIds;
   }
 
-  const vertices = [
-    ...verticesByPosition
-      .values(),
-  ];
+  const vertices = [...verticesByPosition.values()];
+  const edges = [...edgesByVertices.values()];
+  const vertexMap = new Map(vertices.map((vertex) => [vertex.id, vertex]));
+  const edgeSideUsage = buildEdgeSideUsage(board.territories);
 
-  const edges = [
-    ...edgesByVertices
-      .values(),
-  ];
+  for (const edge of edges) {
+    const [firstVertexId, secondVertexId] = edge.vertexIds;
+    const firstVertex = vertexMap.get(firstVertexId);
+    const secondVertex = vertexMap.get(secondVertexId);
 
-  const vertexMap =
-    new Map(
-      vertices.map(
-        (vertex) => [
-          vertex.id,
-          vertex,
-        ],
-      ),
-    );
-
-  for (
-    const edge
-    of edges
-  ) {
-    const [
-      firstVertexId,
-      secondVertexId,
-    ] =
-      edge.vertexIds;
-
-    const firstVertex =
-      vertexMap.get(
-        firstVertexId,
-      );
-
-    const secondVertex =
-      vertexMap.get(
-        secondVertexId,
-      );
-
-    if (
-      !firstVertex ||
-      !secondVertex
-    ) {
+    if (!firstVertex || !secondVertex) {
       throw new Error(
         `A aresta ${edge.id} referencia um vértice inexistente.`,
       );
     }
 
-    firstVertex
-      .edgeIds
-      .push(
-        edge.id,
-      );
+    firstVertex.edgeIds.push(edge.id);
+    secondVertex.edgeIds.push(edge.id);
 
-    secondVertex
-      .edgeIds
-      .push(
-        edge.id,
-      );
-
-    if (
-      !firstVertex
-        .neighborVertexIds
-        .includes(
-          secondVertexId,
-        )
-    ) {
-      firstVertex
-        .neighborVertexIds
-        .push(
-          secondVertexId,
-        );
+    if (!firstVertex.neighborVertexIds.includes(secondVertexId)) {
+      firstVertex.neighborVertexIds.push(secondVertexId);
+    }
+    if (!secondVertex.neighborVertexIds.includes(firstVertexId)) {
+      secondVertex.neighborVertexIds.push(firstVertexId);
     }
 
-    if (
-      !secondVertex
-        .neighborVertexIds
-        .includes(
-          firstVertexId,
+    edge.isBoundary = edge.territoryIds.length === 1;
+    const sideUsage = edgeSideUsage.get(edge.id) ?? [];
+    const maritimeUse = edge.isBoundary
+      ? sideUsage.find((usage) =>
+          isMaritimeSide(usage.slotId, usage.sideIndex),
         )
-    ) {
-      secondVertex
-        .neighborVertexIds
-        .push(
-          firstVertexId,
-        );
+      : null;
+
+    edge.isCoastal = Boolean(maritimeUse);
+    edge.coastType = maritimeUse
+      ? coastTypeForSlot(maritimeUse.slotId)
+      : null;
+
+    if (edge.isBoundary) {
+      firstVertex.isBoundary = true;
+      secondVertex.isBoundary = true;
     }
-
-    edge.isBoundary =
-      edge
-        .territoryIds
-        .length === 1;
-
-    edge.isCoastal =
-      edge.isBoundary;
-
-    if (
-      edge.isBoundary
-    ) {
-      firstVertex
-        .isBoundary =
-        true;
-
-      secondVertex
-        .isBoundary =
-        true;
-
-      firstVertex
-        .isCoastal =
-        true;
-
-      secondVertex
-        .isCoastal =
-        true;
+    if (edge.isCoastal) {
+      firstVertex.isCoastal = true;
+      secondVertex.isCoastal = true;
     }
   }
 
-  assertBoardTopology(
-    vertices,
-    edges,
-  );
+  assertBoardTopology(vertices, edges);
 
   const topologicalBoard = {
     ...board,
-
     vertices,
     edges,
-
     topology: {
       version: 2,
-
-      coastVersion: 1,
-
-      hexSize:
-        size,
-
-      vertexCount:
-        vertices.length,
-
-      edgeCount:
-        edges.length,
-
-      boundaryEdgeCount:
-        edges.filter(
-          (edge) =>
-            edge.isBoundary,
-        ).length,
-
-      coastalVertexCount:
-        vertices.filter(
-          (vertex) =>
-            vertex.isCoastal,
-        ).length,
+      coastVersion: 2,
+      hexSize: size,
+      vertexCount: vertices.length,
+      edgeCount: edges.length,
+      boundaryEdgeCount: edges.filter((edge) => edge.isBoundary).length,
+      coastalEdgeCount: edges.filter((edge) => edge.isCoastal).length,
+      coastalVertexCount: vertices.filter((vertex) => vertex.isCoastal).length,
     },
   };
 
-  const coast =
-    classifyCoast(
-      topologicalBoard,
-    );
-
-  const ports =
-    createPorts(
-      coast,
-      {
-        seed:
-          board.seed,
-      },
-    );
+  const coast = classifyCoast(topologicalBoard);
+  const ports = createPorts(coast, { seed: board.seed });
 
   return {
     ...topologicalBoard,
-
     ports,
-
     maritime: {
-      version: 1,
-
-      coastalEdgeCount:
-        coast
-          .stats
-          .coastalEdges,
-
-      coastalVertexCount:
-        coast
-          .stats
-          .coastalVertices,
-
-      perimeterLoopCount:
-        coast
-          .stats
-          .perimeterLoops,
-
-      portCount:
-        ports.length,
+      version: 2,
+      coastalEdgeCount: coast.stats.coastalEdges,
+      coastalVertexCount: coast.stats.coastalVertices,
+      landBoundaryEdgeCount: coast.stats.landBoundaryEdges,
+      perimeterLoopCount: coast.stats.perimeterLoops,
+      portCount: ports.length,
     },
   };
 }
 
-export {
-  DEFAULT_HEX_SIZE,
-};
+export { DEFAULT_HEX_SIZE };
