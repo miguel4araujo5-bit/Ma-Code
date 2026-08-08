@@ -1,5 +1,6 @@
 import AdminShell from '../components/admin/AdminShell'
 import MAProfessorAdminDecisionPanel from '../components/admin/ma-professor/MAProfessorAdminDecisionPanel'
+import MAProfessorAdminRenewalPanel from '../components/admin/ma-professor/MAProfessorAdminRenewalPanel'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 
 const workflow = [
@@ -99,6 +100,10 @@ export default function MAProfessorAdminPage() {
         <MAProfessorAdminDecisionPanel />
       </section>
 
+      <section className="mt-7">
+        <MAProfessorAdminRenewalPanel />
+      </section>
+
       <section className="mt-7 grid gap-4 lg:grid-cols-3">
         <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
           <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
@@ -158,14 +163,15 @@ export default function MAProfessorAdminPage() {
 
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
           Quando ativarmos o backend do
-          MA-ADMIN, estas tabelas serão
+          MA-ADMIN, as tabelas serão
           alimentadas pelos pedidos,
           credenciais, licenças e renovações
           que já pertencem ao motor do
-          MA-Professor. O painel de decisão
-          passará então a executar as ações
-          reais com autenticação
-          administrativa.
+          MA-Professor. Os painéis de
+          aprovação e renovação passarão
+          então a executar as ações reais
+          através de endpoints
+          administrativos protegidos.
         </p>
       </section>
     </AdminShell>
