@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from '../data/gameConfig.js';
 import { buildBoardTopology } from '../game/BoardTopology.js';
-import { PortRenderer } from './PortRenderer.js?v=ports-2';
+import { PortRenderer } from './PortRenderer.js?v=ports-4';
 
 const renderedSignatures = new WeakMap();
 
@@ -27,10 +27,18 @@ function vertexPosition(element) {
   }
 
   if (element.tagName.toLowerCase() === 'circle') {
-    const x = Number(element.getAttribute('cx'));
-    const y = Number(element.getAttribute('cy'));
+    const x = Number(
+      element.getAttribute('cx'),
+    );
 
-    if (Number.isFinite(x) && Number.isFinite(y)) {
+    const y = Number(
+      element.getAttribute('cy'),
+    );
+
+    if (
+      Number.isFinite(x) &&
+      Number.isFinite(y)
+    ) {
       return { x, y };
     }
   }
@@ -48,24 +56,25 @@ function readSeed() {
   return (
     text
       .replace(/^\s*Seed\s*/i, '')
-      .trim() || 'conquistador'
+      .trim() ||
+    'conquistador'
   );
 }
 
 /*
- * Cria uma cópia estrutural do mapa oficial.
+ * Cria apenas a geometria estrutural oficial.
  *
- * Não gera recursos, números ou peças.
- * Serve apenas para obter exatamente os mesmos:
+ * Não interessa aqui qual recurso ou número
+ * está em cada território.
  *
- * - vertex IDs
- * - edge IDs
- * - arestas de perímetro
- * - arestas marítimas
- * - vértices costeiros
+ * Precisamos de:
+ * - slotId
+ * - q/r
+ * - territórios
+ * - vértices
+ * - arestas
+ * - costa
  * - Portos
- *
- * que o motor principal.
  */
 function createCanonicalBoard(seed) {
   return {
@@ -110,23 +119,15 @@ function createCanonicalBoard(seed) {
 }
 
 /*
- * BoardTopology passa a ser a única fonte de verdade
- * também para a camada visual dos Portos.
+ * BoardTopology passa a ser a única
+ * fonte de verdade da geometria marítima.
  */
 function createOfficialTopology(seed) {
   return buildBoardTopology(
-    createCanonicalBoard(
-      seed,
-    ),
+    createCanonicalBoard(seed),
   );
 }
 
-/*
- * Recolhe os elementos que já foram desenhados
- * pelo main.js.
- *
- * Os IDs são os mesmos IDs produzidos pelo motor.
- */
 function collectDomReferences(svg) {
   const vertexElements =
     new Map();
@@ -180,23 +181,24 @@ function collectDomReferences(svg) {
 }
 
 /*
- * A topologia oficial utiliza coordenadas matemáticas
- * do tabuleiro.
+ * Mantemos a topologia oficial,
+ * mas substituímos as coordenadas matemáticas
+ * dos vértices pelas coordenadas que o SVG
+ * está efetivamente a usar.
  *
- * O SVG já contém coordenadas depois da aplicação
- * de padding/mapX/mapY.
+ * IMPORTANTE:
+ * preservamos também territories.
  *
- * Mantemos toda a lógica oficial, substituindo apenas
- * as coordenadas dos vértices pelas coordenadas visuais
- * existentes no SVG.
+ * O PortRenderer necessita dos territory.vertexIds
+ * para saber qual dos dois lados de cada aresta
+ * corresponde a terra.
  */
 function buildDisplayTopology(
   officialTopology,
   vertexElements,
 ) {
   const vertices =
-    officialTopology
-      .vertices
+    officialTopology.vertices
       .map(
         (vertex) => {
           const element =
@@ -239,38 +241,39 @@ function buildDisplayTopology(
     );
 
   const edges =
-    officialTopology
-      .edges
-      .filter(
-        (edge) =>
-          (
-            edge.vertexIds ??
-            []
-          ).every(
-            (vertexId) =>
-              visibleVertexIds.has(
-                String(
-                  vertexId,
-                ),
+    officialTopology.edges.filter(
+      (edge) =>
+        (
+          edge.vertexIds ??
+          []
+        ).every(
+          (vertexId) =>
+            visibleVertexIds.has(
+              String(
+                vertexId,
               ),
-          ),
-      );
+            ),
+        ),
+    );
 
   return {
     ...officialTopology,
 
     vertices,
+
     edges,
+
+    /*
+     * Não remover.
+     *
+     * É precisamente esta informação
+     * que faltava na versão anterior.
+     */
+    territories:
+      officialTopology.territories,
   };
 }
 
-/*
- * Remove apenas metadata introduzida
- * por este módulo.
- *
- * Não altera classes, estilos, construções
- * ou caminhos do jogo.
- */
 function clearMaritimeMetadata(
   edgeElements,
   vertexElements,
@@ -314,13 +317,6 @@ function clearMaritimeMetadata(
   }
 }
 
-/*
- * Espelha no SVG a classificação que já existe
- * no BoardTopology.
- *
- * Isto também deixa o DOM preparado para
- * as futuras Rotas Marítimas.
- */
 function markOfficialTopology(
   topology,
   edgeElements,
@@ -467,8 +463,7 @@ function createSignature(
   topology,
 ) {
   const coastalEdgeIds =
-    topology
-      .edges
+    topology.edges
       .filter(
         (edge) =>
           edge.isCoastal,
@@ -522,10 +517,11 @@ function renderPorts() {
     readSeed();
 
   /*
-   * Esta é agora a única classificação usada.
+   * Não reconstruímos mais a costa
+   * olhando para polígonos SVG.
    *
-   * Nada é inferido através da posição
-   * dos polígonos no DOM.
+   * Usamos diretamente o mesmo motor
+   * que cria o tabuleiro do jogo.
    */
   const officialTopology =
     createOfficialTopology(
@@ -554,9 +550,9 @@ function renderPorts() {
     );
 
   /*
-   * Segurança:
-   * nunca desenhar Portos sobre uma topologia
-   * parcialmente reconstruída.
+   * Não desenhar Portos se os IDs
+   * do DOM não coincidirem integralmente
+   * com a topologia oficial.
    */
   if (
     displayTopology
@@ -599,16 +595,6 @@ function renderPorts() {
     )
     ?.remove();
 
-  /*
-   * Copia a classificação oficial para o SVG.
-   *
-   * A partir deste momento:
-   *
-   * data-coastal="true"
-   *
-   * significa efetivamente costa marítima,
-   * não simplesmente perímetro.
-   */
   markOfficialTopology(
     officialTopology,
     edgeElements,
@@ -616,8 +602,8 @@ function renderPorts() {
   );
 
   /*
-   * Os próprios Portos já são produzidos
-   * pelo BoardTopology através do PortManager.
+   * Os Portos são os que o próprio
+   * BoardTopology já calculou.
    */
   const ports =
     officialTopology
@@ -638,10 +624,10 @@ function renderPorts() {
         displayTopology,
     });
 
- renderer.render(
-  ports,
-  {
-    offset: 38,
+  renderer.render(
+    ports,
+    {
+      offset: 38,
 
       onPortClick(
         port,
