@@ -4,6 +4,7 @@ import Dexie, {
 
 import type {
   MAQuadroProject,
+  MAQuadroStoredBrandKit,
   MAQuadroStoredFont,
   MAQuadroStoredLogo
 } from '../../types/maQuadro'
@@ -11,6 +12,9 @@ import type {
 import {
   migrateLegacyMAQuadroDesign
 } from './project'
+
+const DEFAULT_BRAND_KIT_ID =
+  'ma-code'
 
 type MAQuadroDatabase = Dexie & {
   designs: EntityTable<
@@ -23,6 +27,10 @@ type MAQuadroDatabase = Dexie & {
   >
   logos: EntityTable<
     MAQuadroStoredLogo,
+    'id'
+  >
+  brandKits: EntityTable<
+    MAQuadroStoredBrandKit,
     'id'
   >
 }
@@ -77,6 +85,32 @@ maQuadroDb
       'id, family, createdAt',
     logos:
       'id, name, createdAt'
+  })
+
+maQuadroDb
+  .version(4)
+  .stores({
+    designs:
+      'id, name, updatedAt, isTemplate, category',
+    fonts:
+      'id, family, createdAt',
+    logos:
+      'id, brandKitId, name, createdAt',
+    brandKits:
+      'id, name, updatedAt'
+  })
+  .upgrade(async (transaction) => {
+    const logos =
+      transaction.table('logos')
+
+    await logos
+      .toCollection()
+      .modify((logo) => {
+        if (!logo.brandKitId) {
+          logo.brandKitId =
+            DEFAULT_BRAND_KIT_ID
+        }
+      })
   })
 
 export async function listMAQuadroProjects() {
@@ -154,9 +188,15 @@ export function deleteMAQuadroFont(
   )
 }
 
-export async function listMAQuadroLogos() {
-  const logos =
-    await maQuadroDb.logos.toArray()
+export async function listMAQuadroLogos(
+  brandKitId?: string
+) {
+  const logos = brandKitId
+    ? await maQuadroDb.logos
+        .where('brandKitId')
+        .equals(brandKitId)
+        .toArray()
+    : await maQuadroDb.logos.toArray()
 
   return logos.sort(
     (first, second) =>
@@ -179,5 +219,46 @@ export function deleteMAQuadroLogo(
 ) {
   return maQuadroDb.logos.delete(
     logoId
+  )
+}
+
+export async function listMAQuadroBrandKits() {
+  const kits =
+    await maQuadroDb.brandKits.toArray()
+
+  return kits.sort(
+    (first, second) =>
+      first.name.localeCompare(
+        second.name,
+        'pt-PT'
+      )
+  )
+}
+
+export function saveMAQuadroBrandKit(
+  kit: MAQuadroStoredBrandKit
+) {
+  return maQuadroDb.brandKits.put(
+    kit
+  )
+}
+
+export async function deleteMAQuadroBrandKit(
+  brandKitId: string
+) {
+  await maQuadroDb.transaction(
+    'rw',
+    maQuadroDb.brandKits,
+    maQuadroDb.logos,
+    async () => {
+      await maQuadroDb.brandKits.delete(
+        brandKitId
+      )
+
+      await maQuadroDb.logos
+        .where('brandKitId')
+        .equals(brandKitId)
+        .delete()
+    }
   )
 }
