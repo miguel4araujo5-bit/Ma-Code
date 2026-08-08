@@ -1,0 +1,31 @@
+/*
+ * CONQUISTADOR — Espanha de contexto
+ *
+ * Camada puramente decorativa. Não interfere com o tabuleiro,
+ * Portos, vértices, arestas ou qualquer interação do jogo.
+ */
+
+.spain-backdrop {
+  pointer-events: none;
+}
+
+.spain-backdrop__image {
+  pointer-events: none;
+  opacity: 0.2;
+  mix-blend-mode: soft-light;
+  filter:
+    saturate(0.65)
+    contrast(0.92);
+}
+
+@media (max-width: 760px) {
+  .spain-backdrop__image {
+    opacity: 0.16;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .spain-backdrop__image {
+    opacity: 0.12;
+  }
+}
