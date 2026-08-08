@@ -21,6 +21,7 @@ import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
+import SmartSpacingOverlay from './SmartSpacingOverlay'
 
 import {
   useMAQuadroEditor
@@ -63,7 +64,9 @@ export default function MAQuadroApp() {
   const [
     shortcutsOpen,
     setShortcutsOpen
-  ] = useState(false)
+  ] = useState(
+    false
+  )
 
   const [
     contextMenu,
@@ -90,11 +93,15 @@ export default function MAQuadroApp() {
           MAQuadroContextMenuPosition
       ) => {
         if (
-          editor.selection.count ===
-            0 ||
+          editor
+            .selection
+            .count ===
+              0 ||
           editor.busy ||
-          editor.structureBusy ||
-          editor.imageCropEditing
+          editor
+            .structureBusy ||
+          editor
+            .imageCropEditing
         ) {
           return
         }
@@ -141,6 +148,7 @@ export default function MAQuadroApp() {
         !event.altKey
       ) {
         event.preventDefault()
+
         event.stopPropagation()
 
         closeContextMenu()
@@ -168,20 +176,26 @@ export default function MAQuadroApp() {
       }
 
       if (
-        editor.selection.count ===
-          0 ||
+        editor
+          .selection
+          .count ===
+            0 ||
         editor.busy ||
-        editor.structureBusy ||
-        editor.imageCropEditing
+        editor
+          .structureBusy ||
+        editor
+          .imageCropEditing
       ) {
         return
       }
 
       event.preventDefault()
+
       event.stopPropagation()
 
       const workspace =
-        editor.workspaceRef
+        editor
+          .workspaceRef
           .current
 
       const bounds =
@@ -261,11 +275,13 @@ export default function MAQuadroApp() {
         's'
     ) {
       event.preventDefault()
+
       event.stopPropagation()
 
-      void editor.saveProject(
-        false
-      )
+      void editor
+        .saveProject(
+          false
+        )
 
       return
     }
@@ -311,6 +327,8 @@ export default function MAQuadroApp() {
 
           <PropertiesPanel />
         </div>
+
+        <SmartSpacingOverlay />
 
         <EditorDialogs />
 
