@@ -6,6 +6,10 @@ import {
   type MaProfessorAccessEnv
 } from './maProfessorAccess'
 
+import {
+  handleMAProfessorPaidAccessRequest
+} from './maProfessorPaidAccess'
+
 const STORAGE_KEY =
   'ma-professor-access-state-v1'
 
@@ -1870,16 +1874,36 @@ export class MaProfessorAccessDurableObject {
     })
   }
 
+
   private async handleRequest(
     request: Request
   ): Promise<Response> {
     const url =
       new URL(request.url)
 
+    const paidAccessResponse =
+      await handleMAProfessorPaidAccessRequest(
+        request,
+        {
+          state:
+            this.state,
+          base:
+            this.base,
+          refreshBase:
+            () =>
+              this.refreshBase()
+        }
+      )
+
+    if (paidAccessResponse) {
+      return paidAccessResponse
+    }
+
     if (
       url.pathname ===
       PUBLIC_ACCESS_ACTIVATE_PATH
     ) {
+  
       const safetyResponse =
         await this.handlePublicActivationSafetyGate(
           request
