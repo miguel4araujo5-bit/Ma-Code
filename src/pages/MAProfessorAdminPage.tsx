@@ -1,7 +1,18 @@
+import {
+  useCallback,
+  useEffect,
+  useState
+} from 'react'
+
 import AdminShell from '../components/admin/AdminShell'
 import MAProfessorAdminDecisionPanel from '../components/admin/ma-professor/MAProfessorAdminDecisionPanel'
 import MAProfessorAdminRenewalPanel from '../components/admin/ma-professor/MAProfessorAdminRenewalPanel'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
+
+import {
+  getMAProfessorAdminOverview,
+  type MAProfessorAdminOverview
+} from '../lib/admin/maProfessorAdminApi'
 
 const workflow = [
   'Pedido',
@@ -12,14 +23,99 @@ const workflow = [
   'Renovação'
 ]
 
-export default function MAProfessorAdminPage() {
+function formatUpdatedAt(
+  value: string
+) {
+  const date =
+    new Date(value)
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return 'agora'
+  }
+
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  ).format(date)
+}
+
+function getErrorMessage(
+  error: unknown
+) {
+  if (
+    error instanceof Error &&
+    error.message
+  ) {
+    return error.message
+  }
+
+  return 'Não foi possível carregar os dados administrativos do MA-Professor.'
+}
+
+function MAProfessorAdminContent() {
+  const [
+    overview,
+    setOverview
+  ] =
+    useState<MAProfessorAdminOverview | null>(
+      null
+    )
+
+  const [
+    loading,
+    setLoading
+  ] =
+    useState(true)
+
+  const [
+    error,
+    setError
+  ] =
+    useState('')
+
+  const loadOverview =
+    useCallback(
+      async () => {
+        setLoading(true)
+        setError('')
+
+        try {
+          const nextOverview =
+            await getMAProfessorAdminOverview()
+
+          setOverview(
+            nextOverview
+          )
+        } catch (
+          loadError
+        ) {
+          setError(
+            getErrorMessage(
+              loadError
+            )
+          )
+        } finally {
+          setLoading(false)
+        }
+      },
+      []
+    )
+
+  useEffect(() => {
+    void loadOverview()
+  }, [loadOverview])
+
   return (
-    <AdminShell
-      activeSection="ma-professor"
-      eyebrow="Módulo administrativo"
-      title="MA-Professor"
-      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. A interface está a ser preparada antes de ligarmos dados e operações reais ao backend."
-    >
+    <>
       <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.04] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -41,8 +137,21 @@ export default function MAProfessorAdminPage() {
             </p>
           </div>
 
-          <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-amber-200">
-            Backend por ligar
+          <span
+            className={[
+              'rounded-full border px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em]',
+              error
+                ? 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+                : loading
+                  ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
+                  : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+            ].join(' ')}
+          >
+            {error
+              ? 'Erro na leitura'
+              : loading
+                ? 'A carregar dados'
+                : 'Leitura real ativa'}
           </span>
         </div>
 
@@ -86,14 +195,82 @@ export default function MAProfessorAdminPage() {
             </h2>
           </div>
 
-          <span className="text-xs font-semibold text-slate-600">
-            Sem dados de produção
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {overview ? (
+              <span className="text-xs font-semibold text-slate-500">
+                Atualizado em{' '}
+                {formatUpdatedAt(
+                  overview.generatedAt
+                )}
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                void loadOverview()
+              }}
+              disabled={loading}
+              className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading
+                ? 'A atualizar…'
+                : 'Atualizar dados'}
+            </button>
+          </div>
         </div>
 
-        <div className="mt-5">
-          <MAProfessorAdminWorkspace />
-        </div>
+        {error ? (
+          <div
+            role="alert"
+            className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] p-4 sm:p-5"
+          >
+            <p className="text-sm font-black text-rose-200">
+              Não foi possível carregar os
+              dados reais
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              {error}
+            </p>
+          </div>
+        ) : null}
+
+        {loading && !overview ? (
+          <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
+
+            <p className="mt-4 text-sm font-black text-slate-300">
+              A carregar pedidos, licenças e
+              renovações
+            </p>
+
+            <p className="mt-2 text-xs text-slate-600">
+              Leitura segura do motor atual
+              do MA-Professor.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <MAProfessorAdminWorkspace
+              accessRequests={
+                overview?.accessRequests ||
+                []
+              }
+              licenses={
+                overview?.licenses ||
+                []
+              }
+              renewals={
+                overview?.renewals ||
+                []
+              }
+              dataConnected={
+                Boolean(overview)
+              }
+            />
+          </div>
+        )}
       </section>
 
       <section className="mt-7">
@@ -151,30 +328,39 @@ export default function MAProfessorAdminPage() {
         </article>
       </section>
 
-      <section className="mt-7 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Próxima ligação
+      <section className="mt-7 rounded-[1.75rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+          Backend MA-Professor
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          O frontend fica preparado antes de
-          receber dados reais.
+          Dados reais ligados em modo de
+          leitura.
         </h2>
 
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Quando ativarmos o backend do
-          MA-ADMIN, as tabelas serão
-          alimentadas pelos pedidos,
-          credenciais, licenças e renovações
-          que já pertencem ao motor do
-          MA-Professor. A ficha completa, a
-          timeline e os painéis de aprovação
-          e renovação passarão então a
-          executar ações reais através de
-          endpoints administrativos
-          protegidos.
+          Os pedidos, licenças e renovações
+          apresentados acima vêm do motor de
+          acesso existente do MA-Professor.
+          As operações de aprovação,
+          rejeição, geração de senha,
+          pagamento, renovação e revogação
+          continuam bloqueadas nesta fase.
         </p>
       </section>
+    </>
+  )
+}
+
+export default function MAProfessorAdminPage() {
+  return (
+    <AdminShell
+      activeSection="ma-professor"
+      eyebrow="Módulo administrativo"
+      title="MA-Professor"
+      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. Os dados reais já podem ser consultados em modo de leitura; as operações de escrita continuam bloqueadas até à próxima fase."
+    >
+      <MAProfessorAdminContent />
     </AdminShell>
   )
 }
