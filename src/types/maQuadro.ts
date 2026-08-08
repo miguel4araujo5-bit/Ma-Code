@@ -78,6 +78,16 @@ export type MAQuadroStoredFont = {
     createdAt: string;
 };
 
+export type MAQuadroStoredLogo = {
+    id: string;
+    name: string;
+    fileName: string;
+    mimeType: string;
+    data: ArrayBuffer;
+    size: number;
+    createdAt: string;
+};
+
 export type MAQuadroHistorySnapshot = {
     pageId: string;
     background: MAQuadroBackground;
