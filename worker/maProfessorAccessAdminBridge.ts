@@ -9,8 +9,14 @@ import {
 const STORAGE_KEY =
   'ma-professor-access-state-v1'
 
+const COMMERCE_STORAGE_KEY =
+  'ma-professor-admin-commerce-v1'
+
 const ACCESS_DURABLE_OBJECT_NAME =
   'ma-professor-access-global'
+
+const PUBLIC_ACCESS_ACTIVATE_PATH =
+  '/api/ma-professor/access/activate'
 
 const INTERNAL_ADMIN_OVERVIEW_PATH =
   '/__internal/ma-professor/admin/overview'
@@ -20,6 +26,15 @@ const INTERNAL_ADMIN_APPROVE_REQUEST_PATH =
 
 const INTERNAL_ADMIN_REJECT_REQUEST_PATH =
   '/__internal/ma-professor/admin/requests/reject'
+
+const INTERNAL_ADMIN_COMMERCE_STATUS_PATH =
+  '/__internal/ma-professor/admin/commerce/status'
+
+const INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH =
+  '/__internal/ma-professor/admin/commerce/select-plan'
+
+const INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH =
+  '/__internal/ma-professor/admin/commerce/confirm-payment'
 
 const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
   '/__internal/ma-professor/admin/credentials/status'
@@ -52,6 +67,15 @@ export type MAProfessorAdminAccessRequestDecision =
   | 'approve'
   | 'reject'
 
+export type MAProfessorCommercialPlan =
+  | 'paid_30_days'
+  | 'school_year'
+
+export type MAProfessorPaymentStatus =
+  | 'not_started'
+  | 'pending'
+  | 'confirmed'
+
 interface StoredLicenseSnapshot {
   email: string
   plan: LicensePlan
@@ -64,70 +88,37 @@ interface StoredLicenseSnapshot {
 interface StoredAccessRequestSnapshot {
   id: string
   email: string
-
-  status:
-    AccessRequestStatus
-
-  requestedAt:
-    number
-
-  approvedAt:
-    number | null
-
-  rejectedAt:
-    number | null
-
-  activatedAt:
-    number | null
-
-  failedActivationAttempts:
-    number
-
-  blockedUntil:
-    number | null
-
-  updatedAt:
-    number
+  status: AccessRequestStatus
+  requestedAt: number
+  approvedAt: number | null
+  rejectedAt: number | null
+  activatedAt: number | null
+  failedActivationAttempts: number
+  blockedUntil: number | null
+  updatedAt: number
 }
 
 interface StoredAccessCredentialSnapshot {
   email: string
-
-  passwordSalt:
-    string
-
-  passwordHash:
-    string
-
-  passwordIterations:
-    number
-
-  createdAt:
-    number
-
-  updatedAt:
-    number
+  passwordSalt: string
+  passwordHash: string
+  passwordIterations: number
+  createdAt: number
+  updatedAt: number
+  authorizationId?: string
+  authorizationPlan?: MAProfessorCommercialPlan
 }
 
 interface StoredRenewalRequestSnapshot {
   id: string
   email: string
-
   requestedPlan:
     | 'paid_30_days'
     | 'school_year'
-
-  amountCents:
-    number
-
-  currency:
-    'EUR'
-
-  status:
-    'pending'
-
-  requestedAt:
-    number
+  amountCents: number
+  currency: 'EUR'
+  status: 'pending'
+  requestedAt: number
 }
 
 interface AccessStateSnapshot {
@@ -135,22 +126,36 @@ interface AccessStateSnapshot {
     string,
     StoredLicenseSnapshot
   >
-
-  renewals?:
-    StoredRenewalRequestSnapshot[]
-
+  renewals?: StoredRenewalRequestSnapshot[]
   accessRequests?: Record<
     string,
     StoredAccessRequestSnapshot
   >
-
   credentials?: Record<
     string,
     StoredAccessCredentialSnapshot
   >
+  updatedAt?: number
+}
 
-  updatedAt?:
-    number
+interface StoredCommercialAuthorization {
+  id: string
+  email: string
+  plan: MAProfessorCommercialPlan
+  amountCents: number
+  currency: 'EUR'
+  selectedAt: number
+  paymentConfirmedAt: number | null
+  credentialIssuedAt: number | null
+  createdAt: number
+  updatedAt: number
+}
+
+interface StoredCommerceState {
+  schemaVersion: 1
+  authorizations: StoredCommercialAuthorization[]
+  createdAt: number
+  updatedAt: number
 }
 
 interface DurableObjectStorageLike {
@@ -162,23 +167,22 @@ interface DurableObjectStorageLike {
     key: string,
     value: T
   ): Promise<void>
+
+  put(
+    entries: Record<string, unknown>
+  ): Promise<void>
 }
 
 interface DurableObjectStateLike {
-  storage:
-    DurableObjectStorageLike
+  storage: DurableObjectStorageLike
 
   blockConcurrencyWhile<T>(
-    callback:
-      () => Promise<T>
+    callback: () => Promise<T>
   ): Promise<T>
 }
 
 type JsonObject =
-  Record<
-    string,
-    unknown
-  >
+  Record<string, unknown>
 
 const securityHeaders:
   Record<string, string> = {
@@ -214,11 +218,9 @@ function json(
     JSON.stringify(body),
     {
       status,
-
       headers: {
         'Content-Type':
           'application/json; charset=utf-8',
-
         ...securityHeaders,
         ...extraHeaders
       }
@@ -235,9 +237,7 @@ function toIso(
   if (
     typeof value !==
       'number' ||
-    !Number.isFinite(
-      value
-    )
+    !Number.isFinite(value)
   ) {
     return null
   }
@@ -255,10 +255,7 @@ function normalizeEmail(
     ? value
         .trim()
         .toLowerCase()
-        .slice(
-          0,
-          180
-        )
+        .slice(0, 180)
     : ''
 }
 
@@ -270,11 +267,44 @@ function isValidEmail(
   )
 }
 
+function normalizeCommercialPlan(
+  value: unknown
+): MAProfessorCommercialPlan | null {
+  return value ===
+      'paid_30_days' ||
+    value ===
+      'school_year'
+    ? value
+    : null
+}
+
+function getCommercialPlanAmount(
+  plan: MAProfessorCommercialPlan
+) {
+  return plan ===
+    'school_year'
+    ? 1500
+    : 349
+}
+
+function createInternalId(
+  prefix: string
+) {
+  const uuid =
+    globalThis.crypto
+      .randomUUID?.()
+
+  return uuid
+    ? `${prefix}-${uuid}`
+    : `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 14)}`
+}
+
 async function readInternalJsonBody(
   request: Request
 ): Promise<JsonObject> {
-  let parsed:
-    unknown
+  let parsed: unknown
 
   try {
     parsed =
@@ -289,113 +319,83 @@ async function readInternalJsonBody(
     !parsed ||
     typeof parsed !==
       'object' ||
-    Array.isArray(
-      parsed
-    )
+    Array.isArray(parsed)
   ) {
     throw new Error(
       'O pedido administrativo interno é inválido.'
     )
   }
 
-  return parsed as
-    JsonObject
+  return parsed as JsonObject
 }
 
 function bytesToBase64(
-  bytes:
-    Uint8Array
+  bytes: Uint8Array
 ) {
-  let binary =
-    ''
+  let binary = ''
 
   for (
-    const byte of
-    bytes
+    const byte of bytes
   ) {
     binary +=
-      String.fromCharCode(
-        byte
-      )
+      String.fromCharCode(byte)
   }
 
-  return btoa(
-    binary
-  )
+  return btoa(binary)
 }
 
 function toArrayBuffer(
-  value:
-    Uint8Array
+  value: Uint8Array
 ): ArrayBuffer {
   const copy =
     new Uint8Array(
       value.byteLength
     )
 
-  copy.set(
-    value
-  )
+  copy.set(value)
 
   return copy.buffer
 }
 
 async function hashPassword(
   password: string,
-  salt:
-    Uint8Array,
-  iterations:
-    number
+  salt: Uint8Array,
+  iterations: number
 ) {
   const encodedPassword =
     new TextEncoder()
-      .encode(
-        password
-      )
+      .encode(password)
 
   const baseKey =
-    await globalThis
-      .crypto
-      .subtle
-      .importKey(
-        'raw',
-        toArrayBuffer(
-          encodedPassword
-        ),
-        'PBKDF2',
-        false,
-        [
-          'deriveBits'
-        ]
-      )
+    await globalThis.crypto.subtle.importKey(
+      'raw',
+      toArrayBuffer(
+        encodedPassword
+      ),
+      'PBKDF2',
+      false,
+      [
+        'deriveBits'
+      ]
+    )
 
   const bits =
-    await globalThis
-      .crypto
-      .subtle
-      .deriveBits(
-        {
-          name:
-            'PBKDF2',
-
-          salt:
-            toArrayBuffer(
-              salt
-            ),
-
-          iterations,
-
-          hash:
-            'SHA-256'
-        },
-        baseKey,
-        256
-      )
+    await globalThis.crypto.subtle.deriveBits(
+      {
+        name:
+          'PBKDF2',
+        salt:
+          toArrayBuffer(salt),
+        iterations,
+        hash:
+          'SHA-256'
+      },
+      baseKey,
+      256
+    )
 
   return bytesToBase64(
-    new Uint8Array(
-      bits
-    )
+    new Uint8Array(bits)
   )
 }
 
@@ -409,11 +409,9 @@ function generatePassword() {
       characterCount
     )
 
-  globalThis
-    .crypto
-    .getRandomValues(
-      randomBytes
-    )
+  globalThis.crypto.getRandomValues(
+    randomBytes
+  )
 
   const characters =
     Array.from(
@@ -421,13 +419,11 @@ function generatePassword() {
       byte =>
         GENERATED_PASSWORD_ALPHABET[
           byte %
-          GENERATED_PASSWORD_ALPHABET
-            .length
+          GENERATED_PASSWORD_ALPHABET.length
         ]
     )
 
-  const groups:
-    string[] = []
+  const groups: string[] = []
 
   for (
     let index = 0;
@@ -450,9 +446,7 @@ function generatePassword() {
     )
   }
 
-  return `MP-${groups.join(
-    '-'
-  )}`
+  return `MP-${groups.join('-')}`
 }
 
 function getDaysRemaining(
@@ -477,8 +471,7 @@ function getDaysRemaining(
 }
 
 function getLicenseStatus(
-  license:
-    StoredLicenseSnapshot,
+  license: StoredLicenseSnapshot,
   now: number
 ): LicenseStatus {
   if (
@@ -496,20 +489,16 @@ function getLicenseStatus(
   }
 
   const renewalGraceActive =
-    license
-      .renewalRequestedAt !==
+    license.renewalRequestedAt !==
       null &&
     now -
-      license
-        .renewalRequestedAt <=
+      license.renewalRequestedAt <=
       RENEWAL_GRACE_HOURS *
         60 *
         60 *
         1000
 
-  if (
-    renewalGraceActive
-  ) {
+  if (renewalGraceActive) {
     return 'renewal_pending'
   }
 
@@ -527,35 +516,21 @@ function getLicenseStatus(
 }
 
 function buildAccessRequestSummary(
-  request:
-    StoredAccessRequestSnapshot
+  request: StoredAccessRequestSnapshot
 ) {
   return {
     email:
       request.email,
-
     status:
       request.status,
-
     requestedAt:
-      toIso(
-        request.requestedAt
-      ),
-
+      toIso(request.requestedAt),
     approvedAt:
-      toIso(
-        request.approvedAt
-      ),
-
+      toIso(request.approvedAt),
     rejectedAt:
-      toIso(
-        request.rejectedAt
-      ),
-
+      toIso(request.rejectedAt),
     activatedAt:
-      toIso(
-        request.activatedAt
-      )
+      toIso(request.activatedAt)
   }
 }
 
@@ -567,19 +542,14 @@ function buildCredentialStatus(
 ) {
   return {
     email,
-
     hasCredential:
-      Boolean(
-        credential
-      ),
-
+      Boolean(credential),
     createdAt:
       credential
         ? toIso(
             credential.createdAt
           )
         : null,
-
     updatedAt:
       credential
         ? toIso(
@@ -589,13 +559,123 @@ function buildCredentialStatus(
   }
 }
 
+function createCommerceState():
+  StoredCommerceState {
+  const now = Date.now()
+
+  return {
+    schemaVersion: 1,
+    authorizations: [],
+    createdAt: now,
+    updatedAt: now
+  }
+}
+
+function normalizeCommerceState(
+  stored:
+    StoredCommerceState |
+    undefined
+): StoredCommerceState {
+  if (
+    !stored ||
+    stored.schemaVersion !==
+      1 ||
+    !Array.isArray(
+      stored.authorizations
+    )
+  ) {
+    return createCommerceState()
+  }
+
+  return stored
+}
+
+function getLatestAuthorization(
+  commerceState:
+    StoredCommerceState,
+  email: string
+) {
+  return commerceState.authorizations
+    .filter(
+      authorization =>
+        authorization.email ===
+        email
+    )
+    .sort(
+      (left, right) =>
+        right.createdAt -
+        left.createdAt
+    )[0] || null
+}
+
+function buildCommercialStatus(
+  email: string,
+  authorization:
+    StoredCommercialAuthorization |
+    null
+) {
+  const paymentStatus:
+    MAProfessorPaymentStatus =
+    !authorization
+      ? 'not_started'
+      : authorization
+          .paymentConfirmedAt !==
+        null
+        ? 'confirmed'
+        : 'pending'
+
+  return {
+    email,
+    authorizationId:
+      authorization?.id ??
+      null,
+    plan:
+      authorization?.plan ??
+      null,
+    amountCents:
+      authorization
+        ?.amountCents ??
+      null,
+    currency:
+      'EUR' as const,
+    paymentStatus,
+    selectedAt:
+      authorization
+        ? toIso(
+            authorization.selectedAt
+          )
+        : null,
+    paymentConfirmedAt:
+      authorization
+        ? toIso(
+            authorization.paymentConfirmedAt
+          )
+        : null,
+    credentialIssuedAt:
+      authorization
+        ? toIso(
+            authorization.credentialIssuedAt
+          )
+        : null,
+    canGenerateCredential:
+      Boolean(
+        authorization &&
+        authorization
+          .paymentConfirmedAt !==
+          null &&
+        authorization
+          .credentialIssuedAt ===
+          null
+      )
+  }
+}
+
 function buildOverview(
   state:
     AccessStateSnapshot |
     undefined
 ) {
-  const now =
-    Date.now()
+  const now = Date.now()
 
   const accessRequests =
     Object.values(
@@ -609,10 +689,7 @@ function buildOverview(
           )
       )
       .sort(
-        (
-          left,
-          right
-        ) =>
+        (left, right) =>
           (
             right.requestedAt
               ? new Date(
@@ -638,44 +715,34 @@ function buildOverview(
         license => ({
           email:
             license.email,
-
           plan:
             license.plan,
-
           status:
             getLicenseStatus(
               license,
               now
             ),
-
           validFrom:
             toIso(
               license.validFrom
             ),
-
           validUntil:
             toIso(
               license.validUntil
             ),
-
           daysRemaining:
             getDaysRemaining(
               license.validUntil,
               now
             ),
-
           renewalRequestedAt:
             toIso(
-              license
-                .renewalRequestedAt
+              license.renewalRequestedAt
             )
         })
       )
       .sort(
-        (
-          left,
-          right
-        ) =>
+        (left, right) =>
           left.email.localeCompare(
             right.email
           )
@@ -683,14 +750,10 @@ function buildOverview(
 
   const renewals =
     [
-      ...(state?.renewals ||
-        [])
+      ...(state?.renewals || [])
     ]
       .sort(
-        (
-          left,
-          right
-        ) =>
+        (left, right) =>
           right.requestedAt -
           left.requestedAt
       )
@@ -706,30 +769,21 @@ function buildOverview(
           return {
             id:
               renewal.id,
-
             email:
               renewal.email,
-
             requestedPlan:
               renewal.requestedPlan,
-
             amountCents:
               renewal.amountCents,
-
             currency:
               renewal.currency,
-
             status:
               renewal.status,
-
             requestedAt,
-
             resolvedAt:
               null,
-
             createdAt:
               requestedAt,
-
             updatedAt:
               requestedAt
           }
@@ -739,11 +793,9 @@ function buildOverview(
   return {
     success:
       true as const,
-
     accessRequests,
     licenses,
     renewals,
-
     generatedAt:
       new Date(now)
         .toISOString()
@@ -765,17 +817,11 @@ export class MaProfessorAccessDurableObject {
       Promise.resolve()
 
   constructor(
-    state:
-      DurableObjectStateLike,
-    env:
-      MaProfessorAccessEnv
+    state: DurableObjectStateLike,
+    env: MaProfessorAccessEnv
   ) {
-    this.state =
-      state
-
-    this.env =
-      env
-
+    this.state = state
+    this.env = env
     this.base =
       new BaseMaProfessorAccessDurableObject(
         state,
@@ -804,19 +850,105 @@ export class MaProfessorAccessDurableObject {
   }
 
   private refreshBase() {
-    /*
-     * O motor público mantém o estado em memória.
-     *
-     * Depois de uma escrita administrativa,
-     * recriamos a instância base para que o
-     * pedido público seguinte releia imediatamente
-     * o estado persistido.
-     */
     this.base =
       new BaseMaProfessorAccessDurableObject(
         this.state,
         this.env
       )
+  }
+
+  private async readCommerceState() {
+    const stored =
+      await this.state.storage.get<StoredCommerceState>(
+        COMMERCE_STORAGE_KEY
+      )
+
+    return normalizeCommerceState(
+      stored
+    )
+  }
+
+  private async handlePublicActivationSafetyGate(
+    request: Request
+  ): Promise<Response | null> {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return null
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await request
+          .clone()
+          .json() as JsonObject
+    } catch {
+      return null
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return null
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest ||
+      accessRequest.status !==
+        'approved' ||
+      state.licenses?.[email]
+    ) {
+      return null
+    }
+
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    if (
+      authorization?.paymentConfirmedAt &&
+      authorization.credentialIssuedAt
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'A autorização paga está registada, mas a ativação do novo plano ainda não está disponível. Aguarde indicação da MA-CODE.'
+        },
+        409
+      )
+    }
+
+    return json(
+      {
+        success: false,
+        message:
+          'Esta conta ainda não possui uma autorização paga pronta para ativação.'
+      },
+      409
+    )
   }
 
   private async handleAccessRequestDecision(
@@ -830,39 +962,30 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Método não permitido.'
         },
         405,
         {
-          Allow:
-            'POST'
+          Allow: 'POST'
         }
       )
     }
 
-    let body:
-      JsonObject
+    let body: JsonObject
 
     try {
       body =
         await readInternalJsonBody(
           request
         )
-    } catch (
-      error
-    ) {
+    } catch (error) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
-            error instanceof
-            Error
+            error instanceof Error
               ? error.message
               : 'Pedido administrativo inválido.'
         },
@@ -875,16 +998,10 @@ export class MaProfessorAccessDurableObject {
         body.email
       )
 
-    if (
-      !isValidEmail(
-        email
-      )
-    ) {
+    if (!isValidEmail(email)) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Indique um email válido.'
         },
@@ -893,17 +1010,14 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this
-        .state
-        .storage
-        .get<AccessStateSnapshot>(
-          STORAGE_KEY
-        )
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
 
     const accessRequest =
-      state
-        ?.accessRequests
-        ?.[email]
+      state?.accessRequests?.[
+        email
+      ]
 
     if (
       !state ||
@@ -911,9 +1025,7 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'O pedido de acesso não foi encontrado.'
         },
@@ -927,12 +1039,9 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Este pedido já não está pendente.',
-
           request:
             buildAccessRequestSummary(
               accessRequest
@@ -942,8 +1051,7 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const now =
-      Date.now()
+    const now = Date.now()
 
     if (
       decision ===
@@ -951,52 +1059,496 @@ export class MaProfessorAccessDurableObject {
     ) {
       accessRequest.status =
         'approved'
-
       accessRequest.approvedAt =
         now
-
       accessRequest.rejectedAt =
         null
     } else {
       accessRequest.status =
         'rejected'
-
       accessRequest.rejectedAt =
         now
-
       accessRequest.approvedAt =
         null
     }
 
     accessRequest.updatedAt =
       now
+    state.updatedAt = now
 
-    state.updatedAt =
-      now
-
-    await this
-      .state
-      .storage
-      .put(
-        STORAGE_KEY,
-        state
-      )
+    await this.state.storage.put(
+      STORAGE_KEY,
+      state
+    )
 
     this.refreshBase()
 
     return json({
-      success:
-        true,
-
+      success: true,
       message:
         decision ===
         'approve'
           ? 'Pedido aprovado.'
           : 'Pedido rejeitado.',
-
       request:
         buildAccessRequestSummary(
           accessRequest
+        )
+    })
+  }
+
+  private async handleCommerceStatus(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'GET'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'GET'
+        }
+      )
+    }
+
+    const url =
+      new URL(request.url)
+
+    const email =
+      normalizeEmail(
+        url.searchParams.get(
+          'email'
+        )
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'A conta não foi encontrada.'
+        },
+        404
+      )
+    }
+
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    return json({
+      success: true,
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
+        )
+    })
+  }
+
+  private async handleCommerceSelectPlan(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const plan =
+      normalizeCommercialPlan(
+        body.plan
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    if (!plan) {
+      return json(
+        {
+          success: false,
+          message:
+            'Selecione um plano válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O pedido de acesso não foi encontrado.'
+        },
+        404
+      )
+    }
+
+    if (
+      accessRequest.status !==
+      'approved'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O pedido tem de estar aprovado antes de associar um plano.'
+        },
+        409
+      )
+    }
+
+    const commerceState =
+      await this.readCommerceState()
+
+    const latestAuthorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    const now = Date.now()
+
+    let authorization:
+      StoredCommercialAuthorization
+
+    if (
+      latestAuthorization &&
+      latestAuthorization
+        .credentialIssuedAt ===
+        null
+    ) {
+      if (
+        latestAuthorization
+          .paymentConfirmedAt !==
+        null
+      ) {
+        return json(
+          {
+            success: false,
+            message:
+              'O pagamento desta autorização já foi confirmado. O plano já não pode ser alterado.'
+          },
+          409
+        )
+      }
+
+      latestAuthorization.plan =
+        plan
+      latestAuthorization.amountCents =
+        getCommercialPlanAmount(
+          plan
+        )
+      latestAuthorization.selectedAt =
+        now
+      latestAuthorization.updatedAt =
+        now
+      authorization =
+        latestAuthorization
+    } else {
+      authorization = {
+        id:
+          createInternalId(
+            'authorization'
+          ),
+        email,
+        plan,
+        amountCents:
+          getCommercialPlanAmount(
+            plan
+          ),
+        currency:
+          'EUR',
+        selectedAt:
+          now,
+        paymentConfirmedAt:
+          null,
+        credentialIssuedAt:
+          null,
+        createdAt:
+          now,
+        updatedAt:
+          now
+      }
+
+      commerceState.authorizations.push(
+        authorization
+      )
+    }
+
+    commerceState.updatedAt =
+      now
+
+    await this.state.storage.put(
+      COMMERCE_STORAGE_KEY,
+      commerceState
+    )
+
+    return json({
+      success: true,
+      message:
+        plan ===
+        'paid_30_days'
+          ? 'Plano de 30 dias registado. O pagamento está pendente.'
+          : 'Plano até 1 de agosto registado. O pagamento está pendente.',
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
+        )
+    })
+  }
+
+  private async handleCommerceConfirmPayment(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O pedido de acesso não foi encontrado.'
+        },
+        404
+      )
+    }
+
+    if (
+      accessRequest.status !==
+      'approved'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O pedido tem de estar aprovado antes de confirmar um pagamento.'
+        },
+        409
+      )
+    }
+
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    if (!authorization) {
+      return json(
+        {
+          success: false,
+          message:
+            'Registe primeiro o plano escolhido pelo utilizador.'
+        },
+        409
+      )
+    }
+
+    if (
+      authorization
+        .credentialIssuedAt !==
+      null
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Esta autorização já originou uma senha. Para um novo pagamento será necessária uma nova autorização.'
+        },
+        409
+      )
+    }
+
+    if (
+      authorization
+        .paymentConfirmedAt ===
+      null
+    ) {
+      const now = Date.now()
+
+      authorization.paymentConfirmedAt =
+        now
+      authorization.updatedAt =
+        now
+      commerceState.updatedAt =
+        now
+
+      await this.state.storage.put(
+        COMMERCE_STORAGE_KEY,
+        commerceState
+      )
+    }
+
+    return json({
+      success: true,
+      message:
+        'Pagamento confirmado. A geração da nova senha está agora autorizada.',
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
         )
     })
   }
@@ -1010,24 +1562,19 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Método não permitido.'
         },
         405,
         {
-          Allow:
-            'GET'
+          Allow: 'GET'
         }
       )
     }
 
     const url =
-      new URL(
-        request.url
-      )
+      new URL(request.url)
 
     const email =
       normalizeEmail(
@@ -1036,16 +1583,10 @@ export class MaProfessorAccessDurableObject {
         )
       )
 
-    if (
-      !isValidEmail(
-        email
-      )
-    ) {
+    if (!isValidEmail(email)) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Indique um email válido.'
         },
@@ -1054,17 +1595,14 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this
-        .state
-        .storage
-        .get<AccessStateSnapshot>(
-          STORAGE_KEY
-        )
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
 
     const accessRequest =
-      state
-        ?.accessRequests
-        ?.[email]
+      state?.accessRequests?.[
+        email
+      ]
 
     if (
       !state ||
@@ -1072,9 +1610,7 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'A conta não foi encontrada.'
         },
@@ -1083,14 +1619,12 @@ export class MaProfessorAccessDurableObject {
     }
 
     const credential =
-      state
-        .credentials
-        ?.[email]
+      state.credentials?.[
+        email
+      ]
 
     return json({
-      success:
-        true,
-
+      success: true,
       credential:
         buildCredentialStatus(
           email,
@@ -1108,39 +1642,30 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Método não permitido.'
         },
         405,
         {
-          Allow:
-            'POST'
+          Allow: 'POST'
         }
       )
     }
 
-    let body:
-      JsonObject
+    let body: JsonObject
 
     try {
       body =
         await readInternalJsonBody(
           request
         )
-    } catch (
-      error
-    ) {
+    } catch (error) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
-            error instanceof
-            Error
+            error instanceof Error
               ? error.message
               : 'Pedido administrativo inválido.'
         },
@@ -1153,16 +1678,10 @@ export class MaProfessorAccessDurableObject {
         body.email
       )
 
-    if (
-      !isValidEmail(
-        email
-      )
-    ) {
+    if (!isValidEmail(email)) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'Indique um email válido.'
         },
@@ -1171,17 +1690,14 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this
-        .state
-        .storage
-        .get<AccessStateSnapshot>(
-          STORAGE_KEY
-        )
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
 
     const accessRequest =
-      state
-        ?.accessRequests
-        ?.[email]
+      state?.accessRequests?.[
+        email
+      ]
 
     if (
       !state ||
@@ -1189,9 +1705,7 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             'O pedido de acesso não foi encontrado.'
         },
@@ -1205,9 +1719,7 @@ export class MaProfessorAccessDurableObject {
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
             accessRequest.status ===
             'pending'
@@ -1218,31 +1730,51 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const credentials =
-      state.credentials ||
-      {}
+    const commerceState =
+      await this.readCommerceState()
 
-    const existingCredential =
-      credentials[
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
         email
-      ]
+      )
+
+    if (!authorization) {
+      return json(
+        {
+          success: false,
+          message:
+            'Selecione primeiro o plano e confirme o pagamento antes de gerar a senha.'
+        },
+        409
+      )
+    }
 
     if (
-      existingCredential
+      authorization
+        .paymentConfirmedAt ===
+      null
     ) {
       return json(
         {
-          success:
-            false,
-
+          success: false,
           message:
-            'Esta conta já tem uma senha associada. A senha existente não pode ser recuperada em texto simples.',
+            'O pagamento ainda não foi confirmado. A senha continua bloqueada.'
+        },
+        409
+      )
+    }
 
-          credential:
-            buildCredentialStatus(
-              email,
-              existingCredential
-            )
+    if (
+      authorization
+        .credentialIssuedAt !==
+      null
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Esta autorização já originou uma senha. Um novo pagamento deve criar uma nova autorização e uma nova senha.'
         },
         409
       )
@@ -1256,11 +1788,9 @@ export class MaProfessorAccessDurableObject {
         PASSWORD_SALT_BYTES
       )
 
-    globalThis
-      .crypto
-      .getRandomValues(
-        salt
-      )
+    globalThis.crypto.getRandomValues(
+      salt
+    )
 
     const passwordHash =
       await hashPassword(
@@ -1269,76 +1799,74 @@ export class MaProfessorAccessDurableObject {
         PASSWORD_HASH_ITERATIONS
       )
 
-    const now =
-      Date.now()
+    const now = Date.now()
 
     const credential:
       StoredAccessCredentialSnapshot = {
         email,
-
         passwordSalt:
-          bytesToBase64(
-            salt
-          ),
-
+          bytesToBase64(salt),
         passwordHash,
-
         passwordIterations:
           PASSWORD_HASH_ITERATIONS,
-
         createdAt:
           now,
-
         updatedAt:
-          now
+          now,
+        authorizationId:
+          authorization.id,
+        authorizationPlan:
+          authorization.plan
       }
 
-    credentials[
-      email
-    ] =
-      credential
+    const credentials =
+      state.credentials || {}
 
+    credentials[email] =
+      credential
     state.credentials =
       credentials
 
-    accessRequest
-      .failedActivationAttempts =
+    accessRequest.failedActivationAttempts =
       0
-
     accessRequest.blockedUntil =
       null
-
     accessRequest.updatedAt =
       now
-
     state.updatedAt =
       now
 
-    await this
-      .state
-      .storage
-      .put(
-        STORAGE_KEY,
-        state
-      )
+    authorization.credentialIssuedAt =
+      now
+    authorization.updatedAt =
+      now
+    commerceState.updatedAt =
+      now
+
+    await this.state.storage.put({
+      [STORAGE_KEY]: state,
+      [COMMERCE_STORAGE_KEY]:
+        commerceState
+    })
 
     this.refreshBase()
 
     return json({
-      success:
-        true,
-
+      success: true,
       message:
-        'Senha criada. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
-
+        'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
       credential: {
         ...buildCredentialStatus(
           email,
           credential
         ),
-
         password
-      }
+      },
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
+        )
     })
   }
 
@@ -1346,9 +1874,21 @@ export class MaProfessorAccessDurableObject {
     request: Request
   ): Promise<Response> {
     const url =
-      new URL(
-        request.url
-      )
+      new URL(request.url)
+
+    if (
+      url.pathname ===
+      PUBLIC_ACCESS_ACTIVATE_PATH
+    ) {
+      const safetyResponse =
+        await this.handlePublicActivationSafetyGate(
+          request
+        )
+
+      if (safetyResponse) {
+        return safetyResponse
+      }
+    }
 
     if (
       url.pathname ===
@@ -1360,32 +1900,24 @@ export class MaProfessorAccessDurableObject {
       ) {
         return json(
           {
-            success:
-              false,
-
+            success: false,
             message:
               'Método não permitido.'
           },
           405,
           {
-            Allow:
-              'GET'
+            Allow: 'GET'
           }
         )
       }
 
       const state =
-        await this
-          .state
-          .storage
-          .get<AccessStateSnapshot>(
-            STORAGE_KEY
-          )
+        await this.state.storage.get<AccessStateSnapshot>(
+          STORAGE_KEY
+        )
 
       return json(
-        buildOverview(
-          state
-        )
+        buildOverview(state)
       )
     }
 
@@ -1393,42 +1925,65 @@ export class MaProfessorAccessDurableObject {
       url.pathname ===
       INTERNAL_ADMIN_APPROVE_REQUEST_PATH
     ) {
-      return this
-        .handleAccessRequestDecision(
-          request,
-          'approve'
-        )
+      return this.handleAccessRequestDecision(
+        request,
+        'approve'
+      )
     }
 
     if (
       url.pathname ===
       INTERNAL_ADMIN_REJECT_REQUEST_PATH
     ) {
-      return this
-        .handleAccessRequestDecision(
-          request,
-          'reject'
-        )
+      return this.handleAccessRequestDecision(
+        request,
+        'reject'
+      )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_COMMERCE_STATUS_PATH
+    ) {
+      return this.handleCommerceStatus(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH
+    ) {
+      return this.handleCommerceSelectPlan(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH
+    ) {
+      return this.handleCommerceConfirmPayment(
+        request
+      )
     }
 
     if (
       url.pathname ===
       INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH
     ) {
-      return this
-        .handleCredentialStatus(
-          request
-        )
+      return this.handleCredentialStatus(
+        request
+      )
     }
 
     if (
       url.pathname ===
       INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH
     ) {
-      return this
-        .handleCredentialGenerate(
-          request
-        )
+      return this.handleCredentialGenerate(
+        request
+      )
     }
 
     return this.base.fetch(
@@ -1438,52 +1993,42 @@ export class MaProfessorAccessDurableObject {
 }
 
 function getMAProfessorAccessStub(
-  env:
-    MaProfessorAccessEnv
+  env: MaProfessorAccessEnv
 ) {
   const id =
-    env
-      .MA_PROFESSOR_ACCESS
-      .idFromName(
-        ACCESS_DURABLE_OBJECT_NAME
-      )
+    env.MA_PROFESSOR_ACCESS.idFromName(
+      ACCESS_DURABLE_OBJECT_NAME
+    )
 
-  return env
-    .MA_PROFESSOR_ACCESS
-    .get(id)
+  return env.MA_PROFESSOR_ACCESS.get(
+    id
+  )
 }
 
 export async function getMAProfessorAdminOverview(
-  env:
-    MaProfessorAccessEnv
+  env: MaProfessorAccessEnv
 ) {
   const stub =
-    getMAProfessorAccessStub(
-      env
-    )
+    getMAProfessorAccessStub(env)
 
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${INTERNAL_ADMIN_OVERVIEW_PATH}`,
       {
-        method:
-          'GET'
+        method: 'GET'
       }
     )
   )
 }
 
 export async function decideMAProfessorAccessRequest(
-  env:
-    MaProfessorAccessEnv,
+  env: MaProfessorAccessEnv,
   email: string,
   decision:
     MAProfessorAdminAccessRequestDecision
 ) {
   const stub =
-    getMAProfessorAccessStub(
-      env
-    )
+    getMAProfessorAccessStub(env)
 
   const pathname =
     decision ===
@@ -1495,14 +2040,90 @@ export async function decideMAProfessorAccessRequest(
     new Request(
       `https://ma-professor.internal${pathname}`,
       {
-        method:
-          'POST',
-
+        method: 'POST',
         headers: {
           'Content-Type':
             'application/json'
         },
+        body:
+          JSON.stringify({
+            email
+          })
+      }
+    )
+  )
+}
 
+export async function getMAProfessorAdminCommercialStatus(
+  env: MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  const url =
+    new URL(
+      `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_STATUS_PATH}`
+    )
+
+  url.searchParams.set(
+    'email',
+    email
+  )
+
+  return stub.fetch(
+    new Request(
+      url.toString(),
+      {
+        method: 'GET'
+      }
+    )
+  )
+}
+
+export async function selectMAProfessorAdminCommercialPlan(
+  env: MaProfessorAccessEnv,
+  email: string,
+  plan: MAProfessorCommercialPlan
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email,
+            plan
+          })
+      }
+    )
+  )
+}
+
+export async function confirmMAProfessorAdminPayment(
+  env: MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
         body:
           JSON.stringify({
             email
@@ -1513,14 +2134,11 @@ export async function decideMAProfessorAccessRequest(
 }
 
 export async function getMAProfessorAdminCredentialStatus(
-  env:
-    MaProfessorAccessEnv,
+  env: MaProfessorAccessEnv,
   email: string
 ) {
   const stub =
-    getMAProfessorAccessStub(
-      env
-    )
+    getMAProfessorAccessStub(env)
 
   const url =
     new URL(
@@ -1536,35 +2154,28 @@ export async function getMAProfessorAdminCredentialStatus(
     new Request(
       url.toString(),
       {
-        method:
-          'GET'
+        method: 'GET'
       }
     )
   )
 }
 
 export async function generateMAProfessorAdminCredential(
-  env:
-    MaProfessorAccessEnv,
+  env: MaProfessorAccessEnv,
   email: string
 ) {
   const stub =
-    getMAProfessorAccessStub(
-      env
-    )
+    getMAProfessorAccessStub(env)
 
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH}`,
       {
-        method:
-          'POST',
-
+        method: 'POST',
         headers: {
           'Content-Type':
             'application/json'
         },
-
         body:
           JSON.stringify({
             email
