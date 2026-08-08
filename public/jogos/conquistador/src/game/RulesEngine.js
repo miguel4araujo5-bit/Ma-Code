@@ -1,46 +1,37 @@
-export const BUILD_COSTS =
-  Object.freeze({
-    road: Object.freeze({
-      stone: 1,
-      cork: 1,
-    }),
+import { SeaRouteEngine } from './SeaRouteEngine.js';
 
-    village: Object.freeze({
-      stone: 1,
-      cork: 1,
-      wheat: 1,
-      cod: 1,
-    }),
+export const BUILD_COSTS = Object.freeze({
+  road: Object.freeze({
+    stone: 1,
+    cork: 1,
+  }),
+  village: Object.freeze({
+    stone: 1,
+    cork: 1,
+    wheat: 1,
+    cod: 1,
+  }),
+  city: Object.freeze({
+    iron: 3,
+    wheat: 2,
+  }),
+  seaRoute: Object.freeze({
+    cork: 1,
+    iron: 1,
+  }),
+  tradingPost: Object.freeze({
+    cork: 1,
+    iron: 1,
+    cod: 1,
+  }),
+  crownCard: Object.freeze({
+    iron: 1,
+    wheat: 1,
+    cod: 1,
+  }),
+});
 
-    city: Object.freeze({
-      iron: 3,
-      wheat: 2,
-    }),
-
-    seaRoute:
-      Object.freeze({
-        cork: 1,
-        iron: 1,
-      }),
-
-    tradingPost:
-      Object.freeze({
-        cork: 1,
-        iron: 1,
-        cod: 1,
-      }),
-
-    crownCard:
-      Object.freeze({
-        iron: 1,
-        wheat: 1,
-        cod: 1,
-      }),
-  });
-
-function validResult(
-  extra = {},
-) {
+function validResult(extra = {}) {
   return {
     valid: true,
     reason: null,
@@ -48,10 +39,7 @@ function validResult(
   };
 }
 
-function invalidResult(
-  reason,
-  extra = {},
-) {
+function invalidResult(reason, extra = {}) {
   return {
     valid: false,
     reason,
@@ -59,85 +47,52 @@ function invalidResult(
   };
 }
 
-function findVertex(
-  board,
-  vertexId,
-) {
+function findVertex(board, vertexId) {
   return board.vertices.find(
-    (vertex) =>
-      vertex.id ===
-      vertexId,
+    (vertex) => vertex.id === vertexId,
   );
 }
 
-function findEdge(
-  board,
-  edgeId,
-) {
+function findEdge(board, edgeId) {
   return board.edges.find(
-    (edge) =>
-      edge.id ===
-      edgeId,
+    (edge) => edge.id === edgeId,
   );
 }
 
-function getConnectedEdges(
-  board,
-  vertex,
-) {
-  const edgeIds =
-    new Set(
-      vertex.edgeIds || [],
-    );
+function getConnectedEdges(board, vertex) {
+  const edgeIds = new Set(vertex.edgeIds || []);
 
   return board.edges.filter(
-    (edge) =>
-      edgeIds.has(
-        edge.id,
-      ),
+    (edge) => edgeIds.has(edge.id),
   );
 }
 
-function hasAdjacentBuilding(
-  board,
-  vertex,
-) {
-  return (
-    vertex.neighborVertexIds ||
-    []
-  ).some(
+function hasAdjacentBuilding(board, vertex) {
+  return (vertex.neighborVertexIds || []).some(
     (neighborVertexId) => {
-      const neighbor =
-        findVertex(
-          board,
-          neighborVertexId,
-        );
-
-      return Boolean(
-        neighbor?.building,
+      const neighbor = findVertex(
+        board,
+        neighborVertexId,
       );
+
+      return Boolean(neighbor?.building);
     },
   );
 }
 
-function hasPlayerRoadAtVertex(
+function hasPlayerNetworkAtVertex(
   board,
   playerId,
   vertex,
 ) {
-  return getConnectedEdges(
-    board,
-    vertex,
-  ).some(
+  return getConnectedEdges(board, vertex).some(
     (edge) =>
-      edge.ownerId ===
-        playerId &&
-      edge.segment ===
-        'road',
+      edge.ownerId === playerId &&
+      ['road', 'sea-route'].includes(edge.segment),
   );
 }
 
-function endpointAllowsConnection(
+function endpointAllowsRoadConnection(
   board,
   playerId,
   vertex,
@@ -145,35 +100,31 @@ function endpointAllowsConnection(
 ) {
   if (
     vertex.building &&
-    vertex.ownerId ===
-      playerId
+    vertex.ownerId === playerId
   ) {
     return true;
   }
 
   if (
     vertex.building &&
-    vertex.ownerId !==
-      playerId
+    vertex.ownerId !== playerId
   ) {
     return false;
   }
 
-  return getConnectedEdges(
-    board,
-    vertex,
-  ).some(
+  return getConnectedEdges(board, vertex).some(
     (edge) =>
-      edge.id !==
-        ignoredEdgeId &&
-      edge.ownerId ===
-        playerId &&
-      edge.segment ===
-        'road',
+      edge.id !== ignoredEdgeId &&
+      edge.ownerId === playerId &&
+      edge.segment === 'road',
   );
 }
 
 export class RulesEngine {
+  constructor() {
+    this.seaRoutes = new SeaRouteEngine();
+  }
+
   validateInitialVillage({
     board,
     player,
@@ -193,20 +144,16 @@ export class RulesEngine {
     vertexId,
     initialPlacement = false,
   }) {
-    if (
-      !board?.vertices ||
-      !board?.edges
-    ) {
+    if (!board?.vertices || !board?.edges) {
       return invalidResult(
         'O tabuleiro ainda não possui vértices e arestas.',
       );
     }
 
-    const vertex =
-      findVertex(
-        board,
-        vertexId,
-      );
+    const vertex = findVertex(
+      board,
+      vertexId,
+    );
 
     if (!vertex) {
       return invalidResult(
@@ -214,9 +161,7 @@ export class RulesEngine {
       );
     }
 
-    if (
-      vertex.building
-    ) {
+    if (vertex.building) {
       return invalidResult(
         'Este local já possui uma construção.',
       );
@@ -233,28 +178,22 @@ export class RulesEngine {
       );
     }
 
-    if (
-      !player.hasPiece(
-        'villages',
-      )
-    ) {
+    if (!player.hasPiece('villages')) {
       return invalidResult(
         'Já não possui peças de Vila disponíveis.',
       );
     }
 
-    if (
-      !initialPlacement
-    ) {
+    if (!initialPlacement) {
       if (
-        !hasPlayerRoadAtVertex(
+        !hasPlayerNetworkAtVertex(
           board,
           player.id,
           vertex,
         )
       ) {
         return invalidResult(
-          'A nova Vila deve estar ligada a um Caminho Real seu.',
+          'A nova Vila deve estar ligada à sua rede.',
         );
       }
 
@@ -266,8 +205,7 @@ export class RulesEngine {
         return invalidResult(
           'Não possui recursos suficientes para fundar uma Vila.',
           {
-            cost:
-              BUILD_COSTS.village,
+            cost: BUILD_COSTS.village,
           },
         );
       }
@@ -275,10 +213,9 @@ export class RulesEngine {
 
     return validResult({
       vertex,
-      cost:
-        initialPlacement
-          ? {}
-          : BUILD_COSTS.village,
+      cost: initialPlacement
+        ? {}
+        : BUILD_COSTS.village,
     });
   }
 
@@ -304,20 +241,16 @@ export class RulesEngine {
     initialPlacement = false,
     requiredVertexId = null,
   }) {
-    if (
-      !board?.vertices ||
-      !board?.edges
-    ) {
+    if (!board?.vertices || !board?.edges) {
       return invalidResult(
         'O tabuleiro ainda não possui vértices e arestas.',
       );
     }
 
-    const edge =
-      findEdge(
-        board,
-        edgeId,
-      );
+    const edge = findEdge(
+      board,
+      edgeId,
+    );
 
     if (!edge) {
       return invalidResult(
@@ -325,67 +258,52 @@ export class RulesEngine {
       );
     }
 
-    if (
-      edge.segment ||
-      edge.ownerId
-    ) {
+    if (edge.segment || edge.ownerId) {
       return invalidResult(
         'Esta ligação já está ocupada.',
       );
     }
 
-    if (
-      edge.type !==
-      'land'
-    ) {
+    if (edge.isCoastal) {
+      return invalidResult(
+        'Um Caminho Real não pode ocupar uma ligação marítima.',
+      );
+    }
+
+    if (edge.type !== 'land') {
       return invalidResult(
         'Um Caminho Real só pode ser construído numa ligação terrestre.',
       );
     }
 
-    if (
-      !player.hasPiece(
-        'segments',
-      )
-    ) {
+    if (!player.hasPiece('segments')) {
       return invalidResult(
         'Já não possui segmentos disponíveis.',
       );
     }
 
-    if (
-      initialPlacement
-    ) {
-      if (
-        !requiredVertexId
-      ) {
+    if (initialPlacement) {
+      if (!requiredVertexId) {
         return invalidResult(
           'A colocação inicial precisa da Vila de origem.',
         );
       }
 
-      if (
-        !edge.vertexIds.includes(
-          requiredVertexId,
-        )
-      ) {
+      if (!edge.vertexIds.includes(requiredVertexId)) {
         return invalidResult(
           'O Caminho inicial deve estar ligado à Vila acabada de colocar.',
         );
       }
 
-      const originVertex =
-        findVertex(
-          board,
-          requiredVertexId,
-        );
+      const originVertex = findVertex(
+        board,
+        requiredVertexId,
+      );
 
       if (
         !originVertex ||
-        originVertex.ownerId !==
-          player.id ||
-        originVertex.building !==
-          'village'
+        originVertex.ownerId !== player.id ||
+        originVertex.building !== 'village'
       ) {
         return invalidResult(
           'A Vila de origem não pertence ao jogador ativo.',
@@ -398,27 +316,25 @@ export class RulesEngine {
       });
     }
 
-    const connected =
-      edge.vertexIds.some(
-        (vertexId) => {
-          const vertex =
-            findVertex(
-              board,
-              vertexId,
-            );
+    const connected = edge.vertexIds.some(
+      (vertexId) => {
+        const vertex = findVertex(
+          board,
+          vertexId,
+        );
 
-          if (!vertex) {
-            return false;
-          }
+        if (!vertex) {
+          return false;
+        }
 
-          return endpointAllowsConnection(
-            board,
-            player.id,
-            vertex,
-            edge.id,
-          );
-        },
-      );
+        return endpointAllowsRoadConnection(
+          board,
+          player.id,
+          vertex,
+          edge.id,
+        );
+      },
+    );
 
     if (!connected) {
       return invalidResult(
@@ -434,16 +350,95 @@ export class RulesEngine {
       return invalidResult(
         'Não possui recursos suficientes para construir um Caminho Real.',
         {
-          cost:
-            BUILD_COSTS.road,
+          cost: BUILD_COSTS.road,
         },
       );
     }
 
     return validResult({
       edge,
-      cost:
-        BUILD_COSTS.road,
+      cost: BUILD_COSTS.road,
+    });
+  }
+
+  validateInitialSeaRoute({
+    board,
+    player,
+    edgeId,
+    requiredVertexId,
+  }) {
+    return this.validateSeaRoute({
+      board,
+      player,
+      edgeId,
+      initialPlacement: true,
+      requiredVertexId,
+    });
+  }
+
+  validateSeaRoute({
+    board,
+    player,
+    edgeId,
+    initialPlacement = false,
+    requiredVertexId = null,
+  }) {
+    if (!board?.vertices || !board?.edges) {
+      return invalidResult(
+        'O tabuleiro ainda não possui vértices e arestas.',
+      );
+    }
+
+    const edge = findEdge(
+      board,
+      edgeId,
+    );
+
+    if (!edge) {
+      return invalidResult(
+        'A ligação marítima selecionada não existe.',
+      );
+    }
+
+    if (!player.hasPiece('segments')) {
+      return invalidResult(
+        'Já não possui segmentos disponíveis.',
+      );
+    }
+
+    const placement = this.seaRoutes.validatePlacement({
+      board,
+      playerId: player.id,
+      edge,
+      initialPlacement,
+      requiredVertexId,
+    });
+
+    if (!placement.valid) {
+      return invalidResult(
+        placement.reason,
+      );
+    }
+
+    if (
+      !initialPlacement &&
+      !player.canAfford(
+        BUILD_COSTS.seaRoute,
+      )
+    ) {
+      return invalidResult(
+        'Não possui recursos suficientes para construir uma Rota Marítima.',
+        {
+          cost: BUILD_COSTS.seaRoute,
+        },
+      );
+    }
+
+    return validResult({
+      edge,
+      cost: initialPlacement
+        ? {}
+        : BUILD_COSTS.seaRoute,
     });
   }
 
@@ -452,11 +447,10 @@ export class RulesEngine {
     player,
     vertexId,
   }) {
-    const vertex =
-      findVertex(
-        board,
-        vertexId,
-      );
+    const vertex = findVertex(
+      board,
+      vertexId,
+    );
 
     if (!vertex) {
       return invalidResult(
@@ -465,21 +459,15 @@ export class RulesEngine {
     }
 
     if (
-      vertex.ownerId !==
-        player.id ||
-      vertex.building !==
-        'village'
+      vertex.ownerId !== player.id ||
+      vertex.building !== 'village'
     ) {
       return invalidResult(
         'Uma Cidade Muralhada só pode substituir uma Vila sua.',
       );
     }
 
-    if (
-      !player.hasPiece(
-        'cities',
-      )
-    ) {
+    if (!player.hasPiece('cities')) {
       return invalidResult(
         'Já não possui peças de Cidade Muralhada.',
       );
@@ -493,16 +481,14 @@ export class RulesEngine {
       return invalidResult(
         'Não possui recursos suficientes para erguer uma Cidade Muralhada.',
         {
-          cost:
-            BUILD_COSTS.city,
+          cost: BUILD_COSTS.city,
         },
       );
     }
 
     return validResult({
       vertex,
-      cost:
-        BUILD_COSTS.city,
+      cost: BUILD_COSTS.city,
     });
   }
 
@@ -517,14 +503,12 @@ export class RulesEngine {
           this.validateVillage({
             board,
             player,
-            vertexId:
-              vertex.id,
+            vertexId: vertex.id,
             initialPlacement,
           }).valid,
       )
       .map(
-        (vertex) =>
-          vertex.id,
+        (vertex) => vertex.id,
       );
   }
 
@@ -540,25 +524,40 @@ export class RulesEngine {
           this.validateRoad({
             board,
             player,
-            edgeId:
-              edge.id,
+            edgeId: edge.id,
             initialPlacement,
             requiredVertexId,
           }).valid,
       )
       .map(
-        (edge) =>
-          edge.id,
+        (edge) => edge.id,
       );
   }
 
-  getBuildCost(
-    action,
-  ) {
-    const cost =
-      BUILD_COSTS[
-        action
-      ];
+  getValidSeaRouteEdgeIds({
+    board,
+    player,
+    initialPlacement = false,
+    requiredVertexId = null,
+  }) {
+    return board.edges
+      .filter(
+        (edge) =>
+          this.validateSeaRoute({
+            board,
+            player,
+            edgeId: edge.id,
+            initialPlacement,
+            requiredVertexId,
+          }).valid,
+      )
+      .map(
+        (edge) => edge.id,
+      );
+  }
+
+  getBuildCost(action) {
+    const cost = BUILD_COSTS[action];
 
     if (!cost) {
       throw new Error(
