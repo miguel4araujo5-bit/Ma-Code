@@ -26,7 +26,13 @@ export type MAQuadroGuideState = {
     source:
         | 'page'
         | 'object'
+        | 'manual'
         | null;
+};
+
+export type MAQuadroManualGuides = {
+    vertical: number[];
+    horizontal: number[];
 };
 
 export type MAQuadroCropViewportState = {
@@ -40,6 +46,88 @@ const EMPTY_GUIDES: MAQuadroGuideState = {
     horizontal: null,
     source: null
 };
+
+const MANUAL_GUIDES_BY_ELEMENT =
+    new WeakMap<
+        HTMLCanvasElement,
+        MAQuadroManualGuides
+    >();
+
+function normalizeManualGuideValues(
+    values: number[]
+) {
+    return Array.from(
+        new Set(
+            values
+                .filter(
+                    (value) =>
+                        Number.isFinite(
+                            value
+                        )
+                )
+                .map(
+                    (value) =>
+                        Math.max(
+                            0,
+                            Number(value)
+                        )
+                )
+        )
+    ).sort(
+        (a, b) => a - b
+    );
+}
+
+export function setMAQuadroManualGuides(
+    canvasElement:
+        HTMLCanvasElement | null,
+    guides:
+        MAQuadroManualGuides
+) {
+    if (!canvasElement) {
+        return;
+    }
+
+    MANUAL_GUIDES_BY_ELEMENT.set(
+        canvasElement,
+        {
+            vertical:
+                normalizeManualGuideValues(
+                    guides.vertical
+                ),
+            horizontal:
+                normalizeManualGuideValues(
+                    guides.horizontal
+                )
+        }
+    );
+}
+
+export function clearMAQuadroManualGuides(
+    canvasElement:
+        HTMLCanvasElement | null
+) {
+    if (!canvasElement) {
+        return;
+    }
+
+    MANUAL_GUIDES_BY_ELEMENT.delete(
+        canvasElement
+    );
+}
+
+function getMAQuadroManualGuides(
+    canvas: Canvas
+): MAQuadroManualGuides {
+    return (
+        MANUAL_GUIDES_BY_ELEMENT.get(
+            canvas.getElement()
+        ) || {
+            vertical: [],
+            horizontal: []
+        }
+    );
+}
 
 function clamp(
     value: number,
@@ -668,7 +756,8 @@ type SnapCandidate = {
     position: number;
     source:
         | 'page'
-        | 'object';
+        | 'object'
+        | 'manual';
 };
 
 function bestSnap(
@@ -777,6 +866,45 @@ export function snapMAQuadroObject(
                 source: 'page'
             }
         ];
+
+    const manualGuides =
+        getMAQuadroManualGuides(
+            canvas
+        );
+
+    verticalCandidates.push(
+        ...manualGuides.vertical
+            .filter(
+                (position) =>
+                    position >= 0 &&
+                    position <=
+                        canvas.getWidth()
+            )
+            .map(
+                (position) => ({
+                    position,
+                    source:
+                        'manual' as const
+                })
+            )
+    );
+
+    horizontalCandidates.push(
+        ...manualGuides.horizontal
+            .filter(
+                (position) =>
+                    position >= 0 &&
+                    position <=
+                        canvas.getHeight()
+            )
+            .map(
+                (position) => ({
+                    position,
+                    source:
+                        'manual' as const
+                })
+            )
+    );
 
     for (
         const object
