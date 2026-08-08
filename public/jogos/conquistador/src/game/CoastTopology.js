@@ -1,22 +1,16 @@
 /**
  * CONQUISTADOR — CoastTopology
- * Classifica a topologia costeira a partir do resultado de BoardTopology.
- *
- * Não altera o tabuleiro. Apenas devolve uma vista derivada com:
- * - arestas internas terrestres;
- * - arestas costeiras (perímetro);
- * - vértices costeiros;
- * - sequência(s) de perímetro;
- * - metadados úteis para Portos e Rotas Marítimas.
+ * Distingue costa marítima real, fronteira terrestre e arestas internas.
  */
 
-const asArray = (value) => (Array.isArray(value) ? value : [])
+const asArray = (value) => (Array.isArray(value) ? value : []);
 
 function idOf(value) {
-  if (value == null) return null
-  if (typeof value === 'string' || typeof value === 'number') return String(value)
-  if (value.id != null) return String(value.id)
-  return null
+  if (value == null) return null;
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  return value.id != null ? String(value.id) : null;
 }
 
 function edgeVertexIds(edge) {
@@ -25,18 +19,18 @@ function edgeVertexIds(edge) {
     edge?.vertices,
     edge?.endpoints,
     edge?.points,
-  ]
+  ];
 
   for (const candidate of candidates) {
-    if (!Array.isArray(candidate) || candidate.length < 2) continue
-    const a = idOf(candidate[0])
-    const b = idOf(candidate[1])
-    if (a && b) return [a, b]
+    if (!Array.isArray(candidate) || candidate.length < 2) continue;
+    const first = idOf(candidate[0]);
+    const second = idOf(candidate[1]);
+    if (first && second) return [first, second];
   }
 
-  const a = idOf(edge?.a ?? edge?.from ?? edge?.start ?? edge?.v1)
-  const b = idOf(edge?.b ?? edge?.to ?? edge?.end ?? edge?.v2)
-  return a && b ? [a, b] : []
+  const first = idOf(edge?.a ?? edge?.from ?? edge?.start ?? edge?.v1);
+  const second = idOf(edge?.b ?? edge?.to ?? edge?.end ?? edge?.v2);
+  return first && second ? [first, second] : [];
 }
 
 function edgeTerritoryIds(edge) {
@@ -46,176 +40,208 @@ function edgeTerritoryIds(edge) {
     edge?.hexIds,
     edge?.hexes,
     edge?.tileIds,
-  ]
+  ];
 
   for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) continue
-    return candidate.map(idOf).filter(Boolean)
+    if (!Array.isArray(candidate)) continue;
+    return candidate.map(idOf).filter(Boolean);
   }
 
-  return []
+  return [];
 }
 
 function pointOf(vertex) {
-  const x = Number(vertex?.x ?? vertex?.position?.x ?? vertex?.point?.x)
-  const y = Number(vertex?.y ?? vertex?.position?.y ?? vertex?.point?.y)
-  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+  const x = Number(vertex?.x ?? vertex?.position?.x ?? vertex?.point?.x);
+  const y = Number(vertex?.y ?? vertex?.position?.y ?? vertex?.point?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
 function detectBoundary(edge) {
-  if (typeof edge?.isPerimeter === 'boolean') return edge.isPerimeter
-  if (typeof edge?.perimeter === 'boolean') return edge.perimeter
-  if (typeof edge?.isBoundary === 'boolean') return edge.isBoundary
-  if (typeof edge?.boundary === 'boolean') return edge.boundary
+  if (typeof edge?.isPerimeter === 'boolean') return edge.isPerimeter;
+  if (typeof edge?.perimeter === 'boolean') return edge.perimeter;
+  if (typeof edge?.isBoundary === 'boolean') return edge.isBoundary;
+  if (typeof edge?.boundary === 'boolean') return edge.boundary;
 
-  const territories = edgeTerritoryIds(edge)
-  if (territories.length) return territories.length === 1
-
-  return false
+  const territories = edgeTerritoryIds(edge);
+  return territories.length ? territories.length === 1 : false;
 }
 
-function buildPerimeterLoops(coastalEdges) {
-  const adjacency = new Map()
-  const edgeByPair = new Map()
+function detectCoastal(edge) {
+  if (typeof edge?.isCoastal === 'boolean') return edge.isCoastal;
+  if (typeof edge?.coastal === 'boolean') return edge.coastal;
+
+  // Compatibilidade com topologias antigas sem classificação explícita.
+  return detectBoundary(edge);
+}
+
+function buildCoastPaths(coastalEdges) {
+  const edgeById = new Map(
+    coastalEdges.map((edge) => [String(edge.id), edge]),
+  );
+  const edgesByVertex = new Map();
 
   for (const edge of coastalEdges) {
-    const [a, b] = edgeVertexIds(edge)
-    if (!a || !b) continue
-    if (!adjacency.has(a)) adjacency.set(a, new Set())
-    if (!adjacency.has(b)) adjacency.set(b, new Set())
-    adjacency.get(a).add(b)
-    adjacency.get(b).add(a)
-    edgeByPair.set(`${a}|${b}`, edge)
-    edgeByPair.set(`${b}|${a}`, edge)
+    const edgeId = String(edge.id);
+    for (const vertexId of edgeVertexIds(edge)) {
+      if (!edgesByVertex.has(vertexId)) edgesByVertex.set(vertexId, []);
+      edgesByVertex.get(vertexId).push(edgeId);
+    }
   }
 
-  const unused = new Set(coastalEdges.map((edge) => String(edge.id)))
-  const loops = []
+  const unassigned = new Set(edgeById.keys());
+  const paths = [];
 
-  const getEdge = (a, b) => edgeByPair.get(`${a}|${b}`)
+  while (unassigned.size) {
+    const seedEdgeId = unassigned.values().next().value;
+    const componentEdgeIds = new Set();
+    const queue = [seedEdgeId];
 
-  while (unused.size) {
-    const seedId = unused.values().next().value
-    const seed = coastalEdges.find((edge) => String(edge.id) === seedId)
-    if (!seed) {
-      unused.delete(seedId)
-      continue
-    }
+    while (queue.length) {
+      const edgeId = queue.pop();
+      if (componentEdgeIds.has(edgeId)) continue;
 
-    const [start, next] = edgeVertexIds(seed)
-    if (!start || !next) {
-      unused.delete(seedId)
-      continue
-    }
+      const edge = edgeById.get(edgeId);
+      if (!edge) continue;
 
-    const vertexIds = [start, next]
-    const edgeIds = [String(seed.id)]
-    unused.delete(String(seed.id))
+      componentEdgeIds.add(edgeId);
+      unassigned.delete(edgeId);
 
-    let previous = start
-    let current = next
-    let safety = coastalEdges.length + 2
-
-    while (safety-- > 0) {
-      const neighbours = [...(adjacency.get(current) ?? [])]
-      let chosen = null
-
-      for (const neighbour of neighbours) {
-        const edge = getEdge(current, neighbour)
-        if (!edge) continue
-        const edgeId = String(edge.id)
-        if (unused.has(edgeId)) {
-          chosen = { neighbour, edgeId }
-          break
+      for (const vertexId of edgeVertexIds(edge)) {
+        for (const neighborEdgeId of edgesByVertex.get(vertexId) ?? []) {
+          if (!componentEdgeIds.has(neighborEdgeId)) queue.push(neighborEdgeId);
         }
       }
-
-      if (!chosen) break
-      previous = current
-      current = chosen.neighbour
-      vertexIds.push(current)
-      edgeIds.push(chosen.edgeId)
-      unused.delete(chosen.edgeId)
-
-      if (current === start) break
-      if (current === previous) break
     }
 
-    loops.push({
-      id: `coast-loop-${loops.length + 1}`,
-      vertexIds,
-      edgeIds,
-      closed: vertexIds.length > 2 && vertexIds[0] === vertexIds[vertexIds.length - 1],
-    })
+    const degreeByVertex = new Map();
+    for (const edgeId of componentEdgeIds) {
+      for (const vertexId of edgeVertexIds(edgeById.get(edgeId))) {
+        degreeByVertex.set(vertexId, (degreeByVertex.get(vertexId) ?? 0) + 1);
+      }
+    }
+
+    const firstEdge = edgeById.get(componentEdgeIds.values().next().value);
+    const fallbackStart = edgeVertexIds(firstEdge)[0];
+    const startVertexId =
+      [...degreeByVertex.entries()].find(([, degree]) => degree === 1)?.[0] ??
+      fallbackStart;
+
+    const remaining = new Set(componentEdgeIds);
+    const orderedEdgeIds = [];
+    const orderedVertexIds = startVertexId ? [startVertexId] : [];
+    let currentVertexId = startVertexId;
+    let safety = componentEdgeIds.size + 2;
+
+    while (currentVertexId && remaining.size && safety-- > 0) {
+      const nextEdgeId = (edgesByVertex.get(currentVertexId) ?? []).find(
+        (edgeId) => remaining.has(edgeId),
+      );
+      if (!nextEdgeId) break;
+
+      const [first, second] = edgeVertexIds(edgeById.get(nextEdgeId));
+      const nextVertexId = first === currentVertexId ? second : first;
+      remaining.delete(nextEdgeId);
+      orderedEdgeIds.push(nextEdgeId);
+      orderedVertexIds.push(nextVertexId);
+      currentVertexId = nextVertexId;
+    }
+
+    for (const edgeId of remaining) orderedEdgeIds.push(edgeId);
+
+    paths.push({
+      id: `coast-loop-${paths.length + 1}`,
+      vertexIds: orderedVertexIds,
+      edgeIds: orderedEdgeIds,
+      closed:
+        orderedVertexIds.length > 2 &&
+        orderedVertexIds[0] === orderedVertexIds[orderedVertexIds.length - 1],
+    });
   }
 
-  return loops
+  return paths;
 }
 
 export function classifyCoast(topology) {
   if (!topology || typeof topology !== 'object') {
-    throw new TypeError('CoastTopology: topology inválida.')
+    throw new TypeError('CoastTopology: topology inválida.');
   }
 
-  const vertices = asArray(topology.vertices)
-  const edges = asArray(topology.edges)
-
-  const vertexById = new Map(vertices.map((vertex) => [String(vertex.id), vertex]))
-  const coastalEdges = []
-  const inlandEdges = []
-  const coastalVertexIds = new Set()
+  const vertices = asArray(topology.vertices);
+  const edges = asArray(topology.edges);
+  const vertexById = new Map(
+    vertices.map((vertex) => [String(vertex.id), vertex]),
+  );
+  const coastalEdges = [];
+  const inlandEdges = [];
+  const landBoundaryEdges = [];
+  const coastalVertexIds = new Set();
 
   for (const edge of edges) {
-    const coastal = detectBoundary(edge)
-    const [a, b] = edgeVertexIds(edge)
-
+    const boundary = detectBoundary(edge);
+    const coastal = detectCoastal(edge);
+    const [first, second] = edgeVertexIds(edge);
     const enriched = {
       ...edge,
+      boundary,
       coastal,
-      edgeClass: coastal ? 'coast' : 'land-internal',
-      vertexIds: a && b ? [a, b] : edge.vertexIds,
-    }
+      edgeClass: coastal
+        ? 'coast'
+        : boundary
+          ? 'land-boundary'
+          : 'land-internal',
+      vertexIds: first && second ? [first, second] : edge.vertexIds,
+    };
 
     if (coastal) {
-      coastalEdges.push(enriched)
-      if (a) coastalVertexIds.add(a)
-      if (b) coastalVertexIds.add(b)
+      coastalEdges.push(enriched);
+      if (first) coastalVertexIds.add(first);
+      if (second) coastalVertexIds.add(second);
     } else {
-      inlandEdges.push(enriched)
+      inlandEdges.push(enriched);
+      if (boundary) landBoundaryEdges.push(enriched);
     }
   }
 
   const coastalVertices = [...coastalVertexIds]
     .map((id) => vertexById.get(id))
     .filter(Boolean)
-    .map((vertex) => ({ ...vertex, coastal: true }))
+    .map((vertex) => ({ ...vertex, coastal: true }));
 
-  const perimeterLoops = buildPerimeterLoops(coastalEdges)
+  const perimeterLoops = buildCoastPaths(coastalEdges);
+  const coastalEdgeIds = new Set(
+    coastalEdges.map((edge) => String(edge.id)),
+  );
 
   return {
     coastalEdges,
     inlandEdges,
+    landBoundaryEdges,
     coastalVertices,
     coastalVertexIds: [...coastalVertexIds],
     perimeterLoops,
+
     stats: {
       totalEdges: edges.length,
       coastalEdges: coastalEdges.length,
       inlandEdges: inlandEdges.length,
+      landBoundaryEdges: landBoundaryEdges.length,
       totalVertices: vertices.length,
       coastalVertices: coastalVertices.length,
       perimeterLoops: perimeterLoops.length,
     },
+
     isCoastalVertex(vertexId) {
-      return coastalVertexIds.has(String(vertexId))
+      return coastalVertexIds.has(String(vertexId));
     },
+
     isCoastalEdge(edgeId) {
-      return coastalEdges.some((edge) => String(edge.id) === String(edgeId))
+      return coastalEdgeIds.has(String(edgeId));
     },
+
     getVertexPoint(vertexId) {
-      return pointOf(vertexById.get(String(vertexId)))
+      return pointOf(vertexById.get(String(vertexId)));
     },
-  }
+  };
 }
 
-export default classifyCoast
+export default classifyCoast;
