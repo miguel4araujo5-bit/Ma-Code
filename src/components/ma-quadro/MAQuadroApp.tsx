@@ -17,6 +17,7 @@ import {
   MAQuadroEditorProvider
 } from './editorContext'
 
+import FormatPainterController from './FormatPainterController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
@@ -303,6 +304,8 @@ export default function MAQuadroApp() {
           protectNativeKeyboard
         }
       >
+        <FormatPainterController />
+
         <EditorHeader
           onOpenShortcuts={() => {
             closeContextMenu()
