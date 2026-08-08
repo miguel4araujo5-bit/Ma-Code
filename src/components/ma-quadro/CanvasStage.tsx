@@ -1,9 +1,20 @@
 import {
+  useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent,
-  type MouseEvent
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent
 } from 'react'
+
+import {
+  clearMAQuadroManualGuides,
+  setMAQuadroManualGuides,
+  type MAQuadroManualGuides
+} from '../../lib/maQuadro/editorEnhancements'
 
 import type {
   MAQuadroContextMenuPosition
@@ -19,6 +30,18 @@ type RulerMark = {
   value: number
   position: number
   major: boolean
+}
+
+type ManualGuideAxis =
+  | 'vertical'
+  | 'horizontal'
+
+type ManualGuideDragState = {
+  axis: ManualGuideAxis
+  index: number
+  created: boolean
+  originalValue: number
+  outside: boolean
 }
 
 const RULER_MAJOR_STEPS = [
@@ -42,6 +65,29 @@ const RULER_MAJOR_STEPS = [
 
 const RULER_MIN_MAJOR_SPACING = 64
 const RULER_MAX_MARKS = 500
+const GUIDE_REMOVE_MARGIN = 24
+
+const EMPTY_MANUAL_GUIDES:
+  MAQuadroManualGuides = {
+    vertical: [],
+    horizontal: []
+  }
+
+function clamp(
+  value: number,
+  minimum: number,
+  maximum: number
+) {
+  return Math.min(
+    maximum,
+    Math.max(
+      minimum,
+      Number.isFinite(value)
+        ? value
+        : minimum
+    )
+  )
+}
 
 function getRulerMajorStep(
   length: number,
@@ -154,11 +200,23 @@ function formatRulerValue(
 function CanvasRulers({
   width,
   height,
-  zoom
+  zoom,
+  disabled,
+  onCreateHorizontalGuide,
+  onCreateVerticalGuide
 }: {
   width: number
   height: number
   zoom: number
+  disabled: boolean
+  onCreateHorizontalGuide: (
+    event:
+      ReactPointerEvent<HTMLDivElement>
+  ) => void
+  onCreateVerticalGuide: (
+    event:
+      ReactPointerEvent<HTMLDivElement>
+  ) => void
 }) {
   const horizontalMarks =
     useMemo(
@@ -197,8 +255,21 @@ function CanvasRulers({
       </div>
 
       <div
-        className="mq-ruler mq-ruler--horizontal"
-        aria-hidden="true"
+        className={`mq-ruler mq-ruler--horizontal${
+          disabled
+            ? ' is-disabled'
+            : ''
+        }`}
+        title={
+          disabled
+            ? undefined
+            : 'Arraste desta régua para criar uma guia horizontal'
+        }
+        onPointerDown={
+          disabled
+            ? undefined
+            : onCreateHorizontalGuide
+        }
       >
         {horizontalMarks.map(
           (mark) => (
@@ -213,6 +284,7 @@ function CanvasRulers({
                 left:
                   mark.position
               }}
+              aria-hidden="true"
             >
               {mark.major ? (
                 <span className="mq-ruler-label">
@@ -227,8 +299,21 @@ function CanvasRulers({
       </div>
 
       <div
-        className="mq-ruler mq-ruler--vertical"
-        aria-hidden="true"
+        className={`mq-ruler mq-ruler--vertical${
+          disabled
+            ? ' is-disabled'
+            : ''
+        }`}
+        title={
+          disabled
+            ? undefined
+            : 'Arraste desta régua para criar uma guia vertical'
+        }
+        onPointerDown={
+          disabled
+            ? undefined
+            : onCreateVerticalGuide
+        }
       >
         {verticalMarks.map(
           (mark) => (
@@ -243,6 +328,7 @@ function CanvasRulers({
                 top:
                   mark.position
               }}
+              aria-hidden="true"
             >
               {mark.major ? (
                 <span className="mq-ruler-label">
@@ -256,6 +342,131 @@ function CanvasRulers({
         )}
       </div>
     </>
+  )
+}
+
+function ManualGuideButton({
+  axis,
+  index,
+  value,
+  maximum,
+  dragging,
+  removing,
+  disabled,
+  onPointerDown,
+  onRemove
+}: {
+  axis: ManualGuideAxis
+  index: number
+  value: number
+  maximum: number
+  dragging: boolean
+  removing: boolean
+  disabled: boolean
+  onPointerDown: (
+    axis: ManualGuideAxis,
+    index: number,
+    event:
+      ReactPointerEvent<HTMLButtonElement>
+  ) => void
+  onRemove: (
+    axis: ManualGuideAxis,
+    index: number
+  ) => void
+}) {
+  const position = `${(
+    value /
+    Math.max(
+      1,
+      maximum
+    )
+  ) * 100}%`
+
+  const roundedValue =
+    Math.round(value)
+
+  const handleKeyDown = (
+    event:
+      KeyboardEvent<HTMLButtonElement>
+  ) => {
+    if (
+      event.key === 'Delete' ||
+      event.key === 'Backspace'
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+
+      onRemove(
+        axis,
+        index
+      )
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={`mq-manual-guide mq-manual-guide--${axis}${
+        dragging
+          ? ' is-dragging'
+          : ''
+      }${
+        removing
+          ? ' is-removing'
+          : ''
+      }`}
+      style={
+        axis === 'vertical'
+          ? {
+              left:
+                position
+            }
+          : {
+              top:
+                position
+            }
+      }
+      disabled={disabled}
+      title={`${
+        axis === 'vertical'
+          ? 'Guia vertical'
+          : 'Guia horizontal'
+      }: ${roundedValue} px. Arraste para mover, arraste para fora para eliminar ou prima Delete.`}
+      aria-label={`${
+        axis === 'vertical'
+          ? 'Guia vertical'
+          : 'Guia horizontal'
+      } a ${roundedValue} píxeis`}
+      onPointerDown={(
+        event
+      ) =>
+        onPointerDown(
+          axis,
+          index,
+          event
+        )
+      }
+      onDoubleClick={(
+        event
+      ) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        onRemove(
+          axis,
+          index
+        )
+      }}
+      onKeyDown={
+        handleKeyDown
+      }
+    >
+      {dragging ? (
+        <span className="mq-manual-guide__label">
+          {roundedValue} px
+        </span>
+      ) : null}
+    </button>
   )
 }
 
@@ -309,12 +520,34 @@ export default function CanvasStage({
   const editor =
     useMAQuadroEditorContext()
 
+  const rulerFrameRef =
+    useRef<HTMLDivElement | null>(
+      null
+    )
+
   const [
     dragActive,
     setDragActive
   ] = useState(
     false
   )
+
+  const [
+    manualGuidesByPage,
+    setManualGuidesByPage
+  ] = useState<
+    Record<
+      string,
+      MAQuadroManualGuides
+    >
+  >({})
+
+  const [
+    manualGuideDrag,
+    setManualGuideDrag
+  ] = useState<
+    ManualGuideDragState | null
+  >(null)
 
   const page =
     editor.activePage
@@ -336,6 +569,18 @@ export default function CanvasStage({
     canvasHeight *
     editor.zoom /
     100
+
+  const manualGuides =
+    page
+      ? manualGuidesByPage[
+          page.id
+        ] ||
+        EMPTY_MANUAL_GUIDES
+      : EMPTY_MANUAL_GUIDES
+
+  const manualGuideCount =
+    manualGuides.vertical.length +
+    manualGuides.horizontal.length
 
   const hasSelection =
     editor.selection
@@ -363,6 +608,616 @@ export default function CanvasStage({
   const locked =
     editor.busy ||
     editor.structureBusy
+
+  const guidesLocked =
+    locked ||
+    editor.imageCropEditing ||
+    !page
+
+  const setGuidesForCurrentPage =
+    useCallback(
+      (
+        updater: (
+          current:
+            MAQuadroManualGuides
+        ) =>
+          MAQuadroManualGuides
+      ) => {
+        if (!page) {
+          return
+        }
+
+        setManualGuidesByPage(
+          (currentByPage) => {
+            const current =
+              currentByPage[
+                page.id
+              ] ||
+              EMPTY_MANUAL_GUIDES
+
+            return {
+              ...currentByPage,
+              [page.id]:
+                updater(
+                  current
+                )
+            }
+          }
+        )
+      },
+      [
+        page
+      ]
+    )
+
+  const removeManualGuide =
+    useCallback(
+      (
+        axis:
+          ManualGuideAxis,
+        index: number
+      ) => {
+        setGuidesForCurrentPage(
+          (current) => ({
+            ...current,
+            [axis]:
+              current[axis]
+                .filter(
+                  (_, itemIndex) =>
+                    itemIndex !==
+                    index
+                )
+          })
+        )
+      },
+      [
+        setGuidesForCurrentPage
+      ]
+    )
+
+  const clearManualGuides =
+    useCallback(() => {
+      if (
+        guidesLocked ||
+        manualGuideCount === 0
+      ) {
+        return
+      }
+
+      setGuidesForCurrentPage(
+        () => ({
+          vertical: [],
+          horizontal: []
+        })
+      )
+
+      setManualGuideDrag(
+        null
+      )
+    }, [
+      guidesLocked,
+      manualGuideCount,
+      setGuidesForCurrentPage
+    ])
+
+  const guideValueFromPointer =
+    useCallback(
+      (
+        axis:
+          ManualGuideAxis,
+        clientX: number,
+        clientY: number
+      ) => {
+        const frame =
+          rulerFrameRef.current
+
+        if (!frame) {
+          return 0
+        }
+
+        const bounds =
+          frame.getBoundingClientRect()
+
+        if (
+          axis ===
+          'vertical'
+        ) {
+          const scale =
+            bounds.width /
+            Math.max(
+              1,
+              canvasWidth
+            )
+
+          return clamp(
+            (
+              clientX -
+              bounds.left
+            ) /
+              Math.max(
+                scale,
+                0.0001
+              ),
+            0,
+            canvasWidth
+          )
+        }
+
+        const scale =
+          bounds.height /
+          Math.max(
+            1,
+            canvasHeight
+          )
+
+        return clamp(
+          (
+            clientY -
+            bounds.top
+          ) /
+            Math.max(
+              scale,
+              0.0001
+            ),
+          0,
+          canvasHeight
+        )
+      },
+      [
+        canvasHeight,
+        canvasWidth
+      ]
+    )
+
+  const pointerOutsideGuideArea =
+    useCallback(
+      (
+        axis:
+          ManualGuideAxis,
+        clientX: number,
+        clientY: number
+      ) => {
+        const frame =
+          rulerFrameRef.current
+
+        if (!frame) {
+          return false
+        }
+
+        const bounds =
+          frame.getBoundingClientRect()
+
+        if (
+          axis ===
+          'vertical'
+        ) {
+          return (
+            clientX <
+              bounds.left -
+                GUIDE_REMOVE_MARGIN ||
+            clientX >
+              bounds.right +
+                GUIDE_REMOVE_MARGIN
+          )
+        }
+
+        return (
+          clientY <
+            bounds.top -
+              GUIDE_REMOVE_MARGIN ||
+          clientY >
+            bounds.bottom +
+              GUIDE_REMOVE_MARGIN
+        )
+      },
+      []
+    )
+
+  const beginExistingGuideDrag =
+    useCallback(
+      (
+        axis:
+          ManualGuideAxis,
+        index: number,
+        event:
+          ReactPointerEvent<HTMLButtonElement>
+      ) => {
+        if (
+          guidesLocked
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        const value =
+          manualGuides[
+            axis
+          ][index]
+
+        if (
+          typeof value !==
+          'number'
+        ) {
+          return
+        }
+
+        setManualGuideDrag({
+          axis,
+          index,
+          created: false,
+          originalValue:
+            value,
+          outside: false
+        })
+      },
+      [
+        guidesLocked,
+        manualGuides
+      ]
+    )
+
+  const beginNewGuideDrag =
+    useCallback(
+      (
+        axis:
+          ManualGuideAxis,
+        event:
+          ReactPointerEvent<HTMLDivElement>
+      ) => {
+        if (
+          guidesLocked ||
+          !page
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        const value =
+          guideValueFromPointer(
+            axis,
+            event.clientX,
+            event.clientY
+          )
+
+        const index =
+          manualGuides[
+            axis
+          ].length
+
+        setGuidesForCurrentPage(
+          (current) => ({
+            ...current,
+            [axis]: [
+              ...current[axis],
+              value
+            ]
+          })
+        )
+
+        setManualGuideDrag({
+          axis,
+          index,
+          created: true,
+          originalValue:
+            value,
+          outside: false
+        })
+      },
+      [
+        guideValueFromPointer,
+        guidesLocked,
+        manualGuides,
+        page,
+        setGuidesForCurrentPage
+      ]
+    )
+
+  const updateDraggedGuide =
+    useCallback(
+      (
+        drag:
+          ManualGuideDragState,
+        clientX: number,
+        clientY: number
+      ) => {
+        const value =
+          guideValueFromPointer(
+            drag.axis,
+            clientX,
+            clientY
+          )
+
+        const outside =
+          pointerOutsideGuideArea(
+            drag.axis,
+            clientX,
+            clientY
+          )
+
+        setGuidesForCurrentPage(
+          (current) => ({
+            ...current,
+            [drag.axis]:
+              current[
+                drag.axis
+              ].map(
+                (
+                  currentValue,
+                  index
+                ) =>
+                  index ===
+                  drag.index
+                    ? value
+                    : currentValue
+              )
+          })
+        )
+
+        setManualGuideDrag(
+          (current) => {
+            if (
+              !current ||
+              current.outside ===
+                outside
+            ) {
+              return current
+            }
+
+            return {
+              ...current,
+              outside
+            }
+          }
+        )
+      },
+      [
+        guideValueFromPointer,
+        pointerOutsideGuideArea,
+        setGuidesForCurrentPage
+      ]
+    )
+
+  useEffect(() => {
+    if (
+      !manualGuideDrag
+    ) {
+      return
+    }
+
+    const handlePointerMove = (
+      event:
+        PointerEvent
+    ) => {
+      event.preventDefault()
+
+      updateDraggedGuide(
+        manualGuideDrag,
+        event.clientX,
+        event.clientY
+      )
+    }
+
+    const finishDrag = (
+      event:
+        PointerEvent,
+      cancelled = false
+    ) => {
+      const outside =
+        cancelled ||
+        pointerOutsideGuideArea(
+          manualGuideDrag.axis,
+          event.clientX,
+          event.clientY
+        )
+
+      if (outside) {
+        if (
+          manualGuideDrag.created
+        ) {
+          removeManualGuide(
+            manualGuideDrag.axis,
+            manualGuideDrag.index
+          )
+        } else {
+          setGuidesForCurrentPage(
+            (current) => ({
+              ...current,
+              [manualGuideDrag.axis]:
+                current[
+                  manualGuideDrag.axis
+                ].map(
+                  (
+                    value,
+                    index
+                  ) =>
+                    index ===
+                    manualGuideDrag.index
+                      ? manualGuideDrag
+                          .originalValue
+                      : value
+                )
+            })
+          )
+
+          if (!cancelled) {
+            removeManualGuide(
+              manualGuideDrag.axis,
+              manualGuideDrag.index
+            )
+          }
+        }
+      }
+
+      setManualGuideDrag(
+        null
+      )
+    }
+
+    const handlePointerUp = (
+      event:
+        PointerEvent
+    ) => {
+      finishDrag(
+        event,
+        false
+      )
+    }
+
+    const handlePointerCancel = (
+      event:
+        PointerEvent
+    ) => {
+      finishDrag(
+        event,
+        true
+      )
+    }
+
+    window.addEventListener(
+      'pointermove',
+      handlePointerMove,
+      {
+        passive: false
+      }
+    )
+
+    window.addEventListener(
+      'pointerup',
+      handlePointerUp
+    )
+
+    window.addEventListener(
+      'pointercancel',
+      handlePointerCancel
+    )
+
+    return () => {
+      window.removeEventListener(
+        'pointermove',
+        handlePointerMove
+      )
+
+      window.removeEventListener(
+        'pointerup',
+        handlePointerUp
+      )
+
+      window.removeEventListener(
+        'pointercancel',
+        handlePointerCancel
+      )
+    }
+  }, [
+    manualGuideDrag,
+    pointerOutsideGuideArea,
+    removeManualGuide,
+    setGuidesForCurrentPage,
+    updateDraggedGuide
+  ])
+
+  useEffect(() => {
+    if (!page) {
+      return
+    }
+
+    setManualGuidesByPage(
+      (currentByPage) => {
+        const current =
+          currentByPage[
+            page.id
+          ]
+
+        if (!current) {
+          return currentByPage
+        }
+
+        const vertical =
+          current.vertical.map(
+            (value) =>
+              clamp(
+                value,
+                0,
+                canvasWidth
+              )
+          )
+
+        const horizontal =
+          current.horizontal.map(
+            (value) =>
+              clamp(
+                value,
+                0,
+                canvasHeight
+              )
+          )
+
+        const unchanged =
+          vertical.every(
+            (value, index) =>
+              value ===
+              current.vertical[
+                index
+              ]
+          ) &&
+          horizontal.every(
+            (value, index) =>
+              value ===
+              current.horizontal[
+                index
+              ]
+          )
+
+        if (unchanged) {
+          return currentByPage
+        }
+
+        return {
+          ...currentByPage,
+          [page.id]: {
+            vertical,
+            horizontal
+          }
+        }
+      }
+    )
+  }, [
+    canvasHeight,
+    canvasWidth,
+    page
+  ])
+
+  useEffect(() => {
+    const canvasElement =
+      editor.canvasElementRef
+        .current
+
+    setMAQuadroManualGuides(
+      canvasElement,
+      manualGuides
+    )
+
+    return () => {
+      clearMAQuadroManualGuides(
+        canvasElement
+      )
+    }
+  }, [
+    editor.canvasElementRef,
+    manualGuides,
+    page?.id
+  ])
+
+  useEffect(() => {
+    setManualGuideDrag(
+      null
+    )
+  }, [
+    page?.id
+  ])
 
   const handleDragOver = (
     event:
@@ -482,6 +1337,15 @@ export default function CanvasStage({
             canvasHeight
           )
         ) * 100}%`
+
+  const activeManualGuideValue =
+    manualGuideDrag
+      ? manualGuides[
+          manualGuideDrag.axis
+        ][
+          manualGuideDrag.index
+        ]
+      : null
 
   return (
     <section className="mq-stage-section">
@@ -814,6 +1678,19 @@ export default function CanvasStage({
             }
           />
 
+          {manualGuideCount > 0 ? (
+            <ToolbarButton
+              label={`Guias × (${manualGuideCount})`}
+              title="Remover todas as guias manuais desta página"
+              onClick={
+                clearManualGuides
+              }
+              disabled={
+                guidesLocked
+              }
+            />
+          ) : null}
+
           <ToolbarButton
             label="Ajustar"
             title="Ajustar quadro ao ecrã"
@@ -971,6 +1848,10 @@ export default function CanvasStage({
             .imageCropEditing
             ? ' is-cropping'
             : ''
+        }${
+          manualGuideDrag
+            ? ' is-guide-dragging'
+            : ''
         }`}
         onWheel={
           editor
@@ -1007,6 +1888,9 @@ export default function CanvasStage({
         }
       >
         <div
+          ref={
+            rulerFrameRef
+          }
           className="mq-canvas-ruler-frame"
           style={{
             width:
@@ -1025,6 +1909,25 @@ export default function CanvasStage({
               }
               zoom={
                 editor.zoom
+              }
+              disabled={
+                guidesLocked
+              }
+              onCreateHorizontalGuide={(
+                event
+              ) =>
+                beginNewGuideDrag(
+                  'horizontal',
+                  event
+                )
+              }
+              onCreateVerticalGuide={(
+                event
+              ) =>
+                beginNewGuideDrag(
+                  'vertical',
+                  event
+                )
               }
             />
           ) : null}
@@ -1062,6 +1965,106 @@ export default function CanvasStage({
               <div className="mq-safe-area" />
             ) : null}
 
+            {page
+              ? manualGuides.vertical.map(
+                  (
+                    value,
+                    index
+                  ) => (
+                    <ManualGuideButton
+                      key={`manual-v-${index}`}
+                      axis="vertical"
+                      index={
+                        index
+                      }
+                      value={
+                        value
+                      }
+                      maximum={
+                        canvasWidth
+                      }
+                      dragging={
+                        manualGuideDrag
+                          ?.axis ===
+                          'vertical' &&
+                        manualGuideDrag
+                          .index ===
+                          index
+                      }
+                      removing={
+                        manualGuideDrag
+                          ?.axis ===
+                          'vertical' &&
+                        manualGuideDrag
+                          .index ===
+                          index &&
+                        manualGuideDrag
+                          .outside
+                      }
+                      disabled={
+                        guidesLocked
+                      }
+                      onPointerDown={
+                        beginExistingGuideDrag
+                      }
+                      onRemove={
+                        removeManualGuide
+                      }
+                    />
+                  )
+                )
+              : null}
+
+            {page
+              ? manualGuides.horizontal.map(
+                  (
+                    value,
+                    index
+                  ) => (
+                    <ManualGuideButton
+                      key={`manual-h-${index}`}
+                      axis="horizontal"
+                      index={
+                        index
+                      }
+                      value={
+                        value
+                      }
+                      maximum={
+                        canvasHeight
+                      }
+                      dragging={
+                        manualGuideDrag
+                          ?.axis ===
+                          'horizontal' &&
+                        manualGuideDrag
+                          .index ===
+                          index
+                      }
+                      removing={
+                        manualGuideDrag
+                          ?.axis ===
+                          'horizontal' &&
+                        manualGuideDrag
+                          .index ===
+                          index &&
+                        manualGuideDrag
+                          .outside
+                      }
+                      disabled={
+                        guidesLocked
+                      }
+                      onPointerDown={
+                        beginExistingGuideDrag
+                      }
+                      onRemove={
+                        removeManualGuide
+                      }
+                    />
+                  )
+                )
+              : null}
+
             {verticalGuidePosition !==
             null ? (
               <div
@@ -1071,7 +2074,12 @@ export default function CanvasStage({
                     .source ===
                   'object'
                     ? ' is-object-guide'
-                    : ''
+                    : editor
+                        .guides
+                        .source ===
+                      'manual'
+                      ? ' is-manual-guide'
+                      : ''
                 }`}
                 style={{
                   left:
@@ -1089,7 +2097,12 @@ export default function CanvasStage({
                     .source ===
                   'object'
                     ? ' is-object-guide'
-                    : ''
+                    : editor
+                        .guides
+                        .source ===
+                      'manual'
+                      ? ' is-manual-guide'
+                      : ''
                 }`}
                 style={{
                   top:
@@ -1143,6 +2156,22 @@ export default function CanvasStage({
               arraste a imagem
               ou use os
               controlos acima.{' '}
+            </strong>
+          ) : null}
+
+          {manualGuideDrag &&
+          typeof activeManualGuideValue ===
+            'number' ? (
+            <strong>
+              {manualGuideDrag.axis ===
+              'vertical'
+                ? 'Guia vertical'
+                : 'Guia horizontal'}
+              :{' '}
+              {Math.round(
+                activeManualGuideValue
+              )}{' '}
+              px — arraste para fora do quadro para eliminar.{' '}
             </strong>
           ) : null}
 
