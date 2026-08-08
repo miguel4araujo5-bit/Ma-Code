@@ -31,68 +31,44 @@ import {
   Bank,
 } from './Bank.js';
 
-const GAME_PHASES =
+const GAME_PHASES = Object.freeze({
+  SETUP_VILLAGE: 'setup-village',
+  SETUP_ROAD: 'setup-road',
+  TURN_ROLL: 'turn-roll',
+  TURN_ACTIONS: 'turn-actions',
+  GAME_OVER: 'game-over',
+});
+
+const HOUSE_PRESETS = Object.freeze([
   Object.freeze({
-    SETUP_VILLAGE:
-      'setup-village',
-
-    SETUP_ROAD:
-      'setup-road',
-
-    TURN_ROLL:
-      'turn-roll',
-
-    TURN_ACTIONS:
-      'turn-actions',
-
-    GAME_OVER:
-      'game-over',
-  });
-
-const HOUSE_PRESETS =
-  Object.freeze([
-    Object.freeze({
-      id: 'atlantic',
-      name:
-        'Casa do Atlântico',
-      color: '#176b78',
-      symbol: '≈',
-    }),
-
-    Object.freeze({
-      id: 'mountain',
-      name:
-        'Casa da Serra',
-      color: '#44643c',
-      symbol: '▲',
-    }),
-
-    Object.freeze({
-      id: 'sun',
-      name:
-        'Casa do Sol',
-      color: '#b7791f',
-      symbol: '☀',
-    }),
-
-    Object.freeze({
-      id: 'tagus',
-      name:
-        'Casa do Tejo',
-      color: '#8c2f39',
-      symbol: '◆',
-    }),
-  ]);
+    id: 'atlantic',
+    name: 'Casa do Atlântico',
+    color: '#176b78',
+    symbol: '≈',
+  }),
+  Object.freeze({
+    id: 'mountain',
+    name: 'Casa da Serra',
+    color: '#44643c',
+    symbol: '▲',
+  }),
+  Object.freeze({
+    id: 'sun',
+    name: 'Casa do Sol',
+    color: '#b7791f',
+    symbol: '☀',
+  }),
+  Object.freeze({
+    id: 'tagus',
+    name: 'Casa do Tejo',
+    color: '#8c2f39',
+    symbol: '◆',
+  }),
+]);
 
 function createGameId() {
-  if (
-    globalThis.crypto
-      ?.randomUUID
-  ) {
-    return (
-      globalThis.crypto
-        .randomUUID()
-    );
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
   }
 
   return (
@@ -103,26 +79,17 @@ function createGameId() {
   );
 }
 
-function createSetupOrder(
-  playerCount,
-) {
-  const forward =
-    Array.from(
-      {
-        length:
-          playerCount,
-      },
-      (
-        _,
-        index,
-      ) => index,
-    );
+function createSetupOrder(playerCount) {
+  const forward = Array.from(
+    {
+      length: playerCount,
+    },
+    (_, index) => index,
+  );
 
   return [
     ...forward,
-    ...[
-      ...forward,
-    ].reverse(),
+    ...[...forward].reverse(),
   ];
 }
 
@@ -139,10 +106,8 @@ function normalizePlayers(
     !Array.isArray(
       playerConfigurations,
     ) ||
-    playerConfigurations.length <
-      2 ||
-    playerConfigurations.length >
-      4
+    playerConfigurations.length < 2 ||
+    playerConfigurations.length > 4
   ) {
     throw new Error(
       'A partida deve ter entre 2 e 4 jogadores.',
@@ -207,9 +172,7 @@ function normalizePlayers(
   );
 }
 
-function restoreBank(
-  bankData,
-) {
+function restoreBank(bankData) {
   const bank =
     new Bank();
 
@@ -232,9 +195,7 @@ function prepareBoard(
   if (!boardData) {
     return buildBoardTopology(
       new BoardGenerator()
-        .generate(
-          seed,
-        ),
+        .generate(seed),
     );
   }
 
@@ -254,9 +215,7 @@ function prepareBoard(
   }
 
   const board =
-    clone(
-      boardData,
-    );
+    clone(boardData);
 
   if (
     !Array.isArray(
@@ -287,6 +246,24 @@ function prepareBoard(
   }
 
   return board;
+}
+
+function depositCost(
+  bank,
+  cost,
+) {
+  for (
+    const [
+      resourceId,
+      quantity,
+    ]
+    of Object.entries(cost)
+  ) {
+    bank.deposit(
+      resourceId,
+      quantity,
+    );
+  }
 }
 
 export class Game {
@@ -333,7 +310,8 @@ export class Game {
 
     turnNumber = 1,
   }) {
-    this.id = id;
+    this.id =
+      id;
 
     this.seed =
       String(seed);
@@ -360,13 +338,14 @@ export class Game {
       ) &&
       diceState >= 0
     ) {
-      this.dice.random.state =
+      this.dice
+        .random
+        .state =
         diceState >>> 0;
     }
 
     this.bank =
-      bank instanceof
-        Bank
+      bank instanceof Bank
         ? bank
         : restoreBank(
             bank,
@@ -542,6 +521,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Não está na fase de colocação de Vila.',
       };
@@ -566,6 +546,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           validation.reason,
       };
@@ -578,6 +559,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Não existem Vilas disponíveis.',
       };
@@ -607,7 +589,9 @@ export class Game {
       ) + 1;
 
     this.pendingInitialVertexId =
-      validation.vertex.id;
+      validation
+        .vertex
+        .id;
 
     this.phase =
       GAME_PHASES
@@ -628,54 +612,19 @@ export class Game {
 
     return {
       success: true,
+
       vertex:
         validation.vertex,
     };
   }
 
-  placeInitialRoad(
-    edgeId,
-  ) {
-    if (
-      this.phase !==
-      GAME_PHASES
-        .SETUP_ROAD
-    ) {
-      return {
-        success: false,
-        reason:
-          'Não está na fase de colocação do Caminho inicial.',
-      };
-    }
-
-    const player =
-      this.currentPlayer;
-
-    const validation =
-      this.rules
-        .validateInitialRoad({
-          board:
-            this.board,
-
-          player,
-
-          edgeId,
-
-          requiredVertexId:
-            this
-              .pendingInitialVertexId,
-        });
-
-    if (
-      !validation.valid
-    ) {
-      return {
-        success: false,
-        reason:
-          validation.reason,
-      };
-    }
-
+  finishInitialSegment({
+    player,
+    edge,
+    segment,
+    historyType,
+    historyMessage,
+  }) {
     if (
       !player.usePiece(
         'segments',
@@ -683,19 +632,16 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Não existem segmentos disponíveis.',
       };
     }
 
-    validation
-      .edge
-      .segment =
-      'road';
+    edge.segment =
+      segment;
 
-    validation
-      .edge
-      .ownerId =
+    edge.ownerId =
       player.id;
 
     const villageCount =
@@ -727,15 +673,13 @@ export class Game {
     }
 
     this.addHistory(
-      'initial-road',
+      historyType,
 
-      `${player.name} construiu um Caminho Real inicial.`,
+      historyMessage,
 
       {
         edgeId:
-          validation
-            .edge
-            .id,
+          edge.id,
 
         initialResources,
       },
@@ -757,12 +701,16 @@ export class Game {
       this.currentPlayerIndex =
         0;
 
-      this.turnNumber = 1;
+      this.turnNumber =
+        1;
 
       this.addHistory(
         'setup-complete',
+
         'A preparação inicial terminou.',
+
         {},
+
         null,
       );
     } else {
@@ -777,10 +725,137 @@ export class Game {
 
     return {
       success: true,
-      edge:
-        validation.edge,
+
+      edge,
+
       initialResources,
     };
+  }
+
+  placeInitialRoad(
+    edgeId,
+  ) {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .SETUP_ROAD
+    ) {
+      return {
+        success: false,
+
+        reason:
+          'Não está na fase de colocação do segmento inicial.',
+      };
+    }
+
+    const player =
+      this.currentPlayer;
+
+    const validation =
+      this.rules
+        .validateInitialRoad({
+          board:
+            this.board,
+
+          player,
+
+          edgeId,
+
+          requiredVertexId:
+            this
+              .pendingInitialVertexId,
+        });
+
+    if (
+      !validation.valid
+    ) {
+      return {
+        success: false,
+
+        reason:
+          validation.reason,
+      };
+    }
+
+    return this
+      .finishInitialSegment({
+        player,
+
+        edge:
+          validation.edge,
+
+        segment:
+          'road',
+
+        historyType:
+          'initial-road',
+
+        historyMessage:
+          `${player.name} construiu um Caminho Real inicial.`,
+      });
+  }
+
+  placeInitialSeaRoute(
+    edgeId,
+  ) {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .SETUP_ROAD
+    ) {
+      return {
+        success: false,
+
+        reason:
+          'Não está na fase de colocação do segmento inicial.',
+      };
+    }
+
+    const player =
+      this.currentPlayer;
+
+    const validation =
+      this.rules
+        .validateInitialSeaRoute({
+          board:
+            this.board,
+
+          player,
+
+          edgeId,
+
+          requiredVertexId:
+            this
+              .pendingInitialVertexId,
+        });
+
+    if (
+      !validation.valid
+    ) {
+      return {
+        success: false,
+
+        reason:
+          validation.reason,
+      };
+    }
+
+    return this
+      .finishInitialSegment({
+        player,
+
+        edge:
+          validation.edge,
+
+        segment:
+          'sea-route',
+
+        historyType:
+          'initial-sea-route',
+
+        historyMessage:
+          `${player.name} estabeleceu uma Rota Marítima inicial.`,
+      });
   }
 
   rollDice() {
@@ -791,6 +866,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Os dados já foram lançados neste turno.',
       };
@@ -856,7 +932,9 @@ export class Game {
 
     return {
       success: true,
+
       roll,
+
       production:
         productionResult,
     };
@@ -872,6 +950,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Só pode construir depois de lançar os dados.',
       };
@@ -896,6 +975,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           validation.reason,
       };
@@ -908,29 +988,30 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Não possui os recursos necessários.',
       };
     }
 
-    for (
-      const [
-        resourceId,
-        quantity,
-      ]
-      of Object.entries(
-        BUILD_COSTS.road,
+    depositCost(
+      this.bank,
+
+      BUILD_COSTS.road,
+    );
+
+    if (
+      !player.usePiece(
+        'segments',
       )
     ) {
-      this.bank.deposit(
-        resourceId,
-        quantity,
-      );
-    }
+      return {
+        success: false,
 
-    player.usePiece(
-      'segments',
-    );
+        reason:
+          'Não existem segmentos disponíveis.',
+      };
+    }
 
     validation
       .edge
@@ -954,6 +1035,110 @@ export class Game {
 
     return {
       success: true,
+
+      edge:
+        validation.edge,
+    };
+  }
+
+  buildSeaRoute(
+    edgeId,
+  ) {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .TURN_ACTIONS
+    ) {
+      return {
+        success: false,
+
+        reason:
+          'Só pode construir depois de lançar os dados.',
+      };
+    }
+
+    const player =
+      this.currentPlayer;
+
+    const validation =
+      this.rules
+        .validateSeaRoute({
+          board:
+            this.board,
+
+          player,
+
+          edgeId,
+        });
+
+    if (
+      !validation.valid
+    ) {
+      return {
+        success: false,
+
+        reason:
+          validation.reason,
+      };
+    }
+
+    if (
+      !player.pay(
+        BUILD_COSTS
+          .seaRoute,
+      )
+    ) {
+      return {
+        success: false,
+
+        reason:
+          'Não possui os recursos necessários.',
+      };
+    }
+
+    depositCost(
+      this.bank,
+
+      BUILD_COSTS
+        .seaRoute,
+    );
+
+    if (
+      !player.usePiece(
+        'segments',
+      )
+    ) {
+      return {
+        success: false,
+
+        reason:
+          'Não existem segmentos disponíveis.',
+      };
+    }
+
+    validation
+      .edge
+      .segment =
+      'sea-route';
+
+    validation
+      .edge
+      .ownerId =
+      player.id;
+
+    this.addHistory(
+      'build-sea-route',
+
+      `${player.name} estabeleceu uma Rota Marítima.`,
+
+      {
+        edgeId,
+      },
+    );
+
+    return {
+      success: true,
+
       edge:
         validation.edge,
     };
@@ -969,6 +1154,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Só pode construir depois de lançar os dados.',
       };
@@ -993,6 +1179,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           validation.reason,
       };
@@ -1000,30 +1187,24 @@ export class Game {
 
     if (
       !player.pay(
-        BUILD_COSTS.village,
+        BUILD_COSTS
+          .village,
       )
     ) {
       return {
         success: false,
+
         reason:
           'Não possui os recursos necessários.',
       };
     }
 
-    for (
-      const [
-        resourceId,
-        quantity,
-      ]
-      of Object.entries(
-        BUILD_COSTS.village,
-      )
-    ) {
-      this.bank.deposit(
-        resourceId,
-        quantity,
-      );
-    }
+    depositCost(
+      this.bank,
+
+      BUILD_COSTS
+        .village,
+    );
 
     player.usePiece(
       'villages',
@@ -1057,6 +1238,7 @@ export class Game {
 
     return {
       success: true,
+
       vertex:
         validation.vertex,
     };
@@ -1072,6 +1254,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Só pode construir depois de lançar os dados.',
       };
@@ -1096,6 +1279,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           validation.reason,
       };
@@ -1103,30 +1287,24 @@ export class Game {
 
     if (
       !player.pay(
-        BUILD_COSTS.city,
+        BUILD_COSTS
+          .city,
       )
     ) {
       return {
         success: false,
+
         reason:
           'Não possui os recursos necessários.',
       };
     }
 
-    for (
-      const [
-        resourceId,
-        quantity,
-      ]
-      of Object.entries(
-        BUILD_COSTS.city,
-      )
-    ) {
-      this.bank.deposit(
-        resourceId,
-        quantity,
-      );
-    }
+    depositCost(
+      this.bank,
+
+      BUILD_COSTS
+        .city,
+    );
 
     player.usePiece(
       'cities',
@@ -1160,6 +1338,7 @@ export class Game {
 
     return {
       success: true,
+
       vertex:
         validation.vertex,
     };
@@ -1202,6 +1381,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'Ainda não pode terminar este turno.',
       };
@@ -1212,6 +1392,7 @@ export class Game {
     ) {
       return {
         success: false,
+
         reason:
           'A partida já terminou.',
       };
@@ -1262,6 +1443,7 @@ export class Game {
 
     return {
       success: true,
+
       currentPlayer:
         this.currentPlayer,
     };
@@ -1315,6 +1497,32 @@ export class Game {
       });
   }
 
+  getValidInitialSeaRouteIds() {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .SETUP_ROAD
+    ) {
+      return [];
+    }
+
+    return this.rules
+      .getValidSeaRouteEdgeIds({
+        board:
+          this.board,
+
+        player:
+          this.currentPlayer,
+
+        initialPlacement:
+          true,
+
+        requiredVertexId:
+          this
+            .pendingInitialVertexId,
+      });
+  }
+
   getValidVillageIds() {
     if (
       this.phase !==
@@ -1353,6 +1561,25 @@ export class Game {
       });
   }
 
+  getValidSeaRouteIds() {
+    if (
+      this.phase !==
+      GAME_PHASES
+        .TURN_ACTIONS
+    ) {
+      return [];
+    }
+
+    return this.rules
+      .getValidSeaRouteEdgeIds({
+        board:
+          this.board,
+
+        player:
+          this.currentPlayer,
+      });
+  }
+
   getValidCityIds() {
     if (
       this.phase !==
@@ -1367,7 +1594,8 @@ export class Game {
       .filter(
         (vertex) =>
           vertex.ownerId ===
-            this.currentPlayer.id &&
+            this.currentPlayer
+              .id &&
           vertex.building ===
             'village' &&
           this.rules
@@ -1410,7 +1638,8 @@ export class Game {
 
       bank: {
         inventory:
-          this.bank.snapshot(),
+          this.bank
+            .snapshot(),
       },
 
       phase:
