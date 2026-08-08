@@ -9,6 +9,8 @@ import {
   useMAQuadroEditorContext
 } from './editorContext'
 
+import FormatPainterButton from './FormatPainterButton'
+
 const saveLabels = {
   ready:
     'Pronto',
@@ -215,7 +217,8 @@ export default function EditorHeader({
 
     closeMenu()
 
-    void editor.saveProjectAsTemplate()
+    void editor
+      .saveProjectAsTemplate()
   }
 
   const saveProject = () => {
@@ -340,6 +343,8 @@ export default function EditorHeader({
             Atalhos
           </button>
         </div>
+
+        <FormatPainterButton />
 
         <button
           type="button"
