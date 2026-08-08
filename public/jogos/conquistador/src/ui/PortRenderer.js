@@ -3,26 +3,13 @@ import {
   PORT_SYMBOLS,
 } from '../data/ports.js';
 
-const SVG_NS =
-  'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
-function createSvg(
-  tag,
-  attributes = {},
-) {
-  const element =
-    document.createElementNS(
-      SVG_NS,
-      tag,
-    );
+function createSvg(tag, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, tag);
 
-  for (
-    const [name, value]
-    of Object.entries(attributes)
-  ) {
-    if (value == null) {
-      continue;
-    }
+  for (const [name, value] of Object.entries(attributes)) {
+    if (value == null) continue;
 
     element.setAttribute(
       name,
@@ -46,18 +33,12 @@ function point(vertex) {
     vertex?.point?.y,
   );
 
-  return (
-    Number.isFinite(x) &&
-    Number.isFinite(y)
-  )
+  return Number.isFinite(x) && Number.isFinite(y)
     ? { x, y }
     : null;
 }
 
-function midpoint(
-  first,
-  second,
-) {
+function midpoint(first, second) {
   return {
     x:
       (first.x + second.x) /
@@ -69,10 +50,7 @@ function midpoint(
   };
 }
 
-function normalize(
-  x,
-  y,
-) {
+function normalize(x, y) {
   const length =
     Math.hypot(x, y) || 1;
 
@@ -85,14 +63,9 @@ function normalize(
   };
 }
 
-function boardCenter(
-  points,
-) {
+function centroid(points) {
   if (!points.length) {
-    return {
-      x: 0,
-      y: 0,
-    };
+    return null;
   }
 
   return {
@@ -114,22 +87,18 @@ function boardCenter(
   };
 }
 
-/*
- * Calcula uma normal verdadeira à aresta.
- *
- * Existem sempre duas normais possíveis.
- * Escolhemos aquela que aponta para fora
- * do centro do tabuleiro.
- *
- * Isto é importante porque simplesmente
- * usar "midpoint - center" pode deslocar
- * o Porto na direção de um dos vértices
- * quando a aresta é diagonal.
- */
-function outwardNormal(
+function boardCenter(points) {
+  return (
+    centroid(points) ?? {
+      x: 0,
+      y: 0,
+    }
+  );
+}
+
+function edgeNormal(
   first,
   second,
-  center,
 ) {
   const dx =
     second.x -
@@ -139,6 +108,18 @@ function outwardNormal(
     second.y -
     first.y;
 
+  return normalize(
+    -dy,
+    dx,
+  );
+}
+
+function chooseOutwardNormal({
+  first,
+  second,
+  territoryCenter,
+  fallbackCenter,
+}) {
   const mid =
     midpoint(
       first,
@@ -146,9 +127,9 @@ function outwardNormal(
     );
 
   const normalA =
-    normalize(
-      -dy,
-      dx,
+    edgeNormal(
+      first,
+      second,
     );
 
   const normalB = {
@@ -159,29 +140,37 @@ function outwardNormal(
       -normalA.y,
   };
 
-  const outwardVector = {
+  const reference =
+    territoryCenter ??
+    fallbackCenter;
+
+  /*
+   * mid -> reference aponta para terra.
+   * Queremos precisamente a direção contrária.
+   */
+  const towardLand = {
     x:
-      mid.x -
-      center.x,
+      reference.x -
+      mid.x,
 
     y:
-      mid.y -
-      center.y,
+      reference.y -
+      mid.y,
   };
 
   const scoreA =
     normalA.x *
-      outwardVector.x +
+      towardLand.x +
     normalA.y *
-      outwardVector.y;
+      towardLand.y;
 
   const scoreB =
     normalB.x *
-      outwardVector.x +
+      towardLand.x +
     normalB.y *
-      outwardVector.y;
+      towardLand.y;
 
-  return scoreA >= scoreB
+  return scoreA <= scoreB
     ? normalA
     : normalB;
 }
@@ -208,6 +197,8 @@ export class PortRenderer {
     this.topology =
       topology ?? {
         vertices: [],
+        edges: [],
+        territories: [],
       };
 
     this.className =
@@ -244,10 +235,14 @@ export class PortRenderer {
     if (
       !projected ||
       !Number.isFinite(
-        Number(projected.x),
+        Number(
+          projected.x,
+        ),
       ) ||
       !Number.isFinite(
-        Number(projected.y),
+        Number(
+          projected.y,
+        ),
       )
     ) {
       return null;
@@ -288,11 +283,6 @@ export class PortRenderer {
       onPortClick =
         null,
 
-      /*
-       * 38px afasta suficientemente
-       * o marcador da aresta e dos
-       * vértices de Vila.
-       */
       offset = 38,
     } = {},
   ) {
@@ -305,12 +295,55 @@ export class PortRenderer {
         ? this.topology.vertices
         : [];
 
+    const edges =
+      Array.isArray(
+        this.topology?.edges,
+      )
+        ? this.topology.edges
+        : [];
+
+    const territories =
+      Array.isArray(
+        this.topology?.territories,
+      )
+        ? this.topology.territories
+        : [];
+
     const vertexById =
       new Map(
         vertices.map(
           (vertex) => [
-            String(vertex.id),
+            String(
+              vertex.id,
+            ),
+
             vertex,
+          ],
+        ),
+      );
+
+    const edgeById =
+      new Map(
+        edges.map(
+          (edge) => [
+            String(
+              edge.id,
+            ),
+
+            edge,
+          ],
+        ),
+      );
+
+    const territoryById =
+      new Map(
+        territories.map(
+          (territory) => [
+            String(
+              territory.id,
+            ),
+
+            territory,
           ],
         ),
       );
@@ -319,11 +352,15 @@ export class PortRenderer {
       vertices
         .map(
           (vertex) =>
-            this.project(vertex),
+            this.project(
+              vertex,
+            ),
         )
-        .filter(Boolean);
+        .filter(
+          Boolean,
+        );
 
-    const center =
+    const fallbackCenter =
       boardCenter(
         projectedPoints,
       );
@@ -357,14 +394,18 @@ export class PortRenderer {
       const first =
         this.project(
           vertexById.get(
-            String(firstId),
+            String(
+              firstId,
+            ),
           ),
         );
 
       const second =
         this.project(
           vertexById.get(
-            String(secondId),
+            String(
+              secondId,
+            ),
           ),
         );
 
@@ -381,18 +422,71 @@ export class PortRenderer {
           second,
         );
 
+      const edge =
+        edgeById.get(
+          String(
+            port.edgeId,
+          ),
+        );
+
+      const adjacentTerritoryId =
+        edge
+          ?.territoryIds
+          ?.[0] ??
+        null;
+
+      const adjacentTerritory =
+        adjacentTerritoryId != null
+          ? territoryById.get(
+              String(
+                adjacentTerritoryId,
+              ),
+            )
+          : null;
+
       /*
-       * Em vez de empurrar o Porto
-       * radialmente a partir do centro
-       * do tabuleiro, usamos a normal
-       * perpendicular à própria aresta.
+       * Calculamos o centro visual do território
+       * que toca na aresta do Porto.
+       */
+      const territoryPoints =
+        (
+          adjacentTerritory
+            ?.vertexIds ??
+          []
+        )
+          .map(
+            (vertexId) =>
+              this.project(
+                vertexById.get(
+                  String(
+                    vertexId,
+                  ),
+                ),
+              ),
+          )
+          .filter(
+            Boolean,
+          );
+
+      const territoryCenter =
+        centroid(
+          territoryPoints,
+        );
+
+      /*
+       * Agora a direção exterior é determinada
+       * pelo território adjacente real.
+       *
+       * Isto funciona corretamente também
+       * nas zonas côncavas do mapa.
        */
       const outward =
-        outwardNormal(
+        chooseOutwardNormal({
           first,
           second,
-          center,
-        );
+          territoryCenter,
+          fallbackCenter,
+        });
 
       const x =
         mid.x +
@@ -436,10 +530,6 @@ export class PortRenderer {
       title.textContent =
         `${PORT_LABELS[port.type] ?? 'Porto'} — troca ${port.give}:1`;
 
-      /*
-       * Liga visualmente o Porto
-       * ao centro exato da aresta.
-       */
       const connector =
         createSvg(
           'line',
@@ -538,11 +628,6 @@ export class PortRenderer {
         rate,
       );
 
-      /*
-       * Mantemos o callback por compatibilidade
-       * futura, embora a camada esteja atualmente
-       * com pointer-events:none no CSS.
-       */
       if (
         typeof onPortClick ===
         'function'
@@ -550,7 +635,9 @@ export class PortRenderer {
         group.addEventListener(
           'click',
           () => {
-            onPortClick(port);
+            onPortClick(
+              port,
+            );
           },
         );
       }
