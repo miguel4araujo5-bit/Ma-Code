@@ -17,9 +17,14 @@ import type {
 } from '../../ma-professor/types'
 
 import {
+  confirmMAProfessorPayment,
   generateMAProfessorAccessPassword,
+  getMAProfessorCommercialStatus,
   getMAProfessorCredentialStatus,
+  selectMAProfessorCommercialPlan,
+  type MAProfessorAdminCommercialStatus,
   type MAProfessorAdminCredentialStatus,
+  type MAProfessorCommercialPlan,
   type MAProfessorGeneratedCredential
 } from '../../../lib/admin/maProfessorAdminApi'
 
@@ -27,23 +32,16 @@ import MAProfessorAdminHistory from './MAProfessorAdminHistory'
 
 interface MAProfessorAdminAccountDetailProps {
   email: string
-
   request:
     MAProfessorAccessRequestSummary |
     null
-
   license:
     LicenseSummary |
     null
-
   renewals:
     LicenseRenewalRequest[]
-
-  dataConnected?:
-    boolean
-
-  onClose:
-    () => void
+  dataConnected?: boolean
+  onClose: () => void
 }
 
 function formatDate(
@@ -54,9 +52,7 @@ function formatDate(
   }
 
   const date =
-    new Date(
-      value
-    )
+    new Date(value)
 
   if (
     Number.isNaN(
@@ -69,20 +65,11 @@ function formatDate(
   return new Intl.DateTimeFormat(
     'pt-PT',
     {
-      day:
-        '2-digit',
-
-      month:
-        '2-digit',
-
-      year:
-        'numeric',
-
-      hour:
-        '2-digit',
-
-      minute:
-        '2-digit'
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     }
   ).format(date)
 }
@@ -94,9 +81,7 @@ function formatMoney(
   return new Intl.NumberFormat(
     'pt-PT',
     {
-      style:
-        'currency',
-
+      style: 'currency',
       currency
     }
   ).format(
@@ -146,18 +131,85 @@ function getLicenseStatusClassName(
   }
 }
 
+function getCommercialPlanLabel(
+  plan:
+    MAProfessorCommercialPlan |
+    null
+) {
+  switch (plan) {
+    case 'paid_30_days':
+      return '30 dias — 3,49 €'
+
+    case 'school_year':
+      return 'Até 1 de agosto — 15 €'
+
+    default:
+      return 'Sem plano registado'
+  }
+}
+
+function getCommercialPlanShortLabel(
+  plan:
+    MAProfessorCommercialPlan |
+    null
+) {
+  switch (plan) {
+    case 'paid_30_days':
+      return '30 dias'
+
+    case 'school_year':
+      return 'Até 1 de agosto'
+
+    default:
+      return '—'
+  }
+}
+
+function getPaymentStatusLabel(
+  status:
+    MAProfessorAdminCommercialStatus['paymentStatus'] |
+    undefined
+) {
+  switch (status) {
+    case 'confirmed':
+      return 'Pagamento confirmado'
+
+    case 'pending':
+      return 'Pagamento pendente'
+
+    default:
+      return 'Sem pagamento'
+  }
+}
+
+function getPaymentStatusClassName(
+  status:
+    MAProfessorAdminCommercialStatus['paymentStatus'] |
+    undefined
+) {
+  switch (status) {
+    case 'confirmed':
+      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
+    case 'pending':
+      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+
+    default:
+      return 'border-white/10 bg-white/[0.04] text-slate-400'
+  }
+}
+
 function getErrorMessage(
   error: unknown
 ) {
   if (
-    error instanceof
-      Error &&
+    error instanceof Error &&
     error.message
   ) {
     return error.message
   }
 
-  return 'Ocorreu um erro ao gerir a senha desta conta.'
+  return 'Ocorreu um erro ao gerir esta conta.'
 }
 
 function DetailValue({
@@ -165,14 +217,9 @@ function DetailValue({
   value,
   note
 }: {
-  label:
-    string
-
-  value:
-    string
-
-  note?:
-    string
+  label: string
+  value: string
+  note?: string
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
@@ -246,14 +293,45 @@ export default function MAProfessorAdminAccountDetail({
   ] =
     useState(false)
 
+  const [
+    commercialStatus,
+    setCommercialStatus
+  ] =
+    useState<MAProfessorAdminCommercialStatus | null>(
+      null
+    )
+
+  const [
+    commercialLoading,
+    setCommercialLoading
+  ] =
+    useState(false)
+
+  const [
+    commercialSaving,
+    setCommercialSaving
+  ] =
+    useState(false)
+
+  const [
+    commercialError,
+    setCommercialError
+  ] =
+    useState('')
+
+  const [
+    selectedPlan,
+    setSelectedPlan
+  ] =
+    useState<MAProfessorCommercialPlan>(
+      'paid_30_days'
+    )
+
   const sortedRenewals =
     [
       ...renewals
     ].sort(
-      (
-        left,
-        right
-      ) =>
+      (left, right) =>
         new Date(
           right.requestedAt
         ).getTime() -
@@ -263,44 +341,40 @@ export default function MAProfessorAdminAccountDetail({
     )
 
   const latestRenewal =
-    sortedRenewals[
-      0
-    ] ||
+    sortedRenewals[0] ||
     null
 
   const canGenerateCredential =
     dataConnected &&
     request?.status ===
       'approved' &&
+    Boolean(
+      commercialStatus
+        ?.canGenerateCredential
+    ) &&
     !credentialLoading &&
+    !commercialLoading &&
+    !commercialSaving &&
     !generatingCredential &&
-    !credentialStatus
-      ?.hasCredential &&
     !generatedCredential
 
   useEffect(
     () => {
       const frame =
-        window
-          .requestAnimationFrame(
-            () => {
-              sectionRef
-                .current
-                ?.scrollIntoView({
-                  behavior:
-                    'smooth',
-
-                  block:
-                    'start'
-                })
-            }
-          )
+        window.requestAnimationFrame(
+          () => {
+            sectionRef.current
+              ?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+              })
+          }
+        )
 
       return () => {
-        window
-          .cancelAnimationFrame(
-            frame
-          )
+        window.cancelAnimationFrame(
+          frame
+        )
       }
     },
     [
@@ -310,24 +384,14 @@ export default function MAProfessorAdminAccountDetail({
 
   useEffect(
     () => {
-      let cancelled =
-        false
+      let cancelled = false
 
       setGeneratedCredential(
         null
       )
-
-      setPasswordCopied(
-        false
-      )
-
-      setCredentialError(
-        ''
-      )
-
-      setCredentialStatus(
-        null
-      )
+      setPasswordCopied(false)
+      setCredentialError('')
+      setCredentialStatus(null)
 
       if (
         !dataConnected ||
@@ -338,23 +402,18 @@ export default function MAProfessorAdminAccountDetail({
         )
 
         return () => {
-          cancelled =
-            true
+          cancelled = true
         }
       }
 
-      setCredentialLoading(
-        true
-      )
+      setCredentialLoading(true)
 
       void getMAProfessorCredentialStatus(
         email
       )
         .then(
           status => {
-            if (
-              cancelled
-            ) {
+            if (cancelled) {
               return
             }
 
@@ -365,24 +424,18 @@ export default function MAProfessorAdminAccountDetail({
         )
         .catch(
           error => {
-            if (
-              cancelled
-            ) {
+            if (cancelled) {
               return
             }
 
             setCredentialError(
-              getErrorMessage(
-                error
-              )
+              getErrorMessage(error)
             )
           }
         )
         .finally(
           () => {
-            if (
-              !cancelled
-            ) {
+            if (!cancelled) {
               setCredentialLoading(
                 false
               )
@@ -391,15 +444,90 @@ export default function MAProfessorAdminAccountDetail({
         )
 
       return () => {
-        cancelled =
-          true
+        cancelled = true
       }
     },
     [
       dataConnected,
       email,
-      request
-        ?.status
+      request?.status
+    ]
+  )
+
+  useEffect(
+    () => {
+      let cancelled = false
+
+      setCommercialStatus(null)
+      setCommercialError('')
+      setSelectedPlan(
+        'paid_30_days'
+      )
+
+      if (
+        !dataConnected ||
+        !request
+      ) {
+        setCommercialLoading(
+          false
+        )
+
+        return () => {
+          cancelled = true
+        }
+      }
+
+      setCommercialLoading(true)
+
+      void getMAProfessorCommercialStatus(
+        email
+      )
+        .then(
+          status => {
+            if (cancelled) {
+              return
+            }
+
+            setCommercialStatus(
+              status
+            )
+
+            if (status.plan) {
+              setSelectedPlan(
+                status.plan
+              )
+            }
+          }
+        )
+        .catch(
+          error => {
+            if (cancelled) {
+              return
+            }
+
+            setCommercialError(
+              getErrorMessage(error)
+            )
+          }
+        )
+        .finally(
+          () => {
+            if (!cancelled) {
+              setCommercialLoading(
+                false
+              )
+            }
+          }
+        )
+
+      return () => {
+        cancelled = true
+      }
+    },
+    [
+      dataConnected,
+      email,
+      request?.status
     ]
   )
 
@@ -413,13 +541,8 @@ export default function MAProfessorAdminAccountDetail({
         return
       }
 
-      setCredentialLoading(
-        true
-      )
-
-      setCredentialError(
-        ''
-      )
+      setCredentialLoading(true)
+      setCredentialError('')
 
       try {
         const status =
@@ -430,58 +553,173 @@ export default function MAProfessorAdminAccountDetail({
         setCredentialStatus(
           status
         )
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setCredentialError(
-          getErrorMessage(
-            error
-          )
+          getErrorMessage(error)
         )
       } finally {
-        setCredentialLoading(
-          false
+        setCredentialLoading(false)
+      }
+    }
+
+  const handleReloadCommercialStatus =
+    async () => {
+      if (
+        !dataConnected ||
+        !request ||
+        commercialLoading
+      ) {
+        return
+      }
+
+      setCommercialLoading(true)
+      setCommercialError('')
+
+      try {
+        const status =
+          await getMAProfessorCommercialStatus(
+            email
+          )
+
+        setCommercialStatus(
+          status
         )
+
+        if (status.plan) {
+          setSelectedPlan(
+            status.plan
+          )
+        }
+      } catch (error) {
+        setCommercialError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setCommercialLoading(false)
+      }
+    }
+
+  const handleSavePlan =
+    async () => {
+      if (
+        !dataConnected ||
+        request?.status !==
+          'approved' ||
+        commercialSaving ||
+        commercialStatus
+          ?.paymentStatus ===
+          'confirmed'
+      ) {
+        return
+      }
+
+      setCommercialSaving(true)
+      setCommercialError('')
+
+      try {
+        const status =
+          await selectMAProfessorCommercialPlan(
+            email,
+            selectedPlan
+          )
+
+        setCommercialStatus(
+          status
+        )
+      } catch (error) {
+        setCommercialError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setCommercialSaving(false)
+      }
+    }
+
+  const handleConfirmPayment =
+    async () => {
+      if (
+        !dataConnected ||
+        request?.status !==
+          'approved' ||
+        commercialSaving ||
+        commercialStatus
+          ?.paymentStatus !==
+          'pending'
+      ) {
+        return
+      }
+
+      const planLabel =
+        getCommercialPlanLabel(
+          commercialStatus.plan
+        )
+
+      const confirmed =
+        window.confirm(
+          [
+            `Confirmar que recebeu o pagamento de ${email}?`,
+            '',
+            `Plano: ${planLabel}`,
+            '',
+            'Depois de confirmar, o plano já não pode ser alterado nesta autorização e ficará desbloqueada a geração da nova senha.'
+          ].join('\n')
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setCommercialSaving(true)
+      setCommercialError('')
+
+      try {
+        const status =
+          await confirmMAProfessorPayment(
+            email
+          )
+
+        setCommercialStatus(
+          status
+        )
+      } catch (error) {
+        setCommercialError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setCommercialSaving(false)
       }
     }
 
   const handleGenerateCredential =
     async () => {
-      if (
-        !canGenerateCredential
-      ) {
+      if (!canGenerateCredential) {
         return
       }
 
       const confirmed =
         window.confirm(
           [
-            `Gerar a senha de acesso para ${email}?`,
+            `Gerar a nova senha de acesso para ${email}?`,
             '',
-            'A senha será apresentada em texto simples apenas agora.',
-            'Copie-a antes de fechar ou atualizar a página.'
-          ].join(
-            '\n'
-          )
+            `Plano: ${getCommercialPlanLabel(
+              commercialStatus?.plan ??
+              null
+            )}`,
+            'Pagamento: confirmado',
+            '',
+            'Se esta conta tiver uma senha anterior, ela será substituída pela nova credencial.',
+            'A nova senha será apresentada em texto simples apenas agora.'
+          ].join('\n')
         )
 
-      if (
-        !confirmed
-      ) {
+      if (!confirmed) {
         return
       }
 
-      setGeneratingCredential(
-        true
-      )
-
-      setCredentialError(
-        ''
-      )
-
-      setPasswordCopied(
-        false
-      )
+      setGeneratingCredential(true)
+      setCredentialError('')
+      setCommercialError('')
+      setPasswordCopied(false)
 
       try {
         const credential =
@@ -496,114 +734,74 @@ export default function MAProfessorAdminAccountDetail({
         setCredentialStatus({
           email:
             credential.email,
-
-          hasCredential:
-            true,
-
+          hasCredential: true,
           createdAt:
             credential.createdAt,
-
           updatedAt:
             credential.updatedAt
         })
-      } catch (
-        error
-      ) {
-        setCredentialError(
-          getErrorMessage(
-            error
+
+        const nextCommercialStatus =
+          await getMAProfessorCommercialStatus(
+            email
           )
+
+        setCommercialStatus(
+          nextCommercialStatus
+        )
+      } catch (error) {
+        setCredentialError(
+          getErrorMessage(error)
         )
       } finally {
-        setGeneratingCredential(
-          false
-        )
+        setGeneratingCredential(false)
       }
     }
 
   const handleCopyPassword =
     async () => {
       const password =
-        generatedCredential
-          ?.password
+        generatedCredential?.password
 
-      if (
-        !password
-      ) {
+      if (!password) {
         return
       }
 
-      setCredentialError(
-        ''
-      )
+      setCredentialError('')
 
       try {
-        await navigator
-          .clipboard
-          .writeText(
-            password
-          )
-
-        setPasswordCopied(
-          true
+        await navigator.clipboard.writeText(
+          password
         )
+
+        setPasswordCopied(true)
       } catch {
-        setPasswordCopied(
-          false
-        )
-
+        setPasswordCopied(false)
         setCredentialError(
           'Não foi possível copiar automaticamente. Selecione a senha no campo e copie-a manualmente.'
         )
       }
     }
 
-  const handlePrepareEmail =
-    () => {
-      const password =
-        generatedCredential
-          ?.password
+  const paymentConfirmed =
+    commercialStatus
+      ?.paymentStatus ===
+      'confirmed'
 
-      if (
-        !password
-      ) {
-        return
-      }
+  const paymentPending =
+    commercialStatus
+      ?.paymentStatus ===
+      'pending'
 
-      const subject =
-        'Acesso ao MA-Professor — MA-CODE'
-
-      const body = [
-        'Olá,',
-        '',
-        'O seu acesso ao MA-Professor foi aprovado.',
-        '',
-        `Email: ${email}`,
-        `Senha: ${password}`,
-        '',
-        'Aceda a https://ma-code.pt/produtos/ma-professor e utilize este email e esta senha para ativar a sua conta.',
-        '',
-        'O período beta gratuito de 30 dias começa apenas na primeira ativação válida.',
-        '',
-        'MA-CODE',
-        'https://ma-code.pt'
-      ].join(
-        '\n'
-      )
-
-      window.location.href =
-        `mailto:${email}?subject=${encodeURIComponent(
-          subject
-        )}&body=${encodeURIComponent(
-          body
-        )}`
-    }
+  const hasCommercialAuthorization =
+    Boolean(
+      commercialStatus
+        ?.authorizationId
+    )
 
   return (
     <section
-      ref={
-        sectionRef
-      }
+      ref={sectionRef}
       className="scroll-mt-6 overflow-hidden rounded-[1.75rem] border border-cyan-300/15 bg-slate-900/65"
     >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-6">
@@ -618,17 +816,15 @@ export default function MAProfessorAdminAccountDetail({
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             Visão consolidada do pedido,
-            ativação, licença, senha e
-            renovações conhecidas desta
-            conta.
+            plano, pagamento, senha,
+            ativação, licença e renovações
+            conhecidas desta conta.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={
-            onClose
-          }
+          onClick={onClose}
           className="rounded-xl border border-white/10 px-4 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white"
         >
           Fechar ficha
@@ -655,9 +851,7 @@ export default function MAProfessorAdminAccountDetail({
                   getRequestStatusClassName(
                     request.status
                   )
-                ].join(
-                  ' '
-                )}
+                ].join(' ')}
               >
                 {getAccessRequestStatusLabel(
                   request.status
@@ -674,40 +868,346 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Pedido recebido"
               value={formatDate(
-                request
-                  ?.requestedAt ??
-                  null
+                request?.requestedAt ??
+                null
               )}
             />
 
             <DetailValue
               label="Aprovado em"
               value={formatDate(
-                request
-                  ?.approvedAt ??
-                  null
+                request?.approvedAt ??
+                null
               )}
             />
 
             <DetailValue
               label="Rejeitado em"
               value={formatDate(
-                request
-                  ?.rejectedAt ??
-                  null
+                request?.rejectedAt ??
+                null
               )}
             />
 
             <DetailValue
               label="Primeira ativação"
               value={formatDate(
-                request
-                  ?.activatedAt ??
-                  null
+                request?.activatedAt ??
+                null
               )}
-              note="A beta de 30 dias começa apenas na primeira ativação válida."
+              note="A ativação não deve conceder um plano diferente daquele que foi pago e autorizado."
             />
           </div>
+        </article>
+
+        <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.025] p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+                Plano e pagamento
+              </p>
+
+              <h3 className="mt-1 text-lg font-black text-white">
+                Autorização comercial
+              </h3>
+            </div>
+
+            {commercialLoading ? (
+              <span className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.05] px-2.5 py-1 text-[0.65rem] font-black text-cyan-200">
+                A verificar
+              </span>
+            ) : (
+              <span
+                className={[
+                  'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                  getPaymentStatusClassName(
+                    commercialStatus
+                      ?.paymentStatus
+                  )
+                ].join(' ')}
+              >
+                {getPaymentStatusLabel(
+                  commercialStatus
+                    ?.paymentStatus
+                )}
+              </span>
+            )}
+          </div>
+
+          {commercialError ? (
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3"
+            >
+              <p className="text-xs font-bold leading-5 text-rose-200">
+                {commercialError}
+              </p>
+
+              {dataConnected &&
+              request ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleReloadCommercialStatus()
+                  }}
+                  disabled={
+                    commercialLoading
+                  }
+                  className="mt-2 text-xs font-black text-rose-100 underline decoration-rose-300/40 underline-offset-4 disabled:opacity-50"
+                >
+                  Tentar novamente
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {commercialLoading ? (
+            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-4">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-300/20 border-t-violet-200" />
+
+              <p className="text-xs font-bold text-slate-400">
+                A carregar plano e estado do
+                pagamento…
+              </p>
+            </div>
+          ) : request?.status ===
+            'approved' ? (
+            <div className="mt-4">
+              {paymentConfirmed ? (
+                <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                  <p className="text-sm font-black text-emerald-200">
+                    Pagamento confirmado
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    {getCommercialPlanLabel(
+                      commercialStatus
+                        ?.plan ??
+                        null
+                    )}
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <DetailValue
+                      label="Plano"
+                      value={getCommercialPlanShortLabel(
+                        commercialStatus
+                          ?.plan ??
+                          null
+                      )}
+                    />
+
+                    <DetailValue
+                      label="Valor"
+                      value={
+                        commercialStatus
+                          ?.amountCents ==
+                        null
+                          ? '—'
+                          : formatMoney(
+                              commercialStatus.amountCents,
+                              commercialStatus.currency
+                            )
+                      }
+                    />
+
+                    <DetailValue
+                      label="Escolhido em"
+                      value={formatDate(
+                        commercialStatus
+                          ?.selectedAt ??
+                          null
+                      )}
+                    />
+
+                    <DetailValue
+                      label="Pagamento confirmado"
+                      value={formatDate(
+                        commercialStatus
+                          ?.paymentConfirmedAt ??
+                          null
+                      )}
+                    />
+                  </div>
+
+                  <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
+                    A nova senha só pode ser
+                    emitida para esta
+                    autorização confirmada.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs font-bold leading-5 text-slate-400">
+                    Registe a escolha do
+                    utilizador. No próximo
+                    bloco esta escolha passará
+                    a chegar automaticamente
+                    da página pública do
+                    MA-Professor.
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlan(
+                          'paid_30_days'
+                        )
+                      }
+                      disabled={
+                        commercialSaving
+                      }
+                      className={[
+                        'rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50',
+                        selectedPlan ===
+                        'paid_30_days'
+                          ? 'border-violet-300/35 bg-violet-300/[0.08]'
+                          : 'border-white/10 bg-slate-950/45 hover:border-white/20'
+                      ].join(' ')}
+                    >
+                      <p className="text-sm font-black text-white">
+                        3,49 €
+                      </p>
+
+                      <p className="mt-1 text-xs font-bold text-violet-200">
+                        30 dias
+                      </p>
+
+                      <p className="mt-2 text-[0.68rem] leading-5 text-slate-500">
+                        Renovação manual. Um
+                        novo pagamento dará
+                        origem a uma nova
+                        autorização e senha.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlan(
+                          'school_year'
+                        )
+                      }
+                      disabled={
+                        commercialSaving
+                      }
+                      className={[
+                        'rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50',
+                        selectedPlan ===
+                        'school_year'
+                          ? 'border-violet-300/35 bg-violet-300/[0.08]'
+                          : 'border-white/10 bg-slate-950/45 hover:border-white/20'
+                      ].join(' ')}
+                    >
+                      <p className="text-sm font-black text-white">
+                        15 €
+                      </p>
+
+                      <p className="mt-1 text-xs font-bold text-violet-200">
+                        Até 1 de agosto
+                      </p>
+
+                      <p className="mt-2 text-[0.68rem] leading-5 text-slate-500">
+                        Sem mensalidades
+                        enquanto esta licença
+                        estiver válida.
+                      </p>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleSavePlan()
+                    }}
+                    disabled={
+                      commercialSaving
+                    }
+                    className="mt-3 w-full rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-xs font-black text-violet-200 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {commercialSaving
+                      ? 'A guardar…'
+                      : hasCommercialAuthorization
+                        ? 'Atualizar plano escolhido'
+                        : 'Registar plano escolhido'}
+                  </button>
+
+                  {paymentPending ? (
+                    <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+                      <p className="text-sm font-black text-amber-200">
+                        Pagamento pendente
+                      </p>
+
+                      <p className="mt-2 text-xs leading-5 text-slate-400">
+                        Plano registado:{' '}
+                        {getCommercialPlanLabel(
+                          commercialStatus
+                            ?.plan ??
+                            null
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        Escolhido em:{' '}
+                        {formatDate(
+                          commercialStatus
+                            ?.selectedAt ??
+                            null
+                        )}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleConfirmPayment()
+                        }}
+                        disabled={
+                          commercialSaving
+                        }
+                        className="mt-3 w-full rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {commercialSaving
+                          ? 'A confirmar…'
+                          : 'Confirmar pagamento recebido'}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : request?.status ===
+            'pending' ? (
+            <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+              <p className="text-sm font-black text-amber-200">
+                Pedido ainda pendente
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                O plano só entra no fluxo
+                comercial depois de o pedido
+                ser aprovado.
+              </p>
+            </div>
+          ) : request?.status ===
+            'rejected' ? (
+            <div className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.04] p-4">
+              <p className="text-sm font-black text-rose-200">
+                Pedido rejeitado
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Não é possível associar um
+                pagamento a este pedido.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/45 p-4">
+              <p className="text-sm font-black text-slate-400">
+                Sem pedido de acesso
+              </p>
+            </div>
+          )}
         </article>
 
         <article className="rounded-2xl border border-white/10 bg-slate-950/35 p-4 sm:p-5">
@@ -729,9 +1229,7 @@ export default function MAProfessorAdminAccountDetail({
                   getLicenseStatusClassName(
                     license.status
                   )
-                ].join(
-                  ' '
-                )}
+                ].join(' ')}
               >
                 {getLicenseStatusLabel(
                   license.status
@@ -770,18 +1268,16 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Início"
               value={formatDate(
-                license
-                  ?.validFrom ??
-                  null
+                license?.validFrom ??
+                null
               )}
             />
 
             <DetailValue
               label="Válida até"
               value={formatDate(
-                license
-                  ?.validUntil ??
-                  null
+                license?.validUntil ??
+                null
               )}
             />
 
@@ -793,8 +1289,7 @@ export default function MAProfessorAdminAccountDetail({
                 null
                   ? '—'
                   : String(
-                      license
-                        .daysRemaining
+                      license.daysRemaining
                     )
               }
             />
@@ -818,13 +1313,19 @@ export default function MAProfessorAdminAccountDetail({
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
-                Senha da conta
+                Senha da autorização
               </h3>
             </div>
 
-            {credentialLoading ? (
+            {credentialLoading ||
+            commercialLoading ? (
               <span className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.05] px-2.5 py-1 text-[0.65rem] font-black text-cyan-200">
                 A verificar
+              </span>
+            ) : commercialStatus
+                ?.canGenerateCredential ? (
+              <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.65rem] font-black text-amber-200">
+                Nova senha pendente
               </span>
             ) : credentialStatus
                 ?.hasCredential ? (
@@ -832,8 +1333,8 @@ export default function MAProfessorAdminAccountDetail({
                 Senha emitida
               </span>
             ) : (
-              <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.65rem] font-black text-amber-200">
-                Sem senha
+              <span className="rounded-full border border-slate-400/20 bg-slate-400/10 px-2.5 py-1 text-[0.65rem] font-black text-slate-400">
+                Bloqueada
               </span>
             )}
           </div>
@@ -868,7 +1369,7 @@ export default function MAProfessorAdminAccountDetail({
           {generatedCredential ? (
             <div className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">
-                Senha gerada
+                Nova senha gerada
               </p>
 
               <p className="mt-2 text-sm font-black text-white">
@@ -876,25 +1377,23 @@ export default function MAProfessorAdminAccountDetail({
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-400">
+                Esta senha corresponde ao
+                pagamento e plano confirmados.
                 Depois de fechar a ficha ou
-                atualizar a página, a
-                password em texto simples
-                deixa de poder ser
-                recuperada.
+                atualizar a página deixa de
+                poder ser recuperada em texto
+                simples.
               </p>
 
               <input
                 type="text"
                 readOnly
                 value={
-                  generatedCredential
-                    .password
+                  generatedCredential.password
                 }
                 onFocus={
                   event =>
-                    event
-                      .currentTarget
-                      .select()
+                    event.currentTarget.select()
                 }
                 className="mt-4 w-full rounded-xl border border-emerald-300/25 bg-slate-950 px-4 py-3 font-mono text-base font-black tracking-wider text-emerald-200 outline-none"
                 aria-label="Senha gerada"
@@ -915,32 +1414,73 @@ export default function MAProfessorAdminAccountDetail({
 
                 <button
                   type="button"
-                  onClick={
-                    handlePrepareEmail
-                  }
-                  className="rounded-xl border border-cyan-300/25 bg-cyan-300/[0.06] px-4 py-2.5 text-xs font-black text-cyan-200 transition hover:bg-cyan-300/10"
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-cyan-300/10 bg-transparent px-4 py-2.5 text-xs font-black text-cyan-300/40"
                 >
-                  Preparar email
+                  Envio no próximo bloco
                 </button>
               </div>
 
               <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
-                “Preparar email” abre o seu
-                programa de email com o
-                destinatário, assunto e
-                mensagem preenchidos. O envio
-                final continua a ser feito
-                manualmente por si.
+                Não envie ainda esta senha a
+                um utilizador real. A
+                ativação paga será ligada no
+                próximo bloco; até lá esta
+                credencial serve apenas para
+                validar o fluxo
+                administrativo.
               </p>
             </div>
-          ) : credentialLoading ? (
+          ) : credentialLoading ||
+            commercialLoading ? (
             <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-4">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
 
               <p className="text-xs font-bold text-slate-400">
-                A verificar se esta conta já
-                tem uma senha associada…
+                A verificar a autorização e a
+                credencial desta conta…
               </p>
+            </div>
+          ) : commercialStatus
+              ?.canGenerateCredential ? (
+            <div className="mt-4">
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                <p className="text-sm font-black text-emerald-200">
+                  Pagamento confirmado. Pode
+                  gerar a nova senha.
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  {getCommercialPlanLabel(
+                    commercialStatus.plan
+                  )}
+                </p>
+
+                {credentialStatus
+                  ?.hasCredential ? (
+                  <p className="mt-2 text-xs leading-5 text-amber-200">
+                    Esta conta possui uma senha
+                    anterior. A nova senha irá
+                    substituí-la, conforme a
+                    nova autorização paga.
+                  </p>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleGenerateCredential()
+                }}
+                disabled={
+                  !canGenerateCredential
+                }
+                className="mt-3 w-full rounded-xl bg-cyan-300 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {generatingCredential
+                  ? 'A gerar nova senha…'
+                  : 'Gerar nova senha'}
+              </button>
             </div>
           ) : credentialStatus
               ?.hasCredential ? (
@@ -960,54 +1500,35 @@ export default function MAProfessorAdminAccountDetail({
               <p className="mt-3 text-xs font-bold text-slate-400">
                 Emitida em:{' '}
                 {formatDate(
-                  credentialStatus
-                    .createdAt
+                  credentialStatus.createdAt
                 )}
               </p>
 
-              <p className="mt-1 text-[0.68rem] leading-5 text-slate-600">
-                A redefinição de senha será
-                tratada como uma operação
-                administrativa separada, com
-                confirmação explícita.
+              {!hasCommercialAuthorization ? (
+                <p className="mt-2 rounded-lg border border-amber-300/15 bg-amber-300/[0.04] px-3 py-2 text-[0.68rem] leading-5 text-amber-200">
+                  Esta credencial é anterior ao
+                  novo fluxo plano → pagamento
+                  → senha. Não deve ser tratada
+                  como prova de um pagamento
+                  confirmado.
+                </p>
+              ) : null}
+            </div>
+          ) : request?.status ===
+            'approved' ? (
+            <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+              <p className="text-sm font-black text-amber-200">
+                Senha bloqueada
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Primeiro registe o plano
+                escolhido e confirme o
+                pagamento. Só depois o backend
+                permite gerar a senha.
               </p>
             </div>
-          ) : request
-              ?.status ===
-            'approved' ? (
-            <div className="mt-4">
-              <div className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">
-                <p className="text-sm font-black text-cyan-200">
-                  Conta aprovada e pronta para
-                  receber uma senha.
-                </p>
-
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  A geração cria uma
-                  credencial segura no
-                  servidor. A password em
-                  texto simples será
-                  apresentada apenas uma vez.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  void handleGenerateCredential()
-                }}
-                disabled={
-                  !canGenerateCredential
-                }
-                className="mt-3 w-full rounded-xl bg-cyan-300 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {generatingCredential
-                  ? 'A gerar senha…'
-                  : 'Gerar senha'}
-              </button>
-            </div>
-          ) : request
-              ?.status ===
+          ) : request?.status ===
             'pending' ? (
             <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
               <p className="text-sm font-black text-amber-200">
@@ -1016,12 +1537,10 @@ export default function MAProfessorAdminAccountDetail({
 
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 Aprove primeiro o pedido de
-                acesso antes de gerar a
-                senha.
+                acesso.
               </p>
             </div>
-          ) : request
-              ?.status ===
+          ) : request?.status ===
             'rejected' ? (
             <div className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.04] p-4">
               <p className="text-sm font-black text-rose-200">
@@ -1030,9 +1549,8 @@ export default function MAProfessorAdminAccountDetail({
 
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 Não é possível emitir uma
-                senha para esta conta
-                enquanto o pedido estiver
-                rejeitado.
+                senha para esta conta enquanto
+                o pedido estiver rejeitado.
               </p>
             </div>
           ) : (
@@ -1059,50 +1577,43 @@ export default function MAProfessorAdminAccountDetail({
               <DetailValue
                 label="Plano"
                 value={getLicensePlanLabel(
-                  latestRenewal
-                    .requestedPlan
+                  latestRenewal.requestedPlan
                 )}
               />
 
               <DetailValue
                 label="Valor"
                 value={formatMoney(
-                  latestRenewal
-                    .amountCents,
-                  latestRenewal
-                    .currency
+                  latestRenewal.amountCents,
+                  latestRenewal.currency
                 )}
               />
 
               <DetailValue
                 label="Pedido em"
                 value={formatDate(
-                  latestRenewal
-                    .requestedAt
+                  latestRenewal.requestedAt
                 )}
               />
 
               <DetailValue
                 label="Resolvido em"
                 value={formatDate(
-                  latestRenewal
-                    .resolvedAt
+                  latestRenewal.resolvedAt
                 )}
               />
 
               <DetailValue
                 label="Estado"
                 value={
-                  latestRenewal
-                    .status
+                  latestRenewal.status
                 }
               />
 
               <DetailValue
                 label="Total de pedidos"
                 value={String(
-                  sortedRenewals
-                    .length
+                  sortedRenewals.length
                 )}
               />
             </div>
@@ -1114,8 +1625,8 @@ export default function MAProfessorAdminAccountDetail({
 
               <p className="mt-2 text-xs leading-5 text-slate-600">
                 Não existe nenhum pedido de
-                renovação conhecido para
-                esta conta.
+                renovação conhecido para esta
+                conta.
               </p>
             </div>
           )}
@@ -1144,24 +1655,18 @@ export default function MAProfessorAdminAccountDetail({
           <MAProfessorAdminHistory
             accessRequests={
               request
-                ? [
-                    request
-                  ]
+                ? [request]
                 : []
             }
             licenses={
               license
-                ? [
-                    license
-                  ]
+                ? [license]
                 : []
             }
             renewals={
               sortedRenewals
             }
-            email={
-              email
-            }
+            email={email}
             dataConnected={
               dataConnected
             }
@@ -1177,11 +1682,22 @@ export default function MAProfessorAdminAccountDetail({
             disabled
             className="cursor-not-allowed rounded-xl bg-emerald-300/10 px-4 py-2.5 text-xs font-black text-emerald-300/40"
           >
-            {request
-              ?.status ===
-              'approved'
+            {request?.status ===
+            'approved'
               ? 'Pedido aprovado'
               : 'Aprovar pedido'}
+          </button>
+
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-xl border border-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-300/40"
+          >
+            {paymentConfirmed
+              ? 'Pagamento confirmado'
+              : paymentPending
+                ? 'Pagamento pendente'
+                : 'Escolher plano'}
           </button>
 
           <button
@@ -1194,21 +1710,17 @@ export default function MAProfessorAdminAccountDetail({
             }
             className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.05] px-4 py-2.5 text-xs font-black text-cyan-200 transition hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:border-cyan-300/10 disabled:bg-transparent disabled:text-cyan-300/40"
           >
-            {generatedCredential ||
-            credentialStatus
-              ?.hasCredential
-              ? 'Senha emitida'
+            {generatedCredential
+              ? 'Nova senha emitida'
               : generatingCredential
                 ? 'A gerar senha…'
-                : 'Gerar senha'}
-          </button>
-
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed rounded-xl border border-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-300/40"
-          >
-            Confirmar renovação
+                : commercialStatus
+                    ?.canGenerateCredential
+                  ? 'Gerar nova senha'
+                  : credentialStatus
+                      ?.hasCredential
+                    ? 'Senha anterior emitida'
+                    : 'Gerar senha'}
           </button>
 
           <button
@@ -1221,12 +1733,12 @@ export default function MAProfessorAdminAccountDetail({
         </div>
 
         <p className="mt-3 text-center text-[0.68rem] leading-5 text-slate-600">
-          Aprovação/rejeição e emissão
-          inicial da senha já utilizam o
-          backend protegido. Pagamentos,
-          renovações, redefinição de senha e
-          revogação continuam bloqueados
-          nesta fase.
+          A senha só fica desbloqueada depois
+          de pedido aprovado + plano registado
+          + pagamento confirmado. Ativação,
+          criação da licença paga e renovações
+          completas serão ligadas nos blocos
+          seguintes.
         </p>
       </div>
     </section>
