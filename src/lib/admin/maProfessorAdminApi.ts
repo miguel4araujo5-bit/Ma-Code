@@ -18,23 +18,40 @@ interface AdminApiErrorBody {
 export interface MAProfessorAdminOverview {
   accessRequests:
     MAProfessorAccessRequestSummary[]
+
   licenses:
     LicenseSummary[]
+
   renewals:
     LicenseRenewalRequest[]
-  generatedAt: string
+
+  generatedAt:
+    string
 }
 
 interface MAProfessorAdminOverviewResponse
   extends MAProfessorAdminOverview {
-  success: true
+  success:
+    true
+}
+
+interface MAProfessorAdminActionResponse {
+  success:
+    true
+
+  message:
+    string
+
+  request?:
+    MAProfessorAccessRequestSummary
 }
 
 async function readResponseBody(
   response: Response
 ) {
   try {
-    return await response.json() as unknown
+    return await response.json() as
+      unknown
   } catch {
     return null
   }
@@ -46,10 +63,12 @@ function getApiMessage(
 ) {
   if (
     body &&
-    typeof body === 'object'
+    typeof body ===
+      'object'
   ) {
     const data =
-      body as AdminApiErrorBody
+      body as
+        AdminApiErrorBody
 
     if (
       typeof data.message ===
@@ -62,22 +81,35 @@ function getApiMessage(
   return fallback
 }
 
+function getSessionError() {
+  return new Error(
+    'A sessão administrativa expirou. Atualize a página e volte a entrar.'
+  )
+}
+
 export async function getMAProfessorAdminOverview():
   Promise<MAProfessorAdminOverview> {
-  let response: Response
+  let response:
+    Response
 
   try {
     response =
       await fetch(
         `${MA_PROFESSOR_ADMIN_API_PREFIX}/overview`,
         {
-          method: 'GET',
-          credentials: 'include',
+          method:
+            'GET',
+
+          credentials:
+            'include',
+
           headers: {
             Accept:
               'application/json'
           },
-          cache: 'no-store'
+
+          cache:
+            'no-store'
         }
       )
   } catch {
@@ -92,11 +124,10 @@ export async function getMAProfessorAdminOverview():
     )
 
   if (
-    response.status === 401
+    response.status ===
+    401
   ) {
-    throw new Error(
-      'A sessão administrativa expirou. Atualize a página e volte a entrar.'
-    )
+    throw getSessionError()
   }
 
   if (!response.ok) {
@@ -114,7 +145,8 @@ export async function getMAProfessorAdminOverview():
 
   if (
     !data ||
-    data.success !== true ||
+    data.success !==
+      true ||
     !Array.isArray(
       data.accessRequests
     ) ||
@@ -135,11 +167,119 @@ export async function getMAProfessorAdminOverview():
   return {
     accessRequests:
       data.accessRequests,
+
     licenses:
       data.licenses,
+
     renewals:
       data.renewals,
+
     generatedAt:
       data.generatedAt
   }
+}
+
+async function decideAccessRequest(
+  email: string,
+  decision:
+    'approve' |
+    'reject'
+) {
+  const endpoint =
+    decision ===
+    'approve'
+      ? 'approve'
+      : 'reject'
+
+  let response:
+    Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/requests/${endpoint}`,
+        {
+          method:
+            'POST',
+
+          credentials:
+            'include',
+
+          headers: {
+            Accept:
+              'application/json',
+
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              email
+            })
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível ligar ao backend administrativo do MA-Professor.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        decision ===
+        'approve'
+          ? 'Não foi possível aprovar o pedido.'
+          : 'Não foi possível rejeitar o pedido.'
+      )
+    )
+  }
+
+  const data =
+    body as
+      MAProfessorAdminActionResponse
+
+  if (
+    !data ||
+    data.success !==
+      true
+  ) {
+    throw new Error(
+      'O servidor devolveu uma resposta administrativa inválida.'
+    )
+  }
+
+  return data
+}
+
+export async function approveMAProfessorAccessRequest(
+  email: string
+) {
+  return decideAccessRequest(
+    email,
+    'approve'
+  )
+}
+
+export async function rejectMAProfessorAccessRequest(
+  email: string
+) {
+  return decideAccessRequest(
+    email,
+    'reject'
+  )
 }
