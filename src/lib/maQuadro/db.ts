@@ -4,8 +4,10 @@ import Dexie, {
 
 import type {
   MAQuadroProject,
-  MAQuadroStoredFont
+  MAQuadroStoredFont,
+  MAQuadroStoredLogo
 } from '../../types/maQuadro'
+
 import {
   migrateLegacyMAQuadroDesign
 } from './project'
@@ -17,6 +19,10 @@ type MAQuadroDatabase = Dexie & {
   >
   fonts: EntityTable<
     MAQuadroStoredFont,
+    'id'
+  >
+  logos: EntityTable<
+    MAQuadroStoredLogo,
     'id'
   >
 }
@@ -44,6 +50,7 @@ maQuadroDb
   .upgrade(async (transaction) => {
     const table =
       transaction.table('designs')
+
     const records =
       await table.toArray()
 
@@ -54,9 +61,22 @@ maQuadroDb
         )
 
       if (migrated) {
-        await table.put(migrated)
+        await table.put(
+          migrated
+        )
       }
     }
+  })
+
+maQuadroDb
+  .version(3)
+  .stores({
+    designs:
+      'id, name, updatedAt, isTemplate, category',
+    fonts:
+      'id, family, createdAt',
+    logos:
+      'id, name, createdAt'
   })
 
 export async function listMAQuadroProjects() {
@@ -121,7 +141,9 @@ export async function listMAQuadroFonts() {
 export function saveMAQuadroFont(
   font: MAQuadroStoredFont
 ) {
-  return maQuadroDb.fonts.put(font)
+  return maQuadroDb.fonts.put(
+    font
+  )
 }
 
 export function deleteMAQuadroFont(
@@ -129,5 +151,33 @@ export function deleteMAQuadroFont(
 ) {
   return maQuadroDb.fonts.delete(
     fontId
+  )
+}
+
+export async function listMAQuadroLogos() {
+  const logos =
+    await maQuadroDb.logos.toArray()
+
+  return logos.sort(
+    (first, second) =>
+      second.createdAt.localeCompare(
+        first.createdAt
+      )
+  )
+}
+
+export function saveMAQuadroLogo(
+  logo: MAQuadroStoredLogo
+) {
+  return maQuadroDb.logos.put(
+    logo
+  )
+}
+
+export function deleteMAQuadroLogo(
+  logoId: string
+) {
+  return maQuadroDb.logos.delete(
+    logoId
   )
 }
