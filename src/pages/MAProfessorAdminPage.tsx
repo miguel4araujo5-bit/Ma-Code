@@ -1,4 +1,5 @@
 import AdminShell from '../components/admin/AdminShell'
+import MAProfessorAdminDecisionPanel from '../components/admin/ma-professor/MAProfessorAdminDecisionPanel'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 
 const workflow = [
@@ -16,30 +17,31 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. A interface está preparada, mas os dados reais e as ações permanecem desligados até ativarmos o backend administrativo."
+      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. A interface está a ser preparada antes de ligarmos dados e operações reais ao backend."
     >
       <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.04] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">
-              Fluxo de acesso
+              Fluxo aprovado
             </p>
 
             <h2 className="mt-2 text-xl font-black">
               Do pedido à renovação
             </h2>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              A administração acompanha a
-              conta desde o pedido inicial
-              até às futuras renovações,
-              mantendo cada etapa ligada ao
-              mesmo email.
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              O administrador acompanha a
+              mesma conta desde o pedido
+              inicial, passando pela
+              aprovação e senha, até à
+              ativação da licença e futuras
+              renovações.
             </p>
           </div>
 
           <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-amber-200">
-            Dados ainda desligados
+            Backend por ligar
           </span>
         </div>
 
@@ -72,7 +74,29 @@ export default function MAProfessorAdminPage() {
       </section>
 
       <section className="mt-7">
-        <MAProfessorAdminWorkspace />
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              Gestão diária
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black">
+              Contas e licenças
+            </h2>
+          </div>
+
+          <span className="text-xs font-semibold text-slate-600">
+            Sem dados de produção
+          </span>
+        </div>
+
+        <div className="mt-5">
+          <MAProfessorAdminWorkspace />
+        </div>
+      </section>
+
+      <section className="mt-7">
+        <MAProfessorAdminDecisionPanel />
       </section>
 
       <section className="mt-7 grid gap-4 lg:grid-cols-3">
@@ -101,7 +125,8 @@ export default function MAProfessorAdminPage() {
           </p>
 
           <p className="mt-1 text-sm text-slate-400">
-            Renovação manual
+            Renovação manual · sem
+            renovação automática
           </p>
         </article>
 
@@ -115,29 +140,32 @@ export default function MAProfessorAdminPage() {
           </p>
 
           <p className="mt-1 text-sm text-slate-400">
-            Até 1 de agosto
+            Até 1 de agosto · sem
+            ativações mensais
           </p>
         </article>
       </section>
 
       <section className="mt-7 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Preparado para a próxima fase
+          Próxima ligação
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          O frontend já fica com o formato
-          que o backend vai alimentar.
+          O frontend fica preparado antes de
+          receber dados reais.
         </h2>
 
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Quando ativarmos a Cloudflare,
-          ligaremos estas tabelas aos
-          pedidos, licenças e renovações já
-          existentes no motor atual do
-          MA-Professor. Não será necessário
-          redesenhar o módulo nem criar uma
-          segunda base de dados.
+          Quando ativarmos o backend do
+          MA-ADMIN, estas tabelas serão
+          alimentadas pelos pedidos,
+          credenciais, licenças e renovações
+          que já pertencem ao motor do
+          MA-Professor. O painel de decisão
+          passará então a executar as ações
+          reais com autenticação
+          administrativa.
         </p>
       </section>
     </AdminShell>
