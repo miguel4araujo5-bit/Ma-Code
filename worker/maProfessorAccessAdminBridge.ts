@@ -21,11 +21,32 @@ const INTERNAL_ADMIN_APPROVE_REQUEST_PATH =
 const INTERNAL_ADMIN_REJECT_REQUEST_PATH =
   '/__internal/ma-professor/admin/requests/reject'
 
+const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
+  '/__internal/ma-professor/admin/credentials/status'
+
+const INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH =
+  '/__internal/ma-professor/admin/credentials/generate'
+
 const EXPIRING_DAYS =
   7
 
 const RENEWAL_GRACE_HOURS =
   24
+
+const PASSWORD_HASH_ITERATIONS =
+  120_000
+
+const PASSWORD_SALT_BYTES =
+  16
+
+const GENERATED_PASSWORD_ALPHABET =
+  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+const GENERATED_PASSWORD_GROUPS =
+  4
+
+const GENERATED_PASSWORD_GROUP_LENGTH =
+  4
 
 export type MAProfessorAdminAccessRequestDecision =
   | 'approve'
@@ -69,6 +90,25 @@ interface StoredAccessRequestSnapshot {
     number
 }
 
+interface StoredAccessCredentialSnapshot {
+  email: string
+
+  passwordSalt:
+    string
+
+  passwordHash:
+    string
+
+  passwordIterations:
+    number
+
+  createdAt:
+    number
+
+  updatedAt:
+    number
+}
+
 interface StoredRenewalRequestSnapshot {
   id: string
   email: string
@@ -102,6 +142,11 @@ interface AccessStateSnapshot {
   accessRequests?: Record<
     string,
     StoredAccessRequestSnapshot
+  >
+
+  credentials?: Record<
+    string,
+    StoredAccessCredentialSnapshot
   >
 
   updatedAt?:
@@ -139,6 +184,9 @@ const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
       'no-store',
+
+    Pragma:
+      'no-cache',
 
     'Content-Security-Policy':
       "default-src 'none'; frame-ancestors 'none'",
@@ -254,6 +302,159 @@ async function readInternalJsonBody(
     JsonObject
 }
 
+function bytesToBase64(
+  bytes:
+    Uint8Array
+) {
+  let binary =
+    ''
+
+  for (
+    const byte of
+    bytes
+  ) {
+    binary +=
+      String.fromCharCode(
+        byte
+      )
+  }
+
+  return btoa(
+    binary
+  )
+}
+
+function toArrayBuffer(
+  value:
+    Uint8Array
+): ArrayBuffer {
+  const copy =
+    new Uint8Array(
+      value.byteLength
+    )
+
+  copy.set(
+    value
+  )
+
+  return copy.buffer
+}
+
+async function hashPassword(
+  password: string,
+  salt:
+    Uint8Array,
+  iterations:
+    number
+) {
+  const encodedPassword =
+    new TextEncoder()
+      .encode(
+        password
+      )
+
+  const baseKey =
+    await globalThis
+      .crypto
+      .subtle
+      .importKey(
+        'raw',
+        toArrayBuffer(
+          encodedPassword
+        ),
+        'PBKDF2',
+        false,
+        [
+          'deriveBits'
+        ]
+      )
+
+  const bits =
+    await globalThis
+      .crypto
+      .subtle
+      .deriveBits(
+        {
+          name:
+            'PBKDF2',
+
+          salt:
+            toArrayBuffer(
+              salt
+            ),
+
+          iterations,
+
+          hash:
+            'SHA-256'
+        },
+        baseKey,
+        256
+      )
+
+  return bytesToBase64(
+    new Uint8Array(
+      bits
+    )
+  )
+}
+
+function generatePassword() {
+  const characterCount =
+    GENERATED_PASSWORD_GROUPS *
+    GENERATED_PASSWORD_GROUP_LENGTH
+
+  const randomBytes =
+    new Uint8Array(
+      characterCount
+    )
+
+  globalThis
+    .crypto
+    .getRandomValues(
+      randomBytes
+    )
+
+  const characters =
+    Array.from(
+      randomBytes,
+      byte =>
+        GENERATED_PASSWORD_ALPHABET[
+          byte %
+          GENERATED_PASSWORD_ALPHABET
+            .length
+        ]
+    )
+
+  const groups:
+    string[] = []
+
+  for (
+    let index = 0;
+    index <
+      GENERATED_PASSWORD_GROUPS;
+    index += 1
+  ) {
+    const start =
+      index *
+      GENERATED_PASSWORD_GROUP_LENGTH
+
+    groups.push(
+      characters
+        .slice(
+          start,
+          start +
+            GENERATED_PASSWORD_GROUP_LENGTH
+        )
+        .join('')
+    )
+  }
+
+  return `MP-${groups.join(
+    '-'
+  )}`
+}
+
 function getDaysRemaining(
   validUntil: number,
   now: number
@@ -355,6 +556,36 @@ function buildAccessRequestSummary(
       toIso(
         request.activatedAt
       )
+  }
+}
+
+function buildCredentialStatus(
+  email: string,
+  credential:
+    StoredAccessCredentialSnapshot |
+    undefined
+) {
+  return {
+    email,
+
+    hasCredential:
+      Boolean(
+        credential
+      ),
+
+    createdAt:
+      credential
+        ? toIso(
+            credential.createdAt
+          )
+        : null,
+
+    updatedAt:
+      credential
+        ? toIso(
+            credential.updatedAt
+          )
+        : null
   }
 }
 
@@ -574,13 +805,12 @@ export class MaProfessorAccessDurableObject {
 
   private refreshBase() {
     /*
-     * O motor público mantém estado em memória.
+     * O motor público mantém o estado em memória.
      *
      * Depois de uma escrita administrativa,
      * recriamos a instância base para que o
-     * próximo pedido público releia imediatamente
-     * o estado persistido e não fique com uma
-     * versão anterior em memória.
+     * pedido público seguinte releia imediatamente
+     * o estado persistido.
      */
     this.base =
       new BaseMaProfessorAccessDurableObject(
@@ -771,6 +1001,347 @@ export class MaProfessorAccessDurableObject {
     })
   }
 
+  private async handleCredentialStatus(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'GET'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'GET'
+        }
+      )
+    }
+
+    const url =
+      new URL(
+        request.url
+      )
+
+    const email =
+      normalizeEmail(
+        url.searchParams.get(
+          'email'
+        )
+      )
+
+    if (
+      !isValidEmail(
+        email
+      )
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this
+        .state
+        .storage
+        .get<AccessStateSnapshot>(
+          STORAGE_KEY
+        )
+
+    const accessRequest =
+      state
+        ?.accessRequests
+        ?.[email]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A conta não foi encontrada.'
+        },
+        404
+      )
+    }
+
+    const credential =
+      state
+        .credentials
+        ?.[email]
+
+    return json({
+      success:
+        true,
+
+      credential:
+        buildCredentialStatus(
+          email,
+          credential
+        )
+    })
+  }
+
+  private async handleCredentialGenerate(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (
+      error
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            error instanceof
+            Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (
+      !isValidEmail(
+        email
+      )
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this
+        .state
+        .storage
+        .get<AccessStateSnapshot>(
+          STORAGE_KEY
+        )
+
+    const accessRequest =
+      state
+        ?.accessRequests
+        ?.[email]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'O pedido de acesso não foi encontrado.'
+        },
+        404
+      )
+    }
+
+    if (
+      accessRequest.status !==
+      'approved'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            accessRequest.status ===
+            'pending'
+              ? 'O pedido tem de ser aprovado antes de gerar a senha.'
+              : 'Não é possível gerar uma senha para um pedido rejeitado.'
+        },
+        409
+      )
+    }
+
+    const credentials =
+      state.credentials ||
+      {}
+
+    const existingCredential =
+      credentials[
+        email
+      ]
+
+    if (
+      existingCredential
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Esta conta já tem uma senha associada. A senha existente não pode ser recuperada em texto simples.',
+
+          credential:
+            buildCredentialStatus(
+              email,
+              existingCredential
+            )
+        },
+        409
+      )
+    }
+
+    const password =
+      generatePassword()
+
+    const salt =
+      new Uint8Array(
+        PASSWORD_SALT_BYTES
+      )
+
+    globalThis
+      .crypto
+      .getRandomValues(
+        salt
+      )
+
+    const passwordHash =
+      await hashPassword(
+        password,
+        salt,
+        PASSWORD_HASH_ITERATIONS
+      )
+
+    const now =
+      Date.now()
+
+    const credential:
+      StoredAccessCredentialSnapshot = {
+        email,
+
+        passwordSalt:
+          bytesToBase64(
+            salt
+          ),
+
+        passwordHash,
+
+        passwordIterations:
+          PASSWORD_HASH_ITERATIONS,
+
+        createdAt:
+          now,
+
+        updatedAt:
+          now
+      }
+
+    credentials[
+      email
+    ] =
+      credential
+
+    state.credentials =
+      credentials
+
+    accessRequest
+      .failedActivationAttempts =
+      0
+
+    accessRequest.blockedUntil =
+      null
+
+    accessRequest.updatedAt =
+      now
+
+    state.updatedAt =
+      now
+
+    await this
+      .state
+      .storage
+      .put(
+        STORAGE_KEY,
+        state
+      )
+
+    this.refreshBase()
+
+    return json({
+      success:
+        true,
+
+      message:
+        'Senha criada. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
+
+      credential: {
+        ...buildCredentialStatus(
+          email,
+          credential
+        ),
+
+        password
+      }
+    })
+  }
+
   private async handleRequest(
     request: Request
   ): Promise<Response> {
@@ -840,6 +1411,26 @@ export class MaProfessorAccessDurableObject {
         )
     }
 
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH
+    ) {
+      return this
+        .handleCredentialStatus(
+          request
+        )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH
+    ) {
+      return this
+        .handleCredentialGenerate(
+          request
+        )
+    }
+
     return this.base.fetch(
       request
     )
@@ -903,6 +1494,68 @@ export async function decideMAProfessorAccessRequest(
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${pathname}`,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+
+        body:
+          JSON.stringify({
+            email
+          })
+      }
+    )
+  )
+}
+
+export async function getMAProfessorAdminCredentialStatus(
+  env:
+    MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(
+      env
+    )
+
+  const url =
+    new URL(
+      `https://ma-professor.internal${INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH}`
+    )
+
+  url.searchParams.set(
+    'email',
+    email
+  )
+
+  return stub.fetch(
+    new Request(
+      url.toString(),
+      {
+        method:
+          'GET'
+      }
+    )
+  )
+}
+
+export async function generateMAProfessorAdminCredential(
+  env:
+    MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(
+      env
+    )
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH}`,
       {
         method:
           'POST',
