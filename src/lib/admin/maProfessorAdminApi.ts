@@ -29,6 +29,26 @@ export interface MAProfessorAdminOverview {
     string
 }
 
+export interface MAProfessorAdminCredentialStatus {
+  email:
+    string
+
+  hasCredential:
+    boolean
+
+  createdAt:
+    string | null
+
+  updatedAt:
+    string | null
+}
+
+export interface MAProfessorGeneratedCredential
+  extends MAProfessorAdminCredentialStatus {
+  password:
+    string
+}
+
 interface MAProfessorAdminOverviewResponse
   extends MAProfessorAdminOverview {
   success:
@@ -44,6 +64,25 @@ interface MAProfessorAdminActionResponse {
 
   request?:
     MAProfessorAccessRequestSummary
+}
+
+interface MAProfessorCredentialStatusResponse {
+  success:
+    true
+
+  credential:
+    MAProfessorAdminCredentialStatus
+}
+
+interface MAProfessorCredentialGenerateResponse {
+  success:
+    true
+
+  message:
+    string
+
+  credential:
+    MAProfessorGeneratedCredential
 }
 
 async function readResponseBody(
@@ -282,4 +321,166 @@ export async function rejectMAProfessorAccessRequest(
     email,
     'reject'
   )
+}
+
+export async function getMAProfessorCredentialStatus(
+  email: string
+): Promise<MAProfessorAdminCredentialStatus> {
+  const query =
+    new URLSearchParams({
+      email
+    })
+
+  let response:
+    Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/status?${query.toString()}`,
+        {
+          method:
+            'GET',
+
+          credentials:
+            'include',
+
+          headers: {
+            Accept:
+              'application/json'
+          },
+
+          cache:
+            'no-store'
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível consultar o estado da senha.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        'Não foi possível consultar o estado da senha.'
+      )
+    )
+  }
+
+  const data =
+    body as
+      MAProfessorCredentialStatusResponse
+
+  if (
+    !data ||
+    data.success !==
+      true ||
+    !data.credential ||
+    typeof data.credential.email !==
+      'string' ||
+    typeof data.credential.hasCredential !==
+      'boolean'
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado de senha inválido.'
+    )
+  }
+
+  return data.credential
+}
+
+export async function generateMAProfessorAccessPassword(
+  email: string
+): Promise<MAProfessorGeneratedCredential> {
+  let response:
+    Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/generate`,
+        {
+          method:
+            'POST',
+
+          credentials:
+            'include',
+
+          headers: {
+            Accept:
+              'application/json',
+
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              email
+            })
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível ligar ao backend para gerar a senha.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        'Não foi possível gerar a senha desta conta.'
+      )
+    )
+  }
+
+  const data =
+    body as
+      MAProfessorCredentialGenerateResponse
+
+  if (
+    !data ||
+    data.success !==
+      true ||
+    !data.credential ||
+    typeof data.credential.email !==
+      'string' ||
+    typeof data.credential.password !==
+      'string' ||
+    data.credential.password.length <
+      6
+  ) {
+    throw new Error(
+      'O servidor não devolveu uma senha válida.'
+    )
+  }
+
+  return data.credential
 }
