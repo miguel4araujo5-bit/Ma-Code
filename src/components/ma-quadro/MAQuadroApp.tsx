@@ -5,6 +5,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
 
+import BrandQuickStyles from './BrandQuickStyles'
+
 import CanvasContextMenu, {
   type MAQuadroContextMenuPosition
 } from './CanvasContextMenu'
@@ -32,6 +34,7 @@ import {
 import './maQuadro.css'
 import './maQuadroFixes.css'
 import './maQuadroWorkflow.css'
+import './maQuadroHeaderPolish.css'
 
 function targetUsesNativeKeyboard(
   target:
@@ -305,6 +308,8 @@ export default function MAQuadroApp() {
         }
       >
         <FormatPainterController />
+
+        <BrandQuickStyles />
 
         <EditorHeader
           onOpenShortcuts={() => {
