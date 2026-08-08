@@ -31,20 +31,14 @@ function getViewBox(svg) {
 }
 
 function createSvgElement(tag, attributes = {}) {
-  const element = document.createElementNS(
-    SVG_NS,
-    tag,
-  );
+  const element = document.createElementNS(SVG_NS, tag);
 
   for (const [name, value] of Object.entries(attributes)) {
     if (value == null) {
       continue;
     }
 
-    element.setAttribute(
-      name,
-      String(value),
-    );
+    element.setAttribute(name, String(value));
   }
 
   return element;
@@ -67,40 +61,27 @@ function renderSpainBackdrop() {
     .querySelector('[data-layer="spain-backdrop"]')
     ?.remove();
 
-  const layer = createSvgElement(
-    'g',
-    {
-      class: 'spain-backdrop',
-      'data-layer': 'spain-backdrop',
-      'aria-hidden': 'true',
-    },
-  );
+  const layer = createSvgElement('g', {
+    class: 'spain-backdrop',
+    'data-layer': 'spain-backdrop',
+    'aria-hidden': 'true',
+  });
 
-  const width = viewBox.width * 0.78;
+  const width = viewBox.width * 1.02;
+  const height = width * SPAIN_IMAGE_RATIO;
 
-  const height =
-    width * SPAIN_IMAGE_RATIO;
+  const x = viewBox.x + viewBox.width * 0.56;
+  const y = viewBox.y - viewBox.height * 0.015;
 
-  const x =
-    viewBox.x +
-    viewBox.width * 0.63;
-
-  const y =
-    viewBox.y +
-    viewBox.height * 0.025;
-
-  const image = createSvgElement(
-    'image',
-    {
-      class: 'spain-backdrop__image',
-      href: backdropUrl,
-      x,
-      y,
-      width,
-      height,
-      preserveAspectRatio: 'xMinYMin meet',
-    },
-  );
+  const image = createSvgElement('image', {
+    class: 'spain-backdrop__image',
+    href: backdropUrl,
+    x,
+    y,
+    width,
+    height,
+    preserveAspectRatio: 'xMinYMin meet',
+  });
 
   layer.appendChild(image);
 
@@ -108,11 +89,7 @@ function renderSpainBackdrop() {
     svg.querySelector('.map-decoration');
 
   if (decorationLayer) {
-    svg.insertBefore(
-      layer,
-      decorationLayer,
-    );
-
+    svg.insertBefore(layer, decorationLayer);
     return;
   }
 
@@ -120,11 +97,7 @@ function renderSpainBackdrop() {
     svg.querySelector('.territory-layer');
 
   if (territoryLayer) {
-    svg.insertBefore(
-      layer,
-      territoryLayer,
-    );
-
+    svg.insertBefore(layer, territoryLayer);
     return;
   }
 
@@ -147,15 +120,10 @@ function scheduleRender() {
 const app = document.querySelector('#app');
 
 if (app) {
-  new MutationObserver(
-    scheduleRender,
-  ).observe(
-    app,
-    {
-      childList: true,
-      subtree: true,
-    },
-  );
+  new MutationObserver(scheduleRender).observe(app, {
+    childList: true,
+    subtree: true,
+  });
 
   scheduleRender();
 }
