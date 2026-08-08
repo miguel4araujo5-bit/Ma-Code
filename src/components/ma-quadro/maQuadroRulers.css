@@ -1,0 +1,227 @@
+.mq-canvas-ruler-frame {
+  --mq-ruler-size: 1.35rem;
+
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.mq-canvas-ruler-frame > .mq-canvas-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.mq-ruler,
+.mq-ruler-corner {
+  position: absolute;
+  z-index: 18;
+  color: #94a3b8;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(
+        15,
+        23,
+        42,
+        0.98
+      ),
+      rgba(
+        7,
+        12,
+        25,
+        0.98
+      )
+    );
+  pointer-events: none;
+  user-select: none;
+}
+
+.mq-ruler {
+  overflow: hidden;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.mq-ruler--horizontal {
+  top:
+    calc(
+      0px -
+      var(--mq-ruler-size)
+    );
+  left: 0;
+  width: 100%;
+  height:
+    var(--mq-ruler-size);
+  border-bottom:
+    1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.28
+    );
+}
+
+.mq-ruler--vertical {
+  top: 0;
+  left:
+    calc(
+      0px -
+      var(--mq-ruler-size)
+    );
+  width:
+    var(--mq-ruler-size);
+  height: 100%;
+  border-right:
+    1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.28
+    );
+}
+
+.mq-ruler-corner {
+  top:
+    calc(
+      0px -
+      var(--mq-ruler-size)
+    );
+  left:
+    calc(
+      0px -
+      var(--mq-ruler-size)
+    );
+
+  display: grid;
+  place-items: center;
+
+  width:
+    var(--mq-ruler-size);
+  height:
+    var(--mq-ruler-size);
+
+  border-right:
+    1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.28
+    );
+
+  border-bottom:
+    1px solid
+    rgba(
+      148,
+      163,
+      184,
+      0.28
+    );
+
+  color: #67e8f9;
+
+  font-size: 0.42rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mq-ruler-mark {
+  position: absolute;
+
+  background:
+    rgba(
+      148,
+      163,
+      184,
+      0.5
+    );
+}
+
+.mq-ruler-mark.is-major {
+  background:
+    rgba(
+      203,
+      213,
+      225,
+      0.82
+    );
+}
+
+.mq-ruler--horizontal
+  .mq-ruler-mark {
+  bottom: 0;
+
+  width: 1px;
+  height: 0.28rem;
+}
+
+.mq-ruler--horizontal
+  .mq-ruler-mark.is-major {
+  height: 0.55rem;
+}
+
+.mq-ruler--vertical
+  .mq-ruler-mark {
+  right: 0;
+
+  width: 0.28rem;
+  height: 1px;
+}
+
+.mq-ruler--vertical
+  .mq-ruler-mark.is-major {
+  width: 0.55rem;
+}
+
+.mq-ruler-label {
+  position: absolute;
+
+  color: #cbd5e1;
+
+  font-size: 0.43rem;
+  font-weight: 700;
+  line-height: 1;
+
+  white-space: nowrap;
+}
+
+.mq-ruler--horizontal
+  .mq-ruler-label {
+  top: 0.16rem;
+  left: 0.16rem;
+}
+
+.mq-ruler--vertical
+  .mq-ruler-label {
+  top: 0.16rem;
+  left: 0.14rem;
+
+  transform:
+    rotate(
+      90deg
+    );
+
+  transform-origin:
+    top left;
+}
+
+.mq-workspace.is-cropping
+  .mq-ruler,
+.mq-workspace.is-cropping
+  .mq-ruler-corner {
+  opacity: 0.72;
+}
+
+@media (
+  max-width: 520px
+) {
+  .mq-canvas-ruler-frame {
+    --mq-ruler-size: 1.15rem;
+  }
+
+  .mq-ruler-label {
+    font-size: 0.39rem;
+  }
+}
