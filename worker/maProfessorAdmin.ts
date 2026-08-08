@@ -4,6 +4,7 @@ import {
 } from './maCodeAdmin'
 
 import {
+  decideMAProfessorAccessRequest,
   getMAProfessorAdminOverview
 } from './maProfessorAccessAdminBridge'
 
@@ -18,18 +19,32 @@ export interface MaProfessorAdminEnv
   extends MaCodeAdminEnv,
     MaProfessorAccessEnv {}
 
+type JsonObject =
+  Record<
+    string,
+    unknown
+  >
+
+const MAX_BODY_BYTES =
+  2_000
+
 const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
       'no-store',
+
     'Content-Security-Policy':
       "default-src 'none'; frame-ancestors 'none'",
+
     'X-Content-Type-Options':
       'nosniff',
+
     'X-Frame-Options':
       'DENY',
+
     'Referrer-Policy':
       'no-referrer',
+
     'X-Robots-Tag':
       'noindex, nofollow'
   }
@@ -44,14 +59,204 @@ function json(
     JSON.stringify(body),
     {
       status,
+
       headers: {
         'Content-Type':
           'application/json; charset=utf-8',
+
         ...securityHeaders,
         ...extraHeaders
       }
     }
   )
+}
+
+function normalizeOrigin(
+  value: string
+) {
+  try {
+    return new URL(
+      value
+    ).origin
+  } catch {
+    return ''
+  }
+}
+
+function isLocalOrigin(
+  origin: string
+) {
+  try {
+    const hostname =
+      new URL(
+        origin
+      ).hostname
+
+    return [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0'
+    ].includes(
+      hostname
+    )
+  } catch {
+    return false
+  }
+}
+
+function isAllowedBrowserRequest(
+  request: Request
+) {
+  const requestOrigin =
+    new URL(
+      request.url
+    ).origin
+
+  const origin =
+    normalizeOrigin(
+      request.headers.get(
+        'Origin'
+      ) || ''
+    )
+
+  const referer =
+    normalizeOrigin(
+      request.headers.get(
+        'Referer'
+      ) || ''
+    )
+
+  const candidate =
+    origin ||
+    referer
+
+  if (!candidate) {
+    return false
+  }
+
+  if (
+    candidate ===
+      requestOrigin ||
+    candidate ===
+      'https://ma-code.pt' ||
+    candidate ===
+      'https://www.ma-code.pt'
+  ) {
+    return true
+  }
+
+  return isLocalOrigin(
+    candidate
+  )
+}
+
+function normalizeEmail(
+  value: unknown
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .trim()
+        .toLowerCase()
+        .slice(
+          0,
+          180
+        )
+    : ''
+}
+
+function isValidEmail(
+  value: string
+) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    value
+  )
+}
+
+async function readJsonBody(
+  request: Request
+): Promise<JsonObject> {
+  const contentType =
+    request.headers.get(
+      'content-type'
+    ) || ''
+
+  if (
+    !contentType
+      .toLowerCase()
+      .includes(
+        'application/json'
+      )
+  ) {
+    throw new Error(
+      'Formato de pedido inválido.'
+    )
+  }
+
+  const contentLength =
+    Number(
+      request.headers.get(
+        'content-length'
+      ) || 0
+    )
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      MAX_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
+    )
+  }
+
+  const text =
+    await request.text()
+
+  if (
+    new TextEncoder()
+      .encode(
+        text
+      )
+      .byteLength >
+    MAX_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
+    )
+  }
+
+  let parsed:
+    unknown
+
+  try {
+    parsed =
+      JSON.parse(
+        text
+      ) as unknown
+  } catch {
+    throw new Error(
+      'O pedido enviado não contém JSON válido.'
+    )
+  }
+
+  if (
+    !parsed ||
+    typeof parsed !==
+      'object' ||
+    Array.isArray(
+      parsed
+    )
+  ) {
+    throw new Error(
+      'O pedido enviado não é válido.'
+    )
+  }
+
+  return parsed as
+    JsonObject
 }
 
 async function verifyAdminSession(
@@ -66,14 +271,20 @@ async function verifyAdminSession(
 
   sessionUrl.pathname =
     '/api/admin/session'
-  sessionUrl.search = ''
-  sessionUrl.hash = ''
+
+  sessionUrl.search =
+    ''
+
+  sessionUrl.hash =
+    ''
 
   const sessionRequest =
     new Request(
       sessionUrl.toString(),
       {
-        method: 'GET',
+        method:
+          'GET',
+
         headers:
           request.headers
       }
@@ -83,6 +294,144 @@ async function verifyAdminSession(
     sessionRequest,
     env
   )
+}
+
+async function handleAccessRequestDecision(
+  request: Request,
+  env:
+    MaProfessorAdminEnv,
+  decision:
+    'approve' |
+    'reject'
+) {
+  if (
+    request.method !==
+    'POST'
+  ) {
+    return json(
+      {
+        success:
+          false,
+
+        message:
+          'Método não permitido.'
+      },
+      405,
+      {
+        Allow:
+          'POST'
+      }
+    )
+  }
+
+  if (
+    !isAllowedBrowserRequest(
+      request
+    )
+  ) {
+    return json(
+      {
+        success:
+          false,
+
+        message:
+          'Pedido bloqueado por origem inválida.'
+      },
+      403
+    )
+  }
+
+  let body:
+    JsonObject
+
+  try {
+    body =
+      await readJsonBody(
+        request
+      )
+  } catch (
+    error
+  ) {
+    const message =
+      error instanceof
+      Error
+        ? error.message
+        : 'Pedido administrativo inválido.'
+
+    const status =
+      message ===
+      'O pedido é demasiado grande.'
+        ? 413
+        : 400
+
+    return json(
+      {
+        success:
+          false,
+
+        message
+      },
+      status
+    )
+  }
+
+  const email =
+    normalizeEmail(
+      body.email
+    )
+
+  if (
+    !isValidEmail(
+      email
+    )
+  ) {
+    return json(
+      {
+        success:
+          false,
+
+        message:
+          'Indique um email válido.'
+      },
+      400
+    )
+  }
+
+  try {
+    return await decideMAProfessorAccessRequest(
+      env,
+      email,
+      decision
+    )
+  } catch (
+    error
+  ) {
+    console.error(
+      'MA-Professor admin access request decision failed',
+      {
+        decision,
+
+        message:
+          error instanceof
+          Error
+            ? error.message
+            : String(
+                error
+              )
+      }
+    )
+
+    return json(
+      {
+        success:
+          false,
+
+        message:
+          'Não foi possível atualizar o pedido de acesso.'
+      },
+      500
+    )
+  }
 }
 
 export function isMAProfessorAdminApiPath(
@@ -132,13 +481,16 @@ export async function handleMAProfessorAdminApiRequest(
       ) {
         return json(
           {
-            success: false,
+            success:
+              false,
+
             message:
               'Método não permitido.'
           },
           405,
           {
-            Allow: 'GET'
+            Allow:
+              'GET'
           }
         )
       }
@@ -147,12 +499,15 @@ export async function handleMAProfessorAdminApiRequest(
         return await getMAProfessorAdminOverview(
           env
         )
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           'MA-Professor admin overview failed',
           {
             message:
-              error instanceof Error
+              error instanceof
+              Error
                 ? error.message
                 : String(
                     error
@@ -162,7 +517,9 @@ export async function handleMAProfessorAdminApiRequest(
 
         return json(
           {
-            success: false,
+            success:
+              false,
+
             message:
               'Não foi possível carregar os dados administrativos do MA-Professor.'
           },
@@ -171,10 +528,26 @@ export async function handleMAProfessorAdminApiRequest(
       }
     }
 
+    case '/requests/approve':
+      return handleAccessRequestDecision(
+        request,
+        env,
+        'approve'
+      )
+
+    case '/requests/reject':
+      return handleAccessRequestDecision(
+        request,
+        env,
+        'reject'
+      )
+
     default:
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'Endpoint administrativo do MA-Professor não encontrado.'
         },
