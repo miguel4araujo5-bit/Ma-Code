@@ -39,12 +39,10 @@ function BrandLogoCard({
   logo: MAQuadroStoredLogo
   disabled: boolean
   onInsert: (
-    logo:
-      MAQuadroStoredLogo
+    logo: MAQuadroStoredLogo
   ) => void
   onDelete: (
-    logo:
-      MAQuadroStoredLogo
+    logo: MAQuadroStoredLogo
   ) => void
 }) {
   const [
@@ -136,7 +134,11 @@ function BrandLogoCard({
   )
 }
 
-export default function BrandLogos() {
+export default function BrandLogos({
+  brandKitId
+}: {
+  brandKitId: string
+}) {
   const editor =
     useMAQuadroEditorContext()
 
@@ -174,18 +176,34 @@ export default function BrandLogos() {
       async () => {
         try {
           setLogos(
-            await listMAQuadroLogos()
+            await listMAQuadroLogos(
+              brandKitId
+            )
           )
         } catch {
+          setLogos(
+            []
+          )
+
           setMessage(
             'Erro ao carregar os logótipos.'
           )
         }
       },
-      []
+      [
+        brandKitId
+      ]
     )
 
   useEffect(() => {
+    setLogos(
+      []
+    )
+
+    setMessage(
+      ''
+    )
+
     void loadLogos()
   }, [
     loadLogos
@@ -266,9 +284,10 @@ export default function BrandLogos() {
                 file
               )
 
-            await saveMAQuadroLogo(
-              logo
-            )
+            await saveMAQuadroLogo({
+              ...logo,
+              brandKitId
+            })
 
             saved += 1
           } catch {
@@ -330,7 +349,9 @@ export default function BrandLogos() {
       logo:
         MAQuadroStoredLogo
     ) => {
-      if (locked) {
+      if (
+        locked
+      ) {
         return
       }
 
@@ -365,7 +386,9 @@ export default function BrandLogos() {
       logo:
         MAQuadroStoredLogo
     ) => {
-      if (locked) {
+      if (
+        locked
+      ) {
         return
       }
 
