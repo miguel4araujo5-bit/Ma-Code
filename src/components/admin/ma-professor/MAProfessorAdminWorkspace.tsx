@@ -15,6 +15,9 @@ import type {
   LicenseSummary
 } from '../../ma-professor/types'
 
+import MAProfessorAdminAccountDetail from './MAProfessorAdminAccountDetail'
+import MAProfessorAdminHistory from './MAProfessorAdminHistory'
+
 type WorkspaceTab =
   | 'requests'
   | 'users'
@@ -40,28 +43,29 @@ interface TabDefinition {
   label: string
 }
 
-const tabs: TabDefinition[] = [
-  {
-    id: 'requests',
-    label: 'Pedidos'
-  },
-  {
-    id: 'users',
-    label: 'Utilizadores'
-  },
-  {
-    id: 'licenses',
-    label: 'Licenças'
-  },
-  {
-    id: 'renewals',
-    label: 'Renovações'
-  },
-  {
-    id: 'history',
-    label: 'Histórico'
-  }
-]
+const tabs:
+  TabDefinition[] = [
+    {
+      id: 'requests',
+      label: 'Pedidos'
+    },
+    {
+      id: 'users',
+      label: 'Utilizadores'
+    },
+    {
+      id: 'licenses',
+      label: 'Licenças'
+    },
+    {
+      id: 'renewals',
+      label: 'Renovações'
+    },
+    {
+      id: 'history',
+      label: 'Histórico'
+    }
+  ]
 
 function formatDate(
   value: string | null
@@ -71,7 +75,9 @@ function formatDate(
   }
 
   const date =
-    new Date(value)
+    new Date(
+      value
+    )
 
   if (
     Number.isNaN(
@@ -146,6 +152,44 @@ function getLicenseStatusClassName(
 
     default:
       return 'border-white/10 bg-white/[0.04] text-slate-400'
+  }
+}
+
+function getRenewalStatusLabel(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'Aprovada'
+
+    case 'rejected':
+      return 'Rejeitada'
+
+    case 'cancelled':
+      return 'Cancelada'
+
+    default:
+      return 'Pendente'
+  }
+}
+
+function getRenewalStatusClassName(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
+    case 'rejected':
+      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+
+    case 'cancelled':
+      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+
+    default:
+      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
   }
 }
 
@@ -340,8 +384,8 @@ export default function MAProfessorAdminWorkspace({
               )
         ),
       [
-        userEmails,
-        normalizedQuery
+        normalizedQuery,
+        userEmails
       ]
     )
 
@@ -376,8 +420,8 @@ export default function MAProfessorAdminWorkspace({
               )
         ),
       [
-        renewals,
-        normalizedQuery
+        normalizedQuery,
+        renewals
       ]
     )
 
@@ -413,16 +457,16 @@ export default function MAProfessorAdminWorkspace({
       ]
     )
 
-  const selectedRenewal =
+  const selectedRenewals =
     useMemo(
       () =>
         selectedEmail
-          ? renewals.find(
+          ? renewals.filter(
               renewal =>
                 renewal.email ===
                 selectedEmail
-            ) || null
-          : null,
+            )
+          : [],
       [
         renewals,
         selectedEmail
@@ -458,6 +502,14 @@ export default function MAProfessorAdminWorkspace({
     dataConnected
       ? String(value)
       : '—'
+
+  const openAccount = (
+    email: string
+  ) => {
+    setSelectedEmail(
+      email
+    )
+  }
 
   const renderRequests =
     () => (
@@ -535,13 +587,13 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedEmail(
+                        openAccount(
                           request.email
                         )
                       }
                       className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
                     >
-                      Abrir
+                      Abrir ficha
                     </button>
                   </td>
                 </tr>
@@ -638,13 +690,13 @@ export default function MAProfessorAdminWorkspace({
                       <button
                         type="button"
                         onClick={() =>
-                          setSelectedEmail(
+                          openAccount(
                             email
                           )
                         }
                         className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
                       >
-                        Abrir
+                        Abrir ficha
                       </button>
                     </td>
                   </tr>
@@ -748,13 +800,13 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedEmail(
+                        openAccount(
                           license.email
                         )
                       }
                       className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
                     >
-                      Abrir
+                      Abrir ficha
                     </button>
                   </td>
                 </tr>
@@ -848,8 +900,19 @@ export default function MAProfessorAdminWorkspace({
                   </td>
 
                   <td className="px-4 py-4">
-                    <span className="inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.65rem] font-black text-amber-200">
-                      {renewal.status}
+                    <span
+                      className={[
+                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                        getRenewalStatusClassName(
+                          renewal.status
+                        )
+                      ].join(
+                        ' '
+                      )}
+                    >
+                      {getRenewalStatusLabel(
+                        renewal.status
+                      )}
                     </span>
                   </td>
 
@@ -857,13 +920,13 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedEmail(
+                        openAccount(
                           renewal.email
                         )
                       }
                       className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
                     >
-                      Abrir
+                      Abrir ficha
                     </button>
                   </td>
                 </tr>
@@ -892,39 +955,23 @@ export default function MAProfessorAdminWorkspace({
 
   const renderHistory =
     () => (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left">
-          <thead>
-            <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-              <th className="px-4 py-3">
-                Data
-              </th>
-
-              <th className="px-4 py-3">
-                Conta
-              </th>
-
-              <th className="px-4 py-3">
-                Evento
-              </th>
-
-              <th className="px-4 py-3">
-                Resultado
-              </th>
-            </tr>
-          </thead>
-        </table>
-
-        <EmptyTable
-          title="Histórico ainda não ligado"
-          description="O histórico administrativo será alimentado apenas por acontecimentos reais registados pelo backend."
-        />
-      </div>
+      <MAProfessorAdminHistory
+        accessRequests={
+          accessRequests
+        }
+        licenses={licenses}
+        renewals={renewals}
+        dataConnected={
+          dataConnected
+        }
+      />
     )
 
   const renderActiveTable =
     () => {
-      switch (activeTab) {
+      switch (
+        activeTab
+      ) {
         case 'users':
           return renderUsers()
 
@@ -1011,7 +1058,9 @@ export default function MAProfessorAdminWorkspace({
                       ' '
                     )}
                   >
-                    {tab.label}
+                    {
+                      tab.label
+                    }
                   </button>
                 )
               }
@@ -1086,134 +1135,37 @@ export default function MAProfessorAdminWorkspace({
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="min-w-0">
-            {renderActiveTable()}
-          </div>
-
-          <aside className="border-t border-white/10 bg-slate-950/35 p-5 lg:border-l lg:border-t-0">
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-slate-600">
-              Detalhe
-            </p>
-
-            {selectedEmail ? (
-              <>
-                <h3 className="mt-2 break-all text-sm font-black text-white">
-                  {selectedEmail}
-                </h3>
-
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                    <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
-                      Pedido
-                    </p>
-
-                    <p className="mt-1 text-xs font-bold text-slate-300">
-                      {selectedRequest
-                        ? getAccessRequestStatusLabel(
-                            selectedRequest.status
-                          )
-                        : 'Sem pedido'}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                    <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
-                      Licença
-                    </p>
-
-                    <p className="mt-1 text-xs font-bold text-slate-300">
-                      {selectedLicense
-                        ? getLicensePlanLabel(
-                            selectedLicense.plan
-                          )
-                        : 'Sem licença'}
-                    </p>
-
-                    {selectedLicense ? (
-                      <p className="mt-1 text-xs text-slate-500">
-                        {getLicenseStatusLabel(
-                          selectedLicense.status
-                        )}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                    <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
-                      Renovação
-                    </p>
-
-                    <p className="mt-1 text-xs font-bold text-slate-300">
-                      {selectedRenewal
-                        ? getLicensePlanLabel(
-                            selectedRenewal.requestedPlan
-                          )
-                        : 'Sem pedido'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full cursor-not-allowed rounded-xl bg-emerald-300/10 px-4 py-2.5 text-xs font-black text-emerald-300/40"
-                  >
-                    Aprovar pedido
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full cursor-not-allowed rounded-xl border border-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-300/40"
-                  >
-                    Gerar senha
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full cursor-not-allowed rounded-xl border border-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-300/40"
-                  >
-                    Confirmar pagamento
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full cursor-not-allowed rounded-xl border border-rose-300/10 px-4 py-2.5 text-xs font-black text-rose-300/40"
-                  >
-                    Rejeitar / revogar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center">
-                <p className="text-sm font-black text-slate-400">
-                  Nenhum registo selecionado
-                </p>
-
-                <p className="mt-2 text-xs leading-5 text-slate-600">
-                  Quando existirem dados,
-                  selecione uma linha para
-                  consultar a conta e executar
-                  as ações administrativas.
-                </p>
-              </div>
-            )}
-
-            <div className="mt-5 rounded-xl border border-amber-300/10 bg-amber-300/[0.035] p-3">
-              <p className="text-xs leading-5 text-slate-500">
-                As ações permanecem
-                bloqueadas até existir
-                autenticação e backend
-                administrativo protegido.
-              </p>
-            </div>
-          </aside>
+        <div className="min-w-0">
+          {renderActiveTable()}
         </div>
       </section>
+
+      {selectedEmail ? (
+        <div className="mt-6">
+          <MAProfessorAdminAccountDetail
+            email={
+              selectedEmail
+            }
+            request={
+              selectedRequest
+            }
+            license={
+              selectedLicense
+            }
+            renewals={
+              selectedRenewals
+            }
+            dataConnected={
+              dataConnected
+            }
+            onClose={() =>
+              setSelectedEmail(
+                null
+              )
+            }
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
