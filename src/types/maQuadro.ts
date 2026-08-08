@@ -17,6 +17,15 @@ export type MAQuadroBrand = {
     fonts: MAQuadroBrandFont[];
 };
 
+export type MAQuadroStoredBrandKit = {
+    id: string;
+    name: string;
+    colors: MAQuadroBrandColor[];
+    fonts: MAQuadroBrandFont[];
+    createdAt: string;
+    updatedAt: string;
+};
+
 export type MAQuadroCanvasPreset = {
     id: string;
     name: string;
@@ -85,6 +94,7 @@ export type MAQuadroStoredLogo = {
     mimeType: string;
     data: ArrayBuffer;
     size: number;
+    brandKitId?: string;
     createdAt: string;
 };
 
