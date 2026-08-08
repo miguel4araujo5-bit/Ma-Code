@@ -12,6 +12,11 @@ import type {
     MAQuadroFabricObject
 } from './canvasObjects';
 
+import {
+    findMAQuadroSmartSpacing,
+    type MAQuadroSpacingGuide
+} from './smartSpacing';
+
 export type MAQuadroImageFrameKind =
     | 'none'
     | 'rounded'
@@ -23,11 +28,20 @@ export type MAQuadroImageFrameKind =
 export type MAQuadroGuideState = {
     vertical: number | null;
     horizontal: number | null;
+
     source:
         | 'page'
         | 'object'
         | 'manual'
         | null;
+
+    spacing: {
+        horizontal:
+            MAQuadroSpacingGuide | null;
+
+        vertical:
+            MAQuadroSpacingGuide | null;
+    };
 };
 
 export type MAQuadroManualGuides = {
@@ -41,11 +55,17 @@ export type MAQuadroCropViewportState = {
     positionY: number;
 };
 
-const EMPTY_GUIDES: MAQuadroGuideState = {
-    vertical: null,
-    horizontal: null,
-    source: null
-};
+const EMPTY_GUIDES:
+    MAQuadroGuideState = {
+        vertical: null,
+        horizontal: null,
+        source: null,
+
+        spacing: {
+            horizontal: null,
+            vertical: null
+        }
+    };
 
 const MANUAL_GUIDES_BY_ELEMENT =
     new WeakMap<
@@ -69,18 +89,22 @@ function normalizeManualGuideValues(
                     (value) =>
                         Math.max(
                             0,
-                            Number(value)
+                            Number(
+                                value
+                            )
                         )
                 )
         )
     ).sort(
-        (a, b) => a - b
+        (a, b) =>
+            a - b
     );
 }
 
 export function setMAQuadroManualGuides(
     canvasElement:
         HTMLCanvasElement | null,
+
     guides:
         MAQuadroManualGuides
 ) {
@@ -95,6 +119,7 @@ export function setMAQuadroManualGuides(
                 normalizeManualGuideValues(
                     guides.vertical
                 ),
+
             horizontal:
                 normalizeManualGuideValues(
                     guides.horizontal
@@ -138,7 +163,9 @@ function clamp(
         maximum,
         Math.max(
             minimum,
-            Number.isFinite(value)
+            Number.isFinite(
+                value
+            )
                 ? value
                 : minimum
         )
@@ -150,10 +177,11 @@ function starPoints(
     innerRadius: number,
     points = 5
 ) {
-    const result: Array<{
-        x: number;
-        y: number;
-    }> = [];
+    const result:
+        Array<{
+            x: number;
+            y: number;
+        }> = [];
 
     for (
         let index = 0;
@@ -173,10 +201,15 @@ function starPoints(
 
         result.push({
             x:
-                Math.cos(angle) *
+                Math.cos(
+                    angle
+                ) *
                 radius,
+
             y:
-                Math.sin(angle) *
+                Math.sin(
+                    angle
+                ) *
                 radius
         });
     }
@@ -196,23 +229,38 @@ export function getMAQuadroImageFrameKind(
         return 'none';
     }
 
-    if (clipPath instanceof Circle) {
+    if (
+        clipPath instanceof
+        Circle
+    ) {
         return 'circle';
     }
 
-    if (clipPath instanceof Ellipse) {
+    if (
+        clipPath instanceof
+        Ellipse
+    ) {
         return 'ellipse';
     }
 
-    if (clipPath instanceof Triangle) {
+    if (
+        clipPath instanceof
+        Triangle
+    ) {
         return 'triangle';
     }
 
-    if (clipPath instanceof Polygon) {
+    if (
+        clipPath instanceof
+        Polygon
+    ) {
         return 'star';
     }
 
-    if (clipPath instanceof Rect) {
+    if (
+        clipPath instanceof
+        Rect
+    ) {
         return (
             Number(
                 clipPath.rx ||
@@ -234,12 +282,17 @@ export function applyMAQuadroImageFrame(
     image:
         FabricImage &
         MAQuadroFabricObject,
+
     kind:
         MAQuadroImageFrameKind
 ) {
-    if (kind === 'none') {
+    if (
+        kind ===
+        'none'
+    ) {
         image.set({
-            clipPath: undefined
+            clipPath:
+                undefined
         });
 
         image.setCoords();
@@ -278,59 +331,87 @@ export function applyMAQuadroImageFrame(
         | Rect
         | Triangle;
 
-    if (kind === 'circle') {
+    if (
+        kind ===
+        'circle'
+    ) {
         clipPath =
             new Circle({
                 radius:
                     shortest /
                     2,
+
                 left: 0,
                 top: 0,
+
                 originX:
                     'center',
+
                 originY:
                     'center',
-                fill: '#000000',
-                strokeWidth: 0
+
+                fill:
+                    '#000000',
+
+                strokeWidth:
+                    0
             });
     } else if (
-        kind === 'ellipse'
+        kind ===
+        'ellipse'
     ) {
         clipPath =
             new Ellipse({
                 rx:
                     width /
                     2,
+
                 ry:
                     height /
                     2,
+
                 left: 0,
                 top: 0,
+
                 originX:
                     'center',
+
                 originY:
                     'center',
-                fill: '#000000',
-                strokeWidth: 0
+
+                fill:
+                    '#000000',
+
+                strokeWidth:
+                    0
             });
     } else if (
-        kind === 'triangle'
+        kind ===
+        'triangle'
     ) {
         clipPath =
             new Triangle({
                 width,
                 height,
+
                 left: 0,
                 top: 0,
+
                 originX:
                     'center',
+
                 originY:
                     'center',
-                fill: '#000000',
-                strokeWidth: 0
+
+                fill:
+                    '#000000',
+
+                strokeWidth:
+                    0
             });
     } else if (
-        kind === 'star'
+        kind ===
+        'star'
     ) {
         const outerRadius =
             shortest /
@@ -346,12 +427,18 @@ export function applyMAQuadroImageFrame(
                 {
                     left: 0,
                     top: 0,
+
                     originX:
                         'center',
+
                     originY:
                         'center',
-                    fill: '#000000',
-                    strokeWidth: 0
+
+                    fill:
+                        '#000000',
+
+                    strokeWidth:
+                        0
                 }
             );
     } else {
@@ -366,23 +453,39 @@ export function applyMAQuadroImageFrame(
             new Rect({
                 width,
                 height,
-                rx: radius,
-                ry: radius,
+
+                rx:
+                    radius,
+
+                ry:
+                    radius,
+
                 left: 0,
                 top: 0,
+
                 originX:
                     'center',
+
                 originY:
                     'center',
-                fill: '#000000',
-                strokeWidth: 0
+
+                fill:
+                    '#000000',
+
+                strokeWidth:
+                    0
             });
     }
 
     clipPath.set({
-        selectable: false,
-        evented: false,
-        objectCaching: true
+        selectable:
+            false,
+
+        evented:
+            false,
+
+        objectCaching:
+            true
     });
 
     image.set({
@@ -428,7 +531,9 @@ function getBaseCropWindow(
     ratio: number
 ) {
     const safeRatio =
-        Number.isFinite(ratio) &&
+        Number.isFinite(
+            ratio
+        ) &&
         ratio > 0
             ? ratio
             : sourceWidth /
@@ -446,6 +551,7 @@ function getBaseCropWindow(
             width:
                 sourceHeight *
                 safeRatio,
+
             height:
                 sourceHeight
         };
@@ -454,6 +560,7 @@ function getBaseCropWindow(
     return {
         width:
             sourceWidth,
+
         height:
             sourceWidth /
             safeRatio
@@ -501,6 +608,7 @@ export function getMAQuadroCropViewportState(
             Math.max(
                 base.width /
                 viewWidth,
+
                 base.height /
                 viewHeight
             ) *
@@ -567,6 +675,7 @@ export function setMAQuadroCropViewport(
     image:
         FabricImage &
         MAQuadroFabricObject,
+
     values:
         Partial<
             MAQuadroCropViewportState
@@ -754,6 +863,7 @@ export function setMAQuadroCropViewport(
 
 type SnapCandidate = {
     position: number;
+
     source:
         | 'page'
         | 'object'
@@ -762,17 +872,21 @@ type SnapCandidate = {
 
 function bestSnap(
     anchors: number[],
+
     candidates:
         SnapCandidate[],
+
     threshold: number
 ) {
     let best:
         | {
             delta: number;
+
             candidate:
                 SnapCandidate;
         }
-        | null = null;
+        | null =
+        null;
 
     for (
         const anchor
@@ -787,7 +901,9 @@ function bestSnap(
                 anchor;
 
             if (
-                Math.abs(delta) >
+                Math.abs(
+                    delta
+                ) >
                 threshold
             ) {
                 continue;
@@ -795,7 +911,9 @@ function bestSnap(
 
             if (
                 !best ||
-                Math.abs(delta) <
+                Math.abs(
+                    delta
+                ) <
                 Math.abs(
                     best.delta
                 )
@@ -813,8 +931,10 @@ function bestSnap(
 
 export function snapMAQuadroObject(
     canvas: Canvas,
+
     target:
         MAQuadroFabricObject,
+
     threshold: number
 ): MAQuadroGuideState {
     const bounds =
@@ -829,41 +949,72 @@ export function snapMAQuadroObject(
         target
     );
 
+    const otherBounds =
+        canvas
+            .getObjects()
+            .filter(
+                (object) =>
+                    !excluded.has(
+                        object
+                    ) &&
+                    object.visible !==
+                        false
+            )
+            .map(
+                (object) =>
+                    object
+                        .getBoundingRect()
+            );
+
     const verticalCandidates:
         SnapCandidate[] = [
             {
-                position: 0,
-                source: 'page'
+                position:
+                    0,
+
+                source:
+                    'page'
             },
             {
                 position:
                     canvas.getWidth() /
                     2,
-                source: 'page'
+
+                source:
+                    'page'
             },
             {
                 position:
                     canvas.getWidth(),
-                source: 'page'
+
+                source:
+                    'page'
             }
         ];
 
     const horizontalCandidates:
         SnapCandidate[] = [
             {
-                position: 0,
-                source: 'page'
+                position:
+                    0,
+
+                source:
+                    'page'
             },
             {
                 position:
                     canvas.getHeight() /
                     2,
-                source: 'page'
+
+                source:
+                    'page'
             },
             {
                 position:
                     canvas.getHeight(),
-                source: 'page'
+
+                source:
+                    'page'
             }
         ];
 
@@ -873,7 +1024,8 @@ export function snapMAQuadroObject(
         );
 
     verticalCandidates.push(
-        ...manualGuides.vertical
+        ...manualGuides
+            .vertical
             .filter(
                 (position) =>
                     position >= 0 &&
@@ -883,6 +1035,7 @@ export function snapMAQuadroObject(
             .map(
                 (position) => ({
                     position,
+
                     source:
                         'manual' as const
                 })
@@ -890,7 +1043,8 @@ export function snapMAQuadroObject(
     );
 
     horizontalCandidates.push(
-        ...manualGuides.horizontal
+        ...manualGuides
+            .horizontal
             .filter(
                 (position) =>
                     position >= 0 &&
@@ -900,6 +1054,7 @@ export function snapMAQuadroObject(
             .map(
                 (position) => ({
                     position,
+
                     source:
                         'manual' as const
                 })
@@ -907,61 +1062,60 @@ export function snapMAQuadroObject(
     );
 
     for (
-        const object
-        of canvas.getObjects()
+        const otherBound
+        of otherBounds
     ) {
-        if (
-            excluded.has(
-                object
-            ) ||
-            object.visible ===
-            false
-        ) {
-            continue;
-        }
-
-        const otherBounds =
-            object.getBoundingRect();
-
         verticalCandidates.push(
             {
                 position:
-                    otherBounds.left,
-                source: 'object'
+                    otherBound.left,
+
+                source:
+                    'object'
             },
             {
                 position:
-                    otherBounds.left +
-                    otherBounds.width /
+                    otherBound.left +
+                    otherBound.width /
                     2,
-                source: 'object'
+
+                source:
+                    'object'
             },
             {
                 position:
-                    otherBounds.left +
-                    otherBounds.width,
-                source: 'object'
+                    otherBound.left +
+                    otherBound.width,
+
+                source:
+                    'object'
             }
         );
 
         horizontalCandidates.push(
             {
                 position:
-                    otherBounds.top,
-                source: 'object'
+                    otherBound.top,
+
+                source:
+                    'object'
             },
             {
                 position:
-                    otherBounds.top +
-                    otherBounds.height /
+                    otherBound.top +
+                    otherBound.height /
                     2,
-                source: 'object'
+
+                source:
+                    'object'
             },
             {
                 position:
-                    otherBounds.top +
-                    otherBounds.height,
-                source: 'object'
+                    otherBound.top +
+                    otherBound.height,
+
+                source:
+                    'object'
             }
         );
     }
@@ -970,9 +1124,11 @@ export function snapMAQuadroObject(
         bestSnap(
             [
                 bounds.left,
+
                 bounds.left +
                 bounds.width /
                 2,
+
                 bounds.left +
                 bounds.width
             ],
@@ -984,9 +1140,11 @@ export function snapMAQuadroObject(
         bestSnap(
             [
                 bounds.top,
+
                 bounds.top +
                 bounds.height /
                 2,
+
                 bounds.top +
                 bounds.height
             ],
@@ -994,67 +1152,171 @@ export function snapMAQuadroObject(
             threshold
         );
 
-    if (vertical) {
+    const spacing =
+        findMAQuadroSmartSpacing(
+            bounds,
+            otherBounds,
+            threshold
+        );
+
+    const useHorizontalSpacing =
+        Boolean(
+            spacing.horizontal &&
+            (
+                !vertical ||
+                Math.abs(
+                    spacing
+                        .horizontal
+                        .delta
+                ) <
+                Math.abs(
+                    vertical.delta
+                )
+            )
+        );
+
+    const useVerticalSpacing =
+        Boolean(
+            spacing.vertical &&
+            (
+                !horizontal ||
+                Math.abs(
+                    spacing
+                        .vertical
+                        .delta
+                ) <
+                Math.abs(
+                    horizontal.delta
+                )
+            )
+        );
+
+    const deltaX =
+        useHorizontalSpacing
+            ? spacing
+                .horizontal!
+                .delta
+            : vertical?.delta ||
+                0;
+
+    const deltaY =
+        useVerticalSpacing
+            ? spacing
+                .vertical!
+                .delta
+            : horizontal?.delta ||
+                0;
+
+    if (
+        deltaX !== 0
+    ) {
         target.set({
             left:
                 Number(
                     target.left ||
                     0
                 ) +
-                vertical.delta
+                deltaX
         });
     }
 
-    if (horizontal) {
+    if (
+        deltaY !== 0
+    ) {
         target.set({
             top:
                 Number(
                     target.top ||
                     0
                 ) +
-                horizontal.delta
+                deltaY
         });
     }
 
     if (
-        vertical ||
-        horizontal
+        deltaX !== 0 ||
+        deltaY !== 0
     ) {
         target.setCoords();
     }
 
+    const activeVertical =
+        useHorizontalSpacing
+            ? null
+            : vertical;
+
+    const activeHorizontal =
+        useVerticalSpacing
+            ? null
+            : horizontal;
+
+    const horizontalSpacingGuide =
+        useHorizontalSpacing
+            ? spacing
+                .horizontal!
+                .guide
+            : null;
+
+    const verticalSpacingGuide =
+        useVerticalSpacing
+            ? spacing
+                .vertical!
+                .guide
+            : null;
+
     if (
-        !vertical &&
-        !horizontal
+        !activeVertical &&
+        !activeHorizontal &&
+        !horizontalSpacingGuide &&
+        !verticalSpacingGuide
     ) {
-        return EMPTY_GUIDES;
+        return emptyMAQuadroGuides();
     }
 
     return {
         vertical:
-            vertical
-                ? vertical.candidate
+            activeVertical
+                ? activeVertical
+                    .candidate
                     .position
                 : null,
 
         horizontal:
-            horizontal
-                ? horizontal.candidate
+            activeHorizontal
+                ? activeHorizontal
+                    .candidate
                     .position
                 : null,
 
         source:
-            vertical?.candidate
+            activeVertical
+                ?.candidate
                 .source ||
-            horizontal?.candidate
+            activeHorizontal
+                ?.candidate
                 .source ||
-            null
+            null,
+
+        spacing: {
+            horizontal:
+                horizontalSpacingGuide,
+
+            vertical:
+                verticalSpacingGuide
+        }
     };
 }
 
 export function emptyMAQuadroGuides():
     MAQuadroGuideState {
     return {
-        ...EMPTY_GUIDES
+        vertical: null,
+        horizontal: null,
+        source: null,
+
+        spacing: {
+            horizontal: null,
+            vertical: null
+        }
     };
 }
