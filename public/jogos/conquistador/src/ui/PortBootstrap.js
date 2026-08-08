@@ -1,3 +1,5 @@
+import { GAME_CONFIG } from '../data/gameConfig.js';
+import { maritimeSidesForSlot } from '../data/coastline.js';
 import { classifyCoast } from '../game/CoastTopology.js';
 import { createPorts } from '../game/PortManager.js';
 import { PortRenderer } from './PortRenderer.js?v=ports-2';
@@ -27,43 +29,29 @@ function parseTranslate(value) {
     /translate\(\s*(-?[\d.]+)(?:[\s,]+)(-?[\d.]+)\s*\)/i,
   );
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   const x = Number(match[1]);
   const y = Number(match[2]);
 
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return null;
-  }
-
-  return {
-    x,
-    y,
-  };
+  return Number.isFinite(x) && Number.isFinite(y)
+    ? { x, y }
+    : null;
 }
 
 function vertexPosition(element) {
-  if (!element) {
-    return null;
-  }
+  if (!element) return null;
 
   if (element.tagName.toLowerCase() === 'circle') {
     const x = Number(element.getAttribute('cx'));
     const y = Number(element.getAttribute('cy'));
 
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      return {
-        x,
-        y,
-      };
+      return { x, y };
     }
   }
 
-  return parseTranslate(
-    element.getAttribute('transform'),
-  );
+  return parseTranslate(element.getAttribute('transform'));
 }
 
 function parsePolygonPoints(value) {
@@ -80,33 +68,66 @@ function parsePolygonPoints(value) {
     .filter(Boolean);
 }
 
-function collectBoundarySegments(svg) {
+function collectSegmentClasses(svg) {
   const counts = new Map();
+  const maritimeCandidates = new Set();
 
-  svg
-    .querySelectorAll('.territory-layer polygon.territory')
-    .forEach((polygon) => {
-      const points = parsePolygonPoints(
-        polygon.getAttribute('points'),
+  const polygons = [
+    ...svg.querySelectorAll('.territory-layer polygon.territory'),
+  ];
+
+  polygons.forEach((polygon, territoryIndex) => {
+    const points = parsePolygonPoints(
+      polygon.getAttribute('points'),
+    );
+
+    for (
+      let sideIndex = 0;
+      sideIndex < points.length;
+      sideIndex += 1
+    ) {
+      const key = segmentKey(
+        points[sideIndex],
+        points[(sideIndex + 1) % points.length],
       );
 
-      for (let index = 0; index < points.length; index += 1) {
-        const first = points[index];
-        const second = points[(index + 1) % points.length];
-        const key = segmentKey(first, second);
+      counts.set(
+        key,
+        (counts.get(key) ?? 0) + 1,
+      );
+    }
 
-        counts.set(
-          key,
-          (counts.get(key) ?? 0) + 1,
+    const slot = GAME_CONFIG.board.mask[territoryIndex];
+    if (!slot) return;
+
+    for (const sideIndex of maritimeSidesForSlot(slot.slotId)) {
+      const first = points[sideIndex];
+      const second = points[(sideIndex + 1) % points.length];
+
+      if (first && second) {
+        maritimeCandidates.add(
+          segmentKey(first, second),
         );
       }
-    });
+    }
+  });
 
-  return new Set(
+  const boundarySegments = new Set(
     [...counts.entries()]
       .filter(([, count]) => count === 1)
       .map(([key]) => key),
   );
+
+  const coastalSegments = new Set(
+    [...maritimeCandidates].filter((key) =>
+      boundarySegments.has(key),
+    ),
+  );
+
+  return {
+    boundarySegments,
+    coastalSegments,
+  };
 }
 
 function collectVertices(svg) {
@@ -119,15 +140,10 @@ function collectVertices(svg) {
     .forEach((element) => {
       const id = element.dataset.vertexId;
 
-      if (!id || vertexElements.has(id)) {
-        return;
-      }
+      if (!id || vertexElements.has(id)) return;
 
       const position = vertexPosition(element);
-
-      if (!position) {
-        return;
-      }
+      if (!position) return;
 
       const vertex = {
         id,
@@ -142,6 +158,7 @@ function collectVertices(svg) {
 
       vertices.push(vertex);
       vertexElements.set(id, element);
+
       vertexByCoordinate.set(
         coordinateKey(position.x, position.y),
         vertex,
@@ -155,14 +172,16 @@ function collectVertices(svg) {
   };
 }
 
-function nearestVertex(vertexByCoordinate, vertices, point) {
+function nearestVertex(
+  vertexByCoordinate,
+  vertices,
+  point,
+) {
   const exact = vertexByCoordinate.get(
     coordinateKey(point.x, point.y),
   );
 
-  if (exact) {
-    return exact;
-  }
+  if (exact) return exact;
 
   let closest = null;
   let closestDistance = Infinity;
@@ -185,7 +204,11 @@ function nearestVertex(vertexByCoordinate, vertices, point) {
 }
 
 function collectTopology(svg) {
-  const boundarySegments = collectBoundarySegments(svg);
+  const {
+    boundarySegments,
+    coastalSegments,
+  } = collectSegmentClasses(svg);
+
   const {
     vertices,
     vertexByCoordinate,
@@ -206,10 +229,7 @@ function collectTopology(svg) {
     .querySelectorAll('.edge-layer [data-edge-id]')
     .forEach((element) => {
       const id = element.dataset.edgeId;
-
-      if (!id) {
-        return;
-      }
+      if (!id) return;
 
       const firstPoint = {
         x: Number(element.getAttribute('x1')),
@@ -242,28 +262,36 @@ function collectTopology(svg) {
         secondPoint,
       );
 
-      if (!firstVertex || !secondVertex) {
-        return;
-      }
+      if (!firstVertex || !secondVertex) return;
 
-      const isBoundary = boundarySegments.has(
-        segmentKey(firstPoint, secondPoint),
+      const key = segmentKey(
+        firstPoint,
+        secondPoint,
       );
+
+      const isBoundary =
+        boundarySegments.has(key);
+
+      const isCoastal =
+        coastalSegments.has(key);
 
       const edge = {
         id,
+
         vertexIds: [
           firstVertex.id,
           secondVertex.id,
         ],
+
         territoryIds: isBoundary
           ? ['boundary-territory']
           : [
               'internal-territory-a',
               'internal-territory-b',
             ],
+
         isBoundary,
-        isCoastal: isBoundary,
+        isCoastal,
       };
 
       edges.push(edge);
@@ -272,18 +300,33 @@ function collectTopology(svg) {
       firstVertex.edgeIds.push(id);
       secondVertex.edgeIds.push(id);
 
-      if (!firstVertex.neighborVertexIds.includes(secondVertex.id)) {
-        firstVertex.neighborVertexIds.push(secondVertex.id);
+      if (
+        !firstVertex.neighborVertexIds.includes(
+          secondVertex.id,
+        )
+      ) {
+        firstVertex.neighborVertexIds.push(
+          secondVertex.id,
+        );
       }
 
-      if (!secondVertex.neighborVertexIds.includes(firstVertex.id)) {
-        secondVertex.neighborVertexIds.push(firstVertex.id);
+      if (
+        !secondVertex.neighborVertexIds.includes(
+          firstVertex.id,
+        )
+      ) {
+        secondVertex.neighborVertexIds.push(
+          firstVertex.id,
+        );
       }
 
       if (isBoundary) {
         firstVertex.isBoundary = true;
-        firstVertex.isCoastal = true;
         secondVertex.isBoundary = true;
+      }
+
+      if (isCoastal) {
+        firstVertex.isCoastal = true;
         secondVertex.isCoastal = true;
       }
     });
@@ -293,17 +336,37 @@ function collectTopology(svg) {
       vertices: [...vertexById.values()],
       edges,
     },
+
     edgeElements,
     vertexElements,
   };
 }
 
 function readSeed() {
-  const text = document.querySelector('.board-seed')?.textContent ?? '';
+  const text =
+    document.querySelector('.board-seed')
+      ?.textContent ?? '';
 
-  return text
-    .replace(/^\s*Seed\s*/i, '')
-    .trim() || 'conquistador';
+  return (
+    text
+      .replace(/^\s*Seed\s*/i, '')
+      .trim() || 'conquistador'
+  );
+}
+
+function clearPortTargets(
+  edgeElements,
+  vertexElements,
+) {
+  for (const element of edgeElements.values()) {
+    delete element.dataset.portId;
+    delete element.dataset.coastal;
+  }
+
+  for (const element of vertexElements.values()) {
+    delete element.dataset.portIds;
+    delete element.dataset.coastal;
+  }
 }
 
 function markPortTargets(
@@ -311,8 +374,16 @@ function markPortTargets(
   edgeElements,
   vertexElements,
 ) {
+  clearPortTargets(
+    edgeElements,
+    vertexElements,
+  );
+
   for (const port of ports) {
-    const edgeElement = edgeElements.get(String(port.edgeId));
+    const edgeElement =
+      edgeElements.get(
+        String(port.edgeId),
+      );
 
     if (edgeElement) {
       edgeElement.dataset.portId = port.id;
@@ -320,41 +391,49 @@ function markPortTargets(
     }
 
     for (const vertexId of port.vertexIds ?? []) {
-      const vertexElement = vertexElements.get(String(vertexId));
+      const vertexElement =
+        vertexElements.get(
+          String(vertexId),
+        );
 
-      if (!vertexElement) {
-        continue;
-      }
+      if (!vertexElement) continue;
 
-      const existing = vertexElement.dataset.portIds
-        ? vertexElement.dataset.portIds.split(',')
-        : [];
+      const existing =
+        vertexElement.dataset.portIds
+          ? vertexElement.dataset.portIds.split(',')
+          : [];
 
       if (!existing.includes(port.id)) {
         existing.push(port.id);
       }
 
-      vertexElement.dataset.portIds = existing.join(',');
+      vertexElement.dataset.portIds =
+        existing.join(',');
+
       vertexElement.dataset.coastal = 'true';
     }
   }
 }
 
 function renderPorts() {
-  const svg = document.querySelector('.board-svg');
+  const svg = document.querySelector(
+    '.board-svg',
+  );
 
-  if (!svg) {
-    return;
-  }
+  if (!svg) return;
 
   const seed = readSeed();
+
   const {
     topology,
     edgeElements,
     vertexElements,
   } = collectTopology(svg);
 
-  if (!topology.vertices.length || !topology.edges.length) {
+  if (
+    !topology.vertices.length ||
+    !topology.edges.length
+  ) {
     return;
   }
 
@@ -362,10 +441,12 @@ function renderPorts() {
     seed,
     topology.vertices.length,
     topology.edges.length,
+
     topology.edges
-      .filter((edge) => edge.isBoundary)
+      .filter((edge) => edge.isCoastal)
       .map((edge) => edge.id)
       .join(','),
+
   ].join('|');
 
   if (
@@ -375,14 +456,15 @@ function renderPorts() {
     return;
   }
 
-  svg.querySelector('[data-layer="ports"]')?.remove();
+  svg
+    .querySelector('[data-layer="ports"]')
+    ?.remove();
 
   const coast = classifyCoast(topology);
+
   const ports = createPorts(
     coast,
-    {
-      seed,
-    },
+    { seed },
   );
 
   markPortTargets(
@@ -400,15 +482,14 @@ function renderPorts() {
     ports,
     {
       offset: 27,
+
       onPortClick(port) {
         svg.dispatchEvent(
           new CustomEvent(
             'conquistador:port-click',
             {
               bubbles: true,
-              detail: {
-                port,
-              },
+              detail: { port },
             },
           ),
         );
@@ -425,9 +506,7 @@ function renderPorts() {
 let scheduled = false;
 
 function scheduleRender() {
-  if (scheduled) {
-    return;
-  }
+  if (scheduled) return;
 
   scheduled = true;
 
@@ -440,7 +519,9 @@ function scheduleRender() {
 const app = document.querySelector('#app');
 
 if (app) {
-  new MutationObserver(scheduleRender).observe(
+  new MutationObserver(
+    scheduleRender,
+  ).observe(
     app,
     {
       childList: true,
