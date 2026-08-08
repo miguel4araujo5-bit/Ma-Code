@@ -1,0 +1,215 @@
+.mq-smart-spacing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  overflow: visible;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mq-smart-spacing {
+  position: absolute;
+  color: #f472b6;
+  pointer-events: none;
+}
+
+.mq-smart-spacing--horizontal {
+  height: 1px;
+
+  transform:
+    translateY(
+      -0.5px
+    );
+}
+
+.mq-smart-spacing--vertical {
+  width: 1px;
+
+  transform:
+    translateX(
+      -0.5px
+    );
+}
+
+.mq-smart-spacing__line {
+  position: absolute;
+
+  display: block;
+
+  background:
+    currentColor;
+
+  box-shadow:
+    0 0 8px
+    rgba(
+      244,
+      114,
+      182,
+      0.42
+    );
+}
+
+.mq-smart-spacing--horizontal
+  .mq-smart-spacing__line {
+  inset: 0;
+
+  height: 1px;
+}
+
+.mq-smart-spacing--vertical
+  .mq-smart-spacing__line {
+  inset: 0;
+
+  width: 1px;
+}
+
+.mq-smart-spacing__cap {
+  position: absolute;
+
+  display: block;
+
+  background:
+    currentColor;
+}
+
+.mq-smart-spacing--horizontal
+  .mq-smart-spacing__cap {
+  top: -3px;
+
+  width: 1px;
+  height: 7px;
+}
+
+.mq-smart-spacing--horizontal
+  .mq-smart-spacing__cap--start {
+  left: 0;
+}
+
+.mq-smart-spacing--horizontal
+  .mq-smart-spacing__cap--end {
+  right: 0;
+}
+
+.mq-smart-spacing--vertical
+  .mq-smart-spacing__cap {
+  left: -3px;
+
+  width: 7px;
+  height: 1px;
+}
+
+.mq-smart-spacing--vertical
+  .mq-smart-spacing__cap--start {
+  top: 0;
+}
+
+.mq-smart-spacing--vertical
+  .mq-smart-spacing__cap--end {
+  bottom: 0;
+}
+
+.mq-smart-spacing__label {
+  position: absolute;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 2rem;
+  min-height: 1.18rem;
+
+  padding:
+    0.12rem
+    0.3rem;
+
+  border:
+    1px solid
+    rgba(
+      244,
+      114,
+      182,
+      0.48
+    );
+
+  border-radius:
+    0.36rem;
+
+  color:
+    #fce7f3;
+
+  background:
+    rgba(
+      80,
+      7,
+      36,
+      0.94
+    );
+
+  box-shadow:
+    0 4px 14px
+    rgba(
+      2,
+      6,
+      23,
+      0.3
+    );
+
+  font-size:
+    0.58rem;
+
+  font-weight:
+    800;
+
+  line-height:
+    1;
+
+  white-space:
+    nowrap;
+}
+
+.mq-smart-spacing--horizontal
+  .mq-smart-spacing__label {
+  top: 50%;
+  left: 50%;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.mq-smart-spacing--vertical
+  .mq-smart-spacing__label {
+  top: 50%;
+  left: 50%;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.mq-workspace.is-cropping
+  .mq-smart-spacing-overlay,
+.mq-workspace.is-guide-dragging
+  .mq-smart-spacing-overlay {
+  display: none;
+}
+
+@media (
+  max-width: 520px
+) {
+  .mq-smart-spacing__label {
+    min-height:
+      1.08rem;
+
+    padding:
+      0.1rem
+      0.26rem;
+
+    font-size:
+      0.54rem;
+  }
+}
