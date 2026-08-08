@@ -627,7 +627,7 @@ function renderPorts() {
   renderer.render(
     ports,
     {
-      offset: 38,
+      offset: 22,
 
       onPortClick(
         port,
