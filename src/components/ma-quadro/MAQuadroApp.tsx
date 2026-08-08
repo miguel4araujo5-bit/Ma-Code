@@ -26,6 +26,7 @@ import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
 import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
+import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
 
 import {
@@ -323,6 +324,8 @@ export default function MAQuadroApp() {
         <BrandQuickStyles />
 
         <TableBuilder />
+
+        <TableEditor />
 
         <EditorHeader
           onOpenShortcuts={() => {
