@@ -10,7 +10,9 @@ import MAProfessorAdminRenewalPanel from '../components/admin/ma-professor/MAPro
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 
 import {
+  approveMAProfessorAccessRequest,
   getMAProfessorAdminOverview,
+  rejectMAProfessorAccessRequest,
   type MAProfessorAdminOverview
 } from '../lib/admin/maProfessorAdminApi'
 
@@ -40,10 +42,17 @@ function formatUpdatedAt(
   return new Intl.DateTimeFormat(
     'pt-PT',
     {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+      day:
+        '2-digit',
+
+      month:
+        '2-digit',
+
+      hour:
+        '2-digit',
+
+      minute:
+        '2-digit'
     }
   ).format(date)
 }
@@ -52,7 +61,8 @@ function getErrorMessage(
   error: unknown
 ) {
   if (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     error.message
   ) {
     return error.message
@@ -85,7 +95,10 @@ function MAProfessorAdminContent() {
   const loadOverview =
     useCallback(
       async () => {
-        setLoading(true)
+        setLoading(
+          true
+        )
+
         setError('')
 
         try {
@@ -104,15 +117,54 @@ function MAProfessorAdminContent() {
             )
           )
         } finally {
-          setLoading(false)
+          setLoading(
+            false
+          )
         }
       },
       []
     )
 
-  useEffect(() => {
-    void loadOverview()
-  }, [loadOverview])
+  const handleApproveRequest =
+    useCallback(
+      async (
+        email: string
+      ) => {
+        await approveMAProfessorAccessRequest(
+          email
+        )
+
+        await loadOverview()
+      },
+      [
+        loadOverview
+      ]
+    )
+
+  const handleRejectRequest =
+    useCallback(
+      async (
+        email: string
+      ) => {
+        await rejectMAProfessorAccessRequest(
+          email
+        )
+
+        await loadOverview()
+      },
+      [
+        loadOverview
+      ]
+    )
+
+  useEffect(
+    () => {
+      void loadOverview()
+    },
+    [
+      loadOverview
+    ]
+  )
 
   return (
     <>
@@ -145,13 +197,15 @@ function MAProfessorAdminContent() {
                 : loading
                   ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
                   : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-            ].join(' ')}
+            ].join(
+              ' '
+            )}
           >
             {error
-              ? 'Erro na leitura'
+              ? 'Erro na ligação'
               : loading
                 ? 'A carregar dados'
-                : 'Leitura real ativa'}
+                : 'Dados reais ativos'}
           </span>
         </div>
 
@@ -210,7 +264,9 @@ function MAProfessorAdminContent() {
               onClick={() => {
                 void loadOverview()
               }}
-              disabled={loading}
+              disabled={
+                loading
+              }
               className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading
@@ -236,7 +292,8 @@ function MAProfessorAdminContent() {
           </div>
         ) : null}
 
-        {loading && !overview ? (
+        {loading &&
+        !overview ? (
           <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
 
@@ -246,7 +303,7 @@ function MAProfessorAdminContent() {
             </p>
 
             <p className="mt-2 text-xs text-slate-600">
-              Leitura segura do motor atual
+              Ligação segura ao motor atual
               do MA-Professor.
             </p>
           </div>
@@ -254,19 +311,30 @@ function MAProfessorAdminContent() {
           <div className="mt-5">
             <MAProfessorAdminWorkspace
               accessRequests={
-                overview?.accessRequests ||
+                overview
+                  ?.accessRequests ||
                 []
               }
               licenses={
-                overview?.licenses ||
+                overview
+                  ?.licenses ||
                 []
               }
               renewals={
-                overview?.renewals ||
+                overview
+                  ?.renewals ||
                 []
               }
               dataConnected={
-                Boolean(overview)
+                Boolean(
+                  overview
+                )
+              }
+              onApproveRequest={
+                handleApproveRequest
+              }
+              onRejectRequest={
+                handleRejectRequest
               }
             />
           </div>
@@ -328,24 +396,26 @@ function MAProfessorAdminContent() {
         </article>
       </section>
 
-      <section className="mt-7 rounded-[1.75rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+      <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Backend MA-Professor
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          Dados reais ligados em modo de
-          leitura.
+          Aprovação e rejeição de pedidos
+          estão ativas.
         </h2>
 
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
           Os pedidos, licenças e renovações
           apresentados acima vêm do motor de
           acesso existente do MA-Professor.
-          As operações de aprovação,
-          rejeição, geração de senha,
-          pagamento, renovação e revogação
-          continuam bloqueadas nesta fase.
+          Pedidos ainda pendentes podem agora
+          ser aprovados ou rejeitados pelo
+          administrador. A geração de senha,
+          confirmação de pagamento,
+          renovação e revogação continuam
+          bloqueadas até às próximas fases.
         </p>
       </section>
     </>
@@ -358,7 +428,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. Os dados reais já podem ser consultados em modo de leitura; as operações de escrita continuam bloqueadas até à próxima fase."
+      description="Gestão central do acesso, utilizadores, licenças e renovações do MA-Professor. Os dados reais estão ligados e os pedidos pendentes já podem ser aprovados ou rejeitados no backend protegido."
     >
       <MAProfessorAdminContent />
     </AdminShell>
