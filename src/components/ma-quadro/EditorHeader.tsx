@@ -294,53 +294,20 @@ export default function EditorHeader({
         <div className="mq-header__desktop-actions">
           <button
             type="button"
-            className="mq-button mq-button--ghost"
-            onClick={
-              openNewDesign
-            }
-            disabled={locked}
-          >
-            Novo
-          </button>
-
-          <button
-            type="button"
-            className="mq-button mq-button--ghost"
-            onClick={
-              openImport
-            }
-            disabled={locked}
-          >
-            Importar
-          </button>
-
-          <button
-            type="button"
-            className="mq-button mq-button--ghost mq-hide-tablet"
-            onClick={
-              saveAsTemplate
-            }
-            disabled={
-              !editor.project ||
-              locked
-            }
-          >
-            Guardar como modelo
-          </button>
-
-          <button
-            type="button"
             className="mq-button mq-button--ghost mq-header__shortcuts-button"
             onClick={
               openShortcuts
             }
             title="Atalhos de teclado (?)"
+            aria-label="Atalhos de teclado"
           >
             <span aria-hidden="true">
               ?
             </span>
 
-            Atalhos
+            <span className="mq-header__shortcuts-label">
+              Atalhos
+            </span>
           </button>
         </div>
 
@@ -411,15 +378,6 @@ export default function EditorHeader({
             <button
               type="button"
               onClick={
-                openShortcuts
-              }
-            >
-              Atalhos de teclado
-            </button>
-
-            <button
-              type="button"
-              onClick={
                 saveAsTemplate
               }
               disabled={
@@ -441,6 +399,15 @@ export default function EditorHeader({
               }
             >
               Guardar projeto
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                openShortcuts
+              }
+            >
+              Atalhos de teclado
             </button>
           </div>
         </details>
