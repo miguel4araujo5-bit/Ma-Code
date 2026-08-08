@@ -1,41 +1,10 @@
-/*
- * CONQUISTADOR — Espanha de contexto
- *
- * Camada puramente decorativa.
- *
- * Espanha existe apenas para reforçar
- * visualmente a leitura de Portugal
- * Continental.
- *
- * Nunca interfere com:
- *
- * - territórios;
- * - Portos;
- * - vértices;
- * - arestas;
- * - construções;
- * - cliques.
- */
-
 .spain-backdrop {
   pointer-events: none;
 }
 
 .spain-backdrop__image {
   pointer-events: none;
-
-  /*
-   * Visível, mas deliberadamente
-   * secundária relativamente a Portugal.
-   */
   opacity: 0.27;
-
-  /*
-   * Não usar soft-light:
-   * sobre o oceano azul fazia
-   * desaparecer quase totalmente
-   * a silhueta.
-   */
   mix-blend-mode: normal;
 
   filter:
@@ -46,18 +15,13 @@
   image-rendering: auto;
 }
 
-@media (
-  max-width: 760px
-) {
+@media (max-width: 760px) {
   .spain-backdrop__image {
     opacity: 0.23;
   }
 }
 
-@media (
-  prefers-reduced-transparency:
-  reduce
-) {
+@media (prefers-reduced-transparency: reduce) {
   .spain-backdrop__image {
     opacity: 0.2;
   }
