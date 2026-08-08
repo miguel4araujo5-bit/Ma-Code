@@ -75,9 +75,7 @@ function formatDate(
   }
 
   const date =
-    new Date(
-      value
-    )
+    new Date(value)
 
   if (
     Number.isNaN(
@@ -152,44 +150,6 @@ function getLicenseStatusClassName(
 
     default:
       return 'border-white/10 bg-white/[0.04] text-slate-400'
-  }
-}
-
-function getRenewalStatusLabel(
-  status:
-    LicenseRenewalRequest['status']
-) {
-  switch (status) {
-    case 'approved':
-      return 'Aprovada'
-
-    case 'rejected':
-      return 'Rejeitada'
-
-    case 'cancelled':
-      return 'Cancelada'
-
-    default:
-      return 'Pendente'
-  }
-}
-
-function getRenewalStatusClassName(
-  status:
-    LicenseRenewalRequest['status']
-) {
-  switch (status) {
-    case 'approved':
-      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-
-    case 'rejected':
-      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-
-    case 'cancelled':
-      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
-
-    default:
-      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
   }
 }
 
@@ -384,8 +344,8 @@ export default function MAProfessorAdminWorkspace({
               )
         ),
       [
-        normalizedQuery,
-        userEmails
+        userEmails,
+        normalizedQuery
       ]
     )
 
@@ -420,8 +380,8 @@ export default function MAProfessorAdminWorkspace({
               )
         ),
       [
-        normalizedQuery,
-        renewals
+        renewals,
+        normalizedQuery
       ]
     )
 
@@ -503,14 +463,6 @@ export default function MAProfessorAdminWorkspace({
       ? String(value)
       : '—'
 
-  const openAccount = (
-    email: string
-  ) => {
-    setSelectedEmail(
-      email
-    )
-  }
-
   const renderRequests =
     () => (
       <div className="overflow-x-auto">
@@ -587,7 +539,7 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        openAccount(
+                        setSelectedEmail(
                           request.email
                         )
                       }
@@ -690,7 +642,7 @@ export default function MAProfessorAdminWorkspace({
                       <button
                         type="button"
                         onClick={() =>
-                          openAccount(
+                          setSelectedEmail(
                             email
                           )
                         }
@@ -800,7 +752,7 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        openAccount(
+                        setSelectedEmail(
                           license.email
                         )
                       }
@@ -900,19 +852,8 @@ export default function MAProfessorAdminWorkspace({
                   </td>
 
                   <td className="px-4 py-4">
-                    <span
-                      className={[
-                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                        getRenewalStatusClassName(
-                          renewal.status
-                        )
-                      ].join(
-                        ' '
-                      )}
-                    >
-                      {getRenewalStatusLabel(
-                        renewal.status
-                      )}
+                    <span className="inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.65rem] font-black text-amber-200">
+                      {renewal.status}
                     </span>
                   </td>
 
@@ -920,7 +861,7 @@ export default function MAProfessorAdminWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        openAccount(
+                        setSelectedEmail(
                           renewal.email
                         )
                       }
@@ -959,8 +900,12 @@ export default function MAProfessorAdminWorkspace({
         accessRequests={
           accessRequests
         }
-        licenses={licenses}
-        renewals={renewals}
+        licenses={
+          licenses
+        }
+        renewals={
+          renewals
+        }
         dataConnected={
           dataConnected
         }
@@ -1077,7 +1022,9 @@ export default function MAProfessorAdminWorkspace({
 
               <input
                 type="search"
-                value={query}
+                value={
+                  query
+                }
                 onChange={
                   event =>
                     setQuery(
