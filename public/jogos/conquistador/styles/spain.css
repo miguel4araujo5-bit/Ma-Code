@@ -4,25 +4,26 @@
 
 .spain-backdrop__image {
   pointer-events: none;
-  opacity: 0.27;
+  opacity: 0.42;
   mix-blend-mode: normal;
 
   filter:
-    saturate(0.58)
-    brightness(0.82)
-    contrast(0.94);
+    sepia(0.16)
+    saturate(0.62)
+    brightness(0.72)
+    contrast(1.08);
 
   image-rendering: auto;
 }
 
 @media (max-width: 760px) {
   .spain-backdrop__image {
-    opacity: 0.23;
+    opacity: 0.38;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .spain-backdrop__image {
-    opacity: 0.2;
+    opacity: 0.34;
   }
 }
