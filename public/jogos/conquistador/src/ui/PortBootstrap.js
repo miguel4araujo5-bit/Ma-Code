@@ -638,10 +638,10 @@ function renderPorts() {
         displayTopology,
     });
 
-  renderer.render(
-    ports,
-    {
-      offset: 27,
+ renderer.render(
+  ports,
+  {
+    offset: 38,
 
       onPortClick(
         port,
