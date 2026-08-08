@@ -5,8 +5,6 @@ const backdropUrl = new URL(
   import.meta.url,
 ).href;
 
-const SPAIN_IMAGE_RATIO = 641 / 930;
-
 let scheduled = false;
 
 function getViewBox(svg) {
@@ -67,11 +65,11 @@ function renderSpainBackdrop() {
     'aria-hidden': 'true',
   });
 
-  const width = viewBox.width * 1.02;
-  const height = width * SPAIN_IMAGE_RATIO;
+  const width = viewBox.width * 0.92;
+  const height = viewBox.height * 1.04;
 
-  const x = viewBox.x + viewBox.width * 0.56;
-  const y = viewBox.y - viewBox.height * 0.015;
+  const x = viewBox.x + viewBox.width * 0.47;
+  const y = viewBox.y - viewBox.height * 0.03;
 
   const image = createSvgElement('image', {
     class: 'spain-backdrop__image',
@@ -80,7 +78,7 @@ function renderSpainBackdrop() {
     y,
     width,
     height,
-    preserveAspectRatio: 'xMinYMin meet',
+    preserveAspectRatio: 'none',
   });
 
   layer.appendChild(image);
