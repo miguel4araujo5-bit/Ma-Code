@@ -18,79 +18,87 @@ interface AdminApiErrorBody {
 export interface MAProfessorAdminOverview {
   accessRequests:
     MAProfessorAccessRequestSummary[]
-
   licenses:
     LicenseSummary[]
-
   renewals:
     LicenseRenewalRequest[]
-
   generatedAt:
     string
 }
 
 export interface MAProfessorAdminCredentialStatus {
-  email:
-    string
-
-  hasCredential:
-    boolean
-
-  createdAt:
-    string | null
-
-  updatedAt:
-    string | null
+  email: string
+  hasCredential: boolean
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface MAProfessorGeneratedCredential
   extends MAProfessorAdminCredentialStatus {
-  password:
-    string
+  password: string
+}
+
+export type MAProfessorCommercialPlan =
+  | 'paid_30_days'
+  | 'school_year'
+
+export type MAProfessorPaymentStatus =
+  | 'not_started'
+  | 'pending'
+  | 'confirmed'
+
+export interface MAProfessorAdminCommercialStatus {
+  email: string
+  authorizationId: string | null
+  plan: MAProfessorCommercialPlan | null
+  amountCents: number | null
+  currency: 'EUR'
+  paymentStatus: MAProfessorPaymentStatus
+  selectedAt: string | null
+  paymentConfirmedAt: string | null
+  credentialIssuedAt: string | null
+  canGenerateCredential: boolean
 }
 
 interface MAProfessorAdminOverviewResponse
   extends MAProfessorAdminOverview {
-  success:
-    true
+  success: true
 }
 
 interface MAProfessorAdminActionResponse {
-  success:
-    true
-
-  message:
-    string
-
+  success: true
+  message: string
   request?:
     MAProfessorAccessRequestSummary
 }
 
 interface MAProfessorCredentialStatusResponse {
-  success:
-    true
-
+  success: true
   credential:
     MAProfessorAdminCredentialStatus
 }
 
 interface MAProfessorCredentialGenerateResponse {
-  success:
-    true
-
-  message:
-    string
-
+  success: true
+  message: string
   credential:
     MAProfessorGeneratedCredential
+  commerce?:
+    MAProfessorAdminCommercialStatus
+}
+
+interface MAProfessorCommercialStatusResponse {
+  success: true
+  message?: string
+  commerce:
+    MAProfessorAdminCommercialStatus
 }
 
 async function readResponseBody(
   response: Response
 ) {
   try {
-    return await response.json() as
-      unknown
+    return await response.json() as unknown
   } catch {
     return null
   }
@@ -106,8 +114,7 @@ function getApiMessage(
       'object'
   ) {
     const data =
-      body as
-        AdminApiErrorBody
+      body as AdminApiErrorBody
 
     if (
       typeof data.message ===
@@ -126,27 +133,67 @@ function getSessionError() {
   )
 }
 
+function assertCommercialStatus(
+  value: unknown
+): asserts value is MAProfessorAdminCommercialStatus {
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado comercial inválido.'
+    )
+  }
+
+  const data =
+    value as Partial<MAProfessorAdminCommercialStatus>
+
+  const validPlan =
+    data.plan === null ||
+    data.plan ===
+      'paid_30_days' ||
+    data.plan ===
+      'school_year'
+
+  const validPaymentStatus =
+    data.paymentStatus ===
+      'not_started' ||
+    data.paymentStatus ===
+      'pending' ||
+    data.paymentStatus ===
+      'confirmed'
+
+  if (
+    typeof data.email !==
+      'string' ||
+    !validPlan ||
+    !validPaymentStatus ||
+    typeof data.canGenerateCredential !==
+      'boolean'
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado comercial inválido.'
+    )
+  }
+}
+
 export async function getMAProfessorAdminOverview():
   Promise<MAProfessorAdminOverview> {
-  let response:
-    Response
+  let response: Response
 
   try {
     response =
       await fetch(
         `${MA_PROFESSOR_ADMIN_API_PREFIX}/overview`,
         {
-          method:
-            'GET',
-
+          method: 'GET',
           credentials:
             'include',
-
           headers: {
             Accept:
               'application/json'
           },
-
           cache:
             'no-store'
         }
@@ -179,13 +226,11 @@ export async function getMAProfessorAdminOverview():
   }
 
   const data =
-    body as
-      MAProfessorAdminOverviewResponse
+    body as MAProfessorAdminOverviewResponse
 
   if (
     !data ||
-    data.success !==
-      true ||
+    data.success !== true ||
     !Array.isArray(
       data.accessRequests
     ) ||
@@ -206,13 +251,10 @@ export async function getMAProfessorAdminOverview():
   return {
     accessRequests:
       data.accessRequests,
-
     licenses:
       data.licenses,
-
     renewals:
       data.renewals,
-
     generatedAt:
       data.generatedAt
   }
@@ -230,28 +272,22 @@ async function decideAccessRequest(
       ? 'approve'
       : 'reject'
 
-  let response:
-    Response
+  let response: Response
 
   try {
     response =
       await fetch(
         `${MA_PROFESSOR_ADMIN_API_PREFIX}/requests/${endpoint}`,
         {
-          method:
-            'POST',
-
+          method: 'POST',
           credentials:
             'include',
-
           headers: {
             Accept:
               'application/json',
-
             'Content-Type':
               'application/json'
           },
-
           body:
             JSON.stringify({
               email
@@ -289,13 +325,11 @@ async function decideAccessRequest(
   }
 
   const data =
-    body as
-      MAProfessorAdminActionResponse
+    body as MAProfessorAdminActionResponse
 
   if (
     !data ||
-    data.success !==
-      true
+    data.success !== true
   ) {
     throw new Error(
       'O servidor devolveu uma resposta administrativa inválida.'
@@ -323,6 +357,222 @@ export async function rejectMAProfessorAccessRequest(
   )
 }
 
+export async function getMAProfessorCommercialStatus(
+  email: string
+): Promise<MAProfessorAdminCommercialStatus> {
+  const query =
+    new URLSearchParams({
+      email
+    })
+
+  let response: Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/status?${query.toString()}`,
+        {
+          method: 'GET',
+          credentials:
+            'include',
+          headers: {
+            Accept:
+              'application/json'
+          },
+          cache:
+            'no-store'
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível consultar o plano e pagamento desta conta.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        'Não foi possível consultar o plano e pagamento desta conta.'
+      )
+    )
+  }
+
+  const data =
+    body as MAProfessorCommercialStatusResponse
+
+  if (
+    !data ||
+    data.success !== true
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado comercial inválido.'
+    )
+  }
+
+  assertCommercialStatus(
+    data.commerce
+  )
+
+  return data.commerce
+}
+
+export async function selectMAProfessorCommercialPlan(
+  email: string,
+  plan: MAProfessorCommercialPlan
+): Promise<MAProfessorAdminCommercialStatus> {
+  let response: Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/select-plan`,
+        {
+          method: 'POST',
+          credentials:
+            'include',
+          headers: {
+            Accept:
+              'application/json',
+            'Content-Type':
+              'application/json'
+          },
+          body:
+            JSON.stringify({
+              email,
+              plan
+            })
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível registar o plano escolhido.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        'Não foi possível registar o plano escolhido.'
+      )
+    )
+  }
+
+  const data =
+    body as MAProfessorCommercialStatusResponse
+
+  if (
+    !data ||
+    data.success !== true
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado comercial inválido.'
+    )
+  }
+
+  assertCommercialStatus(
+    data.commerce
+  )
+
+  return data.commerce
+}
+
+export async function confirmMAProfessorPayment(
+  email: string
+): Promise<MAProfessorAdminCommercialStatus> {
+  let response: Response
+
+  try {
+    response =
+      await fetch(
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/confirm-payment`,
+        {
+          method: 'POST',
+          credentials:
+            'include',
+          headers: {
+            Accept:
+              'application/json',
+            'Content-Type':
+              'application/json'
+          },
+          body:
+            JSON.stringify({
+              email
+            })
+        }
+      )
+  } catch {
+    throw new Error(
+      'Não foi possível confirmar o pagamento.'
+    )
+  }
+
+  const body =
+    await readResponseBody(
+      response
+    )
+
+  if (
+    response.status ===
+    401
+  ) {
+    throw getSessionError()
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getApiMessage(
+        body,
+        'Não foi possível confirmar o pagamento.'
+      )
+    )
+  }
+
+  const data =
+    body as MAProfessorCommercialStatusResponse
+
+  if (
+    !data ||
+    data.success !== true
+  ) {
+    throw new Error(
+      'O servidor devolveu um estado comercial inválido.'
+    )
+  }
+
+  assertCommercialStatus(
+    data.commerce
+  )
+
+  return data.commerce
+}
+
 export async function getMAProfessorCredentialStatus(
   email: string
 ): Promise<MAProfessorAdminCredentialStatus> {
@@ -331,25 +581,20 @@ export async function getMAProfessorCredentialStatus(
       email
     })
 
-  let response:
-    Response
+  let response: Response
 
   try {
     response =
       await fetch(
         `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/status?${query.toString()}`,
         {
-          method:
-            'GET',
-
+          method: 'GET',
           credentials:
             'include',
-
           headers: {
             Accept:
               'application/json'
           },
-
           cache:
             'no-store'
         }
@@ -382,13 +627,11 @@ export async function getMAProfessorCredentialStatus(
   }
 
   const data =
-    body as
-      MAProfessorCredentialStatusResponse
+    body as MAProfessorCredentialStatusResponse
 
   if (
     !data ||
-    data.success !==
-      true ||
+    data.success !== true ||
     !data.credential ||
     typeof data.credential.email !==
       'string' ||
@@ -406,28 +649,22 @@ export async function getMAProfessorCredentialStatus(
 export async function generateMAProfessorAccessPassword(
   email: string
 ): Promise<MAProfessorGeneratedCredential> {
-  let response:
-    Response
+  let response: Response
 
   try {
     response =
       await fetch(
         `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/generate`,
         {
-          method:
-            'POST',
-
+          method: 'POST',
           credentials:
             'include',
-
           headers: {
             Accept:
               'application/json',
-
             'Content-Type':
               'application/json'
           },
-
           body:
             JSON.stringify({
               email
@@ -462,13 +699,11 @@ export async function generateMAProfessorAccessPassword(
   }
 
   const data =
-    body as
-      MAProfessorCredentialGenerateResponse
+    body as MAProfessorCredentialGenerateResponse
 
   if (
     !data ||
-    data.success !==
-      true ||
+    data.success !== true ||
     !data.credential ||
     typeof data.credential.email !==
       'string' ||
