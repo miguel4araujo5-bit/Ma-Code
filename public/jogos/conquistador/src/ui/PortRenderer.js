@@ -283,7 +283,7 @@ export class PortRenderer {
       onPortClick =
         null,
 
-      offset = 38,
+      offset = 22,
     } = {},
   ) {
     this.clear();
