@@ -2,28 +2,45 @@
   pointer-events: none;
 }
 
-.spain-backdrop__image {
+.spain-backdrop__land {
   pointer-events: none;
-  opacity: 0.42;
-  mix-blend-mode: normal;
+  fill: #8c887f;
+  opacity: 0.34;
+}
 
-  filter:
-    sepia(0.16)
-    saturate(0.62)
-    brightness(0.72)
-    contrast(1.08);
+.spain-backdrop__border {
+  pointer-events: none;
+  fill: none;
 
-  image-rendering: auto;
+  stroke:
+    rgba(
+      73,
+      77,
+      74,
+      0.58
+    );
+
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 @media (max-width: 760px) {
-  .spain-backdrop__image {
-    opacity: 0.38;
+  .spain-backdrop__land {
+    opacity: 0.31;
+  }
+
+  .spain-backdrop__border {
+    stroke-width: 1.8;
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .spain-backdrop__image {
-    opacity: 0.34;
+@media (
+  prefers-reduced-transparency:
+  reduce
+) {
+  .spain-backdrop__land {
+    opacity: 0.29;
   }
 }
