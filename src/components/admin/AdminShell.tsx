@@ -1,7 +1,16 @@
 import {
+  type FormEvent,
   type ReactNode,
-  useEffect
+  useEffect,
+  useState
 } from 'react'
+
+import {
+  getAdminSession,
+  loginAdmin,
+  logoutAdmin,
+  type AdminSessionState
+} from '../../lib/admin/adminApi'
 
 export type AdminSection =
   | 'dashboard'
@@ -79,6 +88,48 @@ function updateMeta(
     content
 }
 
+function getErrorMessage(
+  error: unknown
+) {
+  if (
+    error instanceof Error &&
+    error.message
+  ) {
+    return error.message
+  }
+
+  return 'Ocorreu um erro inesperado na administração MA-CODE.'
+}
+
+function formatSessionExpiry(
+  value: string | null
+) {
+  if (!value) {
+    return null
+  }
+
+  const date =
+    new Date(value)
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  ).format(date)
+}
+
 function NavigationItem({
   item,
   active
@@ -132,6 +183,45 @@ export default function AdminShell({
   description,
   children
 }: AdminShellProps) {
+  const [
+    session,
+    setSession
+  ] =
+    useState<AdminSessionState>({
+      authenticated: false,
+      expiresAt: null
+    })
+
+  const [
+    checkingSession,
+    setCheckingSession
+  ] =
+    useState(true)
+
+  const [
+    password,
+    setPassword
+  ] =
+    useState('')
+
+  const [
+    authError,
+    setAuthError
+  ] =
+    useState('')
+
+  const [
+    submitting,
+    setSubmitting
+  ] =
+    useState(false)
+
+  const [
+    loggingOut,
+    setLoggingOut
+  ] =
+    useState(false)
+
   useEffect(() => {
     document.title =
       `${title} | MA-CODE Admin`
@@ -148,6 +238,303 @@ export default function AdminShell({
   }, [
     title
   ])
+
+  useEffect(() => {
+    let cancelled =
+      false
+
+    const verifySession =
+      async () => {
+        setCheckingSession(
+          true
+        )
+
+        setAuthError('')
+
+        try {
+          const currentSession =
+            await getAdminSession()
+
+          if (cancelled) {
+            return
+          }
+
+          setSession(
+            currentSession
+          )
+        } catch (error) {
+          if (cancelled) {
+            return
+          }
+
+          setSession({
+            authenticated:
+              false,
+            expiresAt:
+              null
+          })
+
+          setAuthError(
+            getErrorMessage(
+              error
+            )
+          )
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setCheckingSession(
+              false
+            )
+          }
+        }
+      }
+
+    void verifySession()
+
+    return () => {
+      cancelled =
+        true
+    }
+  }, [])
+
+  const handleLogin =
+    async (
+      event:
+        FormEvent<HTMLFormElement>
+    ) => {
+      event.preventDefault()
+
+      if (
+        !password ||
+        submitting
+      ) {
+        return
+      }
+
+      setSubmitting(
+        true
+      )
+
+      setAuthError('')
+
+      try {
+        const nextSession =
+          await loginAdmin(
+            password
+          )
+
+        setSession(
+          nextSession
+        )
+
+        setPassword('')
+      } catch (error) {
+        setSession({
+          authenticated:
+            false,
+          expiresAt:
+            null
+        })
+
+        setAuthError(
+          getErrorMessage(
+            error
+          )
+        )
+      } finally {
+        setSubmitting(
+          false
+        )
+      }
+    }
+
+  const handleLogout =
+    async () => {
+      if (
+        loggingOut
+      ) {
+        return
+      }
+
+      setLoggingOut(
+        true
+      )
+
+      setAuthError('')
+
+      try {
+        await logoutAdmin()
+
+        setSession({
+          authenticated:
+            false,
+          expiresAt:
+            null
+        })
+
+        setPassword('')
+      } catch (error) {
+        setAuthError(
+          getErrorMessage(
+            error
+          )
+        )
+      } finally {
+        setLoggingOut(
+          false
+        )
+      }
+    }
+
+  const sessionExpiry =
+    formatSessionExpiry(
+      session.expiresAt
+    )
+
+  if (
+    checkingSession
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-[-12rem] top-[-12rem] h-[30rem] w-[30rem] rounded-full bg-cyan-400/[0.07] blur-3xl" />
+
+          <div className="absolute bottom-[-16rem] right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-violet-500/[0.06] blur-3xl" />
+        </div>
+
+        <div className="relative text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07]">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-300/25 border-t-cyan-200" />
+          </div>
+
+          <p className="mt-4 text-sm font-black text-slate-300">
+            A verificar sessão
+          </p>
+
+          <p className="mt-1 text-xs text-slate-600">
+            Administração MA-CODE
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  if (
+    !session.authenticated
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-[-12rem] top-[-12rem] h-[30rem] w-[30rem] rounded-full bg-cyan-400/[0.07] blur-3xl" />
+
+          <div className="absolute bottom-[-16rem] right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-violet-500/[0.06] blur-3xl" />
+        </div>
+
+        <section className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80 shadow-2xl shadow-black/30 backdrop-blur-xl">
+          <div className="border-b border-white/10 p-6 sm:p-7">
+            <a
+              href="/"
+              className="inline-flex items-center gap-3"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-200">
+                MA
+              </span>
+
+              <span>
+                <span className="block text-sm font-black tracking-[0.18em]">
+                  MA-CODE
+                </span>
+
+                <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                  Administração
+                </span>
+              </span>
+            </a>
+
+            <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-cyan-300">
+              Área reservada
+            </p>
+
+            <h1 className="mt-2 text-3xl font-black tracking-tight">
+              Entrar no MA-ADMIN
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              Introduza a password administrativa para aceder ao backoffice MA-CODE.
+            </p>
+          </div>
+
+          <form
+            onSubmit={
+              handleLogin
+            }
+            className="p-6 sm:p-7"
+          >
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                Password
+              </span>
+
+              <input
+                type="password"
+                value={
+                  password
+                }
+                onChange={
+                  event => {
+                    setPassword(
+                      event.target.value
+                    )
+
+                    if (
+                      authError
+                    ) {
+                      setAuthError('')
+                    }
+                  }
+                }
+                autoComplete="current-password"
+                autoFocus
+                placeholder="Password administrativa"
+                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/40 focus:ring-4 focus:ring-cyan-300/10"
+              />
+            </label>
+
+            {authError ? (
+              <div
+                role="alert"
+                className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3"
+              >
+                <p className="text-xs font-bold leading-5 text-rose-200">
+                  {authError}
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={
+                submitting ||
+                !password
+              }
+              className="mt-5 w-full rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting
+                ? 'A entrar…'
+                : 'Entrar'}
+            </button>
+
+            <div className="mt-5 rounded-xl border border-white/[0.07] bg-slate-950/45 p-3">
+              <p className="text-[0.7rem] leading-5 text-slate-500">
+                A sessão administrativa é criada pelo servidor e guardada num cookie seguro. A password não é guardada no browser pela aplicação.
+              </p>
+            </div>
+          </form>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -193,7 +580,9 @@ export default function AdminShell({
                     key={
                       item.section
                     }
-                    item={item}
+                    item={
+                      item
+                    }
                     active={
                       item.section ===
                       activeSection
@@ -205,21 +594,40 @@ export default function AdminShell({
           </div>
 
           <div className="mt-auto pt-8">
-            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
-              <p className="text-xs font-black text-amber-200">
-                Estrutura em preparação
-              </p>
+            <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] p-4">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-300" />
+
+                <p className="text-xs font-black text-emerald-200">
+                  Sessão protegida
+                </p>
+              </div>
 
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Ainda não existem dados
-                administrativos nem ações
-                reais ligadas ao backend.
+                {sessionExpiry
+                  ? `Sessão válida até ${sessionExpiry}.`
+                  : 'Sessão administrativa autenticada.'}
               </p>
             </div>
 
+            <button
+              type="button"
+              onClick={() => {
+                void handleLogout()
+              }}
+              disabled={
+                loggingOut
+              }
+              className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loggingOut
+                ? 'A terminar sessão…'
+                : 'Terminar sessão'}
+            </button>
+
             <a
               href="/"
-              className="mt-3 flex items-center justify-center rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white"
+              className="mt-2 flex items-center justify-center rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white"
             >
               Voltar ao site MA-CODE
             </a>
@@ -248,12 +656,34 @@ export default function AdminShell({
                 </span>
               </a>
 
-              <div className="ml-auto flex items-center gap-3">
-                <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-amber-200">
-                  Sem dados reais
+              <div className="ml-auto flex items-center gap-2">
+                <span className="hidden rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-emerald-200 sm:inline-flex">
+                  Sessão protegida
                 </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleLogout()
+                  }}
+                  disabled={
+                    loggingOut
+                  }
+                  className="rounded-xl border border-white/10 px-3 py-2 text-[0.7rem] font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 lg:hidden"
+                >
+                  Sair
+                </button>
               </div>
             </div>
+
+            {authError ? (
+              <div
+                role="alert"
+                className="mt-3 rounded-xl border border-rose-300/15 bg-rose-300/[0.05] px-3 py-2 text-xs font-bold text-rose-200"
+              >
+                {authError}
+              </div>
+            ) : null}
 
             <nav
               aria-label="Módulos administrativos"
@@ -287,9 +717,7 @@ export default function AdminShell({
                         ' '
                       )}
                     >
-                      {
-                        item.label
-                      }
+                      {item.label}
                     </a>
                   )
                 }
