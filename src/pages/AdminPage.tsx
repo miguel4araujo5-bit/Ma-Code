@@ -20,7 +20,7 @@ const modules:
       href:
         '/admin/ma-professor',
       status:
-        'Interface em preparação',
+        'Leitura real ativa',
       accentClassName:
         'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
       statusClassName:
@@ -129,9 +129,8 @@ export default function AdminPage() {
             </h2>
           </div>
 
-          <div className="rounded-full border border-amber-300/15 bg-amber-300/[0.05] px-3 py-1.5 text-xs font-bold text-amber-200">
-            Backend administrativo ainda
-            desligado
+          <div className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.05] px-3 py-1.5 text-xs font-bold text-emerald-200">
+            Autenticação MA-ADMIN ativa
           </div>
         </div>
 
@@ -184,72 +183,74 @@ export default function AdminPage() {
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-5">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">
-              Agora
+              Ativo
             </p>
 
             <h3 className="mt-2 font-black">
-              Interface modular
+              Sessão protegida
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Dashboard central e módulos
-              independentes por produto.
+              Login central, cookie seguro e
+              sessão administrativa já estão
+              ativos no Worker.
             </p>
           </article>
 
           <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-              A seguir
+              Agora
             </p>
 
             <h3 className="mt-2 font-black">
-              Dados reais
+              MA-Professor em leitura
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Ligação segura ao motor
-              administrativo e aos dados de
-              cada produto.
+              Pedidos, licenças e renovações
+              reais ficam disponíveis para
+              consulta no módulo protegido.
             </p>
           </article>
 
           <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-300">
-              Evolução
+              A seguir
             </p>
 
             <h3 className="mt-2 font-black">
-              Mais produtos
+              Operações administrativas
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              RedeZero e futuros produtos
-              reutilizam a mesma fundação.
+              Aprovação, senha, pagamento,
+              renovação e revogação serão
+              ligados depois de validarmos a
+              leitura dos dados reais.
             </p>
           </article>
         </div>
       </section>
 
-      <section className="mt-10 rounded-[1.75rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+      <section className="mt-10 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Segurança desta fase
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          Não existem dados administrativos
-          expostos.
+          A autenticação administrativa já
+          está protegida no servidor.
         </h2>
 
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-          Enquanto o backend permanecer
-          desligado, estas páginas servem
-          apenas para construir e validar a
-          interface. Antes de aparecer o
-          primeiro pedido, licença,
-          utilizador ou jogador real,
-          ativaremos a autenticação
-          administrativa protegida no
-          Worker.
+          Os dados reais do MA-Professor só
+          são consultados depois de uma
+          sessão MA-ADMIN válida. Nesta fase
+          a integração é apenas de leitura:
+          nenhuma ação de aprovação,
+          rejeição, geração de senha,
+          pagamento, renovação ou revogação
+          é executada pelo painel.
         </p>
       </section>
     </AdminShell>
