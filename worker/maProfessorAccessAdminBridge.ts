@@ -40,32 +40,25 @@ const INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH =
 const INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH =
   '/__internal/ma-professor/admin/commerce/confirm-payment'
 
+const INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH =
+  '/__internal/ma-professor/admin/commerce/dispense-payment'
+
 const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
   '/__internal/ma-professor/admin/credentials/status'
 
 const INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
 
-const EXPIRING_DAYS =
-  7
-
-const RENEWAL_GRACE_HOURS =
-  24
-
-const PASSWORD_HASH_ITERATIONS =
-  100_000
-
-const PASSWORD_SALT_BYTES =
-  16
+const EXPIRING_DAYS = 7
+const RENEWAL_GRACE_HOURS = 24
+const PASSWORD_HASH_ITERATIONS = 100_000
+const PASSWORD_SALT_BYTES = 16
 
 const GENERATED_PASSWORD_ALPHABET =
   'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
-const GENERATED_PASSWORD_GROUPS =
-  4
-
-const GENERATED_PASSWORD_GROUP_LENGTH =
-  4
+const GENERATED_PASSWORD_GROUPS = 4
+const GENERATED_PASSWORD_GROUP_LENGTH = 4
 
 export type MAProfessorAdminAccessRequestDecision =
   | 'approve'
@@ -79,6 +72,7 @@ export type MAProfessorPaymentStatus =
   | 'not_started'
   | 'pending'
   | 'confirmed'
+  | 'dispensed'
 
 interface StoredLicenseSnapshot {
   email: string
@@ -150,6 +144,7 @@ interface StoredCommercialAuthorization {
   currency: 'EUR'
   selectedAt: number
   paymentConfirmedAt: number | null
+  paymentDispensedAt?: number | null
   credentialIssuedAt: number | null
   createdAt: number
   updatedAt: number
@@ -192,22 +187,16 @@ const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
       'no-store',
-
     Pragma:
       'no-cache',
-
     'Content-Security-Policy':
       "default-src 'none'; frame-ancestors 'none'",
-
     'X-Content-Type-Options':
       'nosniff',
-
     'X-Frame-Options':
       'DENY',
-
     'Referrer-Policy':
       'no-referrer',
-
     'X-Robots-Tag':
       'noindex, nofollow'
   }
@@ -338,9 +327,7 @@ function bytesToBase64(
 ) {
   let binary = ''
 
-  for (
-    const byte of bytes
-  ) {
+  for (const byte of bytes) {
     binary +=
       String.fromCharCode(byte)
   }
@@ -357,7 +344,6 @@ function toArrayBuffer(
     )
 
   copy.set(value)
-
   return copy.buffer
 }
 
@@ -575,6 +561,17 @@ function createCommerceState():
   }
 }
 
+function normalizeCommercialAuthorization(
+  authorization: StoredCommercialAuthorization
+): StoredCommercialAuthorization {
+  return {
+    ...authorization,
+    paymentDispensedAt:
+      authorization.paymentDispensedAt ??
+      null
+  }
+}
+
 function normalizeCommerceState(
   stored:
     StoredCommerceState |
@@ -591,7 +588,13 @@ function normalizeCommerceState(
     return createCommerceState()
   }
 
-  return stored
+  return {
+    ...stored,
+    authorizations:
+      stored.authorizations.map(
+        normalizeCommercialAuthorization
+      )
+  }
 }
 
 function getLatestAuthorization(
@@ -612,6 +615,22 @@ function getLatestAuthorization(
     )[0] || null
 }
 
+function isPaymentResolved(
+  authorization:
+    StoredCommercialAuthorization |
+    null
+) {
+  return Boolean(
+    authorization &&
+      (
+        authorization.paymentConfirmedAt !==
+          null ||
+        authorization.paymentDispensedAt !==
+          null
+      )
+  )
+}
+
 function buildCommercialStatus(
   email: string,
   authorization:
@@ -623,10 +642,14 @@ function buildCommercialStatus(
     !authorization
       ? 'not_started'
       : authorization
-          .paymentConfirmedAt !==
+          .paymentDispensedAt !==
         null
-        ? 'confirmed'
-        : 'pending'
+        ? 'dispensed'
+        : authorization
+            .paymentConfirmedAt !==
+          null
+          ? 'confirmed'
+          : 'pending'
 
   return {
     email,
@@ -655,6 +678,12 @@ function buildCommercialStatus(
             authorization.paymentConfirmedAt
           )
         : null,
+    paymentDispensedAt:
+      authorization
+        ? toIso(
+            authorization.paymentDispensedAt
+          )
+        : null,
     credentialIssuedAt:
       authorization
         ? toIso(
@@ -664,9 +693,9 @@ function buildCommercialStatus(
     canGenerateCredential:
       Boolean(
         authorization &&
-        authorization
-          .paymentConfirmedAt !==
-          null &&
+        isPaymentResolved(
+          authorization
+        ) &&
         authorization
           .credentialIssuedAt ===
           null
@@ -932,14 +961,17 @@ export class MaProfessorAccessDurableObject {
       )
 
     if (
-      authorization?.paymentConfirmedAt &&
+      authorization &&
+      isPaymentResolved(
+        authorization
+      ) &&
       authorization.credentialIssuedAt
     ) {
       return json(
         {
           success: false,
           message:
-            'A autorização paga está registada, mas a ativação do novo plano ainda não está disponível. Aguarde indicação da MA-CODE.'
+            'A autorização comercial está registada, mas a ativação do novo plano ainda não está disponível. Aguarde indicação da MA-CODE.'
         },
         409
       )
@@ -949,7 +981,7 @@ export class MaProfessorAccessDurableObject {
       {
         success: false,
         message:
-          'Esta conta ainda não possui uma autorização paga pronta para ativação.'
+          'Esta conta ainda não possui uma autorização comercial pronta para ativação.'
       },
       409
     )
@@ -1076,8 +1108,7 @@ export class MaProfessorAccessDurableObject {
         null
     }
 
-    accessRequest.updatedAt =
-      now
+    accessRequest.updatedAt = now
     state.updatedAt = now
 
     await this.state.storage.put(
@@ -1289,7 +1320,7 @@ export class MaProfessorAccessDurableObject {
         {
           success: false,
           message:
-            'O pedido tem de estar aprovado antes de associar um plano.'
+            'O pedido tem de estar aprovado antes de recuperar um pedido antigo sem plano.'
         },
         409
       )
@@ -1304,46 +1335,40 @@ export class MaProfessorAccessDurableObject {
         email
       )
 
-    const now = Date.now()
-
-    let authorization:
-      StoredCommercialAuthorization
-
-    if (
-      latestAuthorization &&
-      latestAuthorization
-        .credentialIssuedAt ===
-        null
-    ) {
+    if (latestAuthorization) {
       if (
-        latestAuthorization
-          .paymentConfirmedAt !==
-        null
+        latestAuthorization.plan !==
+        plan
       ) {
         return json(
           {
             success: false,
             message:
-              'O pagamento desta autorização já foi confirmado. O plano já não pode ser alterado.'
+              'O plano foi escolhido pelo professor no pedido e não pode ser alterado pelo MA-ADMIN.'
           },
           409
         )
       }
 
-      latestAuthorization.plan =
-        plan
-      latestAuthorization.amountCents =
-        getCommercialPlanAmount(
-          plan
-        )
-      latestAuthorization.selectedAt =
-        now
-      latestAuthorization.updatedAt =
-        now
-      authorization =
-        latestAuthorization
-    } else {
-      authorization = {
+      return json({
+        success: true,
+        message:
+          'O plano já tinha sido escolhido pelo professor no pedido de acesso.',
+        commerce:
+          buildCommercialStatus(
+            email,
+            latestAuthorization
+          )
+      })
+    }
+
+    /*
+     * Compatibilidade apenas para pedidos antigos criados
+     * antes de o plano passar a fazer parte do pedido público.
+     */
+    const now = Date.now()
+    const authorization:
+      StoredCommercialAuthorization = {
         id:
           createInternalId(
             'authorization'
@@ -1360,6 +1385,8 @@ export class MaProfessorAccessDurableObject {
           now,
         paymentConfirmedAt:
           null,
+        paymentDispensedAt:
+          null,
         credentialIssuedAt:
           null,
         createdAt:
@@ -1368,13 +1395,10 @@ export class MaProfessorAccessDurableObject {
           now
       }
 
-      commerceState.authorizations.push(
-        authorization
-      )
-    }
-
-    commerceState.updatedAt =
-      now
+    commerceState.authorizations.push(
+      authorization
+    )
+    commerceState.updatedAt = now
 
     await this.state.storage.put(
       COMMERCE_STORAGE_KEY,
@@ -1384,16 +1408,135 @@ export class MaProfessorAccessDurableObject {
     return json({
       success: true,
       message:
-        plan ===
-        'paid_30_days'
-          ? 'Plano de 30 dias registado. O pagamento está pendente.'
-          : 'Plano até 1 de agosto registado. O pagamento está pendente.',
+        'Pedido antigo recuperado com o plano indicado. Para pedidos novos, o plano vem sempre escolhido pelo professor.',
       commerce:
         buildCommercialStatus(
           email,
           authorization
         )
     })
+  }
+
+  private async getApprovedAuthorization(
+    request: Request
+  ) {
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return {
+        response:
+          json(
+            {
+              success: false,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Pedido administrativo inválido.'
+            },
+            400
+          )
+      }
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return {
+        response:
+          json(
+            {
+              success: false,
+              message:
+                'Indique um email válido.'
+            },
+            400
+          )
+      }
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return {
+        response:
+          json(
+            {
+              success: false,
+              message:
+                'O pedido de acesso não foi encontrado.'
+            },
+            404
+          )
+      }
+    }
+
+    if (
+      accessRequest.status !==
+      'approved'
+    ) {
+      return {
+        response:
+          json(
+            {
+              success: false,
+              message:
+                'O pedido tem de estar aprovado antes de validar o estado comercial.'
+            },
+            409
+          )
+      }
+    }
+
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    if (!authorization) {
+      return {
+        response:
+          json(
+            {
+              success: false,
+              message:
+                'Este pedido ainda não tem um plano associado. Se for um pedido antigo, recupere primeiro o plano.'
+            },
+            409
+          )
+      }
+    }
+
+    return {
+      response: null,
+      email,
+      state,
+      accessRequest,
+      commerceState,
+      authorization
+    }
   }
 
   private async handleCommerceConfirmPayment(
@@ -1416,103 +1559,38 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    let body: JsonObject
-
-    try {
-      body =
-        await readInternalJsonBody(
-          request
-        )
-    } catch (error) {
-      return json(
-        {
-          success: false,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Pedido administrativo inválido.'
-        },
-        400
+    const lookup =
+      await this.getApprovedAuthorization(
+        request
       )
+
+    if (lookup.response) {
+      return lookup.response
     }
 
-    const email =
-      normalizeEmail(
-        body.email
-      )
-
-    if (!isValidEmail(email)) {
-      return json(
-        {
-          success: false,
-          message:
-            'Indique um email válido.'
-        },
-        400
-      )
-    }
-
-    const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
-
-    const accessRequest =
-      state?.accessRequests?.[
-        email
-      ]
-
-    if (
-      !state ||
-      !accessRequest
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'O pedido de acesso não foi encontrado.'
-        },
-        404
-      )
-    }
-
-    if (
-      accessRequest.status !==
-      'approved'
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'O pedido tem de estar aprovado antes de confirmar um pagamento.'
-        },
-        409
-      )
-    }
-
-    const commerceState =
-      await this.readCommerceState()
-
-    const authorization =
-      getLatestAuthorization(
-        commerceState,
-        email
-      )
-
-    if (!authorization) {
-      return json(
-        {
-          success: false,
-          message:
-            'Registe primeiro o plano escolhido pelo utilizador.'
-        },
-        409
-      )
-    }
-
-    if (
+    const {
+      email,
+      commerceState,
       authorization
-        .credentialIssuedAt !==
+    } = lookup
+
+    if (
+      !email ||
+      !commerceState ||
+      !authorization
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Não foi possível validar a autorização comercial.'
+        },
+        500
+      )
+    }
+
+    if (
+      authorization.credentialIssuedAt !==
       null
     ) {
       return json(
@@ -1526,8 +1604,21 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
-      authorization
-        .paymentConfirmedAt ===
+      authorization.paymentDispensedAt !==
+      null
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Este acesso foi marcado como pagamento dispensado e não pode ser convertido em pagamento confirmado.'
+        },
+        409
+      )
+    }
+
+    if (
+      authorization.paymentConfirmedAt ===
       null
     ) {
       const now = Date.now()
@@ -1549,6 +1640,115 @@ export class MaProfessorAccessDurableObject {
       success: true,
       message:
         'Pagamento confirmado. A geração da nova senha está agora autorizada.',
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
+        )
+    })
+  }
+
+  private async handleCommerceDispensePayment(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    const lookup =
+      await this.getApprovedAuthorization(
+        request
+      )
+
+    if (lookup.response) {
+      return lookup.response
+    }
+
+    const {
+      email,
+      commerceState,
+      authorization
+    } = lookup
+
+    if (
+      !email ||
+      !commerceState ||
+      !authorization
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Não foi possível validar a autorização comercial.'
+        },
+        500
+      )
+    }
+
+    if (
+      authorization.credentialIssuedAt !==
+      null
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Esta autorização já originou uma senha. O estado do pagamento já não pode ser alterado.'
+        },
+        409
+      )
+    }
+
+    if (
+      authorization.paymentConfirmedAt !==
+      null
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Este pagamento já foi confirmado e não pode ser marcado como dispensado.'
+        },
+        409
+      )
+    }
+
+    if (
+      authorization.paymentDispensedAt ===
+      null
+    ) {
+      const now = Date.now()
+
+      authorization.paymentDispensedAt =
+        now
+      authorization.updatedAt =
+        now
+      commerceState.updatedAt =
+        now
+
+      await this.state.storage.put(
+        COMMERCE_STORAGE_KEY,
+        commerceState
+      )
+    }
+
+    return json({
+      success: true,
+      message:
+        'Pagamento dispensado pela MA-CODE. A geração da nova senha está agora autorizada.',
       commerce:
         buildCommercialStatus(
           email,
@@ -1657,121 +1857,57 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    let body: JsonObject
-
-    try {
-      body =
-        await readInternalJsonBody(
-          request
-        )
-    } catch (error) {
-      return json(
-        {
-          success: false,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Pedido administrativo inválido.'
-        },
-        400
+    const lookup =
+      await this.getApprovedAuthorization(
+        request
       )
+
+    if (lookup.response) {
+      return lookup.response
     }
 
-    const email =
-      normalizeEmail(
-        body.email
-      )
-
-    if (!isValidEmail(email)) {
-      return json(
-        {
-          success: false,
-          message:
-            'Indique um email válido.'
-        },
-        400
-      )
-    }
-
-    const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
-
-    const accessRequest =
-      state?.accessRequests?.[
-        email
-      ]
+    const {
+      email,
+      state,
+      accessRequest,
+      commerceState,
+      authorization
+    } = lookup
 
     if (
+      !email ||
       !state ||
-      !accessRequest
+      !accessRequest ||
+      !commerceState ||
+      !authorization
     ) {
       return json(
         {
           success: false,
           message:
-            'O pedido de acesso não foi encontrado.'
+            'Não foi possível validar a autorização antes de gerar a senha.'
         },
-        404
+        500
       )
     }
 
     if (
-      accessRequest.status !==
-      'approved'
+      !isPaymentResolved(
+        authorization
+      )
     ) {
       return json(
         {
           success: false,
           message:
-            accessRequest.status ===
-            'pending'
-              ? 'O pedido tem de ser aprovado antes de gerar a senha.'
-              : 'Não é possível gerar uma senha para um pedido rejeitado.'
-        },
-        409
-      )
-    }
-
-    const commerceState =
-      await this.readCommerceState()
-
-    const authorization =
-      getLatestAuthorization(
-        commerceState,
-        email
-      )
-
-    if (!authorization) {
-      return json(
-        {
-          success: false,
-          message:
-            'Selecione primeiro o plano e confirme o pagamento antes de gerar a senha.'
+            'O pagamento ainda está pendente de verificação. A senha continua bloqueada.'
         },
         409
       )
     }
 
     if (
-      authorization
-        .paymentConfirmedAt ===
-      null
-    ) {
-      return json(
-        {
-          success: false,
-          message:
-            'O pagamento ainda não foi confirmado. A senha continua bloqueada.'
-        },
-        409
-      )
-    }
-
-    if (
-      authorization
-        .credentialIssuedAt !==
+      authorization.credentialIssuedAt !==
       null
     ) {
       return json(
@@ -1858,7 +1994,10 @@ export class MaProfessorAccessDurableObject {
     return json({
       success: true,
       message:
-        'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
+        authorization.paymentDispensedAt !==
+          null
+          ? 'Nova senha criada para a autorização com pagamento dispensado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
+          : 'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
       credential: {
         ...buildCredentialStatus(
           email,
@@ -1873,7 +2012,6 @@ export class MaProfessorAccessDurableObject {
         )
     })
   }
-
 
   private async handleRequest(
     request: Request
@@ -1903,7 +2041,6 @@ export class MaProfessorAccessDurableObject {
       url.pathname ===
       PUBLIC_ACCESS_ACTIVATE_PATH
     ) {
-  
       const safetyResponse =
         await this.handlePublicActivationSafetyGate(
           request
@@ -1988,6 +2125,15 @@ export class MaProfessorAccessDurableObject {
       INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH
     ) {
       return this.handleCommerceConfirmPayment(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH
+    ) {
+      return this.handleCommerceDispensePayment(
         request
       )
     }
@@ -2142,6 +2288,31 @@ export async function confirmMAProfessorAdminPayment(
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      }
+    )
+  )
+}
+
+export async function dispenseMAProfessorAdminPayment(
+  env: MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH}`,
       {
         method: 'POST',
         headers: {
