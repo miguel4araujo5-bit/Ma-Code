@@ -14,36 +14,46 @@ const ANIMATION_TYPES:
   Array<{
     kind:
       MAQuadroAnimationKind
+
     label:
       string
   }> = [
     {
       kind:
         'none',
+
       label:
         'Sem animação'
     },
+
     {
       kind:
         'fade',
+
       label:
         'Fade'
     },
+
     {
       kind:
         'slide',
+
       label:
         'Slide'
     },
+
     {
       kind:
         'scale',
+
       label:
         'Scale'
     },
+
     {
       kind:
         'pop',
+
       label:
         'Pop'
     }
@@ -53,24 +63,29 @@ const PHASES:
   Array<{
     phase:
       MAQuadroAnimationPhase
+
     label:
       string
   }> = [
     {
       phase:
         'in',
+
       label:
         'Entrada'
     },
+
     {
       phase:
         'out',
+
       label:
         'Saída'
     }
   ]
 
-export default function AnimationControls({
+export default function
+AnimationControls({
   animation,
   disabled,
   previewing,
@@ -79,26 +94,34 @@ export default function AnimationControls({
 }: {
   animation:
     MAQuadroObjectAnimation
+
   disabled:
     boolean
+
   previewing:
     boolean
+
   onChange: (
     values:
       Partial<
         MAQuadroObjectAnimation
       >
   ) => void
+
   onPreview:
     () => void
 }) {
   const animationDisabled =
     animation.kind ===
-    'none'
+      'none'
 
   return (
-    <div>
-      <div className="mq-action-grid mq-action-grid--2">
+    <div className="mq-animation-controls">
+      <div
+        className="mq-animation-controls__effects"
+        role="group"
+        aria-label="Efeito de animação"
+      >
         {ANIMATION_TYPES.map(
           (
             item
@@ -108,12 +131,16 @@ export default function AnimationControls({
                 item.kind
               }
               type="button"
-              className={`mq-panel-action${
+              className={`mq-animation-choice${
                 animation.kind ===
                 item.kind
                   ? ' is-active'
                   : ''
               }`}
+              aria-pressed={
+                animation.kind ===
+                item.kind
+              }
               disabled={
                 disabled ||
                 previewing
@@ -135,43 +162,53 @@ export default function AnimationControls({
 
       {!animationDisabled ? (
         <>
-          <p className="mq-control-note">
-            Escolha se o elemento entra ou sai e ajuste a duração da animação.
-          </p>
+          <div className="mq-animation-controls__section">
+            <span className="mq-animation-controls__label">
+              Momento
+            </span>
 
-          <div className="mq-action-grid mq-action-grid--2">
-            {PHASES.map(
-              (
-                item
-              ) => (
-                <button
-                  key={
-                    item.phase
-                  }
-                  type="button"
-                  className={`mq-panel-action${
-                    animation.phase ===
-                    item.phase
-                      ? ' is-active'
-                      : ''
-                  }`}
-                  disabled={
-                    disabled ||
-                    previewing
-                  }
-                  onClick={() =>
-                    onChange({
-                      phase:
-                        item.phase
-                    })
-                  }
-                >
-                  {
-                    item.label
-                  }
-                </button>
-              )
-            )}
+            <div
+              className="mq-animation-controls__phases"
+              role="group"
+              aria-label="Momento da animação"
+            >
+              {PHASES.map(
+                (
+                  item
+                ) => (
+                  <button
+                    key={
+                      item.phase
+                    }
+                    type="button"
+                    className={`mq-animation-phase${
+                      animation.phase ===
+                      item.phase
+                        ? ' is-active'
+                        : ''
+                    }`}
+                    aria-pressed={
+                      animation.phase ===
+                      item.phase
+                    }
+                    disabled={
+                      disabled ||
+                      previewing
+                    }
+                    onClick={() =>
+                      onChange({
+                        phase:
+                          item.phase
+                      })
+                    }
+                  >
+                    {
+                      item.label
+                    }
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
           <NumberField
@@ -188,7 +225,9 @@ export default function AnimationControls({
               MA_QUADRO_ANIMATION_MAX_DURATION_MS /
               1000
             }
-            step={0.1}
+            step={
+              0.1
+            }
             suffix="s"
             disabled={
               disabled ||
@@ -209,7 +248,7 @@ export default function AnimationControls({
 
           <button
             type="button"
-            className="mq-panel-action mq-panel-action--accent"
+            className="mq-animation-preview"
             disabled={
               disabled ||
               previewing
@@ -223,13 +262,13 @@ export default function AnimationControls({
               : 'Pré-visualizar animação'}
           </button>
 
-          <p className="mq-control-note">
-            A pré-visualização é temporária: no fim, o elemento regressa exatamente à posição, escala e opacidade do design.
+          <p className="mq-animation-note">
+            A pré-visualização é temporária. O elemento regressa à posição, escala e opacidade originais quando termina.
           </p>
         </>
       ) : (
-        <p className="mq-control-note">
-          Selecione um efeito para animar este elemento.
+        <p className="mq-animation-note">
+          Escolha Fade, Slide, Scale ou Pop para animar o elemento selecionado.
         </p>
       )}
     </div>
