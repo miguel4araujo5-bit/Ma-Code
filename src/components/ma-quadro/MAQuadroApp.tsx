@@ -18,9 +18,11 @@ import CurvedTextBuilder from './CurvedTextBuilder'
 import CurvedTextEditor from './CurvedTextEditor'
 import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
+
 import {
   MAQuadroEditorProvider
 } from './editorContext'
+
 import FormatPainterController from './FormatPainterController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
@@ -32,6 +34,7 @@ import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
+
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -40,6 +43,8 @@ import './maQuadro.css'
 import './maQuadroFixes.css'
 import './maQuadroWorkflow.css'
 import './maQuadroHeaderPolish.css'
+import './maQuadroToolbarPolish.css'
+import './maQuadroWorkspacePolish.css'
 
 function targetUsesNativeKeyboard(
   target:
