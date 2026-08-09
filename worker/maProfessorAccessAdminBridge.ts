@@ -18,6 +18,7 @@ const COMMERCE_STORAGE_KEY =
 
 const ACCESS_DURABLE_OBJECT_NAME =
   'ma-professor-access-global'
+
 const PUBLIC_ACCESS_ACTIVATE_PATH =
   '/api/ma-professor/access/activate'
 
@@ -32,6 +33,7 @@ const INTERNAL_ADMIN_REJECT_REQUEST_PATH =
 
 const INTERNAL_ADMIN_COMMERCE_STATUS_PATH =
   '/__internal/ma-professor/admin/commerce/status'
+
 const INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH =
   '/__internal/ma-professor/admin/commerce/select-plan'
 
@@ -41,8 +43,12 @@ const INTERNAL_ADMIN_COMMERCE_CONFIRM_PAYMENT_PATH =
 const INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH =
   '/__internal/ma-professor/admin/commerce/dispense-payment'
 
+const INTERNAL_ADMIN_LICENSE_REVOKE_PATH =
+  '/__internal/ma-professor/admin/licenses/revoke'
+
 const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
   '/__internal/ma-professor/admin/credentials/status'
+
 const INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
 
@@ -60,6 +66,7 @@ const GENERATED_PASSWORD_GROUP_LENGTH = 4
 export type MAProfessorAdminAccessRequestDecision =
   | 'approve'
   | 'reject'
+
 export type MAProfessorCommercialPlan =
   | 'paid_30_days'
   | 'school_year'
@@ -77,7 +84,18 @@ interface StoredLicenseSnapshot {
   validUntil: number
   revokedAt: number | null
   renewalRequestedAt: number | null
+  updatedAt?: number
 }
+
+interface StoredSessionSnapshot {
+  tokenHash: string
+  email: string
+  deviceId: string
+  createdAt: number
+  lastSeenAt: number
+  revokedAt: number | null
+}
+
 interface StoredAccessRequestSnapshot {
   id: string
   email: string
@@ -90,6 +108,7 @@ interface StoredAccessRequestSnapshot {
   blockedUntil: number | null
   updatedAt: number
 }
+
 interface StoredAccessCredentialSnapshot {
   email: string
   passwordSalt: string
@@ -118,10 +137,15 @@ interface StoredRenewalRequestSnapshot {
   resolvedAt?: number | null
   updatedAt?: number
 }
+
 interface AccessStateSnapshot {
   licenses?: Record<
     string,
     StoredLicenseSnapshot
+  >
+  sessions?: Record<
+    string,
+    StoredSessionSnapshot
   >
   renewals?: StoredRenewalRequestSnapshot[]
   accessRequests?: Record<
@@ -134,6 +158,7 @@ interface AccessStateSnapshot {
   >
   updatedAt?: number
 }
+
 interface StoredCommercialAuthorization {
   id: string
   email: string
@@ -154,6 +179,7 @@ interface StoredCommerceState {
   createdAt: number
   updatedAt: number
 }
+
 interface DurableObjectStorageLike {
   get<T>(
     key: string
@@ -179,6 +205,7 @@ interface DurableObjectStateLike {
 
 type JsonObject =
   Record<string, unknown>
+
 const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
@@ -196,6 +223,7 @@ const securityHeaders:
     'X-Robots-Tag':
       'noindex, nofollow'
   }
+
 function json(
   body: unknown,
   status = 200,
@@ -254,6 +282,7 @@ function isValidEmail(
     value
   )
 }
+
 function normalizeCommercialPlan(
   value: unknown
 ): MAProfessorCommercialPlan | null {
@@ -454,6 +483,7 @@ function getDaysRemaining(
     )
   )
 }
+
 function getLicenseStatus(
   license: StoredLicenseSnapshot,
   now: number
@@ -517,6 +547,7 @@ function buildAccessRequestSummary(
       toIso(request.activatedAt)
   }
 }
+
 function buildCredentialStatus(
   email: string,
   credential:
@@ -542,6 +573,44 @@ function buildCredentialStatus(
   }
 }
 
+function buildLicenseSummary(
+  license: StoredLicenseSnapshot,
+  now: number
+) {
+  return {
+    email:
+      license.email,
+    plan:
+      license.plan,
+    status:
+      getLicenseStatus(
+        license,
+        now
+      ),
+    validFrom:
+      toIso(
+        license.validFrom
+      ),
+    validUntil:
+      toIso(
+        license.validUntil
+      ),
+    daysRemaining:
+      getDaysRemaining(
+        license.validUntil,
+        now
+      ),
+    renewalRequestedAt:
+      toIso(
+        license.renewalRequestedAt
+      ),
+    revokedAt:
+      toIso(
+        license.revokedAt
+      )
+  }
+}
+
 function createCommerceState():
   StoredCommerceState {
   const now = Date.now()
@@ -564,6 +633,7 @@ function normalizeCommercialAuthorization(
       null
   }
 }
+
 function normalizeCommerceState(
   stored:
     StoredCommerceState |
@@ -588,6 +658,7 @@ function normalizeCommerceState(
       )
   }
 }
+
 function getLatestAuthorization(
   commerceState:
     StoredCommerceState,
@@ -605,6 +676,7 @@ function getLatestAuthorization(
         left.createdAt
     )[0] || null
 }
+
 function isPaymentResolved(
   authorization:
     StoredCommercialAuthorization |
@@ -620,6 +692,7 @@ function isPaymentResolved(
       )
   )
 }
+
 function buildCommercialStatus(
   email: string,
   authorization:
@@ -691,6 +764,7 @@ function buildCommercialStatus(
       )
   }
 }
+
 function buildOverview(
   state:
     AccessStateSnapshot |
@@ -733,34 +807,11 @@ function buildOverview(
         {}
     )
       .map(
-        license => ({
-          email:
-            license.email,
-          plan:
-            license.plan,
-          status:
-            getLicenseStatus(
-              license,
-              now
-            ),
-          validFrom:
-            toIso(
-              license.validFrom
-            ),
-          validUntil:
-            toIso(
-              license.validUntil
-            ),
-          daysRemaining:
-            getDaysRemaining(
-              license.validUntil,
-              now
-            ),
-          renewalRequestedAt:
-            toIso(
-              license.renewalRequestedAt
-            )
-        })
+        license =>
+          buildLicenseSummary(
+            license,
+            now
+          )
       )
       .sort(
         (left, right) =>
@@ -1130,6 +1181,153 @@ export class MaProfessorAccessDurableObject {
     })
   }
 
+  private async handleLicenseRevoke(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const license =
+      state?.licenses?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !license
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'A licença não foi encontrada.'
+        },
+        404
+      )
+    }
+
+    const now = Date.now()
+
+    const alreadyRevoked =
+      license.revokedAt !==
+      null
+
+    if (!alreadyRevoked) {
+      license.revokedAt =
+        now
+
+      license.updatedAt =
+        now
+    }
+
+    let sessionsRevoked = 0
+
+    for (
+      const session of
+      Object.values(
+        state.sessions || {}
+      )
+    ) {
+      if (
+        session.email ===
+          email &&
+        session.revokedAt ===
+          null
+      ) {
+        session.revokedAt =
+          now
+
+        sessionsRevoked += 1
+      }
+    }
+
+    if (
+      !alreadyRevoked ||
+      sessionsRevoked > 0
+    ) {
+      state.updatedAt =
+        now
+
+      await this.state.storage.put(
+        STORAGE_KEY,
+        state
+      )
+
+      this.refreshBase()
+    }
+
+    const responseNow =
+      Date.now()
+
+    return json({
+      success: true,
+      message:
+        alreadyRevoked
+          ? 'A licença já se encontrava revogada. As sessões ativas foram novamente verificadas.'
+          : 'Licença revogada. As sessões ativas desta conta foram invalidadas.',
+      license:
+        buildLicenseSummary(
+          license,
+          responseNow
+        )
+    })
+  }
+
   private async handleCommerceStatus(
     request: Request
   ) {
@@ -1360,10 +1558,6 @@ export class MaProfessorAccessDurableObject {
       })
     }
 
-    /*
-     * Compatibilidade apenas para pedidos antigos criados
-     * antes de o plano passar a fazer parte do pedido público.
-     */
     const now = Date.now()
 
     const authorization:
@@ -2151,6 +2345,15 @@ export class MaProfessorAccessDurableObject {
 
     if (
       url.pathname ===
+      INTERNAL_ADMIN_LICENSE_REVOKE_PATH
+    ) {
+      return this.handleLicenseRevoke(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
       INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH
     ) {
       return this.handleCredentialStatus(
@@ -2324,6 +2527,31 @@ export async function dispenseMAProfessorAdminPayment(
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      }
+    )
+  )
+}
+
+export async function revokeMAProfessorAdminLicense(
+  env: MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_LICENSE_REVOKE_PATH}`,
       {
         method: 'POST',
         headers: {
