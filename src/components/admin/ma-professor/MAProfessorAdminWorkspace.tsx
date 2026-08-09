@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -15,6 +16,11 @@ import type {
   LicenseSummary
 } from '../../ma-professor/types'
 
+import {
+  getMAProfessorCommercialStatus,
+  type MAProfessorAdminCommercialStatus
+} from '../../../lib/admin/maProfessorAdminApi'
+
 import MAProfessorAdminAccountDetail from './MAProfessorAdminAccountDetail'
 import MAProfessorAdminHistory from './MAProfessorAdminHistory'
 
@@ -25,91 +31,21 @@ type WorkspaceTab =
   | 'renewals'
   | 'history'
 
-type RequestStatusFilter =
-  | 'all'
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-
-type RequestActionFeedback =
-  | {
-      type:
-        'success' |
-        'error'
-
-      message:
-        string
-    }
-  | null
-
 interface MAProfessorAdminWorkspaceProps {
-  accessRequests?:
+  accessRequests:
     MAProfessorAccessRequestSummary[]
-
-  licenses?:
+  licenses:
     LicenseSummary[]
-
-  renewals?:
+  renewals:
     LicenseRenewalRequest[]
-
-  dataConnected?:
-    boolean
-
-  onApproveRequest?: (
+  dataConnected?: boolean
+  onApproveRequest: (
     email: string
   ) => Promise<void>
-
-  onRejectRequest?: (
+  onRejectRequest: (
     email: string
   ) => Promise<void>
 }
-
-interface TabDefinition {
-  id:
-    WorkspaceTab
-
-  label:
-    string
-}
-
-const tabs:
-  TabDefinition[] = [
-    {
-      id:
-        'requests',
-
-      label:
-        'Pedidos'
-    },
-    {
-      id:
-        'users',
-
-      label:
-        'Utilizadores'
-    },
-    {
-      id:
-        'licenses',
-
-      label:
-        'Licenças'
-    },
-    {
-      id:
-        'renewals',
-
-      label:
-        'Renovações'
-    },
-    {
-      id:
-        'history',
-
-      label:
-        'Histórico'
-    }
-  ]
 
 function formatDate(
   value: string | null
@@ -119,9 +55,7 @@ function formatDate(
   }
 
   const date =
-    new Date(
-      value
-    )
+    new Date(value)
 
   if (
     Number.isNaN(
@@ -134,20 +68,11 @@ function formatDate(
   return new Intl.DateTimeFormat(
     'pt-PT',
     {
-      day:
-        '2-digit',
-
-      month:
-        '2-digit',
-
-      year:
-        'numeric',
-
-      hour:
-        '2-digit',
-
-      minute:
-        '2-digit'
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     }
   ).format(date)
 }
@@ -159,14 +84,11 @@ function formatMoney(
   return new Intl.NumberFormat(
     'pt-PT',
     {
-      style:
-        'currency',
-
+      style: 'currency',
       currency
     }
   ).format(
-    amountCents /
-      100
+    amountCents / 100
   )
 }
 
@@ -177,10 +99,8 @@ function getRequestStatusClassName(
   switch (status) {
     case 'approved':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-
     case 'rejected':
       return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-
     default:
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
   }
@@ -193,222 +113,231 @@ function getLicenseStatusClassName(
   switch (status) {
     case 'active':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-
     case 'expiring':
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
-
     case 'renewal_pending':
       return 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
-
     case 'revoked':
       return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-
-    case 'expired':
-      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
-
     default:
-      return 'border-white/10 bg-white/[0.04] text-slate-400'
+      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
   }
 }
 
-function getRenewalStatusLabel(
+function getPaymentLabel(
   status:
-    LicenseRenewalRequest['status']
+    MAProfessorAdminCommercialStatus['paymentStatus']
 ) {
   switch (status) {
-    case 'approved':
-      return 'Aprovada'
-
-    case 'rejected':
-      return 'Rejeitada'
-
-    case 'cancelled':
-      return 'Cancelada'
-
-    default:
+    case 'confirmed':
+      return 'Confirmado'
+    case 'dispensed':
+      return 'Dispensado'
+    case 'pending':
       return 'Pendente'
+    default:
+      return '—'
   }
 }
 
-function getRenewalStatusClassName(
+function getPaymentClassName(
   status:
-    LicenseRenewalRequest['status']
+    MAProfessorAdminCommercialStatus['paymentStatus']
 ) {
   switch (status) {
-    case 'approved':
+    case 'confirmed':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-
-    case 'rejected':
-      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-
-    case 'cancelled':
-      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
-
-    default:
+    case 'dispensed':
+      return 'border-violet-300/20 bg-violet-300/10 text-violet-200'
+    case 'pending':
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+    default:
+      return 'border-white/10 bg-white/[0.04] text-slate-500'
   }
+}
+
+function getCommercialPlanLabel(
+  plan:
+    MAProfessorAdminCommercialStatus['plan']
+) {
+  switch (plan) {
+    case 'paid_30_days':
+      return '30 dias'
+    case 'school_year':
+      return 'Até 1 de agosto'
+    default:
+      return '—'
+  }
+}
+
+function getErrorMessage(
+  error: unknown
+) {
+  return error instanceof Error &&
+    error.message
+    ? error.message
+    : 'Não foi possível concluir a operação.'
 }
 
 function EmptyTable({
   title,
   description
 }: {
-  title:
-    string
-
-  description:
-    string
+  title: string
+  description: string
 }) {
   return (
-    <div className="flex min-h-64 flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-lg text-slate-500">
+    <div className="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-slate-500">
         —
       </div>
-
       <h3 className="mt-4 text-sm font-black text-slate-300">
         {title}
       </h3>
-
-      <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">
+      <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500">
         {description}
       </p>
     </div>
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  description
+function RequestCommerceCells({
+  email,
+  dataConnected
 }: {
-  label:
-    string
-
-  value:
-    string
-
-  description:
-    string
+  email: string
+  dataConnected: boolean
 }) {
+  const [status, setStatus] =
+    useState<MAProfessorAdminCommercialStatus | null>(
+      null
+    )
+  const [loading, setLoading] =
+    useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!dataConnected) {
+      setStatus(null)
+      setLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setLoading(true)
+
+    void getMAProfessorCommercialStatus(
+      email
+    )
+      .then(nextStatus => {
+        if (!cancelled) {
+          setStatus(nextStatus)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [dataConnected, email])
+
   return (
-    <article className="rounded-2xl border border-white/10 bg-slate-900/55 p-4">
-      <p className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-2 text-2xl font-black text-white">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs leading-5 text-slate-500">
-        {description}
-      </p>
-    </article>
+    <>
+      <td className="px-4 py-3 text-xs font-bold text-slate-300">
+        {loading
+          ? 'A verificar…'
+          : getCommercialPlanLabel(
+              status?.plan ?? null
+            )}
+      </td>
+      <td className="px-4 py-3 text-xs font-bold text-slate-300">
+        {loading ||
+        status?.amountCents == null
+          ? '—'
+          : formatMoney(
+              status.amountCents,
+              status.currency
+            )}
+      </td>
+      <td className="px-4 py-3">
+        {loading ? (
+          <span className="text-xs font-bold text-slate-500">
+            A verificar…
+          </span>
+        ) : status ? (
+          <span
+            className={[
+              'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+              getPaymentClassName(
+                status.paymentStatus
+              )
+            ].join(' ')}
+          >
+            {getPaymentLabel(
+              status.paymentStatus
+            )}
+          </span>
+        ) : (
+          <span className="text-xs font-bold text-slate-600">
+            —
+          </span>
+        )}
+      </td>
+    </>
   )
 }
 
-function getActionErrorMessage(
-  error:
-    unknown
-) {
-  if (
-    error instanceof
-      Error &&
-    error.message
-  ) {
-    return error.message
-  }
-
-  return 'Não foi possível atualizar o pedido.'
-}
-
 export default function MAProfessorAdminWorkspace({
-  accessRequests = [],
-  licenses = [],
-  renewals = [],
+  accessRequests,
+  licenses,
+  renewals,
   dataConnected = false,
   onApproveRequest,
   onRejectRequest
 }: MAProfessorAdminWorkspaceProps) {
-  const [
-    activeTab,
-    setActiveTab
-  ] =
-    useState<WorkspaceTab>(
-      'requests'
-    )
-
-  const [
-    query,
-    setQuery
-  ] =
+  const [activeTab, setActiveTab] =
+    useState<WorkspaceTab>('requests')
+  const [query, setQuery] =
+    useState('')
+  const [requestStatus, setRequestStatus] =
+    useState<'all' | MAProfessorAccessRequestSummary['status']>('all')
+  const [selectedEmail, setSelectedEmail] =
+    useState<string | null>(null)
+  const [busyEmail, setBusyEmail] =
+    useState<string | null>(null)
+  const [actionFeedback, setActionFeedback] =
     useState('')
 
-  const [
-    requestStatus,
-    setRequestStatus
-  ] =
-    useState<RequestStatusFilter>(
-      'all'
-    )
-
-  const [
-    selectedEmail,
-    setSelectedEmail
-  ] =
-    useState<string | null>(
-      null
-    )
-
-  const [
-    requestActionEmail,
-    setRequestActionEmail
-  ] =
-    useState<string | null>(
-      null
-    )
-
-  const [
-    requestActionFeedback,
-    setRequestActionFeedback
-  ] =
-    useState<RequestActionFeedback>(
-      null
-    )
-
   const normalizedQuery =
-    query
-      .trim()
-      .toLowerCase()
+    query.trim().toLowerCase()
 
   const filteredRequests =
     useMemo(
       () =>
-        accessRequests.filter(
-          request => {
-            if (
-              normalizedQuery &&
-              !request.email
-                .toLowerCase()
-                .includes(
-                  normalizedQuery
-                )
-            ) {
-              return false
-            }
+        accessRequests.filter(request => {
+          const matchesQuery =
+            !normalizedQuery ||
+            request.email
+              .toLowerCase()
+              .includes(normalizedQuery)
 
-            if (
-              requestStatus !==
-                'all' &&
-              request.status !==
-                requestStatus
-            ) {
-              return false
-            }
+          const matchesStatus =
+            requestStatus === 'all' ||
+            request.status === requestStatus
 
-            return true
-          }
-        ),
+          return matchesQuery && matchesStatus
+        }),
       [
         accessRequests,
         normalizedQuery,
@@ -416,1049 +345,652 @@ export default function MAProfessorAdminWorkspace({
       ]
     )
 
-  const userEmails =
-    useMemo(
-      () => {
-        const emails =
-          new Set<string>()
+  const users =
+    useMemo(() => {
+      const emails =
+        new Set<string>()
 
-        for (
-          const request of
-          accessRequests
-        ) {
-          emails.add(
-            request.email
-          )
-        }
+      for (const request of accessRequests) {
+        emails.add(request.email)
+      }
+      for (const license of licenses) {
+        emails.add(license.email)
+      }
+      for (const renewal of renewals) {
+        emails.add(renewal.email)
+      }
 
-        for (
-          const license of
-          licenses
-        ) {
-          emails.add(
-            license.email
-          )
-        }
-
-        for (
-          const renewal of
-          renewals
-        ) {
-          emails.add(
-            renewal.email
-          )
-        }
-
-        return Array.from(
-          emails
-        ).sort(
-          (
-            left,
-            right
-          ) =>
-            left.localeCompare(
-              right
-            )
+      return Array.from(emails)
+        .filter(email =>
+          !normalizedQuery ||
+          email
+            .toLowerCase()
+            .includes(normalizedQuery)
         )
-      },
-      [
-        accessRequests,
-        licenses,
-        renewals
-      ]
-    )
-
-  const filteredUsers =
-    useMemo(
-      () =>
-        userEmails.filter(
-          email =>
-            !normalizedQuery ||
-            email
-              .toLowerCase()
-              .includes(
-                normalizedQuery
-              )
-        ),
-      [
-        userEmails,
-        normalizedQuery
-      ]
-    )
+        .sort((left, right) =>
+          left.localeCompare(right)
+        )
+        .map(email => ({
+          email,
+          request:
+            accessRequests.find(
+              item => item.email === email
+            ) || null,
+          license:
+            licenses.find(
+              item => item.email === email
+            ) || null
+        }))
+    }, [
+      accessRequests,
+      licenses,
+      normalizedQuery,
+      renewals
+    ])
 
   const filteredLicenses =
     useMemo(
       () =>
-        licenses.filter(
-          license =>
-            !normalizedQuery ||
-            license.email
-              .toLowerCase()
-              .includes(
-                normalizedQuery
-              )
+        licenses.filter(license =>
+          !normalizedQuery ||
+          license.email
+            .toLowerCase()
+            .includes(normalizedQuery)
         ),
-      [
-        licenses,
-        normalizedQuery
-      ]
+      [licenses, normalizedQuery]
     )
 
   const filteredRenewals =
     useMemo(
       () =>
-        renewals.filter(
-          renewal =>
-            !normalizedQuery ||
-            renewal.email
-              .toLowerCase()
-              .includes(
-                normalizedQuery
-              )
+        renewals.filter(renewal =>
+          !normalizedQuery ||
+          renewal.email
+            .toLowerCase()
+            .includes(normalizedQuery)
         ),
-      [
-        renewals,
-        normalizedQuery
-      ]
+      [renewals, normalizedQuery]
     )
 
   const selectedRequest =
-    useMemo(
-      () =>
-        selectedEmail
-          ? accessRequests.find(
-              request =>
-                request.email ===
-                selectedEmail
-            ) ||
-            null
-          : null,
-      [
-        accessRequests,
-        selectedEmail
-      ]
-    )
+    selectedEmail
+      ? accessRequests.find(
+          item => item.email === selectedEmail
+        ) || null
+      : null
 
   const selectedLicense =
-    useMemo(
-      () =>
-        selectedEmail
-          ? licenses.find(
-              license =>
-                license.email ===
-                selectedEmail
-            ) ||
-            null
-          : null,
-      [
-        licenses,
-        selectedEmail
-      ]
-    )
+    selectedEmail
+      ? licenses.find(
+          item => item.email === selectedEmail
+        ) || null
+      : null
 
   const selectedRenewals =
-    useMemo(
-      () =>
-        selectedEmail
-          ? renewals.filter(
-              renewal =>
-                renewal.email ===
-                selectedEmail
-            )
-          : [],
-      [
-        renewals,
-        selectedEmail
-      ]
-    )
+    selectedEmail
+      ? renewals.filter(
+          item => item.email === selectedEmail
+        )
+      : []
 
   const pendingRequests =
     accessRequests.filter(
-      request =>
-        request.status ===
-        'pending'
+      item => item.status === 'pending'
     ).length
 
   const activeLicenses =
     licenses.filter(
-      license =>
-        license.status ===
-          'active' ||
-        license.status ===
-          'expiring'
+      item =>
+        item.status === 'active' ||
+        item.status === 'expiring' ||
+        item.status === 'renewal_pending'
     ).length
 
   const pendingRenewals =
     renewals.filter(
-      renewal =>
-        renewal.status ===
-        'pending'
+      item => item.status === 'pending'
     ).length
 
-  const metricValue = (
-    value: number
-  ) =>
-    dataConnected
-      ? String(
-          value
-        )
-      : '—'
-
-  const canManageRequests =
-    dataConnected &&
-    Boolean(
-      onApproveRequest
-    ) &&
-    Boolean(
-      onRejectRequest
-    )
-
-  const handleRequestDecision =
+  const runRequestAction =
     async (
       email: string,
-      decision:
-        'approve' |
-        'reject'
+      action: 'approve' | 'reject'
     ) => {
-      if (
-        !canManageRequests ||
-        requestActionEmail
-      ) {
-        return
-      }
+      const verb =
+        action === 'approve'
+          ? 'aprovar'
+          : 'rejeitar'
 
       const confirmed =
         window.confirm(
-          decision ===
-          'approve'
-            ? `Aprovar o pedido de acesso de ${email}?`
-            : `Rejeitar o pedido de acesso de ${email}?`
+          `${action === 'approve' ? 'Aprovar' : 'Rejeitar'} o pedido de acesso de ${email}?`
         )
 
       if (!confirmed) {
         return
       }
 
-      setRequestActionFeedback(
-        null
-      )
-
-      setRequestActionEmail(
-        email
-      )
+      setBusyEmail(email)
+      setActionFeedback('')
 
       try {
-        if (
-          decision ===
-          'approve'
-        ) {
-          await onApproveRequest?.(
-            email
-          )
-
-          setRequestActionFeedback({
-            type:
-              'success',
-
-            message:
-              `Pedido de ${email} aprovado.`
-          })
+        if (action === 'approve') {
+          await onApproveRequest(email)
         } else {
-          await onRejectRequest?.(
-            email
-          )
-
-          setRequestActionFeedback({
-            type:
-              'success',
-
-            message:
-              `Pedido de ${email} rejeitado.`
-          })
+          await onRejectRequest(email)
         }
-      } catch (
-        error
-      ) {
-        setRequestActionFeedback({
-          type:
-            'error',
 
-          message:
-            getActionErrorMessage(
-              error
-            )
-        })
-      } finally {
-        setRequestActionEmail(
-          null
+        setActionFeedback(
+          `Pedido de ${email} atualizado com sucesso.`
         )
+      } catch (error) {
+        setActionFeedback(
+          `Não foi possível ${verb} o pedido: ${getErrorMessage(error)}`
+        )
+      } finally {
+        setBusyEmail(null)
       }
     }
 
-  const renderRequests =
-    () => (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[940px] text-left">
-          <thead>
-            <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-              <th className="px-4 py-3">
-                Email
-              </th>
-
-              <th className="px-4 py-3">
-                Pedido
-              </th>
-
-              <th className="px-4 py-3">
-                Estado
-              </th>
-
-              <th className="px-4 py-3">
-                Ativação
-              </th>
-
-              <th className="px-4 py-3">
-                Ações
-              </th>
-
-              <th className="px-4 py-3 text-right">
-                Detalhe
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredRequests.map(
-              request => {
-                const pending =
-                  request.status ===
-                  'pending'
-
-                const busy =
-                  requestActionEmail ===
-                  request.email
-
-                return (
-                  <tr
-                    key={
-                      request.email
-                    }
-                    className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
-                  >
-                    <td className="px-4 py-4 font-bold text-white">
-                      {
-                        request.email
-                      }
-                    </td>
-
-                    <td className="px-4 py-4 text-xs text-slate-500">
-                      {formatDate(
-                        request.requestedAt
-                      )}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <span
-                        className={[
-                          'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                          getRequestStatusClassName(
-                            request.status
-                          )
-                        ].join(
-                          ' '
-                        )}
-                      >
-                        {getAccessRequestStatusLabel(
-                          request.status
-                        )}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-4 text-xs text-slate-500">
-                      {formatDate(
-                        request.activatedAt
-                      )}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      {pending &&
-                      canManageRequests ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={
-                              Boolean(
-                                requestActionEmail
-                              )
-                            }
-                            onClick={() => {
-                              void handleRequestDecision(
-                                request.email,
-                                'approve'
-                              )
-                            }}
-                            className="rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {busy
-                              ? 'A processar…'
-                              : 'Aprovar'}
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={
-                              Boolean(
-                                requestActionEmail
-                              )
-                            }
-                            onClick={() => {
-                              void handleRequestDecision(
-                                request.email,
-                                'reject'
-                              )
-                            }}
-                            className="rounded-lg border border-rose-300/20 bg-rose-300/[0.05] px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/10 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Rejeitar
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-slate-600">
-                          {pending
-                            ? 'Ações indisponíveis'
-                            : 'Resolvido'}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedEmail(
-                            request.email
-                          )
-                        }
-                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
-                      >
-                        Abrir ficha
-                      </button>
-                    </td>
-                  </tr>
-                )
-              }
-            )}
-          </tbody>
-        </table>
-
-        {filteredRequests.length ===
-        0 ? (
-          <EmptyTable
-            title={
-              dataConnected
-                ? 'Sem pedidos'
-                : 'Pedidos ainda não ligados'
-            }
-            description={
-              dataConnected
-                ? 'Não existem pedidos que correspondam aos filtros atuais.'
-                : 'Quando ligarmos o backend, os pedidos reais do MA-Professor aparecerão aqui.'
-            }
-          />
-        ) : null}
-      </div>
-    )
-
-  const renderUsers =
-    () => (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left">
-          <thead>
-            <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-              <th className="px-4 py-3">
-                Email
-              </th>
-
-              <th className="px-4 py-3">
-                Pedido
-              </th>
-
-              <th className="px-4 py-3">
-                Licença
-              </th>
-
-              <th className="px-4 py-3 text-right">
-                Detalhe
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredUsers.map(
-              email => {
-                const request =
-                  accessRequests.find(
-                    item =>
-                      item.email ===
-                      email
-                  )
-
-                const license =
-                  licenses.find(
-                    item =>
-                      item.email ===
-                      email
-                  )
-
-                return (
-                  <tr
-                    key={email}
-                    className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
-                  >
-                    <td className="px-4 py-4 font-bold text-white">
-                      {email}
-                    </td>
-
-                    <td className="px-4 py-4 text-xs text-slate-500">
-                      {request
-                        ? getAccessRequestStatusLabel(
-                            request.status
-                          )
-                        : '—'}
-                    </td>
-
-                    <td className="px-4 py-4 text-xs text-slate-500">
-                      {license
-                        ? getLicenseStatusLabel(
-                            license.status
-                          )
-                        : 'Sem licença'}
-                    </td>
-
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedEmail(
-                            email
-                          )
-                        }
-                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
-                      >
-                        Abrir ficha
-                      </button>
-                    </td>
-                  </tr>
-                )
-              }
-            )}
-          </tbody>
-        </table>
-
-        {filteredUsers.length ===
-        0 ? (
-          <EmptyTable
-            title={
-              dataConnected
-                ? 'Sem utilizadores'
-                : 'Utilizadores ainda não ligados'
-            }
-            description={
-              dataConnected
-                ? 'Ainda não existem contas conhecidas pelo sistema.'
-                : 'As contas serão agregadas a partir dos pedidos, licenças e renovações reais.'
-            }
-          />
-        ) : null}
-      </div>
-    )
-
-  const renderLicenses =
-    () => (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
-          <thead>
-            <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-              <th className="px-4 py-3">
-                Email
-              </th>
-
-              <th className="px-4 py-3">
-                Plano
-              </th>
-
-              <th className="px-4 py-3">
-                Estado
-              </th>
-
-              <th className="px-4 py-3">
-                Válida até
-              </th>
-
-              <th className="px-4 py-3 text-right">
-                Detalhe
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredLicenses.map(
-              license => (
-                <tr
-                  key={
-                    license.email
-                  }
-                  className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
-                >
-                  <td className="px-4 py-4 font-bold text-white">
-                    {
-                      license.email
-                    }
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-400">
-                    {getLicensePlanLabel(
-                      license.plan
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <span
-                      className={[
-                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                        getLicenseStatusClassName(
-                          license.status
-                        )
-                      ].join(
-                        ' '
-                      )}
-                    >
-                      {getLicenseStatusLabel(
-                        license.status
-                      )}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-500">
-                    {formatDate(
-                      license.validUntil
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedEmail(
-                          license.email
-                        )
-                      }
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
-                    >
-                      Abrir ficha
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
-
-        {filteredLicenses.length ===
-        0 ? (
-          <EmptyTable
-            title={
-              dataConnected
-                ? 'Sem licenças'
-                : 'Licenças ainda não ligadas'
-            }
-            description={
-              dataConnected
-                ? 'Não existem licenças para apresentar.'
-                : 'As licenças reais aparecerão aqui quando ligarmos a administração ao Worker.'
-            }
-          />
-        ) : null}
-      </div>
-    )
-
-  const renderRenewals =
-    () => (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
-          <thead>
-            <tr className="border-b border-white/10 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-              <th className="px-4 py-3">
-                Email
-              </th>
-
-              <th className="px-4 py-3">
-                Plano
-              </th>
-
-              <th className="px-4 py-3">
-                Valor
-              </th>
-
-              <th className="px-4 py-3">
-                Pedido
-              </th>
-
-              <th className="px-4 py-3">
-                Estado
-              </th>
-
-              <th className="px-4 py-3 text-right">
-                Detalhe
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredRenewals.map(
-              renewal => (
-                <tr
-                  key={
-                    renewal.id
-                  }
-                  className="border-b border-white/[0.06] text-sm text-slate-300 transition hover:bg-white/[0.025]"
-                >
-                  <td className="px-4 py-4 font-bold text-white">
-                    {
-                      renewal.email
-                    }
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-400">
-                    {getLicensePlanLabel(
-                      renewal.requestedPlan
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4 text-xs font-bold text-slate-300">
-                    {formatMoney(
-                      renewal.amountCents,
-                      renewal.currency
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4 text-xs text-slate-500">
-                    {formatDate(
-                      renewal.requestedAt
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <span
-                      className={[
-                        'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                        getRenewalStatusClassName(
-                          renewal.status
-                        )
-                      ].join(
-                        ' '
-                      )}
-                    >
-                      {getRenewalStatusLabel(
-                        renewal.status
-                      )}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedEmail(
-                          renewal.email
-                        )
-                      }
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
-                    >
-                      Abrir ficha
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
-
-        {filteredRenewals.length ===
-        0 ? (
-          <EmptyTable
-            title={
-              dataConnected
-                ? 'Sem renovações'
-                : 'Renovações ainda não ligadas'
-            }
-            description={
-              dataConnected
-                ? 'Não existem pedidos de renovação que correspondam aos filtros atuais.'
-                : 'Os pedidos de renovação reais aparecerão aqui quando ligarmos o backend.'
-            }
-          />
-        ) : null}
-      </div>
-    )
-
-  const renderHistory =
-    () => (
-      <MAProfessorAdminHistory
-        accessRequests={
-          accessRequests
-        }
-        licenses={
-          licenses
-        }
-        renewals={
-          renewals
-        }
-        dataConnected={
-          dataConnected
-        }
-      />
-    )
-
-  const renderActiveTable =
-    () => {
-      switch (
-        activeTab
-      ) {
-        case 'users':
-          return renderUsers()
-
-        case 'licenses':
-          return renderLicenses()
-
-        case 'renewals':
-          return renderRenewals()
-
-        case 'history':
-          return renderHistory()
-
-        default:
-          return renderRequests()
-      }
+  const tabs: Array<{
+    id: WorkspaceTab
+    label: string
+    count?: number
+  }> = [
+    {
+      id: 'requests',
+      label: 'Pedidos',
+      count: accessRequests.length
+    },
+    {
+      id: 'users',
+      label: 'Utilizadores',
+      count: users.length
+    },
+    {
+      id: 'licenses',
+      label: 'Licenças',
+      count: licenses.length
+    },
+    {
+      id: 'renewals',
+      label: 'Renovações',
+      count: renewals.length
+    },
+    {
+      id: 'history',
+      label: 'Histórico'
     }
+  ]
 
   return (
-    <div>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Pedidos pendentes"
-          value={metricValue(
-            pendingRequests
-          )}
-          description="Aguardam decisão administrativa"
-        />
-
-        <MetricCard
-          label="Contas conhecidas"
-          value={metricValue(
-            userEmails.length
-          )}
-          description="Emails existentes no sistema"
-        />
-
-        <MetricCard
-          label="Licenças ativas"
-          value={metricValue(
-            activeLicenses
-          )}
-          description="Ativas ou a terminar"
-        />
-
-        <MetricCard
-          label="Renovações pendentes"
-          value={metricValue(
-            pendingRenewals
-          )}
-          description="Aguardam confirmação"
-        />
-      </section>
-
-      <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/55">
-        <div className="border-b border-white/10 px-4 pt-4 sm:px-5 sm:pt-5">
-          <div className="flex gap-1 overflow-x-auto">
-            {tabs.map(
-              tab => {
-                const active =
-                  tab.id ===
-                  activeTab
-
-                return (
-                  <button
-                    key={
-                      tab.id
-                    }
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(
-                        tab.id
-                      )
-
-                      setSelectedEmail(
-                        null
-                      )
-
-                      setRequestActionFeedback(
-                        null
-                      )
-                    }}
-                    className={[
-                      'shrink-0 border-b-2 px-4 py-3 text-xs font-black transition',
-                      active
-                        ? 'border-cyan-300 text-cyan-200'
-                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                    ].join(
-                      ' '
-                    )}
-                  >
-                    {
-                      tab.label
-                    }
-                  </button>
-                )
-              }
-            )}
-          </div>
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-300">
+            Pedidos pendentes
+          </p>
+          <p className="mt-2 text-2xl font-black text-white">
+            {pendingRequests}
+          </p>
         </div>
+        <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
+            Contas conhecidas
+          </p>
+          <p className="mt-2 text-2xl font-black text-white">
+            {users.length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">
+            Licenças utilizáveis
+          </p>
+          <p className="mt-2 text-2xl font-black text-white">
+            {activeLicenses}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-300">
+            Renovações pendentes
+          </p>
+          <p className="mt-2 text-2xl font-black text-white">
+            {pendingRenewals}
+          </p>
+        </div>
+      </div>
 
+      <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/55">
         <div className="border-b border-white/10 p-4 sm:p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">
-                Pesquisar
-              </span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveTab(tab.id)
+                  }
+                  className={[
+                    'rounded-xl border px-3 py-2 text-xs font-black transition',
+                    activeTab === tab.id
+                      ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-200'
+                      : 'border-white/10 bg-slate-950/35 text-slate-500 hover:text-white'
+                  ].join(' ')}
+                >
+                  {tab.label}
+                  {typeof tab.count === 'number'
+                    ? ` · ${tab.count}`
+                    : ''}
+                </button>
+              ))}
+            </div>
 
+            <span
+              className={[
+                'rounded-full border px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.12em]',
+                dataConnected
+                  ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+                  : 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+              ].join(' ')}
+            >
+              {dataConnected
+                ? 'Backend ligado'
+                : 'Sem dados'}
+            </span>
+          </div>
+
+          {activeTab !== 'history' ? (
+            <div className="mt-4 flex flex-wrap gap-3">
               <input
                 type="search"
-                value={
-                  query
-                }
-                onChange={
-                  event =>
-                    setQuery(
-                      event.target.value
-                    )
+                value={query}
+                onChange={event =>
+                  setQuery(event.target.value)
                 }
                 placeholder="Pesquisar por email…"
-                className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/40 focus:ring-4 focus:ring-cyan-300/10"
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/40"
               />
-            </label>
 
-            {activeTab ===
-            'requests' ? (
-              <label className="md:w-48">
-                <span className="sr-only">
-                  Estado
-                </span>
-
+              {activeTab === 'requests' ? (
                 <select
-                  value={
-                    requestStatus
+                  value={requestStatus}
+                  onChange={event =>
+                    setRequestStatus(
+                      event.target.value as typeof requestStatus
+                    )
                   }
-                  onChange={
-                    event =>
-                      setRequestStatus(
-                        event.target
-                          .value as
-                          RequestStatusFilter
-                      )
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-cyan-300/40"
+                  className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-cyan-300/40"
                 >
                   <option value="all">
                     Todos os estados
                   </option>
-
                   <option value="pending">
                     Pendentes
                   </option>
-
                   <option value="approved">
                     Aprovados
                   </option>
-
                   <option value="rejected">
                     Rejeitados
                   </option>
                 </select>
-              </label>
-            ) : null}
-
-            <div
-              className={[
-                'rounded-xl border px-3 py-2.5 text-xs font-bold',
-                dataConnected
-                  ? 'border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200'
-                  : 'border-amber-300/15 bg-amber-300/[0.05] text-amber-200'
-              ].join(
-                ' '
-              )}
-            >
-              {dataConnected
-                ? 'Dados reais ligados'
-                : 'Backend desligado'}
+              ) : null}
             </div>
-          </div>
+          ) : null}
 
-          {requestActionFeedback ? (
-            <div
-              role={
-                requestActionFeedback.type ===
-                'error'
-                  ? 'alert'
-                  : 'status'
-              }
-              className={[
-                'mt-3 rounded-xl border px-4 py-3 text-xs font-bold',
-                requestActionFeedback.type ===
-                  'success'
-                  ? 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200'
-                  : 'border-rose-300/20 bg-rose-300/[0.06] text-rose-200'
-              ].join(
-                ' '
-              )}
-            >
-              {
-                requestActionFeedback.message
-              }
-            </div>
+          {actionFeedback ? (
+            <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-xs font-semibold text-slate-400">
+              {actionFeedback}
+            </p>
           ) : null}
         </div>
 
-        <div className="min-w-0">
-          {renderActiveTable()}
-        </div>
+        {activeTab === 'requests' ? (
+          filteredRequests.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[1120px] w-full border-collapse text-left">
+                <thead className="bg-slate-950/55 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Plano</th>
+                    <th className="px-4 py-3">Valor</th>
+                    <th className="px-4 py-3">Pagamento</th>
+                    <th className="px-4 py-3">Pedido</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Ativação</th>
+                    <th className="px-4 py-3">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredRequests.map(request => (
+                    <tr
+                      key={request.email}
+                      className="align-top transition hover:bg-white/[0.02]"
+                    >
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedEmail(
+                              request.email
+                            )
+                          }
+                          className="break-all text-xs font-black text-cyan-200 hover:text-cyan-100"
+                        >
+                          {request.email}
+                        </button>
+                      </td>
+
+                      <RequestCommerceCells
+                        email={request.email}
+                        dataConnected={dataConnected}
+                      />
+
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {formatDate(
+                          request.requestedAt
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                            getRequestStatusClassName(
+                              request.status
+                            )
+                          ].join(' ')}
+                        >
+                          {getAccessRequestStatusLabel(
+                            request.status
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {formatDate(
+                          request.activatedAt
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedEmail(
+                                request.email
+                              )
+                            }
+                            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[0.68rem] font-black text-slate-400 hover:bg-white/5 hover:text-white"
+                          >
+                            Abrir ficha
+                          </button>
+
+                          {request.status === 'pending' ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={busyEmail === request.email}
+                                onClick={() => {
+                                  void runRequestAction(
+                                    request.email,
+                                    'approve'
+                                  )
+                                }}
+                                className="rounded-lg bg-emerald-300 px-2.5 py-1.5 text-[0.68rem] font-black text-slate-950 hover:bg-emerald-200 disabled:opacity-40"
+                              >
+                                Aprovar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busyEmail === request.email}
+                                onClick={() => {
+                                  void runRequestAction(
+                                    request.email,
+                                    'reject'
+                                  )
+                                }}
+                                className="rounded-lg border border-rose-300/25 bg-rose-300/[0.06] px-2.5 py-1.5 text-[0.68rem] font-black text-rose-200 hover:bg-rose-300/10 disabled:opacity-40"
+                              >
+                                Rejeitar
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyTable
+              title="Sem pedidos para mostrar"
+              description="Não existem pedidos que correspondam aos filtros atuais."
+            />
+          )
+        ) : null}
+
+        {activeTab === 'users' ? (
+          users.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[760px] w-full border-collapse text-left">
+                <thead className="bg-slate-950/55 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Pedido</th>
+                    <th className="px-4 py-3">Licença</th>
+                    <th className="px-4 py-3">Plano ativo</th>
+                    <th className="px-4 py-3">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {users.map(user => (
+                    <tr key={user.email}>
+                      <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
+                        {user.email}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {user.request
+                          ? getAccessRequestStatusLabel(
+                              user.request.status
+                            )
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {user.license
+                          ? getLicenseStatusLabel(
+                              user.license.status
+                            )
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {user.license
+                          ? getLicensePlanLabel(
+                              user.license.plan
+                            )
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedEmail(
+                              user.email
+                            )
+                          }
+                          className="rounded-lg border border-cyan-300/20 bg-cyan-300/[0.05] px-3 py-1.5 text-[0.68rem] font-black text-cyan-200 hover:bg-cyan-300/10"
+                        >
+                          Abrir ficha
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyTable
+              title="Sem utilizadores para mostrar"
+              description="Ainda não existem contas que correspondam à pesquisa."
+            />
+          )
+        ) : null}
+
+        {activeTab === 'licenses' ? (
+          filteredLicenses.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[820px] w-full border-collapse text-left">
+                <thead className="bg-slate-950/55 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Plano</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Validade</th>
+                    <th className="px-4 py-3">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredLicenses.map(license => (
+                    <tr key={license.email}>
+                      <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
+                        {license.email}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {getLicensePlanLabel(
+                          license.plan
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                            getLicenseStatusClassName(
+                              license.status
+                            )
+                          ].join(' ')}
+                        >
+                          {getLicenseStatusLabel(
+                            license.status
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {formatDate(
+                          license.validUntil
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedEmail(
+                              license.email
+                            )
+                          }
+                          className="rounded-lg border border-white/10 px-3 py-1.5 text-[0.68rem] font-black text-slate-400 hover:bg-white/5 hover:text-white"
+                        >
+                          Abrir ficha
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyTable
+              title="Sem licenças para mostrar"
+              description="Ainda não existem licenças que correspondam à pesquisa."
+            />
+          )
+        ) : null}
+
+        {activeTab === 'renewals' ? (
+          filteredRenewals.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[900px] w-full border-collapse text-left">
+                <thead className="bg-slate-950/55 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Plano pedido</th>
+                    <th className="px-4 py-3">Valor</th>
+                    <th className="px-4 py-3">Pedido em</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredRenewals.map(renewal => (
+                    <tr key={renewal.id}>
+                      <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
+                        {renewal.email}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {getLicensePlanLabel(
+                          renewal.requestedPlan
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {formatMoney(
+                          renewal.amountCents,
+                          renewal.currency
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">
+                        {formatDate(
+                          renewal.requestedAt
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-400">
+                        {renewal.status}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedEmail(
+                              renewal.email
+                            )
+                          }
+                          className="rounded-lg border border-white/10 px-3 py-1.5 text-[0.68rem] font-black text-slate-400 hover:bg-white/5 hover:text-white"
+                        >
+                          Abrir ficha
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyTable
+              title="Sem renovações para mostrar"
+              description="Ainda não existem pedidos de renovação que correspondam à pesquisa."
+            />
+          )
+        ) : null}
+
+        {activeTab === 'history' ? (
+          <MAProfessorAdminHistory
+            accessRequests={accessRequests}
+            licenses={licenses}
+            renewals={renewals}
+            dataConnected={dataConnected}
+          />
+        ) : null}
       </section>
 
       {selectedEmail ? (
-        <div className="mt-6">
-          <MAProfessorAdminAccountDetail
-            email={
-              selectedEmail
-            }
-            request={
-              selectedRequest
-            }
-            license={
-              selectedLicense
-            }
-            renewals={
-              selectedRenewals
-            }
-            dataConnected={
-              dataConnected
-            }
-            onClose={() =>
-              setSelectedEmail(
-                null
-              )
-            }
-          />
-        </div>
+        <MAProfessorAdminAccountDetail
+          email={selectedEmail}
+          request={selectedRequest}
+          license={selectedLicense}
+          renewals={selectedRenewals}
+          dataConnected={dataConnected}
+          onClose={() =>
+            setSelectedEmail(null)
+          }
+        />
       ) : null}
     </div>
   )
