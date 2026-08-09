@@ -14,13 +14,13 @@ import CanvasContextMenu, {
 import CanvasStage from './CanvasStage'
 import ChartBuilder from './ChartBuilder'
 import ChartEditor from './ChartEditor'
+import CurvedTextBuilder from './CurvedTextBuilder'
+import CurvedTextEditor from './CurvedTextEditor'
 import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
-
 import {
   MAQuadroEditorProvider
 } from './editorContext'
-
 import FormatPainterController from './FormatPainterController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
@@ -32,7 +32,6 @@ import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
-
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -333,11 +332,15 @@ export default function MAQuadroApp() {
 
         <QRCodeBuilder />
 
+        <CurvedTextBuilder />
+
         <TableEditor />
 
         <ChartEditor />
 
         <QRCodeEditor />
+
+        <CurvedTextEditor />
 
         <EditorHeader
           onOpenShortcuts={() => {
