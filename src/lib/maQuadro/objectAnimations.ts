@@ -25,6 +25,19 @@ export type MAQuadroObjectAnimation = {
   durationMs: number
 }
 
+export type MAQuadroAnimationSnapshot = {
+  left: number
+  top: number
+  scaleX: number
+  scaleY: number
+  opacity: number
+  selectable: boolean
+  evented: boolean
+  hasControls: boolean
+  hasBorders: boolean
+  slideDistance: number
+}
+
 type MAQuadroAnimatedFabricObject =
   MAQuadroFabricObject & {
     maAnimationKind?:
@@ -40,6 +53,9 @@ type MAQuadroAnimatedFabricObject =
 type MAQuadroCanvasPrototype = {
   getActiveObject:
     Canvas['getActiveObject']
+
+  requestRenderAll:
+    Canvas['requestRenderAll']
 
   maQuadroAnimationRegistryPatched?:
     boolean
@@ -125,6 +141,10 @@ if (
     canvasPrototype
       .getActiveObject
 
+  const originalRequestRenderAll =
+    canvasPrototype
+      .requestRenderAll
+
   canvasPrototype.getActiveObject =
     function getActiveObjectWithMAQuadroAnimationRegistry(
       this:
@@ -138,6 +158,20 @@ if (
           this
         )
     } as Canvas['getActiveObject']
+
+  canvasPrototype.requestRenderAll =
+    function requestRenderAllWithMAQuadroAnimationRegistry(
+      this:
+        Canvas
+    ) {
+      animationCanvas =
+        this
+
+      return originalRequestRenderAll
+        .call(
+          this
+        )
+    } as Canvas['requestRenderAll']
 
   canvasPrototype
     .maQuadroAnimationRegistryPatched =
@@ -210,6 +244,100 @@ function isAnimationPhase(
     value ===
       'out'
   )
+}
+
+function easeOutCubic(
+  value:
+    number
+) {
+  return (
+    1 -
+    Math.pow(
+      1 -
+        value,
+      3
+    )
+  )
+}
+
+function easeInCubic(
+  value:
+    number
+) {
+  return (
+    value *
+    value *
+    value
+  )
+}
+
+function easeInOutCubic(
+  value:
+    number
+) {
+  return value <
+    0.5
+    ? (
+        4 *
+        value *
+        value *
+        value
+      )
+    : (
+        1 -
+        Math.pow(
+          -2 *
+            value +
+            2,
+          3
+        ) /
+        2
+      )
+}
+
+function lerp(
+  from:
+    number,
+  to:
+    number,
+  progress:
+    number
+) {
+  return (
+    from +
+    (
+      to -
+      from
+    ) *
+    progress
+  )
+}
+
+function visibleProgress(
+  progress:
+    number,
+
+  phase:
+    MAQuadroAnimationPhase
+) {
+  const safe =
+    clamp(
+      progress,
+      0,
+      1
+    )
+
+  return phase ===
+    'in'
+    ? easeOutCubic(
+        safe
+      )
+    : (
+        1 -
+        easeInCubic(
+          safe
+        )
+      )
 }
 
 function getSingleSelectedObject(
@@ -450,129 +578,37 @@ setMAQuadroSelectedObjectAnimation(
   )
 }
 
-function easeOutCubic(
-  value:
-    number
-) {
-  return (
-    1 -
-    Math.pow(
-      1 -
-        value,
-      3
-    )
-  )
-}
-
-function easeInCubic(
-  value:
-    number
-) {
-  return (
-    value *
-    value *
-    value
-  )
-}
-
-function easeInOutCubic(
-  value:
-    number
-) {
-  return value <
-    0.5
-    ? (
-        4 *
-        value *
-        value *
-        value
-      )
-    : (
-        1 -
-        Math.pow(
-          -2 *
-            value +
-            2,
-          3
-        ) /
-        2
-      )
-}
-
-function lerp(
-  from:
-    number,
-  to:
-    number,
-  progress:
-    number
-) {
-  return (
-    from +
-    (
-      to -
-      from
-    ) *
-    progress
-  )
-}
-
-function visibleProgress(
-  progress:
-    number,
-
-  phase:
-    MAQuadroAnimationPhase
-) {
-  const safe =
-    clamp(
-      progress,
-      0,
-      1
-    )
-
-  return phase ===
-    'in'
-    ? easeOutCubic(
-        safe
-      )
-    : (
-        1 -
-        easeInCubic(
-          safe
-        )
-      )
-}
-
-const previewingObjects =
-  new WeakSet<
-    FabricObject
-  >()
-
-export async function
-previewMAQuadroObjectAnimation(
+export function
+captureMAQuadroAnimationSnapshot(
   canvas:
     Canvas,
 
   object:
-    MAQuadroFabricObject,
+    MAQuadroFabricObject
+): MAQuadroAnimationSnapshot {
+  const bounds =
+    object
+      .getBoundingRect()
 
-  animation =
-    getMAQuadroObjectAnimation(
-      object
-    )
-) {
-  if (
-    animation.kind ===
-      'none' ||
-    previewingObjects.has(
-      object
-    )
-  ) {
-    return false
-  }
+  const slideDistance =
+    Math.max(
+      32,
 
-  const original = {
+      Math.min(
+        Math.max(
+          bounds.height *
+            0.35,
+
+          canvas
+            .getHeight() *
+            0.08
+        ),
+
+        180
+      )
+    )
+
+  return {
     left:
       Number(
         object.left ||
@@ -610,40 +646,44 @@ previewMAQuadroObjectAnimation(
       object.evented,
 
     hasControls:
-      object.hasControls
+      object.hasControls,
+
+    hasBorders:
+      object.hasBorders,
+
+    slideDistance
   }
+}
 
-  const bounds =
-    object
-      .getBoundingRect()
+export function
+setMAQuadroAnimationPreviewInteractivity(
+  object:
+    MAQuadroFabricObject,
+  enabled:
+    boolean,
+  snapshot?:
+    MAQuadroAnimationSnapshot
+) {
+  if (
+    enabled &&
+    snapshot
+  ) {
+    object.set({
+      selectable:
+        snapshot.selectable,
 
-  const slideDistance =
-    Math.max(
-      32,
+      evented:
+        snapshot.evented,
 
-      Math.min(
-        Math.max(
-          bounds.height *
-            0.35,
+      hasControls:
+        snapshot.hasControls,
 
-          canvas
-            .getHeight() *
-            0.08
-        ),
+      hasBorders:
+        snapshot.hasBorders
+    })
 
-        180
-      )
-    )
-
-  const duration =
-    clampDuration(
-      animation
-        .durationMs
-    )
-
-  previewingObjects.add(
-    object
-  )
+    return
+  }
 
   object.set({
     selectable:
@@ -653,242 +693,531 @@ previewMAQuadroObjectAnimation(
       false,
 
     hasControls:
+      false,
+
+    hasBorders:
       false
   })
+}
 
-  const renderFrame = (
-    rawProgress:
+export function
+applyMAQuadroObjectAnimationProgress(
+  canvas:
+    Canvas,
+
+  object:
+    MAQuadroFabricObject,
+
+  animation:
+    MAQuadroObjectAnimation,
+
+  snapshot:
+    MAQuadroAnimationSnapshot,
+
+  rawProgress:
+    number
+) {
+  const progress =
+    clamp(
+      rawProgress,
+      0,
+      1
+    )
+
+  const visible =
+    visibleProgress(
+      progress,
+      animation.phase
+    )
+
+  if (
+    animation.kind ===
+    'none'
+  ) {
+    object.set({
+      left:
+        snapshot.left,
+
+      top:
+        snapshot.top,
+
+      scaleX:
+        snapshot.scaleX,
+
+      scaleY:
+        snapshot.scaleY,
+
+      opacity:
+        snapshot.opacity
+    })
+  } else if (
+    animation.kind ===
+    'fade'
+  ) {
+    object.set({
+      left:
+        snapshot.left,
+
+      top:
+        snapshot.top,
+
+      scaleX:
+        snapshot.scaleX,
+
+      scaleY:
+        snapshot.scaleY,
+
+      opacity:
+        snapshot.opacity *
+        visible
+    })
+  } else if (
+    animation.kind ===
+    'slide'
+  ) {
+    object.set({
+      left:
+        snapshot.left,
+
+      top:
+        snapshot.top +
+        snapshot.slideDistance *
+        (
+          1 -
+          visible
+        ),
+
+      scaleX:
+        snapshot.scaleX,
+
+      scaleY:
+        snapshot.scaleY,
+
+      opacity:
+        snapshot.opacity *
+        visible
+    })
+  } else if (
+    animation.kind ===
+    'scale'
+  ) {
+    const factor =
+      0.72 +
+      0.28 *
+      visible
+
+    object.set({
+      left:
+        snapshot.left,
+
+      top:
+        snapshot.top,
+
+      scaleX:
+        snapshot.scaleX *
+        factor,
+
+      scaleY:
+        snapshot.scaleY *
+        factor,
+
+      opacity:
+        snapshot.opacity *
+        visible
+    })
+  } else {
+    const entranceProgress =
+      animation.phase ===
+        'in'
+        ? progress
+        : (
+            1 -
+            progress
+          )
+
+    let factor:
       number
-  ) => {
-    const progress =
+
+    if (
+      entranceProgress <
+      0.7
+    ) {
+      factor =
+        lerp(
+          0.68,
+          1.08,
+
+          easeOutCubic(
+            entranceProgress /
+            0.7
+          )
+        )
+    } else {
+      factor =
+        lerp(
+          1.08,
+          1,
+
+          easeInOutCubic(
+            (
+              entranceProgress -
+              0.7
+            ) /
+            0.3
+          )
+        )
+    }
+
+    const opacityProgress =
       clamp(
-        rawProgress,
+        entranceProgress /
+        0.42,
         0,
         1
       )
 
-    const visible =
-      visibleProgress(
-        progress,
-        animation.phase
-      )
+    object.set({
+      left:
+        snapshot.left,
 
-    if (
-      animation.kind ===
-      'fade'
-    ) {
-      object.set({
-        opacity:
-          original.opacity *
-          visible
-      })
-    } else if (
-      animation.kind ===
-      'slide'
-    ) {
-      object.set({
-        top:
-          original.top +
-          slideDistance *
-          (
-            1 -
-            visible
-          ),
+      top:
+        snapshot.top,
 
-        opacity:
-          original.opacity *
-          visible
-      })
-    } else if (
-      animation.kind ===
-      'scale'
-    ) {
-      const factor =
-        0.72 +
-        0.28 *
-        visible
+      scaleX:
+        snapshot.scaleX *
+        factor,
 
-      object.set({
-        scaleX:
-          original.scaleX *
-          factor,
+      scaleY:
+        snapshot.scaleY *
+        factor,
 
-        scaleY:
-          original.scaleY *
-          factor,
-
-        opacity:
-          original.opacity *
-          visible
-      })
-    } else {
-      const entranceProgress =
-        animation.phase ===
-          'in'
-          ? progress
-          : (
-              1 -
-              progress
-            )
-
-      let factor:
-        number
-
-      if (
-        entranceProgress <
-        0.7
-      ) {
-        factor =
-          lerp(
-            0.68,
-            1.08,
-
-            easeOutCubic(
-              entranceProgress /
-              0.7
-            )
-          )
-      } else {
-        factor =
-          lerp(
-            1.08,
-            1,
-
-            easeInOutCubic(
-              (
-                entranceProgress -
-                0.7
-              ) /
-              0.3
-            )
-          )
-      }
-
-      const opacityProgress =
-        clamp(
-          entranceProgress /
-          0.42,
-          0,
-          1
-        )
-
-      object.set({
-        scaleX:
-          original.scaleX *
-          factor,
-
-        scaleY:
-          original.scaleY *
-          factor,
-
-        opacity:
-          original.opacity *
-          opacityProgress
-      })
-    }
-
-    object
-      .setCoords()
-
-    object.dirty =
-      true
-
-    canvas
-      .requestRenderAll()
+      opacity:
+        snapshot.opacity *
+        opacityProgress
+    })
   }
 
-  try {
-    await new Promise<
-      void
-    >(
-      (
-        resolve
-      ) => {
-        const startedAt =
-          performance.now()
+  object
+    .setCoords()
 
-        const frame = (
-          now:
-            number
-        ) => {
-          const progress =
-            clamp(
-              (
-                now -
-                startedAt
-              ) /
-              duration,
-              0,
-              1
-            )
+  object.dirty =
+    true
 
-          renderFrame(
-            progress
-          )
+  canvas
+    .requestRenderAll()
+}
 
+export function
+restoreMAQuadroAnimationSnapshot(
+  canvas:
+    Canvas,
+
+  object:
+    MAQuadroFabricObject,
+
+  snapshot:
+    MAQuadroAnimationSnapshot
+) {
+  object.set({
+    left:
+      snapshot.left,
+
+    top:
+      snapshot.top,
+
+    scaleX:
+      snapshot.scaleX,
+
+    scaleY:
+      snapshot.scaleY,
+
+    opacity:
+      snapshot.opacity,
+
+    selectable:
+      snapshot.selectable,
+
+    evented:
+      snapshot.evented,
+
+    hasControls:
+      snapshot.hasControls,
+
+    hasBorders:
+      snapshot.hasBorders
+  })
+
+  object
+    .setCoords()
+
+  object.dirty =
+    true
+
+  canvas
+    .requestRenderAll()
+}
+
+function createAbortError() {
+  return new DOMException(
+    'Pré-visualização cancelada.',
+    'AbortError'
+  )
+}
+
+function animateProgress(
+  durationMs:
+    number,
+
+  callback:
+    (
+      progress:
+        number
+    ) => void,
+
+  signal?:
+    AbortSignal
+) {
+  return new Promise<void>(
+    (
+      resolve,
+      reject
+    ) => {
+      let frameId =
+        0
+
+      let settled =
+        false
+
+      const startedAt =
+        performance.now()
+
+      const cleanup =
+        () => {
           if (
-            progress >=
-            1
+            signal
           ) {
-            resolve()
+            signal
+              .removeEventListener(
+                'abort',
+                handleAbort
+              )
+          }
+        }
 
+      const finish =
+        () => {
+          if (
+            settled
+          ) {
             return
           }
 
+          settled =
+            true
+
+          cleanup()
+
+          resolve()
+        }
+
+      const fail =
+        () => {
+          if (
+            settled
+          ) {
+            return
+          }
+
+          settled =
+            true
+
+          if (
+            frameId
+          ) {
+            window
+              .cancelAnimationFrame(
+                frameId
+              )
+          }
+
+          cleanup()
+
+          reject(
+            createAbortError()
+          )
+        }
+
+      const handleAbort =
+        () => {
+          fail()
+        }
+
+      if (
+        signal?.aborted
+      ) {
+        fail()
+
+        return
+      }
+
+      signal
+        ?.addEventListener(
+          'abort',
+          handleAbort,
+          {
+            once:
+              true
+          }
+        )
+
+      const frame = (
+        now:
+          number
+      ) => {
+        if (
+          signal?.aborted
+        ) {
+          fail()
+
+          return
+        }
+
+        const progress =
+          clamp(
+            (
+              now -
+              startedAt
+            ) /
+            Math.max(
+              1,
+              durationMs
+            ),
+            0,
+            1
+          )
+
+        callback(
+          progress
+        )
+
+        if (
+          progress >=
+          1
+        ) {
+          finish()
+
+          return
+        }
+
+        frameId =
           window
             .requestAnimationFrame(
               frame
             )
-        }
+      }
 
+      frameId =
         window
           .requestAnimationFrame(
             frame
           )
-      }
+    }
+  )
+}
+
+const previewingObjects =
+  new WeakSet<
+    FabricObject
+  >()
+
+export async function
+previewMAQuadroObjectAnimation(
+  canvas:
+    Canvas,
+
+  object:
+    MAQuadroFabricObject,
+
+  animation =
+    getMAQuadroObjectAnimation(
+      object
+    ),
+
+  signal?:
+    AbortSignal
+) {
+  if (
+    animation.kind ===
+      'none' ||
+    previewingObjects.has(
+      object
     )
-  } finally {
-    object.set({
-      left:
-        original.left,
+  ) {
+    return false
+  }
 
-      top:
-        original.top,
+  const snapshot =
+    captureMAQuadroAnimationSnapshot(
+      canvas,
+      object
+    )
 
-      scaleX:
-        original.scaleX,
-
-      scaleY:
-        original.scaleY,
-
-      opacity:
-        original.opacity,
-
-      selectable:
-        original.selectable,
-
-      evented:
-        original.evented,
-
-      hasControls:
-        original.hasControls
-    })
-
+  previewingObjects.add(
     object
-      .setCoords()
+  )
 
-    object.dirty =
-      true
+  setMAQuadroAnimationPreviewInteractivity(
+    object,
+    false
+  )
 
-    canvas
-      .requestRenderAll()
+  try {
+    await animateProgress(
+      animation.durationMs,
+
+      (
+        progress
+      ) => {
+        applyMAQuadroObjectAnimationProgress(
+          canvas,
+          object,
+          animation,
+          snapshot,
+          progress
+        )
+      },
+
+      signal
+    )
+
+    return true
+  } catch (
+    error
+  ) {
+    if (
+      signal?.aborted ||
+      (
+        error instanceof
+          DOMException &&
+        error.name ===
+          'AbortError'
+      )
+    ) {
+      return false
+    }
+
+    throw error
+  } finally {
+    restoreMAQuadroAnimationSnapshot(
+      canvas,
+      object,
+      snapshot
+    )
 
     previewingObjects.delete(
       object
     )
   }
-
-  return true
 }
 
 export async function
