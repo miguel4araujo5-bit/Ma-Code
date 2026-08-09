@@ -27,23 +27,44 @@ export type MAQuadroObjectAnimation = {
 
 type MAQuadroAnimatedFabricObject =
   MAQuadroFabricObject & {
-    maAnimationKind?: MAQuadroAnimationKind
-    maAnimationPhase?: MAQuadroAnimationPhase
-    maAnimationDurationMs?: number
+    maAnimationKind?:
+      MAQuadroAnimationKind
+
+    maAnimationPhase?:
+      MAQuadroAnimationPhase
+
+    maAnimationDurationMs?:
+      number
   }
 
-export const MA_QUADRO_ANIMATION_MIN_DURATION_MS =
-  200
+type MAQuadroCanvasPrototype = {
+  getActiveObject:
+    Canvas['getActiveObject']
 
-export const MA_QUADRO_ANIMATION_MAX_DURATION_MS =
-  3000
+  maQuadroAnimationRegistryPatched?:
+    boolean
+}
 
-export const MA_QUADRO_DEFAULT_ANIMATION:
-  MAQuadroObjectAnimation = {
-    kind: 'none',
-    phase: 'in',
-    durationMs: 700
-  }
+export const
+  MA_QUADRO_ANIMATION_MIN_DURATION_MS =
+    200
+
+export const
+  MA_QUADRO_ANIMATION_MAX_DURATION_MS =
+    3000
+
+export const
+  MA_QUADRO_DEFAULT_ANIMATION:
+    MAQuadroObjectAnimation = {
+      kind:
+        'none',
+
+      phase:
+        'in',
+
+      durationMs:
+        700
+    }
 
 const animationCustomProperties = [
   'maAnimationKind',
@@ -53,7 +74,8 @@ const animationCustomProperties = [
 
 const fabricObjectClass =
   FabricObject as unknown as {
-    customProperties: string[]
+    customProperties:
+      string[]
   }
 
 fabricObjectClass.customProperties =
@@ -64,6 +86,7 @@ fabricObjectClass.customProperties =
           .customProperties ||
         []
       ),
+
       ...animationCustomProperties
     ])
   )
@@ -74,23 +97,70 @@ for (
 ) {
   if (
     !MA_QUADRO_SERIALIZED_PROPERTIES
-      .includes(property)
+      .includes(
+        property
+      )
   ) {
     MA_QUADRO_SERIALIZED_PROPERTIES
-      .push(property)
+      .push(
+        property
+      )
   }
 }
 
+let animationCanvas:
+  Canvas |
+  null =
+    null
+
+const canvasPrototype =
+  Canvas.prototype as unknown as
+    MAQuadroCanvasPrototype
+
+if (
+  !canvasPrototype
+    .maQuadroAnimationRegistryPatched
+) {
+  const originalGetActiveObject =
+    canvasPrototype
+      .getActiveObject
+
+  canvasPrototype.getActiveObject =
+    function getActiveObjectWithMAQuadroAnimationRegistry(
+      this:
+        Canvas
+    ) {
+      animationCanvas =
+        this
+
+      return originalGetActiveObject
+        .call(
+          this
+        )
+    } as Canvas['getActiveObject']
+
+  canvasPrototype
+    .maQuadroAnimationRegistryPatched =
+      true
+}
+
 function clamp(
-  value: number,
-  minimum: number,
-  maximum: number
+  value:
+    number,
+  minimum:
+    number,
+  maximum:
+    number
 ) {
   return Math.min(
     maximum,
+
     Math.max(
       minimum,
-      Number.isFinite(value)
+
+      Number.isFinite(
+        value
+      )
         ? value
         : minimum
     )
@@ -98,7 +168,8 @@ function clamp(
 }
 
 function clampDuration(
-  value: number
+  value:
+    number
 ) {
   return Math.round(
     clamp(
@@ -110,24 +181,112 @@ function clampDuration(
 }
 
 function isAnimationKind(
-  value: unknown
-): value is MAQuadroAnimationKind {
-  return value === 'none' ||
-    value === 'fade' ||
-    value === 'slide' ||
-    value === 'scale' ||
-    value === 'pop'
+  value:
+    unknown
+): value is
+  MAQuadroAnimationKind {
+  return (
+    value ===
+      'none' ||
+    value ===
+      'fade' ||
+    value ===
+      'slide' ||
+    value ===
+      'scale' ||
+    value ===
+      'pop'
+  )
 }
 
 function isAnimationPhase(
-  value: unknown
-): value is MAQuadroAnimationPhase {
-  return value === 'in' ||
-    value === 'out'
+  value:
+    unknown
+): value is
+  MAQuadroAnimationPhase {
+  return (
+    value ===
+      'in' ||
+    value ===
+      'out'
+  )
 }
 
-export function getMAQuadroObjectAnimation(
-  object: MAQuadroFabricObject
+function getSingleSelectedObject(
+  canvas:
+    Canvas |
+    null =
+      animationCanvas
+) {
+  if (
+    !canvas
+  ) {
+    return null
+  }
+
+  const selected =
+    canvas
+      .getActiveObjects() as
+        MAQuadroFabricObject[]
+
+  if (
+    selected.length !==
+    1
+  ) {
+    return null
+  }
+
+  return selected[
+    0
+  ]
+}
+
+function emitObjectModified(
+  canvas:
+    Canvas,
+  object:
+    MAQuadroFabricObject
+) {
+  const observable =
+    canvas as unknown as {
+      fire: (
+        eventName:
+          string,
+        payload?:
+          unknown
+      ) => unknown
+    }
+
+  observable.fire(
+    'object:modified',
+    {
+      target:
+        object
+    }
+  )
+}
+
+export function
+getMAQuadroAnimationCanvas() {
+  return animationCanvas
+}
+
+export function
+getMAQuadroSelectedObjectAnimation() {
+  const object =
+    getSingleSelectedObject()
+
+  return object
+    ? getMAQuadroObjectAnimation(
+        object
+      )
+    : null
+}
+
+export function
+getMAQuadroObjectAnimation(
+  object:
+    MAQuadroFabricObject
 ): MAQuadroObjectAnimation {
   const animated =
     object as
@@ -136,32 +295,45 @@ export function getMAQuadroObjectAnimation(
   return {
     kind:
       isAnimationKind(
-        animated.maAnimationKind
+        animated
+          .maAnimationKind
       )
-        ? animated.maAnimationKind
-        : MA_QUADRO_DEFAULT_ANIMATION.kind,
+        ? animated
+            .maAnimationKind
+        : MA_QUADRO_DEFAULT_ANIMATION
+            .kind,
 
     phase:
       isAnimationPhase(
-        animated.maAnimationPhase
+        animated
+          .maAnimationPhase
       )
-        ? animated.maAnimationPhase
-        : MA_QUADRO_DEFAULT_ANIMATION.phase,
+        ? animated
+            .maAnimationPhase
+        : MA_QUADRO_DEFAULT_ANIMATION
+            .phase,
 
     durationMs:
       clampDuration(
         Number(
-          animated.maAnimationDurationMs ??
-          MA_QUADRO_DEFAULT_ANIMATION.durationMs
+          animated
+            .maAnimationDurationMs ??
+          MA_QUADRO_DEFAULT_ANIMATION
+            .durationMs
         )
       )
   }
 }
 
-export function setMAQuadroObjectAnimation(
-  object: MAQuadroFabricObject,
+export function
+setMAQuadroObjectAnimation(
+  object:
+    MAQuadroFabricObject,
+
   values:
-    Partial<MAQuadroObjectAnimation>
+    Partial<
+      MAQuadroObjectAnimation
+    >
 ) {
   const current =
     getMAQuadroObjectAnimation(
@@ -171,7 +343,8 @@ export function setMAQuadroObjectAnimation(
   const next:
     MAQuadroObjectAnimation = {
       kind:
-        values.kind !== undefined &&
+        values.kind !==
+          undefined &&
         isAnimationKind(
           values.kind
         )
@@ -179,7 +352,8 @@ export function setMAQuadroObjectAnimation(
           : current.kind,
 
       phase:
-        values.phase !== undefined &&
+        values.phase !==
+          undefined &&
         isAnimationPhase(
           values.phase
         )
@@ -187,16 +361,21 @@ export function setMAQuadroObjectAnimation(
           : current.phase,
 
       durationMs:
-        values.durationMs !== undefined
+        values.durationMs !==
+          undefined
           ? clampDuration(
-              values.durationMs
+              values
+                .durationMs
             )
-          : current.durationMs
+          : current
+              .durationMs
     }
 
   if (
-    current.kind === next.kind &&
-    current.phase === next.phase &&
+    current.kind ===
+      next.kind &&
+    current.phase ===
+      next.phase &&
     current.durationMs ===
       next.durationMs
   ) {
@@ -216,60 +395,132 @@ export function setMAQuadroObjectAnimation(
   animated.maAnimationDurationMs =
     next.durationMs
 
-  object.dirty = true
+  object.dirty =
+    true
 
   return true
 }
 
-function easeOutCubic(
-  value: number
+export function
+setMAQuadroSelectedObjectAnimation(
+  values:
+    Partial<
+      MAQuadroObjectAnimation
+    >
 ) {
-  return 1 -
+  const canvas =
+    animationCanvas
+
+  const object =
+    getSingleSelectedObject(
+      canvas
+    )
+
+  if (
+    !canvas ||
+    !object ||
+    object.maLocked
+  ) {
+    return null
+  }
+
+  const changed =
+    setMAQuadroObjectAnimation(
+      object,
+      values
+    )
+
+  if (
+    changed
+  ) {
+    object
+      .setCoords()
+
+    canvas
+      .requestRenderAll()
+
+    emitObjectModified(
+      canvas,
+      object
+    )
+  }
+
+  return getMAQuadroObjectAnimation(
+    object
+  )
+}
+
+function easeOutCubic(
+  value:
+    number
+) {
+  return (
+    1 -
     Math.pow(
-      1 - value,
+      1 -
+        value,
       3
     )
+  )
 }
 
 function easeInCubic(
-  value: number
+  value:
+    number
 ) {
-  return value *
+  return (
+    value *
     value *
     value
+  )
 }
 
 function easeInOutCubic(
-  value: number
+  value:
+    number
 ) {
-  return value < 0.5
-    ? 4 *
+  return value <
+    0.5
+    ? (
+        4 *
         value *
         value *
         value
-    : 1 -
+      )
+    : (
+        1 -
         Math.pow(
-          -2 * value + 2,
+          -2 *
+            value +
+            2,
           3
         ) /
         2
+      )
 }
 
 function lerp(
-  from: number,
-  to: number,
-  progress: number
+  from:
+    number,
+  to:
+    number,
+  progress:
+    number
 ) {
-  return from +
+  return (
+    from +
     (
       to -
       from
     ) *
     progress
+  )
 }
 
 function visibleProgress(
-  progress: number,
+  progress:
+    number,
+
   phase:
     MAQuadroAnimationPhase
 ) {
@@ -280,14 +531,17 @@ function visibleProgress(
       1
     )
 
-  return phase === 'in'
+  return phase ===
+    'in'
     ? easeOutCubic(
         safe
       )
-    : 1 -
+    : (
+        1 -
         easeInCubic(
           safe
         )
+      )
 }
 
 const previewingObjects =
@@ -295,10 +549,14 @@ const previewingObjects =
     FabricObject
   >()
 
-export async function previewMAQuadroObjectAnimation(
-  canvas: Canvas,
+export async function
+previewMAQuadroObjectAnimation(
+  canvas:
+    Canvas,
+
   object:
     MAQuadroFabricObject,
+
   animation =
     getMAQuadroObjectAnimation(
       object
@@ -343,37 +601,64 @@ export async function previewMAQuadroObjectAnimation(
       Number(
         object.opacity ??
         1
-      )
+      ),
+
+    selectable:
+      object.selectable,
+
+    evented:
+      object.evented,
+
+    hasControls:
+      object.hasControls
   }
 
   const bounds =
-    object.getBoundingRect()
+    object
+      .getBoundingRect()
 
   const slideDistance =
     Math.max(
       32,
+
       Math.min(
         Math.max(
           bounds.height *
             0.35,
-          canvas.getHeight() *
+
+          canvas
+            .getHeight() *
             0.08
         ),
+
         180
       )
     )
 
   const duration =
     clampDuration(
-      animation.durationMs
+      animation
+        .durationMs
     )
 
   previewingObjects.add(
     object
   )
 
+  object.set({
+    selectable:
+      false,
+
+    evented:
+      false,
+
+    hasControls:
+      false
+  })
+
   const renderFrame = (
-    rawProgress: number
+    rawProgress:
+      number
   ) => {
     const progress =
       clamp(
@@ -441,8 +726,10 @@ export async function previewMAQuadroObjectAnimation(
         animation.phase ===
           'in'
           ? progress
-          : 1 -
-            progress
+          : (
+              1 -
+              progress
+            )
 
       let factor:
         number
@@ -455,6 +742,7 @@ export async function previewMAQuadroObjectAnimation(
           lerp(
             0.68,
             1.08,
+
             easeOutCubic(
               entranceProgress /
               0.7
@@ -465,6 +753,7 @@ export async function previewMAQuadroObjectAnimation(
           lerp(
             1.08,
             1,
+
             easeInOutCubic(
               (
                 entranceProgress -
@@ -498,14 +787,20 @@ export async function previewMAQuadroObjectAnimation(
       })
     }
 
-    object.setCoords()
-    object.dirty = true
+    object
+      .setCoords()
 
-    canvas.requestRenderAll()
+    object.dirty =
+      true
+
+    canvas
+      .requestRenderAll()
   }
 
   try {
-    await new Promise<void>(
+    await new Promise<
+      void
+    >(
       (
         resolve
       ) => {
@@ -513,7 +808,8 @@ export async function previewMAQuadroObjectAnimation(
           performance.now()
 
         const frame = (
-          now: number
+          now:
+            number
         ) => {
           const progress =
             clamp(
@@ -535,6 +831,7 @@ export async function previewMAQuadroObjectAnimation(
             1
           ) {
             resolve()
+
             return
           }
 
@@ -565,13 +862,26 @@ export async function previewMAQuadroObjectAnimation(
         original.scaleY,
 
       opacity:
-        original.opacity
+        original.opacity,
+
+      selectable:
+        original.selectable,
+
+      evented:
+        original.evented,
+
+      hasControls:
+        original.hasControls
     })
 
-    object.setCoords()
-    object.dirty = true
+    object
+      .setCoords()
 
-    canvas.requestRenderAll()
+    object.dirty =
+      true
+
+    canvas
+      .requestRenderAll()
 
     previewingObjects.delete(
       object
@@ -579,4 +889,30 @@ export async function previewMAQuadroObjectAnimation(
   }
 
   return true
+}
+
+export async function
+previewMAQuadroSelectedObjectAnimation() {
+  const canvas =
+    animationCanvas
+
+  const object =
+    getSingleSelectedObject(
+      canvas
+    )
+
+  if (
+    !canvas ||
+    !object
+  ) {
+    return false
+  }
+
+  return previewMAQuadroObjectAnimation(
+    canvas,
+    object,
+    getMAQuadroObjectAnimation(
+      object
+    )
+  )
 }
