@@ -1,0 +1,152 @@
+.mq-context-toolbar {
+  justify-content: flex-start;
+  gap: 0.28rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.mq-context-toolbar__group {
+  gap: 0.12rem;
+}
+
+.mq-context-toolbar__group--center {
+  margin-inline: auto;
+}
+
+.mq-toolbar-button {
+  min-width: 2rem;
+  height: 2rem;
+  padding:
+    0
+    0.34rem;
+  white-space: nowrap;
+}
+
+.mq-toolbar-separator {
+  height: 1.35rem;
+  margin:
+    0
+    0.06rem;
+}
+
+@media (
+  max-width: 1500px
+) and (
+  min-width: 1081px
+) {
+  .mq-context-toolbar {
+    gap: 0.14rem;
+    min-height: 3rem;
+    padding:
+      0.35rem
+      0.38rem;
+  }
+
+  .mq-context-toolbar__group {
+    gap: 0.06rem;
+  }
+
+  .mq-context-toolbar__group--center {
+    margin-inline:
+      0.08rem;
+  }
+
+  .mq-toolbar-button {
+    min-width: 1.86rem;
+    height: 1.95rem;
+    padding:
+      0
+      0.28rem;
+    border-radius: 0.48rem;
+    font-size: 0.54rem;
+  }
+
+  .mq-toolbar-separator {
+    height: 1.2rem;
+    margin: 0;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(5),
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(6) {
+    width: 1.95rem;
+    min-width: 1.95rem;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(5)::after {
+    content: "▣";
+    font-size: 0.72rem;
+    line-height: 1;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(6)::after {
+    content: "▦";
+    font-size: 0.72rem;
+    line-height: 1;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:last-child
+    > .mq-toolbar-button {
+    padding-inline:
+      0.22rem;
+    font-size: 0.52rem;
+  }
+}
+
+@media (
+  max-width: 1220px
+) and (
+  min-width: 1081px
+) {
+  .mq-context-toolbar {
+    padding-inline:
+      0.28rem;
+  }
+
+  .mq-toolbar-button {
+    min-width: 1.75rem;
+    padding-inline:
+      0.2rem;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(5),
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:first-child
+    > .mq-toolbar-button:nth-of-type(6) {
+    width: 1.8rem;
+    min-width: 1.8rem;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:last-child
+    > .mq-toolbar-button {
+    font-size: 0.5rem;
+  }
+}
+
+@media (
+  max-width: 800px
+) {
+  .mq-context-toolbar {
+    justify-content: flex-start;
+    gap: 0.2rem;
+  }
+
+  .mq-context-toolbar__group--center {
+    margin-inline: 0;
+  }
+}
