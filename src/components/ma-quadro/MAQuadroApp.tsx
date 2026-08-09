@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
 
+import AnimationPanel from './AnimationPanel'
 import BrandQuickStyles from './BrandQuickStyles'
 
 import CanvasContextMenu, {
@@ -82,7 +83,8 @@ function targetUsesNativeKeyboard(
   )
 }
 
-export default function MAQuadroApp() {
+export default function
+MAQuadroApp() {
   const editor =
     useMAQuadroEditor()
 
@@ -175,7 +177,6 @@ export default function MAQuadroApp() {
         !event.altKey
       ) {
         event.preventDefault()
-
         event.stopPropagation()
 
         closeContextMenu()
@@ -217,7 +218,6 @@ export default function MAQuadroApp() {
       }
 
       event.preventDefault()
-
       event.stopPropagation()
 
       const workspace =
@@ -304,7 +304,6 @@ export default function MAQuadroApp() {
         's'
     ) {
       event.preventDefault()
-
       event.stopPropagation()
 
       void editor
@@ -360,6 +359,8 @@ export default function MAQuadroApp() {
         <CurvedTextEditor />
 
         <ElementEditor />
+
+        <AnimationPanel />
 
         <EditorHeader
           onOpenShortcuts={() => {
