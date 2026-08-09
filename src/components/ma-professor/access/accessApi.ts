@@ -21,12 +21,11 @@ interface ApiErrorBody {
 
 export type MAProfessorCommercialPlan =
     RenewableLicensePlan;
-
 export type MAProfessorPaymentStatus =
     | 'not_started'
     | 'pending'
-    | 'confirmed';
-
+    | 'confirmed'
+    | 'dispensed';
 export interface MAProfessorCommercialStatusResponse {
     success: true;
     email: string;
@@ -43,11 +42,11 @@ export interface MAProfessorCommercialStatusResponse {
     paymentStatus: MAProfessorPaymentStatus;
     selectedAt: string | null;
     paymentConfirmedAt: string | null;
+    paymentDispensedAt: string | null;
     credentialIssuedAt: string | null;
     canSelectPlan: boolean;
     canActivate: boolean;
 }
-
 async function postJson<T>(
     path: string,
     body: Record<
@@ -56,7 +55,6 @@ async function postJson<T>(
     >
 ): Promise<T> {
     let response: Response;
-
     try {
         response = await fetch(
             `${API_PREFIX}${path}`,
@@ -78,7 +76,6 @@ async function postJson<T>(
             'Não foi possível ligar ao serviço de acesso. Verifique a ligação e tente novamente.'
         );
     }
-
     let data: unknown;
 
     try {
@@ -103,17 +100,18 @@ async function postJson<T>(
                 'Não foi possível concluir o pedido. Tente novamente.'
         );
     }
-
     return data as T;
 }
 
 export async function requestMAProfessorAccess(
-    email: string
+    email: string,
+    plan: MAProfessorCommercialPlan
 ) {
     return postJson<MAProfessorAccessRequestResponse>(
         '/request',
         {
-            email
+            email,
+            plan
         }
     );
 }
@@ -128,20 +126,6 @@ export async function getMAProfessorCommercialStatus(
         }
     );
 }
-
-export async function selectMAProfessorCommercialPlan(
-    email: string,
-    plan: MAProfessorCommercialPlan
-) {
-    return postJson<MAProfessorCommercialStatusResponse>(
-        '/commerce/select-plan',
-        {
-            email,
-            plan
-        }
-    );
-}
-
 export async function activateMAProfessorAccess(
     email: string,
     password: string,
@@ -169,7 +153,6 @@ export async function verifyMAProfessorAccess(
         }
     );
 }
-
 export async function requestMAProfessorRenewal(
     token: string,
     deviceId: string,
@@ -184,7 +167,6 @@ export async function requestMAProfessorRenewal(
         }
     );
 }
-
 export async function endMAProfessorSession(
     token: string,
     deviceId: string
