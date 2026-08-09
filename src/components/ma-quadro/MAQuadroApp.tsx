@@ -26,6 +26,8 @@ import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
+import QRCodeBuilder from './QRCodeBuilder'
+import QRCodeEditor from './QRCodeEditor'
 import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
@@ -329,9 +331,13 @@ export default function MAQuadroApp() {
 
         <ChartBuilder />
 
+        <QRCodeBuilder />
+
         <TableEditor />
 
         <ChartEditor />
+
+        <QRCodeEditor />
 
         <EditorHeader
           onOpenShortcuts={() => {
