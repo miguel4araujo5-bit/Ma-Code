@@ -1,0 +1,248 @@
+.dice-roll-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  pointer-events: all;
+  background: rgba(4, 28, 39, 0.18);
+  backdrop-filter: blur(1.5px);
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.dice-roll-overlay.is-leaving {
+  opacity: 0;
+}
+
+.dice-roll-stage {
+  min-width: 300px;
+  padding: 24px 30px 22px;
+  border: 1px solid rgba(222, 198, 128, 0.76);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(11, 64, 85, 0.97), rgba(7, 43, 58, 0.98));
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 3px rgba(255, 248, 225, 0.06);
+  text-align: center;
+  color: #fff9e8;
+  transform: translateY(-1vh) scale(1);
+}
+
+.dice-roll-kicker {
+  display: block;
+  margin-bottom: 17px;
+  color: #e3cd8a;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dice-roll-pair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+.dice-roll-die {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  flex: 0 0 92px;
+  border: 3px solid #d6b966;
+  border-radius: 19px;
+  background:
+    linear-gradient(145deg, #fffdf4 0%, #f3e8c8 100%);
+  box-shadow:
+    0 12px 21px rgba(0, 0, 0, 0.28),
+    inset 5px 5px 10px rgba(255, 255, 255, 0.9),
+    inset -5px -6px 10px rgba(111, 84, 34, 0.12);
+  transform-origin: center;
+  animation: conquistador-dice-tumble 390ms linear infinite;
+}
+
+.dice-roll-overlay.is-result .dice-roll-die {
+  animation: conquistador-dice-land 260ms cubic-bezier(0.2, 0.9, 0.25, 1.35) both;
+}
+
+.dice-roll-overlay.is-result .dice-roll-die:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.dice-roll-pip {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #123e51;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.18);
+}
+
+.dice-roll-pip--top-left {
+  top: 17px;
+  left: 17px;
+}
+
+.dice-roll-pip--top-right {
+  top: 17px;
+  right: 17px;
+}
+
+.dice-roll-pip--middle-left {
+  top: 50%;
+  left: 17px;
+  transform: translateY(-50%);
+}
+
+.dice-roll-pip--middle-right {
+  top: 50%;
+  right: 17px;
+  transform: translateY(-50%);
+}
+
+.dice-roll-pip--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dice-roll-pip--bottom-left {
+  bottom: 17px;
+  left: 17px;
+}
+
+.dice-roll-pip--bottom-right {
+  right: 17px;
+  bottom: 17px;
+}
+
+.dice-roll-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  min-height: 45px;
+  margin-top: 17px;
+}
+
+.dice-roll-total span {
+  color: rgba(255, 249, 232, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dice-roll-total strong {
+  min-width: 34px;
+  color: #fff1b0;
+  font-size: 2.15rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dice-roll-overlay.is-result .dice-roll-total strong {
+  animation: conquistador-total-pop 260ms cubic-bezier(0.2, 0.9, 0.25, 1.35) both;
+}
+
+@keyframes conquistador-dice-tumble {
+  0% {
+    transform: translate3d(-3px, -8px, 0) rotate(-8deg) scale(0.98);
+  }
+
+  25% {
+    transform: translate3d(5px, 0, 0) rotate(8deg) scale(1.03);
+  }
+
+  50% {
+    transform: translate3d(-1px, 8px, 0) rotate(3deg) scale(0.99);
+  }
+
+  75% {
+    transform: translate3d(-5px, 1px, 0) rotate(-7deg) scale(1.03);
+  }
+
+  100% {
+    transform: translate3d(-3px, -8px, 0) rotate(-8deg) scale(0.98);
+  }
+}
+
+@keyframes conquistador-dice-land {
+  0% {
+    transform: translateY(-10px) rotate(-5deg) scale(1.08);
+  }
+
+  62% {
+    transform: translateY(3px) rotate(1deg) scale(0.97);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@keyframes conquistador-total-pop {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.78);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 760px) {
+  .dice-roll-stage {
+    min-width: 255px;
+    padding: 20px 22px 18px;
+  }
+
+  .dice-roll-die {
+    width: 76px;
+    height: 76px;
+    flex-basis: 76px;
+    border-radius: 16px;
+  }
+
+  .dice-roll-pip {
+    width: 12px;
+    height: 12px;
+  }
+
+  .dice-roll-pip--top-left,
+  .dice-roll-pip--middle-left,
+  .dice-roll-pip--bottom-left {
+    left: 14px;
+  }
+
+  .dice-roll-pip--top-right,
+  .dice-roll-pip--middle-right,
+  .dice-roll-pip--bottom-right {
+    right: 14px;
+  }
+
+  .dice-roll-pip--top-left,
+  .dice-roll-pip--top-right {
+    top: 14px;
+  }
+
+  .dice-roll-pip--bottom-left,
+  .dice-roll-pip--bottom-right {
+    bottom: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-roll-overlay,
+  .dice-roll-die,
+  .dice-roll-overlay.is-result .dice-roll-die,
+  .dice-roll-overlay.is-result .dice-roll-total strong {
+    animation: none;
+    transition: none;
+  }
+}
