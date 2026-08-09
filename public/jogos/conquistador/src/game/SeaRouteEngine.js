@@ -41,7 +41,8 @@ function endpointAllowsSeaConnection(
     (edge) =>
       edge.id !== ignoredEdgeId &&
       edge.ownerId === playerId &&
-      edge.segment === 'sea-route',
+      edge.segment === 'sea-route' &&
+      !edge.stormBlocked,
   );
 }
 
@@ -78,6 +79,13 @@ export class SeaRouteEngine {
       return {
         valid: false,
         reason: 'Uma Rota Marítima só pode ocupar uma ligação marítima válida.',
+      };
+    }
+
+    if (edge.stormBlocked) {
+      return {
+        valid: false,
+        reason: 'A Tempestade Atlântica está a bloquear esta ligação marítima.',
       };
     }
 
