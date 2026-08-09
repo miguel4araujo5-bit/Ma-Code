@@ -1,0 +1,91 @@
+@media (
+  max-width: 1500px
+) and (
+  min-width: 1321px
+) {
+  .mq-editor-layout {
+    grid-template-columns:
+      19rem
+      minmax(0, 1fr)
+      18rem;
+  }
+
+  .mq-left-sidebar {
+    grid-template-columns:
+      4rem
+      minmax(0, 1fr);
+  }
+
+  .mq-workspace {
+    padding:
+      2.6rem
+      2.25rem;
+  }
+}
+
+@media (
+  max-width: 1320px
+) and (
+  min-width: 1081px
+) {
+  .mq-editor-layout {
+    grid-template-columns:
+      18rem
+      minmax(0, 1fr)
+      17rem;
+  }
+
+  .mq-left-sidebar {
+    grid-template-columns:
+      3.9rem
+      minmax(0, 1fr);
+  }
+
+  .mq-left-panel__scroll {
+    padding-right:
+      0.68rem;
+    padding-left:
+      0.68rem;
+  }
+
+  .mq-workspace {
+    padding:
+      2.35rem
+      1.9rem;
+  }
+}
+
+@media (
+  max-width: 1200px
+) and (
+  min-width: 1081px
+) {
+  .mq-editor-layout {
+    grid-template-columns:
+      17rem
+      minmax(0, 1fr)
+      16.25rem;
+  }
+
+  .mq-left-sidebar {
+    grid-template-columns:
+      3.75rem
+      minmax(0, 1fr);
+  }
+
+  .mq-workspace {
+    padding:
+      2rem
+      1.5rem;
+  }
+}
+
+@media (
+  min-width: 1501px
+) {
+  .mq-workspace {
+    padding:
+      3rem
+      2.75rem;
+  }
+}
