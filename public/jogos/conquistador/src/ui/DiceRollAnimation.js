@@ -5,6 +5,7 @@ const STEP_DURATION = 78;
 let activeOverlay = null;
 let activeTimer = null;
 let activeRun = 0;
+let releasingRealRoll = false;
 
 function setRollingState(active) {
   document.documentElement.classList.toggle(
@@ -124,7 +125,6 @@ function removeOverlay() {
 
 function createOverlay() {
   removeOverlay();
-
   setRollingState(true);
 
   const overlay =
@@ -188,7 +188,19 @@ function createOverlay() {
   return overlay;
 }
 
-function animateRoll() {
+function executeRealRoll(button) {
+  releasingRealRoll = true;
+
+  try {
+    button.click();
+  } finally {
+    releasingRealRoll = false;
+  }
+
+  return readFinalRoll();
+}
+
+function animateRoll(button) {
   const runId =
     ++activeRun;
 
@@ -264,7 +276,9 @@ function animateRoll() {
       }
 
       const finalRoll =
-        readFinalRoll();
+        executeRealRoll(
+          button,
+        );
 
       if (!finalRoll) {
         removeOverlay();
@@ -329,7 +343,7 @@ function animateRoll() {
       );
     },
     reducedMotion
-      ? 40
+      ? 80
       : ROLL_DURATION,
   );
 }
@@ -344,12 +358,18 @@ document.addEventListener(
 
     if (
       !button ||
-      button.disabled
+      button.disabled ||
+      releasingRealRoll
     ) {
       return;
     }
 
-    animateRoll();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    animateRoll(
+      button,
+    );
   },
   true,
 );
