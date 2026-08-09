@@ -1,0 +1,87 @@
+.dice-result {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+  padding: 7px 9px;
+  border: 1px solid rgba(194, 157, 69, 0.48);
+  border-radius: 14px;
+  background: rgba(255, 253, 247, 0.96);
+  box-shadow:
+    0 7px 20px rgba(25, 42, 54, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.dice-result span {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 2px solid rgba(24, 73, 94, 0.42);
+  border-radius: 12px;
+  color: var(--navy-950);
+  background:
+    linear-gradient(
+      145deg,
+      #ffffff,
+      #f4efe2
+    );
+  box-shadow:
+    0 4px 9px rgba(18, 43, 57, 0.13),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.74);
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.dice-result strong {
+  display: grid;
+  min-width: 64px;
+  min-height: 50px;
+  place-content: center;
+  padding: 3px 8px;
+  border-left: 1px solid rgba(13, 62, 82, 0.16);
+  color: var(--navy-950);
+  text-align: center;
+  font-size: 1.85rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dice-result strong::before {
+  content: "TOTAL";
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.action-main .dice-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+@media (max-width: 760px) {
+  .dice-result {
+    gap: 6px;
+    padding: 6px 7px;
+  }
+
+  .dice-result span {
+    width: 43px;
+    height: 43px;
+    border-radius: 10px;
+    font-size: 1.3rem;
+  }
+
+  .dice-result strong {
+    min-width: 54px;
+    min-height: 43px;
+    padding-inline: 6px;
+    font-size: 1.55rem;
+  }
+}
