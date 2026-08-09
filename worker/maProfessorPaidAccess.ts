@@ -106,8 +106,15 @@ interface StoredCommerceState {
 
 interface DurableObjectStorageLike {
     get<T>(key: string): Promise<T | undefined>;
-    put<T>(key: string, value: T): Promise<void>;
-    put(entries: Record<string, unknown>): Promise<void>;
+
+    put<T>(
+        key: string,
+        value: T
+    ): Promise<void>;
+
+    put(
+        entries: Record<string, unknown>
+    ): Promise<void>;
 }
 
 interface DurableObjectStateLike {
@@ -205,13 +212,10 @@ function getSchoolYearValidUntil(
 ) {
     const activationDate =
         new Date(validFrom);
+
     const activationYear =
         activationDate.getUTCFullYear();
 
-    /*
-     * Fim de 1 de agosto em Portugal continental.
-     * Em agosto, Portugal continental está em UTC+1.
-     */
     const cutoffThisYear =
         Date.UTC(
             activationYear,
@@ -304,8 +308,7 @@ function buildLicenseSummary(
             now
         ),
         renewalRequestedAt:
-            license
-                .renewalRequestedAt ===
+            license.renewalRequestedAt ===
             null
                 ? null
                 : new Date(
@@ -395,7 +398,8 @@ function getAuthorizationsForEmail(
     return commerceState.authorizations
         .filter(
             authorization =>
-                authorization.email === email
+                authorization.email ===
+                email
         )
         .sort(
             (left, right) =>
@@ -405,7 +409,10 @@ function getAuthorizationsForEmail(
 }
 
 function toIsoTimestamp(
-    value: number | null | undefined
+    value:
+        | number
+        | null
+        | undefined
 ) {
     return typeof value === 'number' &&
         Number.isFinite(value)
@@ -451,9 +458,9 @@ function getPaymentStatus(
 
     if (
         authorization.paymentDispensedAt !==
-        null &&
+            null &&
         authorization.paymentDispensedAt !==
-        undefined
+            undefined
     ) {
         return 'dispensed' as const;
     }
@@ -527,9 +534,11 @@ function buildAdminCommercialStatus(
     return {
         email,
         authorizationId:
-            authorization?.id ?? null,
+            authorization?.id ??
+            null,
         plan:
-            authorization?.plan ?? null,
+            authorization?.plan ??
+            null,
         amountCents:
             authorization?.amountCents ??
             null,
@@ -591,13 +600,16 @@ function buildCommercialStatus(
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
+
     const existingLicense =
         Boolean(
             accessState
                 ?.licenses?.[email]
         );
+
     const requestStatus =
         accessRequest?.status || null;
+
     const authorizationReady =
         Boolean(
             authorization &&
@@ -608,8 +620,10 @@ function buildCommercialStatus(
                     .credentialIssuedAt !==
                     null &&
                 authorization
-                    .activatedAt === null
+                    .activatedAt ===
+                    null
         );
+
     const canActivate =
         requestStatus === 'approved' &&
         authorizationReady &&
@@ -740,10 +754,14 @@ async function handlePaidAccessRequest(
 
     const body =
         await readJsonBody(request);
-    const email = normalizeEmail(
-        body?.email
-    );
-    const plan = body?.plan;
+
+    const email =
+        normalizeEmail(
+            body?.email
+        );
+
+    const plan =
+        body?.plan;
 
     if (!isValidEmail(email)) {
         return json(
@@ -793,16 +811,20 @@ async function handlePaidAccessRequest(
         );
     }
 
-    const now = Date.now();
+    const now =
+        Date.now();
+
     const storedCommerceState =
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             now
         );
+
     const latestAuthorization =
         getLatestAuthorization(
             commerceState,
@@ -838,6 +860,7 @@ async function handlePaidAccessRequest(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const accessRequest =
         afterState
             ?.accessRequests?.[email];
@@ -880,7 +903,9 @@ async function handlePaidAccessRequest(
         commerceState.authorizations.push(
             authorization
         );
-        commerceState.updatedAt = now;
+
+        commerceState.updatedAt =
+            now;
 
         await context.state.storage.put(
             COMMERCE_STORAGE_KEY,
@@ -888,7 +913,8 @@ async function handlePaidAccessRequest(
         );
     }
 
-    let responseBody: JsonObject = {};
+    let responseBody: JsonObject =
+        {};
 
     try {
         responseBody =
@@ -930,6 +956,7 @@ async function handlePaidRenewal(
 
     const body =
         await readJsonBody(request);
+
     const requestedPlan =
         body?.requestedPlan;
 
@@ -948,7 +975,8 @@ async function handlePaidRenewal(
         return baseResponse;
     }
 
-    let responseBody: JsonObject = {};
+    let responseBody: JsonObject =
+        {};
 
     try {
         responseBody =
@@ -981,10 +1009,12 @@ async function handlePaidRenewal(
         [...(accessState.renewals || [])]
             .filter(
                 item =>
-                    item.email === email &&
+                    item.email ===
+                        email &&
                     item.requestedPlan ===
                         requestedPlan &&
-                    item.status === 'pending'
+                    item.status ===
+                        'pending'
             )
             .sort(
                 (left, right) =>
@@ -996,11 +1026,14 @@ async function handlePaidRenewal(
         return baseResponse;
     }
 
-    const now = Date.now();
+    const now =
+        Date.now();
+
     const storedCommerceState =
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
@@ -1028,8 +1061,10 @@ async function handlePaidRenewal(
             ) {
                 existingRenewal.status =
                     'cancelled';
+
                 existingRenewal.resolvedAt =
                     now;
+
                 existingRenewal.updatedAt =
                     now;
             }
@@ -1058,11 +1093,16 @@ async function handlePaidRenewal(
         commerceState.authorizations.push(
             authorization
         );
-        commerceState.updatedAt = now;
-        accessState.updatedAt = now;
+
+        commerceState.updatedAt =
+            now;
+
+        accessState.updatedAt =
+            now;
 
         await context.state.storage.put({
-            [STORAGE_KEY]: accessState,
+            [STORAGE_KEY]:
+                accessState,
             [COMMERCE_STORAGE_KEY]:
                 commerceState
         });
@@ -1165,7 +1205,8 @@ async function handleInternalAdminCommercialStatus(
         );
 
     const authorization =
-        authorizations[0] || null;
+        authorizations[0] ||
+        null;
 
     return json({
         success: true,
@@ -1197,6 +1238,7 @@ async function handleCommercialStatus(
 
     const body =
         await readJsonBody(request);
+
     const email =
         normalizeEmail(
             body?.email
@@ -1224,11 +1266,13 @@ async function handleCommercialStatus(
             COMMERCE_STORAGE_KEY
         )
     ]);
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             Date.now()
         );
+
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -1285,6 +1329,7 @@ async function handlePaidActivation(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
@@ -1302,11 +1347,13 @@ async function handlePaidActivation(
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             Date.now()
         );
+
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -1331,16 +1378,11 @@ async function handlePaidActivation(
         );
     }
 
-    /*
-     * Uma autorização já ativada não volta a alterar
-     * a duração da licença. A senha continua válida
-     * para iniciar sessão normalmente no motor base.
-     */
     if (
         authorization.activatedAt !==
-        null &&
+            null &&
         authorization.activatedAt !==
-        undefined
+            undefined
     ) {
         return null;
     }
@@ -1350,11 +1392,6 @@ async function handlePaidActivation(
             .licenses?.[email] ||
         null;
 
-    /*
-     * Uma conta com licença só entra no fluxo pago
-     * especial quando a autorização atual pertence
-     * explicitamente a uma renovação.
-     */
     if (
         existingLicense &&
         !authorization.renewalId
@@ -1372,7 +1409,8 @@ async function handlePaidActivation(
                 item =>
                     item.id ===
                         authorization.renewalId &&
-                    item.email === email
+                    item.email ===
+                        email
             ) || null;
 
         if (!renewal) {
@@ -1458,16 +1496,6 @@ async function handlePaidActivation(
         );
     }
 
-    /*
-     * O motor existente continua responsável por:
-     * - validar o hash da senha;
-     * - bloquear tentativas repetidas;
-     * - registar o dispositivo;
-     * - emitir a sessão.
-     *
-     * Só depois de essa validação passar aplicamos
-     * o período comercial autorizado.
-     */
     const baseResponse =
         await context.base.fetch(
             request
@@ -1516,9 +1544,11 @@ async function handlePaidActivation(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const license =
         freshState
             ?.licenses?.[email];
+
     const freshRequest =
         freshState
             ?.accessRequests?.[email];
@@ -1538,11 +1568,14 @@ async function handlePaidActivation(
         );
     }
 
-    const now = Date.now();
+    const now =
+        Date.now();
+
     const isRenewal =
         Boolean(
             authorization.renewalId
         );
+
     const validFrom =
         isRenewal
             ? now
@@ -1550,8 +1583,10 @@ async function handlePaidActivation(
 
     license.plan =
         authorization.plan;
+
     license.validFrom =
         validFrom;
+
     license.validUntil =
         authorization.plan ===
         'paid_30_days'
@@ -1562,12 +1597,18 @@ async function handlePaidActivation(
             : getSchoolYearValidUntil(
                   validFrom
               );
-    license.revokedAt = null;
+
+    license.revokedAt =
+        null;
+
     license.renewalRequestedAt =
         null;
+
     license.renewalRequestedPlan =
         null;
-    license.updatedAt = now;
+
+    license.updatedAt =
+        now;
 
     if (!isRenewal) {
         freshRequest.activatedAt =
@@ -1576,6 +1617,7 @@ async function handlePaidActivation(
 
     freshRequest.updatedAt =
         now;
+
     freshState.updatedAt =
         now;
 
@@ -1603,21 +1645,26 @@ async function handlePaidActivation(
 
         freshRenewal.status =
             'approved';
+
         freshRenewal.resolvedAt =
             now;
+
         freshRenewal.updatedAt =
             now;
     }
 
     authorization.activatedAt =
         now;
+
     authorization.updatedAt =
         now;
+
     commerceState.updatedAt =
         now;
 
     await context.state.storage.put({
-        [STORAGE_KEY]: freshState,
+        [STORAGE_KEY]:
+            freshState,
         [COMMERCE_STORAGE_KEY]:
             commerceState
     });
@@ -1627,10 +1674,11 @@ async function handlePaidActivation(
     return json({
         success: true,
         token,
-        license: buildLicenseSummary(
-            license,
-            now
-        )
+        license:
+            buildLicenseSummary(
+                license,
+                now
+            )
     });
 }
 
