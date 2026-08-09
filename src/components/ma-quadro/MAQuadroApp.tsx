@@ -24,6 +24,8 @@ import {
 } from './editorContext'
 
 import FormatPainterController from './FormatPainterController'
+import FrameBuilder from './FrameBuilder'
+import FrameDropController from './FrameDropController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
@@ -45,6 +47,7 @@ import './maQuadroWorkflow.css'
 import './maQuadroHeaderPolish.css'
 import './maQuadroToolbarPolish.css'
 import './maQuadroWorkspacePolish.css'
+import './maQuadroFrames.css'
 
 function targetUsesNativeKeyboard(
   target:
@@ -329,6 +332,8 @@ export default function MAQuadroApp() {
       >
         <FormatPainterController />
 
+        <FrameDropController />
+
         <BrandQuickStyles />
 
         <TableBuilder />
@@ -338,6 +343,8 @@ export default function MAQuadroApp() {
         <QRCodeBuilder />
 
         <CurvedTextBuilder />
+
+        <FrameBuilder />
 
         <TableEditor />
 
