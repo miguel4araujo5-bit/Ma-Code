@@ -18,7 +18,6 @@ const COMMERCE_STORAGE_KEY =
 
 const ACCESS_DURABLE_OBJECT_NAME =
   'ma-professor-access-global'
-
 const PUBLIC_ACCESS_ACTIVATE_PATH =
   '/api/ma-professor/access/activate'
 
@@ -33,7 +32,6 @@ const INTERNAL_ADMIN_REJECT_REQUEST_PATH =
 
 const INTERNAL_ADMIN_COMMERCE_STATUS_PATH =
   '/__internal/ma-professor/admin/commerce/status'
-
 const INTERNAL_ADMIN_COMMERCE_SELECT_PLAN_PATH =
   '/__internal/ma-professor/admin/commerce/select-plan'
 
@@ -45,7 +43,6 @@ const INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH =
 
 const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
   '/__internal/ma-professor/admin/credentials/status'
-
 const INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
 
@@ -63,7 +60,6 @@ const GENERATED_PASSWORD_GROUP_LENGTH = 4
 export type MAProfessorAdminAccessRequestDecision =
   | 'approve'
   | 'reject'
-
 export type MAProfessorCommercialPlan =
   | 'paid_30_days'
   | 'school_year'
@@ -82,7 +78,6 @@ interface StoredLicenseSnapshot {
   revokedAt: number | null
   renewalRequestedAt: number | null
 }
-
 interface StoredAccessRequestSnapshot {
   id: string
   email: string
@@ -95,7 +90,6 @@ interface StoredAccessRequestSnapshot {
   blockedUntil: number | null
   updatedAt: number
 }
-
 interface StoredAccessCredentialSnapshot {
   email: string
   passwordSalt: string
@@ -115,10 +109,15 @@ interface StoredRenewalRequestSnapshot {
     | 'school_year'
   amountCents: number
   currency: 'EUR'
-  status: 'pending'
+  status:
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'cancelled'
   requestedAt: number
+  resolvedAt?: number | null
+  updatedAt?: number
 }
-
 interface AccessStateSnapshot {
   licenses?: Record<
     string,
@@ -135,7 +134,6 @@ interface AccessStateSnapshot {
   >
   updatedAt?: number
 }
-
 interface StoredCommercialAuthorization {
   id: string
   email: string
@@ -156,7 +154,6 @@ interface StoredCommerceState {
   createdAt: number
   updatedAt: number
 }
-
 interface DurableObjectStorageLike {
   get<T>(
     key: string
@@ -182,7 +179,6 @@ interface DurableObjectStateLike {
 
 type JsonObject =
   Record<string, unknown>
-
 const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
@@ -200,7 +196,6 @@ const securityHeaders:
     'X-Robots-Tag':
       'noindex, nofollow'
   }
-
 function json(
   body: unknown,
   status = 200,
@@ -259,7 +254,6 @@ function isValidEmail(
     value
   )
 }
-
 function normalizeCommercialPlan(
   value: unknown
 ): MAProfessorCommercialPlan | null {
@@ -344,6 +338,7 @@ function toArrayBuffer(
     )
 
   copy.set(value)
+
   return copy.buffer
 }
 
@@ -459,7 +454,6 @@ function getDaysRemaining(
     )
   )
 }
-
 function getLicenseStatus(
   license: StoredLicenseSnapshot,
   now: number
@@ -523,7 +517,6 @@ function buildAccessRequestSummary(
       toIso(request.activatedAt)
   }
 }
-
 function buildCredentialStatus(
   email: string,
   credential:
@@ -571,7 +564,6 @@ function normalizeCommercialAuthorization(
       null
   }
 }
-
 function normalizeCommerceState(
   stored:
     StoredCommerceState |
@@ -596,7 +588,6 @@ function normalizeCommerceState(
       )
   }
 }
-
 function getLatestAuthorization(
   commerceState:
     StoredCommerceState,
@@ -614,7 +605,6 @@ function getLatestAuthorization(
         left.createdAt
     )[0] || null
 }
-
 function isPaymentResolved(
   authorization:
     StoredCommercialAuthorization |
@@ -630,7 +620,6 @@ function isPaymentResolved(
       )
   )
 }
-
 function buildCommercialStatus(
   email: string,
   authorization:
@@ -702,7 +691,6 @@ function buildCommercialStatus(
       )
   }
 }
-
 function buildOverview(
   state:
     AccessStateSnapshot |
@@ -799,6 +787,18 @@ function buildOverview(
             new Date(0)
               .toISOString()
 
+          const resolvedAt =
+            toIso(
+              renewal.resolvedAt
+            )
+
+          const updatedAt =
+            toIso(
+              renewal.updatedAt
+            ) ||
+            resolvedAt ||
+            requestedAt
+
           return {
             id:
               renewal.id,
@@ -813,12 +813,10 @@ function buildOverview(
             status:
               renewal.status,
             requestedAt,
-            resolvedAt:
-              null,
+            resolvedAt,
             createdAt:
               requestedAt,
-            updatedAt:
-              requestedAt
+            updatedAt
           }
         }
       )
@@ -1367,6 +1365,7 @@ export class MaProfessorAccessDurableObject {
      * antes de o plano passar a fazer parte do pedido público.
      */
     const now = Date.now()
+
     const authorization:
       StoredCommercialAuthorization = {
         id:
@@ -1398,6 +1397,7 @@ export class MaProfessorAccessDurableObject {
     commerceState.authorizations.push(
       authorization
     )
+
     commerceState.updatedAt = now
 
     await this.state.storage.put(
@@ -1625,8 +1625,10 @@ export class MaProfessorAccessDurableObject {
 
       authorization.paymentConfirmedAt =
         now
+
       authorization.updatedAt =
         now
+
       commerceState.updatedAt =
         now
 
@@ -1734,8 +1736,10 @@ export class MaProfessorAccessDurableObject {
 
       authorization.paymentDispensedAt =
         now
+
       authorization.updatedAt =
         now
+
       commerceState.updatedAt =
         now
 
@@ -1964,27 +1968,34 @@ export class MaProfessorAccessDurableObject {
 
     credentials[email] =
       credential
+
     state.credentials =
       credentials
 
     accessRequest.failedActivationAttempts =
       0
+
     accessRequest.blockedUntil =
       null
+
     accessRequest.updatedAt =
       now
+
     state.updatedAt =
       now
 
     authorization.credentialIssuedAt =
       now
+
     authorization.updatedAt =
       now
+
     commerceState.updatedAt =
       now
 
     await this.state.storage.put({
-      [STORAGE_KEY]: state,
+      [STORAGE_KEY]:
+        state,
       [COMMERCE_STORAGE_KEY]:
         commerceState
     })
