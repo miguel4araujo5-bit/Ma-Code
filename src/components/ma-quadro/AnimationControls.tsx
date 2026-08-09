@@ -240,7 +240,7 @@ AnimationControls({
                 durationMs:
                   Math.round(
                     seconds *
-                    1000
+                      1000
                   )
               })
             }
