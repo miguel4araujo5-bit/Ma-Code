@@ -1086,12 +1086,12 @@ function animateProgress(
           clamp(
             (
               now -
-              startedAt
+                startedAt
             ) /
-            Math.max(
-              1,
-              durationMs
-            ),
+              Math.max(
+                1,
+                durationMs
+              ),
             0,
             1
           )
