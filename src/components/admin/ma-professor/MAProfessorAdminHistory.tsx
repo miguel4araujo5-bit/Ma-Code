@@ -19,6 +19,30 @@ import {
   type MAProfessorAdminCommercialStatus
 } from '../../../lib/admin/maProfessorAdminApi'
 
+interface MAProfessorCommercialAuthorizationHistory {
+  authorizationId: string
+  email: string
+  plan:
+    NonNullable<MAProfessorAdminCommercialStatus['plan']>
+  amountCents: number
+  currency: 'EUR'
+  paymentStatus:
+    Exclude<MAProfessorAdminCommercialStatus['paymentStatus'], 'not_started'>
+  selectedAt: string
+  paymentConfirmedAt: string | null
+  paymentDispensedAt: string | null
+  credentialIssuedAt: string | null
+  activatedAt: string | null
+  renewalId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type MAProfessorCommercialStatusWithHistory =
+  MAProfessorAdminCommercialStatus & {
+    authorizations?: MAProfessorCommercialAuthorizationHistory[]
+  }
+
 type HistoryTone =
   | 'neutral'
   | 'positive'
@@ -143,92 +167,83 @@ function getToneClasses(
 }
 
 function getCommercialPlanLabel(
-  status: MAProfessorAdminCommercialStatus
+  authorization:
+    MAProfessorCommercialAuthorizationHistory
 ) {
-  if (!status.plan) {
-    return 'Plano não identificado'
-  }
-
   return getLicensePlanLabel(
-    status.plan
+    authorization.plan
   )
 }
 
-function getCommercialValueLabel(
-  status: MAProfessorAdminCommercialStatus
+function getCommercial  authorization:
+    MAProfessorCommercialAuthorizationHistory
 ) {
-  if (
-    status.amountCents === null
-  ) {
-    return 'Valor não registado'
-  }
-
+ ValueLabel(
+  authorization:
+    MAProfessorCommercialAuthorizationHistory
+) {
   return formatMoney(
-    status.amountCents,
-    status.currency
+    authorization.amountCents,
+    authorization.currency
   )
 }
 
 function buildCommercialEvents(
-  commercialStatuses:
-    MAProfessorAdminCommercialStatus[]
+  authorizations:
+    MAProfessorCommercialAuthorizationHistory[]
 ) {
   const events:
     MAProfessorAdminHistoryEvent[] = []
 
   for (
-    const status of
-    commercialStatuses
+    const authorization of
+    authorizations
   ) {
-    if (
-      !status.authorizationId
-    ) {
-      continue
-    }
-
     const planLabel =
       getCommercialPlanLabel(
-        status
+        authorization
       )
 
     const valueLabel =
       getCommercialValueLabel(
-        status
+        authorization
       )
 
-    if (status.selectedAt) {
-      events.push({
-        id:
-          `${status.authorizationId}:selected`,
-        email:
-          status.email,
-        occurredAt:
-          status.selectedAt,
-        title:
-          'Autorização comercial registada',
-        description:
-          `${planLabel} · ${valueLabel}. O plano ficou associado à autorização desta conta.`,
-        result:
-          'Pagamento pendente',
-        tone:
-          'commercial'
-      })
-    }
+    events.push({
+      id:
+        `${authorization.authorizationId}:selected`,
+      email:
+        authorization.email,
+      occurredAt:
+        authorization.selectedAt,
+      title:
+        authorization.renewalId
+          ? 'Autorização de renovação criada'
+          : 'Autorização comercial registada',
+      description:
+        authorization.renewalId
+          ? `${planLabel} · ${valueLabel}. O novo pedido de renovação ficou associado a uma autorização comercial própria.`
+          : `${planLabel} · ${valueLabel}. O plano escolhido pelo professor ficou associado à autorização inicial desta conta.`,
+      result:
+        'Pagamento pendente',
+      tone:
+        'commercial'
+    })
 
     if (
-      status.paymentConfirmedAt
+      authorization.paymentConfirmedAt
     ) {
       events.push({
         id:
-          `${status.authorizationId}:payment-confirmed`,
+          `${authorization.authorizationId}:payment-confirmed`,
         email:
-          status.email,
+          authorization.email,
         occurredAt:
-          status.paymentConfirmedAt,
+          authorization.paymentConfirmedAt,
         title:
           'Pagamento confirmado',
         description:
-          `${planLabel} · ${valueLabel}. A MA-CODE confirmou o recebimento do pagamento.`,
+          `${planLabel} · ${valueLabel}. A MA-CODE confirmou o recebimento do pagamento desta autorização.`,
         result:
           'Confirmado',
         tone:
@@ -237,19 +252,19 @@ function buildCommercialEvents(
     }
 
     if (
-      status.paymentDispensedAt
+      authorization.paymentDispensedAt
     ) {
       events.push({
         id:
-          `${status.authorizationId}:payment-dispensed`,
+          `${authorization.authorizationId}:payment-dispensed`,
         email:
-          status.email,
+          authorization.email,
         occurredAt:
-          status.paymentDispensedAt,
+          authorization.paymentDispensedAt,
         title:
           'Pagamento dispensado',
         description:
-          `${planLabel} · ${valueLabel}. A MA-CODE autorizou o acesso sem registar um pagamento como recebido.`,
+          `${planLabel} · ${valueLabel}. A MA-CODE autorizou este período sem registar um pagamento como recebido.`,
         result:
           'Dispensado',
         tone:
@@ -258,23 +273,48 @@ function buildCommercialEvents(
     }
 
     if (
-      status.credentialIssuedAt
+      authorization.credentialIssuedAt
     ) {
       events.push({
         id:
-          `${status.authorizationId}:credential-issued`,
+          `${authorization.authorizationId}:credential-issued`,
         email:
-          status.email,
+          authorization.email,
         occurredAt:
-          status.credentialIssuedAt,
+          authorization.credentialIssuedAt,
         title:
           'Nova senha emitida',
         description:
-          `${planLabel}. Foi criada uma nova credencial associada a esta autorização comercial.`,
+          `${planLabel}. Foi criada uma nova credencial específica para esta autorização comercial.`,
         result:
           'Senha emitida',
         tone:
           'info'
+      })
+    }
+
+    if (
+      authorization.activatedAt
+    ) {
+      events.push({
+        id:
+          `${authorization.authorizationId}:activated`,
+        email:
+          authorization.email,
+        occurredAt:
+          authorization.activatedAt,
+        title:
+          authorization.renewalId
+            ? 'Renovação ativada'
+            : 'Autorização comercial ativada',
+        description:
+          authorization.renewalId
+            ? `${planLabel}. A nova senha foi utilizada com sucesso e o novo período de licença foi aplicado.`
+            : `${planLabel}. A senha desta autorização foi utilizada com sucesso e o período inicial foi aplicado.`,
+        result:
+          'Ativada',
+        tone:
+          'positive'
       })
     }
   }
@@ -289,13 +329,13 @@ function buildHistoryEvents(
     LicenseSummary[],
   renewals:
     LicenseRenewalRequest[],
-  commercialStatuses:
-    MAProfessorAdminCommercialStatus[]
+  commercialAuthorizations:
+    MAProfessorCommercialAuthorizationHistory[]
 ) {
   const events:
     MAProfessorAdminHistoryEvent[] = [
       ...buildCommercialEvents(
-        commercialStatuses
+        commercialAuthorizations
       )
     ]
 
@@ -516,9 +556,9 @@ export default function MAProfessorAdminHistory({
   compact = false
 }: MAProfessorAdminHistoryProps) {
   const [
-    commercialStatuses,
-    setCommercialStatuses
-  ] = useState<MAProfessorAdminCommercialStatus[]>([])
+    commercialAuthorizations,
+    setCommercialAuthorizations
+  ] = useState<MAProfessorCommercialAuthorizationHistory[]>([])
 
   const [
     commercialLoading,
@@ -578,7 +618,7 @@ export default function MAProfessorAdminHistory({
     () => {
       let cancelled = false
 
-      setCommercialStatuses([])
+      setCommercialAuthorizations([])
 
       if (
         !dataConnected ||
@@ -606,25 +646,42 @@ export default function MAProfessorAdminHistory({
             return
           }
 
-          const statuses:
-            MAProfessorAdminCommercialStatus[] = []
+          const byAuthorizationId =
+            new Map<
+              string,
+              MAProfessorCommercialAuthorizationHistory
+            >()
 
           for (
             const result of
             results
           ) {
             if (
-              result.status ===
+              result.status !==
               'fulfilled'
             ) {
-              statuses.push(
-                result.value
+              continue
+            }
+
+            const status =
+              result.value as
+                MAProfessorCommercialStatusWithHistory
+
+            for (
+              const authorization of
+              status.authorizations || []
+            ) {
+              byAuthorizationId.set(
+                authorization.authorizationId,
+                authorization
               )
             }
           }
 
-          setCommercialStatuses(
-            statuses
+          setCommercialAuthorizations(
+            Array.from(
+              byAuthorizationId.values()
+            )
           )
         })
         .finally(() => {
@@ -651,7 +708,7 @@ export default function MAProfessorAdminHistory({
             accessRequests,
             licenses,
             renewals,
-            commercialStatuses
+            commercialAuthorizations
           )
 
         if (!email) {
@@ -666,7 +723,7 @@ export default function MAProfessorAdminHistory({
       },
       [
         accessRequests,
-        commercialStatuses,
+        commercialAuthorizations,
         email,
         licenses,
         renewals
