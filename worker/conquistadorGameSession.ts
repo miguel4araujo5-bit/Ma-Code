@@ -1,13 +1,12 @@
+import { Game } from '../public/jogos/conquistador/src/game/Game.js'
+
 import {
-  Game
-} from '../public/jogos/conquistador/src/game/Game.js'
+  chooseConquistadorBotCommand,
+  getConquistadorBotActorId
+} from './conquistadorBotEngine'
 
-const API_PREFIX =
-  '/api/conquistador/game'
-
-const STORAGE_KEY =
-  'conquistador-game-session-v1'
-
+const API_PREFIX = '/api/conquistador/game'
+const STORAGE_KEY = 'conquistador-game-session-v1'
 const MATCH_SIZE = 4
 const MAX_NAME_LENGTH = 24
 
@@ -30,6 +29,11 @@ type MatchParticipant = {
   icon: string | null
 }
 
+type BotRuntimeState = {
+  actorId: string | null
+  nextActionAt: number
+}
+
 type StoredSession = {
   matchId: string
   createdAt: number
@@ -37,6 +41,7 @@ type StoredSession = {
   revision: number
   participants: MatchParticipant[]
   game: Record<string, unknown>
+  bot?: BotRuntimeState
 }
 
 type CommandType =
@@ -111,7 +116,9 @@ const json = (
   headers: Record<string, string> = {}
 ) =>
   new Response(
-    JSON.stringify(body),
+    JSON.stringify(
+      body
+    ),
     {
       status,
 
@@ -250,50 +257,40 @@ const getBody = async (
 
 const normalizeId = (
   value: unknown
-) => {
-  if (
-    typeof value !==
-    'string'
-  ) {
-    return ''
-  }
-
-  return value
-    .replace(
-      /[^A-Za-z0-9_-]/g,
-      ''
-    )
-    .slice(
-      0,
-      96
-    )
-}
+) =>
+  typeof value ===
+  'string'
+    ? value
+        .replace(
+          /[^A-Za-z0-9_-]/g,
+          ''
+        )
+        .slice(
+          0,
+          96
+        )
+    : ''
 
 const normalizeName = (
   value: unknown
-) => {
-  if (
-    typeof value !==
-    'string'
-  ) {
-    return ''
-  }
-
-  return value
-    .replace(
-      /[\u0000-\u001F\u007F]/g,
-      ''
-    )
-    .replace(
-      /\s+/g,
-      ' '
-    )
-    .trim()
-    .slice(
-      0,
-      MAX_NAME_LENGTH
-    )
-}
+) =>
+  typeof value ===
+  'string'
+    ? value
+        .replace(
+          /[\u0000-\u001F\u007F]/g,
+          ''
+        )
+        .replace(
+          /\s+/g,
+          ' '
+        )
+        .trim()
+        .slice(
+          0,
+          MAX_NAME_LENGTH
+        )
+    : ''
 
 const normalizeRevision = (
   value: unknown
@@ -307,7 +304,8 @@ const normalizeRevision = (
     Number.isInteger(
       revision
     ) &&
-    revision >= 0
+    revision >=
+      0
   )
     ? revision
     : null
@@ -315,7 +313,8 @@ const normalizeRevision = (
 
 const normalizeParticipants = (
   value: unknown
-): MatchParticipant[] => {
+):
+  MatchParticipant[] => {
   if (
     !Array.isArray(
       value
@@ -391,10 +390,11 @@ const normalizeParticipants = (
       .filter(
         (
           participant
-        ): participant is MatchParticipant =>
-          Boolean(
-            participant
-          )
+        ):
+          participant is MatchParticipant =>
+            Boolean(
+              participant
+            )
       )
 
   if (
@@ -430,28 +430,45 @@ const normalizePayload = (
   Record<
     string,
     unknown
-  > => {
-  if (
-    !value ||
-    typeof value !==
-      'object' ||
-    Array.isArray(
-      value
-    )
-  ) {
-    return {}
-  }
+  > =>
+  value &&
+  typeof value ===
+    'object' &&
+  !Array.isArray(
+    value
+  )
+    ? value as
+        Record<
+          string,
+          unknown
+        >
+    : {}
 
-  return value as
-    Record<
-      string,
-      unknown
-    >
-}
+const COMMAND_TYPES =
+  new Set<
+    CommandType
+  >([
+    'placeInitialVillage',
+    'placeInitialRoad',
+    'placeInitialSeaRoute',
+    'rollDice',
+    'buildRoad',
+    'buildSeaRoute',
+    'buildVillage',
+    'buildCity',
+    'discardForSeven',
+    'chooseSevenThreat',
+    'placeSevenThreat',
+    'resolveSevenVictim',
+    'skipSevenTheft',
+    'endTurn'
+  ])
 
 const normalizeCommand = (
   value: unknown
-): GameCommand | null => {
+):
+  GameCommand |
+  null => {
   if (
     !value ||
     typeof value !==
@@ -470,26 +487,6 @@ const normalizeCommand = (
         unknown
       >
 
-  const allowed =
-    new Set<
-      CommandType
-    >([
-      'placeInitialVillage',
-      'placeInitialRoad',
-      'placeInitialSeaRoute',
-      'rollDice',
-      'buildRoad',
-      'buildSeaRoute',
-      'buildVillage',
-      'buildCity',
-      'discardForSeven',
-      'chooseSevenThreat',
-      'placeSevenThreat',
-      'resolveSevenVictim',
-      'skipSevenTheft',
-      'endTurn'
-    ])
-
   const type =
     typeof source.type ===
     'string'
@@ -499,7 +496,7 @@ const normalizeCommand = (
 
   if (
     !type ||
-    !allowed.has(
+    !COMMAND_TYPES.has(
       type
     )
   ) {
@@ -520,7 +517,8 @@ const getSessionObject = (
   env:
     ConquistadorGameSessionEnv,
 
-  matchId: string
+  matchId:
+    string
 ) => {
   const id =
     env.CONQUISTADOR_GAME
@@ -534,6 +532,15 @@ const getSessionObject = (
       id
     )
 }
+
+const clone = <T>(
+  value: T
+): T =>
+  JSON.parse(
+    JSON.stringify(
+      value
+    )
+  ) as T
 
 const getResourceTotal = (
   resources: unknown
@@ -570,15 +577,6 @@ const getResourceTotal = (
     0
   )
 }
-
-const clone = <T>(
-  value: T
-): T =>
-  JSON.parse(
-    JSON.stringify(
-      value
-    )
-  ) as T
 
 const redactHistory = (
   history: unknown,
@@ -640,7 +638,8 @@ const redactHistory = (
         entry.playerId !==
           viewerId
       ) {
-        delete details.resources
+        delete details
+          .resources
       }
 
       if (
@@ -665,7 +664,8 @@ const redactHistory = (
           viewerId !==
             actorId
         ) {
-          delete details.resourceId
+          delete details
+            .resourceId
         }
       }
 
@@ -674,33 +674,13 @@ const redactHistory = (
   )
 }
 
-const getPlayerById = (
-  game: any,
-  playerId: string
-) =>
-  Array.isArray(
-    game?.players
-  )
-    ? game.players.find(
-        (
-          player: any
-        ) =>
-          player?.id ===
-          playerId
-      ) || null
-    : null
-
 const getViewerActions = (
   game: any,
   viewerId: string
 ) => {
-  const currentPlayerId =
-    game?.currentPlayer
-      ?.id ||
-    null
-
   const isCurrentPlayer =
-    currentPlayerId ===
+    game?.currentPlayer
+      ?.id ===
     viewerId
 
   const actions:
@@ -746,7 +726,8 @@ const getViewerActions = (
     game?.phase ===
       'setup-village'
   ) {
-    actions.initialVillageIds =
+    actions
+      .initialVillageIds =
       game
         .getValidInitialVillageIds()
   }
@@ -756,11 +737,13 @@ const getViewerActions = (
     game?.phase ===
       'setup-road'
   ) {
-    actions.initialRoadIds =
+    actions
+      .initialRoadIds =
       game
         .getValidInitialRoadIds()
 
-    actions.initialSeaRouteIds =
+    actions
+      .initialSeaRouteIds =
       game
         .getValidInitialSeaRouteIds()
   }
@@ -808,7 +791,7 @@ const getViewerActions = (
         ?.step ||
       null
 
-    const currentDiscardPlayer =
+    const discardPlayer =
       game
         .getCurrentSevenDiscardPlayer
         ?.()
@@ -816,7 +799,7 @@ const getViewerActions = (
     if (
       step ===
         'discard' &&
-      currentDiscardPlayer
+      discardPlayer
         ?.id ===
         viewerId
     ) {
@@ -887,13 +870,14 @@ const createClientView = (
   session:
     StoredSession,
 
-  viewerId: string
+  viewerId:
+    string
 ) => {
   const gameData =
     session.game as
       Record<
         string,
-        unknown
+        any
       >
 
   const game =
@@ -901,149 +885,146 @@ const createClientView = (
       gameData
     )
 
-  const rawPlayers =
-    Array.isArray(
-      gameData.players
-    )
-      ? gameData.players
-      : []
-
   const participantsById =
     new Map(
-      session.participants.map(
-        (
-          participant
-        ) => [
-          participant.id,
-          participant
-        ]
-      )
+      session.participants
+        .map(
+          (
+            participant
+          ) => [
+            participant.id,
+            participant
+          ]
+        )
     )
 
   const players =
-    rawPlayers.map(
-      (
-        rawPlayer
-      ) => {
-        const player =
-          rawPlayer &&
-          typeof rawPlayer ===
-            'object' &&
-          !Array.isArray(
-            rawPlayer
-          )
-            ? rawPlayer as
-                Record<
-                  string,
-                  unknown
-                >
-            : {}
-
-        const id =
-          String(
-            player.id ||
-            ''
-          )
-
-        const participant =
-          participantsById.get(
-            id
-          )
-
-        const isSelf =
-          id ===
-          viewerId
-
-        const resources =
-          player.resources &&
-          typeof player.resources ===
-            'object' &&
-          !Array.isArray(
-            player.resources
-          )
-            ? player.resources as
-                Record<
-                  string,
-                  unknown
-                >
-            : {}
-
-        return {
-          id,
-
-          name:
-            String(
-              player.name ||
-              ''
-            ),
-
-          houseId:
-            player.houseId ??
-            null,
-
-          color:
-            player.color ??
-            null,
-
-          symbol:
-            player.symbol ??
-            null,
-
-          prestige:
-            Number(
-              player.prestige
-            ) || 0,
-
-          pieces:
-            player.pieces ??
-            {},
-
-          usedGuardCaptains:
-            Number(
-              player
-                .usedGuardCaptains
-            ) || 0,
-
-          contractPrestige:
-            Number(
-              player
-                .contractPrestige
-            ) || 0,
-
-          hasLargestNetwork:
-            Boolean(
-              player
-                .hasLargestNetwork
-            ),
-
-          hasLargestMilitary:
-            Boolean(
-              player
-                .hasLargestMilitary
-            ),
-
-          kind:
-            participant?.kind ||
-            'human',
-
-          icon:
-            participant?.icon ||
-            null,
-
-          totalResources:
-            getResourceTotal(
-              resources
-            ),
-
-          resources:
-            isSelf
-              ? resources
-              : null,
-
-          isSelf
-        }
-      }
+    (
+      Array.isArray(
+        gameData.players
+      )
+        ? gameData.players
+        : []
     )
+      .map(
+        (
+          rawPlayer:
+            Record<
+              string,
+              any
+            >
+        ) => {
+          const id =
+            String(
+              rawPlayer
+                ?.id ||
+              ''
+            )
+
+          const participant =
+            participantsById
+              .get(
+                id
+              )
+
+          const resources =
+            rawPlayer
+              ?.resources &&
+            typeof rawPlayer
+              .resources ===
+              'object'
+              ? rawPlayer
+                  .resources
+              : {}
+
+          const isSelf =
+            id ===
+            viewerId
+
+          return {
+            id,
+
+            name:
+              String(
+                rawPlayer
+                  ?.name ||
+                ''
+              ),
+
+            houseId:
+              rawPlayer
+                ?.houseId ??
+              null,
+
+            color:
+              rawPlayer
+                ?.color ??
+              null,
+
+            symbol:
+              rawPlayer
+                ?.symbol ??
+              null,
+
+            prestige:
+              Number(
+                rawPlayer
+                  ?.prestige
+              ) || 0,
+
+            pieces:
+              rawPlayer
+                ?.pieces ??
+              {},
+
+            usedGuardCaptains:
+              Number(
+                rawPlayer
+                  ?.usedGuardCaptains
+              ) || 0,
+
+            contractPrestige:
+              Number(
+                rawPlayer
+                  ?.contractPrestige
+              ) || 0,
+
+            hasLargestNetwork:
+              Boolean(
+                rawPlayer
+                  ?.hasLargestNetwork
+              ),
+
+            hasLargestMilitary:
+              Boolean(
+                rawPlayer
+                  ?.hasLargestMilitary
+              ),
+
+            kind:
+              participant
+                ?.kind ||
+              'human',
+
+            icon:
+              participant
+                ?.icon ||
+              null,
+
+            totalResources:
+              getResourceTotal(
+                resources
+              ),
+
+            resources:
+              isSelf
+                ? resources
+                : null,
+
+            isSelf
+          }
+        }
+      )
 
   const currentPlayerIndex =
     Number(
@@ -1201,7 +1182,7 @@ const normalizeResourceSelection = (
   return selection
 }
 
-const requireIdValue = (
+const requireId = (
   value: unknown,
   message: string
 ) => {
@@ -1229,55 +1210,45 @@ const ensureCommandOwner = (
     commandType ===
     'discardForSeven'
   ) {
-    const discardPlayer =
-      game
-        .getCurrentSevenDiscardPlayer
-        ?.()
-
-    if (
-      discardPlayer
-        ?.id !==
+    return game
+      .getCurrentSevenDiscardPlayer
+      ?.()
+      ?.id ===
       playerId
-    ) {
-      return {
+      ? {
+          valid:
+            true,
+
+          reason:
+            null
+        }
+      : {
+          valid:
+            false,
+
+          reason:
+            'O descarte pertence a outro jogador.'
+        }
+  }
+
+  return game
+    ?.currentPlayer
+    ?.id ===
+    playerId
+    ? {
+        valid:
+          true,
+
+        reason:
+          null
+      }
+    : {
         valid:
           false,
 
         reason:
-          'O descarte pertence a outro jogador.'
+          'Não é a sua vez de jogar.'
       }
-    }
-
-    return {
-      valid:
-        true,
-
-      reason:
-        null
-    }
-  }
-
-  if (
-    game?.currentPlayer
-      ?.id !==
-    playerId
-  ) {
-    return {
-      valid:
-        false,
-
-      reason:
-        'Não é a sua vez de jogar.'
-    }
-  }
-
-  return {
-    valid:
-      true,
-
-    reason:
-      null
-  }
 }
 
 const executeCommand = (
@@ -1314,7 +1285,7 @@ const executeCommand = (
     case 'placeInitialVillage':
       return game
         .placeInitialVillage(
-          requireIdValue(
+          requireId(
             payload.vertexId,
             'O local da Vila não é válido.'
           )
@@ -1323,7 +1294,7 @@ const executeCommand = (
     case 'placeInitialRoad':
       return game
         .placeInitialRoad(
-          requireIdValue(
+          requireId(
             payload.edgeId,
             'O Caminho inicial não é válido.'
           )
@@ -1332,7 +1303,7 @@ const executeCommand = (
     case 'placeInitialSeaRoute':
       return game
         .placeInitialSeaRoute(
-          requireIdValue(
+          requireId(
             payload.edgeId,
             'A Rota Marítima inicial não é válida.'
           )
@@ -1345,7 +1316,7 @@ const executeCommand = (
     case 'buildRoad':
       return game
         .buildRoad(
-          requireIdValue(
+          requireId(
             payload.edgeId,
             'O Caminho Real não é válido.'
           )
@@ -1354,7 +1325,7 @@ const executeCommand = (
     case 'buildSeaRoute':
       return game
         .buildSeaRoute(
-          requireIdValue(
+          requireId(
             payload.edgeId,
             'A Rota Marítima não é válida.'
           )
@@ -1363,7 +1334,7 @@ const executeCommand = (
     case 'buildVillage':
       return game
         .buildVillage(
-          requireIdValue(
+          requireId(
             payload.vertexId,
             'O local da Vila não é válido.'
           )
@@ -1372,7 +1343,7 @@ const executeCommand = (
     case 'buildCity':
       return game
         .buildCity(
-          requireIdValue(
+          requireId(
             payload.vertexId,
             'O local da Cidade Muralhada não é válido.'
           )
@@ -1384,22 +1355,18 @@ const executeCommand = (
           payload.selection
         )
 
-      if (
-        !selection
-      ) {
-        return {
-          success:
-            false,
+      return selection
+        ? game
+            .discardForSeven(
+              selection
+            )
+        : {
+            success:
+              false,
 
-          reason:
-            'A seleção de recursos para descarte não é válida.'
-        }
-      }
-
-      return game
-        .discardForSeven(
-          selection
-        )
+            reason:
+              'A seleção de recursos para descarte não é válida.'
+          }
     }
 
     case 'chooseSevenThreat':
@@ -1421,7 +1388,7 @@ const executeCommand = (
             ''
           ),
 
-          requireIdValue(
+          requireId(
             payload.targetId,
             'O destino da ameaça não é válido.'
           )
@@ -1430,7 +1397,7 @@ const executeCommand = (
     case 'resolveSevenVictim':
       return game
         .resolveSevenVictim(
-          requireIdValue(
+          requireId(
             payload.victimId,
             'O jogador escolhido não é válido.'
           )
@@ -1443,15 +1410,6 @@ const executeCommand = (
     case 'endTurn':
       return game
         .endTurn()
-
-    default:
-      return {
-        success:
-          false,
-
-        reason:
-          'A ação online não é suportada.'
-      }
   }
 }
 
@@ -1534,7 +1492,8 @@ export const ensureConquistadorGameSession =
             }
 
         if (
-          body?.message
+          body
+            ?.message
         ) {
           message =
             body.message
@@ -1576,7 +1535,8 @@ export const handleConquistadorGameSessionApiRequest =
     ) {
       corsHeaders[
         'Access-Control-Allow-Origin'
-      ] = origin
+      ] =
+        origin
 
       corsHeaders.Vary =
         'Origin'
@@ -1599,6 +1559,7 @@ export const handleConquistadorGameSessionApiRequest =
             message:
               'Pedido bloqueado por origem inválida.'
           },
+
           403
         )
       }
@@ -1606,7 +1567,8 @@ export const handleConquistadorGameSessionApiRequest =
       return new Response(
         null,
         {
-          status: 204,
+          status:
+            204,
 
           headers: {
             ...corsHeaders,
@@ -1709,22 +1671,13 @@ export const handleConquistadorGameSessionApiRequest =
         )
       }
 
-      const stub =
-        getSessionObject(
+      const response =
+        await getSessionObject(
           env,
           matchId
-        )
-
-      const internalPath =
-        action ===
-        'command'
-          ? '/command'
-          : '/state'
-
-      const response =
-        await stub.fetch(
+        ).fetch(
           new Request(
-            `https://conquistador.internal${internalPath}`,
+            `https://conquistador.internal/${action}`,
             {
               method:
                 'POST',
@@ -1749,21 +1702,20 @@ export const handleConquistadorGameSessionApiRequest =
           response.headers
         )
 
-      Object.entries(
-        corsHeaders
-      ).forEach(
-        (
-          [
-            name,
-            value
-          ]
-        ) => {
-          headers.set(
-            name,
-            value
-          )
-        }
-      )
+      for (
+        const [
+          name,
+          value
+        ]
+        of Object.entries(
+          corsHeaders
+        )
+      ) {
+        headers.set(
+          name,
+          value
+        )
+      }
 
       return new Response(
         response.body,
@@ -1850,15 +1802,18 @@ export class ConquistadorGameSessionDurableObject {
   }
 
   fetch(
-    request: Request
-  ): Promise<Response> {
+    request:
+      Request
+  ):
+    Promise<Response> {
     const response =
-      this.operation.then(
-        () =>
-          this.handleRequest(
-            request
-          )
-      )
+      this.operation
+        .then(
+          () =>
+            this.handleRequest(
+              request
+            )
+        )
 
     this.operation =
       response.then(
@@ -1874,37 +1829,251 @@ export class ConquistadorGameSessionDurableObject {
 
   private async save() {
     if (
-      !this.session
+      this.session
     ) {
-      return
+      await this
+        .state
+        .storage
+        .put(
+          STORAGE_KEY,
+          this.session
+        )
     }
-
-    await this
-      .state
-      .storage
-      .put(
-        STORAGE_KEY,
-        this.session
-      )
   }
 
   private getHumanParticipant(
-    playerId: string
+    playerId:
+      string
   ) {
     return (
       this.session
         ?.participants
         .find(
           (
-            candidate
+            participant
           ) =>
-            candidate.id ===
+            participant.id ===
               playerId &&
-            candidate.kind ===
+            participant.kind ===
               'human'
         ) ||
       null
     )
+  }
+
+  private getBotDelay(
+    revision:
+      number
+  ) {
+    return (
+      850 +
+      (
+        revision %
+        4
+      ) *
+        110
+    )
+  }
+
+  private async scheduleBot(
+    game:
+      any,
+
+    now =
+      Date.now()
+  ) {
+    if (
+      !this.session
+    ) {
+      return false
+    }
+
+    const actorId =
+      getConquistadorBotActorId(
+        game,
+        this.session
+          .participants
+      )
+
+    if (
+      !actorId
+    ) {
+      if (
+        this.session
+          .bot
+          ?.actorId ||
+        this.session
+          .bot
+          ?.nextActionAt
+      ) {
+        this.session.bot = {
+          actorId:
+            null,
+
+          nextActionAt:
+            0
+        }
+
+        await this.save()
+      }
+
+      return false
+    }
+
+    if (
+      this.session
+        .bot
+        ?.actorId !==
+        actorId ||
+      !this.session
+        .bot
+        ?.nextActionAt
+    ) {
+      this.session.bot = {
+        actorId,
+
+        nextActionAt:
+          now +
+          this.getBotDelay(
+            this.session
+              .revision
+          )
+      }
+
+      await this.save()
+    }
+
+    return true
+  }
+
+  private async advanceBotIfDue() {
+    if (
+      !this.session
+    ) {
+      return false
+    }
+
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    if (
+      !await this
+        .scheduleBot(
+          game
+        )
+    ) {
+      return false
+    }
+
+    const runtime =
+      this.session.bot
+
+    if (
+      !runtime
+        ?.actorId ||
+      Date.now() <
+        runtime
+          .nextActionAt
+    ) {
+      return false
+    }
+
+    const command =
+      chooseConquistadorBotCommand(
+        game,
+        this.session
+          .participants,
+        runtime.actorId
+      ) as
+        GameCommand |
+        null
+
+    if (
+      !command
+    ) {
+      this.session.bot = {
+        actorId:
+          null,
+
+        nextActionAt:
+          0
+      }
+
+      await this.save()
+
+      return false
+    }
+
+    let result:
+      Record<
+        string,
+        unknown
+      >
+
+    try {
+      result =
+        executeCommand(
+          game,
+          runtime.actorId,
+          command
+        ) as
+          Record<
+            string,
+            unknown
+          >
+    } catch {
+      result = {
+        success:
+          false
+      }
+    }
+
+    if (
+      !result ||
+      result.success !==
+        true
+    ) {
+      this.session.bot = {
+        actorId:
+          null,
+
+        nextActionAt:
+          0
+      }
+
+      await this.save()
+
+      return false
+    }
+
+    this.session.game =
+      game.toJSON()
+
+    this.session.revision +=
+      1
+
+    this.session.updatedAt =
+      Date.now()
+
+    this.session.bot = {
+      actorId:
+        null,
+
+      nextActionAt:
+        0
+    }
+
+    await this
+      .scheduleBot(
+        game,
+        Date.now()
+      )
+
+    await this.save()
+
+    return true
   }
 
   private async handleBootstrap(
@@ -1985,19 +2154,6 @@ export class ConquistadorGameSessionDurableObject {
     const now =
       Date.now()
 
-    const players =
-      participants.map(
-        (
-          participant
-        ) => ({
-          id:
-            participant.id,
-
-          name:
-            participant.name
-        })
-      )
-
     const game =
       new Game({
         id:
@@ -2006,7 +2162,19 @@ export class ConquistadorGameSessionDurableObject {
         seed:
           `ONLINE-${matchId}`,
 
-        players
+        players:
+          participants
+            .map(
+              (
+                participant
+              ) => ({
+                id:
+                  participant.id,
+
+                name:
+                  participant.name
+              })
+            )
       })
 
     this.session = {
@@ -2024,8 +2192,22 @@ export class ConquistadorGameSessionDurableObject {
       participants,
 
       game:
-        game.toJSON()
+        game.toJSON(),
+
+      bot: {
+        actorId:
+          null,
+
+        nextActionAt:
+          0
+      }
     }
+
+    await this
+      .scheduleBot(
+        game,
+        now
+      )
 
     await this.save()
 
@@ -2091,6 +2273,9 @@ export class ConquistadorGameSessionDurableObject {
         403
       )
     }
+
+    await this
+      .advanceBotIfDue()
 
     const knownRevision =
       normalizeRevision(
@@ -2244,10 +2429,17 @@ export class ConquistadorGameSessionDurableObject {
       )
 
     if (
-      !getPlayerById(
-        game,
-        playerId
-      )
+      !game
+        ?.players
+        ?.some(
+          (
+            player:
+              any
+          ) =>
+            player
+              ?.id ===
+            playerId
+        )
     ) {
       return json(
         {
@@ -2310,7 +2502,8 @@ export class ConquistadorGameSessionDurableObject {
 
           message:
             String(
-              result?.reason ||
+              result
+                ?.reason ||
               'A ação não é válida neste momento.'
             )
         },
@@ -2327,6 +2520,20 @@ export class ConquistadorGameSessionDurableObject {
 
     this.session.updatedAt =
       Date.now()
+
+    this.session.bot = {
+      actorId:
+        null,
+
+      nextActionAt:
+        0
+    }
+
+    await this
+      .scheduleBot(
+        game,
+        Date.now()
+      )
 
     await this.save()
 
