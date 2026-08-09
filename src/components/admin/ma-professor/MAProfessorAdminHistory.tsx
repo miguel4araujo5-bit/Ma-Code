@@ -175,10 +175,7 @@ function getCommercialPlanLabel(
   )
 }
 
-function getCommercial  authorization:
-    MAProfessorCommercialAuthorizationHistory
-) {
- ValueLabel(
+function getCommercialValueLabel(
   authorization:
     MAProfessorCommercialAuthorizationHistory
 ) {
