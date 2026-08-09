@@ -235,21 +235,13 @@ function updateCountdown() {
   }
 
   const remaining = Math.max(0, deadlineAt - Date.now());
-
-  value.textContent = String(
-    Math.max(
-      0,
-      Math.ceil(remaining / 1000),
-    ),
-  );
+  value.textContent = String(Math.max(0, Math.ceil(remaining / 1000)));
 }
 
 function participantMarkup(participant) {
   const isBot = participant.kind === 'bot';
   const isSelf = participant.id === playerId;
-  const icon = isBot
-    ? escapeHtml(participant.icon || '⚙')
-    : '';
+  const icon = isBot ? escapeHtml(participant.icon || '⚙') : '';
 
   return `
     <li class="online-participant ${isBot ? 'is-bot' : 'is-human'} ${isSelf ? 'is-self' : ''}">
@@ -271,7 +263,6 @@ function renderMatch(data) {
   busy = false;
 
   const overlay = getOverlay() || createOverlay();
-
   const participants = Array.isArray(data.participants)
     ? data.participants
     : [];
@@ -350,9 +341,7 @@ async function startSearch(name) {
   storeName(name);
 
   try {
-    const response = await post('join', {
-      name,
-    });
+    const response = await post('join', { name });
 
     ticketId = response.ticketId || null;
     playerId = response.playerId || playerId;
@@ -362,15 +351,11 @@ async function startSearch(name) {
       return;
     }
 
-    deadlineAt =
-      Number(response.deadlineAt) ||
-      Date.now() + 5000;
-
+    deadlineAt = Number(response.deadlineAt) || (Date.now() + 5000);
     renderWaiting();
     schedulePoll();
   } catch (error) {
     busy = false;
-
     showError(
       error instanceof Error
         ? error.message
@@ -396,9 +381,7 @@ async function pollStatus() {
   }
 
   try {
-    const response = await post('status', {
-      ticketId,
-    });
+    const response = await post('status', { ticketId });
 
     if (response.status === 'matched') {
       renderMatch(response);
@@ -410,11 +393,7 @@ async function pollStatus() {
       return;
     }
 
-    if (
-      Number.isFinite(
-        Number(response.deadlineAt),
-      )
-    ) {
+    if (Number.isFinite(Number(response.deadlineAt))) {
       deadlineAt = Number(response.deadlineAt);
     }
 
@@ -428,35 +407,15 @@ async function pollStatus() {
     if (overlay) {
       overlay.innerHTML = `
         <section class="online-matchmaking-card online-matchmaking-entry">
-          <p class="online-matchmaking-eyebrow">
-            Conquistador Online
-          </p>
-
-          <h2 id="online-matchmaking-title">
-            Ligação interrompida
-          </h2>
-
+          <p class="online-matchmaking-eyebrow">Conquistador Online</p>
+          <h2 id="online-matchmaking-title">Ligação interrompida</h2>
           <p class="online-matchmaking-copy">
-            ${escapeHtml(
-              error instanceof Error
-                ? error.message
-                : 'Não foi possível continuar o matchmaking.',
-            )}
+            ${escapeHtml(error instanceof Error ? error.message : 'Não foi possível continuar o matchmaking.')}
           </p>
-
-          <button
-            type="button"
-            class="button button-primary"
-            data-online-retry
-          >
+          <button type="button" class="button button-primary" data-online-retry>
             Tentar novamente
           </button>
-
-          <button
-            type="button"
-            class="text-button online-matchmaking-back"
-            data-online-close
-          >
+          <button type="button" class="text-button online-matchmaking-back" data-online-close>
             Voltar
           </button>
         </section>
@@ -472,9 +431,7 @@ async function cancelSearch() {
 
   if (pendingTicketId) {
     try {
-      await post('leave', {
-        ticketId: pendingTicketId,
-      });
+      await post('leave', { ticketId: pendingTicketId });
     } catch {
       return renderEntry();
     }
@@ -484,27 +441,17 @@ async function cancelSearch() {
 }
 
 function injectOnlineButton() {
-  const heroActions =
-    document.querySelector(
-      '.home-screen .hero-actions',
-    );
+  const heroActions = document.querySelector('.home-screen .hero-actions');
 
-  if (
-    !heroActions ||
-    heroActions.querySelector('#online-game-button')
-  ) {
+  if (!heroActions || heroActions.querySelector('#online-game-button')) {
     return;
   }
 
   const button = document.createElement('button');
-
   button.id = 'online-game-button';
   button.type = 'button';
-  button.className =
-    'button button-secondary button-large online-game-button';
-
-  button.innerHTML =
-    '<span aria-hidden="true">◉</span> Jogar Online';
+  button.className = 'button button-secondary button-large online-game-button';
+  button.innerHTML = '<span aria-hidden="true">◉</span> Jogar Online';
 
   heroActions.appendChild(button);
 }
@@ -512,148 +459,91 @@ function injectOnlineButton() {
 const app = document.querySelector('#app');
 
 if (app) {
-  new MutationObserver(
-    injectOnlineButton,
-  ).observe(
-    app,
-    {
-      childList: true,
-      subtree: true,
-    },
-  );
+  new MutationObserver(injectOnlineButton).observe(app, {
+    childList: true,
+    subtree: true,
+  });
 
   injectOnlineButton();
 }
 
-document.addEventListener(
-  'submit',
-  (event) => {
-    const form =
-      event.target.closest(
-        '#online-matchmaking-form',
-      );
+document.addEventListener('submit', (event) => {
+  const form = event.target.closest('#online-matchmaking-form');
 
-    if (!form) {
-      return;
-    }
+  if (!form) {
+    return;
+  }
 
-    event.preventDefault();
+  event.preventDefault();
 
-    const formData =
-      new FormData(form);
+  const formData = new FormData(form);
+  const name = String(formData.get('name') || '').trim();
 
-    const name =
-      String(
-        formData.get('name') || '',
-      ).trim();
+  if (!name) {
+    showError('Indique o seu nome para entrar no matchmaking.');
+    return;
+  }
 
-    if (!name) {
-      showError(
-        'Indique o seu nome para entrar no matchmaking.',
-      );
-      return;
-    }
+  startSearch(name);
+});
 
-    startSearch(name);
-  },
-);
+document.addEventListener('click', (event) => {
+  const onlineButton = event.target.closest('#online-game-button');
 
-document.addEventListener(
-  'click',
-  (event) => {
-    const onlineButton =
-      event.target.closest(
-        '#online-game-button',
-      );
+  if (onlineButton) {
+    renderEntry();
+    return;
+  }
 
-    if (onlineButton) {
-      renderEntry();
-      return;
-    }
+  if (event.target.closest('[data-online-cancel]')) {
+    cancelSearch();
+    return;
+  }
 
+  if (event.target.closest('[data-online-retry]')) {
+    renderEntry();
+    return;
+  }
+
+  if (event.target.closest('[data-online-enter]')) {
     if (
-      event.target.closest(
-        '[data-online-cancel]',
-      )
+      !readyMatchData?.matchId ||
+      !readyMatchData?.playerId
     ) {
-      cancelSearch();
       return;
     }
 
-    if (
-      event.target.closest(
-        '[data-online-retry]',
-      )
-    ) {
-      renderEntry();
-      return;
-    }
+    const detail = {
+      matchId: readyMatchData.matchId,
+      playerId: readyMatchData.playerId,
+      participants: readyMatchData.participants,
+    };
 
-    if (
-      event.target.closest(
-        '[data-online-enter]',
-      )
-    ) {
-      if (
-        !readyMatchData?.matchId ||
-        !readyMatchData?.playerId
-      ) {
-        return;
-      }
-
-      const detail = {
-        matchId:
-          readyMatchData.matchId,
-
-        playerId:
-          readyMatchData.playerId,
-
-        participants:
-          readyMatchData.participants,
-      };
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'conquistador:online-match-ready',
-          {
-            detail,
-          },
-        ),
-      );
-
-      closeOverlay();
-      return;
-    }
-
-    if (
-      event.target.closest(
-        '[data-online-close]',
-      )
-    ) {
-      closeOverlay();
-    }
-  },
-);
-
-window.addEventListener(
-  'pagehide',
-  () => {
-    if (!ticketId) {
-      return;
-    }
-
-    const body = JSON.stringify({
-      ticketId,
-    });
-
-    navigator.sendBeacon?.(
-      `${API_BASE}/leave`,
-      new Blob(
-        [body],
-        {
-          type: 'application/json',
-        },
+    window.dispatchEvent(
+      new CustomEvent(
+        'conquistador:online-match-ready',
+        { detail },
       ),
     );
-  },
-);
+
+    closeOverlay();
+    return;
+  }
+
+  if (event.target.closest('[data-online-close]')) {
+    closeOverlay();
+  }
+});
+
+window.addEventListener('pagehide', () => {
+  if (!ticketId) {
+    return;
+  }
+
+  const body = JSON.stringify({ ticketId });
+
+  navigator.sendBeacon?.(
+    `${API_BASE}/leave`,
+    new Blob([body], { type: 'application/json' }),
+  );
+});
