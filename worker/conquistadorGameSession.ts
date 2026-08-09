@@ -9,6 +9,7 @@ const API_PREFIX = '/api/conquistador/game'
 const STORAGE_KEY = 'conquistador-game-session-v1'
 const MATCH_SIZE = 4
 const MAX_NAME_LENGTH = 24
+const BOT_RETRY_DELAY_MS = 1600
 
 const RESOURCE_IDS = [
   'stone',
@@ -94,6 +95,14 @@ type DurableObjectStorageLike = {
     key: string,
     value: T
   ): Promise<void>
+
+  getAlarm(): Promise<number | null>
+
+  setAlarm(
+    scheduledTime: number | Date
+  ): Promise<void>
+
+  deleteAlarm(): Promise<void>
 }
 
 type DurableObjectStateLike = {
@@ -414,14 +423,10 @@ const normalizeParticipants = (
       )
     )
 
-  if (
-    uniqueIds.size !==
+  return uniqueIds.size ===
     MATCH_SIZE
-  ) {
-    return []
-  }
-
-  return participants
+    ? participants
+    : []
 }
 
 const normalizePayload = (
@@ -1413,6 +1418,322 @@ const executeCommand = (
   }
 }
 
+const createEmergencyDiscard = (
+  player: any,
+  required: number
+) => {
+  const selection:
+    Record<
+      string,
+      number
+    > = {}
+
+  let remaining =
+    Math.max(
+      0,
+      Number(
+        required
+      ) || 0
+    )
+
+  for (
+    const resourceId
+    of RESOURCE_IDS
+  ) {
+    if (
+      remaining <= 0
+    ) {
+      break
+    }
+
+    const available =
+      Math.max(
+        0,
+        Number(
+          player
+            ?.resources
+            ?.[
+              resourceId
+            ]
+        ) || 0
+      )
+
+    const quantity =
+      Math.min(
+        available,
+        remaining
+      )
+
+    if (
+      quantity > 0
+    ) {
+      selection[
+        resourceId
+      ] = quantity
+
+      remaining -=
+        quantity
+    }
+  }
+
+  return selection
+}
+
+const chooseEmergencyBotCommand = (
+  game: any,
+  botId: string
+):
+  GameCommand |
+  null => {
+  if (
+    game?.phase ===
+      'event-seven' &&
+    game?.sevenEvent
+      ?.step ===
+      'discard'
+  ) {
+    const entry =
+      game
+        .getCurrentSevenDiscardEntry
+        ?.()
+
+    const player =
+      game.players
+        ?.find(
+          (
+            candidate:
+              any
+          ) =>
+            candidate
+              ?.id ===
+            botId
+        )
+
+    if (
+      entry?.playerId ===
+        botId &&
+      player
+    ) {
+      return {
+        type:
+          'discardForSeven',
+
+        payload: {
+          selection:
+            createEmergencyDiscard(
+              player,
+              Number(
+                entry.required
+              ) || 0
+            )
+        }
+      }
+    }
+
+    return null
+  }
+
+  if (
+    game
+      ?.currentPlayer
+      ?.id !==
+    botId
+  ) {
+    return null
+  }
+
+  switch (
+    game.phase
+  ) {
+    case 'setup-village': {
+      const vertexId =
+        game
+          .getValidInitialVillageIds
+          ?.()
+          ?.[0]
+
+      return vertexId
+        ? {
+            type:
+              'placeInitialVillage',
+
+            payload: {
+              vertexId
+            }
+          }
+        : null
+    }
+
+    case 'setup-road': {
+      const roadId =
+        game
+          .getValidInitialRoadIds
+          ?.()
+          ?.[0]
+
+      if (roadId) {
+        return {
+          type:
+            'placeInitialRoad',
+
+          payload: {
+            edgeId:
+              roadId
+          }
+        }
+      }
+
+      const seaRouteId =
+        game
+          .getValidInitialSeaRouteIds
+          ?.()
+          ?.[0]
+
+      return seaRouteId
+        ? {
+            type:
+              'placeInitialSeaRoute',
+
+            payload: {
+              edgeId:
+                seaRouteId
+            }
+          }
+        : null
+    }
+
+    case 'turn-roll':
+      return {
+        type:
+          'rollDice',
+
+        payload: {}
+      }
+
+    case 'turn-actions':
+      return {
+        type:
+          'endTurn',
+
+        payload: {}
+      }
+
+    case 'event-seven': {
+      const step =
+        game
+          ?.sevenEvent
+          ?.step
+
+      if (
+        step ===
+        'choose-threat'
+      ) {
+        return {
+          type:
+            'chooseSevenThreat',
+
+          payload: {
+            threatType:
+              'contrabandist'
+          }
+        }
+      }
+
+      if (
+        step ===
+        'choose-target'
+      ) {
+        const territoryId =
+          game
+            .getSevenValidTerritoryIds
+            ?.()
+            ?.[0]
+
+        if (
+          territoryId
+        ) {
+          return {
+            type:
+              'placeSevenThreat',
+
+            payload: {
+              targetType:
+                'territory',
+
+              targetId:
+                territoryId
+            }
+          }
+        }
+
+        const edgeId =
+          game
+            .getSevenValidEdgeIds
+            ?.()
+            ?.[0]
+
+        return edgeId
+          ? {
+              type:
+                'placeSevenThreat',
+
+              payload: {
+                targetType:
+                  'edge',
+
+                targetId:
+                  edgeId
+              }
+            }
+          : null
+      }
+
+      if (
+        step ===
+        'choose-victim'
+      ) {
+        const victimId =
+          game
+            .getSevenEligibleVictimIds
+            ?.()
+            ?.[0]
+
+        if (
+          victimId
+        ) {
+          return {
+            type:
+              'resolveSevenVictim',
+
+            payload: {
+              victimId
+            }
+          }
+        }
+
+        if (
+          game
+            ?.sevenEvent
+            ?.selectedThreat ===
+          'storm'
+        ) {
+          return {
+            type:
+              'skipSevenTheft',
+
+            payload: {}
+          }
+        }
+      }
+
+      return null
+    }
+
+    default:
+      return null
+  }
+}
+
 export const isConquistadorGameSessionApiPath = (
   pathname: string
 ) =>
@@ -1479,31 +1800,34 @@ export const ensureConquistadorGameSession =
       )
 
     if (
-      !response.ok
+      response.ok
     ) {
-      let message =
-        'Não foi possível preparar a sessão da partida.'
-
-      try {
-        const body =
-          await response
-            .json() as {
-              message?: string
-            }
-
-        if (
-          body
-            ?.message
-        ) {
-          message =
-            body.message
-        }
-      } catch {}
-
-      throw new Error(
-        message
-      )
+      return
     }
+
+    let message =
+      'Não foi possível preparar a sessão da partida.'
+
+    try {
+      const body =
+        await response
+          .json() as {
+            message?:
+              string
+          }
+
+      if (
+        body
+          ?.message
+      ) {
+        message =
+          body.message
+      }
+    } catch {}
+
+    throw new Error(
+      message
+    )
   }
 
 export const handleConquistadorGameSessionApiRequest =
@@ -1801,22 +2125,19 @@ export class ConquistadorGameSessionDurableObject {
         )
   }
 
-  fetch(
-    request:
-      Request
+  private enqueue<T>(
+    callback:
+      () => Promise<T>
   ):
-    Promise<Response> {
-    const response =
+    Promise<T> {
+    const result =
       this.operation
         .then(
-          () =>
-            this.handleRequest(
-              request
-            )
+          callback
         )
 
     this.operation =
-      response.then(
+      result.then(
         () =>
           undefined,
 
@@ -1824,21 +2145,44 @@ export class ConquistadorGameSessionDurableObject {
           undefined
       )
 
-    return response
+    return result
+  }
+
+  fetch(
+    request:
+      Request
+  ):
+    Promise<Response> {
+    return this.enqueue(
+      () =>
+        this.handleRequest(
+          request
+        )
+    )
+  }
+
+  alarm():
+    Promise<void> {
+    return this.enqueue(
+      () =>
+        this.handleAlarm()
+    )
   }
 
   private async save() {
     if (
-      this.session
+      !this.session
     ) {
-      await this
-        .state
-        .storage
-        .put(
-          STORAGE_KEY,
-          this.session
-        )
+      return
     }
+
+    await this
+      .state
+      .storage
+      .put(
+        STORAGE_KEY,
+        this.session
+      )
   }
 
   private getHumanParticipant(
@@ -1875,6 +2219,54 @@ export class ConquistadorGameSessionDurableObject {
     )
   }
 
+  private async clearBotSchedule() {
+    if (
+      !this.session
+    ) {
+      return
+    }
+
+    const hadRuntime =
+      Boolean(
+        this.session
+          .bot
+          ?.actorId ||
+        this.session
+          .bot
+          ?.nextActionAt
+      )
+
+    this.session.bot = {
+      actorId:
+        null,
+
+      nextActionAt:
+        0
+    }
+
+    const currentAlarm =
+      await this
+        .state
+        .storage
+        .getAlarm()
+
+    if (
+      currentAlarm !==
+      null
+    ) {
+      await this
+        .state
+        .storage
+        .deleteAlarm()
+    }
+
+    if (
+      hadRuntime
+    ) {
+      await this.save()
+    }
+  }
+
   private async scheduleBot(
     game:
       any,
@@ -1898,55 +2290,97 @@ export class ConquistadorGameSessionDurableObject {
     if (
       !actorId
     ) {
-      if (
-        this.session
-          .bot
-          ?.actorId ||
-        this.session
-          .bot
-          ?.nextActionAt
-      ) {
-        this.session.bot = {
-          actorId:
-            null,
-
-          nextActionAt:
-            0
-        }
-
-        await this.save()
-      }
+      await this
+        .clearBotSchedule()
 
       return false
     }
 
-    if (
+    const runtime =
       this.session
         .bot
+
+    let nextActionAt =
+      runtime
+        ?.nextActionAt ||
+      0
+
+    if (
+      runtime
         ?.actorId !==
         actorId ||
-      !this.session
-        .bot
-        ?.nextActionAt
+      nextActionAt <=
+        0
     ) {
+      nextActionAt =
+        now +
+        this.getBotDelay(
+          this.session
+            .revision
+        )
+
       this.session.bot = {
         actorId,
-
-        nextActionAt:
-          now +
-          this.getBotDelay(
-            this.session
-              .revision
-          )
+        nextActionAt
       }
 
       await this.save()
     }
 
+    const currentAlarm =
+      await this
+        .state
+        .storage
+        .getAlarm()
+
+    if (
+      currentAlarm ===
+      null
+    ) {
+      await this
+        .state
+        .storage
+        .setAlarm(
+          Math.max(
+            nextActionAt,
+            Date.now()
+          )
+        )
+    }
+
     return true
   }
 
-  private async advanceBotIfDue() {
+  private async rescheduleBotAfterFailure(
+    actorId:
+      string
+  ) {
+    if (
+      !this.session
+    ) {
+      return
+    }
+
+    const nextActionAt =
+      Date.now() +
+      BOT_RETRY_DELAY_MS
+
+    this.session.bot = {
+      actorId,
+      nextActionAt
+    }
+
+    await this.save()
+
+    await this
+      .state
+      .storage
+      .setAlarm(
+        nextActionAt
+      )
+  }
+
+  private async executeBotAction() {
     if (
       !this.session
     ) {
@@ -1958,92 +2392,143 @@ export class ConquistadorGameSessionDurableObject {
         this.session.game
       )
 
+    const actorId =
+      getConquistadorBotActorId(
+        game,
+        this.session
+          .participants
+      )
+
     if (
-      !await this
-        .scheduleBot(
-          game
-        )
+      !actorId
     ) {
+      await this
+        .clearBotSchedule()
+
       return false
     }
 
     const runtime =
-      this.session.bot
+      this.session
+        .bot
 
     if (
+      runtime
+        ?.actorId !==
+        actorId ||
       !runtime
-        ?.actorId ||
+        ?.nextActionAt
+    ) {
+      await this
+        .scheduleBot(
+          game
+        )
+
+      return false
+    }
+
+    if (
       Date.now() <
-        runtime
-          .nextActionAt
+      runtime
+        .nextActionAt
     ) {
-      return false
-    }
-
-    const command =
-      chooseConquistadorBotCommand(
-        game,
-        this.session
-          .participants,
-        runtime.actorId
-      ) as
-        GameCommand |
-        null
-
-    if (
-      !command
-    ) {
-      this.session.bot = {
-        actorId:
-          null,
-
-        nextActionAt:
-          0
-      }
-
-      await this.save()
+      await this
+        .state
+        .storage
+        .setAlarm(
+          runtime
+            .nextActionAt
+        )
 
       return false
     }
 
-    let result:
-      Record<
-        string,
-        unknown
-      >
-
-    try {
-      result =
-        executeCommand(
+    const preferredCommand =
+      normalizeCommand(
+        chooseConquistadorBotCommand(
           game,
-          runtime.actorId,
-          command
-        ) as
-          Record<
-            string,
-            unknown
-          >
-    } catch {
-      result = {
-        success:
-          false
+          this.session
+            .participants,
+          actorId
+        )
+      )
+
+    const fallbackCommand =
+      chooseEmergencyBotCommand(
+        game,
+        actorId
+      )
+
+    const commands =
+      [
+        preferredCommand,
+        fallbackCommand
+      ]
+        .filter(
+          (
+            command,
+            index,
+            list
+          ):
+            command is GameCommand =>
+              Boolean(
+                command
+              ) &&
+              list.findIndex(
+                (
+                  candidate
+                ) =>
+                  JSON.stringify(
+                    candidate
+                  ) ===
+                  JSON.stringify(
+                    command
+                  )
+              ) ===
+              index
+        )
+
+    let success =
+      false
+
+    for (
+      const command
+      of commands
+    ) {
+      try {
+        const result =
+          executeCommand(
+            game,
+            actorId,
+            command
+          ) as
+            Record<
+              string,
+              unknown
+            >
+
+        if (
+          result
+            ?.success ===
+          true
+        ) {
+          success =
+            true
+
+          break
+        }
+      } catch {
+        continue
       }
     }
 
     if (
-      !result ||
-      result.success !==
-        true
+      !success
     ) {
-      this.session.bot = {
-        actorId:
-          null,
-
-        nextActionAt:
-          0
-      }
-
-      await this.save()
+      await this
+        .rescheduleBotAfterFailure(
+          actorId
+        )
 
       return false
     }
@@ -2065,15 +2550,20 @@ export class ConquistadorGameSessionDurableObject {
         0
     }
 
+    await this.save()
+
     await this
       .scheduleBot(
         game,
         Date.now()
       )
 
-    await this.save()
-
     return true
+  }
+
+  private async handleAlarm() {
+    await this
+      .executeBotAction()
   }
 
   private async handleBootstrap(
@@ -2133,6 +2623,14 @@ export class ConquistadorGameSessionDurableObject {
           409
         )
       }
+
+      await this
+        .scheduleBot(
+          Game.fromJSON(
+            this.session
+              .game
+          )
+        )
 
       return json({
         success:
@@ -2203,13 +2701,13 @@ export class ConquistadorGameSessionDurableObject {
       }
     }
 
+    await this.save()
+
     await this
       .scheduleBot(
         game,
         now
       )
-
-    await this.save()
 
     return json({
       success:
@@ -2275,7 +2773,12 @@ export class ConquistadorGameSessionDurableObject {
     }
 
     await this
-      .advanceBotIfDue()
+      .scheduleBot(
+        Game.fromJSON(
+          this.session
+            .game
+        )
+      )
 
     const knownRevision =
       normalizeRevision(
@@ -2529,13 +3032,13 @@ export class ConquistadorGameSessionDurableObject {
         0
     }
 
+    await this.save()
+
     await this
       .scheduleBot(
         game,
         Date.now()
       )
-
-    await this.save()
 
     return json({
       success:
