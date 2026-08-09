@@ -16,6 +16,9 @@ interface AccessEntryScreenProps {
     mode: MAProfessorEntryMode;
     email: string;
     password: string;
+    selectedPlan:
+        | MAProfessorCommercialPlan
+        | null;
     requestStatus:
         | MAProfessorAccessRequestStatus
         | null;
@@ -26,20 +29,19 @@ interface AccessEntryScreenProps {
         | MAProfessorCommercialStatusResponse
         | null;
     commercialLoading: boolean;
-    commercialSaving: boolean;
     onEmailChange: (
         value: string
     ) => void;
     onPasswordChange: (
         value: string
     ) => void;
+    onPlanChange: (
+        plan: MAProfessorCommercialPlan
+    ) => void;
     onRequest: () => void;
     onActivate: () => void;
     onShowRequest: () => void;
     onShowActivate: () => void;
-    onSelectPlan: (
-        plan: MAProfessorCommercialPlan
-    ) => void;
     onRefreshStatus: () => void;
 }
 
@@ -152,16 +154,14 @@ function PlanButtons({
                 <span className="block text-lg font-black text-cyan-200">
                     3,49 €
                 </span>
-
                 <span className="mt-1 block text-sm font-bold text-white">
                     30 dias
                 </span>
-
                 <span className="mt-2 block text-xs leading-5 text-slate-400">
                     Renovação manual.
-                    Cada novo período pago
-                    terá uma nova
-                    autorização.
+                    Cada novo período
+                    autorizado terá uma
+                    nova senha.
                 </span>
             </button>
 
@@ -183,11 +183,9 @@ function PlanButtons({
                 <span className="block text-lg font-black text-violet-200">
                     15 €
                 </span>
-
                 <span className="mt-1 block text-sm font-bold text-white">
                     Até 1 de agosto
                 </span>
-
                 <span className="mt-2 block text-xs leading-5 text-slate-400">
                     Sem ativações mensais
                     enquanto a licença do
@@ -199,12 +197,56 @@ function PlanButtons({
     );
 }
 
+function PaymentInstructions({
+    selectedPlan
+}: {
+    selectedPlan:
+        | MAProfessorCommercialPlan
+        | null;
+}) {
+    if (!selectedPlan) {
+        return null;
+    }
+
+    return (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+            <p className="text-sm font-black text-white">
+                Pagamento por MB WAY
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+                Plano selecionado:{' '}
+                <strong className="text-white">
+                    {getPlanLabel(
+                        selectedPlan
+                    )}
+                </strong>
+                . No fluxo normal,
+                efetue o pagamento antes
+                de enviar o pedido,
+                segundo as instruções
+                fornecidas pela MA-CODE.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+                Se ainda não recebeu as
+                instruções de pagamento,
+                contacte
+                {' '}
+                <span className="font-semibold text-slate-300">
+                    acesso@ma-code.pt
+                </span>
+                . Ignore o pagamento
+                apenas se recebeu uma
+                indicação direta da
+                MA-CODE para o fazer.
+            </p>
+        </div>
+    );
+}
+
 function CommercialFlow({
     requestStatus,
     commercialStatus,
     commercialLoading,
-    commercialSaving,
-    onSelectPlan,
     onRefreshStatus,
     onShowActivate
 }: {
@@ -215,10 +257,6 @@ function CommercialFlow({
         | MAProfessorCommercialStatusResponse
         | null;
     commercialLoading: boolean;
-    commercialSaving: boolean;
-    onSelectPlan: (
-        plan: MAProfessorCommercialPlan
-    ) => void;
     onRefreshStatus: () => void;
     onShowActivate: () => void;
 }) {
@@ -235,23 +273,21 @@ function CommercialFlow({
         );
     }
 
-    if (
-        requestStatus !== 'approved'
-    ) {
+    if (!commercialStatus) {
         return (
             <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
                 <p className="text-sm font-black text-amber-100">
-                    O pedido foi
-                    recebido.
+                    A verificar a
+                    autorização comercial.
                 </p>
-
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                    A escolha do plano
-                    fica disponível
-                    depois de a MA-CODE
-                    aprovar o pedido.
+                    O plano foi escolhido
+                    antes do pedido. Use
+                    este botão para
+                    consultar o estado da
+                    aprovação, do
+                    pagamento e da senha.
                 </p>
-
                 <button
                     type="button"
                     disabled={
@@ -270,48 +306,15 @@ function CommercialFlow({
         );
     }
 
-    if (!commercialStatus) {
-        return (
-            <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-                <p className="text-sm font-black text-cyan-100">
-                    Pedido aprovado.
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Verifique o estado
-                    para escolher o
-                    plano.
-                </p>
-
-                <button
-                    type="button"
-                    disabled={
-                        commercialLoading
-                    }
-                    onClick={
-                        onRefreshStatus
-                    }
-                    className="mt-4 rounded-xl border border-cyan-300/20 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
-                >
-                    {commercialLoading
-                        ? 'A verificar…'
-                        : 'Continuar'}
-                </button>
-            </div>
-        );
-    }
-
     if (
         commercialStatus.existingLicense
     ) {
         return (
             <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
                 <p className="text-sm font-black text-cyan-100">
-                    Esta conta já tem
-                    uma licença
-                    associada.
+                    Esta conta já tem uma
+                    licença associada.
                 </p>
-
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                     Se já recebeu a sua
                     senha, pode entrar.
@@ -319,7 +322,6 @@ function CommercialFlow({
                     tratadas a partir da
                     licença existente.
                 </p>
-
                 <button
                     type="button"
                     onClick={
@@ -333,6 +335,12 @@ function CommercialFlow({
         );
     }
 
+    const paymentResolved =
+        commercialStatus.paymentStatus ===
+            'confirmed' ||
+        commercialStatus.paymentStatus ===
+            'dispensed';
+
     if (
         commercialStatus.canActivate ||
         commercialStatus
@@ -341,21 +349,18 @@ function CommercialFlow({
         return (
             <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-sm font-black text-emerald-100">
-                    Pagamento confirmado
-                    e senha emitida.
+                    Autorização validada e
+                    senha emitida.
                 </p>
-
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                     Introduza a senha
-                    enviada pela
-                    MA-CODE para ativar
-                    o plano{' '}
+                    enviada pela MA-CODE
+                    para ativar o plano{' '}
                     {getPlanLabel(
                         commercialStatus.plan
                     )}
                     .
                 </p>
-
                 <button
                     type="button"
                     onClick={
@@ -369,26 +374,22 @@ function CommercialFlow({
         );
     }
 
-    if (
-        commercialStatus.paymentStatus ===
-        'confirmed'
-    ) {
+    if (paymentResolved) {
         return (
             <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-sm font-black text-emerald-100">
-                    Pagamento
-                    confirmado.
+                    {commercialStatus.paymentStatus ===
+                    'dispensed'
+                        ? 'Pagamento dispensado pela MA-CODE.'
+                        : 'Pagamento confirmado.'}
                 </p>
-
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                    A MA-CODE vai agora
-                    gerar a nova senha
-                    associada a este
-                    pagamento. Quando a
-                    receber, volte aqui
-                    para ativar.
+                    A autorização já pode
+                    originar a nova senha.
+                    Quando a receber por
+                    email, volte aqui para
+                    ativar.
                 </p>
-
                 <button
                     type="button"
                     disabled={
@@ -412,17 +413,15 @@ function CommercialFlow({
             <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
-                        Plano escolhido
+                        Plano do pedido
                     </p>
-
                     <p className="mt-2 text-lg font-black text-white">
                         {getPlanLabel(
                             commercialStatus.plan
                         )}
                     </p>
-
                     <p className="mt-1 text-sm text-slate-300">
-                        Valor a pagar:{' '}
+                        Valor:{' '}
                         <strong className="text-white">
                             {formatAmount(
                                 commercialStatus.amountCents
@@ -431,60 +430,25 @@ function CommercialFlow({
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                    <p className="text-sm font-black text-white">
-                        Pagamento por
-                        MB WAY
+                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                    <p className="text-sm font-black text-amber-100">
+                        Pagamento pendente
+                        de verificação.
                     </p>
-
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                        Efetue o
-                        pagamento segundo
-                        as instruções
-                        fornecidas pela
-                        MA-CODE. Depois
-                        do pagamento,
-                        aguarde a
-                        confirmação
-                        administrativa.
-                    </p>
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                        Se ainda não
-                        recebeu as
-                        instruções de
-                        pagamento,
-                        contacte
-                        acesso@ma-code.pt.
-                        A senha só é
-                        criada depois de
-                        o pagamento ser
-                        confirmado.
+                        A MA-CODE ainda
+                        precisa de validar
+                        o pedido e o
+                        recebimento do
+                        pagamento. A senha
+                        só pode ser gerada
+                        depois de o pedido
+                        estar aprovado e o
+                        pagamento estar
+                        confirmado ou
+                        dispensado.
                     </p>
                 </div>
-
-                {commercialStatus.canSelectPlan ? (
-                    <div>
-                        <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                            Alterar plano
-                            antes da
-                            confirmação
-                            do pagamento
-                        </p>
-
-                        <PlanButtons
-                            disabled={
-                                commercialSaving
-                            }
-                            selectedPlan={
-                                commercialStatus.plan
-                            }
-                            onSelectPlan={
-                                onSelectPlan
-                            }
-                        />
-                    </div>
-                ) : null}
 
                 <button
                     type="button"
@@ -498,37 +462,38 @@ function CommercialFlow({
                 >
                     {commercialLoading
                         ? 'A verificar…'
-                        : 'Já paguei · verificar confirmação'}
+                        : 'Verificar estado'}
                 </button>
             </div>
         );
     }
 
     return (
-        <div className="mt-5">
-            <p className="mb-3 text-sm font-black text-white">
-                Escolha o seu plano
+        <div className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/10 p-4">
+            <p className="text-sm font-black text-rose-100">
+                Não foi possível localizar
+                o plano associado ao
+                pedido.
             </p>
-
-            <PlanButtons
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+                Não envie um segundo
+                pedido. Atualize o estado
+                ou contacte a MA-CODE.
+            </p>
+            <button
+                type="button"
                 disabled={
-                    commercialSaving
+                    commercialLoading
                 }
-                selectedPlan={null}
-                onSelectPlan={
-                    onSelectPlan
+                onClick={
+                    onRefreshStatus
                 }
-            />
-
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-                Não existe renovação
-                automática. A senha
-                desta autorização só
-                será gerada depois da
-                confirmação do
-                pagamento pela
-                MA-CODE.
-            </p>
+                className="mt-4 rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
+            >
+                {commercialLoading
+                    ? 'A verificar…'
+                    : 'Verificar estado'}
+            </button>
         </div>
     );
 }
@@ -537,20 +502,20 @@ export function AccessEntryScreen({
     mode,
     email,
     password,
+    selectedPlan,
     requestStatus,
     message,
     error,
     submitting,
     commercialStatus,
     commercialLoading,
-    commercialSaving,
     onEmailChange,
     onPasswordChange,
+    onPlanChange,
     onRequest,
     onActivate,
     onShowRequest,
     onShowActivate,
-    onSelectPlan,
     onRefreshStatus
 }: AccessEntryScreenProps) {
     return (
@@ -561,25 +526,20 @@ export function AccessEntryScreen({
                         MA-CODE · Acesso
                         privado
                     </p>
-
                     <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
                         O seu ano letivo
                         num único lugar.
                     </h1>
-
                     <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
                         Sumários, aulas,
-                        turmas,
-                        avaliações,
+                        turmas, avaliações,
                         faltas,
                         planificações e
                         horários, com os
                         dados guardados
-                        neste dispositivo
-                        e cópias de
-                        segurança
-                        controladas por
-                        si.
+                        neste dispositivo e
+                        cópias de segurança
+                        controladas por si.
                     </p>
 
                     <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -590,9 +550,7 @@ export function AccessEntryScreen({
                             'Exportação e restauro de dados'
                         ].map(item => (
                             <div
-                                key={
-                                    item
-                                }
+                                key={item}
                                 className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-semibold text-slate-200"
                             >
                                 <span className="mr-2 text-cyan-300">
@@ -608,16 +566,13 @@ export function AccessEntryScreen({
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
                                 Mensal
                             </p>
-
                             <p className="mt-2 text-lg font-black text-white">
                                 3,49 € / 30
                                 dias
                             </p>
-
                             <p className="mt-1 text-xs leading-5 text-slate-400">
                                 Renovação
-                                manual e
-                                sem
+                                manual e sem
                                 cobranças
                                 automáticas.
                             </p>
@@ -627,17 +582,13 @@ export function AccessEntryScreen({
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
                                 Ano letivo
                             </p>
-
                             <p className="mt-2 text-lg font-black text-white">
                                 15 €
                             </p>
-
                             <p className="mt-1 text-xs leading-5 text-slate-400">
-                                Válido até
-                                1 de agosto
-                                do
-                                respetivo
-                                ano
+                                Válido até 1
+                                de agosto do
+                                respetivo ano
                                 letivo.
                             </p>
                         </div>
@@ -645,11 +596,12 @@ export function AccessEntryScreen({
 
                     <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-xs leading-5 text-slate-400">
                         Fluxo de acesso:
-                        pedido → aprovação
-                        → escolha do plano
-                        → pagamento →
-                        confirmação
-                        MA-CODE → nova
+                        plano → email →
+                        pagamento → pedido
+                        → validação MA-CODE
+                        → aprovação +
+                        pagamento confirmado
+                        ou dispensado → nova
                         senha → ativação.
                     </div>
                 </div>
@@ -664,41 +616,44 @@ export function AccessEntryScreen({
                             }}
                         >
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                                Primeiro
-                                passo
-                            </p>
-
-                            <h2 className="mt-3 text-2xl font-black">
-                                Pedir
+                                Pedido de
                                 acesso
+                            </p>
+                            <h2 className="mt-3 text-2xl font-black">
+                                Escolha o
+                                plano
                             </h2>
-
                             <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Indique o
-                                seu email.
-                                O pedido
-                                fica
-                                pendente
-                                até ser
-                                aprovado
-                                pela
-                                MA-CODE.
-                                Só depois
-                                poderá
-                                escolher e
-                                pagar o
-                                plano.
+                                O plano é
+                                escolhido por
+                                si antes do
+                                pedido e fica
+                                associado ao
+                                seu email e à
+                                autorização
+                                comercial.
                             </p>
 
-                            <label className="mt-7 block text-sm font-bold text-slate-200">
-                                Email
+                            <div className="mt-6">
+                                <PlanButtons
+                                    disabled={
+                                        submitting
+                                    }
+                                    selectedPlan={
+                                        selectedPlan
+                                    }
+                                    onSelectPlan={
+                                        onPlanChange
+                                    }
+                                />
+                            </div>
 
+                            <label className="mt-6 block text-sm font-bold text-slate-200">
+                                Email
                                 <input
                                     type="email"
                                     autoComplete="email"
-                                    value={
-                                        email
-                                    }
+                                    value={email}
                                     onChange={event =>
                                         onEmailChange(
                                             event
@@ -711,19 +666,21 @@ export function AccessEntryScreen({
                                 />
                             </label>
 
+                            <PaymentInstructions
+                                selectedPlan={
+                                    selectedPlan
+                                }
+                            />
+
                             {message ? (
                                 <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm leading-6 text-cyan-100">
-                                    {
-                                        message
-                                    }
+                                    {message}
                                 </p>
                             ) : null}
 
                             {error ? (
                                 <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
-                                    {
-                                        error
-                                    }
+                                    {error}
                                 </p>
                             ) : null}
 
@@ -736,7 +693,7 @@ export function AccessEntryScreen({
                             >
                                 {submitting
                                     ? 'A enviar…'
-                                    : 'Pedir acesso'}
+                                    : 'Enviar pedido para validação'}
                             </button>
 
                             <button
@@ -759,12 +716,10 @@ export function AccessEntryScreen({
                                 Estado do
                                 acesso
                             </p>
-
                             <h2 className="mt-3 text-2xl font-black">
                                 Pedido
                                 registado
                             </h2>
-
                             <div className="mt-4">
                                 <StatusBadge
                                     status={
@@ -772,10 +727,9 @@ export function AccessEntryScreen({
                                     }
                                 />
                             </div>
-
                             <p className="mt-3 text-sm leading-6 text-slate-400">
                                 {message ||
-                                    'Pode voltar a esta área para acompanhar o pedido e continuar quando estiver aprovado.'}
+                                    'Pode voltar a esta área para acompanhar a validação do pedido, do pagamento e da nova senha.'}
                             </p>
 
                             <CommercialFlow
@@ -788,12 +742,6 @@ export function AccessEntryScreen({
                                 commercialLoading={
                                     commercialLoading
                                 }
-                                commercialSaving={
-                                    commercialSaving
-                                }
-                                onSelectPlan={
-                                    onSelectPlan
-                                }
                                 onRefreshStatus={
                                     onRefreshStatus
                                 }
@@ -804,9 +752,7 @@ export function AccessEntryScreen({
 
                             {error ? (
                                 <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
-                                    {
-                                        error
-                                    }
+                                    {error}
                                 </p>
                             ) : null}
 
@@ -834,37 +780,29 @@ export function AccessEntryScreen({
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                                 Ativação
                             </p>
-
                             <h2 className="mt-3 text-2xl font-black">
                                 Ativar ou
                                 entrar
                             </h2>
-
                             <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Use o
-                                mesmo
+                                Use o mesmo
                                 email do
-                                pedido e
-                                a nova
-                                senha
-                                enviada
-                                pela
-                                MA-CODE
-                                depois da
-                                confirmação
-                                do
-                                pagamento.
+                                pedido e a
+                                nova senha
+                                enviada pela
+                                MA-CODE depois
+                                de a
+                                autorização
+                                ter sido
+                                validada.
                             </p>
 
                             <label className="mt-7 block text-sm font-bold text-slate-200">
                                 Email
-
                                 <input
                                     type="email"
                                     autoComplete="email"
-                                    value={
-                                        email
-                                    }
+                                    value={email}
                                     onChange={event =>
                                         onEmailChange(
                                             event
@@ -880,7 +818,6 @@ export function AccessEntryScreen({
                             <label className="mt-4 block text-sm font-bold text-slate-200">
                                 Senha da
                                 licença
-
                                 <input
                                     type="password"
                                     autoComplete="current-password"
@@ -901,17 +838,13 @@ export function AccessEntryScreen({
 
                             {message ? (
                                 <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm leading-6 text-cyan-100">
-                                    {
-                                        message
-                                    }
+                                    {message}
                                 </p>
                             ) : null}
 
                             {error ? (
                                 <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
-                                    {
-                                        error
-                                    }
+                                    {error}
                                 </p>
                             ) : null}
 
@@ -935,24 +868,20 @@ export function AccessEntryScreen({
                                 className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/5 hover:text-white"
                             >
                                 Ainda não
-                                pedi
-                                acesso
+                                pedi acesso
                             </button>
 
                             <p className="mt-4 text-xs leading-5 text-slate-500">
-                                A senha
-                                serve para
-                                validar a
+                                A senha serve
+                                para validar a
                                 conta e a
-                                autorização
-                                paga. A
-                                chave de
+                                autorização.
+                                A chave de
                                 recuperação
                                 dos dados,
                                 quando
-                                utilizada,
-                                é um
-                                mecanismo
+                                utilizada, é
+                                um mecanismo
                                 separado.
                             </p>
                         </form>
