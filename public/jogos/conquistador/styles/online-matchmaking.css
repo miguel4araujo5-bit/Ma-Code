@@ -1,0 +1,317 @@
+.online-game-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.online-game-button > span {
+  color: #d8bd6e;
+  font-size: 0.9em;
+}
+
+.online-matchmaking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(4, 29, 40, 0.78);
+  backdrop-filter: blur(7px);
+}
+
+.online-matchmaking-card {
+  position: relative;
+  width: min(100%, 510px);
+  padding: 34px;
+  border: 1px solid rgba(215, 187, 105, 0.72);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top, rgba(37, 100, 119, 0.28), transparent 44%),
+    linear-gradient(145deg, #0e465a, #092f40);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.38),
+    inset 0 0 0 3px rgba(255, 250, 230, 0.04);
+  color: #fff9e9;
+  text-align: center;
+}
+
+.online-matchmaking-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff9e9;
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.online-matchmaking-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.online-matchmaking-eyebrow {
+  margin: 0 0 8px;
+  color: #ddc579;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.online-matchmaking-card h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 5vw, 2.35rem);
+}
+
+.online-matchmaking-copy {
+  max-width: 410px;
+  margin: 14px auto 24px;
+  color: rgba(255, 249, 233, 0.74);
+  line-height: 1.55;
+}
+
+.online-matchmaking-form {
+  display: grid;
+  gap: 18px;
+  text-align: left;
+}
+
+.online-matchmaking-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.online-matchmaking-form label > span {
+  color: #f1dfaa;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.online-matchmaking-form input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 15px;
+  border: 1px solid rgba(231, 208, 143, 0.42);
+  border-radius: 12px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font: inherit;
+}
+
+.online-matchmaking-form input:focus {
+  border-color: #e0c36f;
+  box-shadow: 0 0 0 3px rgba(224, 195, 111, 0.15);
+}
+
+.online-matchmaking-submit {
+  width: 100%;
+}
+
+.online-matchmaking-error {
+  margin: 16px 0 0;
+  color: #ffd0c6;
+}
+
+.online-matchmaking-countdown {
+  display: grid;
+  width: 118px;
+  height: 118px;
+  margin: 8px auto 20px;
+  place-content: center;
+  border: 2px solid rgba(220, 194, 117, 0.72);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 32px rgba(218, 191, 108, 0.1);
+}
+
+.online-matchmaking-countdown strong {
+  display: block;
+  color: #ffe49a;
+  font-size: 3.25rem;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.online-matchmaking-countdown span {
+  margin-top: 8px;
+  color: rgba(255, 249, 233, 0.62);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.online-matchmaking-search-slots {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 20px 0 24px;
+}
+
+.online-matchmaking-search-slots span {
+  display: grid;
+  width: 45px;
+  height: 45px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.26);
+  animation: conquistador-online-search 1.1s ease-in-out infinite alternate;
+}
+
+.online-matchmaking-search-slots span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.online-matchmaking-search-slots span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+.online-matchmaking-search-slots span:nth-child(4) {
+  animation-delay: 0.42s;
+}
+
+.online-matchmaking-search-slots .is-human {
+  border-color: rgba(218, 191, 108, 0.7);
+  color: #e1c66f;
+}
+
+.online-matchmaking-cancel {
+  min-width: 150px;
+}
+
+.online-matchmaking-success {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  margin: 8px auto 17px;
+  place-items: center;
+  border: 2px solid rgba(117, 203, 158, 0.7);
+  border-radius: 50%;
+  background: rgba(80, 175, 126, 0.12);
+  color: #9ee2bb;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.online-participants {
+  display: grid;
+  gap: 9px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.online-participant {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.online-participant.is-self {
+  border-color: rgba(219, 194, 115, 0.45);
+  background: rgba(219, 194, 115, 0.09);
+}
+
+.online-participant-marker {
+  color: #e1c56e;
+  font-weight: 900;
+}
+
+.online-participant.is-human .online-participant-marker {
+  color: #8bcdb6;
+  font-size: 0.72rem;
+}
+
+.online-participant-name {
+  font-weight: 800;
+}
+
+.online-participant small {
+  color: #dbc47d;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.online-matchmaking-ready-note {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 22px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 249, 233, 0.65);
+  text-align: left;
+}
+
+.online-matchmaking-ready-note > span {
+  color: #e0c46c;
+}
+
+.online-matchmaking-ready-note p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.online-matchmaking-back {
+  display: block;
+  margin: 15px auto 0;
+  color: rgba(255, 249, 233, 0.7);
+}
+
+@keyframes conquistador-online-search {
+  from {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  to {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 620px) {
+  .online-matchmaking-overlay {
+    padding: 14px;
+  }
+
+  .online-matchmaking-card {
+    padding: 29px 20px 24px;
+    border-radius: 19px;
+  }
+
+  .online-matchmaking-countdown {
+    width: 100px;
+    height: 100px;
+  }
+
+  .online-matchmaking-countdown strong {
+    font-size: 2.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .online-matchmaking-search-slots span {
+    animation: none;
+  }
+}
