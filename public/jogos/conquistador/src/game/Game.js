@@ -31,44 +31,75 @@ import {
   Bank,
 } from './Bank.js';
 
-const GAME_PHASES = Object.freeze({
-  SETUP_VILLAGE: 'setup-village',
-  SETUP_ROAD: 'setup-road',
-  TURN_ROLL: 'turn-roll',
-  TURN_ACTIONS: 'turn-actions',
-  GAME_OVER: 'game-over',
-});
+import {
+  SevenEventEngine,
+  THREAT_TYPES,
+  TARGET_TYPES,
+} from './SevenEventEngine.js';
 
-const HOUSE_PRESETS = Object.freeze([
+const GAME_PHASES =
   Object.freeze({
-    id: 'atlantic',
-    name: 'Casa do Atlântico',
-    color: '#176b78',
-    symbol: '≈',
-  }),
-  Object.freeze({
-    id: 'mountain',
-    name: 'Casa da Serra',
-    color: '#44643c',
-    symbol: '▲',
-  }),
-  Object.freeze({
-    id: 'sun',
-    name: 'Casa do Sol',
-    color: '#b7791f',
-    symbol: '☀',
-  }),
-  Object.freeze({
-    id: 'tagus',
-    name: 'Casa do Tejo',
-    color: '#8c2f39',
-    symbol: '◆',
-  }),
-]);
+    SETUP_VILLAGE:
+      'setup-village',
+
+    SETUP_ROAD:
+      'setup-road',
+
+    TURN_ROLL:
+      'turn-roll',
+
+    EVENT_SEVEN:
+      'event-seven',
+
+    TURN_ACTIONS:
+      'turn-actions',
+
+    GAME_OVER:
+      'game-over',
+  });
+
+const HOUSE_PRESETS =
+  Object.freeze([
+    Object.freeze({
+      id: 'atlantic',
+      name:
+        'Casa do Atlântico',
+      color: '#176b78',
+      symbol: '≈',
+    }),
+
+    Object.freeze({
+      id: 'mountain',
+      name:
+        'Casa da Serra',
+      color: '#44643c',
+      symbol: '▲',
+    }),
+
+    Object.freeze({
+      id: 'sun',
+      name:
+        'Casa do Sol',
+      color: '#b7791f',
+      symbol: '☀',
+    }),
+
+    Object.freeze({
+      id: 'tagus',
+      name:
+        'Casa do Tejo',
+      color: '#8c2f39',
+      symbol: '◆',
+    }),
+  ]);
 
 function createGameId() {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
+  if (
+    globalThis.crypto
+      ?.randomUUID
+  ) {
+    return globalThis.crypto
+      .randomUUID();
   }
 
   return (
@@ -79,23 +110,36 @@ function createGameId() {
   );
 }
 
-function createSetupOrder(playerCount) {
-  const forward = Array.from(
-    {
-      length: playerCount,
-    },
-    (_, index) => index,
-  );
+function createSetupOrder(
+  playerCount,
+) {
+  const forward =
+    Array.from(
+      {
+        length:
+          playerCount,
+      },
+
+      (
+        _,
+        index,
+      ) =>
+        index,
+    );
 
   return [
     ...forward,
-    ...[...forward].reverse(),
+    ...[
+      ...forward,
+    ].reverse(),
   ];
 }
 
 function clone(value) {
   return JSON.parse(
-    JSON.stringify(value),
+    JSON.stringify(
+      value,
+    ),
   );
 }
 
@@ -106,78 +150,97 @@ function normalizePlayers(
     !Array.isArray(
       playerConfigurations,
     ) ||
-    playerConfigurations.length < 2 ||
-    playerConfigurations.length > 4
+    playerConfigurations
+      .length < 2 ||
+    playerConfigurations
+      .length > 4
   ) {
     throw new Error(
       'A partida deve ter entre 2 e 4 jogadores.',
     );
   }
 
-  return playerConfigurations.map(
-    (
-      configuration,
-      index,
-    ) => {
-      const house =
-        HOUSE_PRESETS[index];
+  return playerConfigurations
+    .map(
+      (
+        configuration,
+        index,
+      ) => {
+        const house =
+          HOUSE_PRESETS[
+            index
+          ];
 
-      return new Player({
-        id:
-          configuration.id ||
-          `player-${index + 1}`,
+        return new Player({
+          id:
+            configuration.id ||
+            `player-${
+              index + 1
+            }`,
 
-        name:
-          configuration.name ||
-          `Jogador ${index + 1}`,
+          name:
+            configuration
+              .name ||
+            `Jogador ${
+              index + 1
+            }`,
 
-        houseId:
-          configuration.houseId ||
-          house.id,
+          houseId:
+            configuration
+              .houseId ||
+            house.id,
 
-        color:
-          configuration.color ||
-          house.color,
+          color:
+            configuration
+              .color ||
+            house.color,
 
-        symbol:
-          configuration.symbol ||
-          house.symbol,
+          symbol:
+            configuration
+              .symbol ||
+            house.symbol,
 
-        resources:
-          configuration.resources,
+          resources:
+            configuration
+              .resources,
 
-        pieces:
-          configuration.pieces,
+          pieces:
+            configuration
+              .pieces,
 
-        prestige:
-          configuration.prestige,
+          prestige:
+            configuration
+              .prestige,
 
-        usedGuardCaptains:
-          configuration
-            .usedGuardCaptains,
+          usedGuardCaptains:
+            configuration
+              .usedGuardCaptains,
 
-        contractPrestige:
-          configuration
-            .contractPrestige,
+          contractPrestige:
+            configuration
+              .contractPrestige,
 
-        hasLargestNetwork:
-          configuration
-            .hasLargestNetwork,
+          hasLargestNetwork:
+            configuration
+              .hasLargestNetwork,
 
-        hasLargestMilitary:
-          configuration
-            .hasLargestMilitary,
-      });
-    },
-  );
+          hasLargestMilitary:
+            configuration
+              .hasLargestMilitary,
+        });
+      },
+    );
 }
 
-function restoreBank(bankData) {
+function restoreBank(
+  bankData,
+) {
   const bank =
     new Bank();
 
   if (
-    bankData?.inventory
+    bankData
+      ?.inventory
   ) {
     bank.inventory = {
       ...bank.inventory,
@@ -195,7 +258,9 @@ function prepareBoard(
   if (!boardData) {
     return buildBoardTopology(
       new BoardGenerator()
-        .generate(seed),
+        .generate(
+          seed,
+        ),
     );
   }
 
@@ -215,7 +280,9 @@ function prepareBoard(
   }
 
   const board =
-    clone(boardData);
+    clone(
+      boardData,
+    );
 
   if (
     !Array.isArray(
@@ -231,11 +298,13 @@ function prepareBoard(
   }
 
   if (
-    board.vertices.length !==
+    board.vertices
+      .length !==
       GAME_CONFIG
         .board
         .expectedVertexCount ||
-    board.edges.length !==
+    board.edges
+      .length !==
       GAME_CONFIG
         .board
         .expectedEdgeCount
@@ -257,13 +326,44 @@ function depositCost(
       resourceId,
       quantity,
     ]
-    of Object.entries(cost)
+    of Object.entries(
+      cost,
+    )
   ) {
     bank.deposit(
       resourceId,
       quantity,
     );
   }
+}
+
+function targetLabel(
+  threatType,
+  targetType,
+) {
+  if (
+    threatType ===
+    THREAT_TYPES
+      .CONTRABANDIST
+  ) {
+    return (
+      'o Contrabandista'
+    );
+  }
+
+  if (
+    targetType ===
+    TARGET_TYPES
+      .EDGE
+  ) {
+    return (
+      'a Tempestade Atlântica numa ligação marítima'
+    );
+  }
+
+  return (
+    'a Tempestade Atlântica numa região costeira'
+  );
 }
 
 export class Game {
@@ -284,11 +384,14 @@ export class Game {
       GAME_PHASES
         .SETUP_VILLAGE,
 
-    currentPlayerIndex = 0,
+    currentPlayerIndex =
+      0,
 
-    setupOrder = null,
+    setupOrder =
+      null,
 
-    setupStep = 0,
+    setupStep =
+      0,
 
     pendingInitialVertexId =
       null,
@@ -296,25 +399,39 @@ export class Game {
     setupVillageCounts =
       null,
 
-    lastRoll = null,
+    lastRoll =
+      null,
 
     history = [],
 
-    winnerId = null,
+    winnerId =
+      null,
 
-    createdAt = null,
+    createdAt =
+      null,
 
-    updatedAt = null,
+    updatedAt =
+      null,
 
-    diceState = null,
+    diceState =
+      null,
 
-    turnNumber = 1,
+    turnNumber =
+      1,
+
+    sevenEvent =
+      null,
+
+    threat =
+      null,
   }) {
     this.id =
       id;
 
     this.seed =
-      String(seed);
+      String(
+        seed,
+      );
 
     this.players =
       normalizePlayers(
@@ -326,6 +443,9 @@ export class Game {
 
     this.production =
       new ProductionEngine();
+
+    this.sevenEvents =
+      new SevenEventEngine();
 
     this.dice =
       new DiceEngine(
@@ -345,7 +465,8 @@ export class Game {
     }
 
     this.bank =
-      bank instanceof Bank
+      bank instanceof
+      Bank
         ? bank
         : restoreBank(
             bank,
@@ -393,7 +514,9 @@ export class Game {
       Array.isArray(
         history,
       )
-        ? [...history]
+        ? [
+            ...history,
+          ]
         : [];
 
     this.winnerId =
@@ -416,6 +539,18 @@ export class Game {
       updatedAt ||
       this.createdAt;
 
+    this.sevenEvent =
+      this.sevenEvents
+        .normalizeEvent(
+          sevenEvent,
+        );
+
+    this.threat =
+      this.sevenEvents
+        .normalizeThreat(
+          threat,
+        );
+
     this.synchronizeCurrentPlayer();
   }
 
@@ -423,7 +558,8 @@ export class Game {
     return (
       this.players[
         this.currentPlayerIndex
-      ] || null
+      ] ||
+      null
     );
   }
 
@@ -437,7 +573,8 @@ export class Game {
         (player) =>
           player.id ===
           this.winnerId,
-      ) || null
+      ) ||
+      null
     );
   }
 
@@ -481,12 +618,14 @@ export class Game {
     details = {},
     playerId =
       this.currentPlayer
-        ?.id || null,
+        ?.id ||
+      null,
   ) {
     const entry = {
       id:
         `event-${
-          this.history.length + 1
+          this.history.length +
+          1
         }-${Date.now()}`,
 
       at:
@@ -520,7 +659,8 @@ export class Game {
         .SETUP_VILLAGE
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não está na fase de colocação de Vila.',
@@ -545,7 +685,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -558,7 +699,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não existem Vilas disponíveis.',
@@ -585,7 +727,8 @@ export class Game {
       (
         this.setupVillageCounts[
           player.id
-        ] || 0
+        ] ||
+        0
       ) + 1;
 
     this.pendingInitialVertexId =
@@ -611,7 +754,8 @@ export class Game {
     );
 
     return {
-      success: true,
+      success:
+        true,
 
       vertex:
         validation.vertex,
@@ -631,7 +775,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não existem segmentos disponíveis.',
@@ -647,13 +792,15 @@ export class Game {
     const villageCount =
       this.setupVillageCounts[
         player.id
-      ] || 0;
+      ] ||
+      0;
 
     let initialResources =
       null;
 
     if (
-      villageCount === 2
+      villageCount ===
+      2
     ) {
       initialResources =
         this.production
@@ -674,7 +821,6 @@ export class Game {
 
     this.addHistory(
       historyType,
-
       historyMessage,
 
       {
@@ -688,11 +834,13 @@ export class Game {
     this.pendingInitialVertexId =
       null;
 
-    this.setupStep += 1;
+    this.setupStep +=
+      1;
 
     if (
       this.setupStep >=
-      this.setupOrder.length
+      this.setupOrder
+        .length
     ) {
       this.phase =
         GAME_PHASES
@@ -724,7 +872,8 @@ export class Game {
     this.touch();
 
     return {
-      success: true,
+      success:
+        true,
 
       edge,
 
@@ -741,7 +890,8 @@ export class Game {
         .SETUP_ROAD
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não está na fase de colocação do segmento inicial.',
@@ -770,7 +920,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -804,7 +955,8 @@ export class Game {
         .SETUP_ROAD
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não está na fase de colocação do segmento inicial.',
@@ -833,7 +985,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -865,7 +1018,8 @@ export class Game {
         .TURN_ROLL
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Os dados já foram lançados neste turno.',
@@ -882,15 +1036,35 @@ export class Game {
       null;
 
     if (
-      roll.total === 7
+      roll.total ===
+      7
     ) {
+      this.sevenEvent =
+        this.sevenEvents
+          .createEvent(
+            this.players,
+            this.currentPlayer
+              .id,
+          );
+
+      this.phase =
+        GAME_PHASES
+          .EVENT_SEVEN;
+
       this.addHistory(
         'roll-seven',
 
-        `${this.currentPlayer.name} lançou 7. A Tempestade será implementada na fase seguinte.`,
+        `${this.currentPlayer.name} lançou 7. O Evento 7 começou.`,
 
         {
           roll,
+
+          discardQueue:
+            clone(
+              this
+                .sevenEvent
+                .discardQueue,
+            ),
         },
       );
     } else {
@@ -922,22 +1096,683 @@ export class Game {
             productionResult,
         },
       );
+
+      this.phase =
+        GAME_PHASES
+          .TURN_ACTIONS;
     }
+
+    this.touch();
+
+    return {
+      success:
+        true,
+
+      roll,
+
+      production:
+        productionResult,
+
+      sevenEvent:
+        this.sevenEvent
+          ? clone(
+              this
+                .sevenEvent,
+            )
+          : null,
+    };
+  }
+
+  getCurrentSevenDiscardEntry() {
+    return this.sevenEvents
+      .getCurrentDiscardEntry(
+        this.sevenEvent,
+      );
+  }
+
+  getCurrentSevenDiscardPlayer() {
+    const entry =
+      this
+        .getCurrentSevenDiscardEntry();
+
+    if (!entry) {
+      return null;
+    }
+
+    return (
+      this.players.find(
+        (player) =>
+          player.id ===
+          entry.playerId,
+      ) ||
+      null
+    );
+  }
+
+  discardForSeven(
+    selection,
+  ) {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'discard'
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Não há nenhum descarte do Evento 7 pendente.',
+      };
+    }
+
+    const entry =
+      this
+        .getCurrentSevenDiscardEntry();
+
+    const player =
+      this
+        .getCurrentSevenDiscardPlayer();
+
+    const validation =
+      this.sevenEvents
+        .validateDiscard(
+          player,
+          selection,
+          entry?.required,
+        );
+
+    if (
+      !validation.valid
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          validation.reason,
+      };
+    }
+
+    if (
+      !player.pay(
+        validation
+          .selection,
+      )
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'O jogador já não possui os recursos escolhidos para o descarte.',
+      };
+    }
+
+    depositCost(
+      this.bank,
+      validation
+        .selection,
+    );
+
+    this.addHistory(
+      'seven-discard',
+
+      `${player.name} descartou ${entry.required} recurso${
+        entry.required ===
+        1
+          ? ''
+          : 's'
+      }.`,
+
+      {
+        playerId:
+          player.id,
+
+        quantity:
+          entry.required,
+
+        resources:
+          validation
+            .selection,
+      },
+
+      player.id,
+    );
+
+    this.sevenEvent
+      .discardIndex +=
+      1;
+
+    if (
+      this.sevenEvent
+        .discardIndex >=
+      this.sevenEvent
+        .discardQueue
+        .length
+    ) {
+      this.sevenEvent
+        .step =
+        'choose-threat';
+    }
+
+    this.touch();
+
+    return {
+      success:
+        true,
+
+      playerId:
+        player.id,
+
+      discarded:
+        validation
+          .selection,
+
+      nextStep:
+        this.sevenEvent
+          .step,
+    };
+  }
+
+  chooseSevenThreat(
+    threatType,
+  ) {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-threat'
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Ainda não pode escolher a ameaça.',
+      };
+    }
+
+    if (
+      !Object.values(
+        THREAT_TYPES,
+      ).includes(
+        threatType,
+      )
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'A ameaça escolhida não é válida.',
+      };
+    }
+
+    this.sevenEvent
+      .selectedThreat =
+      threatType;
+
+    this.sevenEvent
+      .targetType =
+      null;
+
+    this.sevenEvent
+      .targetId =
+      null;
+
+    this.sevenEvent
+      .eligibleVictimIds =
+      [];
+
+    this.sevenEvent
+      .step =
+      'choose-target';
+
+    this.addHistory(
+      'seven-threat-choice',
+
+      `${
+        this.currentPlayer
+          .name
+      } escolheu ${
+        threatType ===
+        THREAT_TYPES
+          .CONTRABANDIST
+          ? 'o Contrabandista'
+          : 'a Tempestade Atlântica'
+      }.`,
+
+      {
+        threatType,
+      },
+    );
+
+    return {
+      success:
+        true,
+
+      threatType,
+    };
+  }
+
+  getSevenValidTerritoryIds() {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-target'
+    ) {
+      return [];
+    }
+
+    if (
+      this.sevenEvent
+        .selectedThreat ===
+      THREAT_TYPES
+        .CONTRABANDIST
+    ) {
+      return this
+        .sevenEvents
+        .getContrabandistTerritoryIds(
+          this.board,
+          this.threat,
+        );
+    }
+
+    if (
+      this.sevenEvent
+        .selectedThreat ===
+      THREAT_TYPES
+        .STORM
+    ) {
+      return this
+        .sevenEvents
+        .getStormTerritoryIds(
+          this.board,
+          this.threat,
+        );
+    }
+
+    return [];
+  }
+
+  getSevenValidEdgeIds() {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-target' ||
+      this.sevenEvent
+        .selectedThreat !==
+        THREAT_TYPES
+          .STORM
+    ) {
+      return [];
+    }
+
+    return this
+      .sevenEvents
+      .getStormEdgeIds(
+        this.board,
+        this.threat,
+      );
+  }
+
+  placeSevenThreat(
+    targetType,
+    targetId,
+  ) {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-target'
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Ainda não pode mover uma ameaça.',
+      };
+    }
+
+    const threatType =
+      this.sevenEvent
+        .selectedThreat;
+
+    const move =
+      this.sevenEvents
+        .moveThreat({
+          board:
+            this.board,
+
+          activeThreat:
+            this.threat,
+
+          threatType,
+
+          targetType,
+
+          targetId,
+        });
+
+    if (!move.valid) {
+      return {
+        success:
+          false,
+
+        reason:
+          move.reason,
+      };
+    }
+
+    this.threat =
+      move.threat;
+
+    this.sevenEvent
+      .targetType =
+      targetType;
+
+    this.sevenEvent
+      .targetId =
+      targetId;
+
+    this.sevenEvent
+      .eligibleVictimIds =
+      this.sevenEvents
+        .getVictimIds({
+          board:
+            this.board,
+
+          players:
+            this.players,
+
+          activePlayerId:
+            this
+              .currentPlayer
+              .id,
+
+          threatType,
+
+          targetType,
+
+          targetId,
+        });
+
+    this.addHistory(
+      'seven-threat-move',
+
+      `${
+        this.currentPlayer
+          .name
+      } moveu ${targetLabel(
+        threatType,
+        targetType,
+      )}.`,
+
+      {
+        threat:
+          clone(
+            this.threat,
+          ),
+
+        eligibleVictimIds:
+          [
+            ...this
+              .sevenEvent
+              .eligibleVictimIds,
+          ],
+      },
+    );
+
+    if (
+      this.sevenEvent
+        .eligibleVictimIds
+        .length >
+      0
+    ) {
+      this.sevenEvent
+        .step =
+        'choose-victim';
+    } else {
+      this.finishSevenEvent();
+    }
+
+    this.touch();
+
+    return {
+      success:
+        true,
+
+      threat:
+        clone(
+          this.threat,
+        ),
+
+      eligibleVictimIds:
+        [
+          ...(
+            this.sevenEvent
+              ?.eligibleVictimIds ||
+            []
+          ),
+        ],
+
+      complete:
+        this.phase ===
+        GAME_PHASES
+          .TURN_ACTIONS,
+    };
+  }
+
+  getSevenEligibleVictimIds() {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-victim'
+    ) {
+      return [];
+    }
+
+    return [
+      ...this.sevenEvent
+        .eligibleVictimIds,
+    ];
+  }
+
+  resolveSevenVictim(
+    victimId,
+  ) {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-victim'
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Não existe nenhum roubo do Evento 7 pendente.',
+      };
+    }
+
+    if (
+      !this.sevenEvent
+        .eligibleVictimIds
+        .includes(
+          victimId,
+        )
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Esse jogador não é um alvo válido.',
+      };
+    }
+
+    const victim =
+      this.players.find(
+        (player) =>
+          player.id ===
+          victimId,
+      );
+
+    const resourceId =
+      this.sevenEvents
+        .stealRandomResource({
+          fromPlayer:
+            victim,
+
+          toPlayer:
+            this
+              .currentPlayer,
+
+          random:
+            this.dice
+              .random,
+        });
+
+    if (resourceId) {
+      this.addHistory(
+        'seven-steal',
+
+        `${
+          this.currentPlayer
+            .name
+        } retirou aleatoriamente 1 recurso a ${victim.name}.`,
+
+        {
+          victimId:
+            victim.id,
+
+          resourceId,
+
+          threat:
+            clone(
+              this.threat,
+            ),
+        },
+      );
+    } else {
+      this.addHistory(
+        'seven-steal-empty',
+
+        `${victim.name} já não tinha recursos disponíveis para retirar.`,
+
+        {
+          victimId:
+            victim.id,
+
+          threat:
+            clone(
+              this.threat,
+            ),
+        },
+      );
+    }
+
+    this.finishSevenEvent();
+
+    return {
+      success:
+        true,
+
+      victimId,
+
+      resourceId,
+    };
+  }
+
+  skipSevenTheft() {
+    if (
+      this.phase !==
+        GAME_PHASES
+          .EVENT_SEVEN ||
+      this.sevenEvent
+        ?.step !==
+        'choose-victim' ||
+      this.sevenEvent
+        .selectedThreat !==
+        THREAT_TYPES
+          .STORM
+    ) {
+      return {
+        success:
+          false,
+
+        reason:
+          'Só pode abdicar do roubo quando a Tempestade Atlântica está ativa.',
+      };
+    }
+
+    this.addHistory(
+      'seven-steal-skipped',
+
+      `${
+        this.currentPlayer
+          .name
+      } não retirou carga a nenhum adversário.`,
+
+      {
+        threat:
+          clone(
+            this.threat,
+          ),
+      },
+    );
+
+    this.finishSevenEvent();
+
+    return {
+      success:
+        true,
+    };
+  }
+
+  finishSevenEvent() {
+    this.addHistory(
+      'seven-complete',
+
+      'O Evento 7 terminou. A Jornada continua.',
+
+      {
+        threat:
+          clone(
+            this.threat,
+          ),
+      },
+    );
+
+    this.sevenEvent =
+      null;
 
     this.phase =
       GAME_PHASES
         .TURN_ACTIONS;
 
     this.touch();
-
-    return {
-      success: true,
-
-      roll,
-
-      production:
-        productionResult,
-    };
   }
 
   buildRoad(
@@ -949,7 +1784,8 @@ export class Game {
         .TURN_ACTIONS
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Só pode construir depois de lançar os dados.',
@@ -974,7 +1810,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -987,7 +1824,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não possui os recursos necessários.',
@@ -996,7 +1834,6 @@ export class Game {
 
     depositCost(
       this.bank,
-
       BUILD_COSTS.road,
     );
 
@@ -1006,7 +1843,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não existem segmentos disponíveis.',
@@ -1034,7 +1872,8 @@ export class Game {
     );
 
     return {
-      success: true,
+      success:
+        true,
 
       edge:
         validation.edge,
@@ -1050,7 +1889,8 @@ export class Game {
         .TURN_ACTIONS
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Só pode construir depois de lançar os dados.',
@@ -1075,7 +1915,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -1089,7 +1930,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não possui os recursos necessários.',
@@ -1109,7 +1951,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não existem segmentos disponíveis.',
@@ -1137,7 +1980,8 @@ export class Game {
     );
 
     return {
-      success: true,
+      success:
+        true,
 
       edge:
         validation.edge,
@@ -1153,7 +1997,8 @@ export class Game {
         .TURN_ACTIONS
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Só pode construir depois de lançar os dados.',
@@ -1178,7 +2023,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -1192,7 +2038,8 @@ export class Game {
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não possui os recursos necessários.',
@@ -1237,7 +2084,8 @@ export class Game {
     this.checkVictory();
 
     return {
-      success: true,
+      success:
+        true,
 
       vertex:
         validation.vertex,
@@ -1253,7 +2101,8 @@ export class Game {
         .TURN_ACTIONS
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Só pode construir depois de lançar os dados.',
@@ -1278,7 +2127,8 @@ export class Game {
       !validation.valid
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           validation.reason,
@@ -1287,12 +2137,12 @@ export class Game {
 
     if (
       !player.pay(
-        BUILD_COSTS
-          .city,
+        BUILD_COSTS.city,
       )
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Não possui os recursos necessários.',
@@ -1301,9 +2151,7 @@ export class Game {
 
     depositCost(
       this.bank,
-
-      BUILD_COSTS
-        .city,
+      BUILD_COSTS.city,
     );
 
     player.usePiece(
@@ -1337,7 +2185,8 @@ export class Game {
     this.checkVictory();
 
     return {
-      success: true,
+      success:
+        true,
 
       vertex:
         validation.vertex,
@@ -1380,7 +2229,8 @@ export class Game {
         .TURN_ACTIONS
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'Ainda não pode terminar este turno.',
@@ -1391,7 +2241,8 @@ export class Game {
       this.winnerId
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         reason:
           'A partida já terminou.',
@@ -1403,7 +2254,8 @@ export class Game {
 
     const nextIndex =
       (
-        this.currentPlayerIndex +
+        this
+          .currentPlayerIndex +
         1
       ) %
       this.players.length;
@@ -1427,9 +2279,11 @@ export class Game {
       nextIndex;
 
     if (
-      nextIndex === 0
+      nextIndex ===
+      0
     ) {
-      this.turnNumber += 1;
+      this.turnNumber +=
+        1;
     }
 
     this.phase =
@@ -1442,7 +2296,8 @@ export class Game {
     this.touch();
 
     return {
-      success: true,
+      success:
+        true,
 
       currentPlayer:
         this.currentPlayer,
@@ -1594,7 +2449,8 @@ export class Game {
       .filter(
         (vertex) =>
           vertex.ownerId ===
-            this.currentPlayer
+            this
+              .currentPlayer
               .id &&
           vertex.building ===
             'village' &&
@@ -1604,7 +2460,8 @@ export class Game {
                 this.board,
 
               player:
-                this.currentPlayer,
+                this
+                  .currentPlayer,
 
               vertexId:
                 vertex.id,
@@ -1646,7 +2503,8 @@ export class Game {
         this.phase,
 
       currentPlayerIndex:
-        this.currentPlayerIndex,
+        this
+          .currentPlayerIndex,
 
       setupOrder: [
         ...this.setupOrder,
@@ -1695,6 +2553,19 @@ export class Game {
 
       turnNumber:
         this.turnNumber,
+
+      sevenEvent:
+        this.sevenEvent
+          ? clone(
+              this
+                .sevenEvent,
+            )
+          : null,
+
+      threat:
+        clone(
+          this.threat,
+        ),
     };
   }
 
