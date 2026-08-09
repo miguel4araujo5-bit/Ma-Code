@@ -49,9 +49,17 @@ import {
   type MaProfessorSyncEnv
 } from './maProfessorSync'
 
+import {
+  ConquistadorMatchmakingDurableObject,
+  handleConquistadorMatchmakingApiRequest,
+  isConquistadorMatchmakingApiPath,
+  type ConquistadorMatchmakingEnv
+} from './conquistadorMatchmaking'
+
 export {
   BtcAlertsDurableObject,
-  MaProfessorAccessDurableObject
+  MaProfessorAccessDurableObject,
+  ConquistadorMatchmakingDurableObject
 }
 
 export type Env =
@@ -61,7 +69,8 @@ export type Env =
   MaProfessorAdminEnv &
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
-  MaProfessorRecoveryEnv
+  MaProfessorRecoveryEnv &
+  ConquistadorMatchmakingEnv
 
 type ExecutionContextLike = {
   waitUntil(
@@ -78,6 +87,17 @@ export default {
       new URL(
         request.url
       )
+
+    if (
+      isConquistadorMatchmakingApiPath(
+        url.pathname
+      )
+    ) {
+      return handleConquistadorMatchmakingApiRequest(
+        request,
+        env
+      )
+    }
 
     if (
       isMAProfessorAdminApiPath(
