@@ -1,0 +1,58 @@
+.action-panel [data-seven-target-guide='true'] {
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+
+.action-panel [data-seven-target-guide='true'] strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #6d5319;
+}
+
+.action-panel [data-seven-target-guide='true'] span {
+  color: #6c5b35;
+}
+
+.board-panel.is-seven-target-mode .seven-target-territory {
+  stroke: #ffd45f !important;
+  stroke-width: 9 !important;
+  cursor: pointer !important;
+  filter: drop-shadow(0 0 7px rgba(255, 212, 95, 0.78));
+}
+
+.board-panel.is-seven-target-mode .seven-target-territory-group {
+  cursor: pointer;
+  outline: none;
+}
+
+.board-panel.is-seven-target-mode .seven-target-territory-group:focus .seven-target-territory,
+.board-panel.is-seven-target-mode .seven-target-territory-group:hover .seven-target-territory {
+  stroke: #fff1a8 !important;
+  filter: drop-shadow(0 0 11px rgba(255, 226, 119, 0.95));
+}
+
+.board-panel.is-seven-target-mode .seven-target-edge {
+  stroke: #ffd45f !important;
+  cursor: pointer;
+  filter: drop-shadow(0 0 7px rgba(255, 212, 95, 0.82));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .board-panel.is-seven-target-mode .seven-target-territory,
+  .board-panel.is-seven-target-mode .seven-target-edge {
+    animation: seven-target-pulse 1.35s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes seven-target-pulse {
+  from {
+    filter: drop-shadow(0 0 4px rgba(255, 212, 95, 0.52));
+  }
+
+  to {
+    filter: drop-shadow(0 0 10px rgba(255, 226, 119, 0.92));
+  }
+}
