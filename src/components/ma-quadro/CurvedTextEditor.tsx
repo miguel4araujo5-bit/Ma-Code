@@ -12,7 +12,6 @@ import {
 
 import {
   createMAQuadroCurvedTextFileFromDocument,
-  createMAQuadroCurvedTextObjectName,
   createMAQuadroCurvedTextPreviewUrl,
   createMAQuadroCurvedTextSvgFromDocument,
   MA_QUADRO_CURVED_TEXT_MAX_CURVATURE,
@@ -66,7 +65,6 @@ const WEIGHTS:
     {
       value:
         '700',
-
       label:
         'Negrito'
     },
@@ -133,6 +131,7 @@ function createFileChangeEvent(
 
   const input = {
     files,
+
     value:
       ''
   } as unknown as
@@ -380,7 +379,6 @@ export default function CurvedTextEditor() {
   >(
     key:
       Key,
-
     value:
       MAQuadroCurvedTextDocument[
         Key
@@ -440,12 +438,6 @@ export default function CurvedTextEditor() {
           createMAQuadroCurvedTextFileFromDocument(
             draft
           )
-
-        editor.setSelectionName(
-          createMAQuadroCurvedTextObjectName(
-            draft
-          )
-        )
 
         await editor
           .replaceSelectedImage(
