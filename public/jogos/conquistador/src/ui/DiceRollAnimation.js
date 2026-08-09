@@ -1,6 +1,8 @@
 const ROLL_DURATION = 860;
 const RESULT_HOLD_DURATION = 520;
 const STEP_DURATION = 78;
+const RESULT_WAIT_TIMEOUT = 5000;
+const RESULT_WAIT_STEP = 35;
 
 let activeOverlay = null;
 let activeTimer = null;
@@ -111,6 +113,40 @@ function readFinalRoll() {
   };
 }
 
+function waitForFinalRoll() {
+  const startedAt = Date.now();
+
+  return new Promise(
+    (resolve) => {
+      const check = () => {
+        const finalRoll =
+          readFinalRoll();
+
+        if (finalRoll) {
+          resolve(finalRoll);
+          return;
+        }
+
+        if (
+          Date.now() -
+            startedAt >=
+          RESULT_WAIT_TIMEOUT
+        ) {
+          resolve(null);
+          return;
+        }
+
+        window.setTimeout(
+          check,
+          RESULT_WAIT_STEP,
+        );
+      };
+
+      check();
+    },
+  );
+}
+
 function removeOverlay() {
   if (activeTimer) {
     clearInterval(activeTimer);
@@ -188,7 +224,7 @@ function createOverlay() {
   return overlay;
 }
 
-function executeRealRoll(button) {
+async function executeRealRoll(button) {
   releasingRealRoll = true;
 
   try {
@@ -197,7 +233,7 @@ function executeRealRoll(button) {
     releasingRealRoll = false;
   }
 
-  return readFinalRoll();
+  return waitForFinalRoll();
 }
 
 function animateRoll(button) {
@@ -259,7 +295,7 @@ function animateRoll(button) {
   }
 
   window.setTimeout(
-    () => {
+    async () => {
       if (
         runId !== activeRun ||
         !activeOverlay
@@ -276,9 +312,16 @@ function animateRoll(button) {
       }
 
       const finalRoll =
-        executeRealRoll(
+        await executeRealRoll(
           button,
         );
+
+      if (
+        runId !== activeRun ||
+        !activeOverlay
+      ) {
+        return;
+      }
 
       if (!finalRoll) {
         removeOverlay();
