@@ -480,6 +480,7 @@ export interface LicenseSummary {
   validUntil: ISODateTime | null
   daysRemaining: number | null
   renewalRequestedAt: ISODateTime | null
+  revokedAt?: ISODateTime | null
 }
 
 export type LicenseKeyStatus =
