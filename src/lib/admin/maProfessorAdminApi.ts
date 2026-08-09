@@ -72,6 +72,8 @@ interface MAProfessorAdminActionResponse {
   message: string
   request?:
     MAProfessorAccessRequestSummary
+  license?:
+    LicenseSummary
 }
 
 interface MAProfessorCredentialStatusResponse {
@@ -507,6 +509,34 @@ export async function dispenseMAProfessorPayment(
     'dispense-payment',
     'Não foi possível marcar o pagamento como dispensado.'
   )
+}
+
+export async function revokeMAProfessorLicense(
+  email: string
+) {
+  const data =
+    await postEmailAction(
+      '/licenses/revoke',
+      email,
+      'Não foi possível revogar a licença.'
+    )
+
+  if (
+    !data.license ||
+    data.license.email !==
+      email ||
+    data.license.status !==
+      'revoked' ||
+    !isNullableString(
+      data.license.revokedAt
+    )
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu uma licença revogada inválida.'
+    )
+  }
+
+  return data.license
 }
 
 export async function getMAProfessorCredentialStatus(
