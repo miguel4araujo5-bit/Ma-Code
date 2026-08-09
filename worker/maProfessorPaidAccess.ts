@@ -7,12 +7,12 @@ import {
 const STORAGE_KEY = 'ma-professor-access-state-v1';
 const COMMERCE_STORAGE_KEY = 'ma-professor-admin-commerce-v1';
 
+const PUBLIC_ACCESS_REQUEST_PATH =
+    '/api/ma-professor/access/request';
 const PUBLIC_ACCESS_ACTIVATE_PATH =
     '/api/ma-professor/access/activate';
-
 const PUBLIC_COMMERCE_STATUS_PATH =
     '/api/ma-professor/access/commerce/status';
-
 const PUBLIC_COMMERCE_SELECT_PLAN_PATH =
     '/api/ma-professor/access/commerce/select-plan';
 
@@ -54,14 +54,8 @@ interface StoredAccessCredentialSnapshot {
 
 interface AccessStateSnapshot {
     licenses?: Record<string, StoredLicenseSnapshot>;
-    accessRequests?: Record<
-        string,
-        StoredAccessRequestSnapshot
-    >;
-    credentials?: Record<
-        string,
-        StoredAccessCredentialSnapshot
-    >;
+    accessRequests?: Record<string, StoredAccessRequestSnapshot>;
+    credentials?: Record<string, StoredAccessCredentialSnapshot>;
     updatedAt?: number;
     [key: string]: unknown;
 }
@@ -74,6 +68,7 @@ interface StoredCommercialAuthorization {
     currency: 'EUR';
     selectedAt: number;
     paymentConfirmedAt: number | null;
+    paymentDispensedAt?: number | null;
     credentialIssuedAt: number | null;
     createdAt: number;
     updatedAt: number;
@@ -186,7 +181,6 @@ function getSchoolYearValidUntil(
 ) {
     const activationDate =
         new Date(validFrom);
-
     const activationYear =
         activationDate.getUTCFullYear();
 
@@ -205,9 +199,7 @@ function getSchoolYearValidUntil(
             999
         );
 
-    if (
-        validFrom <= cutoffThisYear
-    ) {
+    if (validFrom <= cutoffThisYear) {
         return cutoffThisYear;
     }
 
@@ -309,6 +301,17 @@ function createEmptyCommerceState(
     };
 }
 
+function normalizeAuthorization(
+    authorization: StoredCommercialAuthorization
+): StoredCommercialAuthorization {
+    return {
+        ...authorization,
+        paymentDispensedAt:
+            authorization.paymentDispensedAt ??
+            null
+    };
+}
+
 function normalizeCommerceState(
     value:
         | StoredCommerceState
@@ -327,7 +330,13 @@ function normalizeCommerceState(
         );
     }
 
-    return value;
+    return {
+        ...value,
+        authorizations:
+            value.authorizations.map(
+                normalizeAuthorization
+            )
+    };
 }
 
 function getLatestAuthorization(
@@ -349,6 +358,20 @@ function getLatestAuthorization(
     );
 }
 
+function isPaymentResolved(
+    authorization:
+        | StoredCommercialAuthorization
+        | null
+) {
+    return Boolean(
+        authorization &&
+            (authorization.paymentConfirmedAt !==
+                null ||
+                authorization.paymentDispensedAt !==
+                    null)
+    );
+}
+
 function getPaymentStatus(
     authorization:
         | StoredCommercialAuthorization
@@ -356,6 +379,15 @@ function getPaymentStatus(
 ) {
     if (!authorization) {
         return 'not_started' as const;
+    }
+
+    if (
+        authorization.paymentDispensedAt !==
+        null &&
+        authorization.paymentDispensedAt !==
+        undefined
+    ) {
+        return 'dispensed' as const;
     }
 
     return authorization
@@ -376,36 +408,21 @@ function buildCommercialStatus(
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
-
     const existingLicense =
         Boolean(
             accessState
                 ?.licenses?.[email]
         );
-
     const requestStatus =
         accessRequest?.status || null;
-
-    const canSelectPlan =
-        requestStatus === 'approved' &&
-        !existingLicense &&
-        (!authorization ||
-            authorization
-                .paymentConfirmedAt ===
-                null) &&
-        (!authorization ||
-            authorization
-                .credentialIssuedAt ===
-                null);
-
     const canActivate =
         requestStatus === 'approved' &&
         !existingLicense &&
         Boolean(
             authorization &&
-                authorization
-                    .paymentConfirmedAt !==
-                    null &&
+                isPaymentResolved(
+                    authorization
+                ) &&
                 authorization
                     .credentialIssuedAt !==
                     null
@@ -444,6 +461,17 @@ function buildCommercialStatus(
                 : new Date(
                       authorization.paymentConfirmedAt
                   ).toISOString(),
+        paymentDispensedAt:
+            authorization
+                ?.paymentDispensedAt ===
+                null ||
+            authorization
+                ?.paymentDispensedAt ===
+                undefined
+                ? null
+                : new Date(
+                      authorization.paymentDispensedAt
+                  ).toISOString(),
         credentialIssuedAt:
             authorization
                 ?.credentialIssuedAt ===
@@ -455,7 +483,7 @@ function buildCommercialStatus(
                 : new Date(
                       authorization.credentialIssuedAt
                   ).toISOString(),
-        canSelectPlan,
+        canSelectPlan: false,
         canActivate
     };
 }
@@ -484,6 +512,190 @@ async function readJsonBody(
     }
 }
 
+async function handlePaidAccessRequest(
+    request: Request,
+    context: PaidAccessContext
+): Promise<Response> {
+    if (
+        request.method !== 'POST'
+    ) {
+        return json(
+            {
+                success: false,
+                message:
+                    'Método não permitido.'
+            },
+            405
+        );
+    }
+
+    const body =
+        await readJsonBody(request);
+    const email = normalizeEmail(
+        body?.email
+    );
+    const plan = body?.plan;
+
+    if (!isValidEmail(email)) {
+        return json(
+            {
+                success: false,
+                message:
+                    'Indique um email válido.'
+            },
+            400
+        );
+    }
+
+    if (!isPaidPlan(plan)) {
+        return json(
+            {
+                success: false,
+                message:
+                    'Escolha o plano antes de enviar o pedido de acesso.'
+            },
+            400
+        );
+    }
+
+    const beforeState =
+        await context.state.storage.get<AccessStateSnapshot>(
+            STORAGE_KEY
+        );
+
+    if (
+        beforeState?.licenses?.[email]
+    ) {
+        return context.base.fetch(
+            request
+        );
+    }
+
+    const existingRequest =
+        beforeState
+            ?.accessRequests?.[email];
+
+    if (
+        existingRequest?.status ===
+        'rejected'
+    ) {
+        return context.base.fetch(
+            request
+        );
+    }
+
+    const now = Date.now();
+    const storedCommerceState =
+        await context.state.storage.get<StoredCommerceState>(
+            COMMERCE_STORAGE_KEY
+        );
+    const commerceState =
+        normalizeCommerceState(
+            storedCommerceState,
+            now
+        );
+    const latestAuthorization =
+        getLatestAuthorization(
+            commerceState,
+            email
+        );
+
+    if (
+        latestAuthorization &&
+        latestAuthorization.plan !==
+            plan
+    ) {
+        return json(
+            {
+                success: false,
+                message:
+                    'Este pedido já está associado a outro plano. Para alterar o plano, contacte a MA-CODE antes de efetuar uma nova autorização.'
+            },
+            409
+        );
+    }
+
+    const baseResponse =
+        await context.base.fetch(
+            request
+        );
+
+    if (!baseResponse.ok) {
+        return baseResponse;
+    }
+
+    const afterState =
+        await context.state.storage.get<AccessStateSnapshot>(
+            STORAGE_KEY
+        );
+    const accessRequest =
+        afterState
+            ?.accessRequests?.[email];
+
+    if (
+        !accessRequest ||
+        accessRequest.status ===
+            'rejected' ||
+        afterState?.licenses?.[email]
+    ) {
+        return baseResponse;
+    }
+
+    let authorization =
+        latestAuthorization;
+
+    if (!authorization) {
+        authorization = {
+            id: crypto.randomUUID(),
+            email,
+            plan,
+            amountCents:
+                getPlanAmountCents(
+                    plan
+                ),
+            currency: 'EUR',
+            selectedAt: now,
+            paymentConfirmedAt: null,
+            paymentDispensedAt: null,
+            credentialIssuedAt: null,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        commerceState.authorizations.push(
+            authorization
+        );
+        commerceState.updatedAt = now;
+
+        await context.state.storage.put(
+            COMMERCE_STORAGE_KEY,
+            commerceState
+        );
+    }
+
+    let responseBody: JsonObject = {};
+
+    try {
+        responseBody =
+            (await baseResponse
+                .clone()
+                .json()) as JsonObject;
+    } catch {
+        responseBody = {};
+    }
+
+    return json({
+        ...responseBody,
+        success: true,
+        commerce:
+            buildCommercialStatus(
+                email,
+                afterState,
+                authorization
+            )
+    });
+}
+
 async function handleCommercialStatus(
     request: Request,
     context: PaidAccessContext
@@ -503,7 +715,6 @@ async function handleCommercialStatus(
 
     const body =
         await readJsonBody(request);
-
     const email =
         normalizeEmail(
             body?.email
@@ -531,13 +742,11 @@ async function handleCommercialStatus(
             COMMERCE_STORAGE_KEY
         )
     ]);
-
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             Date.now()
         );
-
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -553,218 +762,14 @@ async function handleCommercialStatus(
     );
 }
 
-async function handleCommercialPlanSelection(
-    request: Request,
-    context: PaidAccessContext
-) {
-    if (
-        request.method !== 'POST'
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Método não permitido.'
-            },
-            405
-        );
-    }
-
-    const body =
-        await readJsonBody(request);
-
-    const email =
-        normalizeEmail(
-            body?.email
-        );
-
-    const plan = body?.plan;
-
-    if (!isValidEmail(email)) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Indique um email válido.'
-            },
-            400
-        );
-    }
-
-    if (!isPaidPlan(plan)) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Escolha um plano válido.'
-            },
-            400
-        );
-    }
-
-    const accessState =
-        await context.state.storage.get<AccessStateSnapshot>(
-            STORAGE_KEY
-        );
-
-    const accessRequest =
-        accessState
-            ?.accessRequests?.[email];
-
-    if (!accessRequest) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Peça primeiro acesso ao MA-Professor.'
-            },
-            409
-        );
-    }
-
-    if (
-        accessRequest.status ===
-        'pending'
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'O pedido ainda está a aguardar aprovação da MA-CODE.'
-            },
-            409
-        );
-    }
-
-    if (
-        accessRequest.status ===
-        'rejected'
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Este pedido não está aprovado para escolher um plano.'
-            },
-            409
-        );
-    }
-
-    if (
-        accessState
-            ?.licenses?.[email]
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Esta conta já possui uma licença. Utilize o fluxo de renovação para continuar.'
-            },
-            409
-        );
-    }
-
-    const now = Date.now();
-
-    const storedCommerceState =
-        await context.state.storage.get<StoredCommerceState>(
-            COMMERCE_STORAGE_KEY
-        );
-
-    const commerceState =
-        normalizeCommerceState(
-            storedCommerceState,
-            now
-        );
-
-    let authorization =
-        getLatestAuthorization(
-            commerceState,
-            email
-        );
-
-    if (
-        authorization &&
-        authorization
-            .paymentConfirmedAt !== null
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'O pagamento deste plano já foi confirmado e a escolha já não pode ser alterada.'
-            },
-            409
-        );
-    }
-
-    if (
-        authorization &&
-        authorization
-            .credentialIssuedAt !== null
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'A senha desta autorização já foi emitida e o plano já não pode ser alterado.'
-            },
-            409
-        );
-    }
-
-    if (authorization) {
-        authorization.plan =
-            plan;
-
-        authorization.amountCents =
-            getPlanAmountCents(
-                plan
-            );
-
-        authorization.currency =
-            'EUR';
-
-        authorization.selectedAt =
-            now;
-
-        authorization.updatedAt =
-            now;
-    } else {
-        authorization = {
-            id: crypto.randomUUID(),
-            email,
-            plan,
-            amountCents:
-                getPlanAmountCents(
-                    plan
-                ),
-            currency: 'EUR',
-            selectedAt: now,
-            paymentConfirmedAt: null,
-            credentialIssuedAt: null,
-            createdAt: now,
-            updatedAt: now
-        };
-
-        commerceState.authorizations.push(
-            authorization
-        );
-    }
-
-    commerceState.updatedAt = now;
-
-    await context.state.storage.put(
-        COMMERCE_STORAGE_KEY,
-        commerceState
-    );
-
+async function handleLegacyPlanSelection() {
     return json(
-        buildCommercialStatus(
-            email,
-            accessState,
-            authorization
-        )
+        {
+            success: false,
+            message:
+                'O plano é agora escolhido pelo professor antes de enviar o pedido de acesso. Esta operação já não está disponível na área pública.'
+        },
+        409
     );
 }
 
@@ -798,7 +803,6 @@ async function handlePaidActivation(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
-
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
@@ -819,29 +823,15 @@ async function handlePaidActivation(
         return null;
     }
 
-    const commerceState =
+    const storedCommerceState =
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
-
-    if (
-        !commerceState ||
-        commerceState.schemaVersion !==
-            1 ||
-        !Array.isArray(
-            commerceState.authorizations
-        )
-    ) {
-        return json(
-            {
-                success: false,
-                message:
-                    'Escolha primeiro o plano e conclua o pagamento antes de ativar o MA-Professor.'
-            },
-            409
+    const commerceState =
+        normalizeCommerceState(
+            storedCommerceState,
+            Date.now()
         );
-    }
-
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -853,22 +843,22 @@ async function handlePaidActivation(
             {
                 success: false,
                 message:
-                    'Ainda não existe um plano associado a esta conta.'
+                    'Ainda não existe uma autorização comercial associada a esta conta.'
             },
             409
         );
     }
 
     if (
-        authorization
-            .paymentConfirmedAt ===
-        null
+        !isPaymentResolved(
+            authorization
+        )
     ) {
         return json(
             {
                 success: false,
                 message:
-                    'O pagamento desta conta ainda não foi confirmado pela MA-CODE.'
+                    'O pagamento desta conta ainda está pendente de verificação pela MA-CODE.'
             },
             409
         );
@@ -883,7 +873,10 @@ async function handlePaidActivation(
             {
                 success: false,
                 message:
-                    'O pagamento está confirmado, mas a nova senha ainda não foi emitida pela MA-CODE.'
+                    authorization.paymentDispensedAt !==
+                        null
+                        ? 'O acesso foi autorizado sem pagamento, mas a nova senha ainda não foi emitida pela MA-CODE.'
+                        : 'O pagamento está confirmado, mas a nova senha ainda não foi emitida pela MA-CODE.'
             },
             409
         );
@@ -893,10 +886,6 @@ async function handlePaidActivation(
         accessState
             .credentials?.[email];
 
-    /*
-     * A senha tem de pertencer exatamente à
-     * autorização paga que está a ser ativada.
-     */
     if (
         !credential ||
         credential.authorizationId !==
@@ -908,7 +897,7 @@ async function handlePaidActivation(
             {
                 success: false,
                 message:
-                    'A senha disponível não corresponde à autorização paga atual. Contacte a MA-CODE.'
+                    'A senha disponível não corresponde à autorização atual. Contacte a MA-CODE.'
             },
             409
         );
@@ -923,7 +912,7 @@ async function handlePaidActivation(
      *
      * Depois da validação, substituímos a licença
      * transitória criada pelo motor base pelo plano
-     * que foi realmente pago.
+     * que foi realmente autorizado.
      */
     const baseResponse =
         await context.base.fetch(
@@ -973,11 +962,9 @@ async function handlePaidActivation(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
-
     const license =
         freshState
             ?.licenses?.[email];
-
     const freshRequest =
         freshState
             ?.accessRequests?.[email];
@@ -1002,10 +989,8 @@ async function handlePaidActivation(
 
     license.plan =
         authorization.plan;
-
     license.validFrom =
         validFrom;
-
     license.validUntil =
         authorization.plan ===
         'paid_30_days'
@@ -1016,7 +1001,6 @@ async function handlePaidActivation(
             : getSchoolYearValidUntil(
                   validFrom
               );
-
     license.revokedAt = null;
     license.renewalRequestedAt =
         null;
@@ -1027,10 +1011,8 @@ async function handlePaidActivation(
 
     freshRequest.activatedAt =
         validFrom;
-
     freshRequest.updatedAt =
         license.updatedAt;
-
     freshState.updatedAt =
         license.updatedAt;
 
@@ -1060,6 +1042,16 @@ export async function handleMAProfessorPaidAccessRequest(
 
     if (
         url.pathname ===
+        PUBLIC_ACCESS_REQUEST_PATH
+    ) {
+        return handlePaidAccessRequest(
+            request,
+            context
+        );
+    }
+
+    if (
+        url.pathname ===
         PUBLIC_COMMERCE_STATUS_PATH
     ) {
         return handleCommercialStatus(
@@ -1072,10 +1064,7 @@ export async function handleMAProfessorPaidAccessRequest(
         url.pathname ===
         PUBLIC_COMMERCE_SELECT_PLAN_PATH
     ) {
-        return handleCommercialPlanSelection(
-            request,
-            context
-        );
+        return handleLegacyPlanSelection();
     }
 
     if (
