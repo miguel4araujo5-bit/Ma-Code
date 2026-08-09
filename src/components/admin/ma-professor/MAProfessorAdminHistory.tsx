@@ -1,4 +1,8 @@
-import { useMemo } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
 
 import {
   getLicensePlanLabel,
@@ -10,12 +14,18 @@ import type {
   LicenseSummary
 } from '../../ma-professor/types'
 
+import {
+  getMAProfessorCommercialStatus,
+  type MAProfessorAdminCommercialStatus
+} from '../../../lib/admin/maProfessorAdminApi'
+
 type HistoryTone =
   | 'neutral'
   | 'positive'
   | 'warning'
   | 'negative'
   | 'info'
+  | 'commercial'
 
 interface MAProfessorAdminHistoryEvent {
   id: string
@@ -124,9 +134,152 @@ function getToneClasses(
     case 'info':
       return 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
 
+    case 'commercial':
+      return 'border-violet-300/20 bg-violet-300/10 text-violet-200'
+
     default:
       return 'border-white/10 bg-white/[0.04] text-slate-400'
   }
+}
+
+function getCommercialPlanLabel(
+  status: MAProfessorAdminCommercialStatus
+) {
+  if (!status.plan) {
+    return 'Plano não identificado'
+  }
+
+  return getLicensePlanLabel(
+    status.plan
+  )
+}
+
+function getCommercialValueLabel(
+  status: MAProfessorAdminCommercialStatus
+) {
+  if (
+    status.amountCents === null
+  ) {
+    return 'Valor não registado'
+  }
+
+  return formatMoney(
+    status.amountCents,
+    status.currency
+  )
+}
+
+function buildCommercialEvents(
+  commercialStatuses:
+    MAProfessorAdminCommercialStatus[]
+) {
+  const events:
+    MAProfessorAdminHistoryEvent[] = []
+
+  for (
+    const status of
+    commercialStatuses
+  ) {
+    if (
+      !status.authorizationId
+    ) {
+      continue
+    }
+
+    const planLabel =
+      getCommercialPlanLabel(
+        status
+      )
+
+    const valueLabel =
+      getCommercialValueLabel(
+        status
+      )
+
+    if (status.selectedAt) {
+      events.push({
+        id:
+          `${status.authorizationId}:selected`,
+        email:
+          status.email,
+        occurredAt:
+          status.selectedAt,
+        title:
+          'Autorização comercial registada',
+        description:
+          `${planLabel} · ${valueLabel}. O plano ficou associado à autorização desta conta.`,
+        result:
+          'Pagamento pendente',
+        tone:
+          'commercial'
+      })
+    }
+
+    if (
+      status.paymentConfirmedAt
+    ) {
+      events.push({
+        id:
+          `${status.authorizationId}:payment-confirmed`,
+        email:
+          status.email,
+        occurredAt:
+          status.paymentConfirmedAt,
+        title:
+          'Pagamento confirmado',
+        description:
+          `${planLabel} · ${valueLabel}. A MA-CODE confirmou o recebimento do pagamento.`,
+        result:
+          'Confirmado',
+        tone:
+          'positive'
+      })
+    }
+
+    if (
+      status.paymentDispensedAt
+    ) {
+      events.push({
+        id:
+          `${status.authorizationId}:payment-dispensed`,
+        email:
+          status.email,
+        occurredAt:
+          status.paymentDispensedAt,
+        title:
+          'Pagamento dispensado',
+        description:
+          `${planLabel} · ${valueLabel}. A MA-CODE autorizou o acesso sem registar um pagamento como recebido.`,
+        result:
+          'Dispensado',
+        tone:
+          'commercial'
+      })
+    }
+
+    if (
+      status.credentialIssuedAt
+    ) {
+      events.push({
+        id:
+          `${status.authorizationId}:credential-issued`,
+        email:
+          status.email,
+        occurredAt:
+          status.credentialIssuedAt,
+        title:
+          'Nova senha emitida',
+        description:
+          `${planLabel}. Foi criada uma nova credencial associada a esta autorização comercial.`,
+        result:
+          'Senha emitida',
+        tone:
+          'info'
+      })
+    }
+  }
+
+  return events
 }
 
 function buildHistoryEvents(
@@ -135,11 +288,16 @@ function buildHistoryEvents(
   licenses:
     LicenseSummary[],
   renewals:
-    LicenseRenewalRequest[]
+    LicenseRenewalRequest[],
+  commercialStatuses:
+    MAProfessorAdminCommercialStatus[]
 ) {
   const events:
-    MAProfessorAdminHistoryEvent[] =
-    []
+    MAProfessorAdminHistoryEvent[] = [
+      ...buildCommercialEvents(
+        commercialStatuses
+      )
+    ]
 
   for (
     const request of
@@ -158,7 +316,7 @@ function buildHistoryEvents(
         title:
           'Pedido recebido',
         description:
-          'A conta pediu acesso ao MA-Professor.',
+          'A conta enviou um pedido de acesso ao MA-Professor.',
         result:
           'Pedido criado',
         tone:
@@ -179,7 +337,7 @@ function buildHistoryEvents(
         title:
           'Pedido aprovado',
         description:
-          'O pedido de acesso foi marcado como aprovado.',
+          'A MA-CODE marcou o pedido de acesso como aprovado.',
         result:
           'Aprovado',
         tone:
@@ -200,7 +358,7 @@ function buildHistoryEvents(
         title:
           'Pedido rejeitado',
         description:
-          'O pedido de acesso foi marcado como rejeitado.',
+          'A MA-CODE marcou o pedido de acesso como rejeitado.',
         result:
           'Rejeitado',
         tone:
@@ -221,7 +379,7 @@ function buildHistoryEvents(
         title:
           'Primeira ativação registada',
         description:
-          'A conta concluiu uma ativação válida.',
+          'A conta concluiu a primeira ativação válida com a credencial autorizada.',
         result:
           'Ativada',
         tone:
@@ -262,7 +420,7 @@ function buildHistoryEvents(
       occurredAt:
         license.validFrom,
       title:
-        'Início registado da licença atual',
+        'Novo período de licença iniciado',
       description:
         `Plano: ${getLicensePlanLabel(
           license.plan
@@ -274,7 +432,7 @@ function buildHistoryEvents(
             )}`
           : 'Sem data final registada',
       tone:
-        'info'
+        'positive'
     })
   }
 
@@ -357,6 +515,134 @@ export default function MAProfessorAdminHistory({
   dataConnected = false,
   compact = false
 }: MAProfessorAdminHistoryProps) {
+  const [
+    commercialStatuses,
+    setCommercialStatuses
+  ] = useState<MAProfessorAdminCommercialStatus[]>([])
+
+  const [
+    commercialLoading,
+    setCommercialLoading
+  ] = useState(false)
+
+  const targetEmails =
+    useMemo(
+      () => {
+        if (email) {
+          return [email]
+        }
+
+        const emails =
+          new Set<string>()
+
+        for (
+          const request of
+          accessRequests
+        ) {
+          emails.add(
+            request.email
+          )
+        }
+
+        for (
+          const license of
+          licenses
+        ) {
+          emails.add(
+            license.email
+          )
+        }
+
+        for (
+          const renewal of
+          renewals
+        ) {
+          emails.add(
+            renewal.email
+          )
+        }
+
+        return Array.from(
+          emails
+        ).sort()
+      },
+      [
+        accessRequests,
+        email,
+        licenses,
+        renewals
+      ]
+    )
+
+  useEffect(
+    () => {
+      let cancelled = false
+
+      setCommercialStatuses([])
+
+      if (
+        !dataConnected ||
+        targetEmails.length === 0
+      ) {
+        setCommercialLoading(false)
+
+        return () => {
+          cancelled = true
+        }
+      }
+
+      setCommercialLoading(true)
+
+      void Promise.allSettled(
+        targetEmails.map(
+          targetEmail =>
+            getMAProfessorCommercialStatus(
+              targetEmail
+            )
+        )
+      )
+        .then(results => {
+          if (cancelled) {
+            return
+          }
+
+          const statuses:
+            MAProfessorAdminCommercialStatus[] = []
+
+          for (
+            const result of
+            results
+          ) {
+            if (
+              result.status ===
+              'fulfilled'
+            ) {
+              statuses.push(
+                result.value
+              )
+            }
+          }
+
+          setCommercialStatuses(
+            statuses
+          )
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setCommercialLoading(false)
+          }
+        })
+
+      return () => {
+        cancelled = true
+      }
+    },
+    [
+      dataConnected,
+      targetEmails
+    ]
+  )
+
   const events =
     useMemo(
       () => {
@@ -364,7 +650,8 @@ export default function MAProfessorAdminHistory({
           buildHistoryEvents(
             accessRequests,
             licenses,
-            renewals
+            renewals,
+            commercialStatuses
           )
 
         if (!email) {
@@ -379,11 +666,38 @@ export default function MAProfessorAdminHistory({
       },
       [
         accessRequests,
+        commercialStatuses,
         email,
         licenses,
         renewals
       ]
     )
+
+  if (
+    events.length === 0 &&
+    commercialLoading
+  ) {
+    return (
+      <div
+        className={[
+          'flex flex-col items-center justify-center text-center',
+          compact
+            ? 'min-h-40 px-4 py-8'
+            : 'min-h-64 px-6 py-12'
+        ].join(' ')}
+      >
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
+
+        <p className="mt-4 text-sm font-black text-slate-300">
+          A carregar histórico comercial
+        </p>
+
+        <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500">
+          A consultar os estados reais de plano, pagamento e credencial.
+        </p>
+      </div>
+    )
+  }
 
   if (
     events.length === 0
@@ -410,7 +724,7 @@ export default function MAProfessorAdminHistory({
         <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500">
           {dataConnected
             ? 'Os dados atuais não contêm acontecimentos administrativos para apresentar.'
-            : 'A timeline será construída apenas a partir de datas e estados reais fornecidos pelo backend. Não são criados eventos fictícios.'}
+            : 'A timeline é construída apenas a partir de datas e estados reais fornecidos pelo backend. Não são criados eventos fictícios.'}
         </p>
       </div>
     )
@@ -424,13 +738,18 @@ export default function MAProfessorAdminHistory({
           : 'p-4 sm:p-5'
       }
     >
+      {commercialLoading ? (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.035] px-3 py-2 text-[0.68rem] font-bold text-cyan-200">
+          <span className="h-3 w-3 animate-spin rounded-full border border-cyan-300/20 border-t-cyan-200" />
+          A atualizar acontecimentos comerciais…
+        </div>
+      ) : null}
+
       <ol className="space-y-4">
         {events.map(
           event => (
             <li
-              key={
-                event.id
-              }
+              key={event.id}
               className="relative grid gap-3 sm:grid-cols-[8.5rem_minmax(0,1fr)]"
             >
               <time className="pt-1 text-xs font-bold text-slate-500">
@@ -443,15 +762,11 @@ export default function MAProfessorAdminHistory({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-black text-white">
-                      {
-                        event.title
-                      }
+                      {event.title}
                     </p>
 
                     <p className="mt-1 break-all text-xs font-semibold text-slate-500">
-                      {
-                        event.email
-                      }
+                      {event.email}
                     </p>
                   </div>
 
@@ -461,20 +776,14 @@ export default function MAProfessorAdminHistory({
                       getToneClasses(
                         event.tone
                       )
-                    ].join(
-                      ' '
-                    )}
+                    ].join(' ')}
                   >
-                    {
-                      event.result
-                    }
+                    {event.result}
                   </span>
                 </div>
 
                 <p className="mt-3 text-xs leading-5 text-slate-400">
-                  {
-                    event.description
-                  }
+                  {event.description}
                 </p>
               </div>
             </li>
