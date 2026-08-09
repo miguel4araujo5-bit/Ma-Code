@@ -1,9 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
-  useState,
-  type ChangeEvent
+  useState
 } from 'react'
 
 import {
@@ -12,13 +10,12 @@ import {
 
 import {
   createMAQuadroQRCodeFileFromDocument,
-  createMAQuadroQRCodeObjectName,
   createMAQuadroQRCodePreviewUrl,
   createMAQuadroQRCodeSvgFromDocument,
+  DEFAULT_MA_QUADRO_QR_DOCUMENT,
   MA_QUADRO_QR_MAX_LENGTH,
   MA_QUADRO_QR_MAX_MARGIN,
   MA_QUADRO_QR_MIN_MARGIN,
-  readMAQuadroQRCodeDocumentFromName,
   updateMAQuadroQRCodeDocument,
   type MAQuadroQRCodeDocument,
   type MAQuadroQRCodeErrorCorrection
@@ -55,77 +52,9 @@ const ERROR_CORRECTION_OPTIONS:
     }
   ]
 
-function createFileChangeEvent(
-  file: File
-) {
-  const files = {
-    0:
-      file,
-
-    length:
-      1,
-
-    item: (
-      index:
-        number
-    ) =>
-      index ===
-        0
-        ? file
-        : null
-  } as unknown as
-    FileList
-
-  const input = {
-    files,
-    value: ''
-  } as unknown as
-    HTMLInputElement
-
-  return {
-    currentTarget:
-      input,
-
-    target:
-      input
-  } as unknown as
-    ChangeEvent<
-      HTMLInputElement
-    >
-}
-
-export default function QRCodeEditor() {
+export default function QRCodeBuilder() {
   const editor =
     useMAQuadroEditorContext()
-
-  const sourceDocument =
-    useMemo(
-      () => {
-        if (
-          editor
-            .selection
-            .count !==
-              1 ||
-          editor
-            .selection
-            .role !==
-              'image'
-        ) {
-          return null
-        }
-
-        return readMAQuadroQRCodeDocumentFromName(
-          editor
-            .selection
-            .name
-        )
-      },
-      [
-        editor.selection.count,
-        editor.selection.name,
-        editor.selection.role
-      ]
-    )
 
   const [
     host,
@@ -138,13 +67,12 @@ export default function QRCodeEditor() {
   )
 
   const [
-    draft,
-    setDraft
+    qrDocument,
+    setQrDocument
   ] = useState<
-    MAQuadroQRCodeDocument |
-    null
+    MAQuadroQRCodeDocument
   >(
-    null
+    DEFAULT_MA_QUADRO_QR_DOCUMENT
   )
 
   const [
@@ -162,8 +90,8 @@ export default function QRCodeEditor() {
   )
 
   const [
-    saving,
-    setSaving
+    inserting,
+    setInserting
   ] = useState(
     false
   )
@@ -175,25 +103,11 @@ export default function QRCodeEditor() {
     ''
   )
 
-  useEffect(() => {
-    setDraft(
-      sourceDocument
-    )
-
-    setMessage(
-      ''
-    )
-  }, [
-    editor.activePage?.id,
-    editor.project?.id,
-    editor.selection.name,
-    sourceDocument
-  ])
-
   useLayoutEffect(() => {
     if (
       !editor.ready ||
-      !sourceDocument
+      editor.activePanel !==
+        'elements'
     ) {
       setHost(
         null
@@ -202,15 +116,15 @@ export default function QRCodeEditor() {
       return
     }
 
-    const scroll =
+    const elementGrid =
       document.querySelector<
         HTMLElement
       >(
-        '.mq-properties-panel .mq-properties-panel__scroll'
+        '.mq-left-panel .mq-element-grid'
       )
 
     if (
-      !scroll
+      !elementGrid
     ) {
       setHost(
         null
@@ -218,6 +132,19 @@ export default function QRCodeEditor() {
 
       return
     }
+
+    const anchor =
+      document.querySelector<
+        HTMLElement
+      >(
+        '.mq-chart-builder-host'
+      ) ||
+      document.querySelector<
+        HTMLElement
+      >(
+        '.mq-table-builder-host'
+      ) ||
+      elementGrid
 
     const mount =
       document.createElement(
@@ -225,11 +152,13 @@ export default function QRCodeEditor() {
       )
 
     mount.className =
-      'mq-qr-editor-host'
+      'mq-qr-builder-host'
 
-    scroll.prepend(
-      mount
-    )
+    anchor
+      .insertAdjacentElement(
+        'afterend',
+        mount
+      )
 
     setHost(
       mount
@@ -239,35 +168,35 @@ export default function QRCodeEditor() {
       mount.remove()
     }
   }, [
-    editor.ready,
-    editor.selection.name,
-    sourceDocument
+    editor.activePanel,
+    editor.ready
   ])
 
   useEffect(() => {
     let cancelled =
       false
 
-    if (
-      !draft ||
-      !draft.value.trim()
-    ) {
-      setPreviewSvg(
-        ''
-      )
-
-      setPreviewError(
-        ''
-      )
-
-      return
-    }
-
     const timeout =
       window.setTimeout(
         () => {
+          if (
+            !qrDocument
+              .value
+              .trim()
+          ) {
+            setPreviewSvg(
+              ''
+            )
+
+            setPreviewError(
+              ''
+            )
+
+            return
+          }
+
           void createMAQuadroQRCodeSvgFromDocument(
-            draft
+            qrDocument
           )
             .then(
               (
@@ -318,13 +247,11 @@ export default function QRCodeEditor() {
       )
     }
   }, [
-    draft
+    qrDocument
   ])
 
   if (
-    !host ||
-    !sourceDocument ||
-    !draft
+    !host
   ) {
     return null
   }
@@ -333,19 +260,11 @@ export default function QRCodeEditor() {
     editor.busy ||
     editor.structureBusy ||
     editor.imageCropEditing ||
-    saving
-
-  const dirty =
-    JSON.stringify(
-      draft
-    ) !==
-    JSON.stringify(
-      sourceDocument
-    )
+    inserting
 
   const valid =
     Boolean(
-      draft
+      qrDocument
         .value
         .trim()
     ) &&
@@ -362,19 +281,17 @@ export default function QRCodeEditor() {
         Key
       ]
   ) => {
-    setDraft(
+    setQrDocument(
       (
         current
       ) =>
-        current
-          ? updateMAQuadroQRCodeDocument(
-              current,
-              {
-                [key]:
-                  value
-              }
-            )
-          : current
+        updateMAQuadroQRCodeDocument(
+          current,
+          {
+            [key]:
+              value
+          }
+        )
     )
 
     setMessage(
@@ -382,28 +299,16 @@ export default function QRCodeEditor() {
     )
   }
 
-  const reset =
-    () => {
-      setDraft(
-        sourceDocument
-      )
-
-      setMessage(
-        ''
-      )
-    }
-
-  const apply =
+  const insertQRCode =
     async () => {
       if (
         locked ||
-        !dirty ||
         !valid
       ) {
         return
       }
 
-      setSaving(
+      setInserting(
         true
       )
 
@@ -414,31 +319,23 @@ export default function QRCodeEditor() {
       try {
         const file =
           await createMAQuadroQRCodeFileFromDocument(
-            draft
+            qrDocument
           )
-
-        editor.setSelectionName(
-          createMAQuadroQRCodeObjectName(
-            draft
-          )
-        )
 
         await editor
-          .replaceSelectedImage(
-            createFileChangeEvent(
-              file
-            )
-          )
+          .handleDroppedFiles([
+            file
+          ])
 
         setMessage(
-          'QR Code atualizado.'
+          'QR Code inserido.'
         )
       } catch {
         setMessage(
-          'Erro ao atualizar o QR Code.'
+          'Erro ao inserir o QR Code.'
         )
       } finally {
-        setSaving(
+        setInserting(
           false
         )
       }
@@ -446,28 +343,20 @@ export default function QRCodeEditor() {
 
   return createPortal(
     <section
-      className="mq-qr-editor"
-      aria-label="Editar QR Code"
+      className="mq-qr-builder"
+      aria-label="QR Code"
     >
-      <div className="mq-qr-editor__heading">
+      <div className="mq-section-title mq-qr-builder__title">
+        <h3>
+          QR Code
+        </h3>
+
         <span>
-          <strong>
-            QR Code
-          </strong>
-
-          <small>
-            {
-              draft
-                .errorCorrectionLevel
-            }
-          </small>
+          {
+            qrDocument
+              .errorCorrectionLevel
+          }
         </span>
-
-        {dirty ? (
-          <span className="mq-qr-editor__dirty">
-            Alterado
-          </span>
-        ) : null}
       </div>
 
       <label className="mq-qr-field">
@@ -477,7 +366,7 @@ export default function QRCodeEditor() {
 
         <textarea
           value={
-            draft.value
+            qrDocument.value
           }
           disabled={
             locked
@@ -488,6 +377,7 @@ export default function QRCodeEditor() {
           rows={
             4
           }
+          placeholder="https://exemplo.pt"
           onChange={(
             event
           ) =>
@@ -502,7 +392,7 @@ export default function QRCodeEditor() {
 
         <small>
           {
-            draft
+            qrDocument
               .value
               .length
           }
@@ -520,7 +410,7 @@ export default function QRCodeEditor() {
 
         <select
           value={
-            draft
+            qrDocument
               .errorCorrectionLevel
           }
           disabled={
@@ -567,7 +457,8 @@ export default function QRCodeEditor() {
         <span>
           Margem:{' '}
           {
-            draft.margin
+            qrDocument
+              .margin
           }
         </span>
 
@@ -583,7 +474,8 @@ export default function QRCodeEditor() {
             1
           }
           value={
-            draft.margin
+            qrDocument
+              .margin
           }
           disabled={
             locked
@@ -612,7 +504,7 @@ export default function QRCodeEditor() {
           <input
             type="color"
             value={
-              draft
+              qrDocument
                 .darkColor
             }
             disabled={
@@ -639,12 +531,12 @@ export default function QRCodeEditor() {
           <input
             type="color"
             value={
-              draft
+              qrDocument
                 .lightColor
             }
             disabled={
               locked ||
-              draft
+              qrDocument
                 .transparentBackground
             }
             onChange={(
@@ -665,7 +557,7 @@ export default function QRCodeEditor() {
         <input
           type="checkbox"
           checked={
-            draft
+            qrDocument
               .transparentBackground
           }
           disabled={
@@ -716,38 +608,27 @@ export default function QRCodeEditor() {
         </p>
       ) : null}
 
-      <div className="mq-qr-editor__actions">
-        <button
-          type="button"
-          disabled={
-            locked ||
-            !dirty
-          }
-          onClick={
-            reset
-          }
-        >
-          Repor
-        </button>
+      <small className="mq-qr-local-note">
+        Gerado localmente no
+        navegador.
+      </small>
 
-        <button
-          type="button"
-          className="is-primary"
-          disabled={
-            locked ||
-            !dirty ||
-            !valid ||
-            !previewSvg
-          }
-          onClick={() =>
-            void apply()
-          }
-        >
-          {saving
-            ? 'A aplicar…'
-            : 'Aplicar alterações'}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="mq-wide-action"
+        disabled={
+          locked ||
+          !valid ||
+          !previewSvg
+        }
+        onClick={() =>
+          void insertQRCode()
+        }
+      >
+        {inserting
+          ? 'A inserir…'
+          : '+ Inserir QR Code'}
+      </button>
 
       {message ? (
         <p
