@@ -6,12 +6,11 @@ import {
 import {
   confirmMAProfessorAdminPayment,
   decideMAProfessorAccessRequest,
+  dispenseMAProfessorAdminPayment,
   generateMAProfessorAdminCredential,
   getMAProfessorAdminCommercialStatus,
   getMAProfessorAdminCredentialStatus,
-  getMAProfessorAdminOverview,
-  selectMAProfessorAdminCommercialPlan,
-  type MAProfessorCommercialPlan
+  getMAProfessorAdminOverview
 } from './maProfessorAccessAdminBridge'
 
 import type {
@@ -28,6 +27,11 @@ export interface MaProfessorAdminEnv
 type JsonObject =
   Record<string, unknown>
 
+type EmailAdminAction = (
+  env: MaProfessorAdminEnv,
+  email: string
+) => Promise<Response>
+
 const MAX_BODY_BYTES =
   2_000
 
@@ -35,22 +39,16 @@ const securityHeaders:
   Record<string, string> = {
     'Cache-Control':
       'no-store',
-
     Pragma:
       'no-cache',
-
     'Content-Security-Policy':
       "default-src 'none'; frame-ancestors 'none'",
-
     'X-Content-Type-Options':
       'nosniff',
-
     'X-Frame-Options':
       'DENY',
-
     'Referrer-Policy':
       'no-referrer',
-
     'X-Robots-Tag':
       'noindex, nofollow'
   }
@@ -125,8 +123,7 @@ function isAllowedBrowserRequest(
     )
 
   const candidate =
-    origin ||
-    referer
+    origin || referer
 
   if (!candidate) {
     return false
@@ -166,17 +163,6 @@ function isValidEmail(
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
     value
   )
-}
-
-function normalizeCommercialPlan(
-  value: unknown
-): MAProfessorCommercialPlan | null {
-  return value ===
-      'paid_30_days' ||
-    value ===
-      'school_year'
-    ? value
-    : null
 }
 
 async function readJsonBody(
@@ -307,42 +293,6 @@ async function getValidatedBodyEmail(
   return email
 }
 
-async function getValidatedBodyEmailAndPlan(
-  request: Request
-) {
-  const body =
-    await readJsonBody(
-      request
-    )
-
-  const email =
-    normalizeEmail(
-      body.email
-    )
-
-  if (!isValidEmail(email)) {
-    throw new Error(
-      'Indique um email válido.'
-    )
-  }
-
-  const plan =
-    normalizeCommercialPlan(
-      body.plan
-    )
-
-  if (!plan) {
-    throw new Error(
-      'Selecione um plano válido.'
-    )
-  }
-
-  return {
-    email,
-    plan
-  }
-}
-
 function getBodyErrorStatus(
   message: string
 ) {
@@ -352,12 +302,12 @@ function getBodyErrorStatus(
     : 400
 }
 
-async function handleAccessRequestDecision(
+async function handleEmailMutation(
   request: Request,
   env: MaProfessorAdminEnv,
-  decision:
-    'approve' |
-    'reject'
+  action: EmailAdminAction,
+  logMessage: string,
+  fallbackMessage: string
 ) {
   if (
     request.method !==
@@ -416,16 +366,14 @@ async function handleAccessRequestDecision(
   }
 
   try {
-    return await decideMAProfessorAccessRequest(
+    return await action(
       env,
-      email,
-      decision
+      email
     )
   } catch (error) {
     console.error(
-      'MA-Professor admin access request decision failed',
+      logMessage,
       {
-        decision,
         message:
           error instanceof Error
             ? error.message
@@ -437,11 +385,35 @@ async function handleAccessRequestDecision(
       {
         success: false,
         message:
-          'Não foi possível atualizar o pedido de acesso.'
+          fallbackMessage
       },
       500
     )
   }
+}
+
+async function handleAccessRequestDecision(
+  request: Request,
+  env: MaProfessorAdminEnv,
+  decision:
+    'approve' |
+    'reject'
+) {
+  return handleEmailMutation(
+    request,
+    env,
+    (
+      actionEnv,
+      email
+    ) =>
+      decideMAProfessorAccessRequest(
+        actionEnv,
+        email,
+        decision
+      ),
+    'MA-Professor admin access request decision failed',
+    'Não foi possível atualizar o pedido de acesso.'
+  )
 }
 
 async function handleCommercialStatus(
@@ -513,184 +485,6 @@ async function handleCommercialStatus(
   }
 }
 
-async function handleCommercialPlanSelection(
-  request: Request,
-  env: MaProfessorAdminEnv
-) {
-  if (
-    request.method !==
-    'POST'
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Método não permitido.'
-      },
-      405,
-      {
-        Allow: 'POST'
-      }
-    )
-  }
-
-  if (
-    !isAllowedBrowserRequest(
-      request
-    )
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Pedido bloqueado por origem inválida.'
-      },
-      403
-    )
-  }
-
-  let payload: {
-    email: string
-    plan: MAProfessorCommercialPlan
-  }
-
-  try {
-    payload =
-      await getValidatedBodyEmailAndPlan(
-        request
-      )
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Pedido administrativo inválido.'
-
-    return json(
-      {
-        success: false,
-        message
-      },
-      getBodyErrorStatus(
-        message
-      )
-    )
-  }
-
-  try {
-    return await selectMAProfessorAdminCommercialPlan(
-      env,
-      payload.email,
-      payload.plan
-    )
-  } catch (error) {
-    console.error(
-      'MA-Professor admin plan selection failed',
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error)
-      }
-    )
-
-    return json(
-      {
-        success: false,
-        message:
-          'Não foi possível registar o plano escolhido.'
-      },
-      500
-    )
-  }
-}
-
-async function handleCommercialPaymentConfirmation(
-  request: Request,
-  env: MaProfessorAdminEnv
-) {
-  if (
-    request.method !==
-    'POST'
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Método não permitido.'
-      },
-      405,
-      {
-        Allow: 'POST'
-      }
-    )
-  }
-
-  if (
-    !isAllowedBrowserRequest(
-      request
-    )
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Pedido bloqueado por origem inválida.'
-      },
-      403
-    )
-  }
-
-  let email: string
-
-  try {
-    email =
-      await getValidatedBodyEmail(
-        request
-      )
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Pedido administrativo inválido.'
-
-    return json(
-      {
-        success: false,
-        message
-      },
-      getBodyErrorStatus(
-        message
-      )
-    )
-  }
-
-  try {
-    return await confirmMAProfessorAdminPayment(
-      env,
-      email
-    )
-  } catch (error) {
-    console.error(
-      'MA-Professor admin payment confirmation failed',
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error)
-      }
-    )
-
-    return json(
-      {
-        success: false,
-        message:
-          'Não foi possível confirmar o pagamento.'
-      },
-      500
-    )
-  }
-}
-
 async function handleCredentialStatus(
   request: Request,
   env: MaProfessorAdminEnv
@@ -754,93 +548,6 @@ async function handleCredentialStatus(
         success: false,
         message:
           'Não foi possível consultar o estado da senha.'
-      },
-      500
-    )
-  }
-}
-
-async function handleCredentialGenerate(
-  request: Request,
-  env: MaProfessorAdminEnv
-) {
-  if (
-    request.method !==
-    'POST'
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Método não permitido.'
-      },
-      405,
-      {
-        Allow: 'POST'
-      }
-    )
-  }
-
-  if (
-    !isAllowedBrowserRequest(
-      request
-    )
-  ) {
-    return json(
-      {
-        success: false,
-        message:
-          'Pedido bloqueado por origem inválida.'
-      },
-      403
-    )
-  }
-
-  let email: string
-
-  try {
-    email =
-      await getValidatedBodyEmail(
-        request
-      )
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Pedido administrativo inválido.'
-
-    return json(
-      {
-        success: false,
-        message
-      },
-      getBodyErrorStatus(
-        message
-      )
-    )
-  }
-
-  try {
-    return await generateMAProfessorAdminCredential(
-      env,
-      email
-    )
-  } catch (error) {
-    console.error(
-      'MA-Professor admin credential generation failed',
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error)
-      }
-    )
-
-    return json(
-      {
-        success: false,
-        message:
-          'Não foi possível gerar a senha da conta.'
       },
       500
     )
@@ -947,15 +654,31 @@ export async function handleMAProfessorAdminApiRequest(
       )
 
     case '/commerce/select-plan':
-      return handleCommercialPlanSelection(
-        request,
-        env
+      return json(
+        {
+          success: false,
+          message:
+            'O plano é escolhido pelo professor antes do pedido de acesso e não pode ser definido pelo MA-ADMIN no fluxo normal.'
+        },
+        409
       )
 
     case '/commerce/confirm-payment':
-      return handleCommercialPaymentConfirmation(
+      return handleEmailMutation(
         request,
-        env
+        env,
+        confirmMAProfessorAdminPayment,
+        'MA-Professor admin payment confirmation failed',
+        'Não foi possível confirmar o pagamento.'
+      )
+
+    case '/commerce/dispense-payment':
+      return handleEmailMutation(
+        request,
+        env,
+        dispenseMAProfessorAdminPayment,
+        'MA-Professor admin payment dispensation failed',
+        'Não foi possível marcar o pagamento como dispensado.'
       )
 
     case '/credentials/status':
@@ -965,9 +688,12 @@ export async function handleMAProfessorAdminApiRequest(
       )
 
     case '/credentials/generate':
-      return handleCredentialGenerate(
+      return handleEmailMutation(
         request,
-        env
+        env,
+        generateMAProfessorAdminCredential,
+        'MA-Professor admin credential generation failed',
+        'Não foi possível gerar a senha da conta.'
       )
 
     default:
