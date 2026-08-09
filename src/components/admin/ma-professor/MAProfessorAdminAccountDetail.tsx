@@ -22,6 +22,7 @@ import {
   generateMAProfessorAccessPassword,
   getMAProfessorCommercialStatus,
   getMAProfessorCredentialStatus,
+  revokeMAProfessorLicense,
   type MAProfessorAdminCommercialStatus,
   type MAProfessorAdminCredentialStatus,
   type MAProfessorGeneratedCredential
@@ -336,6 +337,27 @@ export default function MAProfessorAdminAccountDetail({
     setPasswordCopied
   ] = useState(false)
 
+  const [
+    revokedLicense,
+    setRevokedLicense
+  ] = useState<LicenseSummary | null>(
+    null
+  )
+
+  const [
+    revokingLicense,
+    setRevokingLicense
+  ] = useState(false)
+
+  const [
+    licenseActionError,
+    setLicenseActionError
+  ] = useState('')
+
+  const currentLicense =
+    revokedLicense ||
+    license
+
   const sortedRenewals =
     [...renewals].sort(
       (
@@ -403,6 +425,33 @@ export default function MAProfessorAdminAccountDetail({
     !credentialLoading &&
     !commercialSaving &&
     !generatingCredential
+
+  const canRevokeLicense =
+    dataConnected &&
+    Boolean(currentLicense) &&
+    currentLicense?.status !==
+      'revoked' &&
+    !revokingLicense
+
+  useEffect(
+    () => {
+      setRevokedLicense(
+        null
+      )
+
+      setLicenseActionError(
+        ''
+      )
+
+      setRevokingLicense(
+        false
+      )
+    },
+    [
+      email,
+      license
+    ]
+  )
 
   useEffect(
     () => {
@@ -618,7 +667,8 @@ export default function MAProfessorAdminAccountDetail({
               null
             )}`,
             `Valor: ${
-              commercialStatus?.amountCents == null
+              commercialStatus?.amountCents ==
+              null
                 ? '—'
                 : formatMoney(
                     commercialStatus.amountCents,
@@ -770,6 +820,57 @@ export default function MAProfessorAdminAccountDetail({
         )
       } finally {
         setGeneratingCredential(false)
+      }
+    }
+
+  const handleRevokeLicense =
+    async () => {
+      if (
+        !canRevokeLicense ||
+        !currentLicense
+      ) {
+        return
+      }
+
+      const confirmed =
+        window.confirm(
+          [
+            `Revogar a licença de ${email}?`,
+            '',
+            `Plano: ${getLicensePlanLabel(
+              currentLicense.plan
+            )}`,
+            `Válida até: ${formatDate(
+              currentLicense.validUntil
+            )}`,
+            '',
+            'Esta ação bloqueia o acesso e revoga todas as sessões ativas desta conta.',
+            'A conta e os dados do professor não são eliminados.'
+          ].join('\n')
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setRevokingLicense(true)
+      setLicenseActionError('')
+
+      try {
+        const updatedLicense =
+          await revokeMAProfessorLicense(
+            email
+          )
+
+        setRevokedLicense(
+          updatedLicense
+        )
+      } catch (error) {
+        setLicenseActionError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setRevokingLicense(false)
       }
     }
 
@@ -973,7 +1074,8 @@ export default function MAProfessorAdminAccountDetail({
                 <DetailValue
                   label="Valor"
                   value={
-                    commercialStatus.amountCents == null
+                    commercialStatus.amountCents ==
+                    null
                       ? '—'
                       : formatMoney(
                           commercialStatus.amountCents,
@@ -997,7 +1099,9 @@ export default function MAProfessorAdminAccountDetail({
                 />
               </div>
 
-              {paymentPending && request?.status === 'approved' ? (
+              {paymentPending &&
+              request?.status ===
+                'approved' ? (
                 <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
                   <p className="text-sm font-black text-amber-200">
                     Pagamento pendente de verificação
@@ -1067,7 +1171,8 @@ export default function MAProfessorAdminAccountDetail({
                 </div>
               ) : null}
 
-              {request?.status === 'pending' ? (
+              {request?.status ===
+                'pending' ? (
                 <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
                   <p className="text-sm font-black text-amber-200">
                     Pedido ainda pendente
@@ -1079,7 +1184,8 @@ export default function MAProfessorAdminAccountDetail({
                 </div>
               ) : null}
 
-              {request?.status === 'rejected' ? (
+              {request?.status ===
+                'rejected' ? (
                 <div className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.04] p-4">
                   <p className="text-sm font-black text-rose-200">
                     Pedido rejeitado
@@ -1122,17 +1228,17 @@ export default function MAProfessorAdminAccountDetail({
               </h3>
             </div>
 
-            {license ? (
+            {currentLicense ? (
               <span
                 className={[
                   'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
                   getLicenseStatusClassName(
-                    license.status
+                    currentLicense.status
                   )
                 ].join(' ')}
               >
                 {getLicenseStatusLabel(
-                  license.status
+                  currentLicense.status
                 )}
               </span>
             ) : (
@@ -1146,9 +1252,9 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Plano"
               value={
-                license
+                currentLicense
                   ? getLicensePlanLabel(
-                      license.plan
+                      currentLicense.plan
                     )
                   : '—'
               }
@@ -1157,9 +1263,9 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Estado"
               value={
-                license
+                currentLicense
                   ? getLicenseStatusLabel(
-                      license.status
+                      currentLicense.status
                     )
                   : '—'
               }
@@ -1168,7 +1274,7 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Início"
               value={formatDate(
-                license?.validFrom ??
+                currentLicense?.validFrom ??
                 null
               )}
             />
@@ -1176,7 +1282,7 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Válida até"
               value={formatDate(
-                license?.validUntil ??
+                currentLicense?.validUntil ??
                 null
               )}
             />
@@ -1184,11 +1290,11 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Dias restantes"
               value={
-                license?.daysRemaining ==
+                currentLicense?.daysRemaining ==
                 null
                   ? '—'
                   : String(
-                      license.daysRemaining
+                      currentLicense.daysRemaining
                     )
               }
             />
@@ -1196,11 +1302,70 @@ export default function MAProfessorAdminAccountDetail({
             <DetailValue
               label="Renovação pedida em"
               value={formatDate(
-                license?.renewalRequestedAt ??
+                currentLicense?.renewalRequestedAt ??
+                null
+              )}
+            />
+
+            <DetailValue
+              label="Revogada em"
+              value={formatDate(
+                currentLicense?.revokedAt ??
                 null
               )}
             />
           </div>
+
+          {licenseActionError ? (
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3 text-xs font-bold leading-5 text-rose-200"
+            >
+              {licenseActionError}
+            </div>
+          ) : null}
+
+          {currentLicense &&
+          currentLicense.status !==
+            'revoked' ? (
+            <div className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.035] p-4">
+              <p className="text-sm font-black text-rose-200">
+                Ação administrativa
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Revogar bloqueia o acesso desta licença e invalida as sessões ativas. A conta e os dados do professor são preservados.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRevokeLicense()
+                }}
+                disabled={!canRevokeLicense}
+                className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/[0.08] px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {revokingLicense
+                  ? 'A revogar…'
+                  : 'Revogar licença'}
+              </button>
+            </div>
+          ) : currentLicense?.status ===
+            'revoked' ? (
+            <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-4">
+              <p className="text-sm font-black text-rose-200">
+                Licença revogada
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                O acesso está bloqueado desde{' '}
+                {formatDate(
+                  currentLicense.revokedAt ??
+                  null
+                )}. A conta e os dados permanecem preservados.
+              </p>
+            </div>
+          ) : null}
         </article>
 
         <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.025] p-4 sm:p-5">
@@ -1405,7 +1570,8 @@ export default function MAProfessorAdminAccountDetail({
                   latestRenewal.status
                 )}
                 note={
-                  latestRenewal.status === 'pending'
+                  latestRenewal.status ===
+                  'pending'
                     ? 'Quando esta for a autorização comercial mais recente, o pagamento e a nova senha são tratados nos blocos acima.'
                     : undefined
                 }
@@ -1457,8 +1623,8 @@ export default function MAProfessorAdminAccountDetail({
                 : []
             }
             licenses={
-              license
-                ? [license]
+              currentLicense
+                ? [currentLicense]
                 : []
             }
             renewals={
