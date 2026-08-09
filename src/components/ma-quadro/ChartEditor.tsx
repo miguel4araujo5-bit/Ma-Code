@@ -13,7 +13,6 @@ import {
 import {
   addMAQuadroChartDatum,
   createMAQuadroChartFileFromDocument,
-  createMAQuadroChartObjectName,
   createMAQuadroChartSvgFromDocument,
   MA_QUADRO_CHART_MAX_ITEMS,
   MA_QUADRO_CHART_MIN_ITEMS,
@@ -388,12 +387,6 @@ export default function ChartEditor() {
           createMAQuadroChartFileFromDocument(
             draft
           )
-
-        editor.setSelectionName(
-          createMAQuadroChartObjectName(
-            draft
-          )
-        )
 
         await editor
           .replaceSelectedImage(
