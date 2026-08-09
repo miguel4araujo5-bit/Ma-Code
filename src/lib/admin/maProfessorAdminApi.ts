@@ -46,6 +46,7 @@ export type MAProfessorPaymentStatus =
   | 'not_started'
   | 'pending'
   | 'confirmed'
+  | 'dispensed'
 
 export interface MAProfessorAdminCommercialStatus {
   email: string
@@ -56,6 +57,7 @@ export interface MAProfessorAdminCommercialStatus {
   paymentStatus: MAProfessorPaymentStatus
   selectedAt: string | null
   paymentConfirmedAt: string | null
+  paymentDispensedAt: string | null
   credentialIssuedAt: string | null
   canGenerateCredential: boolean
 }
@@ -133,6 +135,13 @@ function getSessionError() {
   )
 }
 
+function isNullableString(
+  value: unknown
+) {
+  return value === null ||
+    typeof value === 'string'
+}
+
 function assertCommercialStatus(
   value: unknown
 ): asserts value is MAProfessorAdminCommercialStatus {
@@ -142,12 +151,12 @@ function assertCommercialStatus(
       'object'
   ) {
     throw new Error(
-      'O servidor devolveu um estado comercial inválido.'
+      'A resposta comercial do MA-Professor é inválida.'
     )
   }
 
   const data =
-    value as Partial<MAProfessorAdminCommercialStatus>
+    value as Record<string, unknown>
 
   const validPlan =
     data.plan === null ||
@@ -162,45 +171,74 @@ function assertCommercialStatus(
     data.paymentStatus ===
       'pending' ||
     data.paymentStatus ===
-      'confirmed'
+      'confirmed' ||
+    data.paymentStatus ===
+      'dispensed'
 
   if (
     typeof data.email !==
       'string' ||
     !validPlan ||
     !validPaymentStatus ||
+    data.currency !==
+      'EUR' ||
+    !isNullableString(
+      data.authorizationId
+    ) ||
+    !(
+      data.amountCents ===
+        null ||
+      typeof data.amountCents ===
+        'number'
+    ) ||
+    !isNullableString(
+      data.selectedAt
+    ) ||
+    !isNullableString(
+      data.paymentConfirmedAt
+    ) ||
+    !isNullableString(
+      data.paymentDispensedAt
+    ) ||
+    !isNullableString(
+      data.credentialIssuedAt
+    ) ||
     typeof data.canGenerateCredential !==
       'boolean'
   ) {
     throw new Error(
-      'O servidor devolveu um estado comercial inválido.'
+      'A resposta comercial do MA-Professor é inválida.'
     )
   }
 }
 
-export async function getMAProfessorAdminOverview():
-  Promise<MAProfessorAdminOverview> {
+async function requestAdminApi(
+  path: string,
+  init: RequestInit,
+  fallbackMessage: string
+) {
   let response: Response
 
   try {
     response =
       await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/overview`,
+        `${MA_PROFESSOR_ADMIN_API_PREFIX}${path}`,
         {
-          method: 'GET',
           credentials:
             'include',
+          cache:
+            'no-store',
+          ...init,
           headers: {
             Accept:
-              'application/json'
-          },
-          cache:
-            'no-store'
+              'application/json',
+            ...(init.headers || {})
+          }
         }
       )
   } catch {
     throw new Error(
-      'Não foi possível ligar aos dados administrativos do MA-Professor.'
+      'Não foi possível ligar ao backend administrativo do MA-Professor.'
     )
   }
 
@@ -210,8 +248,7 @@ export async function getMAProfessorAdminOverview():
     )
 
   if (
-    response.status ===
-    401
+    response.status === 401
   ) {
     throw getSessionError()
   }
@@ -220,13 +257,65 @@ export async function getMAProfessorAdminOverview():
     throw new Error(
       getApiMessage(
         body,
-        'Não foi possível carregar os dados administrativos do MA-Professor.'
+        fallbackMessage
       )
     )
   }
 
+  return body
+}
+
+async function postEmailAction(
+  path: string,
+  email: string,
+  fallbackMessage: string
+) {
+  const body =
+    await requestAdminApi(
+      path,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      },
+      fallbackMessage
+    )
+
   const data =
-    body as MAProfessorAdminOverviewResponse
+    body as MAProfessorAdminActionResponse | null
+
+  if (
+    !data ||
+    data.success !== true ||
+    typeof data.message !==
+      'string'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu uma resposta inválida.'
+    )
+  }
+
+  return data
+}
+
+export async function getMAProfessorAdminOverview() {
+  const body =
+    await requestAdminApi(
+      '/overview',
+      {
+        method: 'GET'
+      },
+      'Não foi possível carregar os dados administrativos do MA-Professor.'
+    )
+
+  const data =
+    body as MAProfessorAdminOverviewResponse | null
 
   if (
     !data ||
@@ -244,7 +333,7 @@ export async function getMAProfessorAdminOverview():
       'string'
   ) {
     throw new Error(
-      'O servidor devolveu dados administrativos inválidos para o MA-Professor.'
+      'O backend administrativo devolveu dados inválidos.'
     )
   }
 
@@ -257,168 +346,55 @@ export async function getMAProfessorAdminOverview():
       data.renewals,
     generatedAt:
       data.generatedAt
-  }
-}
-
-async function decideAccessRequest(
-  email: string,
-  decision:
-    'approve' |
-    'reject'
-) {
-  const endpoint =
-    decision ===
-    'approve'
-      ? 'approve'
-      : 'reject'
-
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/requests/${endpoint}`,
-        {
-          method: 'POST',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json',
-            'Content-Type':
-              'application/json'
-          },
-          body:
-            JSON.stringify({
-              email
-            })
-        }
-      )
-  } catch {
-    throw new Error(
-      'Não foi possível ligar ao backend administrativo do MA-Professor.'
-    )
-  }
-
-  const body =
-    await readResponseBody(
-      response
-    )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        decision ===
-        'approve'
-          ? 'Não foi possível aprovar o pedido.'
-          : 'Não foi possível rejeitar o pedido.'
-      )
-    )
-  }
-
-  const data =
-    body as MAProfessorAdminActionResponse
-
-  if (
-    !data ||
-    data.success !== true
-  ) {
-    throw new Error(
-      'O servidor devolveu uma resposta administrativa inválida.'
-    )
-  }
-
-  return data
+  } satisfies MAProfessorAdminOverview
 }
 
 export async function approveMAProfessorAccessRequest(
   email: string
 ) {
-  return decideAccessRequest(
+  return postEmailAction(
+    '/requests/approve',
     email,
-    'approve'
+    'Não foi possível aprovar o pedido de acesso.'
   )
 }
 
 export async function rejectMAProfessorAccessRequest(
   email: string
 ) {
-  return decideAccessRequest(
+  return postEmailAction(
+    '/requests/reject',
     email,
-    'reject'
+    'Não foi possível rejeitar o pedido de acesso.'
   )
 }
 
 export async function getMAProfessorCommercialStatus(
   email: string
-): Promise<MAProfessorAdminCommercialStatus> {
-  const query =
+) {
+  const params =
     new URLSearchParams({
       email
     })
 
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/status?${query.toString()}`,
-        {
-          method: 'GET',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json'
-          },
-          cache:
-            'no-store'
-        }
-      )
-  } catch {
-    throw new Error(
+  const body =
+    await requestAdminApi(
+      `/commerce/status?${params.toString()}`,
+      {
+        method: 'GET'
+      },
       'Não foi possível consultar o plano e pagamento desta conta.'
     )
-  }
-
-  const body =
-    await readResponseBody(
-      response
-    )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        'Não foi possível consultar o plano e pagamento desta conta.'
-      )
-    )
-  }
 
   const data =
-    body as MAProfessorCommercialStatusResponse
+    body as MAProfessorCommercialStatusResponse | null
 
   if (
     !data ||
     data.success !== true
   ) {
     throw new Error(
-      'O servidor devolveu um estado comercial inválido.'
+      'O backend administrativo devolveu um estado comercial inválido.'
     )
   }
 
@@ -432,66 +408,77 @@ export async function getMAProfessorCommercialStatus(
 export async function selectMAProfessorCommercialPlan(
   email: string,
   plan: MAProfessorCommercialPlan
-): Promise<MAProfessorAdminCommercialStatus> {
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/select-plan`,
-        {
-          method: 'POST',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json',
-            'Content-Type':
-              'application/json'
-          },
-          body:
-            JSON.stringify({
-              email,
-              plan
-            })
-        }
-      )
-  } catch {
-    throw new Error(
+) {
+  const body =
+    await requestAdminApi(
+      '/commerce/select-plan',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email,
+            plan
+          })
+      },
       'Não foi possível registar o plano escolhido.'
     )
-  }
-
-  const body =
-    await readResponseBody(
-      response
-    )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        'Não foi possível registar o plano escolhido.'
-      )
-    )
-  }
 
   const data =
-    body as MAProfessorCommercialStatusResponse
+    body as MAProfessorCommercialStatusResponse | null
 
   if (
     !data ||
     data.success !== true
   ) {
     throw new Error(
-      'O servidor devolveu um estado comercial inválido.'
+      'O backend administrativo devolveu um estado comercial inválido.'
+    )
+  }
+
+  assertCommercialStatus(
+    data.commerce
+  )
+
+  return data.commerce
+}
+
+async function updateMAProfessorPayment(
+  email: string,
+  action:
+    'confirm-payment' |
+    'dispense-payment',
+  fallbackMessage: string
+) {
+  const body =
+    await requestAdminApi(
+      `/commerce/${action}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      },
+      fallbackMessage
+    )
+
+  const data =
+    body as MAProfessorCommercialStatusResponse | null
+
+  if (
+    !data ||
+    data.success !== true
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um estado comercial inválido.'
     )
   }
 
@@ -504,130 +491,43 @@ export async function selectMAProfessorCommercialPlan(
 
 export async function confirmMAProfessorPayment(
   email: string
-): Promise<MAProfessorAdminCommercialStatus> {
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/commerce/confirm-payment`,
-        {
-          method: 'POST',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json',
-            'Content-Type':
-              'application/json'
-          },
-          body:
-            JSON.stringify({
-              email
-            })
-        }
-      )
-  } catch {
-    throw new Error(
-      'Não foi possível confirmar o pagamento.'
-    )
-  }
-
-  const body =
-    await readResponseBody(
-      response
-    )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        'Não foi possível confirmar o pagamento.'
-      )
-    )
-  }
-
-  const data =
-    body as MAProfessorCommercialStatusResponse
-
-  if (
-    !data ||
-    data.success !== true
-  ) {
-    throw new Error(
-      'O servidor devolveu um estado comercial inválido.'
-    )
-  }
-
-  assertCommercialStatus(
-    data.commerce
+) {
+  return updateMAProfessorPayment(
+    email,
+    'confirm-payment',
+    'Não foi possível confirmar o pagamento.'
   )
+}
 
-  return data.commerce
+export async function dispenseMAProfessorPayment(
+  email: string
+) {
+  return updateMAProfessorPayment(
+    email,
+    'dispense-payment',
+    'Não foi possível marcar o pagamento como dispensado.'
+  )
 }
 
 export async function getMAProfessorCredentialStatus(
   email: string
-): Promise<MAProfessorAdminCredentialStatus> {
-  const query =
+) {
+  const params =
     new URLSearchParams({
       email
     })
 
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/status?${query.toString()}`,
-        {
-          method: 'GET',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json'
-          },
-          cache:
-            'no-store'
-        }
-      )
-  } catch {
-    throw new Error(
+  const body =
+    await requestAdminApi(
+      `/credentials/status?${params.toString()}`,
+      {
+        method: 'GET'
+      },
       'Não foi possível consultar o estado da senha.'
     )
-  }
-
-  const body =
-    await readResponseBody(
-      response
-    )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        'Não foi possível consultar o estado da senha.'
-      )
-    )
-  }
 
   const data =
-    body as MAProfessorCredentialStatusResponse
+    body as MAProfessorCredentialStatusResponse | null
 
   if (
     !data ||
@@ -639,7 +539,7 @@ export async function getMAProfessorCredentialStatus(
       'boolean'
   ) {
     throw new Error(
-      'O servidor devolveu um estado de senha inválido.'
+      'O backend administrativo devolveu um estado de senha inválido.'
     )
   }
 
@@ -648,58 +548,26 @@ export async function getMAProfessorCredentialStatus(
 
 export async function generateMAProfessorAccessPassword(
   email: string
-): Promise<MAProfessorGeneratedCredential> {
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${MA_PROFESSOR_ADMIN_API_PREFIX}/credentials/generate`,
-        {
-          method: 'POST',
-          credentials:
-            'include',
-          headers: {
-            Accept:
-              'application/json',
-            'Content-Type':
-              'application/json'
-          },
-          body:
-            JSON.stringify({
-              email
-            })
-        }
-      )
-  } catch {
-    throw new Error(
-      'Não foi possível ligar ao backend para gerar a senha.'
-    )
-  }
-
+) {
   const body =
-    await readResponseBody(
-      response
+    await requestAdminApi(
+      '/credentials/generate',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      },
+      'Não foi possível gerar a nova senha.'
     )
-
-  if (
-    response.status ===
-    401
-  ) {
-    throw getSessionError()
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      getApiMessage(
-        body,
-        'Não foi possível gerar a senha desta conta.'
-      )
-    )
-  }
 
   const data =
-    body as MAProfessorCredentialGenerateResponse
+    body as MAProfessorCredentialGenerateResponse | null
 
   if (
     !data ||
@@ -707,13 +575,20 @@ export async function generateMAProfessorAccessPassword(
     !data.credential ||
     typeof data.credential.email !==
       'string' ||
+    typeof data.credential.hasCredential !==
+      'boolean' ||
     typeof data.credential.password !==
       'string' ||
-    data.credential.password.length <
-      6
+    !data.credential.password
   ) {
     throw new Error(
-      'O servidor não devolveu uma senha válida.'
+      'O backend administrativo devolveu uma nova senha inválida.'
+    )
+  }
+
+  if (data.commerce) {
+    assertCommercialStatus(
+      data.commerce
     )
   }
 
