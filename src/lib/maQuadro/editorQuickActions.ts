@@ -8,7 +8,6 @@ import {
     Triangle,
     type Canvas
 } from 'fabric';
-
 import {
     applyMAQuadroLock,
     createMAQuadroImage,
@@ -23,7 +22,6 @@ import {
     setMAQuadroObjectStrokeWidth,
     type MAQuadroFabricObject
 } from './canvasObjects';
-
 import {
     applyMAQuadroImageFrame,
     getMAQuadroCropViewportState,
@@ -123,6 +121,40 @@ for (
         MA_QUADRO_SERIALIZED_PROPERTIES
             .push(property);
     }
+}
+
+const MA_QUADRO_GENERATED_METADATA_START =
+    '\u{E0001}';
+
+const MA_QUADRO_GENERATED_METADATA_END =
+    '\u{E007F}';
+
+function shouldUseReplacementFileName(
+    file: File
+) {
+    if (
+        file.type !==
+        'image/svg+xml'
+    ) {
+        return false;
+    }
+
+    const start =
+        file.name.indexOf(
+            MA_QUADRO_GENERATED_METADATA_START
+        );
+
+    if (
+        start < 0
+    ) {
+        return false;
+    }
+
+    return file.name.indexOf(
+        MA_QUADRO_GENERATED_METADATA_END,
+        start +
+            MA_QUADRO_GENERATED_METADATA_START.length
+    ) >= 0;
 }
 
 function colorToString(
@@ -249,11 +281,15 @@ function applyStrokeStyleToTree(
                 child as
                     MAQuadroFabricObject;
 
-          if (
-    (object as Group & MAQuadroFabricObject).maShapeKind ===
-    'arrow' &&
-    !(editorChild instanceof Line)
-) {
+            if (
+                (
+                    object as
+                        Group &
+                        MAQuadroFabricObject
+                ).maShapeKind ===
+                    'arrow' &&
+                !(editorChild instanceof Line)
+            ) {
                 continue;
             }
 
@@ -276,7 +312,7 @@ function applyStrokeStyleToTree(
             style,
             Number(
                 object.strokeWidth ||
-                1
+                    1
             )
         );
 
@@ -290,7 +326,7 @@ function applyStrokeStyleToTree(
             : Boolean(
                 currentDash &&
                 currentDash.length ===
-                nextDash.length &&
+                    nextDash.length &&
                 currentDash.every(
                     (
                         value,
@@ -298,7 +334,7 @@ function applyStrokeStyleToTree(
                     ) =>
                         Math.abs(
                             Number(value) -
-                            nextDash[index]
+                                nextDash[index]
                         ) < 0.001
                 )
             );
@@ -341,7 +377,7 @@ getMAQuadroStrokeStyle(
     const first =
         Number(
             dash[0] ||
-            0
+                0
         );
 
     const width =
@@ -349,7 +385,7 @@ getMAQuadroStrokeStyle(
             1,
             Number(
                 styled.strokeWidth ||
-                1
+                    1
             )
         );
 
@@ -438,7 +474,7 @@ setMAQuadroArrowHeadEnabled(
     ) {
         if (
             head.visible !==
-            enabled
+                enabled
         ) {
             head.set({
                 visible: enabled
@@ -544,7 +580,7 @@ captureMAQuadroStyle(
                 fontSize:
                     Number(
                         object.fontSize ||
-                        64
+                            64
                     ),
                 fontWeight:
                     object.fontWeight ||
@@ -558,12 +594,12 @@ captureMAQuadroStyle(
                 lineHeight:
                     Number(
                         object.lineHeight ||
-                        1.16
+                            1.16
                     ),
                 charSpacing:
                     Number(
                         object.charSpacing ||
-                        0
+                            0
                     ),
                 underline:
                     Boolean(
@@ -599,7 +635,7 @@ captureMAQuadroStyle(
         opacity:
             Number(
                 object.opacity ??
-                1
+                    1
             ),
         fill:
             colorToString(
@@ -613,7 +649,7 @@ captureMAQuadroStyle(
         strokeWidth:
             Number(
                 styled.strokeWidth ||
-                0
+                    0
             ),
         strokeStyle:
             getMAQuadroStrokeStyle(
@@ -630,7 +666,7 @@ captureMAQuadroStyle(
             'rectangle'
                 ? Number(
                     object.rx ||
-                    0
+                        0
                 )
                 : 0,
         text,
@@ -735,7 +771,7 @@ applyMAQuadroCopiedStyle(
 
     if (
         object instanceof
-        Textbox &&
+            Textbox &&
         style.text
     ) {
         object.set({
@@ -773,7 +809,7 @@ applyMAQuadroCopiedStyle(
         getMAQuadroShapeKind(
             object
         ) ===
-        'rectangle' &&
+            'rectangle' &&
         style.cornerRadius >= 0
     ) {
         object.set({
@@ -786,7 +822,7 @@ applyMAQuadroCopiedStyle(
 
     if (
         object instanceof
-        FabricImage &&
+            FabricImage &&
         style.image
     ) {
         const image =
@@ -807,7 +843,7 @@ applyMAQuadroCopiedStyle(
 
     if (
         style.arrowHeadEnabled !==
-        null
+            null
     ) {
         setMAQuadroArrowHeadEnabled(
             object,
@@ -855,8 +891,8 @@ setMAQuadroImageAsBackground(
             1,
             Number(
                 image.maOriginalWidth ||
-                image.width ||
-                1
+                    image.width ||
+                    1
             )
         );
 
@@ -865,17 +901,17 @@ setMAQuadroImageAsBackground(
             1,
             Number(
                 image.maOriginalHeight ||
-                image.height ||
-                1
+                    image.height ||
+                    1
             )
         );
 
     const scale =
         Math.max(
             canvas.getWidth() /
-            sourceWidth,
+                sourceWidth,
             canvas.getHeight() /
-            sourceHeight
+                sourceHeight
         );
 
     resetMAQuadroImageCrop(
@@ -975,11 +1011,11 @@ replaceMAQuadroImage(
             Math.abs(
                 Number(
                     current.width ||
-                    1
+                        1
                 ) *
                 Number(
                     current.scaleX ||
-                    1
+                        1
                 )
             )
         );
@@ -990,11 +1026,11 @@ replaceMAQuadroImage(
             Math.abs(
                 Number(
                     current.height ||
-                    1
+                        1
                 ) *
                 Number(
                     current.scaleY ||
-                    1
+                        1
                 )
             )
         );
@@ -1012,8 +1048,8 @@ replaceMAQuadroImage(
             1,
             Number(
                 replacement.maOriginalWidth ||
-                replacement.width ||
-                1
+                    replacement.width ||
+                    1
             )
         );
 
@@ -1022,8 +1058,8 @@ replaceMAQuadroImage(
             1,
             Number(
                 replacement.maOriginalHeight ||
-                replacement.height ||
-                1
+                    replacement.height ||
+                    1
             )
         );
 
@@ -1088,7 +1124,11 @@ replaceMAQuadroImage(
         current.maId;
 
     replacement.maName =
-        current.maName;
+        shouldUseReplacementFileName(
+            file
+        )
+            ? file.name
+            : current.maName;
 
     replacement.maRole =
         'image';
