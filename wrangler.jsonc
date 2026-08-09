@@ -1,30 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-
   "name": "ma-code",
-
   "main": "./worker/entry.ts",
-
   "compatibility_date": "2026-04-03",
-
   "observability": {
     "enabled": true
   },
-
   "assets": {
     "directory": "./dist",
-
     "not_found_handling": "single-page-application",
-
     "run_worker_first": [
       "/api/*"
     ]
   },
-
   "compatibility_flags": [
     "nodejs_compat"
   ],
-
   "durable_objects": {
     "bindings": [
       {
@@ -38,61 +29,59 @@
       {
         "name": "CONQUISTADOR_MATCHMAKING",
         "class_name": "ConquistadorMatchmakingDurableObject"
+      },
+      {
+        "name": "CONQUISTADOR_GAME",
+        "class_name": "ConquistadorGameSessionDurableObject"
       }
     ]
   },
-
   "d1_databases": [
     {
       "binding": "MA_PROFESSOR_DB",
-
       "database_name": "ma-professor-production",
-
       "database_id": "86f36fb8-dace-4544-9340-8bb4d742dd94",
-
       "migrations_dir": "migrations/ma-professor"
     }
   ],
-
   "migrations": [
     {
       "tag": "v1-ma-btc-alertas",
-
       "new_sqlite_classes": [
         "BtcAlertsDurableObject"
       ]
     },
     {
       "tag": "v2-ma-professor-access",
-
       "new_sqlite_classes": [
         "MaProfessorAccessDurableObject"
       ]
     },
     {
       "tag": "v3-conquistador-matchmaking",
-
       "new_sqlite_classes": [
         "ConquistadorMatchmakingDurableObject"
       ]
+    },
+    {
+      "tag": "v4-conquistador-game-session",
+      "new_sqlite_classes": [
+        "ConquistadorGameSessionDurableObject"
+      ]
     }
   ],
-
   "triggers": {
     "crons": [
       "0 * * * *"
     ]
   },
-
   "routes": [
     {
       "pattern": "ma-code.pt/*",
-
       "zone_name": "ma-code.pt"
     },
     {
       "pattern": "www.ma-code.pt/*",
-
       "zone_name": "ma-code.pt"
     }
   ]
