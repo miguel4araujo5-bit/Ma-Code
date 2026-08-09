@@ -12,7 +12,6 @@ import {
 
 import {
   createMAQuadroTableFileFromDocument,
-  createMAQuadroTableObjectName,
   createMAQuadroTableSvgFromDocument,
   MA_QUADRO_TABLE_MAX_COLUMNS,
   MA_QUADRO_TABLE_MAX_ROWS,
@@ -64,7 +63,6 @@ function createFileChangeEvent(
   return {
     currentTarget:
       input,
-
     target:
       input
   } as unknown as
@@ -352,15 +350,6 @@ export default function TableEditor() {
           createMAQuadroTableFileFromDocument(
             draft
           )
-
-        const name =
-          createMAQuadroTableObjectName(
-            draft
-          )
-
-        editor.setSelectionName(
-          name
-        )
 
         await editor
           .replaceSelectedImage(
