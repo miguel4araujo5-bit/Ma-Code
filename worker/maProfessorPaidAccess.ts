@@ -11,6 +11,8 @@ const PUBLIC_ACCESS_REQUEST_PATH =
     '/api/ma-professor/access/request';
 const PUBLIC_ACCESS_ACTIVATE_PATH =
     '/api/ma-professor/access/activate';
+const PUBLIC_ACCESS_RENEW_PATH =
+    '/api/ma-professor/access/renew';
 const PUBLIC_COMMERCE_STATUS_PATH =
     '/api/ma-professor/access/commerce/status';
 const PUBLIC_COMMERCE_SELECT_PLAN_PATH =
@@ -52,8 +54,25 @@ interface StoredAccessCredentialSnapshot {
     authorizationPlan?: MAProfessorPaidPlan;
 }
 
+interface StoredRenewalRequestSnapshot {
+    id: string;
+    email: string;
+    requestedPlan: MAProfessorPaidPlan;
+    amountCents: number;
+    currency: 'EUR';
+    status:
+        | 'pending'
+        | 'approved'
+        | 'rejected'
+        | 'cancelled';
+    requestedAt: number;
+    resolvedAt?: number | null;
+    updatedAt?: number;
+}
+
 interface AccessStateSnapshot {
     licenses?: Record<string, StoredLicenseSnapshot>;
+    renewals?: StoredRenewalRequestSnapshot[];
     accessRequests?: Record<string, StoredAccessRequestSnapshot>;
     credentials?: Record<string, StoredAccessCredentialSnapshot>;
     updatedAt?: number;
@@ -67,9 +86,11 @@ interface StoredCommercialAuthorization {
     amountCents: number;
     currency: 'EUR';
     selectedAt: number;
+    renewalId?: string | null;
     paymentConfirmedAt: number | null;
     paymentDispensedAt?: number | null;
     credentialIssuedAt: number | null;
+    activatedAt?: number | null;
     createdAt: number;
     updatedAt: number;
 }
@@ -83,7 +104,15 @@ interface StoredCommerceState {
 
 interface DurableObjectStorageLike {
     get<T>(key: string): Promise<T | undefined>;
-    put<T>(key: string, value: T): Promise<void>;
+
+    put<T>(
+        key: string,
+        value: T
+    ): Promise<void>;
+
+    put(
+        entries: Record<string, unknown>
+    ): Promise<void>;
 }
 
 interface DurableObjectStateLike {
@@ -181,6 +210,7 @@ function getSchoolYearValidUntil(
 ) {
     const activationDate =
         new Date(validFrom);
+
     const activationYear =
         activationDate.getUTCFullYear();
 
@@ -306,8 +336,14 @@ function normalizeAuthorization(
 ): StoredCommercialAuthorization {
     return {
         ...authorization,
+        renewalId:
+            authorization.renewalId ??
+            null,
         paymentDispensedAt:
             authorization.paymentDispensedAt ??
+            null,
+        activatedAt:
+            authorization.activatedAt ??
             null
     };
 }
@@ -355,6 +391,19 @@ function getLatestAuthorization(
                     right.createdAt -
                     left.createdAt
             )[0] || null
+    );
+}
+
+function getAuthorizationForRenewal(
+    commerceState: StoredCommerceState,
+    renewalId: string
+) {
+    return (
+        commerceState.authorizations.find(
+            authorization =>
+                authorization.renewalId ===
+                renewalId
+        ) || null
     );
 }
 
@@ -408,16 +457,17 @@ function buildCommercialStatus(
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
+
     const existingLicense =
         Boolean(
             accessState
                 ?.licenses?.[email]
         );
+
     const requestStatus =
         accessRequest?.status || null;
-    const canActivate =
-        requestStatus === 'approved' &&
-        !existingLicense &&
+
+    const authorizationReady =
         Boolean(
             authorization &&
                 isPaymentResolved(
@@ -425,8 +475,19 @@ function buildCommercialStatus(
                 ) &&
                 authorization
                     .credentialIssuedAt !==
+                    null &&
+                authorization
+                    .activatedAt ===
                     null
         );
+
+    const canActivate =
+        requestStatus === 'approved' &&
+        authorizationReady &&
+        (!existingLicense ||
+            Boolean(
+                authorization?.renewalId
+            ));
 
     return {
         success: true as const,
@@ -512,6 +573,25 @@ async function readJsonBody(
     }
 }
 
+function readLicenseEmailFromResponse(
+    body: JsonObject
+) {
+    const license =
+        body.license;
+
+    if (
+        !license ||
+        typeof license !== 'object' ||
+        Array.isArray(license)
+    ) {
+        return '';
+    }
+
+    return normalizeEmail(
+        (license as JsonObject).email
+    );
+}
+
 async function handlePaidAccessRequest(
     request: Request,
     context: PaidAccessContext
@@ -531,9 +611,11 @@ async function handlePaidAccessRequest(
 
     const body =
         await readJsonBody(request);
+
     const email = normalizeEmail(
         body?.email
     );
+
     const plan = body?.plan;
 
     if (!isValidEmail(email)) {
@@ -585,15 +667,18 @@ async function handlePaidAccessRequest(
     }
 
     const now = Date.now();
+
     const storedCommerceState =
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             now
         );
+
     const latestAuthorization =
         getLatestAuthorization(
             commerceState,
@@ -602,6 +687,7 @@ async function handlePaidAccessRequest(
 
     if (
         latestAuthorization &&
+        !latestAuthorization.renewalId &&
         latestAuthorization.plan !==
             plan
     ) {
@@ -628,6 +714,7 @@ async function handlePaidAccessRequest(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const accessRequest =
         afterState
             ?.accessRequests?.[email];
@@ -642,7 +729,10 @@ async function handlePaidAccessRequest(
     }
 
     let authorization =
-        latestAuthorization;
+        latestAuthorization &&
+        !latestAuthorization.renewalId
+            ? latestAuthorization
+            : null;
 
     if (!authorization) {
         authorization = {
@@ -655,9 +745,11 @@ async function handlePaidAccessRequest(
                 ),
             currency: 'EUR',
             selectedAt: now,
+            renewalId: null,
             paymentConfirmedAt: null,
             paymentDispensedAt: null,
             credentialIssuedAt: null,
+            activatedAt: null,
             createdAt: now,
             updatedAt: now
         };
@@ -665,6 +757,7 @@ async function handlePaidAccessRequest(
         commerceState.authorizations.push(
             authorization
         );
+
         commerceState.updatedAt = now;
 
         await context.state.storage.put(
@@ -696,6 +789,216 @@ async function handlePaidAccessRequest(
     });
 }
 
+async function handlePaidRenewal(
+    request: Request,
+    context: PaidAccessContext
+): Promise<Response> {
+    if (
+        request.method !== 'POST'
+    ) {
+        return json(
+            {
+                success: false,
+                message:
+                    'Método não permitido.'
+            },
+            405
+        );
+    }
+
+    const body =
+        await readJsonBody(request);
+
+    const requestedPlan =
+        body?.requestedPlan;
+
+    /*
+     * A validação completa de sessão, dispositivo
+     * e plano continua a pertencer ao motor base.
+     */
+    if (!isPaidPlan(requestedPlan)) {
+        return context.base.fetch(
+            request
+        );
+    }
+
+    const baseResponse =
+        await context.base.fetch(
+            request
+        );
+
+    if (!baseResponse.ok) {
+        return baseResponse;
+    }
+
+    let responseBody: JsonObject = {};
+
+    try {
+        responseBody =
+            (await baseResponse
+                .clone()
+                .json()) as JsonObject;
+    } catch {
+        return baseResponse;
+    }
+
+    const email =
+        readLicenseEmailFromResponse(
+            responseBody
+        );
+
+    if (!isValidEmail(email)) {
+        return baseResponse;
+    }
+
+    const accessState =
+        await context.state.storage.get<AccessStateSnapshot>(
+            STORAGE_KEY
+        );
+
+    if (!accessState) {
+        return baseResponse;
+    }
+
+    /*
+     * O motor base cria a renovação antes de chegarmos
+     * aqui. Procuramos exatamente a renovação pendente
+     * mais recente para esta conta e para o plano pedido.
+     *
+     * Se o utilizador repetir o pedido dentro da janela
+     * de proteção do motor base, reutilizamos a mesma
+     * renovação e não criamos outra autorização.
+     */
+    const renewal =
+        [...(accessState.renewals || [])]
+            .filter(
+                item =>
+                    item.email === email &&
+                    item.requestedPlan ===
+                        requestedPlan &&
+                    item.status ===
+                        'pending'
+            )
+            .sort(
+                (left, right) =>
+                    right.requestedAt -
+                    left.requestedAt
+            )[0] || null;
+
+    if (!renewal) {
+        return baseResponse;
+    }
+
+    const now = Date.now();
+
+    const storedCommerceState =
+        await context.state.storage.get<StoredCommerceState>(
+            COMMERCE_STORAGE_KEY
+        );
+
+    const commerceState =
+        normalizeCommerceState(
+            storedCommerceState,
+            now
+        );
+
+    let authorization =
+        getAuthorizationForRenewal(
+            commerceState,
+            renewal.id
+        );
+
+    if (!authorization) {
+        /*
+         * Se existir um pedido de renovação anterior
+         * que ficou abandonado, o novo pedido passa
+         * a ser o atual e o anterior deixa de ficar
+         * eternamente pendente.
+         */
+        for (
+            const existingRenewal of
+            accessState.renewals || []
+        ) {
+            if (
+                existingRenewal.email ===
+                    email &&
+                existingRenewal.id !==
+                    renewal.id &&
+                existingRenewal.status ===
+                    'pending'
+            ) {
+                existingRenewal.status =
+                    'cancelled';
+
+                existingRenewal.resolvedAt =
+                    now;
+
+                existingRenewal.updatedAt =
+                    now;
+            }
+        }
+
+        authorization = {
+            id: crypto.randomUUID(),
+            email,
+            plan: requestedPlan,
+            amountCents:
+                renewal.amountCents,
+            currency:
+                renewal.currency,
+            selectedAt:
+                renewal.requestedAt,
+            renewalId:
+                renewal.id,
+            paymentConfirmedAt: null,
+            paymentDispensedAt: null,
+            credentialIssuedAt: null,
+            activatedAt: null,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        commerceState.authorizations.push(
+            authorization
+        );
+
+        commerceState.updatedAt =
+            now;
+
+        accessState.updatedAt =
+            now;
+
+        await context.state.storage.put({
+            [STORAGE_KEY]:
+                accessState,
+
+            [COMMERCE_STORAGE_KEY]:
+                commerceState
+        });
+
+        /*
+         * O motor base mantém estado em memória.
+         * Depois de alterarmos diretamente o storage,
+         * recriamo-lo para não continuar com uma cópia
+         * antiga da renovação.
+         */
+        context.refreshBase();
+    }
+
+    return json({
+        ...responseBody,
+        success: true,
+        commerce:
+            buildCommercialStatus(
+                email,
+                accessState,
+                authorization
+            ),
+        message:
+            'Pedido de renovação registado. O novo plano ficou associado a uma nova autorização e o pagamento está pendente de verificação pela MA-CODE.'
+    });
+}
+
 async function handleCommercialStatus(
     request: Request,
     context: PaidAccessContext
@@ -715,6 +1018,7 @@ async function handleCommercialStatus(
 
     const body =
         await readJsonBody(request);
+
     const email =
         normalizeEmail(
             body?.email
@@ -738,15 +1042,18 @@ async function handleCommercialStatus(
         context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         ),
+
         context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         )
     ]);
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             Date.now()
         );
+
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -803,22 +1110,16 @@ async function handlePaidActivation(
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const accessRequest =
         accessState
             ?.accessRequests?.[email];
 
-    /*
-     * Contas que já têm licença continuam a ser
-     * tratadas pelo motor existente. Este módulo
-     * só intervém na primeira ativação paga.
-     */
     if (
         !accessState ||
         !accessRequest ||
         accessRequest.status !==
-            'approved' ||
-        accessState
-            .licenses?.[email]
+            'approved'
     ) {
         return null;
     }
@@ -827,11 +1128,13 @@ async function handlePaidActivation(
         await context.state.storage.get<StoredCommerceState>(
             COMMERCE_STORAGE_KEY
         );
+
     const commerceState =
         normalizeCommerceState(
             storedCommerceState,
             Date.now()
         );
+
     const authorization =
         getLatestAuthorization(
             commerceState,
@@ -839,6 +1142,18 @@ async function handlePaidActivation(
         );
 
     if (!authorization) {
+        /*
+         * Contas antigas que já tenham licença podem
+         * continuar a iniciar sessão através do motor
+         * base mesmo que não tenham metadata comercial.
+         */
+        if (
+            accessState
+                .licenses?.[email]
+        ) {
+            return null;
+        }
+
         return json(
             {
                 success: false,
@@ -847,6 +1162,88 @@ async function handlePaidActivation(
             },
             409
         );
+    }
+
+    /*
+     * REGRA CRÍTICA:
+     *
+     * Uma autorização já ativada nunca volta a alterar
+     * a validade da licença.
+     *
+     * Sem esta proteção, reutilizar a mesma senha de
+     * renovação poderia voltar a iniciar outro período
+     * de 30 dias. Depois da primeira ativação, a senha
+     * passa apenas pelo fluxo normal de login.
+     */
+    if (
+        authorization.activatedAt !==
+        null &&
+        authorization.activatedAt !==
+        undefined
+    ) {
+        return null;
+    }
+
+    const existingLicense =
+        accessState
+            .licenses?.[email] ||
+        null;
+
+    /*
+     * Uma conta que já tem licença só pode entrar neste
+     * fluxo especial se a autorização comercial atual
+     * estiver explicitamente ligada a uma renovação.
+     *
+     * Caso contrário trata-se apenas de um login normal.
+     */
+    if (
+        existingLicense &&
+        !authorization.renewalId
+    ) {
+        return null;
+    }
+
+    let renewal:
+        | StoredRenewalRequestSnapshot
+        | null = null;
+
+    if (authorization.renewalId) {
+        renewal =
+            accessState.renewals?.find(
+                item =>
+                    item.id ===
+                        authorization.renewalId &&
+                    item.email ===
+                        email
+            ) || null;
+
+        if (!renewal) {
+            return json(
+                {
+                    success: false,
+                    message:
+                        'A renovação associada a esta senha já não foi encontrada. Contacte a MA-CODE.'
+                },
+                409
+            );
+        }
+
+        if (
+            renewal.status !==
+            'pending'
+        ) {
+            return json(
+                {
+                    success: false,
+                    message:
+                        renewal.status ===
+                        'approved'
+                            ? 'Esta renovação já foi ativada.'
+                            : 'Esta renovação já não está disponível para ativação.'
+                },
+                409
+            );
+        }
     }
 
     if (
@@ -905,14 +1302,14 @@ async function handlePaidActivation(
 
     /*
      * O motor existente continua responsável por:
+     *
      * - validar o hash da senha;
-     * - bloquear tentativas repetidas;
+     * - aplicar bloqueios de tentativas;
      * - registar o dispositivo;
      * - emitir a sessão.
      *
-     * Depois da validação, substituímos a licença
-     * transitória criada pelo motor base pelo plano
-     * que foi realmente autorizado.
+     * Só depois de essa validação passar é que este
+     * módulo aplica o período comercial autorizado.
      */
     const baseResponse =
         await context.base.fetch(
@@ -958,13 +1355,20 @@ async function handlePaidActivation(
         );
     }
 
+    /*
+     * Lemos novamente o estado porque o motor base
+     * acabou de criar/atualizar sessão, dispositivo
+     * e dados da licença.
+     */
     const freshState =
         await context.state.storage.get<AccessStateSnapshot>(
             STORAGE_KEY
         );
+
     const license =
         freshState
             ?.licenses?.[email];
+
     const freshRequest =
         freshState
             ?.accessRequests?.[email];
@@ -984,13 +1388,34 @@ async function handlePaidActivation(
         );
     }
 
+    const now =
+        Date.now();
+
+    const isRenewal =
+        Boolean(
+            authorization.renewalId
+        );
+
+    /*
+     * Primeira compra:
+     * o validFrom já nasceu no motor base durante
+     * esta primeira ativação.
+     *
+     * Renovação:
+     * o NOVO período começa agora, na primeira
+     * ativação válida da NOVA senha.
+     */
     const validFrom =
-        license.validFrom;
+        isRenewal
+            ? now
+            : license.validFrom;
 
     license.plan =
         authorization.plan;
+
     license.validFrom =
         validFrom;
+
     license.validUntil =
         authorization.plan ===
         'paid_30_days'
@@ -1001,25 +1426,90 @@ async function handlePaidActivation(
             : getSchoolYearValidUntil(
                   validFrom
               );
-    license.revokedAt = null;
+
+    license.revokedAt =
+        null;
+
     license.renewalRequestedAt =
         null;
+
     license.renewalRequestedPlan =
         null;
+
     license.updatedAt =
-        Date.now();
+        now;
 
-    freshRequest.activatedAt =
-        validFrom;
+    /*
+     * activatedAt do pedido de acesso representa a
+     * primeira ativação da conta. Uma renovação não
+     * deve apagar essa data histórica.
+     */
+    if (!isRenewal) {
+        freshRequest.activatedAt =
+            validFrom;
+    }
+
     freshRequest.updatedAt =
-        license.updatedAt;
-    freshState.updatedAt =
-        license.updatedAt;
+        now;
 
-    await context.state.storage.put(
-        STORAGE_KEY,
-        freshState
-    );
+    freshState.updatedAt =
+        now;
+
+    if (
+        isRenewal &&
+        authorization.renewalId
+    ) {
+        const freshRenewal =
+            freshState.renewals?.find(
+                item =>
+                    item.id ===
+                    authorization.renewalId
+            );
+
+        if (!freshRenewal) {
+            return json(
+                {
+                    success: false,
+                    message:
+                        'A senha foi validada, mas não foi possível concluir o pedido de renovação.'
+                },
+                500
+            );
+        }
+
+        freshRenewal.status =
+            'approved';
+
+        freshRenewal.resolvedAt =
+            now;
+
+        freshRenewal.updatedAt =
+            now;
+    }
+
+    /*
+     * Marca a autorização como consumida.
+     *
+     * Isto garante que uma nova utilização da mesma
+     * senha pode iniciar sessão, mas NÃO volta a criar
+     * mais 30 dias nem a recalcular o ano letivo.
+     */
+    authorization.activatedAt =
+        now;
+
+    authorization.updatedAt =
+        now;
+
+    commerceState.updatedAt =
+        now;
+
+    await context.state.storage.put({
+        [STORAGE_KEY]:
+            freshState,
+
+        [COMMERCE_STORAGE_KEY]:
+            commerceState
+    });
 
     context.refreshBase();
 
@@ -1028,7 +1518,7 @@ async function handlePaidActivation(
         token,
         license: buildLicenseSummary(
             license,
-            license.updatedAt
+            now
         )
     });
 }
@@ -1045,6 +1535,16 @@ export async function handleMAProfessorPaidAccessRequest(
         PUBLIC_ACCESS_REQUEST_PATH
     ) {
         return handlePaidAccessRequest(
+            request,
+            context
+        );
+    }
+
+    if (
+        url.pathname ===
+        PUBLIC_ACCESS_RENEW_PATH
+    ) {
+        return handlePaidRenewal(
             request,
             context
         );
