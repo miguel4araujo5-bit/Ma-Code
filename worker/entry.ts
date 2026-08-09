@@ -56,10 +56,19 @@ import {
   type ConquistadorMatchmakingEnv
 } from './conquistadorMatchmaking'
 
+import {
+  ConquistadorGameSessionDurableObject,
+  ensureConquistadorGameSession,
+  handleConquistadorGameSessionApiRequest,
+  isConquistadorGameSessionApiPath,
+  type ConquistadorGameSessionEnv
+} from './conquistadorGameSession'
+
 export {
   BtcAlertsDurableObject,
   MaProfessorAccessDurableObject,
-  ConquistadorMatchmakingDurableObject
+  ConquistadorMatchmakingDurableObject,
+  ConquistadorGameSessionDurableObject
 }
 
 export type Env =
@@ -70,13 +79,111 @@ export type Env =
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
   MaProfessorRecoveryEnv &
-  ConquistadorMatchmakingEnv
+  ConquistadorMatchmakingEnv &
+  ConquistadorGameSessionEnv
 
 type ExecutionContextLike = {
   waitUntil(
     promise: Promise<unknown>
   ): void
 }
+
+const prepareMatchedGameSession =
+  async (
+    response: Response,
+    env: Env
+  ) => {
+    if (!response.ok) {
+      return response
+    }
+
+    const contentType =
+      response.headers.get(
+        'Content-Type'
+      ) || ''
+
+    if (
+      !contentType
+        .toLowerCase()
+        .includes('application/json')
+    ) {
+      return response
+    }
+
+    let data:
+      Record<string, unknown>
+
+    try {
+      data =
+        await response
+          .clone()
+          .json() as Record<string, unknown>
+    } catch {
+      return response
+    }
+
+    if (
+      data.success !== true ||
+      data.status !== 'matched' ||
+      typeof data.matchId !== 'string' ||
+      !Array.isArray(
+        data.participants
+      )
+    ) {
+      return response
+    }
+
+    try {
+      await ensureConquistadorGameSession(
+        env,
+        data.matchId,
+        data.participants
+      )
+    } catch (error) {
+      const headers =
+        new Headers(
+          response.headers
+        )
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível preparar a partida online.'
+        }),
+        {
+          status: 503,
+          headers
+        }
+      )
+    }
+
+    const headers =
+      new Headers(
+        response.headers
+      )
+
+    headers.set(
+      'Content-Type',
+      'application/json; charset=utf-8'
+    )
+
+    return new Response(
+      JSON.stringify({
+        ...data,
+        gameSessionReady: true
+      }),
+      {
+        status:
+          response.status,
+        statusText:
+          response.statusText,
+        headers
+      }
+    )
+  }
 
 export default {
   async fetch(
@@ -89,12 +196,29 @@ export default {
       )
 
     if (
+      isConquistadorGameSessionApiPath(
+        url.pathname
+      )
+    ) {
+      return handleConquistadorGameSessionApiRequest(
+        request,
+        env
+      )
+    }
+
+    if (
       isConquistadorMatchmakingApiPath(
         url.pathname
       )
     ) {
-      return handleConquistadorMatchmakingApiRequest(
-        request,
+      const response =
+        await handleConquistadorMatchmakingApiRequest(
+          request,
+          env
+        )
+
+      return prepareMatchedGameSession(
+        response,
         env
       )
     }
