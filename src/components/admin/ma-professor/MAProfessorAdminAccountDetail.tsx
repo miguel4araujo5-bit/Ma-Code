@@ -24,7 +24,6 @@ import {
   getMAProfessorCredentialStatus,
   type MAProfessorAdminCommercialStatus,
   type MAProfessorAdminCredentialStatus,
-  type MAProfessorCommercialPlan,
   type MAProfessorGeneratedCredential
 } from '../../../lib/admin/maProfessorAdminApi'
 
@@ -96,8 +95,10 @@ function getRequestStatusClassName(
   switch (status) {
     case 'approved':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
     case 'rejected':
       return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+
     default:
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
   }
@@ -110,46 +111,21 @@ function getLicenseStatusClassName(
   switch (status) {
     case 'active':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
     case 'expiring':
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+
     case 'renewal_pending':
       return 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
+
     case 'revoked':
       return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+
     case 'expired':
       return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+
     default:
       return 'border-white/10 bg-white/[0.04] text-slate-400'
-  }
-}
-
-function getCommercialPlanLabel(
-  plan:
-    MAProfessorCommercialPlan |
-    null
-) {
-  switch (plan) {
-    case 'paid_30_days':
-      return '30 dias — 3,49 €'
-    case 'school_year':
-      return 'Até 1 de agosto — 15 €'
-    default:
-      return 'Sem plano registado'
-  }
-}
-
-function getCommercialPlanShortLabel(
-  plan:
-    MAProfessorCommercialPlan |
-    null
-) {
-  switch (plan) {
-    case 'paid_30_days':
-      return '30 dias'
-    case 'school_year':
-      return 'Até 1 de agosto'
-    default:
-      return '—'
   }
 }
 
@@ -161,10 +137,13 @@ function getPaymentStatusLabel(
   switch (status) {
     case 'confirmed':
       return 'Pagamento confirmado'
+
     case 'dispensed':
       return 'Pagamento dispensado'
+
     case 'pending':
       return 'Pagamento pendente'
+
     default:
       return 'Sem pagamento'
   }
@@ -178,12 +157,69 @@ function getPaymentStatusClassName(
   switch (status) {
     case 'confirmed':
       return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
     case 'dispensed':
       return 'border-violet-300/20 bg-violet-300/10 text-violet-200'
+
     case 'pending':
       return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+
     default:
       return 'border-white/10 bg-white/[0.04] text-slate-400'
+  }
+}
+
+function getRenewalStatusLabel(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'Aprovada'
+
+    case 'rejected':
+      return 'Rejeitada'
+
+    case 'cancelled':
+      return 'Cancelada'
+
+    default:
+      return 'Pendente'
+  }
+}
+
+function getRenewalStatusClassName(
+  status:
+    LicenseRenewalRequest['status']
+) {
+  switch (status) {
+    case 'approved':
+      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+
+    case 'rejected':
+      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+
+    case 'cancelled':
+      return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+
+    default:
+      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+  }
+}
+
+function getCommercialPlanLabel(
+  plan:
+    MAProfessorAdminCommercialStatus['plan']
+) {
+  switch (plan) {
+    case 'paid_30_days':
+      return 'Mensal · 30 dias'
+
+    case 'school_year':
+      return 'Ano letivo · até 1 de agosto'
+
+    default:
+      return 'Sem plano registado'
   }
 }
 
@@ -197,7 +233,7 @@ function getErrorMessage(
     return error.message
   }
 
-  return 'Ocorreu um erro ao gerir esta conta.'
+  return 'Não foi possível concluir a operação.'
 }
 
 function DetailValue({
@@ -214,9 +250,11 @@ function DetailValue({
       <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
         {label}
       </p>
+
       <p className="mt-1 break-words text-xs font-bold text-slate-300">
         {value}
       </p>
+
       {note ? (
         <p className="mt-1 text-[0.68rem] leading-5 text-slate-600">
           {note}
@@ -240,6 +278,14 @@ export default function MAProfessorAdminAccountDetail({
     )
 
   const [
+    commercialStatus,
+    setCommercialStatus
+  ] =
+    useState<MAProfessorAdminCommercialStatus | null>(
+      null
+    )
+
+  const [
     credentialStatus,
     setCredentialStatus
   ] =
@@ -256,14 +302,29 @@ export default function MAProfessorAdminAccountDetail({
     )
 
   const [
+    commercialLoading,
+    setCommercialLoading
+  ] = useState(false)
+
+  const [
     credentialLoading,
     setCredentialLoading
+  ] = useState(false)
+
+  const [
+    commercialSaving,
+    setCommercialSaving
   ] = useState(false)
 
   const [
     generatingCredential,
     setGeneratingCredential
   ] = useState(false)
+
+  const [
+    commercialError,
+    setCommercialError
+  ] = useState('')
 
   const [
     credentialError,
@@ -275,32 +336,12 @@ export default function MAProfessorAdminAccountDetail({
     setPasswordCopied
   ] = useState(false)
 
-  const [
-    commercialStatus,
-    setCommercialStatus
-  ] =
-    useState<MAProfessorAdminCommercialStatus | null>(
-      null
-    )
-
-  const [
-    commercialLoading,
-    setCommercialLoading
-  ] = useState(false)
-
-  const [
-    commercialSaving,
-    setCommercialSaving
-  ] = useState(false)
-
-  const [
-    commercialError,
-    setCommercialError
-  ] = useState('')
-
   const sortedRenewals =
     [...renewals].sort(
-      (left, right) =>
+      (
+        left,
+        right
+      ) =>
         new Date(
           right.requestedAt
         ).getTime() -
@@ -313,26 +354,42 @@ export default function MAProfessorAdminAccountDetail({
     sortedRenewals[0] ||
     null
 
+  const paymentPending =
+    commercialStatus
+      ?.paymentStatus ===
+    'pending'
+
   const paymentConfirmed =
     commercialStatus
       ?.paymentStatus ===
-      'confirmed'
+    'confirmed'
 
   const paymentDispensed =
     commercialStatus
       ?.paymentStatus ===
-      'dispensed'
+    'dispensed'
 
-  const paymentPending =
-    commercialStatus
-      ?.paymentStatus ===
-      'pending'
-
-  const hasCommercialAuthorization =
+  const hasAuthorization =
     Boolean(
       commercialStatus
         ?.authorizationId
     )
+
+  const authorizationCredentialIssued =
+    Boolean(
+      commercialStatus
+        ?.credentialIssuedAt
+    )
+
+  const canResolvePayment =
+    dataConnected &&
+    request?.status ===
+      'approved' &&
+    paymentPending &&
+    hasAuthorization &&
+    !commercialLoading &&
+    !commercialSaving &&
+    !generatingCredential
 
   const canGenerateCredential =
     dataConnected &&
@@ -342,11 +399,10 @@ export default function MAProfessorAdminAccountDetail({
       commercialStatus
         ?.canGenerateCredential
     ) &&
-    !credentialLoading &&
     !commercialLoading &&
+    !credentialLoading &&
     !commercialSaving &&
-    !generatingCredential &&
-    !generatedCredential
+    !generatingCredential
 
   useEffect(
     () => {
@@ -374,77 +430,17 @@ export default function MAProfessorAdminAccountDetail({
     () => {
       let cancelled = false
 
-      setGeneratedCredential(
-        null
-      )
-      setPasswordCopied(false)
-      setCredentialError('')
-      setCredentialStatus(null)
-
-      if (
-        !dataConnected ||
-        !request
-      ) {
-        setCredentialLoading(
-          false
-        )
-        return () => {
-          cancelled = true
-        }
-      }
-
-      setCredentialLoading(true)
-
-      void getMAProfessorCredentialStatus(
-        email
-      )
-        .then(status => {
-          if (!cancelled) {
-            setCredentialStatus(
-              status
-            )
-          }
-        })
-        .catch(error => {
-          if (!cancelled) {
-            setCredentialError(
-              getErrorMessage(error)
-            )
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setCredentialLoading(
-              false
-            )
-          }
-        })
-
-      return () => {
-        cancelled = true
-      }
-    },
-    [
-      dataConnected,
-      email,
-      request?.status
-    ]
-  )
-
-  useEffect(
-    () => {
-      let cancelled = false
-
       setCommercialStatus(null)
       setCommercialError('')
+      setGeneratedCredential(null)
+      setPasswordCopied(false)
 
       if (
         !dataConnected ||
         !request
       ) {
-        setCommercialLoading(
-          false
-        )
+        setCommercialLoading(false)
+
         return () => {
           cancelled = true
         }
@@ -484,42 +480,67 @@ export default function MAProfessorAdminAccountDetail({
     [
       dataConnected,
       email,
-      request?.status
+      request
     ]
   )
 
-  const handleReloadCredentialStatus =
-    async () => {
+  useEffect(
+    () => {
+      let cancelled = false
+
+      setCredentialStatus(null)
+      setCredentialError('')
+
       if (
         !dataConnected ||
-        !request ||
-        credentialLoading
+        !request
       ) {
-        return
+        setCredentialLoading(false)
+
+        return () => {
+          cancelled = true
+        }
       }
 
       setCredentialLoading(true)
-      setCredentialError('')
 
-      try {
-        const status =
-          await getMAProfessorCredentialStatus(
-            email
-          )
+      void getMAProfessorCredentialStatus(
+        email
+      )
+        .then(status => {
+          if (!cancelled) {
+            setCredentialStatus(
+              status
+            )
+          }
+        })
+        .catch(error => {
+          if (!cancelled) {
+            setCredentialError(
+              getErrorMessage(error)
+            )
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setCredentialLoading(
+              false
+            )
+          }
+        })
 
-        setCredentialStatus(
-          status
-        )
-      } catch (error) {
-        setCredentialError(
-          getErrorMessage(error)
-        )
-      } finally {
-        setCredentialLoading(false)
+      return () => {
+        cancelled = true
       }
-    }
+    },
+    [
+      dataConnected,
+      email,
+      request
+    ]
+  )
 
-  const handleReloadCommercialStatus =
+  const reloadCommercialStatus =
     async () => {
       if (
         !dataConnected ||
@@ -550,30 +571,62 @@ export default function MAProfessorAdminAccountDetail({
       }
     }
 
-  const handleConfirmPayment =
+  const reloadCredentialStatus =
     async () => {
       if (
         !dataConnected ||
-        request?.status !==
-          'approved' ||
-        commercialSaving ||
-        commercialStatus
-          ?.paymentStatus !==
-          'pending'
+        !request ||
+        credentialLoading
       ) {
+        return
+      }
+
+      setCredentialLoading(true)
+      setCredentialError('')
+
+      try {
+        const status =
+          await getMAProfessorCredentialStatus(
+            email
+          )
+
+        setCredentialStatus(
+          status
+        )
+      } catch (error) {
+        setCredentialError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setCredentialLoading(false)
+      }
+    }
+
+  const handleConfirmPayment =
+    async () => {
+      if (!canResolvePayment) {
         return
       }
 
       const confirmed =
         window.confirm(
           [
-            `Confirmar que recebeu o pagamento de ${email}?`,
+            `Confirmar o pagamento de ${email}?`,
             '',
             `Plano: ${getCommercialPlanLabel(
-              commercialStatus.plan
+              commercialStatus?.plan ??
+              null
             )}`,
+            `Valor: ${
+              commercialStatus?.amountCents == null
+                ? '—'
+                : formatMoney(
+                    commercialStatus.amountCents,
+                    commercialStatus.currency
+                  )
+            }`,
             '',
-            'Esta ação regista um pagamento real como recebido. Depois ficará desbloqueada a geração da nova senha.'
+            'Esta ação deve ser usada apenas depois de verificar que o pagamento foi realmente recebido.'
           ].join('\n')
         )
 
@@ -604,15 +657,7 @@ export default function MAProfessorAdminAccountDetail({
 
   const handleDispensePayment =
     async () => {
-      if (
-        !dataConnected ||
-        request?.status !==
-          'approved' ||
-        commercialSaving ||
-        commercialStatus
-          ?.paymentStatus !==
-          'pending'
-      ) {
+      if (!canResolvePayment) {
         return
       }
 
@@ -622,11 +667,11 @@ export default function MAProfessorAdminAccountDetail({
             `Dispensar o pagamento de ${email}?`,
             '',
             `Plano: ${getCommercialPlanLabel(
-              commercialStatus.plan
+              commercialStatus?.plan ??
+              null
             )}`,
             '',
-            'Use esta opção apenas quando a MA-CODE decidiu oferecer o acesso.',
-            'Não será registado como pagamento recebido.'
+            'Use esta opção apenas quando a MA-CODE decidiu oferecer este acesso. A operação não será registada como pagamento recebido.'
           ].join('\n')
         )
 
@@ -669,7 +714,7 @@ export default function MAProfessorAdminAccountDetail({
       const confirmed =
         window.confirm(
           [
-            `Gerar a nova senha de acesso para ${email}?`,
+            `Gerar uma nova senha para ${email}?`,
             '',
             `Plano: ${getCommercialPlanLabel(
               commercialStatus?.plan ??
@@ -677,8 +722,7 @@ export default function MAProfessorAdminAccountDetail({
             )}`,
             `Pagamento: ${paymentLabel}`,
             '',
-            'Se esta conta tiver uma senha anterior, ela será substituída pela nova credencial.',
-            'A nova senha será apresentada em texto simples apenas agora.'
+            'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
           ].join('\n')
         )
 
@@ -704,20 +748,21 @@ export default function MAProfessorAdminAccountDetail({
         setCredentialStatus({
           email:
             credential.email,
-          hasCredential: true,
+          hasCredential:
+            true,
           createdAt:
             credential.createdAt,
           updatedAt:
             credential.updatedAt
         })
 
-        const nextCommercialStatus =
+        const status =
           await getMAProfessorCommercialStatus(
             email
           )
 
         setCommercialStatus(
-          nextCommercialStatus
+          status
         )
       } catch (error) {
         setCredentialError(
@@ -743,11 +788,13 @@ export default function MAProfessorAdminAccountDetail({
         await navigator.clipboard.writeText(
           password
         )
+
         setPasswordCopied(true)
       } catch {
         setPasswordCopied(false)
+
         setCredentialError(
-          'Não foi possível copiar automaticamente. Selecione a senha no campo e copie-a manualmente.'
+          'Não foi possível copiar automaticamente. Selecione a senha e copie-a manualmente.'
         )
       }
     }
@@ -762,15 +809,13 @@ export default function MAProfessorAdminAccountDetail({
           <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
             Ficha da conta
           </p>
+
           <h2 className="mt-2 break-all text-xl font-black text-white sm:text-2xl">
             {email}
           </h2>
+
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Visão consolidada do pedido,
-            plano escolhido pelo professor,
-            pagamento, senha, ativação,
-            licença e renovações conhecidas
-            desta conta.
+            Pedido, plano escolhido, pagamento, credencial, licença, renovações e histórico desta conta.
           </p>
         </div>
 
@@ -790,6 +835,7 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
                 Pedido de acesso
               </p>
+
               <h3 className="mt-1 text-lg font-black text-white">
                 Estado do pedido
               </h3>
@@ -823,6 +869,7 @@ export default function MAProfessorAdminAccountDetail({
                 null
               )}
             />
+
             <DetailValue
               label="Aprovado em"
               value={formatDate(
@@ -830,6 +877,7 @@ export default function MAProfessorAdminAccountDetail({
                 null
               )}
             />
+
             <DetailValue
               label="Rejeitado em"
               value={formatDate(
@@ -837,13 +885,14 @@ export default function MAProfessorAdminAccountDetail({
                 null
               )}
             />
+
             <DetailValue
               label="Primeira ativação"
               value={formatDate(
                 request?.activatedAt ??
                 null
               )}
-              note="A ativação usa o plano já associado à autorização comercial."
+              note="A licença inicia apenas depois da primeira ativação válida da credencial autorizada."
             />
           </div>
         </article>
@@ -854,6 +903,7 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
                 Plano e pagamento
               </p>
+
               <h3 className="mt-1 text-lg font-black text-white">
                 Autorização comercial
               </h3>
@@ -863,7 +913,7 @@ export default function MAProfessorAdminAccountDetail({
               className={[
                 'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
                 commercialLoading
-                  ? 'border-cyan-300/15 bg-cyan-300/[0.05] text-cyan-200'
+                  ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
                   : getPaymentStatusClassName(
                       commercialStatus?.paymentStatus
                     )
@@ -885,11 +935,12 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-xs font-bold leading-5 text-rose-200">
                 {commercialError}
               </p>
+
               {dataConnected && request ? (
                 <button
                   type="button"
                   onClick={() => {
-                    void handleReloadCommercialStatus()
+                    void reloadCommercialStatus()
                   }}
                   disabled={commercialLoading}
                   className="mt-2 text-xs font-black text-rose-100 underline decoration-rose-300/40 underline-offset-4 disabled:opacity-50"
@@ -903,20 +954,22 @@ export default function MAProfessorAdminAccountDetail({
           {commercialLoading ? (
             <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-4">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-300/20 border-t-violet-200" />
+
               <p className="text-xs font-bold text-slate-400">
                 A carregar plano e estado do pagamento…
               </p>
             </div>
-          ) : commercialStatus && hasCommercialAuthorization ? (
+          ) : commercialStatus && hasAuthorization ? (
             <div className="mt-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailValue
                   label="Plano escolhido"
-                  value={getCommercialPlanShortLabel(
+                  value={getCommercialPlanLabel(
                     commercialStatus.plan
                   )}
-                  note="Escolhido pelo professor antes de enviar o pedido."
+                  note="O plano é escolhido pelo professor antes do pedido e é apenas consultado no MA-ADMIN."
                 />
+
                 <DetailValue
                   label="Valor"
                   value={
@@ -928,12 +981,14 @@ export default function MAProfessorAdminAccountDetail({
                         )
                   }
                 />
+
                 <DetailValue
-                  label="Escolhido em"
+                  label="Autorização criada em"
                   value={formatDate(
                     commercialStatus.selectedAt
                   )}
                 />
+
                 <DetailValue
                   label="Estado do pagamento"
                   value={getPaymentStatusLabel(
@@ -942,11 +997,52 @@ export default function MAProfessorAdminAccountDetail({
                 />
               </div>
 
+              {paymentPending && request?.status === 'approved' ? (
+                <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+                  <p className="text-sm font-black text-amber-200">
+                    Pagamento pendente de verificação
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    Confirme apenas quando o recebimento tiver sido verificado. Se a MA-CODE ofereceu o acesso, registe-o como pagamento dispensado.
+                  </p>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleConfirmPayment()
+                      }}
+                      disabled={!canResolvePayment}
+                      className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {commercialSaving
+                        ? 'A guardar…'
+                        : 'Confirmar pagamento'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleDispensePayment()
+                      }}
+                      disabled={!canResolvePayment}
+                      className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-xs font-black text-violet-200 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {commercialSaving
+                        ? 'A guardar…'
+                        : 'Dispensar pagamento'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {paymentConfirmed ? (
                 <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
                   <p className="text-sm font-black text-emerald-200">
                     Pagamento confirmado
                   </p>
+
                   <p className="mt-2 text-xs leading-5 text-slate-400">
                     Recebimento confirmado em{' '}
                     {formatDate(
@@ -961,51 +1057,13 @@ export default function MAProfessorAdminAccountDetail({
                   <p className="text-sm font-black text-violet-200">
                     Pagamento dispensado
                   </p>
+
                   <p className="mt-2 text-xs leading-5 text-slate-400">
-                    A MA-CODE autorizou este acesso sem registar um pagamento como recebido. Dispensa registada em{' '}
+                    A MA-CODE autorizou este acesso sem registar um pagamento recebido. Dispensa registada em{' '}
                     {formatDate(
                       commercialStatus.paymentDispensedAt
                     )}.
                   </p>
-                </div>
-              ) : null}
-
-              {paymentPending && request?.status === 'approved' ? (
-                <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-                  <p className="text-sm font-black text-amber-200">
-                    Pagamento pendente de verificação
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-slate-400">
-                    Confirme o recebimento apenas se o pagamento chegou. Se a MA-CODE decidiu oferecer o acesso, use “Dispensar pagamento”.
-                  </p>
-
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleConfirmPayment()
-                      }}
-                      disabled={commercialSaving}
-                      className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {commercialSaving
-                        ? 'A guardar…'
-                        : 'Confirmar pagamento'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleDispensePayment()
-                      }}
-                      disabled={commercialSaving}
-                      className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-xs font-black text-violet-200 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {commercialSaving
-                        ? 'A guardar…'
-                        : 'Dispensar pagamento'}
-                    </button>
-                  </div>
                 </div>
               ) : null}
 
@@ -1014,8 +1072,9 @@ export default function MAProfessorAdminAccountDetail({
                   <p className="text-sm font-black text-amber-200">
                     Pedido ainda pendente
                   </p>
+
                   <p className="mt-2 text-xs leading-5 text-slate-500">
-                    O plano e o valor já vieram do pedido do professor. Aprove ou rejeite o pedido antes de resolver o pagamento.
+                    O plano e o valor já estão registados. Aprove ou rejeite o pedido na lista de pedidos antes de resolver o pagamento.
                   </p>
                 </div>
               ) : null}
@@ -1025,8 +1084,9 @@ export default function MAProfessorAdminAccountDetail({
                   <p className="text-sm font-black text-rose-200">
                     Pedido rejeitado
                   </p>
+
                   <p className="mt-2 text-xs leading-5 text-slate-500">
-                    Não é possível validar o pagamento nem gerar uma senha para este pedido rejeitado.
+                    Esta autorização não pode avançar para emissão de senha enquanto o pedido estiver rejeitado.
                   </p>
                 </div>
               ) : null}
@@ -1036,8 +1096,9 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-sm font-black text-amber-200">
                 Sem autorização comercial associada
               </p>
+
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Pedidos novos devem chegar com o plano escolhido pelo professor. Não escolha um plano no MA-ADMIN. Se este for um pedido histórico anterior ao novo fluxo, mantenha-o para tratamento de compatibilidade.
+                Os pedidos novos devem chegar com o plano escolhido pelo professor. Não selecione manualmente um plano no MA-ADMIN para o fluxo normal.
               </p>
             </div>
           ) : (
@@ -1055,6 +1116,7 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
                 Licença atual
               </p>
+
               <h3 className="mt-1 text-lg font-black text-white">
                 Período de acesso
               </h3>
@@ -1091,6 +1153,7 @@ export default function MAProfessorAdminAccountDetail({
                   : '—'
               }
             />
+
             <DetailValue
               label="Estado"
               value={
@@ -1101,6 +1164,7 @@ export default function MAProfessorAdminAccountDetail({
                   : '—'
               }
             />
+
             <DetailValue
               label="Início"
               value={formatDate(
@@ -1108,10 +1172,31 @@ export default function MAProfessorAdminAccountDetail({
                 null
               )}
             />
+
             <DetailValue
-              label="Validade"
+              label="Válida até"
               value={formatDate(
                 license?.validUntil ??
+                null
+              )}
+            />
+
+            <DetailValue
+              label="Dias restantes"
+              value={
+                license?.daysRemaining ==
+                null
+                  ? '—'
+                  : String(
+                      license.daysRemaining
+                    )
+              }
+            />
+
+            <DetailValue
+              label="Renovação pedida em"
+              value={formatDate(
+                license?.renewalRequestedAt ??
                 null
               )}
             />
@@ -1122,32 +1207,37 @@ export default function MAProfessorAdminAccountDetail({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-                Senha de acesso
+                Credencial
               </p>
+
               <h3 className="mt-1 text-lg font-black text-white">
-                Credencial da autorização
+                Senha da autorização atual
               </h3>
             </div>
 
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-400">
               {credentialLoading
                 ? 'A verificar'
-                : credentialStatus?.hasCredential
+                : authorizationCredentialIssued
                   ? 'Senha emitida'
-                  : 'Sem senha'}
+                  : 'Sem nova senha'}
             </span>
           </div>
 
           {credentialError ? (
-            <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3">
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3"
+            >
               <p className="text-xs font-bold leading-5 text-rose-200">
                 {credentialError}
               </p>
+
               {dataConnected && request ? (
                 <button
                   type="button"
                   onClick={() => {
-                    void handleReloadCredentialStatus()
+                    void reloadCredentialStatus()
                   }}
                   disabled={credentialLoading}
                   className="mt-2 text-xs font-black text-rose-100 underline decoration-rose-300/40 underline-offset-4 disabled:opacity-50"
@@ -1163,17 +1253,19 @@ export default function MAProfessorAdminAccountDetail({
               <p className="text-sm font-black text-emerald-200">
                 Nova senha criada
               </p>
+
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Copie agora e envie manualmente através de MA-Professor | MA-CODE &lt;acesso@ma-code.pt&gt;. Esta senha não volta a ser mostrada em texto simples.
+                Copie agora e envie manualmente através de MA-Professor | MA-CODE &lt;acesso@ma-code.pt&gt;. Por segurança, esta senha não volta a ser consultada em texto simples.
               </p>
 
               <div className="mt-3 flex gap-2">
                 <input
                   readOnly
                   value={generatedCredential.password}
-                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
                   aria-label="Nova senha de acesso"
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
                 />
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1190,15 +1282,34 @@ export default function MAProfessorAdminAccountDetail({
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailValue
-                label="Estado"
+                label="Credencial guardada na conta"
                 value={
                   credentialStatus?.hasCredential
-                    ? 'Senha já emitida'
-                    : 'Sem senha emitida'
+                    ? 'Sim'
+                    : 'Não'
+                }
+                note="Pode existir uma credencial anterior enquanto uma nova autorização ainda aguarda a emissão da sua própria senha."
+              />
+
+              <DetailValue
+                label="Senha da autorização atual"
+                value={
+                  authorizationCredentialIssued
+                    ? 'Emitida'
+                    : 'Ainda não emitida'
                 }
               />
+
               <DetailValue
-                label="Última atualização"
+                label="Emitida em"
+                value={formatDate(
+                  commercialStatus?.credentialIssuedAt ??
+                  null
+                )}
+              />
+
+              <DetailValue
+                label="Última atualização da credencial"
                 value={formatDate(
                   credentialStatus?.updatedAt ??
                   null
@@ -1224,34 +1335,48 @@ export default function MAProfessorAdminAccountDetail({
 
           {!commercialStatus?.canGenerateCredential ? (
             <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
-              A senha só fica disponível depois de pedido aprovado + plano associado + pagamento confirmado ou dispensado.
+              A geração só fica disponível depois de o pedido estar aprovado e o pagamento estar confirmado ou dispensado.
             </p>
           ) : null}
         </article>
 
-        <article className="rounded-2xl border border-white/10 bg-slate-950/35 p-4 sm:p-5 xl:col-span-2">
+        <article className="rounded-2xl border border-white/10 bg-slate-950/35 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
-                Renovações
+                Última renovação conhecida
               </p>
+
               <h3 className="mt-1 text-lg font-black text-white">
-                Pedidos de novo período
+                Pedido de renovação
               </h3>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-400">
-              {renewals.length}
-            </span>
+
+            {latestRenewal ? (
+              <span
+                className={[
+                  'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                  getRenewalStatusClassName(
+                    latestRenewal.status
+                  )
+                ].join(' ')}
+              >
+                {getRenewalStatusLabel(
+                  latestRenewal.status
+                )}
+              </span>
+            ) : null}
           </div>
 
           {latestRenewal ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailValue
-                label="Último plano pedido"
+                label="Plano"
                 value={getLicensePlanLabel(
                   latestRenewal.requestedPlan
                 )}
               />
+
               <DetailValue
                 label="Valor"
                 value={formatMoney(
@@ -1259,34 +1384,72 @@ export default function MAProfessorAdminAccountDetail({
                   latestRenewal.currency
                 )}
               />
+
               <DetailValue
                 label="Pedido em"
                 value={formatDate(
                   latestRenewal.requestedAt
                 )}
               />
+
+              <DetailValue
+                label="Resolvido em"
+                value={formatDate(
+                  latestRenewal.resolvedAt
+                )}
+              />
+
               <DetailValue
                 label="Estado"
-                value={latestRenewal.status}
+                value={getRenewalStatusLabel(
+                  latestRenewal.status
+                )}
+                note={
+                  latestRenewal.status === 'pending'
+                    ? 'Quando esta for a autorização comercial mais recente, o pagamento e a nova senha são tratados nos blocos acima.'
+                    : undefined
+                }
+              />
+
+              <DetailValue
+                label="Total de pedidos"
+                value={String(
+                  sortedRenewals.length
+                )}
               />
             </div>
           ) : (
-            <p className="mt-4 text-xs leading-5 text-slate-500">
-              Ainda não existem renovações registadas para esta conta.
-            </p>
+            <div className="mt-4 rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
+              <p className="text-sm font-black text-slate-400">
+                Sem renovações
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Não existe nenhum pedido de renovação conhecido para esta conta.
+              </p>
+            </div>
           )}
         </article>
+      </div>
 
-        <article className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 xl:col-span-2">
-          <div className="border-b border-white/10 p-4 sm:p-5">
+      <div className="border-t border-white/10 p-5 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
             <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
-              Histórico
+              Histórico da conta
             </p>
+
             <h3 className="mt-1 text-lg font-black text-white">
-              Linha temporal da conta
+              Timeline administrativa
             </h3>
           </div>
 
+          <span className="text-xs font-semibold text-slate-600">
+            Acontecimentos suportados pelos dados do backend
+          </span>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
           <MAProfessorAdminHistory
             accessRequests={
               request
@@ -1298,12 +1461,16 @@ export default function MAProfessorAdminAccountDetail({
                 ? [license]
                 : []
             }
-            renewals={renewals}
+            renewals={
+              sortedRenewals
+            }
             email={email}
-            dataConnected={dataConnected}
+            dataConnected={
+              dataConnected
+            }
             compact
           />
-        </article>
+        </div>
       </div>
     </section>
   )
