@@ -10,7 +10,8 @@ import {
   generateMAProfessorAdminCredential,
   getMAProfessorAdminCommercialStatus,
   getMAProfessorAdminCredentialStatus,
-  getMAProfessorAdminOverview
+  getMAProfessorAdminOverview,
+  revokeMAProfessorAdminLicense
 } from './maProfessorAccessAdminBridge'
 
 import type {
@@ -679,6 +680,15 @@ export async function handleMAProfessorAdminApiRequest(
         dispenseMAProfessorAdminPayment,
         'MA-Professor admin payment dispensation failed',
         'Não foi possível marcar o pagamento como dispensado.'
+      )
+
+    case '/licenses/revoke':
+      return handleEmailMutation(
+        request,
+        env,
+        revokeMAProfessorAdminLicense,
+        'MA-Professor admin license revocation failed',
+        'Não foi possível revogar a licença.'
       )
 
     case '/credentials/status':
