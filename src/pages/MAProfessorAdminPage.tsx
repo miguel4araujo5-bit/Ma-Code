@@ -15,10 +15,10 @@ import {
 } from '../lib/admin/maProfessorAdminApi'
 
 const workflow = [
-  'Pedido',
-  'Aprovação',
   'Plano',
-  'Pagamento',
+  'Email + pagamento',
+  'Pedido',
+  'Validação',
   'Senha',
   'Ativação',
   'Licença',
@@ -75,14 +75,12 @@ function MAProfessorAdminContent() {
   const [
     loading,
     setLoading
-  ] =
-    useState(true)
+  ] = useState(true)
 
   const [
     error,
     setError
-  ] =
-    useState('')
+  ] = useState('')
 
   const loadOverview =
     useCallback(
@@ -121,9 +119,7 @@ function MAProfessorAdminContent() {
 
         await loadOverview()
       },
-      [
-        loadOverview
-      ]
+      [loadOverview]
     )
 
   const handleRejectRequest =
@@ -137,18 +133,14 @@ function MAProfessorAdminContent() {
 
         await loadOverview()
       },
-      [
-        loadOverview
-      ]
+      [loadOverview]
     )
 
   useEffect(
     () => {
       void loadOverview()
     },
-    [
-      loadOverview
-    ]
+    [loadOverview]
   )
 
   return (
@@ -157,21 +149,21 @@ function MAProfessorAdminContent() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">
-              Fluxo aprovado
+              Fluxo live aprovado
             </p>
-
             <h2 className="mt-2 text-xl font-black">
-              Do pedido à renovação
+              Do plano à renovação
             </h2>
-
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              O administrador acompanha a
-              mesma conta desde o pedido,
-              passando pela aprovação,
-              escolha do plano, confirmação
-              do pagamento e geração da nova
-              senha, até à ativação da
-              licença e futuras renovações.
+              O professor escolhe o plano,
+              introduz o email, efetua o
+              pagamento por MB WAY e envia o
+              pedido. O MA-ADMIN recebe o plano
+              e o valor já definidos, aprova ou
+              rejeita o pedido, confirma o
+              pagamento ou marca-o como
+              dispensado e só depois permite
+              gerar a nova senha.
             </p>
           </div>
 
@@ -195,10 +187,7 @@ function MAProfessorAdminContent() {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
           {workflow.map(
-            (
-              item,
-              index
-            ) => (
+            (item, index) => (
               <div
                 key={item}
                 className="rounded-2xl border border-white/10 bg-slate-950/45 p-4"
@@ -211,7 +200,6 @@ function MAProfessorAdminContent() {
                     '0'
                   )}
                 </span>
-
                 <p className="mt-2 text-sm font-black text-slate-200">
                   {item}
                 </p>
@@ -227,7 +215,6 @@ function MAProfessorAdminContent() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
               Gestão diária
             </p>
-
             <h2 className="mt-1 text-2xl font-black">
               Contas e licenças
             </h2>
@@ -264,45 +251,35 @@ function MAProfessorAdminContent() {
             className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] p-4 sm:p-5"
           >
             <p className="text-sm font-black text-rose-200">
-              Não foi possível carregar os
-              dados reais
+              Não foi possível carregar os dados reais
             </p>
-
             <p className="mt-2 text-xs leading-5 text-slate-400">
               {error}
             </p>
           </div>
         ) : null}
 
-        {loading &&
-        !overview ? (
+        {loading && !overview ? (
           <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
-
             <p className="mt-4 text-sm font-black text-slate-300">
-              A carregar pedidos, licenças e
-              renovações
+              A carregar pedidos, licenças e renovações
             </p>
-
             <p className="mt-2 text-xs text-slate-600">
-              Ligação segura ao motor atual
-              do MA-Professor.
+              Ligação segura ao motor atual do MA-Professor.
             </p>
           </div>
         ) : (
           <div className="mt-5">
             <MAProfessorAdminWorkspace
               accessRequests={
-                overview?.accessRequests ||
-                []
+                overview?.accessRequests || []
               }
               licenses={
-                overview?.licenses ||
-                []
+                overview?.licenses || []
               }
               renewals={
-                overview?.renewals ||
-                []
+                overview?.renewals || []
               }
               dataConnected={
                 Boolean(overview)
@@ -323,15 +300,11 @@ function MAProfessorAdminContent() {
           <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
             Plano 30 dias
           </p>
-
           <p className="mt-3 text-2xl font-black">
             3,49 €
           </p>
-
           <p className="mt-1 text-sm text-slate-400">
-            30 dias · renovação manual ·
-            nova autorização e nova senha em
-            cada novo pagamento
+            30 dias · renovação manual · nova autorização e nova senha em cada novo pagamento
           </p>
         </article>
 
@@ -339,29 +312,26 @@ function MAProfessorAdminContent() {
           <p className="text-xs font-black uppercase tracking-[0.15em] text-amber-300">
             Ano letivo
           </p>
-
           <p className="mt-3 text-2xl font-black">
             15 €
           </p>
-
           <p className="mt-1 text-sm text-slate-400">
-            Até 1 de agosto · sem
-            mensalidades durante a validade
+            Até 1 de agosto · sem mensalidades durante a validade
           </p>
         </article>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-slate-300/10 bg-slate-300/[0.025] p-4 sm:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
-          Beta
+      <section className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
+        <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
+          Estado comercial
         </p>
-
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          A antiga referência de beta de 30
-          dias permanece separada do fluxo
-          pago. Não é atribuída
-          automaticamente por aprovação nem
-          pela emissão de uma senha paga.
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          O MA-Professor é tratado como live.
+          Não existe um workflow beta paralelo.
+          Quando a MA-CODE decide oferecer o
+          acesso a uma pessoa, o pagamento é
+          registado como dispensado — nunca como
+          se tivesse sido recebido.
         </p>
       </section>
 
@@ -369,23 +339,20 @@ function MAProfessorAdminContent() {
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Backend MA-Professor
         </p>
-
         <h2 className="mt-2 text-xl font-black">
-          Plano e pagamento passam a
-          controlar a geração da senha.
+          Plano, aprovação e pagamento controlam a geração da senha.
         </h2>
-
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Pedidos pendentes continuam a ser
-          aprovados ou rejeitados pelo
-          administrador. Depois da aprovação,
-          a conta passa pelo plano escolhido e
-          por confirmação manual do pagamento.
-          O backend só autoriza uma nova senha
-          quando o pagamento daquela
-          autorização estiver confirmado.
-          Ativação e criação da licença paga
-          serão fechadas no bloco seguinte.
+          O plano chega associado ao pedido porque
+          foi escolhido pelo professor antes do
+          envio. O administrador aprova ou rejeita
+          o pedido e valida o estado comercial. A
+          nova senha só pode ser gerada quando o
+          pedido estiver aprovado e o pagamento
+          estiver confirmado ou explicitamente
+          dispensado. A ativação usa essa
+          autorização para criar a licença com o
+          período correto.
         </p>
       </section>
     </>
@@ -398,7 +365,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central de pedidos, planos, pagamentos, credenciais, ativações, licenças e renovações do MA-Professor através do backend protegido da MA-CODE."
+      description="Gestão central de pedidos, planos escolhidos pelos professores, pagamentos, credenciais, ativações, licenças e renovações do MA-Professor através do backend protegido da MA-CODE."
     >
       <MAProfessorAdminContent />
     </AdminShell>
