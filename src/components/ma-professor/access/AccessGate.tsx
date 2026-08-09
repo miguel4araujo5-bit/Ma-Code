@@ -12,14 +12,12 @@ import {
     getMAProfessorSyncStatus,
     type MAProfessorSyncStatus
 } from '../sync/syncApi';
-
 import {
     activateMAProfessorAccess,
     endMAProfessorSession,
     getMAProfessorCommercialStatus,
     requestMAProfessorAccess,
     requestMAProfessorRenewal,
-    selectMAProfessorCommercialPlan,
     verifyMAProfessorAccess,
     type MAProfessorCommercialPlan,
     type MAProfessorCommercialStatusResponse
@@ -29,7 +27,6 @@ import {
     AccessEntryScreen,
     type MAProfessorEntryMode
 } from './AccessEntryScreen';
-
 import {
     clearMAProfessorAccessSession,
     getOrCreateMAProfessorDeviceId,
@@ -116,7 +113,7 @@ function getRequestMessage(
     if (
         status === 'approved'
     ) {
-        return 'O pedido foi aprovado. Escolha agora o plano que pretende utilizar.';
+        return 'O pedido foi aprovado. A autorização comercial continua dependente da validação do pagamento pela MA-CODE ou de uma dispensa administrativa.';
     }
 
     if (
@@ -125,7 +122,7 @@ function getRequestMessage(
         return 'O pedido não foi aprovado. Se considerar que existe um erro, contacte a MA-CODE.';
     }
 
-    return 'O pedido foi recebido e está a aguardar aprovação da MA-CODE.';
+    return 'O pedido foi recebido com o plano escolhido e está a aguardar validação da MA-CODE. O pagamento permanece pendente de verificação até confirmação administrativa.';
 }
 
 export function useMAProfessorAccess() {
@@ -183,6 +180,14 @@ export function AccessGate({
     ] = useState('');
 
     const [
+        selectedPlan,
+        setSelectedPlan
+    ] =
+        useState<MAProfessorCommercialPlan | null>(
+            null
+        );
+
+    const [
         requestStatus,
         setRequestStatus
     ] =
@@ -206,11 +211,6 @@ export function AccessGate({
     const [
         commercialLoading,
         setCommercialLoading
-    ] = useState(false);
-
-    const [
-        commercialSaving,
-        setCommercialSaving
     ] = useState(false);
 
     const [
@@ -354,12 +354,10 @@ export function AccessGate({
                     setSyncStatus(
                         null
                     );
-
                     setSyncError('');
                 }
             } catch {
                 clearMAProfessorAccessSession();
-
                 setSession(null);
                 setSyncStatus(null);
                 setSyncError('');
@@ -422,7 +420,6 @@ export function AccessGate({
                     setSyncStatus(
                         null
                     );
-
                     setSyncError('');
                 }
             } finally {
@@ -442,9 +439,7 @@ export function AccessGate({
                 setSyncStatus(
                     null
                 );
-
                 setSyncError('');
-
                 return;
             }
 
@@ -511,11 +506,11 @@ export function AccessGate({
             setMode('request');
             setEmail('');
             setPassword('');
+            setSelectedPlan(null);
             setRequestStatus(null);
             setEntryMessage('');
             setCommercialStatus(null);
             setCommercialLoading(false);
-            setCommercialSaving(false);
             setError('');
         }, []);
 
@@ -525,12 +520,10 @@ export function AccessGate({
                 session;
 
             clearMAProfessorAccessSession();
-
             setSession(null);
             setSyncStatus(null);
             setSyncError('');
             setSyncChecking(false);
-
             resetEntry();
 
             if (current) {
@@ -595,6 +588,15 @@ export function AccessGate({
                 );
 
             if (
+                !selectedPlan
+            ) {
+                setError(
+                    'Escolha primeiro o plano que pretende utilizar.'
+                );
+                return;
+            }
+
+            if (
                 !isValidEmail(
                     normalizedEmail
                 )
@@ -602,7 +604,6 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
-
                 return;
             }
 
@@ -611,7 +612,8 @@ export function AccessGate({
             try {
                 const response =
                     await requestMAProfessorAccess(
-                        normalizedEmail
+                        normalizedEmail,
+                        selectedPlan
                     );
 
                 const status =
@@ -620,31 +622,28 @@ export function AccessGate({
                 setEmail(
                     normalizedEmail
                 );
-
                 setRequestStatus(
                     status
                 );
-
                 setEntryMessage(
                     getRequestMessage(
                         status
                     )
                 );
-
                 setMode(
                     'request-sent'
                 );
-
                 setCommercialStatus(
                     null
                 );
 
-                if (
-                    status ===
-                    'approved'
-                ) {
+                try {
                     await loadCommercialStatus(
                         normalizedEmail
+                    );
+                } catch {
+                    setCommercialStatus(
+                        null
                     );
                 }
             } catch (
@@ -679,56 +678,39 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
-
                 return;
             }
 
-            setCommercialLoading(
-                true
-            );
-
             try {
-                const response =
-                    await requestMAProfessorAccess(
+                const commercial =
+                    await loadCommercialStatus(
                         normalizedEmail
                     );
-
-                const status =
-                    response.request.status;
 
                 setEmail(
                     normalizedEmail
                 );
-
-                setRequestStatus(
-                    status
-                );
-
-                setEntryMessage(
-                    getRequestMessage(
-                        status
-                    )
-                );
-
                 setMode(
                     'request-sent'
                 );
 
                 if (
-                    status ===
-                    'approved'
+                    commercial.requestStatus
                 ) {
-                    const commercial =
-                        await getMAProfessorCommercialStatus(
-                            normalizedEmail
-                        );
-
-                    setCommercialStatus(
-                        commercial
+                    setRequestStatus(
+                        commercial.requestStatus
+                    );
+                    setEntryMessage(
+                        getRequestMessage(
+                            commercial.requestStatus
+                        )
                     );
                 } else {
-                    setCommercialStatus(
+                    setRequestStatus(
                         null
+                    );
+                    setEntryMessage(
+                        'Ainda não foi encontrado um pedido de acesso para este email.'
                     );
                 }
             } catch (
@@ -738,70 +720,6 @@ export function AccessGate({
                     getErrorMessage(
                         statusError
                     )
-                );
-            } finally {
-                setCommercialLoading(
-                    false
-                );
-            }
-        };
-
-    const handleSelectPlan =
-        async (
-            plan: MAProfessorCommercialPlan
-        ) => {
-            setError('');
-
-            const normalizedEmail =
-                normalizeEmail(
-                    email
-                );
-
-            if (
-                !isValidEmail(
-                    normalizedEmail
-                )
-            ) {
-                setError(
-                    'Indique um email válido.'
-                );
-
-                return;
-            }
-
-            setCommercialSaving(
-                true
-            );
-
-            try {
-                const response =
-                    await selectMAProfessorCommercialPlan(
-                        normalizedEmail,
-                        plan
-                    );
-
-                setCommercialStatus(
-                    response
-                );
-
-                setRequestStatus(
-                    response.requestStatus
-                );
-
-                setEntryMessage(
-                    'Plano registado. Efetue o pagamento e aguarde a confirmação da MA-CODE.'
-                );
-            } catch (
-                selectionError
-            ) {
-                setError(
-                    getErrorMessage(
-                        selectionError
-                    )
-                );
-            } finally {
-                setCommercialSaving(
-                    false
                 );
             }
         };
@@ -826,7 +744,6 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
-
                 return;
             }
 
@@ -836,7 +753,6 @@ export function AccessGate({
                 setError(
                     'Indique a senha recebida da MA-CODE.'
                 );
-
                 return;
             }
 
@@ -873,6 +789,7 @@ export function AccessGate({
                 setCommercialStatus(null);
                 setRequestStatus(null);
                 setEntryMessage('');
+                setSelectedPlan(null);
 
                 persistSession(
                     nextSession
@@ -907,7 +824,6 @@ export function AccessGate({
             plan: RenewableLicensePlan
         ) => {
             setError('');
-
             setRenewingPlan(plan);
 
             try {
@@ -963,11 +879,9 @@ export function AccessGate({
             <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
                 <div className="text-center">
                     <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
-
                     <p className="mt-4 text-sm font-semibold text-slate-400">
-                        A verificar o
-                        acesso ao
-                        MA-Professor…
+                        A verificar o acesso
+                        ao MA-Professor…
                     </p>
                 </div>
             </main>
@@ -980,6 +894,9 @@ export function AccessGate({
                 mode={mode}
                 email={email}
                 password={password}
+                selectedPlan={
+                    selectedPlan
+                }
                 requestStatus={
                     requestStatus
                 }
@@ -996,9 +913,6 @@ export function AccessGate({
                 commercialLoading={
                     commercialLoading
                 }
-                commercialSaving={
-                    commercialSaving
-                }
                 onEmailChange={value => {
                     setEmail(value);
                     setError('');
@@ -1007,7 +921,12 @@ export function AccessGate({
                     setPassword(
                         value
                     );
-
+                    setError('');
+                }}
+                onPlanChange={plan => {
+                    setSelectedPlan(
+                        plan
+                    );
                     setError('');
                 }}
                 onRequest={() =>
@@ -1020,35 +939,24 @@ export function AccessGate({
                     setMode(
                         'request'
                     );
-
                     setPassword('');
-
+                    setSelectedPlan(null);
                     setRequestStatus(
                         null
                     );
-
                     setEntryMessage('');
-
                     setCommercialStatus(
                         null
                     );
-
                     setError('');
                 }}
                 onShowActivate={() => {
                     setMode(
                         'activate'
                     );
-
                     setPassword('');
-
                     setError('');
                 }}
-                onSelectPlan={plan =>
-                    void handleSelectPlan(
-                        plan
-                    )
-                }
                 onRefreshStatus={() =>
                     void handleRefreshEntryStatus()
                 }
@@ -1072,12 +980,10 @@ export function AccessGate({
                                 .status
                         )}
                     </p>
-
                     <h1 className="mt-3 text-3xl font-black">
-                        O período de
-                        acesso terminou.
+                        O período de acesso
+                        terminou.
                     </h1>
-
                     <p className="mt-3 text-sm leading-7 text-slate-300">
                         O plano{' '}
                         {getLicensePlanLabel(
@@ -1094,9 +1000,8 @@ export function AccessGate({
                             )}
                         </strong>
                         . Os seus dados
-                        continuam
-                        guardados neste
-                        dispositivo.
+                        continuam guardados
+                        neste dispositivo.
                     </p>
 
                     <div className="mt-7 grid gap-3 sm:grid-cols-2">
@@ -1113,14 +1018,12 @@ export function AccessGate({
                             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-left transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-60"
                         >
                             <span className="block text-base font-black text-cyan-200">
-                                3,49 € /
-                                30 dias
+                                3,49 € / 30
+                                dias
                             </span>
-
                             <span className="mt-1 block text-xs text-slate-400">
                                 Renovação
-                                manual ·
-                                sem
+                                manual · sem
                                 renovação
                                 automática
                             </span>
@@ -1141,12 +1044,11 @@ export function AccessGate({
                             <span className="block text-base font-black text-violet-200">
                                 15 €
                             </span>
-
                             <span className="mt-1 block text-xs text-slate-400">
                                 Até 1 de
                                 agosto do
-                                respetivo
-                                ano letivo
+                                respetivo ano
+                                letivo
                             </span>
                         </button>
                     </div>
@@ -1156,8 +1058,7 @@ export function AccessGate({
                         renovação são
                         confirmados
                         manualmente pela
-                        MA-CODE nesta
-                        fase.
+                        MA-CODE nesta fase.
                     </p>
 
                     {error ? (
@@ -1185,8 +1086,7 @@ export function AccessGate({
                             }
                             className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:text-white"
                         >
-                            Usar outro
-                            email
+                            Usar outro email
                         </button>
                     </div>
                 </section>
