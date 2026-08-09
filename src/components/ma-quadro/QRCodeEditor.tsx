@@ -12,7 +12,6 @@ import {
 
 import {
   createMAQuadroQRCodeFileFromDocument,
-  createMAQuadroQRCodeObjectName,
   createMAQuadroQRCodePreviewUrl,
   createMAQuadroQRCodeSvgFromDocument,
   MA_QUADRO_QR_MAX_LENGTH,
@@ -416,12 +415,6 @@ export default function QRCodeEditor() {
           await createMAQuadroQRCodeFileFromDocument(
             draft
           )
-
-        editor.setSelectionName(
-          createMAQuadroQRCodeObjectName(
-            draft
-          )
-        )
 
         await editor
           .replaceSelectedImage(
