@@ -27,7 +27,10 @@ interface MAProfessorCommercialAuthorizationHistory {
   amountCents: number
   currency: 'EUR'
   paymentStatus:
-    Exclude<MAProfessorAdminCommercialStatus['paymentStatus'], 'not_started'>
+    Exclude<
+      MAProfessorAdminCommercialStatus['paymentStatus'],
+      'not_started'
+    >
   selectedAt: string
   paymentConfirmedAt: string | null
   paymentDispensedAt: string | null
@@ -40,7 +43,8 @@ interface MAProfessorCommercialAuthorizationHistory {
 
 type MAProfessorCommercialStatusWithHistory =
   MAProfessorAdminCommercialStatus & {
-    authorizations?: MAProfessorCommercialAuthorizationHistory[]
+    authorizations?:
+      MAProfessorCommercialAuthorizationHistory[]
   }
 
 type HistoryTone =
@@ -62,18 +66,28 @@ interface MAProfessorAdminHistoryEvent {
 }
 
 interface MAProfessorAdminHistoryProps {
-  accessRequests?: MAProfessorAccessRequestSummary[]
-  licenses?: LicenseSummary[]
-  renewals?: LicenseRenewalRequest[]
+  accessRequests?:
+    MAProfessorAccessRequestSummary[]
+  licenses?:
+    LicenseSummary[]
+  renewals?:
+    LicenseRenewalRequest[]
   email?: string | null
   dataConnected?: boolean
   compact?: boolean
 }
 
-function formatDate(value: string) {
-  const date = new Date(value)
+function formatDate(
+  value: string
+) {
+  const date =
+    new Date(value)
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return 'Data inválida'
   }
 
@@ -190,7 +204,8 @@ function buildCommercialEvents(
     MAProfessorCommercialAuthorizationHistory[]
 ) {
   const events:
-    MAProfessorAdminHistoryEvent[] = []
+    MAProfessorAdminHistoryEvent[] =
+      []
 
   for (
     const authorization of
@@ -555,12 +570,16 @@ export default function MAProfessorAdminHistory({
   const [
     commercialAuthorizations,
     setCommercialAuthorizations
-  ] = useState<MAProfessorCommercialAuthorizationHistory[]>([])
+  ] =
+    useState<
+      MAProfessorCommercialAuthorizationHistory[]
+    >([])
 
   const [
     commercialLoading,
     setCommercialLoading
-  ] = useState(false)
+  ] =
+    useState(false)
 
   const targetEmails =
     useMemo(
@@ -613,22 +632,30 @@ export default function MAProfessorAdminHistory({
 
   useEffect(
     () => {
-      let cancelled = false
+      let cancelled =
+        false
 
-      setCommercialAuthorizations([])
+      setCommercialAuthorizations(
+        []
+      )
 
       if (
         !dataConnected ||
-        targetEmails.length === 0
+        targetEmails.length ===
+          0
       ) {
-        setCommercialLoading(false)
+        setCommercialLoading(
+          false
+        )
 
         return () => {
           cancelled = true
         }
       }
 
-      setCommercialLoading(true)
+      setCommercialLoading(
+        true
+      )
 
       void Promise.allSettled(
         targetEmails.map(
@@ -666,7 +693,8 @@ export default function MAProfessorAdminHistory({
 
             for (
               const authorization of
-              status.authorizations || []
+              status.authorizations ||
+              []
             ) {
               byAuthorizationId.set(
                 authorization.authorizationId,
@@ -683,7 +711,9 @@ export default function MAProfessorAdminHistory({
         })
         .finally(() => {
           if (!cancelled) {
-            setCommercialLoading(false)
+            setCommercialLoading(
+              false
+            )
           }
         })
 
