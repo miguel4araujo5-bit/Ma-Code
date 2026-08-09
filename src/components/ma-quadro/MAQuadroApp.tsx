@@ -18,6 +18,8 @@ import CurvedTextBuilder from './CurvedTextBuilder'
 import CurvedTextEditor from './CurvedTextEditor'
 import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
+import ElementEditor from './ElementEditor'
+import ElementLibrary from './ElementLibrary'
 
 import {
   MAQuadroEditorProvider
@@ -48,6 +50,7 @@ import './maQuadroHeaderPolish.css'
 import './maQuadroToolbarPolish.css'
 import './maQuadroWorkspacePolish.css'
 import './maQuadroFrames.css'
+import './maQuadroElementLibrary.css'
 
 function targetUsesNativeKeyboard(
   target:
@@ -346,6 +349,8 @@ export default function MAQuadroApp() {
 
         <FrameBuilder />
 
+        <ElementLibrary />
+
         <TableEditor />
 
         <ChartEditor />
@@ -353,6 +358,8 @@ export default function MAQuadroApp() {
         <QRCodeEditor />
 
         <CurvedTextEditor />
+
+        <ElementEditor />
 
         <EditorHeader
           onOpenShortcuts={() => {
