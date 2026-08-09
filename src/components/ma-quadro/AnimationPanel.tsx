@@ -8,6 +8,7 @@ import {
 } from 'react-dom'
 
 import AnimationControls from './AnimationControls'
+import PageAnimationToolbar from './PageAnimationToolbar'
 
 import {
   useMAQuadroAnimations
@@ -82,63 +83,67 @@ AnimationPanel() {
     animations.selectedName
   ])
 
-  if (
-    !host ||
-    !animations.available
-  ) {
-    return null
-  }
+  return (
+    <>
+      <PageAnimationToolbar />
 
-  return createPortal(
-    <section
-      className="mq-animation-panel"
-      aria-label="Animação do elemento"
-    >
-      <div className="mq-animation-panel__heading">
-        <span>
-          <strong>
-            Animação
-          </strong>
+      {host &&
+      animations.available
+        ? createPortal(
+            <section
+              className="mq-animation-panel"
+              aria-label="Animação do elemento"
+            >
+              <div className="mq-animation-panel__heading">
+                <span>
+                  <strong>
+                    Animação
+                  </strong>
 
-          <small
-            title={
-              animations.selectedName
-            }
-          >
-            {
-              animations.selectedName ||
-              'Elemento selecionado'
-            }
-          </small>
-        </span>
+                  <small
+                    title={
+                      animations.selectedName
+                    }
+                  >
+                    {
+                      animations.selectedName ||
+                      'Elemento selecionado'
+                    }
+                  </small>
+                </span>
 
-        {animations.animation.kind !==
-          'none' ? (
-          <span className="mq-animation-panel__badge">
-            Ativa
-          </span>
-        ) : null}
-      </div>
+                {animations
+                  .animation
+                  .kind !==
+                'none' ? (
+                  <span className="mq-animation-panel__badge">
+                    Ativa
+                  </span>
+                ) : null}
+              </div>
 
-      <AnimationControls
-        animation={
-          animations.animation
-        }
-        disabled={
-          animations.disabled
-        }
-        previewing={
-          animations.previewing
-        }
-        onChange={
-          animations.setAnimation
-        }
-        onPreview={() => {
-          void animations
-            .preview()
-        }}
-      />
-    </section>,
-    host
+              <AnimationControls
+                animation={
+                  animations.animation
+                }
+                disabled={
+                  animations.disabled
+                }
+                previewing={
+                  animations.previewing
+                }
+                onChange={
+                  animations.setAnimation
+                }
+                onPreview={() => {
+                  void animations
+                    .preview()
+                }}
+              />
+            </section>,
+            host
+          )
+        : null}
+    </>
   )
 }
