@@ -1,9 +1,12 @@
 const API_BASE = '/api/conquistador/matchmaking';
+const GAME_API_URL = '/api/conquistador/game';
 const POLL_INTERVAL_MS = 250;
 const STORED_NAME_KEY = 'conquistador-online-name';
+const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 
 let ticketId = null;
 let playerId = null;
+let reconnectToken = null;
 let pollTimer = null;
 let countdownTimer = null;
 let deadlineAt = null;
@@ -30,6 +33,80 @@ function getStoredName() {
 function storeName(name) {
   try {
     localStorage.setItem(STORED_NAME_KEY, name);
+  } catch {
+    return;
+  }
+}
+
+function getStoredSession() {
+  try {
+    const raw = localStorage.getItem(STORED_SESSION_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    const data = JSON.parse(raw);
+
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      typeof data.matchId !== 'string' ||
+      typeof data.playerId !== 'string' ||
+      typeof data.reconnectToken !== 'string' ||
+      !Array.isArray(data.participants)
+    ) {
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function storeSession(data) {
+  try {
+    localStorage.setItem(
+      STORED_SESSION_KEY,
+      JSON.stringify(data),
+    );
+  } catch {
+    return;
+  }
+}
+
+function clearStoredSession() {
+  try {
+    localStorage.removeItem(STORED_SESSION_KEY);
+  } catch {
+    return;
+  }
+}
+
+function notifyVoluntaryGameLeave(session) {
+  if (
+    !session?.matchId ||
+    !session?.playerId ||
+    !session?.reconnectToken
+  ) {
+    return;
+  }
+
+  try {
+    void fetch(GAME_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'leave',
+        matchId: session.matchId,
+        playerId: session.playerId,
+        reconnectToken: session.reconnectToken,
+      }),
+      keepalive: true,
+    }).catch(() => {});
   } catch {
     return;
   }
@@ -77,6 +154,7 @@ function resetSession() {
   stopTimers();
   ticketId = null;
   playerId = null;
+  reconnectToken = null;
   deadlineAt = null;
   busy = false;
   readyMatchData = null;
@@ -267,11 +345,24 @@ function renderMatch(data) {
     ? data.participants
     : [];
 
+  playerId = data.playerId || playerId;
+  reconnectToken = data.reconnectToken || reconnectToken;
+
+  if (!data.matchId || !playerId || !reconnectToken) {
+    throw new Error(
+      'A partida foi encontrada, mas a credencial de reconexão não ficou disponível.',
+    );
+  }
+
   readyMatchData = {
-    matchId: data.matchId || null,
+    matchId: data.matchId,
     playerId,
+    reconnectToken,
     participants,
+    savedAt: Date.now(),
   };
+
+  storeSession(readyMatchData);
 
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-found">
@@ -345,6 +436,7 @@ async function startSearch(name) {
 
     ticketId = response.ticketId || null;
     playerId = response.playerId || playerId;
+    reconnectToken = response.reconnectToken || reconnectToken;
 
     if (response.status === 'matched') {
       renderMatch(response);
@@ -382,6 +474,9 @@ async function pollStatus() {
 
   try {
     const response = await post('status', { ticketId });
+
+    playerId = response.playerId || playerId;
+    reconnectToken = response.reconnectToken || reconnectToken;
 
     if (response.status === 'matched') {
       renderMatch(response);
@@ -488,6 +583,19 @@ document.addEventListener('submit', (event) => {
 });
 
 document.addEventListener('click', (event) => {
+  if (event.target.closest('#leave-game-button')) {
+    const sessionToLeave =
+      readyMatchData ||
+      getStoredSession();
+
+    notifyVoluntaryGameLeave(
+      sessionToLeave,
+    );
+
+    clearStoredSession();
+    readyMatchData = null;
+  }
+
   const onlineButton = event.target.closest('#online-game-button');
 
   if (onlineButton) {
@@ -508,7 +616,8 @@ document.addEventListener('click', (event) => {
   if (event.target.closest('[data-online-enter]')) {
     if (
       !readyMatchData?.matchId ||
-      !readyMatchData?.playerId
+      !readyMatchData?.playerId ||
+      !readyMatchData?.reconnectToken
     ) {
       return;
     }
@@ -516,6 +625,7 @@ document.addEventListener('click', (event) => {
     const detail = {
       matchId: readyMatchData.matchId,
       playerId: readyMatchData.playerId,
+      reconnectToken: readyMatchData.reconnectToken,
       participants: readyMatchData.participants,
     };
 
@@ -536,7 +646,7 @@ document.addEventListener('click', (event) => {
 });
 
 window.addEventListener('pagehide', () => {
-  if (!ticketId) {
+  if (!ticketId || readyMatchData?.matchId) {
     return;
   }
 
@@ -547,3 +657,32 @@ window.addEventListener('pagehide', () => {
     new Blob([body], { type: 'application/json' }),
   );
 });
+
+function restoreStoredSession() {
+  const stored = getStoredSession();
+
+  if (!stored) {
+    return;
+  }
+
+  readyMatchData = stored;
+  playerId = stored.playerId;
+  reconnectToken = stored.reconnectToken;
+
+  window.dispatchEvent(
+    new CustomEvent(
+      'conquistador:online-match-ready',
+      {
+        detail: {
+          matchId: stored.matchId,
+          playerId: stored.playerId,
+          reconnectToken: stored.reconnectToken,
+          participants: stored.participants,
+          restored: true,
+        },
+      },
+    ),
+  );
+}
+
+restoreStoredSession();
