@@ -7,32 +7,32 @@ const managementAreas = [
     {
         title: 'Planificações',
         description:
-            'Organize conteúdos, objetivos e a sequência de trabalho de cada UFCD ou módulo.'
+            'Apoio na criação, organização e calendarização das planificações, conteúdos e UFCD ou módulos.'
     },
     {
-        title: 'Turmas e alunos',
+        title: 'Critérios de avaliação',
         description:
-            'Tenha a informação essencial das suas turmas e alunos sempre acessível.'
-    },
-    {
-        title: 'Sumários e aulas',
-        description:
-            'Prepare, guarde e reutilize sumários diretamente no contexto de cada aula.'
-    },
-    {
-        title: 'Avaliação',
-        description:
-            'Registe avaliações e acompanhe a evolução dos alunos por UFCD ou módulo.'
+            'Organize critérios, ponderações e diferentes componentes de avaliação de forma clara e reutilizável.'
     },
     {
         title: 'Assiduidade',
         description:
-            'Registe faltas e identifique rapidamente alunos que exigem maior atenção.'
+            'Registe faltas, acompanhe a assiduidade e identifique rapidamente alunos que exigem maior atenção.'
     },
     {
-        title: 'Horário e calendário',
+        title: 'Trabalhos e testes',
         description:
-            'Acompanhe aulas, horários e organização do trabalho letivo num único espaço.'
+            'Registe e organize avaliações de trabalhos, testes e outras atividades ao longo do processo de aprendizagem.'
+    },
+    {
+        title: 'Avaliações de período e finais',
+        description:
+            'Acompanhe resultados e tenha a informação organizada para apoiar as avaliações de período, de UFCD ou módulo e finais.'
+    },
+    {
+        title: 'Sumários',
+        description:
+            'Prepare, guarde e reutilize sumários, mantendo-os organizados por aula, turma e UFCD ou módulo.'
     }
 ];
 
@@ -61,7 +61,7 @@ const faqs = [
     {
         question: 'Como funciona a fase piloto?',
         answer:
-            'Nesta fase, o acesso ao MA-Professor é gratuito e limitado a um grupo de docentes. O objetivo é acompanhar a utilização real da plataforma, garantir estabilidade e continuar a melhorá-la antes de uma disponibilização mais ampla.'
+            'Nesta fase, o acesso ao MA-Professor é gratuito e limitado a um grupo de docentes. O objetivo é acompanhar a utilização real da plataforma, garantir estabilidade e continuar a melhorá-la com base na experiência de quem a utiliza no dia a dia.'
     },
     {
         question: 'Como é gerida a disponibilidade de vagas?',
@@ -117,11 +117,11 @@ export function ProductIntroPanel({
                             </h1>
 
                             <p className="mt-5 max-w-3xl text-xl font-bold leading-8 text-slate-200 sm:text-2xl">
-                                Menos tempo a organizar. Mais foco no trabalho docente.
+                                Menos tempo a organizar. Mais tempo para ensinar.
                             </p>
 
                             <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-400 sm:text-base">
-                                Um ambiente digital pensado para reunir o trabalho que acompanha cada professor ao longo do dia: planificações, aulas, turmas, sumários, assiduidade e avaliação — de forma simples e organizada.
+                                Um ambiente digital pensado para apoiar o trabalho real de um professor — da planificação à avaliação, passando pelos sumários, assiduidade, trabalhos e testes — com a informação organizada num único espaço.
                             </p>
                         </div>
 
@@ -131,11 +131,11 @@ export function ProductIntroPanel({
                             </p>
 
                             <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-200 sm:text-base">
-                                Estamos a abrir o MA-Professor a um grupo limitado de docentes. Durante esta fase, o acesso é gratuito e as vagas são limitadas, permitindo-nos acompanhar de perto a utilização e continuar a melhorar a plataforma.
+                                Estamos a abrir o MA-Professor a um grupo limitado de docentes para o utilizar em contexto real e ajudar-nos a aperfeiçoar uma ferramenta verdadeiramente útil no dia a dia.
                             </p>
 
                             <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-300 sm:text-base">
-                                Se gostaria de experimentar o MA-Professor no seu dia a dia, pode submeter um pedido de acesso. A decisão será comunicada por email.
+                                Durante esta fase, o acesso é gratuito e as vagas são limitadas. Se quiser experimentar o MA-Professor, pode submeter o seu pedido de acesso.
                             </p>
                         </div>
 
@@ -145,7 +145,7 @@ export function ProductIntroPanel({
                                 onClick={onRequestAccess}
                                 className="rounded-2xl bg-cyan-300 px-6 py-3.5 text-sm font-black text-slate-950 transition hover:bg-cyan-200 focus:outline-none focus:ring-4 focus:ring-cyan-300/20"
                             >
-                                Pedir acesso
+                                Pedir acesso gratuito
                             </button>
 
                             <button
@@ -161,15 +161,15 @@ export function ProductIntroPanel({
 
                 <section className="mt-8 rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 sm:p-8 lg:p-10">
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-                        O que pode gerir
+                        Apoio para o seu trabalho docente
                     </p>
 
                     <h2 className="mt-3 text-2xl font-black sm:text-3xl">
-                        O trabalho docente mais organizado, num só lugar.
+                        Da planificação à avaliação, tudo mais organizado.
                     </h2>
 
                     <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                        O MA-Professor aproxima as tarefas que fazem parte do seu dia a dia para reduzir a dispersão entre ficheiros, notas e diferentes ferramentas.
+                        O MA-Professor ajuda a reunir tarefas que acompanham o professor ao longo de todo o ano letivo, reduzindo a dispersão entre ficheiros, grelhas, notas e diferentes ferramentas.
                     </p>
 
                     <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -200,11 +200,11 @@ export function ProductIntroPanel({
                     </p>
 
                     <h2 className="mt-3 text-2xl font-black sm:text-3xl">
-                        Experimente o MA-Professor durante a fase piloto.
+                        Experimente o MA-Professor no seu dia a dia.
                     </h2>
 
                     <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                        O acesso é feito mediante pedido para conseguirmos acompanhar esta fase com proximidade e manter uma boa experiência para os docentes participantes.
+                        Durante a fase piloto queremos acompanhar a experiência dos docentes com proximidade. Por isso, o acesso é atribuído mediante pedido.
                     </p>
 
                     <div className="mt-7 grid gap-4 lg:grid-cols-3">
@@ -236,7 +236,7 @@ export function ProductIntroPanel({
                         </p>
 
                         <h2 className="mt-3 text-2xl font-black">
-                            Queremos que cada vaga seja realmente utilizada.
+                            Queremos que cada vaga seja realmente aproveitada.
                         </h2>
 
                         <p className="mt-4 text-sm leading-7 text-slate-300">
@@ -244,7 +244,7 @@ export function ProductIntroPanel({
                         </p>
 
                         <p className="mt-2 text-sm leading-7 text-slate-400">
-                            Se não existir confirmação, o acesso poderá ser desativado e a vaga disponibilizada a outro docente interessado.
+                            Se não existir confirmação, a vaga poderá ser libertada para outro docente interessado.
                         </p>
                     </article>
 
@@ -299,7 +299,7 @@ export function ProductIntroPanel({
                             onClick={onRequestAccess}
                             className="rounded-2xl bg-cyan-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
                         >
-                            Pedir acesso
+                            Pedir acesso gratuito
                         </button>
 
                         <button
