@@ -38,6 +38,24 @@ export interface MAProfessorGeneratedCredential
   password: string
 }
 
+export type MAProfessorDecisionEmailDelivery =
+  | 'sent'
+  | 'not_configured'
+  | 'failed'
+  | 'not_applicable'
+
+export interface MAProfessorAccessDecisionResult {
+  success: true
+  message: string
+  request?:
+    MAProfessorAccessRequestSummary
+  emailDelivery:
+    MAProfessorDecisionEmailDelivery
+  credentialIssued: boolean
+  fallbackCredential?:
+    MAProfessorGeneratedCredential
+}
+
 export type MAProfessorCommercialPlan =
   | 'paid_30_days'
   | 'school_year'
@@ -306,6 +324,88 @@ async function postEmailAction(
   return data
 }
 
+function isDecisionEmailDelivery(
+  value: unknown
+): value is MAProfessorDecisionEmailDelivery {
+  return value ===
+      'sent' ||
+    value ===
+      'not_configured' ||
+    value ===
+      'failed' ||
+    value ===
+      'not_applicable'
+}
+
+async function postDecisionAction(
+  path: string,
+  email: string,
+  fallbackMessage: string
+) {
+  const body =
+    await requestAdminApi(
+      path,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      },
+      fallbackMessage
+    )
+
+  const data =
+    body as MAProfessorAccessDecisionResult | null
+
+  if (
+    !data ||
+    data.success !== true ||
+    typeof data.message !==
+      'string' ||
+    !isDecisionEmailDelivery(
+      data.emailDelivery
+    ) ||
+    typeof data.credentialIssued !==
+      'boolean'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu uma resposta de decisão inválida.'
+    )
+  }
+
+  if (data.fallbackCredential) {
+    const credential =
+      data.fallbackCredential
+
+    if (
+      typeof credential.email !==
+        'string' ||
+      typeof credential.hasCredential !==
+        'boolean' ||
+      typeof credential.password !==
+        'string' ||
+      !credential.password ||
+      !isNullableString(
+        credential.createdAt
+      ) ||
+      !isNullableString(
+        credential.updatedAt
+      )
+    ) {
+      throw new Error(
+        'O backend administrativo devolveu uma senha de fallback inválida.'
+      )
+    }
+  }
+
+  return data
+}
+
 export async function getMAProfessorAdminOverview() {
   const body =
     await requestAdminApi(
@@ -354,7 +454,7 @@ export async function getMAProfessorAdminOverview() {
 export async function approveMAProfessorAccessRequest(
   email: string
 ) {
-  return postEmailAction(
+  return postDecisionAction(
     '/requests/approve',
     email,
     'Não foi possível aprovar o pedido de acesso.'
@@ -364,7 +464,7 @@ export async function approveMAProfessorAccessRequest(
 export async function rejectMAProfessorAccessRequest(
   email: string
 ) {
-  return postEmailAction(
+  return postDecisionAction(
     '/requests/reject',
     email,
     'Não foi possível rejeitar o pedido de acesso.'
