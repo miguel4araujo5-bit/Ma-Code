@@ -1,8 +1,14 @@
 import {
+  unzlibSync,
+  zlibSync
+} from 'fflate'
+
+import {
   MA_PROFESSOR_DATABASE_NAME,
   MA_PROFESSOR_DATABASE_VERSION,
   openMAProfessorDatabase
 } from '../db'
+
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -27,14 +33,18 @@ import type {
   TeachingAssignment,
   WeeklyScheduleSlot
 } from '../types'
+
 import {
   decryptMAProfessorRecord,
-  encryptMAProfessorRecord,
+  decryptMAProfessorRecordBytes,
+  encryptMAProfessorRecordBytes,
   type MAProfessorEncryptedRecord
 } from './cryptoService'
+
 import {
   unlockMAProfessorLocalMasterKey
 } from './cryptoStorage'
+
 import {
   getMAProfessorEncryptedSnapshot,
   pushMAProfessorEncryptedSnapshot,
@@ -51,17 +61,19 @@ const SNAPSHOT_FORMAT =
 const SNAPSHOT_FORMAT_VERSION =
   1 as const
 
-/*
- * O Worker aceita um pedido máximo de 1,5 MB.
- *
- * O limite local de 900 KB deixa margem para:
- * - autenticação;
- * - envelope JSON;
- * - tag AES-GCM;
- * - conversão Base64.
- */
-const MAX_SNAPSHOT_PLAINTEXT_BYTES =
-  900_000
+const SNAPSHOT_PAYLOAD_HEADER =
+  'MA-PROF-SNAPSHOT-PAYLOAD-1:ZLIB\n'
+
+const textEncoder =
+  new TextEncoder()
+
+const textDecoder =
+  new TextDecoder()
+
+const SNAPSHOT_PAYLOAD_HEADER_BYTES =
+  textEncoder.encode(
+    SNAPSHOT_PAYLOAD_HEADER
+  )
 
 export interface MAProfessorSnapshotTables {
   teacherProfiles:
@@ -381,17 +393,250 @@ function createRecordCounts(
   }
 }
 
-function getSnapshotPlaintextBytes(
+function serializeSnapshot(
   snapshot:
     MAProfessorDatabaseSnapshot
 ) {
-  return new TextEncoder()
-    .encode(
-      JSON.stringify(
-        snapshot
-      )
+  return textEncoder.encode(
+    JSON.stringify(
+      snapshot
     )
-    .byteLength
+  )
+}
+
+function concatBytes(
+  left:
+    Uint8Array,
+  right:
+    Uint8Array
+) {
+  const result =
+    new Uint8Array(
+      left.byteLength +
+      right.byteLength
+    )
+
+  result.set(
+    left,
+    0
+  )
+
+  result.set(
+    right,
+    left.byteLength
+  )
+
+  return result
+}
+
+function startsWithBytes(
+  value:
+    Uint8Array,
+  prefix:
+    Uint8Array
+) {
+  if (
+    value.byteLength <
+    prefix.byteLength
+  ) {
+    return false
+  }
+
+  for (
+    let index = 0;
+    index <
+      prefix.byteLength;
+    index += 1
+  ) {
+    if (
+      value[index] !==
+      prefix[index]
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
+async function runCompressionStream(
+  value:
+    Uint8Array
+) {
+  const stream =
+    new Blob([
+      value
+    ])
+      .stream()
+      .pipeThrough(
+        new CompressionStream(
+          'deflate'
+        )
+      )
+
+  return new Uint8Array(
+    await new Response(
+      stream
+    ).arrayBuffer()
+  )
+}
+
+async function runDecompressionStream(
+  value:
+    Uint8Array
+) {
+  const stream =
+    new Blob([
+      value
+    ])
+      .stream()
+      .pipeThrough(
+        new DecompressionStream(
+          'deflate'
+        )
+      )
+
+  return new Uint8Array(
+    await new Response(
+      stream
+    ).arrayBuffer()
+  )
+}
+
+async function compressSnapshotBytes(
+  value:
+    Uint8Array
+) {
+  if (
+    typeof globalThis
+      .CompressionStream ===
+      'function'
+  ) {
+    try {
+      return await runCompressionStream(
+        value
+      )
+    } catch {
+      // O fallback abaixo mantém
+      // compatibilidade em browsers
+      // com implementações incompletas.
+    }
+  }
+
+  return zlibSync(
+    value
+  )
+}
+
+async function decompressSnapshotBytes(
+  value:
+    Uint8Array
+) {
+  if (
+    typeof globalThis
+      .DecompressionStream ===
+      'function'
+  ) {
+    try {
+      return await runDecompressionStream(
+        value
+      )
+    } catch {
+      // O fallback também valida
+      // payloads zlib produzidos
+      // por implementações diferentes.
+    }
+  }
+
+  try {
+    return unzlibSync(
+      value
+    )
+  } catch {
+    throw new Error(
+      'A cópia cifrada contém dados comprimidos inválidos ou incompletos.'
+    )
+  }
+}
+
+async function createCompressedSnapshotPayload(
+  snapshot:
+    MAProfessorDatabaseSnapshot
+) {
+  const serialized =
+    serializeSnapshot(
+      snapshot
+    )
+
+  const compressed =
+    await compressSnapshotBytes(
+      serialized
+    )
+
+  return {
+    plaintextBytes:
+      serialized.byteLength,
+
+    payload:
+      concatBytes(
+        SNAPSHOT_PAYLOAD_HEADER_BYTES,
+        compressed
+      )
+  }
+}
+
+async function decodeCompressedSnapshotPayload(
+  payload:
+    Uint8Array
+) {
+  if (
+    !startsWithBytes(
+      payload,
+      SNAPSHOT_PAYLOAD_HEADER_BYTES
+    )
+  ) {
+    return null
+  }
+
+  const compressed =
+    payload.subarray(
+      SNAPSHOT_PAYLOAD_HEADER_BYTES
+        .byteLength
+    )
+
+  if (
+    compressed.byteLength ===
+    0
+  ) {
+    throw new Error(
+      'A cópia cifrada não contém os dados comprimidos esperados.'
+    )
+  }
+
+  const decompressed =
+    await decompressSnapshotBytes(
+      compressed
+    )
+
+  let parsed:
+    unknown
+
+  try {
+    parsed =
+      JSON.parse(
+        textDecoder.decode(
+          decompressed
+        )
+      ) as unknown
+  } catch {
+    throw new Error(
+      'A cópia desencriptada não contém JSON válido.'
+    )
+  }
+
+  return validateDatabaseSnapshot(
+    parsed
+  )
 }
 
 function isObject(
@@ -1214,25 +1459,19 @@ export async function prepareEncryptedMAProfessorDatabaseSnapshot(
       )
     ])
 
-  const plaintextBytes =
-    getSnapshotPlaintextBytes(
+  const {
+    plaintextBytes,
+    payload
+  } =
+    await createCompressedSnapshotPayload(
       snapshot
     )
-
-  if (
-    plaintextBytes >
-      MAX_SNAPSHOT_PLAINTEXT_BYTES
-  ) {
-    throw new Error(
-      'A cópia local já é demasiado grande para ser enviada como um único registo. Os dados não foram alterados.'
-    )
-  }
 
   const encrypted =
-    await encryptMAProfessorRecord(
+    await encryptMAProfessorRecordBytes(
       masterKey,
       MA_PROFESSOR_DATABASE_SNAPSHOT_RECORD_ID,
-      snapshot
+      payload
     )
 
   return {
@@ -1307,7 +1546,31 @@ export async function downloadEncryptedMAProfessorDatabaseSnapshot(
       options.deviceId
     )
 
-  const decrypted =
+  const decryptedBytes =
+    await decryptMAProfessorRecordBytes(
+      masterKey,
+      MA_PROFESSOR_DATABASE_SNAPSHOT_RECORD_ID,
+      remote.encrypted
+    )
+
+  const compressedSnapshot =
+    await decodeCompressedSnapshotPayload(
+      decryptedBytes
+    )
+
+  if (compressedSnapshot) {
+    return {
+      found:
+        true,
+
+      snapshot:
+        compressedSnapshot,
+
+      remote
+    }
+  }
+
+  const decryptedLegacySnapshot =
     await decryptMAProfessorRecord<
       unknown
     >(
@@ -1318,7 +1581,7 @@ export async function downloadEncryptedMAProfessorDatabaseSnapshot(
 
   const snapshot =
     validateDatabaseSnapshot(
-      decrypted
+      decryptedLegacySnapshot
     )
 
   return {
