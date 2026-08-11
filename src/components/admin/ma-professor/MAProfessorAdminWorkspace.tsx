@@ -7,8 +7,7 @@ import {
 import {
   getAccessRequestStatusLabel,
   getLicensePlanLabel,
-  getLicenseStatusLabel,
-  type MAProfessorAccessRequestSummary
+  getLicenseStatusLabel
 } from '../../ma-professor/access/accessTypes'
 
 import type {
@@ -18,7 +17,9 @@ import type {
 
 import {
   getMAProfessorCommercialStatus,
-  type MAProfessorAdminCommercialStatus
+  type MAProfessorAdminAccessRequestSummary,
+  type MAProfessorAdminCommercialStatus,
+  type MAProfessorDecisionEmailDelivery
 } from '../../../lib/admin/maProfessorAdminApi'
 
 import MAProfessorAdminAccountDetail from './MAProfessorAdminAccountDetail'
@@ -33,7 +34,7 @@ type WorkspaceTab =
 
 interface MAProfessorAdminWorkspaceProps {
   accessRequests:
-    MAProfessorAccessRequestSummary[]
+    MAProfessorAdminAccessRequestSummary[]
   licenses:
     LicenseSummary[]
   renewals:
@@ -94,7 +95,7 @@ function formatMoney(
 
 function getRequestStatusClassName(
   status:
-    MAProfessorAccessRequestSummary['status']
+    MAProfessorAdminAccessRequestSummary['status']
 ) {
   switch (status) {
     case 'approved':
@@ -167,6 +168,48 @@ function getCommercialPlanLabel(
       return 'Até 1 de agosto'
     default:
       return '—'
+  }
+}
+
+function getEmailDispatchLabel(
+  status:
+    MAProfessorDecisionEmailDelivery |
+    null
+) {
+  switch (status) {
+    case 'sent':
+      return 'Email enviado'
+    case 'not_configured':
+      return 'Não configurado'
+    case 'pending':
+      return 'Por confirmar'
+    case 'failed':
+      return 'Envio falhou'
+    case 'not_applicable':
+      return 'Fluxo comercial'
+    default:
+      return '—'
+  }
+}
+
+function getEmailDispatchClassName(
+  status:
+    MAProfessorDecisionEmailDelivery |
+    null
+) {
+  switch (status) {
+    case 'sent':
+      return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+    case 'not_configured':
+      return 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+    case 'pending':
+      return 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
+    case 'failed':
+      return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+    case 'not_applicable':
+      return 'border-violet-300/20 bg-violet-300/10 text-violet-200'
+    default:
+      return 'border-white/10 bg-white/[0.04] text-slate-500'
   }
 }
 
@@ -311,7 +354,7 @@ export default function MAProfessorAdminWorkspace({
   const [query, setQuery] =
     useState('')
   const [requestStatus, setRequestStatus] =
-    useState<'all' | MAProfessorAccessRequestSummary['status']>('all')
+    useState<'all' | MAProfessorAdminAccessRequestSummary['status']>('all')
   const [selectedEmail, setSelectedEmail] =
     useState<string | null>(null)
   const [busyEmail, setBusyEmail] =
@@ -649,7 +692,7 @@ export default function MAProfessorAdminWorkspace({
         {activeTab === 'requests' ? (
           filteredRequests.length ? (
             <div className="overflow-x-auto">
-              <table className="min-w-[1120px] w-full border-collapse text-left">
+              <table className="min-w-[1280px] w-full border-collapse text-left">
                 <thead className="bg-slate-950/55 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Email</th>
@@ -658,6 +701,7 @@ export default function MAProfessorAdminWorkspace({
                     <th className="px-4 py-3">Pagamento</th>
                     <th className="px-4 py-3">Pedido</th>
                     <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Envio</th>
                     <th className="px-4 py-3">Ativação</th>
                     <th className="px-4 py-3">Ações</th>
                   </tr>
@@ -692,6 +736,7 @@ export default function MAProfessorAdminWorkspace({
                           request.requestedAt
                         )}
                       </td>
+
                       <td className="px-4 py-3">
                         <span
                           className={[
@@ -706,11 +751,44 @@ export default function MAProfessorAdminWorkspace({
                           )}
                         </span>
                       </td>
+
+                      <td className="px-4 py-3">
+                        {request.emailDispatchStatus ? (
+                          <div className="min-w-[9rem]">
+                            <span
+                              className={[
+                                'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                                getEmailDispatchClassName(
+                                  request.emailDispatchStatus
+                                )
+                              ].join(' ')}
+                            >
+                              {getEmailDispatchLabel(
+                                request.emailDispatchStatus
+                              )}
+                            </span>
+
+                            {request.emailDispatchUpdatedAt ? (
+                              <p className="mt-1.5 text-[0.65rem] font-semibold text-slate-600">
+                                {formatDate(
+                                  request.emailDispatchUpdatedAt
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-600">
+                            —
+                          </span>
+                        )}
+                      </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {formatDate(
                           request.activatedAt
                         )}
                       </td>
+
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -740,6 +818,7 @@ export default function MAProfessorAdminWorkspace({
                               >
                                 Aprovar
                               </button>
+
                               <button
                                 type="button"
                                 disabled={busyEmail === request.email}
@@ -783,12 +862,14 @@ export default function MAProfessorAdminWorkspace({
                     <th className="px-4 py-3">Ação</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-white/5">
                   {users.map(user => (
                     <tr key={user.email}>
                       <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
                         {user.email}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {user.request
                           ? getAccessRequestStatusLabel(
@@ -796,6 +877,7 @@ export default function MAProfessorAdminWorkspace({
                             )
                           : '—'}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {user.license
                           ? getLicenseStatusLabel(
@@ -803,6 +885,7 @@ export default function MAProfessorAdminWorkspace({
                             )
                           : '—'}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {user.license
                           ? getLicensePlanLabel(
@@ -810,6 +893,7 @@ export default function MAProfessorAdminWorkspace({
                             )
                           : '—'}
                       </td>
+
                       <td className="px-4 py-3">
                         <button
                           type="button"
@@ -849,17 +933,20 @@ export default function MAProfessorAdminWorkspace({
                     <th className="px-4 py-3">Ação</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-white/5">
                   {filteredLicenses.map(license => (
                     <tr key={license.email}>
                       <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
                         {license.email}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {getLicensePlanLabel(
                           license.plan
                         )}
                       </td>
+
                       <td className="px-4 py-3">
                         <span
                           className={[
@@ -874,11 +961,13 @@ export default function MAProfessorAdminWorkspace({
                           )}
                         </span>
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {formatDate(
                           license.validUntil
                         )}
                       </td>
+
                       <td className="px-4 py-3">
                         <button
                           type="button"
@@ -919,31 +1008,37 @@ export default function MAProfessorAdminWorkspace({
                     <th className="px-4 py-3">Ação</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-white/5">
                   {filteredRenewals.map(renewal => (
                     <tr key={renewal.id}>
                       <td className="px-4 py-3 break-all text-xs font-black text-slate-200">
                         {renewal.email}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {getLicensePlanLabel(
                           renewal.requestedPlan
                         )}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {formatMoney(
                           renewal.amountCents,
                           renewal.currency
                         )}
                       </td>
+
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {formatDate(
                           renewal.requestedAt
                         )}
                       </td>
+
                       <td className="px-4 py-3 text-xs font-bold text-slate-400">
                         {renewal.status}
                       </td>
+
                       <td className="px-4 py-3">
                         <button
                           type="button"
