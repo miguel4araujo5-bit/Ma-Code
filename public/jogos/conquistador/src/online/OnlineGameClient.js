@@ -9,7 +9,7 @@ function normalizeId(value) {
 }
 
 function normalizeReconnectToken(value) {
-  const token = String(value ?? '').trim();
+  const token = String(value ?? '');
 
   return (
     token.length >= 32 &&
@@ -28,22 +28,39 @@ function getStoredReconnectToken(matchId, playerId) {
       return '';
     }
 
-    const stored = JSON.parse(raw);
+    const data = JSON.parse(raw);
 
     if (
-      !stored ||
-      typeof stored !== 'object' ||
-      normalizeId(stored.matchId) !== matchId ||
-      normalizeId(stored.playerId) !== playerId
+      normalizeId(data?.matchId) !== matchId ||
+      normalizeId(data?.playerId) !== playerId
     ) {
       return '';
     }
 
-    return normalizeReconnectToken(
-      stored.reconnectToken,
-    );
+    return normalizeReconnectToken(data?.reconnectToken);
   } catch {
     return '';
+  }
+}
+
+function clearStoredReconnectToken(matchId, playerId) {
+  try {
+    const raw = localStorage.getItem(STORED_SESSION_KEY);
+
+    if (!raw) {
+      return;
+    }
+
+    const data = JSON.parse(raw);
+
+    if (
+      normalizeId(data?.matchId) === matchId &&
+      normalizeId(data?.playerId) === playerId
+    ) {
+      localStorage.removeItem(STORED_SESSION_KEY);
+    }
+  } catch {
+    return;
   }
 }
 
@@ -53,6 +70,94 @@ function normalizeRevision(value) {
   return Number.isInteger(revision) && revision >= 0
     ? revision
     : null;
+}
+
+function removePresenceCountdown() {
+  document
+    .querySelector('#online-presence-countdown')
+    ?.remove();
+}
+
+function renderPresenceCountdown(data) {
+  const warnings = Array.isArray(data?.presenceWarnings)
+    ? data.presenceWarnings
+    : [];
+
+  const warning = warnings[0] || null;
+
+  if (!warning) {
+    removePresenceCountdown();
+    return;
+  }
+
+  const turnBanner = document.querySelector('.turn-banner');
+
+  if (!turnBanner) {
+    return;
+  }
+
+  const seconds = Math.max(
+    0,
+    Math.min(
+      15,
+      Number(warning.secondsRemaining) || 0,
+    ),
+  );
+
+  let element = document.querySelector('#online-presence-countdown');
+
+  if (!element) {
+    element = document.createElement('div');
+    element.id = 'online-presence-countdown';
+    element.setAttribute('role', 'status');
+    element.setAttribute('aria-live', 'polite');
+    element.style.display = 'flex';
+    element.style.alignItems = 'center';
+    element.style.gap = '0.55rem';
+    element.style.marginLeft = 'auto';
+    element.style.padding = '0.45rem 0.7rem';
+    element.style.border = '1px solid rgba(255,255,255,0.22)';
+    element.style.borderRadius = '0.8rem';
+    element.style.background = 'rgba(0,0,0,0.18)';
+    element.style.whiteSpace = 'nowrap';
+
+    const dice = turnBanner.querySelector('.dice-result');
+
+    if (dice) {
+      turnBanner.insertBefore(element, dice);
+    } else {
+      turnBanner.appendChild(element);
+    }
+  }
+
+  const safeName = String(warning.playerName ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  element.setAttribute(
+    'aria-label',
+    `A aguardar ${warning.playerName}. ${seconds} segundos restantes.`,
+  );
+
+  element.innerHTML = `
+    <span
+      aria-hidden="true"
+      style="font-size:1.05rem;line-height:1"
+    >⏱</span>
+    <span
+      style="display:flex;flex-direction:column;line-height:1.05"
+    >
+      <small style="opacity:.78;font-size:.68rem">
+        A aguardar ${safeName}
+      </small>
+      <strong style="font-size:1.15rem">
+        ${seconds}
+      </strong>
+    </span>
+  `;
 }
 
 async function readJsonResponse(response) {
@@ -82,33 +187,22 @@ export class OnlineGameClient {
   constructor({
     matchId,
     playerId,
-    reconnectToken,
+    reconnectToken = null,
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   }) {
     this.matchId = normalizeId(matchId);
     this.playerId = normalizeId(playerId);
-
-    this.reconnectToken =
-      normalizeReconnectToken(reconnectToken) ||
-      getStoredReconnectToken(
-        this.matchId,
-        this.playerId,
-      );
+    this.reconnectToken = normalizeReconnectToken(reconnectToken) ||
+      getStoredReconnectToken(this.matchId, this.playerId);
 
     this.pollIntervalMs = Math.max(
       250,
       Number(pollIntervalMs) || DEFAULT_POLL_INTERVAL_MS,
     );
 
-    if (!this.matchId || !this.playerId) {
+    if (!this.matchId || !this.playerId || !this.reconnectToken) {
       throw new Error(
-        'A sessão online não possui identificação válida.',
-      );
-    }
-
-    if (!this.reconnectToken) {
-      throw new Error(
-        'A credencial de reconexão desta partida não está disponível.',
+        'A sessão online não possui uma credencial de reconexão válida.',
       );
     }
 
@@ -137,7 +231,21 @@ export class OnlineGameClient {
       }),
     });
 
-    return readJsonResponse(response);
+    try {
+      return await readJsonResponse(response);
+    } catch (error) {
+      if (
+        error?.status === 401 ||
+        error?.status === 403
+      ) {
+        clearStoredReconnectToken(
+          this.matchId,
+          this.playerId,
+        );
+      }
+
+      throw error;
+    }
   }
 
   applyState(data) {
@@ -145,9 +253,7 @@ export class OnlineGameClient {
       return this.state;
     }
 
-    const revision = normalizeRevision(
-      data.revision,
-    );
+    const revision = normalizeRevision(data.revision);
 
     if (
       revision !== null &&
@@ -167,6 +273,8 @@ export class OnlineGameClient {
         continue;
       }
     }
+
+    renderPresenceCountdown(data);
 
     return data;
   }
@@ -324,6 +432,7 @@ export class OnlineGameClient {
 
   close() {
     this.stopPolling();
+    removePresenceCountdown();
 
     this.closed = true;
 
