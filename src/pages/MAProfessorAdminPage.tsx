@@ -98,6 +98,20 @@ function getDecisionFeedbackStyle(
 
   if (
     result.emailDelivery ===
+    'pending'
+  ) {
+    return {
+      title:
+        'Decisão guardada · resultado do envio por confirmar',
+      className:
+        'border-cyan-300/20 bg-cyan-300/[0.06]',
+      titleClassName:
+        'text-cyan-200'
+    }
+  }
+
+  if (
+    result.emailDelivery ===
     'not_applicable'
   ) {
     return {
