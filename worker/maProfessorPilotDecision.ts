@@ -172,6 +172,36 @@ function getRequestSummary(
       : undefined
 }
 
+function getRequestStatus(
+  body: JsonObject | null
+):
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | null {
+  const request =
+    getRequestSummary(
+      body
+    )
+
+  if (!request) {
+    return null
+  }
+
+  const status =
+    (request as JsonObject)
+      .status
+
+  return status ===
+      'pending' ||
+    status ===
+      'approved' ||
+    status ===
+      'rejected'
+    ? status
+    : null
+}
+
 function getDecisionMode(
   body: JsonObject | null
 ): MAProfessorDecisionMode | null {
@@ -665,10 +695,23 @@ export async function processMAProfessorAccessDecision(
           decisionBody
         )
 
+      const persistedStatus =
+        getRequestStatus(
+          decisionBody
+        )
+
+      const expectedStatus =
+        decision ===
+          'approve'
+          ? 'approved'
+          : 'rejected'
+
       if (
         request &&
         mode &&
-        emailDispatchStatus
+        emailDispatchStatus &&
+        persistedStatus ===
+          expectedStatus
       ) {
         return json({
           success: true,
