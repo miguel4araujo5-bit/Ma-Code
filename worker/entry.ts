@@ -124,20 +124,58 @@ const prepareMatchedGameSession =
 
     if (
       data.success !== true ||
-      data.status !== 'matched' ||
-      typeof data.matchId !== 'string' ||
-      !Array.isArray(
-        data.participants
-      )
+      data.status !== 'matched'
     ) {
       return response
+    }
+
+    if (
+      typeof data.matchId !== 'string' ||
+      typeof data.playerId !== 'string' ||
+      typeof data.reconnectToken !== 'string' ||
+      !Array.isArray(
+        data.participants
+      ) ||
+      !Array.isArray(
+        data.gameSessionCredentials
+      )
+    ) {
+      const headers =
+        new Headers(
+          response.headers
+        )
+
+      headers.set(
+        'Content-Type',
+        'application/json; charset=utf-8'
+      )
+
+      const {
+        gameSessionCredentials:
+          _gameSessionCredentials,
+        ...publicData
+      } = data
+
+      return new Response(
+        JSON.stringify({
+          ...publicData,
+          success: false,
+          message:
+            'Não foi possível preparar as credenciais seguras da partida online.'
+        }),
+        {
+          status: 503,
+          headers
+        }
+      )
     }
 
     try {
       await ensureConquistadorGameSession(
         env,
         data.matchId,
-        data.participants
+        data.participants,
+        data.gameSessionCredentials
       )
     } catch (error) {
       const headers =
@@ -145,8 +183,20 @@ const prepareMatchedGameSession =
           response.headers
         )
 
+      headers.set(
+        'Content-Type',
+        'application/json; charset=utf-8'
+      )
+
+      const {
+        gameSessionCredentials:
+          _gameSessionCredentials,
+        ...publicData
+      } = data
+
       return new Response(
         JSON.stringify({
+          ...publicData,
           success: false,
           message:
             error instanceof Error
@@ -170,9 +220,15 @@ const prepareMatchedGameSession =
       'application/json; charset=utf-8'
     )
 
+    const {
+      gameSessionCredentials:
+        _gameSessionCredentials,
+      ...publicData
+    } = data
+
     return new Response(
       JSON.stringify({
-        ...data,
+        ...publicData,
         gameSessionReady: true
       }),
       {
