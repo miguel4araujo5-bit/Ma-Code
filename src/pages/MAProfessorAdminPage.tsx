@@ -11,18 +11,17 @@ import {
   approveMAProfessorAccessRequest,
   getMAProfessorAdminOverview,
   rejectMAProfessorAccessRequest,
+  type MAProfessorAccessDecisionResult,
   type MAProfessorAdminOverview
 } from '../lib/admin/maProfessorAdminApi'
 
 const workflow = [
-  'Plano',
-  'Email + pagamento',
   'Pedido',
-  'Validação',
+  'Análise',
+  'Decisão',
   'Senha',
-  'Ativação',
-  'Licença',
-  'Renovação'
+  'Email',
+  'Acesso'
 ]
 
 function formatUpdatedAt(
@@ -63,6 +62,66 @@ function getErrorMessage(
   return 'Não foi possível carregar os dados administrativos do MA-Professor.'
 }
 
+function getDecisionFeedbackStyle(
+  result: MAProfessorAccessDecisionResult
+) {
+  if (
+    result.emailDelivery ===
+    'sent'
+  ) {
+    return {
+      title:
+        result.request?.status ===
+        'rejected'
+          ? 'Pedido rejeitado e professor informado'
+          : 'Acesso aprovado e email enviado',
+      className:
+        'border-emerald-300/20 bg-emerald-300/[0.06]',
+      titleClassName:
+        'text-emerald-200'
+    }
+  }
+
+  if (
+    result.emailDelivery ===
+    'not_configured'
+  ) {
+    return {
+      title:
+        'Decisão guardada · envio automático ainda não configurado',
+      className:
+        'border-amber-300/20 bg-amber-300/[0.06]',
+      titleClassName:
+        'text-amber-200'
+    }
+  }
+
+  if (
+    result.emailDelivery ===
+    'not_applicable'
+  ) {
+    return {
+      title:
+        'Fluxo comercial preservado',
+      className:
+        'border-violet-300/20 bg-violet-300/[0.06]',
+      titleClassName:
+        'text-violet-200'
+    }
+  }
+
+  return {
+    title:
+      result.fallbackCredential
+        ? 'Decisão guardada · envio de email falhou'
+        : 'Decisão guardada · ação automática incompleta',
+    className:
+      'border-rose-300/20 bg-rose-300/[0.06]',
+    titleClassName:
+      'text-rose-200'
+  }
+}
+
 function MAProfessorAdminContent() {
   const [
     overview,
@@ -81,6 +140,19 @@ function MAProfessorAdminContent() {
     error,
     setError
   ] = useState('')
+
+  const [
+    decisionFeedback,
+    setDecisionFeedback
+  ] =
+    useState<MAProfessorAccessDecisionResult | null>(
+      null
+    )
+
+  const [
+    passwordCopied,
+    setPasswordCopied
+  ] = useState(false)
 
   const loadOverview =
     useCallback(
@@ -113,8 +185,16 @@ function MAProfessorAdminContent() {
       async (
         email: string
       ) => {
-        await approveMAProfessorAccessRequest(
-          email
+        setDecisionFeedback(null)
+        setPasswordCopied(false)
+
+        const result =
+          await approveMAProfessorAccessRequest(
+            email
+          )
+
+        setDecisionFeedback(
+          result
         )
 
         await loadOverview()
@@ -127,13 +207,46 @@ function MAProfessorAdminContent() {
       async (
         email: string
       ) => {
-        await rejectMAProfessorAccessRequest(
-          email
+        setDecisionFeedback(null)
+        setPasswordCopied(false)
+
+        const result =
+          await rejectMAProfessorAccessRequest(
+            email
+          )
+
+        setDecisionFeedback(
+          result
         )
 
         await loadOverview()
       },
       [loadOverview]
+    )
+
+  const handleCopyFallbackPassword =
+    useCallback(
+      async () => {
+        const password =
+          decisionFeedback
+            ?.fallbackCredential
+            ?.password
+
+        if (!password) {
+          return
+        }
+
+        try {
+          await navigator.clipboard.writeText(
+            password
+          )
+
+          setPasswordCopied(true)
+        } catch {
+          setPasswordCopied(false)
+        }
+      },
+      [decisionFeedback]
     )
 
   useEffect(
@@ -143,27 +256,28 @@ function MAProfessorAdminContent() {
     [loadOverview]
   )
 
+  const feedbackStyle =
+    decisionFeedback
+      ? getDecisionFeedbackStyle(
+          decisionFeedback
+        )
+      : null
+
   return (
     <>
-      <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.04] p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-cyan-300/15 bg-cyan-300/[0.04] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">
-              Fluxo live aprovado
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
+              Fase piloto
             </p>
+
             <h2 className="mt-2 text-xl font-black">
-              Do plano à renovação
+              Do pedido ao acesso
             </h2>
+
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              O professor escolhe o plano,
-              introduz o email, efetua o
-              pagamento por MB WAY e envia o
-              pedido. O MA-ADMIN recebe o plano
-              e o valor já definidos, aprova ou
-              rejeita o pedido, confirma o
-              pagamento ou marca-o como
-              dispensado e só depois permite
-              gerar a nova senha.
+              O acesso público atual é gratuito e sujeito à disponibilidade de vagas. O professor submete o pedido, a MA-CODE aprova ou rejeita e, quando o envio automático estiver ativo, uma aprovação piloto gera a senha e envia as instruções diretamente por email.
             </p>
           </div>
 
@@ -185,7 +299,7 @@ function MAProfessorAdminContent() {
           </span>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {workflow.map(
             (item, index) => (
               <div
@@ -200,6 +314,7 @@ function MAProfessorAdminContent() {
                     '0'
                   )}
                 </span>
+
                 <p className="mt-2 text-sm font-black text-slate-200">
                   {item}
                 </p>
@@ -209,14 +324,95 @@ function MAProfessorAdminContent() {
         </div>
       </section>
 
+      {decisionFeedback &&
+      feedbackStyle ? (
+        <section
+          className={[
+            'mt-5 rounded-2xl border p-4 sm:p-5',
+            feedbackStyle.className
+          ].join(' ')}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p
+                className={[
+                  'text-sm font-black',
+                  feedbackStyle.titleClassName
+                ].join(' ')}
+              >
+                {feedbackStyle.title}
+              </p>
+
+              <p className="mt-2 max-w-4xl text-xs leading-5 text-slate-400">
+                {decisionFeedback.message}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setDecisionFeedback(
+                  null
+                )
+                setPasswordCopied(
+                  false
+                )
+              }}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[0.68rem] font-black text-slate-500 transition hover:bg-white/5 hover:text-white"
+            >
+              Fechar
+            </button>
+          </div>
+
+          {decisionFeedback
+            .fallbackCredential ? (
+            <div className="mt-4 rounded-xl border border-amber-300/20 bg-slate-950/50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                Senha de acesso — copiar agora
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                A senha foi criada, mas o email não chegou a ser enviado. Por segurança, esta é a oportunidade de a copiar e enviar manualmente ao professor.
+              </p>
+
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  readOnly
+                  value={
+                    decisionFeedback
+                      .fallbackCredential
+                      .password
+                  }
+                  aria-label="Senha de fallback do acesso piloto"
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleCopyFallbackPassword()
+                  }}
+                  className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
+                >
+                  {passwordCopied
+                    ? 'Copiada ✓'
+                    : 'Copiar senha'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
               Gestão diária
             </p>
+
             <h2 className="mt-1 text-2xl font-black">
-              Contas e licenças
+              Pedidos e acessos
             </h2>
           </div>
 
@@ -253,6 +449,7 @@ function MAProfessorAdminContent() {
             <p className="text-sm font-black text-rose-200">
               Não foi possível carregar os dados reais
             </p>
+
             <p className="mt-2 text-xs leading-5 text-slate-400">
               {error}
             </p>
@@ -262,9 +459,11 @@ function MAProfessorAdminContent() {
         {loading && !overview ? (
           <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
+
             <p className="mt-4 text-sm font-black text-slate-300">
               A carregar pedidos, licenças e renovações
             </p>
+
             <p className="mt-2 text-xs text-slate-600">
               Ligação segura ao motor atual do MA-Professor.
             </p>
@@ -296,42 +495,42 @@ function MAProfessorAdminContent() {
       </section>
 
       <section className="mt-7 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-            Plano 30 dias
+        <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
+            Fase piloto
           </p>
+
           <p className="mt-3 text-2xl font-black">
-            3,49 €
+            Acesso gratuito
           </p>
-          <p className="mt-1 text-sm text-slate-400">
-            30 dias · renovação manual · nova autorização e nova senha em cada novo pagamento
+
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Vagas limitadas, pedido sujeito a decisão administrativa e manutenção da vaga ligada à utilização durante o piloto.
           </p>
         </article>
 
-        <article className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-amber-300">
-            Ano letivo
+        <article className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-300">
+            Comunicação de acesso
           </p>
+
           <p className="mt-3 text-2xl font-black">
-            15 €
+            Decisão por email
           </p>
-          <p className="mt-1 text-sm text-slate-400">
-            Até 1 de agosto · sem mensalidades durante a validade
+
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Quando o serviço de envio está configurado, a aprovação piloto gera a senha e envia automaticamente as instruções ao professor. Uma rejeição envia apenas a decisão.
           </p>
         </article>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-          Estado comercial
+      <section className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/[0.035] p-4 sm:p-5">
+        <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+          Infraestrutura comercial preservada
         </p>
+
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          O MA-Professor é tratado como live.
-          Não existe um workflow beta paralelo.
-          Quando a MA-CODE decide oferecer o
-          acesso a uma pessoa, o pagamento é
-          registado como dispensado — nunca como
-          se tivesse sido recebido.
+          O piloto gratuito é o fluxo público atual. Autorizações comerciais anteriores continuam reconhecidas pelo backend e mantêm as regras próprias de plano, pagamento e credencial, sem aparecerem como condição de entrada no piloto.
         </p>
       </section>
 
@@ -339,20 +538,13 @@ function MAProfessorAdminContent() {
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Backend MA-Professor
         </p>
+
         <h2 className="mt-2 text-xl font-black">
-          Plano, aprovação e pagamento controlam a geração da senha.
+          A aprovação piloto não depende de pagamento.
         </h2>
+
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          O plano chega associado ao pedido porque
-          foi escolhido pelo professor antes do
-          envio. O administrador aprova ou rejeita
-          o pedido e valida o estado comercial. A
-          nova senha só pode ser gerada quando o
-          pedido estiver aprovado e o pagamento
-          estiver confirmado ou explicitamente
-          dispensado. A ativação usa essa
-          autorização para criar a licença com o
-          período correto.
+          Num pedido piloto, a aprovação administrativa permite emitir uma credencial sem criar uma autorização comercial. Com o serviço de email ativo, a senha é criada e enviada ao professor na própria aprovação. O período de acesso continua a ser criado pelo motor de acesso apenas quando ocorre a primeira ativação válida.
         </p>
       </section>
     </>
@@ -365,7 +557,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central de pedidos, planos escolhidos pelos professores, pagamentos, credenciais, ativações, licenças e renovações do MA-Professor através do backend protegido da MA-CODE."
+      description="Gestão central de pedidos da fase piloto, decisões de acesso, credenciais, ativações, licenças, renovações e histórico através do backend protegido da MA-CODE."
     >
       <MAProfessorAdminContent />
     </AdminShell>
