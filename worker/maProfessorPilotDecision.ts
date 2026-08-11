@@ -11,50 +11,29 @@ import type {
 type JsonObject =
   Record<string, unknown>
 
-interface MAProfessorEmailAddress {
-  email: string
-  name?: string
-}
-
 interface MAProfessorEmailMessage {
-  to:
-    | string
-    | MAProfessorEmailAddress
-  from:
-    | string
-    | MAProfessorEmailAddress
+  to: string
   subject: string
-  html?: string
-  text?: string
-  replyTo?:
-    | string
-    | MAProfessorEmailAddress
-}
-
-interface MAProfessorEmailSendResult {
-  messageId: string
-}
-
-interface MAProfessorEmailBinding {
-  send(
-    message: MAProfessorEmailMessage
-  ): Promise<MAProfessorEmailSendResult>
+  html: string
+  text: string
 }
 
 export interface MAProfessorDecisionEmailEnv {
-  MA_PROFESSOR_EMAIL?:
-    MAProfessorEmailBinding
+  RESEND_API_KEY_MA_PROFESSOR?: string
 }
 
 type MAProfessorDecisionEnv =
   MaProfessorAccessEnv &
   MAProfessorDecisionEmailEnv
 
+const RESEND_EMAIL_API_URL =
+  'https://api.resend.com/emails'
+
 const MA_PROFESSOR_ACCESS_URL =
   'https://ma-code.pt/produtos/ma-professor'
 
 const MA_PROFESSOR_EMAIL_ADDRESS =
-  'acesso@ma-code.pt'
+  'acesso@professor.ma-code.pt'
 
 const MA_PROFESSOR_EMAIL_NAME =
   'MA-Professor | MA-CODE'
@@ -230,18 +209,6 @@ function buildApprovalEmail(
   return {
     to:
       email,
-    from: {
-      email:
-        MA_PROFESSOR_EMAIL_ADDRESS,
-      name:
-        MA_PROFESSOR_EMAIL_NAME
-    },
-    replyTo: {
-      email:
-        MA_PROFESSOR_EMAIL_ADDRESS,
-      name:
-        MA_PROFESSOR_EMAIL_NAME
-    },
     subject:
       'O seu acesso ao MA-Professor foi aprovado',
     text: [
@@ -255,7 +222,7 @@ function buildApprovalEmail(
       '',
       'Na página do MA-Professor, escolha “Já tenho acesso” e introduza o email e a senha acima.',
       '',
-      'A senha é pessoal. Não a partilhe.',
+      'Esta senha está associada à sua conta e ao respetivo período de acesso. Não a partilhe.',
       '',
       'Durante a fase piloto poderá ser solicitada uma confirmação periódica para manutenção da vaga.',
       '',
@@ -300,7 +267,7 @@ function buildApprovalEmail(
         </p>
 
         <p style="color:#475569;font-size:14px;">
-          A senha é pessoal. Não a partilhe.
+          Esta senha está associada à sua conta e ao respetivo período de acesso. Não a partilhe.
         </p>
 
         <p style="color:#475569;font-size:14px;">
@@ -321,18 +288,6 @@ function buildRejectionEmail(
   return {
     to:
       email,
-    from: {
-      email:
-        MA_PROFESSOR_EMAIL_ADDRESS,
-      name:
-        MA_PROFESSOR_EMAIL_NAME
-    },
-    replyTo: {
-      email:
-        MA_PROFESSOR_EMAIL_ADDRESS,
-      name:
-        MA_PROFESSOR_EMAIL_NAME
-    },
     subject:
       'Decisão sobre o seu pedido ao MA-Professor',
     text: [
@@ -382,6 +337,106 @@ function buildRejectionEmail(
       </div>
     `
   }
+}
+
+function getResendApiKey(
+  env: MAProfessorDecisionEnv
+) {
+  return (
+    env.RESEND_API_KEY_MA_PROFESSOR ||
+    ''
+  ).trim()
+}
+
+async function getResendErrorMessage(
+  response: Response
+) {
+  const body =
+    await readResponseJson(
+      response
+    )
+
+  const message =
+    body?.message
+
+  return typeof message ===
+    'string' &&
+    message.trim()
+      ? message.trim()
+      : `Resend devolveu HTTP ${response.status}.`
+}
+
+async function sendMAProfessorEmail(
+  env: MAProfessorDecisionEnv,
+  message: MAProfessorEmailMessage
+) {
+  const apiKey =
+    getResendApiKey(env)
+
+  if (!apiKey) {
+    throw new Error(
+      'RESEND_API_KEY_MA_PROFESSOR não está configurada.'
+    )
+  }
+
+  const response =
+    await fetch(
+      RESEND_EMAIL_API_URL,
+      {
+        method:
+          'POST',
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
+          'Content-Type':
+            'application/json',
+          Accept:
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            from:
+              `${MA_PROFESSOR_EMAIL_NAME} <${MA_PROFESSOR_EMAIL_ADDRESS}>`,
+            to: [
+              message.to
+            ],
+            subject:
+              message.subject,
+            html:
+              message.html,
+            text:
+              message.text
+          })
+      }
+    )
+
+  if (!response.ok) {
+    throw new Error(
+      await getResendErrorMessage(
+        response
+      )
+    )
+  }
+
+  const body =
+    await readResponseJson(
+      response
+    )
+
+  const messageId =
+    body?.id
+
+  if (
+    typeof messageId !==
+      'string' ||
+    !messageId
+  ) {
+    throw new Error(
+      'O Resend aceitou o pedido, mas não devolveu o identificador do email.'
+    )
+  }
+
+  return messageId
 }
 
 async function getCommercialMode(
@@ -488,13 +543,13 @@ export async function processMAProfessorAccessDecision(
     })
   }
 
-  if (!env.MA_PROFESSOR_EMAIL) {
+  if (!getResendApiKey(env)) {
     return json({
       success: true,
       message:
         decision === 'approve'
-          ? 'Pedido piloto aprovado. O envio automático de email ainda não está configurado; gere e envie a senha manualmente através da ficha da conta.'
-          : 'Pedido piloto rejeitado. O envio automático de email ainda não está configurado.',
+          ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha manualmente através da ficha da conta.'
+          : 'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
       request,
       emailDelivery:
         'not_configured',
@@ -505,7 +560,8 @@ export async function processMAProfessorAccessDecision(
 
   if (decision === 'reject') {
     try {
-      await env.MA_PROFESSOR_EMAIL.send(
+      await sendMAProfessorEmail(
+        env,
         buildRejectionEmail(
           email
         )
@@ -514,7 +570,7 @@ export async function processMAProfessorAccessDecision(
       return json({
         success: true,
         message:
-          'Pedido piloto rejeitado e email de decisão enviado ao professor.',
+          'Pedido piloto rejeitado e email de decisão enviado ao professor através do Resend.',
         request,
         emailDelivery:
           'sent',
@@ -525,6 +581,8 @@ export async function processMAProfessorAccessDecision(
       console.error(
         'MA-Professor rejection email failed',
         {
+          provider:
+            'resend',
           message:
             emailError instanceof Error
               ? emailError.message
@@ -602,7 +660,8 @@ export async function processMAProfessorAccessDecision(
   }
 
   try {
-    await env.MA_PROFESSOR_EMAIL.send(
+    await sendMAProfessorEmail(
+      env,
       buildApprovalEmail(
         email,
         credential.password
@@ -612,7 +671,7 @@ export async function processMAProfessorAccessDecision(
     return json({
       success: true,
       message:
-        'Pedido piloto aprovado, senha criada e email de acesso enviado ao professor.',
+        'Pedido piloto aprovado, senha criada e email de acesso enviado ao professor através do Resend.',
       request,
       emailDelivery:
         'sent',
@@ -623,6 +682,8 @@ export async function processMAProfessorAccessDecision(
     console.error(
       'MA-Professor approval email failed',
       {
+        provider:
+          'resend',
         message:
           emailError instanceof Error
             ? emailError.message
