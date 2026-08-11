@@ -58,16 +58,23 @@ type QueueTicket = {
   id: string
   playerId: string
   playerName: string
+  reconnectToken: string
   joinedAt: number
   deadlineAt: number
   status: TicketStatus
   matchId: string | null
 }
 
+type MatchCredential = {
+  playerId: string
+  reconnectToken: string
+}
+
 type MatchRecord = {
   id: string
   createdAt: number
   participants: MatchParticipant[]
+  gameSessionCredentials?: MatchCredential[]
 }
 
 type StoredState = {
@@ -267,6 +274,24 @@ const createId = (
   return `${prefix}-${Date.now()}-${Math.random()
     .toString(36)
     .slice(2, 12)}`
+}
+
+const createReconnectToken = () => {
+  const bytes =
+    new Uint8Array(32)
+
+  globalThis.crypto
+    .getRandomValues(
+      bytes
+    )
+
+  return Array.from(
+    bytes,
+    (byte) =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
 }
 
 const getDurableObject = (
@@ -641,6 +666,18 @@ export class ConquistadorMatchmakingDurableObject {
     const matchId =
       createId('match')
 
+    for (
+      const ticket
+      of tickets
+    ) {
+      if (
+        !ticket.reconnectToken
+      ) {
+        ticket.reconnectToken =
+          createReconnectToken()
+      }
+    }
+
     const humans:
       MatchParticipant[] =
       tickets.map(
@@ -691,7 +728,16 @@ export class ConquistadorMatchmakingDurableObject {
         participants: [
           ...humans,
           ...bots
-        ]
+        ],
+        gameSessionCredentials:
+          tickets.map(
+            (ticket) => ({
+              playerId:
+                ticket.playerId,
+              reconnectToken:
+                ticket.reconnectToken
+            })
+          )
       }
 
     state.matches[
@@ -803,6 +849,13 @@ export class ConquistadorMatchmakingDurableObject {
             ticket.id,
           matchId:
             match.id,
+          playerId:
+            ticket.playerId,
+          reconnectToken:
+            ticket.reconnectToken,
+          gameSessionCredentials:
+            match.gameSessionCredentials ||
+            [],
           participants:
             match.participants,
           humanCount:
@@ -840,6 +893,8 @@ export class ConquistadorMatchmakingDurableObject {
         ticket.id,
       playerId:
         ticket.playerId,
+      reconnectToken:
+        ticket.reconnectToken,
       deadlineAt:
         ticket.deadlineAt,
       remainingMs:
@@ -891,6 +946,8 @@ export class ConquistadorMatchmakingDurableObject {
         playerId:
           createId('human'),
         playerName,
+        reconnectToken:
+          createReconnectToken(),
         joinedAt: now,
         deadlineAt:
           now +
