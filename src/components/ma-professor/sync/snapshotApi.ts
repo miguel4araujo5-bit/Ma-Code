@@ -6,6 +6,10 @@ const API_PREFIX =
   '/api/ma-professor/snapshot'
 
 const MAX_RECORD_ID_LENGTH = 128
+const MAX_BODY_BYTES = 1_500_000
+
+const textEncoder =
+  new TextEncoder()
 
 export interface MAProfessorSnapshotPushResult {
   success: true
@@ -386,6 +390,28 @@ async function postJson(
   >,
   fallbackMessage: string
 ) {
+  const serializedBody =
+    JSON.stringify(
+      body
+    )
+
+  const bodyBytes =
+    textEncoder
+      .encode(
+        serializedBody
+      )
+      .byteLength
+
+  if (
+    bodyBytes >
+    MAX_BODY_BYTES
+  ) {
+    throw new MAProfessorSnapshotRequestError(
+      'O registo cifrado ultrapassa o limite permitido pelo serviço de cópias.',
+      413
+    )
+  }
+
   let response: Response
 
   try {
@@ -408,9 +434,7 @@ async function postJson(
             'no-store',
 
           body:
-            JSON.stringify(
-              body
-            )
+            serializedBody
         }
       )
   } catch {
