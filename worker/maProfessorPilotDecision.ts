@@ -1,7 +1,9 @@
 import {
   decideMAProfessorAccessRequest,
   generateMAProfessorAdminCredential,
-  getMAProfessorAdminCommercialStatus
+  updateMAProfessorAdminEmailDispatchStatus,
+  type MAProfessorDecisionMode,
+  type MAProfessorEmailDispatchStatus
 } from './maProfessorAccessAdminBridge'
 
 import type {
@@ -104,32 +106,6 @@ function escapeHtml(
     .replaceAll("'", '&#039;')
 }
 
-function getAuthorizationId(
-  body: JsonObject | null
-) {
-  const commerce =
-    body?.commerce
-
-  if (
-    !commerce ||
-    typeof commerce !==
-      'object' ||
-    Array.isArray(commerce)
-  ) {
-    return null
-  }
-
-  const authorizationId =
-    (commerce as JsonObject)
-      .authorizationId
-
-  return typeof authorizationId ===
-    'string' &&
-    authorizationId
-      ? authorizationId
-      : null
-}
-
 function getGeneratedCredential(
   body: JsonObject | null
 ) {
@@ -194,6 +170,217 @@ function getRequestSummary(
     !Array.isArray(request)
       ? request
       : undefined
+}
+
+function getDecisionMode(
+  body: JsonObject | null
+): MAProfessorDecisionMode | null {
+  const directMode =
+    body?.decisionMode
+
+  if (
+    directMode ===
+      'pilot' ||
+    directMode ===
+      'commercial'
+  ) {
+    return directMode
+  }
+
+  const request =
+    getRequestSummary(
+      body
+    )
+
+  if (!request) {
+    return null
+  }
+
+  const requestMode =
+    (request as JsonObject)
+      .decisionMode
+
+  return requestMode ===
+      'pilot' ||
+    requestMode ===
+      'commercial'
+    ? requestMode
+    : null
+}
+
+function getEmailDispatchStatus(
+  body: JsonObject | null
+): MAProfessorEmailDispatchStatus | null {
+  const directStatus =
+    body?.emailDispatchStatus
+
+  if (
+    directStatus ===
+      'not_applicable' ||
+    directStatus ===
+      'not_configured' ||
+    directStatus ===
+      'pending' ||
+    directStatus ===
+      'sent' ||
+    directStatus ===
+      'failed'
+  ) {
+    return directStatus
+  }
+
+  const request =
+    getRequestSummary(
+      body
+    )
+
+  if (!request) {
+    return null
+  }
+
+  const requestStatus =
+    (request as JsonObject)
+      .emailDispatchStatus
+
+  return requestStatus ===
+      'not_applicable' ||
+    requestStatus ===
+      'not_configured' ||
+    requestStatus ===
+      'pending' ||
+    requestStatus ===
+      'sent' ||
+    requestStatus ===
+      'failed'
+    ? requestStatus
+    : null
+}
+
+function buildRetryMessage(
+  decision:
+    | 'approve'
+    | 'reject',
+  mode: MAProfessorDecisionMode,
+  status: MAProfessorEmailDispatchStatus
+) {
+  if (
+    mode ===
+      'commercial' ||
+    status ===
+      'not_applicable'
+  ) {
+    return decision ===
+      'approve'
+      ? 'Este pedido comercial já estava aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha.'
+      : 'Este pedido comercial já estava rejeitado.'
+  }
+
+  if (
+    status ===
+    'sent'
+  ) {
+    return decision ===
+      'approve'
+      ? 'Este pedido piloto já estava aprovado e o envio automático anterior está registado como enviado. Não foi gerada uma nova senha.'
+      : 'Este pedido piloto já estava rejeitado e o email de decisão anterior está registado como enviado.'
+  }
+
+  if (
+    status ===
+    'failed'
+  ) {
+    return decision ===
+      'approve'
+      ? 'Este pedido piloto já estava aprovado, mas o envio automático anterior ficou registado como falhado. Consulte a ficha da conta antes de gerar uma nova senha.'
+      : 'Este pedido piloto já estava rejeitado, mas o envio automático anterior ficou registado como falhado.'
+  }
+
+  if (
+    status ===
+    'not_configured'
+  ) {
+    return decision ===
+      'approve'
+      ? 'Este pedido piloto já estava aprovado, mas o envio automático não estava configurado. Consulte a ficha da conta para concluir o acesso manualmente.'
+      : 'Este pedido piloto já estava rejeitado, mas o envio automático não estava configurado.'
+  }
+
+  return decision ===
+    'approve'
+    ? 'Este pedido piloto já estava aprovado. O resultado do envio automático anterior continua por confirmar, por isso não foi gerada nem enviada uma nova senha.'
+    : 'Este pedido piloto já estava rejeitado. O resultado do envio automático anterior continua por confirmar.'
+}
+
+async function persistEmailDispatchStatus(
+  env: MAProfessorDecisionEnv,
+  email: string,
+  status: MAProfessorEmailDispatchStatus
+) {
+  try {
+    const response =
+      await updateMAProfessorAdminEmailDispatchStatus(
+        env,
+        email,
+        status
+      )
+
+    const body =
+      await readResponseJson(
+        response
+      )
+
+    if (!response.ok) {
+      console.error(
+        'MA-Professor email dispatch status update failed',
+        {
+          status,
+          responseStatus:
+            response.status,
+          message:
+            typeof body?.message ===
+              'string'
+              ? body.message
+              : 'Resposta interna inválida.'
+        }
+      )
+
+      return {
+        persisted:
+          false as const,
+        request:
+          getRequestSummary(
+            body
+          )
+      }
+    }
+
+    return {
+      persisted:
+        true as const,
+      request:
+        getRequestSummary(
+          body
+        )
+    }
+  } catch (error) {
+    console.error(
+      'MA-Professor email dispatch status update failed',
+      {
+        status,
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error)
+      }
+    )
+
+    return {
+      persisted:
+        false as const,
+      request:
+        undefined
+    }
+  }
 }
 
 function buildApprovalEmail(
@@ -439,46 +626,6 @@ async function sendMAProfessorEmail(
   return messageId
 }
 
-async function getCommercialMode(
-  env: MAProfessorDecisionEnv,
-  email: string
-) {
-  try {
-    const response =
-      await getMAProfessorAdminCommercialStatus(
-        env,
-        email
-      )
-
-    const body =
-      await readResponseJson(
-        response
-      )
-
-    if (!response.ok) {
-      return {
-        known: false,
-        commercial: false
-      }
-    }
-
-    return {
-      known: true,
-      commercial:
-        Boolean(
-          getAuthorizationId(
-            body
-          )
-        )
-    }
-  } catch {
-    return {
-      known: false,
-      commercial: false
-    }
-  }
-}
-
 export async function processMAProfessorAccessDecision(
   env: MAProfessorDecisionEnv,
   email: string,
@@ -493,14 +640,58 @@ export async function processMAProfessorAccessDecision(
       decision
     )
 
-  if (!decisionResponse.ok) {
-    return decisionResponse
-  }
-
   const decisionBody =
     await readResponseJson(
       decisionResponse
     )
+
+  if (!decisionResponse.ok) {
+    if (
+      decisionResponse.status ===
+      409
+    ) {
+      const request =
+        getRequestSummary(
+          decisionBody
+        )
+
+      const mode =
+        getDecisionMode(
+          decisionBody
+        )
+
+      const emailDispatchStatus =
+        getEmailDispatchStatus(
+          decisionBody
+        )
+
+      if (
+        request &&
+        mode &&
+        emailDispatchStatus
+      ) {
+        return json({
+          success: true,
+          message:
+            buildRetryMessage(
+              decision,
+              mode,
+              emailDispatchStatus
+            ),
+          request,
+          emailDelivery:
+            emailDispatchStatus,
+          credentialIssued:
+            decision ===
+              'approve' &&
+            emailDispatchStatus ===
+              'sent'
+        })
+      }
+    }
+
+    return decisionResponse
+  }
 
   const request =
     getRequestSummary(
@@ -508,27 +699,36 @@ export async function processMAProfessorAccessDecision(
     )
 
   const mode =
-    await getCommercialMode(
-      env,
-      email
+    getDecisionMode(
+      decisionBody
     )
 
-  if (!mode.known) {
+  const initialDispatchStatus =
+    getEmailDispatchStatus(
+      decisionBody
+    )
+
+  if (!mode) {
     return json({
       success: true,
       message:
-        decision === 'approve'
-          ? 'Pedido aprovado. Não foi possível determinar com segurança se o acesso é piloto ou comercial, pelo que nenhuma senha foi gerada automaticamente.'
-          : 'Pedido rejeitado. Não foi possível determinar com segurança a modalidade do acesso para enviar a comunicação automática.',
+        decision ===
+          'approve'
+          ? 'Pedido aprovado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhuma senha foi gerada automaticamente.'
+          : 'Pedido rejeitado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhum email foi enviado automaticamente.',
       request,
       emailDelivery:
-        'failed',
+        initialDispatchStatus ??
+        'pending',
       credentialIssued:
         false
     })
   }
 
-  if (mode.commercial) {
+  if (
+    mode ===
+    'commercial'
+  ) {
     return json({
       success: true,
       message:
@@ -544,13 +744,22 @@ export async function processMAProfessorAccessDecision(
   }
 
   if (!getResendApiKey(env)) {
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'not_configured'
+      )
+
     return json({
       success: true,
       message:
         decision === 'approve'
           ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha manualmente através da ficha da conta.'
           : 'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
-      request,
+      request:
+        persisted.request ??
+        request,
       emailDelivery:
         'not_configured',
       credentialIssued:
@@ -567,11 +776,20 @@ export async function processMAProfessorAccessDecision(
         )
       )
 
+      const persisted =
+        await persistEmailDispatchStatus(
+          env,
+          email,
+          'sent'
+        )
+
       return json({
         success: true,
         message:
           'Pedido piloto rejeitado e email de decisão enviado ao professor através do Resend.',
-        request,
+        request:
+          persisted.request ??
+          request,
         emailDelivery:
           'sent',
         credentialIssued:
@@ -590,11 +808,20 @@ export async function processMAProfessorAccessDecision(
         }
       )
 
+      const persisted =
+        await persistEmailDispatchStatus(
+          env,
+          email,
+          'failed'
+        )
+
       return json({
         success: true,
         message:
           'Pedido piloto rejeitado, mas não foi possível enviar o email de decisão. A decisão ficou guardada no sistema.',
-        request,
+        request:
+          persisted.request ??
+          request,
         emailDelivery:
           'failed',
         credentialIssued:
@@ -622,11 +849,20 @@ export async function processMAProfessorAccessDecision(
       }
     )
 
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'failed'
+      )
+
     return json({
       success: true,
       message:
         'Pedido piloto aprovado, mas não foi possível gerar automaticamente a senha. Pode tentar gerar a senha manualmente na ficha da conta.',
-      request,
+      request:
+        persisted.request ??
+        request,
       emailDelivery:
         'failed',
       credentialIssued:
@@ -647,11 +883,20 @@ export async function processMAProfessorAccessDecision(
       : null
 
   if (!credential) {
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'failed'
+      )
+
     return json({
       success: true,
       message:
         'Pedido piloto aprovado, mas não foi possível obter a nova senha para envio automático. Pode gerar a senha manualmente na ficha da conta.',
-      request,
+      request:
+        persisted.request ??
+        request,
       emailDelivery:
         'failed',
       credentialIssued:
@@ -668,11 +913,20 @@ export async function processMAProfessorAccessDecision(
       )
     )
 
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'sent'
+      )
+
     return json({
       success: true,
       message:
         'Pedido piloto aprovado, senha criada e email de acesso enviado ao professor através do Resend.',
-      request,
+      request:
+        persisted.request ??
+        request,
       emailDelivery:
         'sent',
       credentialIssued:
@@ -691,11 +945,20 @@ export async function processMAProfessorAccessDecision(
       }
     )
 
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'failed'
+      )
+
     return json({
       success: true,
       message:
         'Pedido piloto aprovado e senha criada, mas o email não foi enviado. Copie a senha apresentada agora e envie-a manualmente ao professor.',
-      request,
+      request:
+        persisted.request ??
+        request,
       emailDelivery:
         'failed',
       credentialIssued:
