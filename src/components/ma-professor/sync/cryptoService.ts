@@ -8,7 +8,6 @@ const AES_GCM_IV_BYTES = 12
 const DEVICE_KEY_ALGORITHM = 'RSA-OAEP' as const
 const DEVICE_KEY_MODULUS_LENGTH = 3072
 const DEVICE_KEY_HASH = 'SHA-256' as const
-
 const RECOVERY_KDF_ALGORITHM =
   'PBKDF2-HMAC-SHA-256' as const
 const RECOVERY_KDF_HASH = 'SHA-256' as const
@@ -26,7 +25,6 @@ const RECORD_ENCRYPTION_ALGORITHM =
 
 const RECOVERY_ALPHABET =
   'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
@@ -671,13 +669,9 @@ export async function unlockMAProfessorMasterKeyWithRecoveryCode(
   }
 }
 
-export async function encryptMAProfessorRecord<T>(
-  masterKey: CryptoKey,
-  recordId: string,
-  value: T
-): Promise<MAProfessorEncryptedRecord> {
-  assertWebCryptoAvailable()
-
+function normalizeRecordId(
+  recordId: string
+) {
   const normalizedRecordId =
     recordId.trim()
 
@@ -687,6 +681,12 @@ export async function encryptMAProfessorRecord<T>(
     )
   }
 
+  return normalizedRecordId
+}
+
+function assertMasterKeyForEncryption(
+  masterKey: CryptoKey
+) {
   if (
     masterKey.type !== 'secret' ||
     masterKey.algorithm.name !==
@@ -696,37 +696,40 @@ export async function encryptMAProfessorRecord<T>(
       'A chave principal não é válida.'
     )
   }
+}
 
+function getRecordAdditionalData(
+  normalizedRecordId: string
+) {
+  return textEncoder.encode(
+    `ma-professor-record-v1:${normalizedRecordId}`
+  )
+}
+
+async function encryptMAProfessorRecordPlaintext(
+  masterKey: CryptoKey,
+  normalizedRecordId: string,
+  plaintext: Uint8Array
+): Promise<MAProfessorEncryptedRecord> {
   const nonce =
     getRandomBytes(
       AES_GCM_IV_BYTES
     )
-
-  const additionalData =
-    textEncoder.encode(
-      `ma-professor-record-v1:${normalizedRecordId}`
-    )
-
-  const envelope:
-    WrappedRecordEnvelope<T> = {
-      version:
-        RECORD_ENCRYPTION_VERSION,
-      recordId:
-        normalizedRecordId,
-      value
-    }
 
   const ciphertext =
     await globalThis.crypto.subtle.encrypt(
       {
         name: MASTER_KEY_ALGORITHM,
         iv: nonce,
-        additionalData,
+        additionalData:
+          getRecordAdditionalData(
+            normalizedRecordId
+          ),
         tagLength: 128
       },
       masterKey,
-      textEncoder.encode(
-        JSON.stringify(envelope)
+      toArrayBuffer(
+        plaintext
       )
     )
 
@@ -780,22 +783,11 @@ function equalBytes(
   return difference === 0
 }
 
-export async function decryptMAProfessorRecord<T>(
+async function decryptMAProfessorRecordPlaintext(
   masterKey: CryptoKey,
-  recordId: string,
+  normalizedRecordId: string,
   encrypted: MAProfessorEncryptedRecord
-): Promise<T> {
-  assertWebCryptoAvailable()
-
-  const normalizedRecordId =
-    recordId.trim()
-
-  if (!normalizedRecordId) {
-    throw new Error(
-      'O identificador do registo não é válido.'
-    )
-  }
-
+) {
   if (
     encrypted.encryptionVersion !==
       RECORD_ENCRYPTION_VERSION ||
@@ -833,11 +825,6 @@ export async function decryptMAProfessorRecord<T>(
     )
   }
 
-  const additionalData =
-    textEncoder.encode(
-      `ma-professor-record-v1:${normalizedRecordId}`
-    )
-
   let plaintext: ArrayBuffer
 
   try {
@@ -848,7 +835,10 @@ export async function decryptMAProfessorRecord<T>(
           iv: base64ToBytes(
             encrypted.nonce
           ),
-          additionalData,
+          additionalData:
+            getRecordAdditionalData(
+              normalizedRecordId
+            ),
           tagLength: 128
         },
         masterKey,
@@ -859,6 +849,108 @@ export async function decryptMAProfessorRecord<T>(
       'Não foi possível desencriptar este registo.'
     )
   }
+
+  return new Uint8Array(
+    plaintext
+  )
+}
+
+export async function encryptMAProfessorRecord<T>(
+  masterKey: CryptoKey,
+  recordId: string,
+  value: T
+): Promise<MAProfessorEncryptedRecord> {
+  assertWebCryptoAvailable()
+
+  const normalizedRecordId =
+    normalizeRecordId(
+      recordId
+    )
+
+  assertMasterKeyForEncryption(
+    masterKey
+  )
+
+  const envelope:
+    WrappedRecordEnvelope<T> = {
+      version:
+        RECORD_ENCRYPTION_VERSION,
+      recordId:
+        normalizedRecordId,
+      value
+    }
+
+  return encryptMAProfessorRecordPlaintext(
+    masterKey,
+    normalizedRecordId,
+    textEncoder.encode(
+      JSON.stringify(
+        envelope
+      )
+    )
+  )
+}
+
+export async function encryptMAProfessorRecordBytes(
+  masterKey: CryptoKey,
+  recordId: string,
+  value: Uint8Array
+): Promise<MAProfessorEncryptedRecord> {
+  assertWebCryptoAvailable()
+
+  const normalizedRecordId =
+    normalizeRecordId(
+      recordId
+    )
+
+  assertMasterKeyForEncryption(
+    masterKey
+  )
+
+  return encryptMAProfessorRecordPlaintext(
+    masterKey,
+    normalizedRecordId,
+    value
+  )
+}
+
+export async function decryptMAProfessorRecordBytes(
+  masterKey: CryptoKey,
+  recordId: string,
+  encrypted: MAProfessorEncryptedRecord
+) {
+  assertWebCryptoAvailable()
+
+  const normalizedRecordId =
+    normalizeRecordId(
+      recordId
+    )
+
+  return decryptMAProfessorRecordPlaintext(
+    masterKey,
+    normalizedRecordId,
+    encrypted
+  )
+}
+
+export async function decryptMAProfessorRecord<T>(
+  masterKey: CryptoKey,
+  recordId: string,
+  encrypted: MAProfessorEncryptedRecord
+): Promise<T> {
+  assertWebCryptoAvailable()
+
+  const normalizedRecordId =
+    normalizeRecordId(
+      recordId
+    )
+
+  const plaintext =
+    await decryptMAProfessorRecordPlaintext(
+      masterKey,
+      normalizedRecordId,
+      encrypted
+    )
 
   let envelope: unknown
 
