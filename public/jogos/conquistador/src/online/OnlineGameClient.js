@@ -1,10 +1,50 @@
 const API_URL = '/api/conquistador/game';
 const DEFAULT_POLL_INTERVAL_MS = 700;
+const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 
 function normalizeId(value) {
   return String(value ?? '')
     .replace(/[^A-Za-z0-9_-]/g, '')
     .slice(0, 96);
+}
+
+function normalizeReconnectToken(value) {
+  const token = String(value ?? '').trim();
+
+  return (
+    token.length >= 32 &&
+    token.length <= 256 &&
+    /^[A-Za-z0-9_-]+$/.test(token)
+  )
+    ? token
+    : '';
+}
+
+function getStoredReconnectToken(matchId, playerId) {
+  try {
+    const raw = localStorage.getItem(STORED_SESSION_KEY);
+
+    if (!raw) {
+      return '';
+    }
+
+    const stored = JSON.parse(raw);
+
+    if (
+      !stored ||
+      typeof stored !== 'object' ||
+      normalizeId(stored.matchId) !== matchId ||
+      normalizeId(stored.playerId) !== playerId
+    ) {
+      return '';
+    }
+
+    return normalizeReconnectToken(
+      stored.reconnectToken,
+    );
+  } catch {
+    return '';
+  }
 }
 
 function normalizeRevision(value) {
@@ -42,17 +82,34 @@ export class OnlineGameClient {
   constructor({
     matchId,
     playerId,
+    reconnectToken,
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   }) {
     this.matchId = normalizeId(matchId);
     this.playerId = normalizeId(playerId);
+
+    this.reconnectToken =
+      normalizeReconnectToken(reconnectToken) ||
+      getStoredReconnectToken(
+        this.matchId,
+        this.playerId,
+      );
+
     this.pollIntervalMs = Math.max(
       250,
       Number(pollIntervalMs) || DEFAULT_POLL_INTERVAL_MS,
     );
 
     if (!this.matchId || !this.playerId) {
-      throw new Error('A sessão online não possui identificação válida.');
+      throw new Error(
+        'A sessão online não possui identificação válida.',
+      );
+    }
+
+    if (!this.reconnectToken) {
+      throw new Error(
+        'A credencial de reconexão desta partida não está disponível.',
+      );
     }
 
     this.revision = null;
@@ -67,12 +124,15 @@ export class OnlineGameClient {
   async request(payload) {
     const response = await fetch(API_URL, {
       method: 'POST',
+
       headers: {
         'Content-Type': 'application/json',
       },
+
       body: JSON.stringify({
         matchId: this.matchId,
         playerId: this.playerId,
+        reconnectToken: this.reconnectToken,
         ...payload,
       }),
     });
@@ -85,7 +145,9 @@ export class OnlineGameClient {
       return this.state;
     }
 
-    const revision = normalizeRevision(data.revision);
+    const revision = normalizeRevision(
+      data.revision,
+    );
 
     if (
       revision !== null &&
@@ -160,13 +222,16 @@ export class OnlineGameClient {
     const commandType = String(type ?? '').trim();
 
     if (!commandType) {
-      throw new Error('A ação online não é válida.');
+      throw new Error(
+        'A ação online não é válida.',
+      );
     }
 
     try {
       const data = await this.request({
         action: 'command',
         revision: this.revision,
+
         command: {
           type: commandType,
           payload,
@@ -175,8 +240,13 @@ export class OnlineGameClient {
 
       return this.applyState(data);
     } catch (error) {
-      if (error?.status === 409 && error?.data?.game) {
-        this.applyState(error.data);
+      if (
+        error?.status === 409 &&
+        error?.data?.game
+      ) {
+        this.applyState(
+          error.data,
+        );
       }
 
       throw error;
@@ -184,11 +254,16 @@ export class OnlineGameClient {
   }
 
   schedulePoll() {
-    if (this.closed || !this.polling) {
+    if (
+      this.closed ||
+      !this.polling
+    ) {
       return;
     }
 
-    window.clearTimeout(this.pollTimer);
+    window.clearTimeout(
+      this.pollTimer,
+    );
 
     this.pollTimer = window.setTimeout(
       () => this.pollOnce(),
@@ -197,7 +272,10 @@ export class OnlineGameClient {
   }
 
   async pollOnce() {
-    if (this.closed || !this.polling) {
+    if (
+      this.closed ||
+      !this.polling
+    ) {
       return;
     }
 
@@ -210,7 +288,9 @@ export class OnlineGameClient {
     }
   }
 
-  async startPolling({ immediate = true } = {}) {
+  async startPolling({
+    immediate = true,
+  } = {}) {
     if (this.closed) {
       return null;
     }
@@ -226,6 +306,7 @@ export class OnlineGameClient {
     }
 
     this.schedulePoll();
+
     return this.state;
   }
 
@@ -233,14 +314,19 @@ export class OnlineGameClient {
     this.polling = false;
 
     if (this.pollTimer) {
-      window.clearTimeout(this.pollTimer);
+      window.clearTimeout(
+        this.pollTimer,
+      );
+
       this.pollTimer = null;
     }
   }
 
   close() {
     this.stopPolling();
+
     this.closed = true;
+
     this.listeners.clear();
     this.errorListeners.clear();
   }
