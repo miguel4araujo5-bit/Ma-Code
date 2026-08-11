@@ -4,7 +4,6 @@ import type {
 
 import type {
     MAProfessorAccessRequestResponse,
-    MAProfessorAccessRequestStatus,
     MAProfessorAccessResponse,
     MAProfessorLicenseResponse,
     MAProfessorRenewalResponse,
@@ -19,34 +18,6 @@ interface ApiErrorBody {
     message?: string;
 }
 
-export type MAProfessorCommercialPlan =
-    RenewableLicensePlan;
-export type MAProfessorPaymentStatus =
-    | 'not_started'
-    | 'pending'
-    | 'confirmed'
-    | 'dispensed';
-export interface MAProfessorCommercialStatusResponse {
-    success: true;
-    email: string;
-    requestStatus:
-        | MAProfessorAccessRequestStatus
-        | null;
-    existingLicense: boolean;
-    authorizationId: string | null;
-    plan:
-        | MAProfessorCommercialPlan
-        | null;
-    amountCents: number | null;
-    currency: 'EUR';
-    paymentStatus: MAProfessorPaymentStatus;
-    selectedAt: string | null;
-    paymentConfirmedAt: string | null;
-    paymentDispensedAt: string | null;
-    credentialIssuedAt: string | null;
-    canSelectPlan: boolean;
-    canActivate: boolean;
-}
 async function postJson<T>(
     path: string,
     body: Record<
@@ -55,6 +26,7 @@ async function postJson<T>(
     >
 ): Promise<T> {
     let response: Response;
+
     try {
         response = await fetch(
             `${API_PREFIX}${path}`,
@@ -76,6 +48,7 @@ async function postJson<T>(
             'Não foi possível ligar ao serviço de acesso. Verifique a ligação e tente novamente.'
         );
     }
+
     let data: unknown;
 
     try {
@@ -100,32 +73,21 @@ async function postJson<T>(
                 'Não foi possível concluir o pedido. Tente novamente.'
         );
     }
+
     return data as T;
 }
 
 export async function requestMAProfessorAccess(
-    email: string,
-    plan: MAProfessorCommercialPlan
+    email: string
 ) {
     return postJson<MAProfessorAccessRequestResponse>(
         '/request',
-        {
-            email,
-            plan
-        }
-    );
-}
-
-export async function getMAProfessorCommercialStatus(
-    email: string
-) {
-    return postJson<MAProfessorCommercialStatusResponse>(
-        '/commerce/status',
         {
             email
         }
     );
 }
+
 export async function activateMAProfessorAccess(
     email: string,
     password: string,
@@ -153,6 +115,7 @@ export async function verifyMAProfessorAccess(
         }
     );
 }
+
 export async function requestMAProfessorRenewal(
     token: string,
     deviceId: string,
@@ -167,6 +130,7 @@ export async function requestMAProfessorRenewal(
         }
     );
 }
+
 export async function endMAProfessorSession(
     token: string,
     deviceId: string
