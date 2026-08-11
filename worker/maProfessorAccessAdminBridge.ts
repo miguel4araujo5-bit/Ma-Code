@@ -294,6 +294,20 @@ function normalizeCommercialPlan(
     : null
 }
 
+function isPilotLicensePlan(
+  value:
+    LicensePlan |
+    null |
+    undefined
+) {
+  return value ===
+      'beta_30_days' ||
+    value ===
+      'courtesy_30_days' ||
+    value ===
+      'courtesy_school_year'
+}
+
 function getCommercialPlanAmount(
   plan: MAProfessorCommercialPlan
 ) {
@@ -1009,8 +1023,42 @@ export class MaProfessorAccessDurableObject {
         email
       )
 
+    if (!authorization) {
+      const credential =
+        state.credentials?.[
+          email
+        ]
+
+      const existingLicense =
+        state.licenses?.[
+          email
+        ]
+
+      const pilotAccess =
+        !existingLicense ||
+        isPilotLicensePlan(
+          existingLicense.plan
+        )
+
+      if (
+        credential?.authorizationId ||
+        credential?.authorizationPlan ||
+        !pilotAccess
+      ) {
+        return json(
+          {
+            success: false,
+            message:
+              'A credencial comercial desta conta não tem uma autorização disponível. Contacte a MA-CODE.'
+          },
+          409
+        )
+      }
+
+      return null
+    }
+
     if (
-      authorization &&
       isPaymentResolved(
         authorization
       ) &&
@@ -2055,67 +2103,146 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const lookup =
-      await this.getApprovedAuthorization(
-        request
-      )
+    let body: JsonObject
 
-    if (lookup.response) {
-      return lookup.response
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
     }
 
-    const {
-      email,
-      state,
-      accessRequest,
-      commerceState,
-      authorization
-    } = lookup
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
 
     if (
-      !email ||
       !state ||
-      !accessRequest ||
-      !commerceState ||
-      !authorization
+      !accessRequest
     ) {
       return json(
         {
           success: false,
           message:
-            'Não foi possível validar a autorização antes de gerar a senha.'
+            'O pedido de acesso não foi encontrado.'
         },
-        500
+        404
       )
     }
 
     if (
-      !isPaymentResolved(
-        authorization
-      )
+      accessRequest.status !==
+      'approved'
     ) {
       return json(
         {
           success: false,
           message:
-            'O pagamento ainda está pendente de verificação. A senha continua bloqueada.'
+            'O pedido tem de estar aprovado antes de gerar a senha.'
         },
         409
       )
     }
 
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    const existingLicense =
+      state.licenses?.[
+        email
+      ]
+
+    const pilotAccess =
+      !authorization &&
+      (
+        !existingLicense ||
+        isPilotLicensePlan(
+          existingLicense.plan
+        )
+      )
+
     if (
-      authorization.credentialIssuedAt !==
-      null
+      !authorization &&
+      !pilotAccess
     ) {
       return json(
         {
           success: false,
           message:
-            'Esta autorização já originou uma senha. Um novo pagamento deve criar uma nova autorização e uma nova senha.'
+            'Esta conta utiliza uma licença comercial, mas não tem uma autorização comercial disponível para emitir uma nova senha.'
         },
         409
       )
+    }
+
+    if (authorization) {
+      if (
+        !isPaymentResolved(
+          authorization
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            message:
+              'O pagamento ainda está pendente de verificação. A senha continua bloqueada.'
+          },
+          409
+        )
+      }
+
+      if (
+        authorization.credentialIssuedAt !==
+        null
+      ) {
+        return json(
+          {
+            success: false,
+            message:
+              'Esta autorização já originou uma senha. Um novo pagamento deve criar uma nova autorização e uma nova senha.'
+          },
+          409
+        )
+      }
     }
 
     const password =
@@ -2151,10 +2278,14 @@ export class MaProfessorAccessDurableObject {
           now,
         updatedAt:
           now,
-        authorizationId:
-          authorization.id,
-        authorizationPlan:
-          authorization.plan
+        ...(authorization
+          ? {
+              authorizationId:
+                authorization.id,
+              authorizationPlan:
+                authorization.plan
+            }
+          : {})
       }
 
     const credentials =
@@ -2178,31 +2309,40 @@ export class MaProfessorAccessDurableObject {
     state.updatedAt =
       now
 
-    authorization.credentialIssuedAt =
-      now
+    if (authorization) {
+      authorization.credentialIssuedAt =
+        now
 
-    authorization.updatedAt =
-      now
+      authorization.updatedAt =
+        now
 
-    commerceState.updatedAt =
-      now
+      commerceState.updatedAt =
+        now
 
-    await this.state.storage.put({
-      [STORAGE_KEY]:
-        state,
-      [COMMERCE_STORAGE_KEY]:
-        commerceState
-    })
+      await this.state.storage.put({
+        [STORAGE_KEY]:
+          state,
+        [COMMERCE_STORAGE_KEY]:
+          commerceState
+      })
+    } else {
+      await this.state.storage.put(
+        STORAGE_KEY,
+        state
+      )
+    }
 
     this.refreshBase()
 
     return json({
       success: true,
       message:
-        authorization.paymentDispensedAt !==
-          null
-          ? 'Nova senha criada para a autorização com pagamento dispensado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
-          : 'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
+        pilotAccess
+          ? 'Senha criada para o acesso gratuito da fase piloto. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
+          : authorization.paymentDispensedAt !==
+              null
+            ? 'Nova senha criada para a autorização com pagamento dispensado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
+            : 'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
       credential: {
         ...buildCredentialStatus(
           email,
