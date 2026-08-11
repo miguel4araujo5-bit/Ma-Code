@@ -774,12 +774,22 @@ async function handlePaidAccessRequest(
         );
     }
 
+    if (
+        plan === undefined ||
+        plan === null ||
+        plan === ''
+    ) {
+        return context.base.fetch(
+            request
+        );
+    }
+
     if (!isPaidPlan(plan)) {
         return json(
             {
                 success: false,
                 message:
-                    'Escolha o plano antes de enviar o pedido de acesso.'
+                    'O plano indicado não é válido.'
             },
             400
         );
@@ -1361,21 +1371,24 @@ async function handlePaidActivation(
         );
 
     if (!authorization) {
-        if (
+        const credential =
             accessState
-                .licenses?.[email]
+                .credentials?.[email];
+
+        if (
+            credential?.authorizationId
         ) {
-            return null;
+            return json(
+                {
+                    success: false,
+                    message:
+                        'A credencial comercial desta conta não tem uma autorização disponível. Contacte a MA-CODE.'
+                },
+                409
+            );
         }
 
-        return json(
-            {
-                success: false,
-                message:
-                    'Ainda não existe uma autorização comercial associada a esta conta.'
-            },
-            409
-        );
+        return null;
     }
 
     if (
