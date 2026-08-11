@@ -114,6 +114,7 @@ interface StoredAccessCredentialSnapshot {
   passwordSalt: string
   passwordHash: string
   passwordIterations: number
+  activationCode?: string
   createdAt: number
   updatedAt: number
   authorizationId?: string
@@ -572,6 +573,9 @@ function buildCredentialStatus(
     email,
     hasCredential:
       Boolean(credential),
+    activationCode:
+      credential?.activationCode ??
+      null,
     createdAt:
       credential
         ? toIso(
@@ -2274,6 +2278,8 @@ export class MaProfessorAccessDurableObject {
         passwordHash,
         passwordIterations:
           PASSWORD_HASH_ITERATIONS,
+        activationCode:
+          password,
         createdAt:
           now,
         updatedAt:
@@ -2338,11 +2344,11 @@ export class MaProfessorAccessDurableObject {
       success: true,
       message:
         pilotAccess
-          ? 'Senha criada para o acesso gratuito da fase piloto. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
+          ? 'Senha criada para o acesso gratuito da fase piloto.'
           : authorization.paymentDispensedAt !==
               null
-            ? 'Nova senha criada para a autorização com pagamento dispensado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.'
-            : 'Nova senha criada para o pagamento confirmado. Copie-a agora: por segurança, não poderá voltar a ser consultada em texto simples.',
+            ? 'Nova senha criada para a autorização com pagamento dispensado.'
+            : 'Nova senha criada para o pagamento confirmado.',
       credential: {
         ...buildCredentialStatus(
           email,
