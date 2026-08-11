@@ -3,8 +3,12 @@ import {
 } from './PropertyControls'
 
 import {
+  MA_QUADRO_ANIMATION_MAX_DELAY_MS,
   MA_QUADRO_ANIMATION_MAX_DURATION_MS,
+  MA_QUADRO_ANIMATION_MAX_ORDER,
+  MA_QUADRO_ANIMATION_MIN_DELAY_MS,
   MA_QUADRO_ANIMATION_MIN_DURATION_MS,
+  MA_QUADRO_ANIMATION_MIN_ORDER,
   type MAQuadroAnimationKind,
   type MAQuadroAnimationPhase,
   type MAQuadroObjectAnimation
@@ -240,7 +244,76 @@ AnimationControls({
                 durationMs:
                   Math.round(
                     seconds *
-                      1000
+                    1000
+                  )
+              })
+            }
+          />
+
+          <NumberField
+            label="Ordem"
+            value={
+              animation.order
+            }
+            min={
+              MA_QUADRO_ANIMATION_MIN_ORDER
+            }
+            max={
+              MA_QUADRO_ANIMATION_MAX_ORDER
+            }
+            step={
+              1
+            }
+            disabled={
+              disabled ||
+              previewing
+            }
+            onCommit={(
+              order
+            ) =>
+              onChange({
+                order:
+                  Math.round(
+                    order
+                  )
+              })
+            }
+          />
+
+          <p className="mq-animation-note">
+            Ordem 0 segue automaticamente a posição do elemento nas camadas. Um valor entre 1 e 99 permite definir manualmente a posição na reprodução sequencial.
+          </p>
+
+          <NumberField
+            label="Atraso"
+            value={
+              animation.delayMs /
+              1000
+            }
+            min={
+              MA_QUADRO_ANIMATION_MIN_DELAY_MS /
+              1000
+            }
+            max={
+              MA_QUADRO_ANIMATION_MAX_DELAY_MS /
+              1000
+            }
+            step={
+              0.1
+            }
+            suffix="s"
+            disabled={
+              disabled ||
+              previewing
+            }
+            onCommit={(
+              seconds
+            ) =>
+              onChange({
+                delayMs:
+                  Math.round(
+                    seconds *
+                    1000
                   )
               })
             }
@@ -263,7 +336,7 @@ AnimationControls({
           </button>
 
           <p className="mq-animation-note">
-            A pré-visualização é temporária. O elemento regressa à posição, escala e opacidade originais quando termina.
+            O atraso também é respeitado na pré-visualização. No fim, o elemento regressa à posição, escala e opacidade originais.
           </p>
         </>
       ) : (
