@@ -189,16 +189,28 @@ function renderPresenceCountdown(warning) {
       '0.45rem 0.7rem';
 
     element.style.border =
-      '1px solid rgba(255,255,255,0.22)';
+      '1px solid rgba(11,64,85,0.22)';
 
     element.style.borderRadius =
       '0.8rem';
 
+    element.style.color =
+      '#0b4055';
+
     element.style.background =
-      'rgba(0,0,0,0.18)';
+      'rgba(255,253,247,0.96)';
+
+    element.style.boxShadow =
+      '0 5px 16px rgba(9,39,54,0.12)';
 
     element.style.whiteSpace =
       'nowrap';
+
+    element.style.position =
+      'relative';
+
+    element.style.zIndex =
+      '20';
 
     const dice =
       turnBanner.querySelector(
@@ -235,34 +247,20 @@ function renderPresenceCountdown(warning) {
   element.innerHTML = `
     <span
       aria-hidden="true"
-      style="
-        font-size:1.05rem;
-        line-height:1;
-      "
-    >
-      ⏱
-    </span>
+      style="font-size:1.05rem;line-height:1"
+    >⏱</span>
 
     <span
-      style="
-        display:flex;
-        flex-direction:column;
-        line-height:1.05;
-      "
+      style="display:flex;flex-direction:column;line-height:1.05"
     >
       <small
-        style="
-          opacity:.78;
-          font-size:.68rem;
-        "
+        style="opacity:.78;font-size:.68rem"
       >
         A aguardar ${safeName}
       </small>
 
       <strong
-        style="
-          font-size:1.15rem;
-        "
+        style="font-size:1.15rem"
       >
         ${seconds}
       </strong>
@@ -307,8 +305,7 @@ export class OnlineGameClient {
     matchId,
     playerId,
     reconnectToken = '',
-    pollIntervalMs =
-      DEFAULT_POLL_INTERVAL_MS,
+    pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   }) {
     this.matchId =
       normalizeId(matchId);
@@ -328,9 +325,7 @@ export class OnlineGameClient {
     this.pollIntervalMs =
       Math.max(
         250,
-        Number(
-          pollIntervalMs,
-        ) ||
+        Number(pollIntervalMs) ||
         DEFAULT_POLL_INTERVAL_MS,
       );
 
@@ -429,6 +424,23 @@ export class OnlineGameClient {
     }
   }
 
+  updatePresenceWarning(data) {
+    if (
+      !data ||
+      !Object.prototype.hasOwnProperty.call(
+        data,
+        'presenceWarnings',
+      )
+    ) {
+      return;
+    }
+
+    this.presenceWarning =
+      getPresenceWarning(data);
+
+    this.renderCountdown();
+  }
+
   renderCountdown() {
     if (this.closed) {
       removePresenceCountdown();
@@ -438,8 +450,7 @@ export class OnlineGameClient {
     if (
       this.presenceWarning &&
       Number(
-        this.presenceWarning
-          .expiresAt,
+        this.presenceWarning.expiresAt,
       ) <= Date.now()
     ) {
       this.presenceWarning =
@@ -453,6 +464,7 @@ export class OnlineGameClient {
 
   applyState(data) {
     if (!data?.game) {
+      this.updatePresenceWarning(data);
       return this.state;
     }
 
@@ -464,8 +476,7 @@ export class OnlineGameClient {
     if (
       revision !== null &&
       this.revision !== null &&
-      revision <
-        this.revision
+      revision < this.revision
     ) {
       return this.state;
     }
@@ -476,10 +487,9 @@ export class OnlineGameClient {
     this.state =
       data;
 
-    this.presenceWarning =
-      getPresenceWarning(
-        data,
-      );
+    this.updatePresenceWarning(
+      data,
+    );
 
     for (
       const listener
@@ -493,10 +503,8 @@ export class OnlineGameClient {
     }
 
     /*
-     * O listener principal faz renderGame(),
-     * que reconstrói o DOM.
-     * Por isso colocamos o relógio DEPOIS
-     * dos listeners.
+     * O listener principal pode reconstruir o DOM.
+     * Voltamos a montar o relógio depois dos listeners.
      */
     this.renderCountdown();
 
@@ -568,6 +576,15 @@ export class OnlineGameClient {
       data.status ===
       'not-modified'
     ) {
+      /*
+       * A presença muda com o tempo, mesmo quando a revisão
+       * do jogo não muda. Por isso processamos sempre
+       * presenceWarnings também numa resposta not-modified.
+       */
+      this.updatePresenceWarning(
+        data,
+      );
+
       this.renderCountdown();
 
       return this.state;
@@ -723,7 +740,6 @@ export class OnlineGameClient {
       true;
 
     this.listeners.clear();
-
     this.errorListeners.clear();
   }
 }
