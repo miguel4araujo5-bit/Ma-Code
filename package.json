@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "test": "npm run test:conquistador && npm run test:ma-quadro",
     "test:conquistador": "node --test tests/conquistador/phase1a.test.mjs",
-    "test:ma-quadro": "node --test tests/ma-quadro/core-safety.test.mjs",
+    "test:ma-quadro": "node --test tests/ma-quadro/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
