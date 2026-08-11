@@ -43,6 +43,9 @@ type PageAnimationEntry = {
 
   snapshot:
     MAQuadroAnimationSnapshot
+
+  layerIndex:
+    number
 }
 
 export const
@@ -342,6 +345,42 @@ function animate(
   )
 }
 
+function compareEntries(
+  left:
+    PageAnimationEntry,
+  right:
+    PageAnimationEntry
+) {
+  const leftOrder =
+    left.animation.order >
+    0
+      ? left.animation.order
+      : left.layerIndex +
+        1
+
+  const rightOrder =
+    right.animation.order >
+    0
+      ? right.animation.order
+      : right.layerIndex +
+        1
+
+  if (
+    leftOrder !==
+    rightOrder
+  ) {
+    return (
+      leftOrder -
+      rightOrder
+    )
+  }
+
+  return (
+    left.layerIndex -
+    right.layerIndex
+  )
+}
+
 export function
 getMAQuadroPageAnimatedObjects(
   canvas:
@@ -386,26 +425,45 @@ function createEntries(
   canvas:
     Canvas
 ): PageAnimationEntry[] {
-  return getMAQuadroPageAnimatedObjects(
+  return (
     canvas
-  ).map(
-    (
-      object
-    ) => ({
-      object,
-
-      animation:
-        getMAQuadroObjectAnimation(
-          object
-        ),
-
-      snapshot:
-        captureMAQuadroAnimationSnapshot(
-          canvas,
-          object
-        )
-    })
+      .getObjects() as
+        MAQuadroFabricObject[]
   )
+    .map(
+      (
+        object,
+        layerIndex
+      ) => ({
+        object,
+
+        animation:
+          getMAQuadroObjectAnimation(
+            object
+          ),
+
+        snapshot:
+          captureMAQuadroAnimationSnapshot(
+            canvas,
+            object
+          ),
+
+        layerIndex
+      })
+    )
+    .filter(
+      (
+        entry
+      ) => (
+        entry.object.visible !==
+          false &&
+        entry.animation.kind !==
+          'none'
+      )
+    )
+    .sort(
+      compareEntries
+    )
 }
 
 function prepareEntries(
@@ -484,6 +542,16 @@ async function playSequential(
         index
       ]
 
+    if (
+      entry.animation.delayMs >
+      0
+    ) {
+      await wait(
+        entry.animation.delayMs,
+        signal
+      )
+    }
+
     await animate(
       entry
         .animation
@@ -532,10 +600,10 @@ async function playTogether(
       ...entries.map(
         (
           entry
-        ) =>
-          entry
-            .animation
-            .durationMs
+        ) => (
+          entry.animation.delayMs +
+          entry.animation.durationMs
+        )
       )
     )
 
@@ -553,18 +621,25 @@ async function playTogether(
         const entry
         of entries
       ) {
+        const localElapsed =
+          elapsed -
+          entry.animation.delayMs
+
         const progress =
-          clamp(
-            elapsed /
-            Math.max(
-              1,
-              entry
-                .animation
-                .durationMs
-            ),
-            0,
-            1
-          )
+          localElapsed <=
+          0
+            ? 0
+            : clamp(
+                localElapsed /
+                Math.max(
+                  1,
+                  entry
+                    .animation
+                    .durationMs
+                ),
+                0,
+                1
+              )
 
         applyMAQuadroObjectAnimationProgress(
           canvas,
