@@ -397,11 +397,38 @@ export default function MAProfessorAdminAccountDetail({
         ?.authorizationId
     )
 
+  const isNonCommercialLicense =
+    currentLicense?.plan ===
+      'beta_30_days' ||
+    currentLicense?.plan ===
+      'courtesy_30_days' ||
+    currentLicense?.plan ===
+      'courtesy_school_year'
+
+  const isPilotRequest =
+    Boolean(
+      request &&
+      commercialStatus &&
+      !hasAuthorization &&
+      (
+        !currentLicense ||
+        isNonCommercialLicense
+      )
+    )
+
   const authorizationCredentialIssued =
     Boolean(
       commercialStatus
         ?.credentialIssuedAt
     )
+
+  const currentCredentialIssued =
+    isPilotRequest
+      ? Boolean(
+          credentialStatus
+            ?.hasCredential
+        )
+      : authorizationCredentialIssued
 
   const canResolvePayment =
     dataConnected &&
@@ -417,9 +444,12 @@ export default function MAProfessorAdminAccountDetail({
     dataConnected &&
     request?.status ===
       'approved' &&
-    Boolean(
-      commercialStatus
-        ?.canGenerateCredential
+    (
+      isPilotRequest ||
+      Boolean(
+        commercialStatus
+          ?.canGenerateCredential
+      )
     ) &&
     !commercialLoading &&
     !credentialLoading &&
@@ -761,19 +791,33 @@ export default function MAProfessorAdminAccountDetail({
           ? 'dispensado pela MA-CODE'
           : 'confirmado'
 
+      const confirmationLines =
+        isPilotRequest
+          ? [
+              `Gerar uma nova senha para ${email}?`,
+              '',
+              'Modalidade: Fase piloto',
+              'Custo: Gratuito',
+              '',
+              'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
+            ]
+          : [
+              `Gerar uma nova senha para ${email}?`,
+              '',
+              `Plano: ${getCommercialPlanLabel(
+                commercialStatus?.plan ??
+                null
+              )}`,
+              `Pagamento: ${paymentLabel}`,
+              '',
+              'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
+            ]
+
       const confirmed =
         window.confirm(
-          [
-            `Gerar uma nova senha para ${email}?`,
-            '',
-            `Plano: ${getCommercialPlanLabel(
-              commercialStatus?.plan ??
-              null
-            )}`,
-            `Pagamento: ${paymentLabel}`,
-            '',
-            'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
-          ].join('\n')
+          confirmationLines.join(
+            '\n'
+          )
         )
 
       if (!confirmed) {
@@ -1002,11 +1046,15 @@ export default function MAProfessorAdminAccountDetail({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                Plano e pagamento
+                {isPilotRequest
+                  ? 'Fase piloto'
+                  : 'Plano e pagamento'}
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
-                Autorização comercial
+                {isPilotRequest
+                  ? 'Acesso gratuito'
+                  : 'Autorização comercial'}
               </h3>
             </div>
 
@@ -1015,16 +1063,20 @@ export default function MAProfessorAdminAccountDetail({
                 'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
                 commercialLoading
                   ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
-                  : getPaymentStatusClassName(
-                      commercialStatus?.paymentStatus
-                    )
+                  : isPilotRequest
+                    ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
+                    : getPaymentStatusClassName(
+                        commercialStatus?.paymentStatus
+                      )
               ].join(' ')}
             >
               {commercialLoading
                 ? 'A verificar'
-                : getPaymentStatusLabel(
-                    commercialStatus?.paymentStatus
-                  )}
+                : isPilotRequest
+                  ? 'Piloto gratuito'
+                  : getPaymentStatusLabel(
+                      commercialStatus?.paymentStatus
+                    )}
             </span>
           </div>
 
@@ -1057,8 +1109,90 @@ export default function MAProfessorAdminAccountDetail({
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-300/20 border-t-violet-200" />
 
               <p className="text-xs font-bold text-slate-400">
-                A carregar plano e estado do pagamento…
+                A carregar estado do acesso…
               </p>
+            </div>
+          ) : isPilotRequest ? (
+            <div className="mt-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailValue
+                  label="Modalidade"
+                  value="Fase piloto"
+                  note="Acesso atribuído durante a fase piloto do MA-Professor."
+                />
+
+                <DetailValue
+                  label="Custo"
+                  value="Gratuito"
+                />
+
+                <DetailValue
+                  label="Estado do pedido"
+                  value={
+                    request
+                      ? getAccessRequestStatusLabel(
+                          request.status
+                        )
+                      : '—'
+                  }
+                />
+
+                <DetailValue
+                  label="Decisão"
+                  value={
+                    request?.status ===
+                    'approved'
+                      ? formatDate(
+                          request.approvedAt
+                        )
+                      : request?.status ===
+                          'rejected'
+                        ? formatDate(
+                            request.rejectedAt
+                          )
+                        : 'A aguardar análise'
+                  }
+                />
+              </div>
+
+              {request?.status ===
+                'pending' ? (
+                <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+                  <p className="text-sm font-black text-amber-200">
+                    Pedido piloto em análise
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    Não existe pagamento para validar. Aprove ou rejeite o pedido na lista de pedidos.
+                  </p>
+                </div>
+              ) : null}
+
+              {request?.status ===
+                'approved' ? (
+                <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                  <p className="text-sm font-black text-emerald-200">
+                    Pedido piloto aprovado
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    O acesso é gratuito nesta fase. Pode gerar a senha no bloco de credencial, sem confirmação de pagamento.
+                  </p>
+                </div>
+              ) : null}
+
+              {request?.status ===
+                'rejected' ? (
+                <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-4">
+                  <p className="text-sm font-black text-rose-200">
+                    Pedido piloto não aprovado
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Não pode ser emitida uma senha enquanto o pedido estiver rejeitado.
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : commercialStatus && hasAuthorization ? (
             <div className="mt-4">
@@ -1200,11 +1334,11 @@ export default function MAProfessorAdminAccountDetail({
           ) : request ? (
             <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
               <p className="text-sm font-black text-amber-200">
-                Sem autorização comercial associada
+                Estado do acesso indisponível
               </p>
 
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Os pedidos novos devem chegar com o plano escolhido pelo professor. Não selecione manualmente um plano no MA-ADMIN para o fluxo normal.
+                O pedido existe, mas não foi possível determinar a modalidade de acesso. Atualize a ficha antes de executar uma ação administrativa.
               </p>
             </div>
           ) : (
@@ -1372,18 +1506,22 @@ export default function MAProfessorAdminAccountDetail({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-                Credencial
+                {isPilotRequest
+                  ? 'Acesso piloto'
+                  : 'Credencial'}
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
-                Senha da autorização atual
+                {isPilotRequest
+                  ? 'Senha de acesso'
+                  : 'Senha da autorização atual'}
               </h3>
             </div>
 
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-400">
               {credentialLoading
                 ? 'A verificar'
-                : authorizationCredentialIssued
+                : currentCredentialIssued
                   ? 'Senha emitida'
                   : 'Sem nova senha'}
             </span>
@@ -1453,13 +1591,21 @@ export default function MAProfessorAdminAccountDetail({
                     ? 'Sim'
                     : 'Não'
                 }
-                note="Pode existir uma credencial anterior enquanto uma nova autorização ainda aguarda a emissão da sua própria senha."
+                note={
+                  isPilotRequest
+                    ? 'No piloto, a senha pode ser emitida assim que o pedido estiver aprovado.'
+                    : 'Pode existir uma credencial anterior enquanto uma nova autorização ainda aguarda a emissão da sua própria senha.'
+                }
               />
 
               <DetailValue
-                label="Senha da autorização atual"
+                label={
+                  isPilotRequest
+                    ? 'Senha do acesso piloto'
+                    : 'Senha da autorização atual'
+                }
                 value={
-                  authorizationCredentialIssued
+                  currentCredentialIssued
                     ? 'Emitida'
                     : 'Ainda não emitida'
                 }
@@ -1468,8 +1614,11 @@ export default function MAProfessorAdminAccountDetail({
               <DetailValue
                 label="Emitida em"
                 value={formatDate(
-                  commercialStatus?.credentialIssuedAt ??
-                  null
+                  isPilotRequest
+                    ? credentialStatus?.updatedAt ??
+                        null
+                    : commercialStatus?.credentialIssuedAt ??
+                        null
                 )}
               />
 
@@ -1493,12 +1642,23 @@ export default function MAProfessorAdminAccountDetail({
           >
             {generatingCredential
               ? 'A gerar…'
-              : credentialStatus?.hasCredential
-                ? 'Gerar nova senha para esta autorização'
-                : 'Gerar nova senha'}
+              : isPilotRequest
+                ? credentialStatus?.hasCredential
+                  ? 'Gerar nova senha de acesso'
+                  : 'Gerar senha de acesso'
+                : credentialStatus?.hasCredential
+                  ? 'Gerar nova senha para esta autorização'
+                  : 'Gerar nova senha'}
           </button>
 
-          {!commercialStatus?.canGenerateCredential ? (
+          {isPilotRequest ? (
+            request?.status !==
+            'approved' ? (
+              <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
+                No piloto, a geração da senha fica disponível assim que o pedido estiver aprovado. Não existe pagamento para confirmar.
+              </p>
+            ) : null
+          ) : !commercialStatus?.canGenerateCredential ? (
             <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
               A geração só fica disponível depois de o pedido estar aprovado e o pagamento estar confirmado ou dispensado.
             </p>
