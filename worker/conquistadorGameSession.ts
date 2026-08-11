@@ -10,6 +10,8 @@ const STORAGE_KEY = 'conquistador-game-session-v1'
 const MATCH_SIZE = 4
 const MAX_NAME_LENGTH = 24
 const BOT_RETRY_DELAY_MS = 1600
+const PRESENCE_TIMEOUT_MS = 30_000
+const BOT_ICON = '⚙'
 
 const RESOURCE_IDS = [
   'stone',
@@ -35,6 +37,19 @@ type BotRuntimeState = {
   nextActionAt: number
 }
 
+type HumanPresenceState = {
+  tokenHash: string
+  lastSeenAt: number
+  takeoverAt: number
+  automated: boolean
+  abandonedAt?: number
+}
+
+type SessionCredential = {
+  playerId: string
+  reconnectToken: string
+}
+
 type StoredSession = {
   matchId: string
   createdAt: number
@@ -42,6 +57,7 @@ type StoredSession = {
   revision: number
   participants: MatchParticipant[]
   game: Record<string, unknown>
+  presence?: Record<string, HumanPresenceState>
   bot?: BotRuntimeState
 }
 
@@ -300,6 +316,156 @@ const normalizeName = (
           MAX_NAME_LENGTH
         )
     : ''
+
+const normalizeReconnectToken = (
+  value: unknown
+) =>
+  typeof value ===
+  'string' &&
+  value.length >= 32 &&
+  value.length <= 256 &&
+  /^[A-Za-z0-9_-]+$/.test(
+    value
+  )
+    ? value
+    : ''
+
+const hashReconnectToken = async (
+  value: string
+) => {
+  const data =
+    new TextEncoder()
+      .encode(
+        value
+      )
+
+  const digest =
+    await globalThis
+      .crypto
+      .subtle
+      .digest(
+        'SHA-256',
+        data
+      )
+
+  return Array.from(
+    new Uint8Array(
+      digest
+    ),
+    (byte) =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
+}
+
+const constantTimeEqual = (
+  first: string,
+  second: string
+) => {
+  if (
+    first.length !==
+    second.length
+  ) {
+    return false
+  }
+
+  let difference = 0
+
+  for (
+    let index = 0;
+    index <
+      first.length;
+    index += 1
+  ) {
+    difference |=
+      first.charCodeAt(
+        index
+      ) ^
+      second.charCodeAt(
+        index
+      )
+  }
+
+  return difference === 0
+}
+
+const normalizeSessionCredentials = (
+  value: unknown
+): SessionCredential[] => {
+  if (
+    !Array.isArray(
+      value
+    )
+  ) {
+    return []
+  }
+
+  const credentials =
+    value
+      .map(
+        (item) => {
+          if (
+            !item ||
+            typeof item !==
+              'object' ||
+            Array.isArray(
+              item
+            )
+          ) {
+            return null
+          }
+
+          const source =
+            item as Record<
+              string,
+              unknown
+            >
+
+          const playerId =
+            normalizeId(
+              source.playerId
+            )
+
+          const reconnectToken =
+            normalizeReconnectToken(
+              source.reconnectToken
+            )
+
+          if (
+            !playerId ||
+            !reconnectToken
+          ) {
+            return null
+          }
+
+          return {
+            playerId,
+            reconnectToken
+          }
+        }
+      )
+      .filter(
+        (credential):
+          credential is SessionCredential =>
+            Boolean(
+              credential
+            )
+      )
+
+  const uniqueIds =
+    new Set(
+      credentials.map(
+        (credential) =>
+          credential.playerId
+      )
+    )
+
+  return uniqueIds.size ===
+    credentials.length
+      ? credentials
+      : []
+}
 
 const normalizeRevision = (
   value: unknown
@@ -871,6 +1037,37 @@ const getViewerActions = (
   return actions
 }
 
+const getEffectiveParticipants = (
+  session: StoredSession
+): MatchParticipant[] =>
+  session.participants.map(
+    (participant) => {
+      if (
+        participant.kind !==
+        'human'
+      ) {
+        return participant
+      }
+
+      const presence =
+        session.presence?.[
+          participant.id
+        ]
+
+      if (
+        !presence?.automated
+      ) {
+        return participant
+      }
+
+      return {
+        ...participant,
+        kind: 'bot',
+        icon: BOT_ICON
+      }
+    }
+  )
+
 const createClientView = (
   session:
     StoredSession,
@@ -890,9 +1087,14 @@ const createClientView = (
       gameData
     )
 
+  const effectiveParticipants =
+    getEffectiveParticipants(
+      session
+    )
+
   const participantsById =
     new Map(
-      session.participants
+      effectiveParticipants
         .map(
           (
             participant
@@ -1059,7 +1261,7 @@ const createClientView = (
     viewerId,
 
     participants:
-      session.participants,
+      effectiveParticipants,
 
     actions:
       getViewerActions(
@@ -1752,6 +1954,9 @@ export const ensureConquistadorGameSession =
       unknown,
 
     participantsValue:
+      unknown,
+
+    credentialsValue?:
       unknown
   ) => {
     const matchId =
@@ -1764,10 +1969,34 @@ export const ensureConquistadorGameSession =
         participantsValue
       )
 
+    const credentialsSupplied =
+      Array.isArray(
+        credentialsValue
+      )
+
+    const credentials =
+      credentialsSupplied
+        ? normalizeSessionCredentials(
+            credentialsValue
+          )
+        : []
+
+    const humanCount =
+      participants.filter(
+        (participant) =>
+          participant.kind ===
+          'human'
+      ).length
+
     if (
       !matchId ||
       participants.length !==
-        MATCH_SIZE
+        MATCH_SIZE ||
+      (
+        credentialsSupplied &&
+        credentials.length !==
+          humanCount
+      )
     ) {
       throw new Error(
         'O matchmaking devolveu uma composição de partida inválida.'
@@ -1793,7 +2022,10 @@ export const ensureConquistadorGameSession =
             body:
               JSON.stringify({
                 matchId,
-                participants
+                participants,
+                ...(credentialsSupplied
+                  ? { credentials }
+                  : {})
               })
           }
         )
@@ -1970,11 +2202,19 @@ export const handleConquistadorGameSessionApiRequest =
           body.playerId
         )
 
+      const reconnectToken =
+        normalizeReconnectToken(
+          body.reconnectToken
+        )
+
       const action =
         body.action ===
         'command'
           ? 'command'
-          : 'state'
+          : body.action ===
+              'leave'
+            ? 'leave'
+            : 'state'
 
       if (
         !matchId ||
@@ -2015,7 +2255,10 @@ export const handleConquistadorGameSessionApiRequest =
                 JSON.stringify({
                   ...body,
                   matchId,
-                  playerId
+                  playerId,
+                  ...(reconnectToken
+                    ? { reconnectToken }
+                    : {})
                 })
             }
           )
@@ -2205,6 +2448,349 @@ export class ConquistadorGameSessionDurableObject {
     )
   }
 
+  private getEffectiveParticipants() {
+    return this.session
+      ? getEffectiveParticipants(
+          this.session
+        )
+      : []
+  }
+
+  private getNextPresenceTakeoverAt() {
+    if (
+      !this.session
+        ?.presence
+    ) {
+      return 0
+    }
+
+    const deadlines =
+      Object.values(
+        this.session
+          .presence
+      )
+        .filter(
+          (presence) =>
+            !presence.automated &&
+            Number.isFinite(
+              presence.takeoverAt
+            ) &&
+            presence.takeoverAt > 0
+        )
+        .map(
+          (presence) =>
+            presence.takeoverAt
+        )
+
+    return deadlines.length
+      ? Math.min(
+          ...deadlines
+        )
+      : 0
+  }
+
+  private applyPresenceTakeovers(
+    now: number
+  ) {
+    if (
+      !this.session
+        ?.presence
+    ) {
+      return false
+    }
+
+    let changed = false
+
+    for (
+      const presence
+      of Object.values(
+        this.session
+          .presence
+      )
+    ) {
+      if (
+        !presence.automated &&
+        presence.takeoverAt > 0 &&
+        now >=
+          presence.takeoverAt
+      ) {
+        presence.automated =
+          true
+
+        changed = true
+      }
+    }
+
+    return changed
+  }
+
+  private async buildPresenceState(
+    participants:
+      MatchParticipant[],
+
+    credentials:
+      SessionCredential[],
+
+    now:
+      number
+  ) {
+    const humans =
+      participants.filter(
+        (participant) =>
+          participant.kind ===
+          'human'
+      )
+
+    if (
+      credentials.length !==
+      humans.length
+    ) {
+      throw new Error(
+        'As credenciais da partida não correspondem aos jogadores humanos.'
+      )
+    }
+
+    const credentialsById =
+      new Map(
+        credentials.map(
+          (credential) => [
+            credential.playerId,
+            credential
+          ]
+        )
+      )
+
+    const presence:
+      Record<
+        string,
+        HumanPresenceState
+      > = {}
+
+    for (
+      const participant
+      of humans
+    ) {
+      const credential =
+        credentialsById.get(
+          participant.id
+        )
+
+      if (!credential) {
+        throw new Error(
+          'Falta uma credencial segura para um dos jogadores humanos.'
+        )
+      }
+
+      presence[
+        participant.id
+      ] = {
+        tokenHash:
+          await hashReconnectToken(
+            credential
+              .reconnectToken
+          ),
+        lastSeenAt:
+          now,
+        takeoverAt:
+          now +
+          PRESENCE_TIMEOUT_MS,
+        automated:
+          false
+      }
+    }
+
+    return presence
+  }
+
+  private async authenticateHuman(
+    body:
+      Record<
+        string,
+        unknown
+      >
+  ) {
+    if (!this.session) {
+      return {
+        ok: false as const,
+        status: 404,
+        message:
+          'A sessão desta partida ainda não foi criada.'
+      }
+    }
+
+    const matchId =
+      normalizeId(
+        body.matchId
+      )
+
+    const playerId =
+      normalizeId(
+        body.playerId
+      )
+
+    const reconnectToken =
+      normalizeReconnectToken(
+        body.reconnectToken
+      )
+
+    if (
+      !matchId ||
+      !playerId
+    ) {
+      return {
+        ok: false as const,
+        status: 400,
+        message:
+          'A sessão ou o jogador não são válidos.'
+      }
+    }
+
+    if (
+      this.session
+        .matchId !==
+      matchId
+    ) {
+      return {
+        ok: false as const,
+        status: 403,
+        message:
+          'A credencial apresentada não pertence a esta partida.'
+      }
+    }
+
+    if (
+      !this.getHumanParticipant(
+        playerId
+      )
+    ) {
+      return {
+        ok: false as const,
+        status: 403,
+        message:
+          'Este jogador não pertence à sessão online.'
+      }
+    }
+
+    if (
+      !this.session
+        .presence
+    ) {
+      return {
+        ok: true as const,
+        playerId,
+        now:
+          Date.now(),
+        reactivated:
+          false,
+        revisionBefore:
+          this.session
+            .revision,
+        legacy:
+          true as const
+      }
+    }
+
+    const presence =
+      this.session
+        .presence[
+          playerId
+        ]
+
+    if (
+      !reconnectToken
+    ) {
+      return {
+        ok: false as const,
+        status: 400,
+        message:
+          'A credencial de reconexão é obrigatória nesta partida.'
+      }
+    }
+
+    if (
+      !presence?.tokenHash
+    ) {
+      return {
+        ok: false as const,
+        status: 403,
+        message:
+          'Esta partida não possui uma credencial de reconexão válida para este jogador.'
+      }
+    }
+
+    if (
+      Number(
+        presence.abandonedAt
+      ) > 0
+    ) {
+      return {
+        ok: false as const,
+        status: 410,
+        message:
+          'Este jogador abandonou esta partida.'
+      }
+    }
+
+    const receivedHash =
+      await hashReconnectToken(
+        reconnectToken
+      )
+
+    if (
+      !constantTimeEqual(
+        receivedHash,
+        presence.tokenHash
+      )
+    ) {
+      return {
+        ok: false as const,
+        status: 403,
+        message:
+          'A credencial de reconexão não é válida.'
+      }
+    }
+
+    const now =
+      Date.now()
+
+    const revisionBefore =
+      this.session
+        .revision
+
+    const reactivated =
+      presence.automated
+
+    presence.lastSeenAt =
+      now
+
+    presence.takeoverAt =
+      now +
+      PRESENCE_TIMEOUT_MS
+
+    presence.automated =
+      false
+
+    if (reactivated) {
+      this.session.revision +=
+        1
+
+      this.session.updatedAt =
+        now
+    }
+
+    await this.save()
+
+    return {
+      ok: true as const,
+      playerId,
+      now,
+      reactivated,
+      revisionBefore,
+      legacy:
+        false as const
+    }
+  }
+
   private getBotDelay(
     revision:
       number
@@ -2219,10 +2805,78 @@ export class ConquistadorGameSessionDurableObject {
     )
   }
 
-  private async clearBotSchedule() {
+  private async setNextAlarm(
+    botActionAt = 0,
+    now = Date.now()
+  ) {
+    if (!this.session) {
+      return
+    }
+
+    const presenceAt =
+      this.getNextPresenceTakeoverAt()
+
+    const candidates =
+      [
+        botActionAt,
+        presenceAt
+      ].filter(
+        (value) =>
+          Number.isFinite(
+            value
+          ) &&
+          value > 0
+      )
+
+    const desiredAt =
+      candidates.length
+        ? Math.min(
+            ...candidates
+          )
+        : 0
+
+    const currentAlarm =
+      await this
+        .state
+        .storage
+        .getAlarm()
+
+    if (!desiredAt) {
+      if (
+        currentAlarm !==
+        null
+      ) {
+        await this
+          .state
+          .storage
+          .deleteAlarm()
+      }
+
+      return
+    }
+
     if (
-      !this.session
+      currentAlarm ===
+        null ||
+      desiredAt <
+        currentAlarm ||
+      currentAlarm <=
+        now
     ) {
+      await this
+        .state
+        .storage
+        .setAlarm(
+          Math.max(
+            desiredAt,
+            now
+          )
+        )
+    }
+  }
+
+  private async clearBotRuntime() {
+    if (!this.session) {
       return
     }
 
@@ -2239,30 +2893,11 @@ export class ConquistadorGameSessionDurableObject {
     this.session.bot = {
       actorId:
         null,
-
       nextActionAt:
         0
     }
 
-    const currentAlarm =
-      await this
-        .state
-        .storage
-        .getAlarm()
-
-    if (
-      currentAlarm !==
-      null
-    ) {
-      await this
-        .state
-        .storage
-        .deleteAlarm()
-    }
-
-    if (
-      hadRuntime
-    ) {
+    if (hadRuntime) {
       await this.save()
     }
   }
@@ -2274,24 +2909,25 @@ export class ConquistadorGameSessionDurableObject {
     now =
       Date.now()
   ) {
-    if (
-      !this.session
-    ) {
+    if (!this.session) {
       return false
     }
 
     const actorId =
       getConquistadorBotActorId(
         game,
-        this.session
-          .participants
+        this.getEffectiveParticipants()
       )
 
-    if (
-      !actorId
-    ) {
+    if (!actorId) {
       await this
-        .clearBotSchedule()
+        .clearBotRuntime()
+
+      await this
+        .setNextAlarm(
+          0,
+          now
+        )
 
       return false
     }
@@ -2327,26 +2963,11 @@ export class ConquistadorGameSessionDurableObject {
       await this.save()
     }
 
-    const currentAlarm =
-      await this
-        .state
-        .storage
-        .getAlarm()
-
-    if (
-      currentAlarm ===
-      null
-    ) {
-      await this
-        .state
-        .storage
-        .setAlarm(
-          Math.max(
-            nextActionAt,
-            Date.now()
-          )
-        )
-    }
+    await this
+      .setNextAlarm(
+        nextActionAt,
+        now
+      )
 
     return true
   }
@@ -2355,14 +2976,15 @@ export class ConquistadorGameSessionDurableObject {
     actorId:
       string
   ) {
-    if (
-      !this.session
-    ) {
+    if (!this.session) {
       return
     }
 
+    const now =
+      Date.now()
+
     const nextActionAt =
-      Date.now() +
+      now +
       BOT_RETRY_DELAY_MS
 
     this.session.bot = {
@@ -2373,17 +2995,14 @@ export class ConquistadorGameSessionDurableObject {
     await this.save()
 
     await this
-      .state
-      .storage
-      .setAlarm(
-        nextActionAt
+      .setNextAlarm(
+        nextActionAt,
+        now
       )
   }
 
   private async executeBotAction() {
-    if (
-      !this.session
-    ) {
+    if (!this.session) {
       return false
     }
 
@@ -2392,18 +3011,21 @@ export class ConquistadorGameSessionDurableObject {
         this.session.game
       )
 
+    const effectiveParticipants =
+      this.getEffectiveParticipants()
+
     const actorId =
       getConquistadorBotActorId(
         game,
-        this.session
-          .participants
+        effectiveParticipants
       )
 
-    if (
-      !actorId
-    ) {
+    if (!actorId) {
       await this
-        .clearBotSchedule()
+        .clearBotRuntime()
+
+      await this
+        .setNextAlarm()
 
       return false
     }
@@ -2427,17 +3049,19 @@ export class ConquistadorGameSessionDurableObject {
       return false
     }
 
+    const now =
+      Date.now()
+
     if (
-      Date.now() <
+      now <
       runtime
         .nextActionAt
     ) {
       await this
-        .state
-        .storage
-        .setAlarm(
+        .setNextAlarm(
           runtime
-            .nextActionAt
+            .nextActionAt,
+          now
         )
 
       return false
@@ -2447,8 +3071,7 @@ export class ConquistadorGameSessionDurableObject {
       normalizeCommand(
         chooseConquistadorBotCommand(
           game,
-          this.session
-            .participants,
+          effectiveParticipants,
           actorId
         )
       )
@@ -2501,11 +3124,10 @@ export class ConquistadorGameSessionDurableObject {
             game,
             actorId,
             command
-          ) as
-            Record<
-              string,
-              unknown
-            >
+          ) as Record<
+            string,
+            unknown
+          >
 
         if (
           result
@@ -2522,9 +3144,7 @@ export class ConquistadorGameSessionDurableObject {
       }
     }
 
-    if (
-      !success
-    ) {
+    if (!success) {
       await this
         .rescheduleBotAfterFailure(
           actorId
@@ -2545,7 +3165,6 @@ export class ConquistadorGameSessionDurableObject {
     this.session.bot = {
       actorId:
         null,
-
       nextActionAt:
         0
     }
@@ -2562,6 +3181,38 @@ export class ConquistadorGameSessionDurableObject {
   }
 
   private async handleAlarm() {
+    if (!this.session) {
+      return
+    }
+
+    const now =
+      Date.now()
+
+    if (
+      this.applyPresenceTakeovers(
+        now
+      )
+    ) {
+      this.session.revision +=
+        1
+
+      this.session.updatedAt =
+        now
+
+      await this.save()
+    }
+
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    await this
+      .scheduleBot(
+        game,
+        now
+      )
+
     await this
       .executeBotAction()
   }
@@ -2585,10 +3236,34 @@ export class ConquistadorGameSessionDurableObject {
         body.participants
       )
 
+    const credentialsSupplied =
+      Array.isArray(
+        body.credentials
+      )
+
+    const credentials =
+      credentialsSupplied
+        ? normalizeSessionCredentials(
+            body.credentials
+          )
+        : []
+
+    const humanCount =
+      participants.filter(
+        (participant) =>
+          participant.kind ===
+          'human'
+      ).length
+
     if (
       !matchId ||
       participants.length !==
-        MATCH_SIZE
+        MATCH_SIZE ||
+      (
+        credentialsSupplied &&
+        credentials.length !==
+          humanCount
+      )
     ) {
       return json(
         {
@@ -2596,11 +3271,52 @@ export class ConquistadorGameSessionDurableObject {
             false,
 
           message:
-            'Não foi possível criar a composição da partida.'
+            credentialsSupplied
+              ? 'Não foi possível criar a composição segura da partida.'
+              : 'Não foi possível criar a composição da partida.'
         },
 
         400
       )
+    }
+
+    const now =
+      Date.now()
+
+    let suppliedPresence:
+      Record<
+        string,
+        HumanPresenceState
+      > |
+      null = null
+
+    if (credentialsSupplied) {
+      try {
+        suppliedPresence =
+          await this
+            .buildPresenceState(
+              participants,
+              credentials,
+              now
+            )
+      } catch (
+        error
+      ) {
+        return json(
+          {
+            success:
+              false,
+
+            message:
+              error instanceof
+              Error
+                ? error.message
+                : 'Não foi possível validar as credenciais da partida.'
+          },
+
+          400
+        )
+      }
     }
 
     if (
@@ -2624,12 +3340,117 @@ export class ConquistadorGameSessionDurableObject {
         )
       }
 
+      const existingIds =
+        this.session
+          .participants
+          .map(
+            (participant) =>
+              `${participant.id}:${participant.kind}`
+          )
+          .sort()
+
+      const suppliedIds =
+        participants
+          .map(
+            (participant) =>
+              `${participant.id}:${participant.kind}`
+          )
+          .sort()
+
+      if (
+        JSON.stringify(
+          existingIds
+        ) !==
+        JSON.stringify(
+          suppliedIds
+        )
+      ) {
+        return json(
+          {
+            success:
+              false,
+
+            message:
+              'A composição desta sessão não corresponde ao matchmaking.'
+          },
+
+          409
+        )
+      }
+
+      let presenceChanged =
+        false
+
+      if (suppliedPresence) {
+        if (
+          !this.session
+            .presence
+        ) {
+          this.session.presence =
+            suppliedPresence
+
+          presenceChanged =
+            true
+        } else {
+          for (
+            const [
+              playerId,
+              supplied
+            ] of Object.entries(
+              suppliedPresence
+            )
+          ) {
+            const existing =
+              this.session
+                .presence[
+                  playerId
+                ]
+
+            if (!existing) {
+              this.session
+                .presence[
+                  playerId
+                ] = supplied
+
+              presenceChanged =
+                true
+
+              continue
+            }
+
+            if (
+              !constantTimeEqual(
+                existing.tokenHash,
+                supplied.tokenHash
+              )
+            ) {
+              return json(
+                {
+                  success:
+                    false,
+
+                  message:
+                    'As credenciais desta partida não correspondem à sessão já criada.'
+                },
+
+                409
+              )
+            }
+          }
+        }
+      }
+
+      if (presenceChanged) {
+        await this.save()
+      }
+
       await this
         .scheduleBot(
           Game.fromJSON(
             this.session
               .game
-          )
+          ),
+          now
         )
 
       return json({
@@ -2648,9 +3469,6 @@ export class ConquistadorGameSessionDurableObject {
             .revision
       })
     }
-
-    const now =
-      Date.now()
 
     const game =
       new Game({
@@ -2692,6 +3510,13 @@ export class ConquistadorGameSessionDurableObject {
       game:
         game.toJSON(),
 
+      ...(suppliedPresence
+        ? {
+            presence:
+              suppliedPresence
+          }
+        : {}),
+
       bot: {
         actorId:
           null,
@@ -2723,13 +3548,11 @@ export class ConquistadorGameSessionDurableObject {
     })
   }
 
-  private async handleState(
+  private async handleLeave(
     request:
       Request
   ) {
-    if (
-      !this.session
-    ) {
+    if (!this.session) {
       return json(
         {
           success:
@@ -2748,36 +3571,185 @@ export class ConquistadorGameSessionDurableObject {
         request
       )
 
-    const playerId =
-      normalizeId(
-        body.playerId
-      )
-
-    if (
-      !this
-        .getHumanParticipant(
-          playerId
+    const authentication =
+      await this
+        .authenticateHuman(
+          body
         )
-    ) {
+
+    if (!authentication.ok) {
       return json(
         {
           success:
             false,
 
           message:
-            'Este jogador não pertence à sessão online.'
+            authentication
+              .message
         },
 
-        403
+        authentication
+          .status
       )
     }
+
+    const playerId =
+      authentication
+        .playerId
+
+    const presence =
+      this.session
+        .presence?.[
+          playerId
+        ]
+
+    const now =
+      Date.now()
+
+    if (presence) {
+      presence.lastSeenAt =
+        now
+
+      presence.takeoverAt =
+        0
+
+      presence.automated =
+        true
+
+      presence.abandonedAt =
+        now
+    } else {
+      const participant =
+        this.session
+          .participants
+          .find(
+            (candidate) =>
+              candidate.id ===
+                playerId &&
+              candidate.kind ===
+                'human'
+          )
+
+      if (!participant) {
+        return json(
+          {
+            success:
+              false,
+
+            message:
+              'Não foi possível atualizar a presença deste jogador.'
+          },
+
+          409
+        )
+      }
+
+      participant.kind =
+        'bot'
+
+      participant.icon =
+        BOT_ICON
+    }
+
+    this.session.revision +=
+      1
+
+    this.session.updatedAt =
+      now
+
+    this.session.bot = {
+      actorId:
+        null,
+      nextActionAt:
+        0
+    }
+
+    await this.save()
 
     await this
       .scheduleBot(
         Game.fromJSON(
           this.session
             .game
+        ),
+        now
+      )
+
+    return json({
+      success:
+        true,
+
+      status:
+        'left',
+
+      matchId:
+        this.session
+          .matchId,
+
+      playerId,
+
+      revision:
+        this.session
+          .revision
+    })
+  }
+
+  private async handleState(
+    request:
+      Request
+  ) {
+    if (!this.session) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A sessão desta partida ainda não foi criada.'
+        },
+
+        404
+      )
+    }
+
+    const body =
+      await getBody(
+        request
+      )
+
+    const authentication =
+      await this
+        .authenticateHuman(
+          body
         )
+
+    if (!authentication.ok) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            authentication
+              .message
+        },
+
+        authentication
+          .status
+      )
+    }
+
+    const playerId =
+      authentication
+        .playerId
+
+    await this
+      .scheduleBot(
+        Game.fromJSON(
+          this.session
+            .game
+        ),
+        authentication.now
       )
 
     const knownRevision =
@@ -2827,9 +3799,7 @@ export class ConquistadorGameSessionDurableObject {
     request:
       Request
   ) {
-    if (
-      !this.session
-    ) {
+    if (!this.session) {
       return json(
         {
           success:
@@ -2848,42 +3818,61 @@ export class ConquistadorGameSessionDurableObject {
         request
       )
 
-    const playerId =
-      normalizeId(
-        body.playerId
-      )
-
-    if (
-      !this
-        .getHumanParticipant(
-          playerId
+    const authentication =
+      await this
+        .authenticateHuman(
+          body
         )
-    ) {
+
+    if (!authentication.ok) {
       return json(
         {
           success:
             false,
 
           message:
-            'Este jogador não pertence à sessão online.'
+            authentication
+              .message
         },
 
-        403
+        authentication
+          .status
       )
     }
+
+    const playerId =
+      authentication
+        .playerId
+
+    await this
+      .scheduleBot(
+        Game.fromJSON(
+          this.session
+            .game
+        ),
+        authentication.now
+      )
 
     const expectedRevision =
       normalizeRevision(
         body.revision
       )
 
-    if (
-      expectedRevision !==
-        null &&
-      expectedRevision !==
+    const revisionMatches =
+      expectedRevision ===
+        null ||
+      expectedRevision ===
         this.session
-          .revision
-    ) {
+          .revision ||
+      (
+        authentication
+          .reactivated &&
+        expectedRevision ===
+          authentication
+            .revisionBefore
+      )
+
+    if (!revisionMatches) {
       return json(
         {
           success:
@@ -3096,6 +4085,12 @@ export class ConquistadorGameSessionDurableObject {
         case '/state':
           return this
             .handleState(
+              request
+            )
+
+        case '/leave':
+          return this
+            .handleLeave(
               request
             )
 
