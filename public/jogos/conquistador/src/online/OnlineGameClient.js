@@ -1,6 +1,8 @@
 const API_URL = '/api/conquistador/game';
 const DEFAULT_POLL_INTERVAL_MS = 700;
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
+const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
+const COUNTDOWN_TICK_MS = 250;
 
 function normalizeId(value) {
   return String(value ?? '')
@@ -9,7 +11,7 @@ function normalizeId(value) {
 }
 
 function normalizeReconnectToken(value) {
-  const token = String(value ?? '');
+  const token = String(value ?? '').trim();
 
   return (
     token.length >= 32 &&
@@ -20,50 +22,6 @@ function normalizeReconnectToken(value) {
     : '';
 }
 
-function getStoredReconnectToken(matchId, playerId) {
-  try {
-    const raw = localStorage.getItem(STORED_SESSION_KEY);
-
-    if (!raw) {
-      return '';
-    }
-
-    const data = JSON.parse(raw);
-
-    if (
-      normalizeId(data?.matchId) !== matchId ||
-      normalizeId(data?.playerId) !== playerId
-    ) {
-      return '';
-    }
-
-    return normalizeReconnectToken(data?.reconnectToken);
-  } catch {
-    return '';
-  }
-}
-
-function clearStoredReconnectToken(matchId, playerId) {
-  try {
-    const raw = localStorage.getItem(STORED_SESSION_KEY);
-
-    if (!raw) {
-      return;
-    }
-
-    const data = JSON.parse(raw);
-
-    if (
-      normalizeId(data?.matchId) === matchId &&
-      normalizeId(data?.playerId) === playerId
-    ) {
-      localStorage.removeItem(STORED_SESSION_KEY);
-    }
-  } catch {
-    return;
-  }
-}
-
 function normalizeRevision(value) {
   const revision = Number(value);
 
@@ -72,88 +30,240 @@ function normalizeRevision(value) {
     : null;
 }
 
-function removePresenceCountdown() {
-  document
-    .querySelector('#online-presence-countdown')
-    ?.remove();
+function getStoredReconnectToken(matchId, playerId) {
+  try {
+    const raw = localStorage.getItem(STORED_SESSION_KEY);
+
+    if (!raw) {
+      return '';
+    }
+
+    const stored = JSON.parse(raw);
+
+    if (
+      !stored ||
+      typeof stored !== 'object' ||
+      normalizeId(stored.matchId) !== matchId ||
+      normalizeId(stored.playerId) !== playerId
+    ) {
+      return '';
+    }
+
+    return normalizeReconnectToken(stored.reconnectToken);
+  } catch {
+    return '';
+  }
 }
 
-function renderPresenceCountdown(data) {
-  const warnings = Array.isArray(data?.presenceWarnings)
-    ? data.presenceWarnings
-    : [];
+function clearStoredSession(matchId, playerId) {
+  try {
+    const raw = localStorage.getItem(STORED_SESSION_KEY);
 
-  const warning = warnings[0] || null;
-
-  if (!warning) {
-    removePresenceCountdown();
-    return;
-  }
-
-  const turnBanner = document.querySelector('.turn-banner');
-
-  if (!turnBanner) {
-    return;
-  }
-
-  const seconds = Math.max(
-    0,
-    Math.min(
-      15,
-      Number(warning.secondsRemaining) || 0,
-    ),
-  );
-
-  let element = document.querySelector('#online-presence-countdown');
-
-  if (!element) {
-    element = document.createElement('div');
-    element.id = 'online-presence-countdown';
-    element.setAttribute('role', 'status');
-    element.setAttribute('aria-live', 'polite');
-    element.style.display = 'flex';
-    element.style.alignItems = 'center';
-    element.style.gap = '0.55rem';
-    element.style.marginLeft = 'auto';
-    element.style.padding = '0.45rem 0.7rem';
-    element.style.border = '1px solid rgba(255,255,255,0.22)';
-    element.style.borderRadius = '0.8rem';
-    element.style.background = 'rgba(0,0,0,0.18)';
-    element.style.whiteSpace = 'nowrap';
-
-    const dice = turnBanner.querySelector('.dice-result');
-
-    if (dice) {
-      turnBanner.insertBefore(element, dice);
-    } else {
-      turnBanner.appendChild(element);
+    if (!raw) {
+      return;
     }
-  }
 
-  const safeName = String(warning.playerName ?? '')
+    const stored = JSON.parse(raw);
+
+    if (
+      normalizeId(stored?.matchId) === matchId &&
+      normalizeId(stored?.playerId) === playerId
+    ) {
+      localStorage.removeItem(STORED_SESSION_KEY);
+    }
+  } catch {
+    return;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function removePresenceCountdown() {
+  document
+    .querySelector(`#${PRESENCE_COUNTDOWN_ID}`)
+    ?.remove();
+}
+
+function getPresenceWarning(data) {
+  const warnings = Array.isArray(data?.presenceWarnings)
+    ? data.presenceWarnings
+    : [];
+
+  const valid = warnings
+    .filter((warning) => {
+      const expiresAt = Number(warning?.expiresAt);
+
+      return (
+        warning &&
+        typeof warning === 'object' &&
+        Number.isFinite(expiresAt) &&
+        expiresAt > Date.now()
+      );
+    })
+    .sort(
+      (first, second) =>
+        Number(first.expiresAt) -
+        Number(second.expiresAt),
+    );
+
+  return valid[0] || null;
+}
+
+function renderPresenceCountdown(warning) {
+  if (!warning) {
+    removePresenceCountdown();
+    return;
+  }
+
+  const turnBanner =
+    document.querySelector('.turn-banner');
+
+  if (!turnBanner) {
+    return;
+  }
+
+  const expiresAt =
+    Number(warning.expiresAt);
+
+  const remainingMs =
+    Math.max(
+      0,
+      expiresAt - Date.now(),
+    );
+
+  const seconds =
+    Math.max(
+      0,
+      Math.ceil(
+        remainingMs / 1000,
+      ),
+    );
+
+  if (seconds <= 0) {
+    removePresenceCountdown();
+    return;
+  }
+
+  let element =
+    document.querySelector(
+      `#${PRESENCE_COUNTDOWN_ID}`,
+    );
+
+  if (!element) {
+    element =
+      document.createElement('div');
+
+    element.id =
+      PRESENCE_COUNTDOWN_ID;
+
+    element.setAttribute(
+      'role',
+      'status',
+    );
+
+    element.setAttribute(
+      'aria-live',
+      'polite',
+    );
+
+    element.style.display =
+      'flex';
+
+    element.style.alignItems =
+      'center';
+
+    element.style.gap =
+      '0.55rem';
+
+    element.style.marginLeft =
+      'auto';
+
+    element.style.padding =
+      '0.45rem 0.7rem';
+
+    element.style.border =
+      '1px solid rgba(255,255,255,0.22)';
+
+    element.style.borderRadius =
+      '0.8rem';
+
+    element.style.background =
+      'rgba(0,0,0,0.18)';
+
+    element.style.whiteSpace =
+      'nowrap';
+
+    const dice =
+      turnBanner.querySelector(
+        '.dice-result',
+      );
+
+    if (dice) {
+      turnBanner.insertBefore(
+        element,
+        dice,
+      );
+    } else {
+      turnBanner.appendChild(
+        element,
+      );
+    }
+  }
+
+  const playerName =
+    String(
+      warning.playerName ??
+      'jogador',
+    ).trim() ||
+    'jogador';
+
+  const safeName =
+    escapeHtml(playerName);
 
   element.setAttribute(
     'aria-label',
-    `A aguardar ${warning.playerName}. ${seconds} segundos restantes.`,
+    `A aguardar ${playerName}. ${seconds} segundos restantes.`,
   );
 
   element.innerHTML = `
     <span
       aria-hidden="true"
-      style="font-size:1.05rem;line-height:1"
-    >⏱</span>
-    <span
-      style="display:flex;flex-direction:column;line-height:1.05"
+      style="
+        font-size:1.05rem;
+        line-height:1;
+      "
     >
-      <small style="opacity:.78;font-size:.68rem">
+      ⏱
+    </span>
+
+    <span
+      style="
+        display:flex;
+        flex-direction:column;
+        line-height:1.05;
+      "
+    >
+      <small
+        style="
+          opacity:.78;
+          font-size:.68rem;
+        "
+      >
         A aguardar ${safeName}
       </small>
-      <strong style="font-size:1.15rem">
+
+      <strong
+        style="
+          font-size:1.15rem;
+        "
+      >
         ${seconds}
       </strong>
     </span>
@@ -164,18 +274,27 @@ async function readJsonResponse(response) {
   let data = null;
 
   try {
-    data = await response.json();
+    data =
+      await response.json();
   } catch {
     data = null;
   }
 
-  if (!response.ok || !data?.success) {
-    const error = new Error(
-      data?.message || 'Não foi possível comunicar com a partida online.',
-    );
+  if (
+    !response.ok ||
+    !data?.success
+  ) {
+    const error =
+      new Error(
+        data?.message ||
+        'Não foi possível comunicar com a partida online.',
+      );
 
-    error.status = response.status;
-    error.data = data;
+    error.status =
+      response.status;
+
+    error.data =
+      data;
 
     throw error;
   }
@@ -187,58 +306,120 @@ export class OnlineGameClient {
   constructor({
     matchId,
     playerId,
-    reconnectToken = null,
-    pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+    reconnectToken = '',
+    pollIntervalMs =
+      DEFAULT_POLL_INTERVAL_MS,
   }) {
-    this.matchId = normalizeId(matchId);
-    this.playerId = normalizeId(playerId);
-    this.reconnectToken = normalizeReconnectToken(reconnectToken) ||
-      getStoredReconnectToken(this.matchId, this.playerId);
+    this.matchId =
+      normalizeId(matchId);
 
-    this.pollIntervalMs = Math.max(
-      250,
-      Number(pollIntervalMs) || DEFAULT_POLL_INTERVAL_MS,
-    );
+    this.playerId =
+      normalizeId(playerId);
 
-    if (!this.matchId || !this.playerId || !this.reconnectToken) {
+    this.reconnectToken =
+      normalizeReconnectToken(
+        reconnectToken,
+      ) ||
+      getStoredReconnectToken(
+        this.matchId,
+        this.playerId,
+      );
+
+    this.pollIntervalMs =
+      Math.max(
+        250,
+        Number(
+          pollIntervalMs,
+        ) ||
+        DEFAULT_POLL_INTERVAL_MS,
+      );
+
+    if (
+      !this.matchId ||
+      !this.playerId
+    ) {
       throw new Error(
-        'A sessão online não possui uma credencial de reconexão válida.',
+        'A sessão online não possui identificação válida.',
       );
     }
 
-    this.revision = null;
-    this.state = null;
-    this.pollTimer = null;
-    this.polling = false;
-    this.closed = false;
-    this.listeners = new Set();
-    this.errorListeners = new Set();
+    if (!this.reconnectToken) {
+      throw new Error(
+        'A credencial de reconexão desta partida não está disponível.',
+      );
+    }
+
+    this.revision =
+      null;
+
+    this.state =
+      null;
+
+    this.pollTimer =
+      null;
+
+    this.polling =
+      false;
+
+    this.closed =
+      false;
+
+    this.listeners =
+      new Set();
+
+    this.errorListeners =
+      new Set();
+
+    this.presenceWarning =
+      null;
+
+    this.countdownTimer =
+      window.setInterval(
+        () =>
+          this.renderCountdown(),
+        COUNTDOWN_TICK_MS,
+      );
   }
 
   async request(payload) {
-    const response = await fetch(API_URL, {
-      method: 'POST',
+    const response =
+      await fetch(
+        API_URL,
+        {
+          method:
+            'POST',
 
-      headers: {
-        'Content-Type': 'application/json',
-      },
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
 
-      body: JSON.stringify({
-        matchId: this.matchId,
-        playerId: this.playerId,
-        reconnectToken: this.reconnectToken,
-        ...payload,
-      }),
-    });
+          body:
+            JSON.stringify({
+              matchId:
+                this.matchId,
+
+              playerId:
+                this.playerId,
+
+              reconnectToken:
+                this.reconnectToken,
+
+              ...payload,
+            }),
+        },
+      );
 
     try {
-      return await readJsonResponse(response);
+      return await readJsonResponse(
+        response,
+      );
     } catch (error) {
       if (
         error?.status === 401 ||
         error?.status === 403
       ) {
-        clearStoredReconnectToken(
+        clearStoredSession(
           this.matchId,
           this.playerId,
         );
@@ -248,25 +429,62 @@ export class OnlineGameClient {
     }
   }
 
+  renderCountdown() {
+    if (this.closed) {
+      removePresenceCountdown();
+      return;
+    }
+
+    if (
+      this.presenceWarning &&
+      Number(
+        this.presenceWarning
+          .expiresAt,
+      ) <= Date.now()
+    ) {
+      this.presenceWarning =
+        null;
+    }
+
+    renderPresenceCountdown(
+      this.presenceWarning,
+    );
+  }
+
   applyState(data) {
     if (!data?.game) {
       return this.state;
     }
 
-    const revision = normalizeRevision(data.revision);
+    const revision =
+      normalizeRevision(
+        data.revision,
+      );
 
     if (
       revision !== null &&
       this.revision !== null &&
-      revision < this.revision
+      revision <
+        this.revision
     ) {
       return this.state;
     }
 
-    this.revision = revision;
-    this.state = data;
+    this.revision =
+      revision;
 
-    for (const listener of this.listeners) {
+    this.state =
+      data;
+
+    this.presenceWarning =
+      getPresenceWarning(
+        data,
+      );
+
+    for (
+      const listener
+      of this.listeners
+    ) {
       try {
         listener(data);
       } catch {
@@ -274,13 +492,22 @@ export class OnlineGameClient {
       }
     }
 
-    renderPresenceCountdown(data);
+    /*
+     * O listener principal faz renderGame(),
+     * que reconstrói o DOM.
+     * Por isso colocamos o relógio DEPOIS
+     * dos listeners.
+     */
+    this.renderCountdown();
 
     return data;
   }
 
   notifyError(error) {
-    for (const listener of this.errorListeners) {
+    for (
+      const listener
+      of this.errorListeners
+    ) {
       try {
         listener(error);
       } catch {
@@ -290,44 +517,75 @@ export class OnlineGameClient {
   }
 
   onState(listener) {
-    if (typeof listener !== 'function') {
+    if (
+      typeof listener !==
+      'function'
+    ) {
       return () => {};
     }
 
-    this.listeners.add(listener);
+    this.listeners.add(
+      listener,
+    );
 
     return () => {
-      this.listeners.delete(listener);
+      this.listeners.delete(
+        listener,
+      );
     };
   }
 
   onError(listener) {
-    if (typeof listener !== 'function') {
+    if (
+      typeof listener !==
+      'function'
+    ) {
       return () => {};
     }
 
-    this.errorListeners.add(listener);
+    this.errorListeners.add(
+      listener,
+    );
 
     return () => {
-      this.errorListeners.delete(listener);
+      this.errorListeners.delete(
+        listener,
+      );
     };
   }
 
   async getState() {
-    const data = await this.request({
-      action: 'state',
-      knownRevision: this.revision,
-    });
+    const data =
+      await this.request({
+        action:
+          'state',
 
-    if (data.status === 'not-modified') {
+        knownRevision:
+          this.revision,
+      });
+
+    if (
+      data.status ===
+      'not-modified'
+    ) {
+      this.renderCountdown();
+
       return this.state;
     }
 
-    return this.applyState(data);
+    return this.applyState(
+      data,
+    );
   }
 
-  async command(type, payload = {}) {
-    const commandType = String(type ?? '').trim();
+  async command(
+    type,
+    payload = {},
+  ) {
+    const commandType =
+      String(
+        type ?? '',
+      ).trim();
 
     if (!commandType) {
       throw new Error(
@@ -336,17 +594,25 @@ export class OnlineGameClient {
     }
 
     try {
-      const data = await this.request({
-        action: 'command',
-        revision: this.revision,
+      const data =
+        await this.request({
+          action:
+            'command',
 
-        command: {
-          type: commandType,
-          payload,
-        },
-      });
+          revision:
+            this.revision,
 
-      return this.applyState(data);
+          command: {
+            type:
+              commandType,
+
+            payload,
+          },
+        });
+
+      return this.applyState(
+        data,
+      );
     } catch (error) {
       if (
         error?.status === 409 &&
@@ -373,10 +639,12 @@ export class OnlineGameClient {
       this.pollTimer,
     );
 
-    this.pollTimer = window.setTimeout(
-      () => this.pollOnce(),
-      this.pollIntervalMs,
-    );
+    this.pollTimer =
+      window.setTimeout(
+        () =>
+          this.pollOnce(),
+        this.pollIntervalMs,
+      );
   }
 
   async pollOnce() {
@@ -390,7 +658,9 @@ export class OnlineGameClient {
     try {
       await this.getState();
     } catch (error) {
-      this.notifyError(error);
+      this.notifyError(
+        error,
+      );
     } finally {
       this.schedulePoll();
     }
@@ -403,7 +673,8 @@ export class OnlineGameClient {
       return null;
     }
 
-    this.polling = true;
+    this.polling =
+      true;
 
     if (immediate) {
       try {
@@ -419,24 +690,40 @@ export class OnlineGameClient {
   }
 
   stopPolling() {
-    this.polling = false;
+    this.polling =
+      false;
 
     if (this.pollTimer) {
       window.clearTimeout(
         this.pollTimer,
       );
 
-      this.pollTimer = null;
+      this.pollTimer =
+        null;
     }
   }
 
   close() {
     this.stopPolling();
+
+    if (
+      this.countdownTimer
+    ) {
+      window.clearInterval(
+        this.countdownTimer,
+      );
+
+      this.countdownTimer =
+        null;
+    }
+
     removePresenceCountdown();
 
-    this.closed = true;
+    this.closed =
+      true;
 
     this.listeners.clear();
+
     this.errorListeners.clear();
   }
 }
