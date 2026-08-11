@@ -8,6 +8,11 @@ import {
 } from 'react'
 
 import {
+  exportMAQuadroCurrentPageVideo,
+  getMAQuadroVideoCapability,
+  getMAQuadroVideoExportPlan
+} from '../../lib/maQuadro/animatedExport'
+import {
   formatMAQuadroExportScale,
   getMAQuadroExportPlan
 } from '../../lib/maQuadro/export'
@@ -654,9 +659,13 @@ function NewDesignDialog() {
   )
 }
 
+type MAQuadroDialogExportFormat =
+  | MAQuadroExportFormat
+  | 'video'
+
 const formatOptions: Array<{
   value:
-    MAQuadroExportFormat
+    MAQuadroDialogExportFormat
   label: string
   description: string
 }> = [
@@ -677,6 +686,12 @@ const formatOptions: Array<{
     label: 'SVG',
     description:
       'Formato vetorial da página atual'
+  },
+  {
+    value: 'video',
+    label: 'Vídeo',
+    description:
+      'Animações da página atual em WebM ou MP4'
   },
   {
     value: 'pdf',
@@ -705,23 +720,87 @@ function ExportDialog() {
   const options =
     editor.exportOptions
 
+  const [
+    selectedFormat,
+    setSelectedFormat
+  ] = useState<
+    MAQuadroDialogExportFormat
+  >(
+    options.format
+  )
+
+  const [
+    videoMode,
+    setVideoMode
+  ] = useState<
+    | 'sequence'
+    | 'together'
+  >(
+    'sequence'
+  )
+
+  const [
+    videoGapMs,
+    setVideoGapMs
+  ] = useState(
+    120
+  )
+
+  const [
+    videoExporting,
+    setVideoExporting
+  ] = useState(
+    false
+  )
+
+  const [
+    videoError,
+    setVideoError
+  ] = useState(
+    ''
+  )
+
+  useEffect(() => {
+    if (
+      !editor.exportOpen
+    ) {
+      return
+    }
+
+    setSelectedFormat(
+      editor
+        .exportOptions
+        .format
+    )
+
+    setVideoError(
+      ''
+    )
+  }, [
+    editor.exportOpen
+  ])
+
+  const isVideo =
+    selectedFormat ===
+    'video'
+
   const imageFormat =
-    options.format ===
+    selectedFormat ===
       'png' ||
-    options.format ===
+    selectedFormat ===
       'jpg' ||
-    options.format ===
+    selectedFormat ===
       'zip'
 
   const supportsScope =
-    options.format ===
+    selectedFormat ===
     'pdf'
 
   const exportPages =
     useMemo(
       () => {
         if (
-          options.format ===
+          selectedFormat ===
           'zip'
         ) {
           return (
@@ -741,7 +820,7 @@ function ExportDialog() {
         editor.activePage,
         editor.project
           ?.pages,
-        options.format
+        selectedFormat
       ]
     )
 
@@ -764,6 +843,26 @@ function ExportDialog() {
         imageFormat,
         options.scale
       ]
+    )
+
+  const videoPlan =
+    useMemo(
+      () =>
+        editor.activePage
+          ? getMAQuadroVideoExportPlan(
+              editor.activePage
+            )
+          : null,
+      [
+        editor.activePage
+      ]
+    )
+
+  const videoCapability =
+    useMemo(
+      () =>
+        getMAQuadroVideoCapability(),
+      []
     )
 
   if (
@@ -794,16 +893,106 @@ function ExportDialog() {
       0
     )
 
-  return (
-    <Modal
-      title="Exportar design"
-      description="Escolha o formato, qualidade e páginas."
-      onClose={() =>
+  const handleFormatChange = (
+    format:
+      MAQuadroDialogExportFormat
+  ) => {
+    setSelectedFormat(
+      format
+    )
+
+    setVideoError(
+      ''
+    )
+
+    if (
+      format !==
+      'video'
+    ) {
+      editor
+        .setExportOptions({
+          format
+        })
+    }
+  }
+
+  const handleExport =
+    async () => {
+      if (
+        !isVideo
+      ) {
+        await editor
+          .runExport()
+        return
+      }
+
+      if (
+        !editor.activePage ||
+        !editor.project
+      ) {
+        return
+      }
+
+      setVideoError(
+        ''
+      )
+
+      setVideoExporting(
+        true
+      )
+
+      try {
+        await exportMAQuadroCurrentPageVideo({
+          page:
+            editor.activePage,
+          projectName:
+            editor.project.name,
+          mode:
+            videoMode,
+          gapMs:
+            videoGapMs
+        })
+
         editor
           .setExportOpen(
             false
           )
+      } catch (
+        error
+      ) {
+        setVideoError(
+          error instanceof
+            Error
+            ? error.message
+            : 'Não foi possível exportar o vídeo.'
+        )
+      } finally {
+        setVideoExporting(
+          false
+        )
       }
+    }
+
+  const exportBusy =
+    editor.busy ||
+    videoExporting
+
+  return (
+    <Modal
+      title="Exportar design"
+      description="Escolha o formato, qualidade e páginas."
+      onClose={() => {
+        if (
+          exportBusy
+        ) {
+          return
+        }
+
+        editor
+          .setExportOpen(
+            false
+          )
+      }}
     >
       <div className="mq-modal__body">
         <div className="mq-export-formats">
@@ -817,17 +1006,18 @@ function ExportDialog() {
                 }
                 type="button"
                 className={
-                  options.format ===
+                  selectedFormat ===
                   format.value
                     ? 'is-active'
                     : ''
                 }
                 onClick={() =>
-                  editor
-                    .setExportOptions({
-                      format:
-                        format.value
-                    })
+                  handleFormatChange(
+                    format.value
+                  )
+                }
+                disabled={
+                  exportBusy
                 }
               >
                 <strong>
@@ -885,7 +1075,7 @@ function ExportDialog() {
               </select>
             </label>
 
-            {options.format ===
+            {selectedFormat ===
             'jpg' ? (
               <label className="mq-range-field">
                 <span>
@@ -929,14 +1119,14 @@ function ExportDialog() {
                 }`}
               >
                 <strong>
-                  {options.format ===
+                  {selectedFormat ===
                   'zip'
                     ? `${exportPlans.length} páginas preparadas`
                     : `${currentPlan.width} × ${currentPlan.height} píxeis`}
                 </strong>
 
                 <p>
-                  {options.format ===
+                  {selectedFormat ===
                   'zip'
                     ? `Carga estimada: ${totalMegapixels.toFixed(1)} megapíxeis, processados página a página.`
                     : `Escala efetiva: ${formatMAQuadroExportScale(currentPlan.scale)}x · ${currentPlan.megapixels.toFixed(1)} megapíxeis.`}
@@ -953,6 +1143,163 @@ function ExportDialog() {
                 ) : null}
               </div>
             ) : null}
+          </>
+        ) : null}
+
+        {isVideo ? (
+          <>
+            <div className="mq-segmented mq-segmented--large">
+              <button
+                type="button"
+                className={
+                  videoMode ===
+                  'sequence'
+                    ? 'is-active'
+                    : ''
+                }
+                onClick={() =>
+                  setVideoMode(
+                    'sequence'
+                  )
+                }
+                disabled={
+                  exportBusy
+                }
+              >
+                Sequencial
+              </button>
+
+              <button
+                type="button"
+                className={
+                  videoMode ===
+                  'together'
+                    ? 'is-active'
+                    : ''
+                }
+                onClick={() =>
+                  setVideoMode(
+                    'together'
+                  )
+                }
+                disabled={
+                  exportBusy
+                }
+              >
+                Simultâneo
+              </button>
+            </div>
+
+            {videoMode ===
+            'sequence' ? (
+              <label className="mq-field">
+                <span>
+                  Intervalo entre animações
+                </span>
+
+                <select
+                  value={
+                    videoGapMs
+                  }
+                  onChange={(event) =>
+                    setVideoGapMs(
+                      Number(
+                        event
+                          .target
+                          .value
+                      )
+                    )
+                  }
+                  disabled={
+                    exportBusy
+                  }
+                >
+                  <option value="0">
+                    Sem intervalo
+                  </option>
+
+                  <option value="100">
+                    0,10 s
+                  </option>
+
+                  <option value="120">
+                    0,12 s — padrão
+                  </option>
+
+                  <option value="200">
+                    0,20 s
+                  </option>
+
+                  <option value="350">
+                    0,35 s
+                  </option>
+
+                  <option value="500">
+                    0,50 s
+                  </option>
+                </select>
+              </label>
+            ) : null}
+
+            <div
+              className={`mq-info-card${
+                videoCapability
+                  .supported
+                  ? ' mq-info-card--accent'
+                  : ''
+              }`}
+            >
+              <strong>
+                Página atual em vídeo
+              </strong>
+
+              {videoPlan ? (
+                <p>
+                  {videoPlan.width} ×{' '}
+                  {videoPlan.height}{' '}
+                  píxeis ·{' '}
+                  {videoPlan.fps}{' '}
+                  fps ·{' '}
+                  {videoCapability
+                    .supported
+                    ? videoCapability
+                        .extension
+                        .toUpperCase()
+                    : 'formato indisponível'}
+                </p>
+              ) : null}
+
+              {videoPlan
+                ?.reduced ? (
+                <p>
+                  A resolução é reduzida
+                  automaticamente até um
+                  máximo seguro para vídeo,
+                  preservando as proporções.
+                </p>
+              ) : null}
+
+              <p>
+                É exportada apenas a página
+                atual. Fundos transparentes
+                são convertidos para branco
+                no vídeo.
+              </p>
+
+              {!videoCapability
+                .supported ? (
+                <p>
+                  Este browser não disponibiliza
+                  um gravador de vídeo compatível.
+                </p>
+              ) : null}
+
+              {videoError ? (
+                <p role="alert">
+                  {videoError}
+                </p>
+              ) : null}
+            </div>
           </>
         ) : null}
 
@@ -998,7 +1345,7 @@ function ExportDialog() {
           </div>
         ) : null}
 
-        {options.format ===
+        {selectedFormat ===
         'pdf' ? (
           <div className="mq-info-card">
             <strong>
@@ -1016,7 +1363,7 @@ function ExportDialog() {
           </div>
         ) : null}
 
-        {options.format ===
+        {selectedFormat ===
         'svg' ? (
           <div className="mq-info-card">
             <strong>
@@ -1055,6 +1402,9 @@ function ExportDialog() {
                 false
               )
           }
+          disabled={
+            exportBusy
+          }
         >
           Cancelar
         </button>
@@ -1063,17 +1413,23 @@ function ExportDialog() {
           type="button"
           className="mq-button mq-button--primary"
           onClick={() =>
-            void editor
-              .runExport()
+            void handleExport()
           }
           disabled={
-            editor.busy ||
-            !editor.activePage
+            exportBusy ||
+            !editor.activePage ||
+            (
+              isVideo &&
+              !videoCapability
+                .supported
+            )
           }
         >
-          {editor.busy
-            ? 'A preparar…'
-            : 'Exportar agora'}
+          {videoExporting
+            ? 'A gravar…'
+            : editor.busy
+              ? 'A preparar…'
+              : 'Exportar agora'}
         </button>
       </footer>
     </Modal>
