@@ -106,5 +106,488 @@
     type="module"
     src="./src/ui/OnlineMatchmaking.js?v=online-matchmaking-2"
   ></script>
+
+  <script type="module">
+    const PRESENCE_SESSION_KEY =
+      'conquistador-online-session-v1';
+
+    const PRESENCE_API_URL =
+      '/api/conquistador/game';
+
+    const PRESENCE_WARNING_ID =
+      'conquistador-presence-warning';
+
+    const PRESENCE_POLL_MS =
+      700;
+
+    const PRESENCE_RENDER_MS =
+      200;
+
+    let presencePollTimer =
+      null;
+
+    let presenceRenderTimer =
+      null;
+
+    let presenceRequestRunning =
+      false;
+
+    let currentPresenceWarning =
+      null;
+
+    function getPresenceSession() {
+      try {
+        const raw =
+          localStorage.getItem(
+            PRESENCE_SESSION_KEY,
+          );
+
+        if (!raw) {
+          return null;
+        }
+
+        const data =
+          JSON.parse(raw);
+
+        if (
+          !data ||
+          typeof data !== 'object' ||
+          typeof data.matchId !== 'string' ||
+          typeof data.playerId !== 'string' ||
+          typeof data.reconnectToken !== 'string' ||
+          !data.matchId ||
+          !data.playerId ||
+          !data.reconnectToken
+        ) {
+          return null;
+        }
+
+        return {
+          matchId:
+            data.matchId,
+
+          playerId:
+            data.playerId,
+
+          reconnectToken:
+            data.reconnectToken,
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function removePresenceWarning() {
+      document
+        .querySelector(
+          `#${PRESENCE_WARNING_ID}`,
+        )
+        ?.remove();
+    }
+
+    function getBestPresenceWarning(
+      warnings,
+    ) {
+      if (
+        !Array.isArray(warnings)
+      ) {
+        return null;
+      }
+
+      const now =
+        Date.now();
+
+      return (
+        warnings
+          .filter(
+            (warning) => {
+              const expiresAt =
+                Number(
+                  warning?.expiresAt,
+                );
+
+              return (
+                warning &&
+                typeof warning ===
+                  'object' &&
+                Number.isFinite(
+                  expiresAt,
+                ) &&
+                expiresAt >
+                  now
+              );
+            },
+          )
+          .sort(
+            (
+              first,
+              second,
+            ) =>
+              Number(
+                first.expiresAt,
+              ) -
+              Number(
+                second.expiresAt,
+              ),
+          )[0] ||
+        null
+      );
+    }
+
+    function renderPresenceWarning() {
+      if (
+        !currentPresenceWarning
+      ) {
+        removePresenceWarning();
+        return;
+      }
+
+      const expiresAt =
+        Number(
+          currentPresenceWarning
+            .expiresAt,
+        );
+
+      if (
+        !Number.isFinite(
+          expiresAt,
+        )
+      ) {
+        currentPresenceWarning =
+          null;
+
+        removePresenceWarning();
+        return;
+      }
+
+      const remainingMs =
+        expiresAt -
+        Date.now();
+
+      if (
+        remainingMs <= 0
+      ) {
+        currentPresenceWarning =
+          null;
+
+        removePresenceWarning();
+        return;
+      }
+
+      const seconds =
+        Math.max(
+          1,
+          Math.ceil(
+            remainingMs /
+            1000,
+          ),
+        );
+
+      const turnBanner =
+        document.querySelector(
+          '.turn-banner',
+        );
+
+      if (!turnBanner) {
+        removePresenceWarning();
+        return;
+      }
+
+      let warningElement =
+        document.querySelector(
+          `#${PRESENCE_WARNING_ID}`,
+        );
+
+      if (!warningElement) {
+        warningElement =
+          document.createElement(
+            'div',
+          );
+
+        warningElement.id =
+          PRESENCE_WARNING_ID;
+
+        warningElement.setAttribute(
+          'role',
+          'status',
+        );
+
+        warningElement.setAttribute(
+          'aria-live',
+          'polite',
+        );
+
+        warningElement.style.display =
+          'flex';
+
+        warningElement.style.alignItems =
+          'center';
+
+        warningElement.style.justifyContent =
+          'center';
+
+        warningElement.style.gap =
+          '10px';
+
+        warningElement.style.marginLeft =
+          'auto';
+
+        warningElement.style.minWidth =
+          '150px';
+
+        warningElement.style.padding =
+          '8px 14px';
+
+        warningElement.style.border =
+          '2px solid #b88a37';
+
+        warningElement.style.borderRadius =
+          '12px';
+
+        warningElement.style.background =
+          '#fffdf7';
+
+        warningElement.style.color =
+          '#0b4055';
+
+        warningElement.style.boxShadow =
+          '0 7px 22px rgba(9,39,54,.18)';
+
+        warningElement.style.fontWeight =
+          '800';
+
+        warningElement.style.whiteSpace =
+          'nowrap';
+
+        warningElement.style.position =
+          'relative';
+
+        warningElement.style.zIndex =
+          '9999';
+
+        const diceResult =
+          turnBanner.querySelector(
+            '.dice-result',
+          );
+
+        if (diceResult) {
+          turnBanner.insertBefore(
+            warningElement,
+            diceResult,
+          );
+        } else {
+          turnBanner.appendChild(
+            warningElement,
+          );
+        }
+      }
+
+      const playerName =
+        String(
+          currentPresenceWarning
+            .playerName ||
+          'Jogador',
+        );
+
+      warningElement.textContent =
+        `⏱ ${playerName} · ${seconds}s`;
+
+      warningElement.setAttribute(
+        'aria-label',
+        `${playerName} perdeu a ligação. ${seconds} segundos para regressar.`,
+      );
+    }
+
+    async function pollPresence() {
+      if (
+        presenceRequestRunning
+      ) {
+        return;
+      }
+
+      /*
+       * Só fazemos este controlo quando
+       * estamos realmente dentro do jogo.
+       */
+      if (
+        !document.querySelector(
+          '.game-screen',
+        )
+      ) {
+        currentPresenceWarning =
+          null;
+
+        removePresenceWarning();
+        return;
+      }
+
+      const session =
+        getPresenceSession();
+
+      if (!session) {
+        currentPresenceWarning =
+          null;
+
+        removePresenceWarning();
+        return;
+      }
+
+      presenceRequestRunning =
+        true;
+
+      try {
+        /*
+         * IMPORTANTE:
+         *
+         * Não enviamos knownRevision.
+         *
+         * Isto obriga o servidor a devolver
+         * o estado completo, onde
+         * presenceWarnings já existe.
+         *
+         * Assim este aviso não depende
+         * da resposta "not-modified".
+         */
+        const response =
+          await fetch(
+            PRESENCE_API_URL,
+            {
+              method:
+                'POST',
+
+              cache:
+                'no-store',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body:
+                JSON.stringify({
+                  action:
+                    'state',
+
+                  matchId:
+                    session.matchId,
+
+                  playerId:
+                    session.playerId,
+
+                  reconnectToken:
+                    session.reconnectToken,
+                }),
+            },
+          );
+
+        if (!response.ok) {
+          if (
+            response.status ===
+              410 ||
+            response.status ===
+              403
+          ) {
+            currentPresenceWarning =
+              null;
+
+            removePresenceWarning();
+          }
+
+          return;
+        }
+
+        const data =
+          await response.json();
+
+        if (
+          !data?.success
+        ) {
+          return;
+        }
+
+        currentPresenceWarning =
+          getBestPresenceWarning(
+            data.presenceWarnings,
+          );
+
+        renderPresenceWarning();
+      } catch {
+        /*
+         * Uma falha temporária deste
+         * monitor não interfere com
+         * a partida principal.
+         */
+      } finally {
+        presenceRequestRunning =
+          false;
+      }
+    }
+
+    function startPresenceWatcher() {
+      if (
+        presencePollTimer
+      ) {
+        clearInterval(
+          presencePollTimer,
+        );
+      }
+
+      if (
+        presenceRenderTimer
+      ) {
+        clearInterval(
+          presenceRenderTimer,
+        );
+      }
+
+      presencePollTimer =
+        setInterval(
+          pollPresence,
+          PRESENCE_POLL_MS,
+        );
+
+      presenceRenderTimer =
+        setInterval(
+          renderPresenceWarning,
+          PRESENCE_RENDER_MS,
+        );
+
+      void pollPresence();
+    }
+
+    window.addEventListener(
+      'pagehide',
+      () => {
+        if (
+          presencePollTimer
+        ) {
+          clearInterval(
+            presencePollTimer,
+          );
+        }
+
+        if (
+          presenceRenderTimer
+        ) {
+          clearInterval(
+            presenceRenderTimer,
+          );
+        }
+
+        presencePollTimer =
+          null;
+
+        presenceRenderTimer =
+          null;
+
+        currentPresenceWarning =
+          null;
+
+        removePresenceWarning();
+      },
+    );
+
+    startPresenceWatcher();
+  </script>
 </body>
 </html>
