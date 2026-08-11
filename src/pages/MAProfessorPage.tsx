@@ -56,11 +56,11 @@ function updateCanonical(href: string) {
 export default function MAProfessorPage() {
   useEffect(() => {
     document.title =
-      'MA-Professor | Gestão de sumários, UFCD e avaliações'
+      'MA-Professor | Fase piloto para docentes'
 
     updateMeta(
       'description',
-      'MA-Professor é uma aplicação da MA-Code para planificar aulas, criar sumários, controlar UFCD, registar avaliações, faltas e recuperações de aprendizagens.'
+      'MA-Professor é um ambiente digital para organização do trabalho docente. A fase piloto tem acesso gratuito e vagas limitadas, mediante pedido de acesso.'
     )
     updateMeta(
       'keywords',
@@ -77,22 +77,22 @@ export default function MAProfessorPage() {
     updatePropertyMeta('og:url', `${siteUrl}${productPath}`)
     updatePropertyMeta(
       'og:title',
-      'MA-Professor | Beta privada'
+      'MA-Professor | Fase piloto'
     )
     updatePropertyMeta(
       'og:description',
-      'Aplicação para gestão de sumários, UFCD, avaliações, faltas, horários e recuperações de aprendizagens.'
+      'Ambiente digital para organização do trabalho docente, atualmente em fase piloto com acesso gratuito e vagas limitadas.'
     )
     updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
 
     updateMeta('twitter:card', 'summary_large_image')
     updateMeta(
       'twitter:title',
-      'MA-Professor | Beta privada'
+      'MA-Professor | Fase piloto'
     )
     updateMeta(
       'twitter:description',
-      'Gestão de sumários, UFCD, avaliações, horários e faltas para professores.'
+      'MA-Professor em fase piloto: organização de aulas, sumários, turmas, assiduidade e avaliação para docentes.'
     )
     updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
 
