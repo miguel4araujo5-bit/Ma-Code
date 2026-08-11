@@ -13,7 +13,7 @@ const ACCESS_DURABLE_OBJECT_NAME =
 
 const MAX_BODY_BYTES = 1_500_000
 const MAX_RECORD_ID_LENGTH = 128
-const MAX_CIPHERTEXT_CHARACTERS = 1_250_000
+const MAX_CIPHERTEXT_CHARACTERS = 1_480_000
 const NONCE_BYTES = 12
 const HASH_BYTES = 32
 const ENCRYPTION_VERSION = 1
@@ -113,7 +113,6 @@ interface StoredRecordRow {
 
 interface ParsedEncryptedRecord {
   recordId: string
-
   encryptionVersion: 1
 
   encryptionAlgorithm:
