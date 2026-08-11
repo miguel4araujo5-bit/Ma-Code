@@ -52,6 +52,9 @@ const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
 const INTERNAL_ADMIN_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
 
+const INTERNAL_ADMIN_EMAIL_DISPATCH_STATUS_PATH =
+  '/__internal/ma-professor/admin/requests/email-dispatch'
+
 const EXPIRING_DAYS = 7
 const RENEWAL_GRACE_HOURS = 24
 const PASSWORD_HASH_ITERATIONS = 100_000
@@ -76,6 +79,17 @@ export type MAProfessorPaymentStatus =
   | 'pending'
   | 'confirmed'
   | 'dispensed'
+
+export type MAProfessorDecisionMode =
+  | 'pilot'
+  | 'commercial'
+
+export type MAProfessorEmailDispatchStatus =
+  | 'not_applicable'
+  | 'not_configured'
+  | 'pending'
+  | 'sent'
+  | 'failed'
 
 interface StoredLicenseSnapshot {
   email: string
@@ -106,6 +120,9 @@ interface StoredAccessRequestSnapshot {
   activatedAt: number | null
   failedActivationAttempts: number
   blockedUntil: number | null
+  decisionMode?: MAProfessorDecisionMode
+  emailDispatchStatus?: MAProfessorEmailDispatchStatus
+  emailDispatchUpdatedAt?: number | null
   updatedAt: number
 }
 
@@ -559,7 +576,17 @@ function buildAccessRequestSummary(
     rejectedAt:
       toIso(request.rejectedAt),
     activatedAt:
-      toIso(request.activatedAt)
+      toIso(request.activatedAt),
+    decisionMode:
+      request.decisionMode ??
+      null,
+    emailDispatchStatus:
+      request.emailDispatchStatus ??
+      null,
+    emailDispatchUpdatedAt:
+      toIso(
+        request.emailDispatchUpdatedAt
+      )
   }
 }
 
@@ -574,7 +601,6 @@ function buildCredentialStatus(
     hasCredential:
       Boolean(credential),
     activationCode:
-      credential?.activationCode ??
       null,
     createdAt:
       credential
@@ -589,6 +615,37 @@ function buildCredentialStatus(
           )
         : null
   }
+}
+
+function stripLegacyActivationCodes(
+  state:
+    AccessStateSnapshot |
+    undefined
+) {
+  if (!state?.credentials) {
+    return false
+  }
+
+  let changed = false
+
+  for (
+    const credential of
+    Object.values(
+      state.credentials
+    )
+  ) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        credential,
+        'activationCode'
+      )
+    ) {
+      delete credential.activationCode
+      changed = true
+    }
+  }
+
+  return changed
 }
 
 function buildLicenseSummary(
@@ -957,6 +1014,29 @@ export class MaProfessorAccessDurableObject {
       )
   }
 
+  private async readAccessState() {
+    const state =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    if (
+      state &&
+      stripLegacyActivationCodes(
+        state
+      )
+    ) {
+      await this.state.storage.put(
+        STORAGE_KEY,
+        state
+      )
+
+      this.refreshBase()
+    }
+
+    return state
+  }
+
   private async readCommerceState() {
     const stored =
       await this.state.storage.get<StoredCommerceState>(
@@ -999,9 +1079,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -1147,9 +1225,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -1188,6 +1264,21 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
+    const commerceState =
+      await this.readCommerceState()
+
+    const authorization =
+      getLatestAuthorization(
+        commerceState,
+        email
+      )
+
+    const decisionMode:
+      MAProfessorDecisionMode =
+      authorization
+        ? 'commercial'
+        : 'pilot'
+
     const now = Date.now()
 
     if (
@@ -1209,6 +1300,18 @@ export class MaProfessorAccessDurableObject {
         null
     }
 
+    accessRequest.decisionMode =
+      decisionMode
+
+    accessRequest.emailDispatchStatus =
+      decisionMode ===
+        'commercial'
+        ? 'not_applicable'
+        : 'pending'
+
+    accessRequest.emailDispatchUpdatedAt =
+      now
+
     accessRequest.updatedAt = now
     state.updatedAt = now
 
@@ -1226,6 +1329,192 @@ export class MaProfessorAccessDurableObject {
         'approve'
           ? 'Pedido aprovado.'
           : 'Pedido rejeitado.',
+      request:
+        buildAccessRequestSummary(
+          accessRequest
+        ),
+      decisionMode,
+      emailDispatchStatus:
+        accessRequest.emailDispatchStatus,
+      emailDispatchUpdatedAt:
+        toIso(
+          accessRequest.emailDispatchUpdatedAt
+        )
+    })
+  }
+
+  private async handleEmailDispatchStatusUpdate(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const status =
+      body.status
+
+    const validStatus =
+      status ===
+        'not_applicable' ||
+      status ===
+        'not_configured' ||
+      status === 'pending' ||
+      status === 'sent' ||
+      status === 'failed'
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    if (!validStatus) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um estado de envio válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.readAccessState()
+
+    const accessRequest =
+      state?.accessRequests?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !accessRequest
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O pedido de acesso não foi encontrado.'
+        },
+        404
+      )
+    }
+
+    if (
+      accessRequest.status ===
+      'pending'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'O estado de envio só pode ser atualizado depois da decisão do pedido.'
+        },
+        409
+      )
+    }
+
+    const decisionMode =
+      accessRequest.decisionMode
+
+    if (
+      decisionMode ===
+        'commercial' &&
+      status !==
+        'not_applicable'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Pedidos comerciais não utilizam o envio automático da fase piloto.'
+        },
+        409
+      )
+    }
+
+    if (
+      decisionMode ===
+        'pilot' &&
+      status ===
+        'not_applicable'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Pedidos piloto devem manter um estado explícito para o envio automático.'
+        },
+        409
+      )
+    }
+
+    const now = Date.now()
+
+    accessRequest.emailDispatchStatus =
+      status as MAProfessorEmailDispatchStatus
+
+    accessRequest.emailDispatchUpdatedAt =
+      now
+
+    accessRequest.updatedAt = now
+    state.updatedAt = now
+
+    await this.state.storage.put(
+      STORAGE_KEY,
+      state
+    )
+
+    this.refreshBase()
+
+    return json({
+      success: true,
+      message:
+        'Estado do envio automático atualizado.',
       request:
         buildAccessRequestSummary(
           accessRequest
@@ -1290,9 +1579,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const license =
       state?.licenses?.[
@@ -1422,9 +1709,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -1537,9 +1822,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -1709,9 +1992,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -2049,9 +2330,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -2144,9 +2423,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const state =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
+      await this.readAccessState()
 
     const accessRequest =
       state?.accessRequests?.[
@@ -2278,8 +2555,6 @@ export class MaProfessorAccessDurableObject {
         passwordHash,
         passwordIterations:
           PASSWORD_HASH_ITERATIONS,
-        activationCode:
-          password,
         createdAt:
           now,
         updatedAt:
@@ -2424,9 +2699,7 @@ export class MaProfessorAccessDurableObject {
       }
 
       const state =
-        await this.state.storage.get<AccessStateSnapshot>(
-          STORAGE_KEY
-        )
+        await this.readAccessState()
 
       return json(
         buildOverview(state)
@@ -2450,6 +2723,15 @@ export class MaProfessorAccessDurableObject {
       return this.handleAccessRequestDecision(
         request,
         'reject'
+      )
+    }
+
+    if (
+      url.pathname ===
+      INTERNAL_ADMIN_EMAIL_DISPATCH_STATUS_PATH
+    ) {
+      return this.handleEmailDispatchStatusUpdate(
+        request
       )
     }
 
@@ -2578,6 +2860,33 @@ export async function decideMAProfessorAccessRequest(
         body:
           JSON.stringify({
             email
+          })
+      }
+    )
+  )
+}
+
+export async function updateMAProfessorAdminEmailDispatchStatus(
+  env: MaProfessorAccessEnv,
+  email: string,
+  status: MAProfessorEmailDispatchStatus
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_EMAIL_DISPATCH_STATUS_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email,
+            status
           })
       }
     )
