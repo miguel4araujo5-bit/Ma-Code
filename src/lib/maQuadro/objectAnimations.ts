@@ -23,6 +23,8 @@ export type MAQuadroObjectAnimation = {
   kind: MAQuadroAnimationKind
   phase: MAQuadroAnimationPhase
   durationMs: number
+  order: number
+  delayMs: number
 }
 
 export type MAQuadroAnimationSnapshot = {
@@ -48,6 +50,12 @@ type MAQuadroAnimatedFabricObject =
 
     maAnimationDurationMs?:
       number
+
+    maAnimationOrder?:
+      number
+
+    maAnimationDelayMs?:
+      number
   }
 
 type MAQuadroCanvasPrototype = {
@@ -70,6 +78,22 @@ export const
     3000
 
 export const
+  MA_QUADRO_ANIMATION_MIN_ORDER =
+    0
+
+export const
+  MA_QUADRO_ANIMATION_MAX_ORDER =
+    99
+
+export const
+  MA_QUADRO_ANIMATION_MIN_DELAY_MS =
+    0
+
+export const
+  MA_QUADRO_ANIMATION_MAX_DELAY_MS =
+    3000
+
+export const
   MA_QUADRO_DEFAULT_ANIMATION:
     MAQuadroObjectAnimation = {
       kind:
@@ -79,13 +103,21 @@ export const
         'in',
 
       durationMs:
-        700
+        700,
+
+      order:
+        0,
+
+      delayMs:
+        0
     }
 
 const animationCustomProperties = [
   'maAnimationKind',
   'maAnimationPhase',
-  'maAnimationDurationMs'
+  'maAnimationDurationMs',
+  'maAnimationOrder',
+  'maAnimationDelayMs'
 ]
 
 const fabricObjectClass =
@@ -210,6 +242,32 @@ function clampDuration(
       value,
       MA_QUADRO_ANIMATION_MIN_DURATION_MS,
       MA_QUADRO_ANIMATION_MAX_DURATION_MS
+    )
+  )
+}
+
+function clampOrder(
+  value:
+    number
+) {
+  return Math.round(
+    clamp(
+      value,
+      MA_QUADRO_ANIMATION_MIN_ORDER,
+      MA_QUADRO_ANIMATION_MAX_ORDER
+    )
+  )
+}
+
+function clampDelay(
+  value:
+    number
+) {
+  return Math.round(
+    clamp(
+      value,
+      MA_QUADRO_ANIMATION_MIN_DELAY_MS,
+      MA_QUADRO_ANIMATION_MAX_DELAY_MS
     )
   )
 }
@@ -394,6 +452,115 @@ function emitObjectModified(
   )
 }
 
+function createAbortError() {
+  return new DOMException(
+    'Pré-visualização cancelada.',
+    'AbortError'
+  )
+}
+
+function waitForDelay(
+  durationMs:
+    number,
+  signal?:
+    AbortSignal
+) {
+  if (
+    durationMs <=
+    0
+  ) {
+    if (
+      signal?.aborted
+    ) {
+      return Promise.reject(
+        createAbortError()
+      )
+    }
+
+    return Promise.resolve()
+  }
+
+  return new Promise<void>(
+    (
+      resolve,
+      reject
+    ) => {
+      let settled =
+        false
+
+      const finish =
+        () => {
+          if (
+            settled
+          ) {
+            return
+          }
+
+          settled =
+            true
+
+          signal
+            ?.removeEventListener(
+              'abort',
+              handleAbort
+            )
+
+          resolve()
+        }
+
+      const timeout =
+        window.setTimeout(
+          finish,
+          durationMs
+        )
+
+      const handleAbort =
+        () => {
+          if (
+            settled
+          ) {
+            return
+          }
+
+          settled =
+            true
+
+          window.clearTimeout(
+            timeout
+          )
+
+          signal
+            ?.removeEventListener(
+              'abort',
+              handleAbort
+            )
+
+          reject(
+            createAbortError()
+          )
+        }
+
+      if (
+        signal?.aborted
+      ) {
+        handleAbort()
+
+        return
+      }
+
+      signal
+        ?.addEventListener(
+          'abort',
+          handleAbort,
+          {
+            once:
+              true
+          }
+        )
+    }
+  )
+}
+
 export function
 getMAQuadroAnimationCanvas() {
   return animationCanvas
@@ -449,6 +616,26 @@ getMAQuadroObjectAnimation(
           MA_QUADRO_DEFAULT_ANIMATION
             .durationMs
         )
+      ),
+
+    order:
+      clampOrder(
+        Number(
+          animated
+            .maAnimationOrder ??
+          MA_QUADRO_DEFAULT_ANIMATION
+            .order
+        )
+      ),
+
+    delayMs:
+      clampDelay(
+        Number(
+          animated
+            .maAnimationDelayMs ??
+          MA_QUADRO_DEFAULT_ANIMATION
+            .delayMs
+        )
       )
   }
 }
@@ -496,7 +683,23 @@ setMAQuadroObjectAnimation(
                 .durationMs
             )
           : current
-              .durationMs
+              .durationMs,
+
+      order:
+        values.order !==
+          undefined
+          ? clampOrder(
+              values.order
+            )
+          : current.order,
+
+      delayMs:
+        values.delayMs !==
+          undefined
+          ? clampDelay(
+              values.delayMs
+            )
+          : current.delayMs
     }
 
   if (
@@ -505,7 +708,11 @@ setMAQuadroObjectAnimation(
     current.phase ===
       next.phase &&
     current.durationMs ===
-      next.durationMs
+      next.durationMs &&
+    current.order ===
+      next.order &&
+    current.delayMs ===
+      next.delayMs
   ) {
     return false
   }
@@ -522,6 +729,12 @@ setMAQuadroObjectAnimation(
 
   animated.maAnimationDurationMs =
     next.durationMs
+
+  animated.maAnimationOrder =
+    next.order
+
+  animated.maAnimationDelayMs =
+    next.delayMs
 
   object.dirty =
     true
@@ -957,13 +1170,6 @@ restoreMAQuadroAnimationSnapshot(
     .requestRenderAll()
 }
 
-function createAbortError() {
-  return new DOMException(
-    'Pré-visualização cancelada.',
-    'AbortError'
-  )
-}
-
 function animateProgress(
   durationMs:
     number,
@@ -1172,6 +1378,19 @@ previewMAQuadroObjectAnimation(
   )
 
   try {
+    applyMAQuadroObjectAnimationProgress(
+      canvas,
+      object,
+      animation,
+      snapshot,
+      0
+    )
+
+    await waitForDelay(
+      animation.delayMs,
+      signal
+    )
+
     await animateProgress(
       animation.durationMs,
 
