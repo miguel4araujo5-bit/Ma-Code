@@ -5,7 +5,6 @@ import {
 
 import {
   confirmMAProfessorAdminPayment,
-  decideMAProfessorAccessRequest,
   dispenseMAProfessorAdminPayment,
   generateMAProfessorAdminCredential,
   getMAProfessorAdminCommercialStatus,
@@ -18,12 +17,18 @@ import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
 
+import {
+  processMAProfessorAccessDecision,
+  type MAProfessorDecisionEmailEnv
+} from './maProfessorPilotDecision'
+
 export const MA_PROFESSOR_ADMIN_API_PREFIX =
   '/api/admin/ma-professor'
 
 export interface MaProfessorAdminEnv
   extends MaCodeAdminEnv,
-    MaProfessorAccessEnv {}
+    MaProfessorAccessEnv,
+    MAProfessorDecisionEmailEnv {}
 
 type JsonObject =
   Record<string, unknown>
@@ -407,7 +412,7 @@ async function handleAccessRequestDecision(
       actionEnv,
       email
     ) =>
-      decideMAProfessorAccessRequest(
+      processMAProfessorAccessDecision(
         actionEnv,
         email,
         decision
