@@ -163,30 +163,4 @@ export function createSessionLicense(
     license: LicenseSummary
 ) {
     return license;
-}import type {
-    LicenseSummary
-} from '../types';
-
-import type {
-    MAProfessorAccessRequestResponse,
-    MAProfessorAccessResponse,
-    MAProfessorLicenseResponse,
-    MAProfessorRenewalResponse,
-    RenewableLicensePlan
-} from './accessTypes';
-
-const API_PREFIX =
-    '/api/ma-professor/access';
-
-interface ApiErrorBody {
-    success?: boolean;
-    message?: string;
 }
-
-async function postJson<T>(
-    path: string,
-    body: Record<
-        string,
-        unknown
-    >
-): Promise<T> {
