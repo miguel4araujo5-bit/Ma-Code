@@ -116,6 +116,19 @@ export async function verifyMAProfessorAccess(
     );
 }
 
+export async function confirmMAProfessorPilotAccess(
+    token: string,
+    deviceId: string
+) {
+    return postJson<MAProfessorLicenseResponse>(
+        '/confirm-pilot',
+        {
+            token,
+            deviceId
+        }
+    );
+}
+
 export async function requestMAProfessorRenewal(
     token: string,
     deviceId: string,
@@ -150,4 +163,30 @@ export function createSessionLicense(
     license: LicenseSummary
 ) {
     return license;
+}import type {
+    LicenseSummary
+} from '../types';
+
+import type {
+    MAProfessorAccessRequestResponse,
+    MAProfessorAccessResponse,
+    MAProfessorLicenseResponse,
+    MAProfessorRenewalResponse,
+    RenewableLicensePlan
+} from './accessTypes';
+
+const API_PREFIX =
+    '/api/ma-professor/access';
+
+interface ApiErrorBody {
+    success?: boolean;
+    message?: string;
 }
+
+async function postJson<T>(
+    path: string,
+    body: Record<
+        string,
+        unknown
+    >
+): Promise<T> {
