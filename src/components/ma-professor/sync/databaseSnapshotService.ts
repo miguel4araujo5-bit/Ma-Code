@@ -459,13 +459,33 @@ function startsWithBytes(
   return true
 }
 
+function toArrayBuffer(
+  value:
+    Uint8Array
+) {
+  const buffer =
+    new ArrayBuffer(
+      value.byteLength
+    )
+
+  new Uint8Array(
+    buffer
+  ).set(
+    value
+  )
+
+  return buffer
+}
+
 async function runCompressionStream(
   value:
     Uint8Array
 ) {
   const stream =
     new Blob([
-      value
+      toArrayBuffer(
+        value
+      )
     ])
       .stream()
       .pipeThrough(
@@ -487,7 +507,9 @@ async function runDecompressionStream(
 ) {
   const stream =
     new Blob([
-      value
+      toArrayBuffer(
+        value
+      )
     ])
       .stream()
       .pipeThrough(
