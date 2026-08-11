@@ -15,9 +15,30 @@ interface AdminApiErrorBody {
   message?: string
 }
 
+export type MAProfessorDecisionMode =
+  | 'pilot'
+  | 'commercial'
+
+export type MAProfessorDecisionEmailDelivery =
+  | 'sent'
+  | 'not_configured'
+  | 'pending'
+  | 'failed'
+  | 'not_applicable'
+
+export interface MAProfessorAdminAccessRequestSummary
+  extends MAProfessorAccessRequestSummary {
+  decisionMode:
+    MAProfessorDecisionMode | null
+  emailDispatchStatus:
+    MAProfessorDecisionEmailDelivery | null
+  emailDispatchUpdatedAt:
+    string | null
+}
+
 export interface MAProfessorAdminOverview {
   accessRequests:
-    MAProfessorAccessRequestSummary[]
+    MAProfessorAdminAccessRequestSummary[]
   licenses:
     LicenseSummary[]
   renewals:
@@ -39,17 +60,11 @@ export interface MAProfessorGeneratedCredential
   password: string
 }
 
-export type MAProfessorDecisionEmailDelivery =
-  | 'sent'
-  | 'not_configured'
-  | 'failed'
-  | 'not_applicable'
-
 export interface MAProfessorAccessDecisionResult {
   success: true
   message: string
   request?:
-    MAProfessorAccessRequestSummary
+    MAProfessorAdminAccessRequestSummary
   emailDelivery:
     MAProfessorDecisionEmailDelivery
   credentialIssued: boolean
@@ -90,7 +105,7 @@ interface MAProfessorAdminActionResponse {
   success: true
   message: string
   request?:
-    MAProfessorAccessRequestSummary
+    MAProfessorAdminAccessRequestSummary
   license?:
     LicenseSummary
 }
@@ -161,6 +176,86 @@ function isNullableString(
 ) {
   return value === null ||
     typeof value === 'string'
+}
+
+function isDecisionMode(
+  value: unknown
+): value is MAProfessorDecisionMode {
+  return value ===
+      'pilot' ||
+    value ===
+      'commercial'
+}
+
+function isAdminAccessRequestStatus(
+  value: unknown
+): value is MAProfessorAccessRequestSummary['status'] {
+  return value ===
+      'pending' ||
+    value ===
+      'approved' ||
+    value ===
+      'rejected'
+}
+
+function assertAdminAccessRequestSummary(
+  value: unknown
+): asserts value is MAProfessorAdminAccessRequestSummary {
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um pedido de acesso inválido.'
+    )
+  }
+
+  const data =
+    value as Record<string, unknown>
+
+  const validDecisionMode =
+    data.decisionMode ===
+      null ||
+    isDecisionMode(
+      data.decisionMode
+    )
+
+  const validDispatchStatus =
+    data.emailDispatchStatus ===
+      null ||
+    isDecisionEmailDelivery(
+      data.emailDispatchStatus
+    )
+
+  if (
+    typeof data.email !==
+      'string' ||
+    !isAdminAccessRequestStatus(
+      data.status
+    ) ||
+    !isNullableString(
+      data.requestedAt
+    ) ||
+    !isNullableString(
+      data.approvedAt
+    ) ||
+    !isNullableString(
+      data.rejectedAt
+    ) ||
+    !isNullableString(
+      data.activatedAt
+    ) ||
+    !validDecisionMode ||
+    !validDispatchStatus ||
+    !isNullableString(
+      data.emailDispatchUpdatedAt
+    )
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um pedido de acesso inválido.'
+    )
+  }
 }
 
 function assertCredentialStatus(
@@ -370,6 +465,8 @@ function isDecisionEmailDelivery(
     value ===
       'not_configured' ||
     value ===
+      'pending' ||
+    value ===
       'failed' ||
     value ===
       'not_applicable'
@@ -413,6 +510,12 @@ async function postDecisionAction(
   ) {
     throw new Error(
       'O backend administrativo devolveu uma resposta de decisão inválida.'
+    )
+  }
+
+  if (data.request) {
+    assertAdminAccessRequestSummary(
+      data.request
     )
   }
 
@@ -474,6 +577,15 @@ export async function getMAProfessorAdminOverview() {
   ) {
     throw new Error(
       'O backend administrativo devolveu dados inválidos.'
+    )
+  }
+
+  for (
+    const accessRequest of
+    data.accessRequests
+  ) {
+    assertAdminAccessRequestSummary(
+      accessRequest
     )
   }
 
