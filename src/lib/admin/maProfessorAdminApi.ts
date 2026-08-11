@@ -29,6 +29,7 @@ export interface MAProfessorAdminOverview {
 export interface MAProfessorAdminCredentialStatus {
   email: string
   hasCredential: boolean
+  activationCode: string | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -160,6 +161,43 @@ function isNullableString(
 ) {
   return value === null ||
     typeof value === 'string'
+}
+
+function assertCredentialStatus(
+  value: unknown
+): asserts value is MAProfessorAdminCredentialStatus {
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um estado de senha inválido.'
+    )
+  }
+
+  const data =
+    value as Record<string, unknown>
+
+  if (
+    typeof data.email !==
+      'string' ||
+    typeof data.hasCredential !==
+      'boolean' ||
+    !isNullableString(
+      data.activationCode
+    ) ||
+    !isNullableString(
+      data.createdAt
+    ) ||
+    !isNullableString(
+      data.updatedAt
+    )
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um estado de senha inválido.'
+    )
+  }
 }
 
 function assertCommercialStatus(
@@ -661,17 +699,16 @@ export async function getMAProfessorCredentialStatus(
 
   if (
     !data ||
-    data.success !== true ||
-    !data.credential ||
-    typeof data.credential.email !==
-      'string' ||
-    typeof data.credential.hasCredential !==
-      'boolean'
+    data.success !== true
   ) {
     throw new Error(
       'O backend administrativo devolveu um estado de senha inválido.'
     )
   }
+
+  assertCredentialStatus(
+    data.credential
+  )
 
   return data.credential
 }
@@ -703,10 +740,6 @@ export async function generateMAProfessorAccessPassword(
     !data ||
     data.success !== true ||
     !data.credential ||
-    typeof data.credential.email !==
-      'string' ||
-    typeof data.credential.hasCredential !==
-      'boolean' ||
     typeof data.credential.password !==
       'string' ||
     !data.credential.password
@@ -715,6 +748,10 @@ export async function generateMAProfessorAccessPassword(
       'O backend administrativo devolveu uma nova senha inválida.'
     )
   }
+
+  assertCredentialStatus(
+    data.credential
+  )
 
   if (data.commerce) {
     assertCommercialStatus(
