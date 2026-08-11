@@ -77,6 +77,729 @@
     </noscript>
   </div>
 
+  <!--
+    PRESENÇA ONLINE
+
+    Este monitor fica ligado à identidade recebida
+    pela própria janela através do evento
+    conquistador:online-match-ready.
+
+    NÃO volta a consultar localStorage para descobrir
+    quem é o jogador. Assim, dois separadores/janelas
+    não conseguem manter acidentalmente o jogador
+    errado "vivo".
+  -->
+  <script>
+    (() => {
+      const API_URL =
+        '/api/conquistador/game';
+
+      const WARNING_ID =
+        'conquistador-presence-warning';
+
+      const POLL_MS =
+        700;
+
+      const RENDER_MS =
+        200;
+
+      let session =
+        null;
+
+      let warning =
+        null;
+
+      let requestRunning =
+        false;
+
+      let pollTimer =
+        null;
+
+      let renderTimer =
+        null;
+
+      let lastTurnKey =
+        '';
+
+      function normalizeSession(
+        detail,
+      ) {
+        if (
+          !detail ||
+          typeof detail !==
+            'object'
+        ) {
+          return null;
+        }
+
+        const matchId =
+          String(
+            detail.matchId ||
+            '',
+          ).trim();
+
+        const playerId =
+          String(
+            detail.playerId ||
+            '',
+          ).trim();
+
+        const reconnectToken =
+          String(
+            detail.reconnectToken ||
+            '',
+          ).trim();
+
+        if (
+          !matchId ||
+          !playerId ||
+          !reconnectToken
+        ) {
+          return null;
+        }
+
+        return {
+          matchId,
+          playerId,
+          reconnectToken,
+        };
+      }
+
+      function removeWarning() {
+        document
+          .querySelector(
+            `#${WARNING_ID}`,
+          )
+          ?.remove();
+      }
+
+      function clearWarning() {
+        warning =
+          null;
+
+        removeWarning();
+      }
+
+      function chooseWarning(
+        data,
+      ) {
+        const warnings =
+          Array.isArray(
+            data?.presenceWarnings,
+          )
+            ? data.presenceWarnings
+            : [];
+
+        const now =
+          Date.now();
+
+        return (
+          warnings
+            .filter(
+              (candidate) => {
+                if (
+                  !candidate ||
+                  typeof candidate !==
+                    'object'
+                ) {
+                  return false;
+                }
+
+                /*
+                 * Nunca mostramos um aviso
+                 * sobre esta própria janela.
+                 */
+                if (
+                  session &&
+                  String(
+                    candidate.playerId ||
+                    '',
+                  ) ===
+                    session.playerId
+                ) {
+                  return false;
+                }
+
+                const expiresAt =
+                  Number(
+                    candidate.expiresAt,
+                  );
+
+                return (
+                  Number.isFinite(
+                    expiresAt,
+                  ) &&
+                  expiresAt >
+                    now
+                );
+              },
+            )
+            .sort(
+              (
+                first,
+                second,
+              ) =>
+                Number(
+                  first.expiresAt,
+                ) -
+                Number(
+                  second.expiresAt,
+                ),
+            )[0] ||
+          null
+        );
+      }
+
+      function renderWarning() {
+        if (
+          !session ||
+          !warning
+        ) {
+          removeWarning();
+          return;
+        }
+
+        const expiresAt =
+          Number(
+            warning.expiresAt,
+          );
+
+        if (
+          !Number.isFinite(
+            expiresAt,
+          )
+        ) {
+          clearWarning();
+          return;
+        }
+
+        const remaining =
+          expiresAt -
+          Date.now();
+
+        if (
+          remaining <= 0
+        ) {
+          clearWarning();
+          return;
+        }
+
+        const seconds =
+          Math.max(
+            1,
+            Math.ceil(
+              remaining /
+              1000,
+            ),
+          );
+
+        const turnBanner =
+          document.querySelector(
+            '.turn-banner',
+          );
+
+        if (!turnBanner) {
+          removeWarning();
+          return;
+        }
+
+        let element =
+          document.querySelector(
+            `#${WARNING_ID}`,
+          );
+
+        if (!element) {
+          element =
+            document.createElement(
+              'div',
+            );
+
+          element.id =
+            WARNING_ID;
+
+          element.setAttribute(
+            'role',
+            'status',
+          );
+
+          element.setAttribute(
+            'aria-live',
+            'polite',
+          );
+
+          element.style.display =
+            'flex';
+
+          element.style.alignItems =
+            'center';
+
+          element.style.justifyContent =
+            'center';
+
+          element.style.gap =
+            '10px';
+
+          element.style.marginLeft =
+            'auto';
+
+          element.style.minWidth =
+            '170px';
+
+          element.style.padding =
+            '8px 14px';
+
+          element.style.border =
+            '2px solid #b88a37';
+
+          element.style.borderRadius =
+            '12px';
+
+          element.style.background =
+            '#fffdf7';
+
+          element.style.color =
+            '#0b4055';
+
+          element.style.boxShadow =
+            '0 7px 22px rgba(9,39,54,.18)';
+
+          element.style.fontWeight =
+            '800';
+
+          element.style.whiteSpace =
+            'nowrap';
+
+          element.style.position =
+            'relative';
+
+          element.style.zIndex =
+            '99999';
+
+          const dice =
+            turnBanner.querySelector(
+              '.dice-result',
+            );
+
+          if (dice) {
+            turnBanner.insertBefore(
+              element,
+              dice,
+            );
+          } else {
+            turnBanner.appendChild(
+              element,
+            );
+          }
+        }
+
+        const playerName =
+          String(
+            warning.playerName ||
+            'Jogador',
+          ).trim() ||
+          'Jogador';
+
+        element.textContent =
+          `⏱ ${playerName} · ${seconds}s`;
+
+        element.setAttribute(
+          'aria-label',
+          `${playerName} perdeu a ligação. ${seconds} segundos para regressar.`,
+        );
+      }
+
+      function getCurrentPlayerName(
+        data,
+      ) {
+        const players =
+          Array.isArray(
+            data?.game?.players,
+          )
+            ? data.game.players
+            : [];
+
+        const currentId =
+          String(
+            data?.game
+              ?.currentPlayerId ||
+            '',
+          );
+
+        const player =
+          players.find(
+            (candidate) =>
+              String(
+                candidate?.id ||
+                '',
+              ) ===
+              currentId,
+          );
+
+        return String(
+          player?.name ||
+          'outro jogador',
+        );
+      }
+
+      function syncTurnStatus(
+        data,
+      ) {
+        if (
+          !data?.game ||
+          !session
+        ) {
+          return;
+        }
+
+        const currentPlayerId =
+          String(
+            data.game
+              .currentPlayerId ||
+            '',
+          );
+
+        if (
+          !currentPlayerId
+        ) {
+          return;
+        }
+
+        const turnKey =
+          [
+            data.game
+              .turnNumber,
+            currentPlayerId,
+            data.game
+              .phase,
+          ].join(':');
+
+        const changedTurn =
+          turnKey !==
+          lastTurnKey;
+
+        lastTurnKey =
+          turnKey;
+
+        const element =
+          document.querySelector(
+            '#status-message',
+          );
+
+        if (!element) {
+          return;
+        }
+
+        const existing =
+          String(
+            element.textContent ||
+            '',
+          ).trim();
+
+        /*
+         * Corrige mensagens de turno antigas,
+         * mas não apaga mensagens úteis como
+         * resultados dos dados ou construções.
+         */
+        const oldTurnMessage =
+          !existing ||
+          existing.startsWith(
+            'Partida online sincronizada.',
+          ) ||
+          existing.startsWith(
+            'É agora a vez de ',
+          );
+
+        if (
+          !changedTurn &&
+          !oldTurnMessage
+        ) {
+          return;
+        }
+
+        const isMine =
+          data.actions
+            ?.isCurrentPlayer ===
+            true ||
+          currentPlayerId ===
+            session.playerId;
+
+        if (isMine) {
+          element.className =
+            'status-message status-success';
+
+          element.textContent =
+            'Partida online sincronizada. É a sua vez.';
+        } else {
+          element.className =
+            'status-message status-info';
+
+          element.textContent =
+            `Partida online sincronizada. Aguarde por ${getCurrentPlayerName(
+              data,
+            )}.`;
+        }
+      }
+
+      async function pollPresence() {
+        if (
+          !session ||
+          requestRunning
+        ) {
+          return;
+        }
+
+        /*
+         * Só interessa manter o heartbeat
+         * enquanto esta janela está dentro
+         * da partida.
+         */
+        if (
+          !document.querySelector(
+            '.game-screen',
+          )
+        ) {
+          clearWarning();
+          return;
+        }
+
+        const activeSession = {
+          ...session,
+        };
+
+        requestRunning =
+          true;
+
+        try {
+          const response =
+            await fetch(
+              API_URL,
+              {
+                method:
+                  'POST',
+
+                cache:
+                  'no-store',
+
+                headers: {
+                  'Content-Type':
+                    'application/json',
+                },
+
+                body:
+                  JSON.stringify({
+                    action:
+                      'state',
+
+                    matchId:
+                      activeSession.matchId,
+
+                    playerId:
+                      activeSession.playerId,
+
+                    reconnectToken:
+                      activeSession.reconnectToken,
+                  }),
+              },
+            );
+
+          /*
+           * Entretanto a página pode ter
+           * entrado noutra sessão.
+           */
+          if (
+            !session ||
+            session.matchId !==
+              activeSession.matchId ||
+            session.playerId !==
+              activeSession.playerId
+          ) {
+            return;
+          }
+
+          if (!response.ok) {
+            if (
+              response.status ===
+                403 ||
+              response.status ===
+                410
+            ) {
+              clearWarning();
+            }
+
+            return;
+          }
+
+          const data =
+            await response.json();
+
+          if (
+            !data?.success
+          ) {
+            return;
+          }
+
+          warning =
+            chooseWarning(
+              data,
+            );
+
+          syncTurnStatus(
+            data,
+          );
+
+          renderWarning();
+        } catch {
+          /*
+           * Uma falha deste monitor não
+           * bloqueia a partida principal.
+           */
+        } finally {
+          requestRunning =
+            false;
+        }
+      }
+
+      function startTimers() {
+        if (
+          pollTimer
+        ) {
+          clearInterval(
+            pollTimer,
+          );
+        }
+
+        if (
+          renderTimer
+        ) {
+          clearInterval(
+            renderTimer,
+          );
+        }
+
+        pollTimer =
+          setInterval(
+            pollPresence,
+            POLL_MS,
+          );
+
+        renderTimer =
+          setInterval(
+            renderWarning,
+            RENDER_MS,
+          );
+      }
+
+      /*
+       * ESTA É A ALTERAÇÃO IMPORTANTE:
+       *
+       * A identidade fica presa a esta
+       * página através do próprio evento
+       * do matchmaking.
+       *
+       * Não lemos localStorage.
+       */
+      window.addEventListener(
+        'conquistador:online-match-ready',
+        (event) => {
+          const nextSession =
+            normalizeSession(
+              event.detail,
+            );
+
+          if (!nextSession) {
+            return;
+          }
+
+          session =
+            nextSession;
+
+          warning =
+            null;
+
+          lastTurnKey =
+            '';
+
+          removeWarning();
+
+          window.setTimeout(
+            () => {
+              void pollPresence();
+            },
+            50,
+          );
+        },
+      );
+
+      /*
+       * Menu = abandono voluntário.
+       * O OnlineMatchmaking continua a
+       * tratar do /leave; este listener
+       * apenas desliga o nosso monitor.
+       */
+      document.addEventListener(
+        'click',
+        (event) => {
+          if (
+            !event.target.closest(
+              '#leave-game-button',
+            )
+          ) {
+            return;
+          }
+
+          session =
+            null;
+
+          warning =
+            null;
+
+          lastTurnKey =
+            '';
+
+          removeWarning();
+        },
+        true,
+      );
+
+      window.addEventListener(
+        'pagehide',
+        () => {
+          session =
+            null;
+
+          warning =
+            null;
+
+          removeWarning();
+
+          if (
+            pollTimer
+          ) {
+            clearInterval(
+              pollTimer,
+            );
+          }
+
+          if (
+            renderTimer
+          ) {
+            clearInterval(
+              renderTimer,
+            );
+          }
+
+          pollTimer =
+            null;
+
+          renderTimer =
+            null;
+        },
+      );
+
+      startTimers();
+    })();
+  </script>
+
   <script
     type="module"
     src="./src/ui/DiceRollAnimation.js?v=dice-roll-2"
@@ -106,488 +829,5 @@
     type="module"
     src="./src/ui/OnlineMatchmaking.js?v=online-matchmaking-2"
   ></script>
-
-  <script type="module">
-    const PRESENCE_SESSION_KEY =
-      'conquistador-online-session-v1';
-
-    const PRESENCE_API_URL =
-      '/api/conquistador/game';
-
-    const PRESENCE_WARNING_ID =
-      'conquistador-presence-warning';
-
-    const PRESENCE_POLL_MS =
-      700;
-
-    const PRESENCE_RENDER_MS =
-      200;
-
-    let presencePollTimer =
-      null;
-
-    let presenceRenderTimer =
-      null;
-
-    let presenceRequestRunning =
-      false;
-
-    let currentPresenceWarning =
-      null;
-
-    function getPresenceSession() {
-      try {
-        const raw =
-          localStorage.getItem(
-            PRESENCE_SESSION_KEY,
-          );
-
-        if (!raw) {
-          return null;
-        }
-
-        const data =
-          JSON.parse(raw);
-
-        if (
-          !data ||
-          typeof data !== 'object' ||
-          typeof data.matchId !== 'string' ||
-          typeof data.playerId !== 'string' ||
-          typeof data.reconnectToken !== 'string' ||
-          !data.matchId ||
-          !data.playerId ||
-          !data.reconnectToken
-        ) {
-          return null;
-        }
-
-        return {
-          matchId:
-            data.matchId,
-
-          playerId:
-            data.playerId,
-
-          reconnectToken:
-            data.reconnectToken,
-        };
-      } catch {
-        return null;
-      }
-    }
-
-    function removePresenceWarning() {
-      document
-        .querySelector(
-          `#${PRESENCE_WARNING_ID}`,
-        )
-        ?.remove();
-    }
-
-    function getBestPresenceWarning(
-      warnings,
-    ) {
-      if (
-        !Array.isArray(warnings)
-      ) {
-        return null;
-      }
-
-      const now =
-        Date.now();
-
-      return (
-        warnings
-          .filter(
-            (warning) => {
-              const expiresAt =
-                Number(
-                  warning?.expiresAt,
-                );
-
-              return (
-                warning &&
-                typeof warning ===
-                  'object' &&
-                Number.isFinite(
-                  expiresAt,
-                ) &&
-                expiresAt >
-                  now
-              );
-            },
-          )
-          .sort(
-            (
-              first,
-              second,
-            ) =>
-              Number(
-                first.expiresAt,
-              ) -
-              Number(
-                second.expiresAt,
-              ),
-          )[0] ||
-        null
-      );
-    }
-
-    function renderPresenceWarning() {
-      if (
-        !currentPresenceWarning
-      ) {
-        removePresenceWarning();
-        return;
-      }
-
-      const expiresAt =
-        Number(
-          currentPresenceWarning
-            .expiresAt,
-        );
-
-      if (
-        !Number.isFinite(
-          expiresAt,
-        )
-      ) {
-        currentPresenceWarning =
-          null;
-
-        removePresenceWarning();
-        return;
-      }
-
-      const remainingMs =
-        expiresAt -
-        Date.now();
-
-      if (
-        remainingMs <= 0
-      ) {
-        currentPresenceWarning =
-          null;
-
-        removePresenceWarning();
-        return;
-      }
-
-      const seconds =
-        Math.max(
-          1,
-          Math.ceil(
-            remainingMs /
-            1000,
-          ),
-        );
-
-      const turnBanner =
-        document.querySelector(
-          '.turn-banner',
-        );
-
-      if (!turnBanner) {
-        removePresenceWarning();
-        return;
-      }
-
-      let warningElement =
-        document.querySelector(
-          `#${PRESENCE_WARNING_ID}`,
-        );
-
-      if (!warningElement) {
-        warningElement =
-          document.createElement(
-            'div',
-          );
-
-        warningElement.id =
-          PRESENCE_WARNING_ID;
-
-        warningElement.setAttribute(
-          'role',
-          'status',
-        );
-
-        warningElement.setAttribute(
-          'aria-live',
-          'polite',
-        );
-
-        warningElement.style.display =
-          'flex';
-
-        warningElement.style.alignItems =
-          'center';
-
-        warningElement.style.justifyContent =
-          'center';
-
-        warningElement.style.gap =
-          '10px';
-
-        warningElement.style.marginLeft =
-          'auto';
-
-        warningElement.style.minWidth =
-          '150px';
-
-        warningElement.style.padding =
-          '8px 14px';
-
-        warningElement.style.border =
-          '2px solid #b88a37';
-
-        warningElement.style.borderRadius =
-          '12px';
-
-        warningElement.style.background =
-          '#fffdf7';
-
-        warningElement.style.color =
-          '#0b4055';
-
-        warningElement.style.boxShadow =
-          '0 7px 22px rgba(9,39,54,.18)';
-
-        warningElement.style.fontWeight =
-          '800';
-
-        warningElement.style.whiteSpace =
-          'nowrap';
-
-        warningElement.style.position =
-          'relative';
-
-        warningElement.style.zIndex =
-          '9999';
-
-        const diceResult =
-          turnBanner.querySelector(
-            '.dice-result',
-          );
-
-        if (diceResult) {
-          turnBanner.insertBefore(
-            warningElement,
-            diceResult,
-          );
-        } else {
-          turnBanner.appendChild(
-            warningElement,
-          );
-        }
-      }
-
-      const playerName =
-        String(
-          currentPresenceWarning
-            .playerName ||
-          'Jogador',
-        );
-
-      warningElement.textContent =
-        `⏱ ${playerName} · ${seconds}s`;
-
-      warningElement.setAttribute(
-        'aria-label',
-        `${playerName} perdeu a ligação. ${seconds} segundos para regressar.`,
-      );
-    }
-
-    async function pollPresence() {
-      if (
-        presenceRequestRunning
-      ) {
-        return;
-      }
-
-      /*
-       * Só fazemos este controlo quando
-       * estamos realmente dentro do jogo.
-       */
-      if (
-        !document.querySelector(
-          '.game-screen',
-        )
-      ) {
-        currentPresenceWarning =
-          null;
-
-        removePresenceWarning();
-        return;
-      }
-
-      const session =
-        getPresenceSession();
-
-      if (!session) {
-        currentPresenceWarning =
-          null;
-
-        removePresenceWarning();
-        return;
-      }
-
-      presenceRequestRunning =
-        true;
-
-      try {
-        /*
-         * IMPORTANTE:
-         *
-         * Não enviamos knownRevision.
-         *
-         * Isto obriga o servidor a devolver
-         * o estado completo, onde
-         * presenceWarnings já existe.
-         *
-         * Assim este aviso não depende
-         * da resposta "not-modified".
-         */
-        const response =
-          await fetch(
-            PRESENCE_API_URL,
-            {
-              method:
-                'POST',
-
-              cache:
-                'no-store',
-
-              headers: {
-                'Content-Type':
-                  'application/json',
-              },
-
-              body:
-                JSON.stringify({
-                  action:
-                    'state',
-
-                  matchId:
-                    session.matchId,
-
-                  playerId:
-                    session.playerId,
-
-                  reconnectToken:
-                    session.reconnectToken,
-                }),
-            },
-          );
-
-        if (!response.ok) {
-          if (
-            response.status ===
-              410 ||
-            response.status ===
-              403
-          ) {
-            currentPresenceWarning =
-              null;
-
-            removePresenceWarning();
-          }
-
-          return;
-        }
-
-        const data =
-          await response.json();
-
-        if (
-          !data?.success
-        ) {
-          return;
-        }
-
-        currentPresenceWarning =
-          getBestPresenceWarning(
-            data.presenceWarnings,
-          );
-
-        renderPresenceWarning();
-      } catch {
-        /*
-         * Uma falha temporária deste
-         * monitor não interfere com
-         * a partida principal.
-         */
-      } finally {
-        presenceRequestRunning =
-          false;
-      }
-    }
-
-    function startPresenceWatcher() {
-      if (
-        presencePollTimer
-      ) {
-        clearInterval(
-          presencePollTimer,
-        );
-      }
-
-      if (
-        presenceRenderTimer
-      ) {
-        clearInterval(
-          presenceRenderTimer,
-        );
-      }
-
-      presencePollTimer =
-        setInterval(
-          pollPresence,
-          PRESENCE_POLL_MS,
-        );
-
-      presenceRenderTimer =
-        setInterval(
-          renderPresenceWarning,
-          PRESENCE_RENDER_MS,
-        );
-
-      void pollPresence();
-    }
-
-    window.addEventListener(
-      'pagehide',
-      () => {
-        if (
-          presencePollTimer
-        ) {
-          clearInterval(
-            presencePollTimer,
-          );
-        }
-
-        if (
-          presenceRenderTimer
-        ) {
-          clearInterval(
-            presenceRenderTimer,
-          );
-        }
-
-        presencePollTimer =
-          null;
-
-        presenceRenderTimer =
-          null;
-
-        currentPresenceWarning =
-          null;
-
-        removePresenceWarning();
-      },
-    );
-
-    startPresenceWatcher();
-  </script>
 </body>
 </html>
