@@ -1029,6 +1029,944 @@ export const MA_QUADRO_STARTER_PROJECTS:
         ]
       )
     ]
+  ),
+
+  project(
+    'template-certificate-academic-v2',
+    'Certificado — Académico',
+    'print',
+    [
+      page(
+        'template-certificate-academic-page-1',
+        'Certificado',
+        3508,
+        2480,
+        '#F8FAFC',
+        [
+          rect(
+            'Moldura exterior',
+            110,
+            110,
+            3288,
+            2260,
+            'rgba(0,0,0,0)',
+            {
+              stroke: '#0F172A',
+              strokeWidth: 10,
+              rx: 24,
+              ry: 24
+            }
+          ),
+          rect(
+            'Moldura interior',
+            155,
+            155,
+            3198,
+            2170,
+            'rgba(0,0,0,0)',
+            {
+              stroke: '#38BDF8',
+              strokeWidth: 4,
+              rx: 18,
+              ry: 18
+            }
+          ),
+          rect(
+            'Faixa lateral',
+            110,
+            110,
+            115,
+            2260,
+            '#0F172A',
+            {
+              rx: 24,
+              ry: 24
+            }
+          ),
+          circle(
+            'Selo exterior',
+            2865,
+            310,
+            185,
+            '#0F172A'
+          ),
+          circle(
+            'Selo interior',
+            2920,
+            365,
+            130,
+            '#38BDF8'
+          ),
+          text(
+            'Marca',
+            'MA-CODE',
+            310,
+            250,
+            1180,
+            62,
+            '#0F172A',
+            {
+              fontWeight: 700,
+              charSpacing: 160
+            }
+          ),
+          text(
+            'Etiqueta',
+            'CERTIFICADO DE PARTICIPAÇÃO',
+            310,
+            515,
+            2450,
+            74,
+            '#0284C7',
+            {
+              fontWeight: 700,
+              charSpacing: 85
+            }
+          ),
+          text(
+            'Título',
+            'Certificamos que',
+            310,
+            750,
+            2250,
+            92,
+            '#475569'
+          ),
+          text(
+            'Nome',
+            'NOME DO PARTICIPANTE',
+            310,
+            960,
+            2600,
+            150,
+            '#0F172A',
+            {
+              fontWeight: 700,
+              lineHeight: 1
+            }
+          ),
+          rect(
+            'Linha do nome',
+            310,
+            1175,
+            2520,
+            8,
+            '#38BDF8'
+          ),
+          text(
+            'Descrição',
+            'participou com aproveitamento na atividade, formação ou projeto indicado neste certificado.',
+            310,
+            1305,
+            2540,
+            58,
+            '#475569',
+            {
+              lineHeight: 1.35
+            }
+          ),
+          text(
+            'Atividade',
+            'NOME DA ATIVIDADE · 2026',
+            310,
+            1610,
+            2400,
+            68,
+            '#0F172A',
+            {
+              fontWeight: 700
+            }
+          ),
+          rect(
+            'Linha assinatura 1',
+            310,
+            2070,
+            760,
+            5,
+            '#94A3B8'
+          ),
+          rect(
+            'Linha assinatura 2',
+            1590,
+            2070,
+            760,
+            5,
+            '#94A3B8'
+          ),
+          text(
+            'Assinatura 1',
+            'Responsável',
+            310,
+            2105,
+            760,
+            42,
+            '#64748B',
+            {
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Assinatura 2',
+            'Coordenação',
+            1590,
+            2105,
+            760,
+            42,
+            '#64748B',
+            {
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Data',
+            '11 AGOSTO 2026',
+            2630,
+            2095,
+            520,
+            40,
+            '#64748B',
+            {
+              fontWeight: 700,
+              textAlign: 'right'
+            }
+          )
+        ]
+      )
+    ]
+  ),
+
+  project(
+    'template-weekly-schedule-v2',
+    'Horário — Semanal',
+    'print',
+    [
+      page(
+        'template-weekly-schedule-page-1',
+        'Horário',
+        3508,
+        2480,
+        '#F8FAFC',
+        [
+          rect(
+            'Cabeçalho',
+            0,
+            0,
+            3508,
+            420,
+            '#0F172A'
+          ),
+          text(
+            'Título',
+            'HORÁRIO SEMANAL',
+            180,
+            105,
+            2050,
+            112,
+            '#FFFFFF',
+            {
+              fontWeight: 700,
+              charSpacing: 55
+            }
+          ),
+          text(
+            'Subtítulo',
+            'Organize a semana num único quadro.',
+            184,
+            265,
+            1800,
+            48,
+            '#CBD5E1'
+          ),
+          text(
+            'Identificação',
+            'NOME / TURMA / EQUIPA',
+            2440,
+            145,
+            860,
+            42,
+            '#38BDF8',
+            {
+              fontWeight: 700,
+              textAlign: 'right'
+            }
+          ),
+
+          rect(
+            'Cabeçalho horas',
+            150,
+            545,
+            430,
+            170,
+            '#E2E8F0',
+            { rx: 18, ry: 18 }
+          ),
+          text(
+            'Horas',
+            'HORAS',
+            190,
+            595,
+            350,
+            52,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+
+          rect(
+            'Segunda fundo',
+            600,
+            545,
+            520,
+            170,
+            '#38BDF8',
+            { rx: 18, ry: 18 }
+          ),
+          rect(
+            'Terça fundo',
+            1140,
+            545,
+            520,
+            170,
+            '#0EA5E9',
+            { rx: 18, ry: 18 }
+          ),
+          rect(
+            'Quarta fundo',
+            1680,
+            545,
+            520,
+            170,
+            '#0284C7',
+            { rx: 18, ry: 18 }
+          ),
+          rect(
+            'Quinta fundo',
+            2220,
+            545,
+            520,
+            170,
+            '#0369A1',
+            { rx: 18, ry: 18 }
+          ),
+          rect(
+            'Sexta fundo',
+            2760,
+            545,
+            520,
+            170,
+            '#075985',
+            { rx: 18, ry: 18 }
+          ),
+          text(
+            'Segunda',
+            'SEGUNDA',
+            635,
+            595,
+            450,
+            48,
+            '#0F172A',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Terça',
+            'TERÇA',
+            1175,
+            595,
+            450,
+            48,
+            '#FFFFFF',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Quarta',
+            'QUARTA',
+            1715,
+            595,
+            450,
+            48,
+            '#FFFFFF',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Quinta',
+            'QUINTA',
+            2255,
+            595,
+            450,
+            48,
+            '#FFFFFF',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Sexta',
+            'SEXTA',
+            2795,
+            595,
+            450,
+            48,
+            '#FFFFFF',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+
+          rect(
+            'Linha 1 horas',
+            150,
+            745,
+            430,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 1 segunda',
+            600,
+            745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 1 terça',
+            1140,
+            745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 1 quarta',
+            1680,
+            745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 1 quinta',
+            2220,
+            745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 1 sexta',
+            2760,
+            745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+
+          rect(
+            'Linha 2 horas',
+            150,
+            995,
+            430,
+            230,
+            '#E2E8F0',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 2 segunda',
+            600,
+            995,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 2 terça',
+            1140,
+            995,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 2 quarta',
+            1680,
+            995,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 2 quinta',
+            2220,
+            995,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 2 sexta',
+            2760,
+            995,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+
+          rect(
+            'Linha 3 horas',
+            150,
+            1245,
+            430,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 3 segunda',
+            600,
+            1245,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 3 terça',
+            1140,
+            1245,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 3 quarta',
+            1680,
+            1245,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 3 quinta',
+            2220,
+            1245,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 3 sexta',
+            2760,
+            1245,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+
+          rect(
+            'Linha 4 horas',
+            150,
+            1495,
+            430,
+            230,
+            '#E2E8F0',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 4 segunda',
+            600,
+            1495,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 4 terça',
+            1140,
+            1495,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 4 quarta',
+            1680,
+            1495,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 4 quinta',
+            2220,
+            1495,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 4 sexta',
+            2760,
+            1495,
+            520,
+            230,
+            '#F8FAFC',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+
+          rect(
+            'Linha 5 horas',
+            150,
+            1745,
+            430,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 5 segunda',
+            600,
+            1745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 5 terça',
+            1140,
+            1745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 5 quarta',
+            1680,
+            1745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 5 quinta',
+            2220,
+            1745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+          rect(
+            'Linha 5 sexta',
+            2760,
+            1745,
+            520,
+            230,
+            '#FFFFFF',
+            {
+              stroke: '#CBD5E1',
+              strokeWidth: 3,
+              rx: 14,
+              ry: 14
+            }
+          ),
+
+          text(
+            'Hora 1',
+            '08:30–10:00',
+            190,
+            825,
+            350,
+            44,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Hora 2',
+            '10:15–11:45',
+            190,
+            1075,
+            350,
+            44,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Hora 3',
+            '12:00–13:30',
+            190,
+            1325,
+            350,
+            44,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Hora 4',
+            '14:30–16:00',
+            190,
+            1575,
+            350,
+            44,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Hora 5',
+            '16:15–17:45',
+            190,
+            1825,
+            350,
+            44,
+            '#334155',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+
+          text(
+            'Exemplo 1',
+            'DISCIPLINA / ATIVIDADE',
+            640,
+            825,
+            440,
+            38,
+            '#0F172A',
+            {
+              fontWeight: 700,
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Exemplo 2',
+            'SALA / LOCAL',
+            1180,
+            1075,
+            440,
+            38,
+            '#64748B',
+            {
+              textAlign: 'center'
+            }
+          ),
+          text(
+            'Nota',
+            'Edite os horários, dias e blocos diretamente no quadro.',
+            180,
+            2175,
+            2400,
+            42,
+            '#64748B'
+          ),
+          text(
+            'Marca do horário',
+            'MA-CODE.PT',
+            2700,
+            2165,
+            600,
+            42,
+            '#0284C7',
+            {
+              fontWeight: 700,
+              textAlign: 'right',
+              charSpacing: 80
+            }
+          )
+        ]
+      )
+    ]
   )
 ]
 
