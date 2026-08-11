@@ -430,6 +430,11 @@ export default function MAProfessorAdminAccountDetail({
         )
       : authorizationCredentialIssued
 
+  const visibleActivationCode =
+    generatedCredential?.password ||
+    credentialStatus?.activationCode ||
+    ''
+
   const canResolvePayment =
     dataConnected &&
     request?.status ===
@@ -794,15 +799,15 @@ export default function MAProfessorAdminAccountDetail({
       const confirmationLines =
         isPilotRequest
           ? [
-              `Gerar uma nova senha para ${email}?`,
+              `Gerar uma nova senha de ativação para ${email}?`,
               '',
               'Modalidade: Fase piloto',
               'Custo: Gratuito',
               '',
-              'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
+              'A nova senha substitui a credencial anterior desta conta e ficará disponível nesta ficha administrativa.'
             ]
           : [
-              `Gerar uma nova senha para ${email}?`,
+              `Gerar uma nova senha de ativação para ${email}?`,
               '',
               `Plano: ${getCommercialPlanLabel(
                 commercialStatus?.plan ??
@@ -810,7 +815,7 @@ export default function MAProfessorAdminAccountDetail({
               )}`,
               `Pagamento: ${paymentLabel}`,
               '',
-              'A nova senha substitui a credencial anterior desta conta e será apresentada em texto simples apenas agora.'
+              'A nova senha substitui a credencial anterior desta conta e ficará disponível nesta ficha administrativa.'
             ]
 
       const confirmed =
@@ -844,6 +849,9 @@ export default function MAProfessorAdminAccountDetail({
             credential.email,
           hasCredential:
             true,
+          activationCode:
+            credential.activationCode ||
+            credential.password,
           createdAt:
             credential.createdAt,
           updatedAt:
@@ -920,10 +928,7 @@ export default function MAProfessorAdminAccountDetail({
 
   const handleCopyPassword =
     async () => {
-      const password =
-        generatedCredential?.password
-
-      if (!password) {
+      if (!visibleActivationCode) {
         return
       }
 
@@ -931,7 +936,7 @@ export default function MAProfessorAdminAccountDetail({
 
       try {
         await navigator.clipboard.writeText(
-          password
+          visibleActivationCode
         )
 
         setPasswordCopied(true)
@@ -960,7 +965,7 @@ export default function MAProfessorAdminAccountDetail({
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Pedido, plano escolhido, pagamento, credencial, licença, renovações e histórico desta conta.
+            Pedido, modalidade de acesso, senha de ativação, licença, renovações e histórico desta conta.
           </p>
         </div>
 
@@ -1037,7 +1042,7 @@ export default function MAProfessorAdminAccountDetail({
                 request?.activatedAt ??
                 null
               )}
-              note="A licença inicia apenas depois da primeira ativação válida da credencial autorizada."
+              note="A licença inicia apenas depois da primeira ativação válida."
             />
           </div>
         </article>
@@ -1176,7 +1181,7 @@ export default function MAProfessorAdminAccountDetail({
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-slate-400">
-                    O acesso é gratuito nesta fase. Pode gerar a senha no bloco de credencial, sem confirmação de pagamento.
+                    O acesso é gratuito nesta fase. A senha de ativação pode ser consultada na ficha desta conta.
                   </p>
                 </div>
               ) : null}
@@ -1512,9 +1517,7 @@ export default function MAProfessorAdminAccountDetail({
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
-                {isPilotRequest
-                  ? 'Senha de acesso'
-                  : 'Senha da autorização atual'}
+                Senha de ativação
               </h3>
             </div>
 
@@ -1523,7 +1526,7 @@ export default function MAProfessorAdminAccountDetail({
                 ? 'A verificar'
                 : currentCredentialIssued
                   ? 'Senha emitida'
-                  : 'Sem nova senha'}
+                  : 'Sem senha'}
             </span>
           </div>
 
@@ -1551,21 +1554,21 @@ export default function MAProfessorAdminAccountDetail({
             </div>
           ) : null}
 
-          {generatedCredential ? (
+          {visibleActivationCode ? (
             <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
               <p className="text-sm font-black text-emerald-200">
-                Nova senha criada
+                Senha de ativação atual
               </p>
 
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Copie agora e envie manualmente através de MA-Professor | MA-CODE &lt;acesso@ma-code.pt&gt;. Por segurança, esta senha não volta a ser consultada em texto simples.
+                Esta é a senha atualmente associada à conta. Pode consultá-la ou copiá-la sempre que seja necessário prestar apoio ao professor.
               </p>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   readOnly
-                  value={generatedCredential.password}
-                  aria-label="Nova senha de acesso"
+                  value={visibleActivationCode}
+                  aria-label="Senha de ativação atual"
                   className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
                 />
 
@@ -1581,56 +1584,74 @@ export default function MAProfessorAdminAccountDetail({
                     : 'Copiar'}
                 </button>
               </div>
+
+              <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
+                Os emails automáticos de acesso são enviados por MA-Professor | MA-CODE &lt;acesso@professor.ma-code.pt&gt;.
+              </p>
+            </div>
+          ) : credentialStatus?.hasCredential ? (
+            <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+              <p className="text-sm font-black text-amber-200">
+                Credencial antiga
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Esta senha foi criada antes de o MA-ADMIN começar a guardar o código de ativação para consulta. O hash continua válido, mas o texto original não pode ser recuperado.
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Se precisar de consultar a senha ou ajudar presencialmente este professor, gere uma nova senha de ativação.
+              </p>
             </div>
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailValue
                 label="Credencial guardada na conta"
-                value={
-                  credentialStatus?.hasCredential
-                    ? 'Sim'
-                    : 'Não'
-                }
+                value="Não"
                 note={
                   isPilotRequest
                     ? 'No piloto, a senha pode ser emitida assim que o pedido estiver aprovado.'
-                    : 'Pode existir uma credencial anterior enquanto uma nova autorização ainda aguarda a emissão da sua própria senha.'
+                    : 'A senha fica disponível quando a autorização estiver pronta.'
                 }
               />
 
               <DetailValue
-                label={
-                  isPilotRequest
-                    ? 'Senha do acesso piloto'
-                    : 'Senha da autorização atual'
-                }
-                value={
-                  currentCredentialIssued
-                    ? 'Emitida'
-                    : 'Ainda não emitida'
-                }
+                label="Senha de ativação"
+                value="Ainda não emitida"
               />
 
               <DetailValue
                 label="Emitida em"
+                value="—"
+              />
+
+              <DetailValue
+                label="Última atualização"
+                value="—"
+              />
+            </div>
+          )}
+
+          {credentialStatus?.hasCredential ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailValue
+                label="Emitida em"
                 value={formatDate(
                   isPilotRequest
-                    ? credentialStatus?.updatedAt ??
-                        null
+                    ? credentialStatus.updatedAt
                     : commercialStatus?.credentialIssuedAt ??
-                        null
+                        credentialStatus.updatedAt
                 )}
               />
 
               <DetailValue
-                label="Última atualização da credencial"
+                label="Última atualização"
                 value={formatDate(
-                  credentialStatus?.updatedAt ??
-                  null
+                  credentialStatus.updatedAt
                 )}
               />
             </div>
-          )}
+          ) : null}
 
           <button
             type="button"
@@ -1642,13 +1663,9 @@ export default function MAProfessorAdminAccountDetail({
           >
             {generatingCredential
               ? 'A gerar…'
-              : isPilotRequest
-                ? credentialStatus?.hasCredential
-                  ? 'Gerar nova senha de acesso'
-                  : 'Gerar senha de acesso'
-                : credentialStatus?.hasCredential
-                  ? 'Gerar nova senha para esta autorização'
-                  : 'Gerar nova senha'}
+              : credentialStatus?.hasCredential
+                ? 'Gerar nova senha de ativação'
+                : 'Gerar senha de ativação'}
           </button>
 
           {isPilotRequest ? (
@@ -1660,7 +1677,7 @@ export default function MAProfessorAdminAccountDetail({
             ) : null
           ) : !commercialStatus?.canGenerateCredential ? (
             <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
-              A geração só fica disponível depois de o pedido estar aprovado e o pagamento estar confirmado ou dispensado.
+              No fluxo comercial, a geração fica sujeita à autorização correspondente.
             </p>
           ) : null}
         </article>
