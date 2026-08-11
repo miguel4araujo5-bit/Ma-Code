@@ -582,20 +582,25 @@ document.addEventListener('submit', (event) => {
   startSearch(name);
 });
 
-document.addEventListener('click', (event) => {
-  if (event.target.closest('#leave-game-button')) {
+document.addEventListener(
+  'click',
+  (event) => {
+    if (!event.target.closest('#leave-game-button')) {
+      return;
+    }
+
     const sessionToLeave =
       readyMatchData ||
       getStoredSession();
 
-    notifyVoluntaryGameLeave(
-      sessionToLeave,
-    );
-
+    notifyVoluntaryGameLeave(sessionToLeave);
     clearStoredSession();
     readyMatchData = null;
-  }
+  },
+  true,
+);
 
+document.addEventListener('click', (event) => {
   const onlineButton = event.target.closest('#online-game-button');
 
   if (onlineButton) {
