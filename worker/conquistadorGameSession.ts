@@ -11,7 +11,31 @@ const MATCH_SIZE = 4
 const MAX_NAME_LENGTH = 24
 const BOT_RETRY_DELAY_MS = 1600
 const PRESENCE_TIMEOUT_MS = 30_000
+const PRESENCE_WARNING_MS = 15_000
 const BOT_ICON = '⚙'
+
+const BOT_NAMES = [
+  'Duarte',
+  'Leonor',
+  'Martim',
+  'Beatriz',
+  'Afonso',
+  'Inês',
+  'Gonçalo',
+  'Catarina',
+  'Tomé',
+  'Madalena',
+  'Diogo',
+  'Constança',
+  'Vasco',
+  'Joana',
+  'Lourenço',
+  'Matilde',
+  'Rodrigo',
+  'Teresa',
+  'Salvador',
+  'Mariana'
+] as const
 
 const RESOURCE_IDS = [
   'stone',
@@ -1068,6 +1092,71 @@ const getEffectiveParticipants = (
     }
   )
 
+const getPresenceWarnings = (
+  session: StoredSession,
+  now = Date.now()
+) => {
+  if (!session.presence) {
+    return []
+  }
+
+  return session.participants
+    .filter(
+      (participant) => {
+        if (participant.kind !== 'human') {
+          return false
+        }
+
+        const presence =
+          session.presence?.[participant.id]
+
+        if (
+          !presence ||
+          presence.automated ||
+          Number(presence.abandonedAt) > 0 ||
+          !Number.isFinite(presence.takeoverAt) ||
+          presence.takeoverAt <= 0
+        ) {
+          return false
+        }
+
+        const warningAt =
+          presence.takeoverAt -
+          PRESENCE_WARNING_MS
+
+        return (
+          now >= warningAt &&
+          now < presence.takeoverAt
+        )
+      }
+    )
+    .map(
+      (participant) => {
+        const presence =
+          session.presence![participant.id]
+
+        return {
+          playerId: participant.id,
+          playerName: participant.name,
+          expiresAt: presence.takeoverAt,
+          secondsRemaining:
+            Math.max(
+              0,
+              Math.ceil(
+                (presence.takeoverAt - now) /
+                1000
+              )
+            )
+        }
+      }
+    )
+    .sort(
+      (first, second) =>
+        first.expiresAt -
+        second.expiresAt
+    )
+}
+
 const createClientView = (
   session:
     StoredSession,
@@ -1262,6 +1351,11 @@ const createClientView = (
 
     participants:
       effectiveParticipants,
+
+    presenceWarnings:
+      getPresenceWarnings(
+        session
+      ),
 
     actions:
       getViewerActions(
@@ -2489,8 +2583,170 @@ export class ConquistadorGameSessionDurableObject {
       : 0
   }
 
-  private applyPresenceTakeovers(
-    now: number
+  private chooseReplacementBotName(
+    playerId:
+      string
+  ) {
+    if (!this.session) {
+      return BOT_NAMES[0]
+    }
+
+    const usedNames =
+      new Set(
+        this.session
+          .participants
+          .filter(
+            (participant) =>
+              participant.id !==
+              playerId
+          )
+          .map(
+            (participant) =>
+              participant.name
+                .toLocaleLowerCase(
+                  'pt-PT'
+                )
+          )
+      )
+
+    const offset =
+      this.session.revision %
+      BOT_NAMES.length
+
+    for (
+      let index = 0;
+      index < BOT_NAMES.length;
+      index += 1
+    ) {
+      const candidate =
+        BOT_NAMES[
+          (offset + index) %
+          BOT_NAMES.length
+        ]
+
+      if (
+        !usedNames.has(
+          candidate.toLocaleLowerCase(
+            'pt-PT'
+          )
+        )
+      ) {
+        return candidate
+      }
+    }
+
+    return BOT_NAMES[0]
+  }
+
+  private finalizePlayerAbandonment(
+    game:
+      any,
+    playerId:
+      string,
+    now:
+      number
+  ) {
+    if (!this.session) {
+      return false
+    }
+
+    const participant =
+      this.session
+        .participants
+        .find(
+          (candidate) =>
+            candidate.id ===
+            playerId
+        )
+
+    if (!participant) {
+      return false
+    }
+
+    const presence =
+      this.session
+        .presence?.[
+          playerId
+        ]
+
+    if (
+      presence &&
+      Number(
+        presence.abandonedAt
+      ) > 0
+    ) {
+      return false
+    }
+
+    const previousName =
+      participant.name
+
+    const replacementName =
+      this.chooseReplacementBotName(
+        playerId
+      )
+
+    if (presence) {
+      presence.lastSeenAt =
+        Math.min(
+          presence.lastSeenAt || now,
+          now
+        )
+      presence.takeoverAt =
+        0
+      presence.automated =
+        true
+      presence.abandonedAt =
+        now
+    } else {
+      participant.kind =
+        'bot'
+      participant.icon =
+        BOT_ICON
+    }
+
+    participant.name =
+      replacementName
+
+    const gamePlayer =
+      game?.players
+        ?.find(
+          (candidate:
+            any) =>
+            candidate?.id ===
+            playerId
+        )
+
+    if (gamePlayer) {
+      gamePlayer.name =
+        replacementName
+    }
+
+    game?.addHistory?.(
+      'player-abandoned',
+      `${previousName} abandonou o jogo.`,
+      {
+        previousName,
+        replacementName
+      },
+      playerId
+    )
+
+    this.session.bot = {
+      actorId:
+        null,
+      nextActionAt:
+        0
+    }
+
+    return true
+  }
+
+  private finalizeExpiredPresences(
+    game:
+      any,
+    now:
+      number
   ) {
     if (
       !this.session
@@ -2502,22 +2758,37 @@ export class ConquistadorGameSessionDurableObject {
     let changed = false
 
     for (
-      const presence
-      of Object.values(
+      const [
+        playerId,
+        presence
+      ] of Object.entries(
         this.session
           .presence
       )
     ) {
       if (
-        !presence.automated &&
-        presence.takeoverAt > 0 &&
-        now >=
-          presence.takeoverAt
+        Number(
+          presence.abandonedAt
+        ) > 0
       ) {
-        presence.automated =
-          true
+        continue
+      }
 
-        changed = true
+      if (
+        presence.automated ||
+        (
+          presence.takeoverAt > 0 &&
+          now >=
+            presence.takeoverAt
+        )
+      ) {
+        changed =
+          this.finalizePlayerAbandonment(
+            game,
+            playerId,
+            now
+          ) ||
+          changed
       }
     }
 
@@ -2753,12 +3024,60 @@ export class ConquistadorGameSessionDurableObject {
     const now =
       Date.now()
 
+    if (
+      presence.takeoverAt > 0 &&
+      now >=
+        presence.takeoverAt
+    ) {
+      const game =
+        Game.fromJSON(
+          this.session.game
+        )
+
+      if (
+        this.finalizePlayerAbandonment(
+          game,
+          playerId,
+          now
+        )
+      ) {
+        this.session.game =
+          game.toJSON()
+        this.session.revision +=
+          1
+        this.session.updatedAt =
+          now
+
+        await this.save()
+
+        await this
+          .scheduleBot(
+            game,
+            now
+          )
+      }
+
+      return {
+        ok: false as const,
+        status: 410,
+        message:
+          'Este jogador abandonou esta partida.'
+      }
+    }
+
     const revisionBefore =
       this.session
         .revision
 
+    const warningWasActive =
+      presence.takeoverAt > 0 &&
+      now >=
+        presence.takeoverAt -
+        PRESENCE_WARNING_MS
+
     const reactivated =
-      presence.automated
+      presence.automated ||
+      warningWasActive
 
     presence.lastSeenAt =
       now
@@ -3188,11 +3507,20 @@ export class ConquistadorGameSessionDurableObject {
     const now =
       Date.now()
 
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
     if (
-      this.applyPresenceTakeovers(
+      this.finalizeExpiredPresences(
+        game,
         now
       )
     ) {
+      this.session.game =
+        game.toJSON()
+
       this.session.revision +=
         1
 
@@ -3201,11 +3529,6 @@ export class ConquistadorGameSessionDurableObject {
 
       await this.save()
     }
-
-    const game =
-      Game.fromJSON(
-        this.session.game
-      )
 
     await this
       .scheduleBot(
@@ -3597,59 +3920,36 @@ export class ConquistadorGameSessionDurableObject {
       authentication
         .playerId
 
-    const presence =
-      this.session
-        .presence?.[
-          playerId
-        ]
-
     const now =
       Date.now()
 
-    if (presence) {
-      presence.lastSeenAt =
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    if (
+      !this.finalizePlayerAbandonment(
+        game,
+        playerId,
         now
+      )
+    ) {
+      return json(
+        {
+          success:
+            false,
 
-      presence.takeoverAt =
-        0
+          message:
+            'Não foi possível entregar este lugar a um jogador automático.'
+        },
 
-      presence.automated =
-        true
-
-      presence.abandonedAt =
-        now
-    } else {
-      const participant =
-        this.session
-          .participants
-          .find(
-            (candidate) =>
-              candidate.id ===
-                playerId &&
-              candidate.kind ===
-                'human'
-          )
-
-      if (!participant) {
-        return json(
-          {
-            success:
-              false,
-
-            message:
-              'Não foi possível atualizar a presença deste jogador.'
-          },
-
-          409
-        )
-      }
-
-      participant.kind =
-        'bot'
-
-      participant.icon =
-        BOT_ICON
+        409
+      )
     }
+
+    this.session.game =
+      game.toJSON()
 
     this.session.revision +=
       1
@@ -3657,21 +3957,11 @@ export class ConquistadorGameSessionDurableObject {
     this.session.updatedAt =
       now
 
-    this.session.bot = {
-      actorId:
-        null,
-      nextActionAt:
-        0
-    }
-
     await this.save()
 
     await this
       .scheduleBot(
-        Game.fromJSON(
-          this.session
-            .game
-        ),
+        game,
         now
       )
 
@@ -3757,7 +4047,15 @@ export class ConquistadorGameSessionDurableObject {
         body.knownRevision
       )
 
+    const presenceWarnings =
+      getPresenceWarnings(
+        this.session,
+        Date.now()
+      )
+
     if (
+      presenceWarnings.length ===
+        0 &&
       knownRevision !==
         null &&
       knownRevision ===
