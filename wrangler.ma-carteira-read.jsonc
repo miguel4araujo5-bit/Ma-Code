@@ -1,0 +1,9 @@
+{
+  "name": "ma-carteira-read",
+  "main": "./worker/maCarteiraReadEntry.ts",
+  "compatibility_date": "2026-04-03",
+  "observability": {
+    "enabled": true
+  },
+  "workers_dev": true
+}
