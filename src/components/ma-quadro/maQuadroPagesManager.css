@@ -1,0 +1,205 @@
+.mq-pages-strip--managed {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.mq-pages-manager__header {
+  min-height: 2.45rem;
+}
+
+.mq-pages-manager__primary-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.mq-pages-manager__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 2.45rem;
+  padding: 0.34rem 0.65rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+  background: rgba(2, 6, 23, 0.24);
+}
+
+.mq-pages-manager__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 10rem;
+  max-width: 18rem;
+  flex: 1 1 15rem;
+}
+
+.mq-pages-manager__search > span {
+  position: absolute;
+  left: 0.55rem;
+  z-index: 1;
+  color: var(--mq-dim);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+.mq-pages-manager__search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 1.9rem;
+  padding: 0.3rem 1.85rem 0.3rem 1.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.17);
+  border-radius: 0.52rem;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.78);
+  font-size: 0.55rem;
+  outline: none;
+}
+
+.mq-pages-manager__search input:focus {
+  border-color: rgba(34, 211, 238, 0.48);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.08);
+}
+
+.mq-pages-manager__search > button {
+  position: absolute;
+  right: 0.28rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  color: #94a3b8;
+  background: transparent;
+}
+
+.mq-pages-manager__navigator,
+.mq-pages-manager__view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.mq-pages-manager__navigator {
+  padding: 0.12rem;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.mq-pages-manager__navigator > span {
+  min-width: 3.2rem;
+  color: #94a3b8;
+  font-size: 0.53rem;
+  font-weight: 760;
+  text-align: center;
+}
+
+.mq-pages-manager__navigator button,
+.mq-pages-manager__view-switch button {
+  display: grid;
+  place-items: center;
+  min-width: 1.6rem;
+  height: 1.55rem;
+  padding: 0;
+  border-radius: 0.4rem;
+  font-size: 0.58rem;
+}
+
+.mq-pages-manager__view-switch {
+  padding: 0.12rem;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.mq-pages-manager__view-switch button.is-active {
+  border-color: rgba(34, 211, 238, 0.35);
+  color: #ecfeff;
+  background: rgba(8, 145, 178, 0.18);
+}
+
+.mq-pages-manager__list {
+  height: auto;
+  min-height: 0;
+}
+
+.mq-pages-strip--managed .mq-page-card.is-active {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: rgba(8, 145, 178, 0.08);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08);
+}
+
+.mq-pages-strip--managed .mq-page-card__actions {
+  opacity: 1;
+}
+
+.mq-pages-strip--managed .mq-page-card__actions button {
+  min-width: 1.42rem;
+  height: 1.42rem;
+  padding: 0;
+  border-radius: 0.38rem;
+  background: rgba(2, 6, 23, 0.82);
+  font-size: 0.54rem;
+}
+
+.mq-pages-strip--compact .mq-page-card {
+  width: 5.7rem;
+}
+
+.mq-pages-strip--compact .mq-page-card__preview {
+  height: 3.1rem;
+}
+
+.mq-pages-strip--compact .mq-page-card > input {
+  font-size: 0.5rem;
+}
+
+.mq-pages-strip--compact .mq-page-card__actions {
+  gap: 0.1rem;
+}
+
+.mq-pages-strip--compact .mq-page-card__actions button {
+  min-width: 1.2rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  font-size: 0.47rem;
+}
+
+.mq-pages-manager__empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.28rem;
+  min-height: 5.4rem;
+  padding: 0.8rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.mq-pages-manager__empty strong {
+  color: #e2e8f0;
+  font-size: 0.62rem;
+}
+
+.mq-pages-manager__empty span {
+  font-size: 0.53rem;
+}
+
+.mq-pages-manager__empty button {
+  margin-top: 0.25rem;
+  min-height: 1.75rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: 0.45rem;
+  font-size: 0.52rem;
+}
+
+@media (max-width: 900px) {
+  .mq-pages-manager__toolbar {
+    flex-wrap: wrap;
+  }
+
+  .mq-pages-manager__search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}
