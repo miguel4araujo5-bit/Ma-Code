@@ -115,35 +115,83 @@ type AttributionData = {
 
 const attributionStorageKey = 'ma_code_attribution'
 
-function AccentGlowStyles() {
+function TechAccentStyles() {
   return (
     <style>{`
-.ma-accent-glow {
-  animation: ma-accent-glow-pulse 4.8s ease-in-out infinite;
+.ma-tech-accent {
+  background-image:
+    linear-gradient(
+      110deg,
+      #a5f3fc 0%,
+      #7dd3fc 22%,
+      #818cf8 38%,
+      #c4b5fd 46%,
+      #f8fafc 50%,
+      #a5f3fc 54%,
+      #38bdf8 62%,
+      #a78bfa 78%,
+      #a5f3fc 100%
+    );
+  background-size: 320% 100%;
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow:
+    0 0 10px rgba(103, 232, 249, 0.12),
+    0 0 22px rgba(139, 92, 246, 0.07);
+  animation:
+    ma-tech-accent-sweep 9.5s ease-in-out infinite alternate;
+  will-change: background-position, text-shadow;
 }
 
-@keyframes ma-accent-glow-pulse {
+.ma-tech-accent--hero {
+  text-shadow:
+    0 0 12px rgba(103, 232, 249, 0.16),
+    0 0 26px rgba(139, 92, 246, 0.09);
+  animation-duration: 8s;
+}
+
+.ma-tech-price {
+  text-shadow:
+    0 0 10px rgba(103, 232, 249, 0.18),
+    0 0 22px rgba(34, 211, 238, 0.08);
+}
+
+@keyframes ma-tech-accent-sweep {
   0%,
-  100% {
+  54% {
+    background-position: 100% 50%;
     text-shadow:
-      0 0 7px rgba(103, 232, 249, 0.10),
-      0 0 15px rgba(139, 92, 246, 0.06);
+      0 0 9px rgba(103, 232, 249, 0.10),
+      0 0 18px rgba(139, 92, 246, 0.05);
   }
 
-  50% {
+  70% {
     text-shadow:
-      0 0 13px rgba(103, 232, 249, 0.42),
-      0 0 25px rgba(56, 189, 248, 0.22),
-      0 0 38px rgba(139, 92, 246, 0.18);
+      0 0 13px rgba(103, 232, 249, 0.24),
+      0 0 26px rgba(56, 189, 248, 0.12),
+      0 0 34px rgba(139, 92, 246, 0.09);
+  }
+
+  82%,
+  100% {
+    background-position: 0% 50%;
+    text-shadow:
+      0 0 9px rgba(103, 232, 249, 0.11),
+      0 0 19px rgba(139, 92, 246, 0.06);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ma-accent-glow {
+  .ma-tech-accent {
     animation: none;
+    background-position: 50% 50%;
     text-shadow:
-      0 0 12px rgba(103, 232, 249, 0.22),
-      0 0 24px rgba(139, 92, 246, 0.12);
+      0 0 10px rgba(103, 232, 249, 0.16),
+      0 0 20px rgba(139, 92, 246, 0.08);
   }
 }
     `}</style>
@@ -703,7 +751,7 @@ function ProjectsShowcase({
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
             Projetos que{' '}
-            <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+            <span className="ma-tech-accent">
               geram resultados
             </span>
           </h2>
@@ -960,7 +1008,7 @@ export default function MACode() {
 
   return (
     <main className="bg-[#05070d]">
-      <AccentGlowStyles />
+      <TechAccentStyles />
 
       <section className="relative overflow-hidden px-5 pb-8 pt-6 sm:px-6 md:px-10 md:pb-10 md:pt-8">
         <div className="pointer-events-none absolute left-[-12rem] top-[-10rem] size-[28rem] rounded-full bg-cyan-400/[0.05] blur-3xl" />
@@ -1031,7 +1079,7 @@ export default function MACode() {
                   Websites e sistemas à
                   medida que fazem{' '}
 
-                  <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+                  <span className="ma-tech-accent ma-tech-accent--hero">
                     a diferença.
                   </span>
                 </h1>
@@ -1046,7 +1094,7 @@ export default function MACode() {
                 para automatizar e fazer
                 crescer o seu negócio —{' '}
 
-                <span className="ma-accent-glow font-semibold text-cyan-200">
+                <span className="ma-tech-price font-semibold text-cyan-200">
                   desde 19€/mês.
                 </span>
               </p>
@@ -1189,7 +1237,7 @@ export default function MACode() {
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
 
-              <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+              <span className="ma-tech-accent">
                 caminho certo
               </span>{' '}
 
@@ -1280,14 +1328,14 @@ export default function MACode() {
 
               que{' '}
 
-              <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+              <span className="ma-tech-accent">
                 impulsionam
               </span>{' '}
 
               o seu dia a dia
             </h2>
 
-            <p className="mx-auto mt-5 max-w-md hyphens-auto text-justify text-sm leading-7 text-slate-300 [text-align-last:center] md:text-base lg:mx-0 lg:text-left lg:[text-align-last:left]">
+            <p className="mx-auto mt-5 max-w-lg text-center text-sm leading-7 text-slate-300 md:text-base lg:mx-0 lg:max-w-md lg:text-left">
               Além de serviços à
               medida, desenvolvemos
               produtos próprios para
@@ -1414,7 +1462,7 @@ export default function MACode() {
                     Pronto para dar
                     o{' '}
 
-                    <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+                    <span className="ma-tech-accent">
                       próximo passo?
                     </span>
                   </h2>
