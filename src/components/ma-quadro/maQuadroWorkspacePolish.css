@@ -1,11 +1,4 @@
-/*
- * MA-Quadro — polimento estrutural do workspace
- *
- * O editor desktop funciona como uma aplicação de design:
- * ocupa exatamente o viewport e mantém o scroll dentro dos
- * painéis/workspace, sem permitir que o documento exterior
- * desloque o cabeçalho ou a faixa de páginas.
- */
+
 
 @media (min-width: 801px) {
   .mq-app {
@@ -43,6 +36,28 @@
   .mq-workspace,
   .mq-pages-strip {
     min-height: 0;
+  }
+
+  /*
+   * O gestor de páginas passou a ter:
+   * cabeçalho + toolbar + miniaturas.
+   * A altura antiga de 9.8rem cortava a terceira linha.
+   */
+  .mq-center-column {
+    grid-template-rows:
+      minmax(0, 1fr)
+      13rem;
+  }
+
+  .mq-pages-strip--managed {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mq-pages-manager__list {
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 }
 
