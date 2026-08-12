@@ -141,7 +141,7 @@ function TechAccentStyles() {
     250% 100%,
     100% 100%;
   background-position:
-    -220% 50%,
+    220% 50%,
     0% 50%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -255,19 +255,19 @@ function TechAccentStyles() {
   0%,
   72% {
     background-position:
-      -220% 50%,
+      220% 50%,
       0% 50%;
   }
 
   86% {
     background-position:
-      220% 50%,
+      -220% 50%,
       0% 50%;
   }
 
   100% {
     background-position:
-      220% 50%,
+      -220% 50%,
       0% 50%;
   }
 }
@@ -332,7 +332,7 @@ function TechAccentStyles() {
   .ma-tech-accent {
     animation: none;
     background-position:
-      -220% 50%,
+      220% 50%,
       0% 50%;
   }
 
