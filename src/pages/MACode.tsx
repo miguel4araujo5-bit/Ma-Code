@@ -628,14 +628,10 @@ export default function MACode() {
                 >
                   Ver projetos reais
                 </a>
-              </div>
-
-              <div className="mt-4 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70 sm:text-sm">
-                <span>Proposta gratuita · Sem compromisso</span>
 
                 <a
                   href="/produtos"
-                  className="text-cyan-200 transition hover:text-cyan-50"
+                  className="btn-secondary hightech-button-secondary"
                   onClick={() =>
                     trackEvent('cta_click', {
                       cta_text: 'Ver produtos',
@@ -644,9 +640,13 @@ export default function MACode() {
                     })
                   }
                 >
-                  Explorar produtos MA-Code →
+                  Ver produtos
                 </a>
               </div>
+
+              <p className="mt-4 max-w-xl text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70 sm:text-sm">
+                Proposta gratuita · Sem compromisso
+              </p>
 
               <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
                 <li>Mobile-first</li>
