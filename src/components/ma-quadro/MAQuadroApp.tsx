@@ -7,7 +7,6 @@ import {
 
 import AnimationPanel from './AnimationPanel'
 import BrandQuickStyles from './BrandQuickStyles'
-
 import CanvasContextMenu, {
   type MAQuadroContextMenuPosition
 } from './CanvasContextMenu'
@@ -21,7 +20,6 @@ import EditorHeader from './EditorHeader'
 import ElementEditor from './ElementEditor'
 import ElementLibrary from './ElementLibrary'
 import ElementToolsLayoutController from './ElementToolsLayoutController'
-
 import {
   MAQuadroEditorProvider
 } from './editorContext'
@@ -40,10 +38,10 @@ import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
+import VideoUploads from './VideoUploads'
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
-
 import './maQuadro.css'
 import './maQuadroFixes.css'
 import './maQuadroWorkflow.css'
@@ -65,7 +63,6 @@ function targetUsesNativeKeyboard(
       Element
       ? target
       : null
-
   return Boolean(
     element?.closest(
       [
@@ -96,7 +93,6 @@ MAQuadroApp() {
   ] = useState(
     false
   )
-
   const [
     contextMenu,
     setContextMenu
@@ -116,7 +112,6 @@ MAQuadroApp() {
       },
       []
     )
-
   const openContextMenu =
     useCallback(
       (
@@ -137,7 +132,6 @@ MAQuadroApp() {
         ) {
           return
         }
-
         setContextMenu(
           position
         )
@@ -158,7 +152,6 @@ MAQuadroApp() {
     editor.activePage?.id,
     editor.project?.id
   ])
-
   useEffect(() => {
     const handleGlobalKeyDown = (
       event:
@@ -183,7 +176,6 @@ MAQuadroApp() {
       ) {
         event.preventDefault()
         event.stopPropagation()
-
         closeContextMenu()
         setShortcutsOpen(
           true
@@ -206,7 +198,6 @@ MAQuadroApp() {
       ) {
         return
       }
-
       if (
         editor
           .selection
@@ -232,7 +223,6 @@ MAQuadroApp() {
       const bounds =
         workspace
           ?.getBoundingClientRect()
-
       openContextMenu({
         x:
           bounds
@@ -258,7 +248,6 @@ MAQuadroApp() {
               2
       })
     }
-
     window.addEventListener(
       'keydown',
       handleGlobalKeyDown
@@ -287,7 +276,6 @@ MAQuadroApp() {
     ) {
       return
     }
-
     const frame =
       window.requestAnimationFrame(
         () => {
@@ -319,7 +307,6 @@ MAQuadroApp() {
     ) {
       return
     }
-
     const modifier =
       event.ctrlKey ||
       event.metaKey
@@ -345,7 +332,6 @@ MAQuadroApp() {
 
     event.stopPropagation()
   }
-
   return (
     <MAQuadroEditorProvider
       editor={
@@ -373,7 +359,6 @@ MAQuadroApp() {
         <FormatPainterController />
 
         <FrameDropController />
-
         <BrandQuickStyles />
 
         <TableBuilder />
@@ -390,6 +375,8 @@ MAQuadroApp() {
 
         <ElementToolsLayoutController />
 
+        <VideoUploads />
+
         <TableEditor />
 
         <ChartEditor />
@@ -405,7 +392,6 @@ MAQuadroApp() {
         <LayersManager />
 
         <AnimationPanel />
-
         <EditorHeader
           onOpenShortcuts={() => {
             closeContextMenu()
@@ -430,7 +416,6 @@ MAQuadroApp() {
 
             <PagesStrip />
           </div>
-
           <PropertiesPanel />
         </div>
 
@@ -448,7 +433,6 @@ MAQuadroApp() {
             )
           }
         />
-
         {contextMenu ? (
           <CanvasContextMenu
             position={
@@ -459,7 +443,6 @@ MAQuadroApp() {
             }
           />
         ) : null}
-
         {!editor.ready ? (
           <div
             className="mq-loading-screen"
@@ -479,7 +462,6 @@ MAQuadroApp() {
               A preparar o
               MA-Quadro…
             </strong>
-
             <span>
               O editor e os
               projetos locais
