@@ -496,6 +496,7 @@ input:focus-visible,
   color: #566873;
 
   font-size: 1.05rem;
+
   line-height: 1.72;
 }
 
@@ -523,6 +524,7 @@ input:focus-visible,
   color: #7a776d;
 
   font-size: 0.72rem;
+
   font-weight: 650;
 }
 
@@ -850,6 +852,7 @@ input:focus-visible,
     );
 
   font-size: 0.68rem;
+
   font-weight: 680;
 }
 
@@ -999,6 +1002,7 @@ input:focus-visible,
   border-radius: 11px;
 
   font-size: 0.82rem;
+
   font-weight: 720;
 }
 
@@ -1410,6 +1414,7 @@ input:focus-visible,
   width: 100%;
 
   min-width: 650px;
+
   min-height: 760px;
 
   touch-action: manipulation;
