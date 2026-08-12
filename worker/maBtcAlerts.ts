@@ -38,6 +38,39 @@ export {
   type BtcAlertsEnv
 }
 
+const PUSH_BATCH_SIZE = 35
+
+const PUSH_BATCH_DELAY_MS =
+  5_000
+
+type PendingAlertDelivery = {
+  subscriberIds: string[]
+  nextIndex: number
+  title: string
+  body: string
+  price: number
+  direction:
+    | 'up'
+    | 'down'
+  changePercent: number
+  triggeredAt: number
+  failedDeliveries: number
+}
+
+type StoredStateWithPendingAlert =
+  StoredState & {
+    pendingAlert?:
+      PendingAlertDelivery | null
+  }
+
+type AlarmStorageLike =
+  DurableObjectStateLike['storage'] & {
+    setAlarm(
+      scheduledTime:
+        number | Date
+    ): Promise<void>
+  }
+
 const normalizeOrigin = (
   value: string
 ) => {
@@ -239,7 +272,8 @@ export class BtcAlertsDurableObject {
     DurableObjectStateLike
 
   private storedState:
-    StoredState | null = null
+    StoredStateWithPendingAlert | null =
+      null
 
   private operation:
     Promise<void>
@@ -256,7 +290,7 @@ export class BtcAlertsDurableObject {
           this.storedState =
             (
               await this.state.storage.get<
-                StoredState
+                StoredStateWithPendingAlert
               >(STORAGE_KEY)
             ) ||
             createInitialState()
@@ -286,12 +320,28 @@ export class BtcAlertsDurableObject {
     return response
   }
 
+  alarm(): Promise<void> {
+    const response =
+      this.operation.then(
+        () =>
+          this.processPendingAlertBatch()
+      )
+
+    this.operation =
+      response.then(
+        () => undefined,
+        () => undefined
+      )
+
+    return response
+  }
+
   private async getState() {
     if (!this.storedState) {
       this.storedState =
         (
           await this.state.storage.get<
-            StoredState
+            StoredStateWithPendingAlert
           >(STORAGE_KEY)
         ) ||
         createInitialState()
@@ -307,6 +357,174 @@ export class BtcAlertsDurableObject {
         this.storedState
       )
     }
+  }
+
+  private async schedulePendingAlertContinuation() {
+    const storage =
+      this.state
+        .storage as
+        AlarmStorageLike
+
+    await storage.setAlarm(
+      Date.now() +
+        PUSH_BATCH_DELAY_MS
+    )
+  }
+
+  private completePendingAlert(
+    state:
+      StoredStateWithPendingAlert,
+    pending:
+      PendingAlertDelivery
+  ) {
+    state.referencePrice =
+      pending.price
+
+    state.lastAlertAt =
+      pending.triggeredAt
+
+    state.lastAlertDirection =
+      pending.direction
+
+    state.lastAlertPercent =
+      Math.abs(
+        pending.changePercent
+      )
+
+    state.lastError =
+      pending.failedDeliveries > 0
+        ? `${pending.failedDeliveries} notificação${
+            pending.failedDeliveries === 1
+              ? ''
+              : 'ões'
+          } não ${
+            pending.failedDeliveries === 1
+              ? 'foi entregue'
+              : 'foram entregues'
+          }.`
+        : null
+
+    state.pendingAlert =
+      null
+  }
+
+  private async processPendingAlertBatch() {
+    const state =
+      await this.getState()
+
+    const pending =
+      state.pendingAlert
+
+    if (!pending) {
+      return
+    }
+
+    const now =
+      Date.now()
+
+    const startIndex =
+      pending.nextIndex
+
+    const endIndex =
+      Math.min(
+        startIndex +
+          PUSH_BATCH_SIZE,
+        pending
+          .subscriberIds
+          .length
+      )
+
+    const subscriberIds =
+      pending
+        .subscriberIds
+        .slice(
+          startIndex,
+          endIndex
+        )
+
+    for (
+      const id of
+      subscriberIds
+    ) {
+      const subscriber =
+        state.subscribers[
+          id
+        ]
+
+      if (!subscriber) {
+        continue
+      }
+
+      if (
+        isExpiredSubscription(
+          subscriber,
+          now
+        )
+      ) {
+        delete state.subscribers[
+          id
+        ]
+
+        continue
+      }
+
+      if (
+        isSnoozedSubscriber(
+          subscriber,
+          now
+        )
+      ) {
+        continue
+      }
+
+      const result =
+        await sendPushNotification(
+          state,
+          subscriber,
+          {
+            title:
+              pending.title,
+            body:
+              pending.body
+          }
+        )
+
+      if (result.remove) {
+        delete state.subscribers[
+          id
+        ]
+      } else if (
+        !result.delivered
+      ) {
+        pending
+          .failedDeliveries +=
+          1
+      }
+    }
+
+    pending.nextIndex =
+      endIndex
+
+    if (
+      pending.nextIndex >=
+      pending
+        .subscriberIds
+        .length
+    ) {
+      this.completePendingAlert(
+        state,
+        pending
+      )
+
+      await this.save()
+
+      return
+    }
+
+    await this.save()
+
+    await this
+      .schedulePendingAlertContinuation()
   }
 
   private async handleRequest(
@@ -856,6 +1074,13 @@ export class BtcAlertsDurableObject {
     const state =
       await this.getState()
 
+    if (state.pendingAlert) {
+      await this
+        .processPendingAlertBatch()
+
+      return
+    }
+
     const now =
       Date.now()
 
@@ -967,75 +1192,67 @@ export class BtcAlertsDurableObject {
         'WWW.MA-CODE.PT'
       ].join('\n')
 
-      let failedDeliveries =
-        0
-
-      for (
-        const [
-          id,
-          subscriber
-        ] of Object.entries(
+      const subscriberIds =
+        Object.entries(
           state.subscribers
         )
-      ) {
-        if (
-          isSnoozedSubscriber(
-            subscriber,
-            now
+          .filter(
+            (
+              [
+                ,
+                subscriber
+              ]
+            ) =>
+              !isSnoozedSubscriber(
+                subscriber,
+                now
+              )
           )
-        ) {
-          continue
-        }
-
-        const result =
-          await sendPushNotification(
-            state,
-            subscriber,
-            {
-              title,
-              body
-            }
+          .map(
+            (
+              [
+                id
+              ]
+            ) =>
+              id
           )
 
-        if (result.remove) {
-          delete state.subscribers[
-            id
-          ]
-        } else if (
-          !result.delivered
-        ) {
-          failedDeliveries += 1
-        }
+      const pendingAlert:
+        PendingAlertDelivery = {
+        subscriberIds,
+        nextIndex: 0,
+        title,
+        body,
+        price,
+        direction,
+        changePercent,
+        triggeredAt:
+          now,
+        failedDeliveries:
+          0
       }
 
-      state.referencePrice =
-        price
-
-      state.lastAlertAt =
-        now
-
-      state.lastAlertDirection =
-        direction
-
-      state.lastAlertPercent =
-        Math.abs(
-          changePercent
+      if (
+        subscriberIds.length ===
+        0
+      ) {
+        this.completePendingAlert(
+          state,
+          pendingAlert
         )
 
-      state.lastError =
-        failedDeliveries > 0
-          ? `${failedDeliveries} notificação${
-              failedDeliveries === 1
-                ? ''
-                : 'ões'
-            } não ${
-              failedDeliveries === 1
-                ? 'foi entregue'
-                : 'foram entregues'
-            }.`
-          : null
+        await this.save()
+
+        return
+      }
+
+      state.pendingAlert =
+        pendingAlert
 
       await this.save()
+
+      await this
+        .processPendingAlertBatch()
     } catch (error) {
       state.lastCheckedAt =
         now
