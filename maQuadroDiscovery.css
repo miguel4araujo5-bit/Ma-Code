@@ -1,0 +1,260 @@
+.mq-discovery-controls {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0 0 0.9rem;
+}
+
+.mq-discovery-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 2.65rem;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 0.8rem;
+    background: #fff;
+    transition:
+        border-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.mq-discovery-search:focus-within {
+    border-color: rgba(124, 58, 237, 0.58);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.mq-discovery-search__icon {
+    display: grid;
+    flex: 0 0 2.35rem;
+    place-items: center;
+    color: #64748b;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.mq-discovery-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #0f172a;
+    font: inherit;
+    font-size: 0.88rem;
+}
+
+.mq-discovery-search input::placeholder {
+    color: #94a3b8;
+}
+
+.mq-discovery-search__clear {
+    display: grid;
+    flex: 0 0 2.2rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    place-items: center;
+    margin-right: 0.15rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.mq-discovery-search__clear:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.mq-discovery-chips {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding: 0.05rem 0 0.2rem;
+    scrollbar-width: thin;
+}
+
+.mq-discovery-chips button,
+.mq-favourites-filter {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    padding: 0.35rem 0.7rem;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        color 120ms ease,
+        transform 120ms ease;
+}
+
+.mq-discovery-chips button:hover:not(:disabled),
+.mq-favourites-filter:hover:not(:disabled) {
+    border-color: rgba(124, 58, 237, 0.35);
+    color: #6d28d9;
+    transform: translateY(-1px);
+}
+
+.mq-discovery-chips button.is-active,
+.mq-favourites-filter.is-active {
+    border-color: rgba(124, 58, 237, 0.28);
+    background: rgba(124, 58, 237, 0.1);
+    color: #6d28d9;
+}
+
+.mq-discovery-chips--views {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+}
+
+.mq-discovery-chips--views button {
+    justify-content: center;
+    min-width: 0;
+    text-align: center;
+}
+
+.mq-favourites-filter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    justify-self: start;
+}
+
+.mq-favourites-filter > span {
+    color: #f59e0b;
+}
+
+.mq-template-card-shell {
+    position: relative;
+    min-width: 0;
+}
+
+.mq-template-card-shell .mq-template-card {
+    width: 100%;
+    padding-right: 3.4rem;
+}
+
+.mq-template-card-shell > .mq-favourite-button {
+    position: absolute;
+    top: 50%;
+    right: 0.65rem;
+    z-index: 2;
+    transform: translateY(-50%);
+}
+
+.mq-template-card-shell > .mq-favourite-button:hover:not(:disabled) {
+    transform: translateY(-50%) scale(1.05);
+}
+
+.mq-favourite-button {
+    display: inline-grid;
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #94a3b8;
+    padding: 0;
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    transition:
+        border-color 120ms ease,
+        color 120ms ease,
+        transform 120ms ease,
+        background 120ms ease;
+}
+
+.mq-favourite-button:hover:not(:disabled) {
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #d97706;
+    transform: scale(1.05);
+}
+
+.mq-favourite-button.is-active {
+    border-color: rgba(245, 158, 11, 0.34);
+    background: #fffbeb;
+    color: #f59e0b;
+}
+
+.mq-project-card__actions--with-favourite {
+    align-items: center;
+}
+
+.mq-project-card__actions--with-favourite .mq-favourite-button {
+    margin-right: auto;
+}
+
+.mq-project-card__copy {
+    min-width: 0;
+}
+
+.mq-project-card__date {
+    display: block;
+    margin-top: 0.18rem;
+    color: #94a3b8 !important;
+    font-size: 0.69rem !important;
+}
+
+.mq-section-title--discovery {
+    margin-top: 0.15rem;
+}
+
+.mq-discovery-empty {
+    display: grid;
+    gap: 0.45rem;
+    text-align: left;
+}
+
+.mq-discovery-empty strong {
+    color: #0f172a;
+}
+
+.mq-discovery-empty p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.mq-discovery-empty button {
+    justify-self: start;
+    border: 0;
+    background: transparent;
+    color: #6d28d9;
+    padding: 0;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.mq-info-card--compact {
+    margin-top: 0.85rem;
+}
+
+.mq-info-card--compact p {
+    margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .mq-discovery-chips--views {
+        grid-template-columns: 1fr;
+    }
+
+    .mq-discovery-chips--views button {
+        width: 100%;
+    }
+}
