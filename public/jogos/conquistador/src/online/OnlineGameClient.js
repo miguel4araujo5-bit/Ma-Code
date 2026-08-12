@@ -1,5 +1,10 @@
 const API_URL = '/api/conquistador/game';
-const DEFAULT_POLL_INTERVAL_MS = 700;
+const DEFAULT_FALLBACK_POLL_INTERVAL_MS = 5000;
+const MAX_FALLBACK_POLL_INTERVAL_MS = 30000;
+const REALTIME_CONNECT_TIMEOUT_MS = 8000;
+const REALTIME_REQUEST_TIMEOUT_MS = 10000;
+const REALTIME_RECONNECT_MIN_MS = 1000;
+const REALTIME_RECONNECT_MAX_MS = 30000;
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
 const COUNTDOWN_TICK_MS = 250;
@@ -12,7 +17,6 @@ function normalizeId(value) {
 
 function normalizeReconnectToken(value) {
   const token = String(value ?? '').trim();
-
   return (
     token.length >= 32 &&
     token.length <= 256 &&
@@ -39,7 +43,6 @@ function getStoredReconnectToken(matchId, playerId) {
     }
 
     const stored = JSON.parse(raw);
-
     if (
       !stored ||
       typeof stored !== 'object' ||
@@ -64,7 +67,6 @@ function clearStoredSession(matchId, playerId) {
     }
 
     const stored = JSON.parse(raw);
-
     if (
       normalizeId(stored?.matchId) === matchId &&
       normalizeId(stored?.playerId) === playerId
@@ -99,7 +101,6 @@ function getPresenceWarning(data) {
   const valid = warnings
     .filter((warning) => {
       const expiresAt = Number(warning?.expiresAt);
-
       return (
         warning &&
         typeof warning === 'object' &&
@@ -124,7 +125,6 @@ function renderPresenceCountdown(warning) {
 
   const turnBanner =
     document.querySelector('.turn-banner');
-
   if (!turnBanner) {
     return;
   }
@@ -159,7 +159,6 @@ function renderPresenceCountdown(warning) {
   if (!element) {
     element =
       document.createElement('div');
-
     element.id =
       PRESENCE_COUNTDOWN_ID;
 
@@ -190,7 +189,6 @@ function renderPresenceCountdown(warning) {
 
     element.style.border =
       '1px solid rgba(11,64,85,0.22)';
-
     element.style.borderRadius =
       '0.8rem';
 
@@ -216,7 +214,6 @@ function renderPresenceCountdown(warning) {
       turnBanner.querySelector(
         '.dice-result',
       );
-
     if (dice) {
       turnBanner.insertBefore(
         element,
@@ -243,7 +240,6 @@ function renderPresenceCountdown(warning) {
     'aria-label',
     `A aguardar ${playerName}. ${seconds} segundos restantes.`,
   );
-
   element.innerHTML = `
     <span
       aria-hidden="true"
@@ -270,7 +266,6 @@ function renderPresenceCountdown(warning) {
 
 async function readJsonResponse(response) {
   let data = null;
-
   try {
     data =
       await response.json();
@@ -300,12 +295,40 @@ async function readJsonResponse(response) {
   return data;
 }
 
+function createSocketError(message, status = 0, data = null) {
+  const error = new Error(
+    message || 'Não foi possível comunicar com a partida online.',
+  );
+  error.status = Number(status) || 0;
+  error.data = data;
+  return error;
+}
+
+function isTerminalStatus(status) {
+  return [401, 403, 410].includes(Number(status));
+}
+
+function createWebSocketUrl(matchId) {
+  const protocol =
+    window.location.protocol === 'https:'
+      ? 'wss:'
+      : 'ws:';
+
+  const url = new URL(
+    API_URL,
+    window.location.href,
+  );
+  url.protocol = protocol;
+  url.searchParams.set('matchId', matchId);
+  return url.toString();
+}
+
 export class OnlineGameClient {
   constructor({
     matchId,
     playerId,
     reconnectToken = '',
-    pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+    pollIntervalMs = DEFAULT_FALLBACK_POLL_INTERVAL_MS,
   }) {
     this.matchId =
       normalizeId(matchId);
@@ -324,9 +347,9 @@ export class OnlineGameClient {
 
     this.pollIntervalMs =
       Math.max(
-        250,
+        DEFAULT_FALLBACK_POLL_INTERVAL_MS,
         Number(pollIntervalMs) ||
-        DEFAULT_POLL_INTERVAL_MS,
+        DEFAULT_FALLBACK_POLL_INTERVAL_MS,
       );
 
     if (
@@ -344,29 +367,33 @@ export class OnlineGameClient {
       );
     }
 
-    this.revision =
-      null;
+    this.revision = null;
+    this.state = null;
+    this.polling = false;
+    this.closed = false;
+    this.listeners = new Set();
+    this.errorListeners = new Set();
+    this.presenceWarning = null;
 
-    this.state =
-      null;
+    this.socket = null;
+    this.socketAuthenticated = false;
+    this.socketConnecting = null;
+    this.connectWaiter = null;
+    this.pendingRequests = new Map();
+    this.requestSequence = 0;
 
-    this.pollTimer =
-      null;
+    this.reconnectTimer = null;
+    this.reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
+    this.fallbackTimer = null;
+    this.fallbackDelayMs = this.pollIntervalMs;
 
-    this.polling =
-      false;
+    this.handleVisibilityChange =
+      this.handleVisibilityChange.bind(this);
 
-    this.closed =
-      false;
-
-    this.listeners =
-      new Set();
-
-    this.errorListeners =
-      new Set();
-
-    this.presenceWarning =
-      null;
+    document.addEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange,
+    );
 
     this.countdownTimer =
       window.setInterval(
@@ -381,25 +408,19 @@ export class OnlineGameClient {
       await fetch(
         API_URL,
         {
-          method:
-            'POST',
-
+          method: 'POST',
           headers: {
             'Content-Type':
               'application/json',
           },
-
           body:
             JSON.stringify({
               matchId:
                 this.matchId,
-
               playerId:
                 this.playerId,
-
               reconnectToken:
                 this.reconnectToken,
-
               ...payload,
             }),
         },
@@ -410,16 +431,7 @@ export class OnlineGameClient {
         response,
       );
     } catch (error) {
-      if (
-        error?.status === 401 ||
-        error?.status === 403
-      ) {
-        clearStoredSession(
-          this.matchId,
-          this.playerId,
-        );
-      }
-
+      this.handleTerminalError(error);
       throw error;
     }
   }
@@ -453,8 +465,7 @@ export class OnlineGameClient {
         this.presenceWarning.expiresAt,
       ) <= Date.now()
     ) {
-      this.presenceWarning =
-        null;
+      this.presenceWarning = null;
     }
 
     renderPresenceCountdown(
@@ -481,11 +492,8 @@ export class OnlineGameClient {
       return this.state;
     }
 
-    this.revision =
-      revision;
-
-    this.state =
-      data;
+    this.revision = revision;
+    this.state = data;
 
     this.updatePresenceWarning(
       data,
@@ -502,13 +510,21 @@ export class OnlineGameClient {
       }
     }
 
-    /*
-     * O listener principal pode reconstruir o DOM.
-     * Voltamos a montar o relógio depois dos listeners.
-     */
     this.renderCountdown();
 
     return data;
+  }
+
+  applyRealtimeState(data) {
+    if (
+      data?.status === 'not-modified'
+    ) {
+      this.updatePresenceWarning(data);
+      this.renderCountdown();
+      return this.state;
+    }
+
+    return this.applyState(data);
   }
 
   notifyError(error) {
@@ -562,47 +578,368 @@ export class OnlineGameClient {
     };
   }
 
-  async getState() {
-    const data =
-      await this.request({
-        action:
-          'state',
+  handleTerminalError(error) {
+    if (!isTerminalStatus(error?.status)) {
+      return false;
+    }
 
-        knownRevision:
-          this.revision,
-      });
+    clearStoredSession(
+      this.matchId,
+      this.playerId,
+    );
+
+    this.stopPolling();
+    this.closeSocket(false);
+    return true;
+  }
+
+  createRequestId(prefix) {
+    this.requestSequence += 1;
+    return `${prefix}-${Date.now()}-${this.requestSequence}`;
+  }
+
+  clearConnectWaiter(error = null) {
+    const waiter = this.connectWaiter;
+    this.connectWaiter = null;
+
+    if (!waiter) {
+      return;
+    }
+
+    window.clearTimeout(waiter.timer);
+
+    if (error) {
+      waiter.reject(error);
+    } else {
+      waiter.resolve(this.state);
+    }
+  }
+
+  rejectPendingRequests(error) {
+    for (const pending of this.pendingRequests.values()) {
+      window.clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+
+    this.pendingRequests.clear();
+  }
+
+  resolvePendingRequest(message) {
+    const requestId =
+      normalizeId(message?.requestId);
+
+    if (!requestId) {
+      return false;
+    }
+
+    const pending =
+      this.pendingRequests.get(requestId);
+
+    if (!pending) {
+      return false;
+    }
+
+    this.pendingRequests.delete(requestId);
+    window.clearTimeout(pending.timer);
+
+    const data = message?.data || null;
+    const ok = message?.ok === true;
+    const status = Number(message?.status) || 0;
+
+    if (data) {
+      if (data.game || data.status === 'not-modified') {
+        this.applyRealtimeState(data);
+      } else {
+        this.updatePresenceWarning(data);
+      }
+    }
+
+    if (ok) {
+      pending.resolve(
+        data?.game
+          ? data
+          : this.state,
+      );
+      return true;
+    }
+
+    const error = createSocketError(
+      data?.message ||
+      'Não foi possível concluir a ação online.',
+      status,
+      data,
+    );
+
+    this.handleTerminalError(error);
+    pending.reject(error);
+    return true;
+  }
+
+  handleSocketMessage(event) {
+    let message = null;
+
+    try {
+      message = JSON.parse(
+        String(event.data || ''),
+      );
+    } catch {
+      return;
+    }
+
+    if (!message || typeof message !== 'object') {
+      return;
+    }
+
+    if (message.type === 'state') {
+      this.socketAuthenticated = true;
+      this.reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
+      this.clearFallbackTimer();
+      this.applyRealtimeState(message.data || {});
+      this.clearConnectWaiter();
+      return;
+    }
+
+    if (message.type === 'presence') {
+      this.updatePresenceWarning(message.data || {});
+      return;
+    }
 
     if (
-      data.status ===
-      'not-modified'
+      message.type === 'state-result' ||
+      message.type === 'command-result'
     ) {
-      /*
-       * A presença muda com o tempo, mesmo quando a revisão
-       * do jogo não muda. Por isso processamos sempre
-       * presenceWarnings também numa resposta not-modified.
-       */
-      this.updatePresenceWarning(
-        data,
+      this.resolvePendingRequest(message);
+      return;
+    }
+
+    if (message.type === 'error') {
+      const error = createSocketError(
+        message.message,
+        message.status,
+        message.data || null,
       );
 
-      this.renderCountdown();
+      this.handleTerminalError(error);
+      this.clearConnectWaiter(error);
+      this.notifyError(error);
+    }
+  }
 
+  handleSocketClose(socket) {
+    if (this.socket !== socket) {
+      return;
+    }
+
+    this.socket = null;
+    this.socketAuthenticated = false;
+    this.socketConnecting = null;
+
+    const error = createSocketError(
+      'A ligação realtime à partida foi interrompida.',
+    );
+
+    this.clearConnectWaiter(error);
+    this.rejectPendingRequests(error);
+
+    if (
+      this.closed ||
+      !this.polling
+    ) {
+      return;
+    }
+
+    if (!document.hidden) {
+      this.scheduleReconnect();
+      this.scheduleFallbackPoll();
+    }
+  }
+
+  async connectRealtime() {
+    if (
+      this.closed ||
+      !this.polling
+    ) {
       return this.state;
     }
 
-    return this.applyState(
-      data,
+    if (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.socketAuthenticated
+    ) {
+      return this.state;
+    }
+
+    if (this.socketConnecting) {
+      return this.socketConnecting;
+    }
+
+    if (document.hidden) {
+      return this.state;
+    }
+
+    this.closeSocket(false);
+
+    const socket = new WebSocket(
+      createWebSocketUrl(this.matchId),
     );
+
+    this.socket = socket;
+    this.socketAuthenticated = false;
+
+    this.socketConnecting =
+      new Promise((resolve, reject) => {
+        const timer = window.setTimeout(
+          () => {
+            const error = createSocketError(
+              'A ligação realtime à partida demorou demasiado tempo.',
+            );
+            this.clearConnectWaiter(error);
+            this.closeSocket(false);
+          },
+          REALTIME_CONNECT_TIMEOUT_MS,
+        );
+
+        this.connectWaiter = {
+          resolve,
+          reject,
+          timer,
+        };
+      });
+
+    socket.addEventListener('open', () => {
+      if (
+        this.socket !== socket ||
+        this.closed
+      ) {
+        return;
+      }
+
+      socket.send(
+        JSON.stringify({
+          type: 'auth',
+          playerId: this.playerId,
+          reconnectToken: this.reconnectToken,
+          knownRevision: this.revision,
+        }),
+      );
+    });
+
+    socket.addEventListener('message', (event) => {
+      if (this.socket === socket) {
+        this.handleSocketMessage(event);
+      }
+    });
+
+    socket.addEventListener('error', () => {
+      if (this.socket !== socket) {
+        return;
+      }
+
+      const error = createSocketError(
+        'Não foi possível estabelecer a ligação realtime à partida.',
+      );
+
+      this.clearConnectWaiter(error);
+    });
+
+    socket.addEventListener('close', () => {
+      this.handleSocketClose(socket);
+    });
+
+    try {
+      return await this.socketConnecting;
+    } finally {
+      if (this.socket === socket) {
+        this.socketConnecting = null;
+      }
+    }
   }
 
-  async command(
-    type,
-    payload = {},
-  ) {
+  sendRealtimeRequest(type, payload = {}) {
+    if (
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN ||
+      !this.socketAuthenticated
+    ) {
+      return Promise.reject(
+        createSocketError(
+          'A ligação realtime ainda não está disponível.',
+        ),
+      );
+    }
+
+    const requestId =
+      this.createRequestId(type);
+
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(
+        () => {
+          this.pendingRequests.delete(requestId);
+          reject(
+            createSocketError(
+              'A resposta da partida demorou demasiado tempo.',
+            ),
+          );
+        },
+        REALTIME_REQUEST_TIMEOUT_MS,
+      );
+
+      this.pendingRequests.set(
+        requestId,
+        {
+          resolve,
+          reject,
+          timer,
+        },
+      );
+
+      try {
+        this.socket.send(
+          JSON.stringify({
+            type,
+            requestId,
+            ...payload,
+          }),
+        );
+      } catch (error) {
+        window.clearTimeout(timer);
+        this.pendingRequests.delete(requestId);
+        reject(error);
+      }
+    });
+  }
+
+  async getState() {
+    if (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.socketAuthenticated
+    ) {
+      return this.sendRealtimeRequest(
+        'state',
+        {
+          knownRevision: this.revision,
+        },
+      );
+    }
+
+    const data =
+      await this.request({
+        action: 'state',
+        knownRevision: this.revision,
+      });
+
+    if (data.status === 'not-modified') {
+      this.updatePresenceWarning(data);
+      this.renderCountdown();
+      return this.state;
+    }
+
+    return this.applyState(data);
+  }
+
+  async command(type, payload = {}) {
     const commandType =
-      String(
-        type ?? '',
-      ).trim();
+      String(type ?? '').trim();
 
     if (!commandType) {
       throw new Error(
@@ -610,77 +947,191 @@ export class OnlineGameClient {
       );
     }
 
+    if (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.socketAuthenticated
+    ) {
+      return this.sendRealtimeRequest(
+        'command',
+        {
+          revision: this.revision,
+          command: {
+            type: commandType,
+            payload,
+          },
+        },
+      );
+    }
+
     try {
       const data =
         await this.request({
-          action:
-            'command',
-
-          revision:
-            this.revision,
-
+          action: 'command',
+          revision: this.revision,
           command: {
-            type:
-              commandType,
-
+            type: commandType,
             payload,
           },
         });
 
-      return this.applyState(
-        data,
-      );
+      const result = this.applyState(data);
+
+      if (
+        this.polling &&
+        !document.hidden
+      ) {
+        void this.connectRealtime().catch(() => {});
+      }
+
+      return result;
     } catch (error) {
       if (
         error?.status === 409 &&
         error?.data?.game
       ) {
-        this.applyState(
-          error.data,
-        );
+        this.applyState(error.data);
       }
 
       throw error;
     }
   }
 
-  schedulePoll() {
+  clearFallbackTimer() {
+    if (this.fallbackTimer) {
+      window.clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+  }
+
+  scheduleFallbackPoll(delay = this.fallbackDelayMs) {
+    this.clearFallbackTimer();
+
     if (
       this.closed ||
-      !this.polling
+      !this.polling ||
+      document.hidden ||
+      (
+        this.socket?.readyState === WebSocket.OPEN &&
+        this.socketAuthenticated
+      )
     ) {
       return;
     }
 
-    window.clearTimeout(
-      this.pollTimer,
-    );
-
-    this.pollTimer =
+    this.fallbackTimer =
       window.setTimeout(
-        () =>
-          this.pollOnce(),
-        this.pollIntervalMs,
+        () => void this.fallbackPollOnce(),
+        Math.max(
+          DEFAULT_FALLBACK_POLL_INTERVAL_MS,
+          Number(delay) || this.pollIntervalMs,
+        ),
       );
   }
 
-  async pollOnce() {
+  async fallbackPollOnce() {
     if (
       this.closed ||
-      !this.polling
+      !this.polling ||
+      document.hidden
     ) {
       return;
     }
 
     try {
       await this.getState();
+      this.fallbackDelayMs = this.pollIntervalMs;
     } catch (error) {
-      this.notifyError(
-        error,
-      );
-    } finally {
-      this.schedulePoll();
+      this.notifyError(error);
+
+      if (this.handleTerminalError(error)) {
+        return;
+      }
+
+      this.fallbackDelayMs =
+        Math.min(
+          MAX_FALLBACK_POLL_INTERVAL_MS,
+          Math.max(
+            this.pollIntervalMs,
+            this.fallbackDelayMs * 2,
+          ),
+        );
     }
+
+    this.scheduleFallbackPoll();
+  }
+
+  clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  scheduleReconnect() {
+    this.clearReconnectTimer();
+
+    if (
+      this.closed ||
+      !this.polling ||
+      document.hidden ||
+      this.socket?.readyState === WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    const delay = this.reconnectDelayMs;
+    this.reconnectDelayMs =
+      Math.min(
+        REALTIME_RECONNECT_MAX_MS,
+        Math.max(
+          REALTIME_RECONNECT_MIN_MS,
+          this.reconnectDelayMs * 2,
+        ),
+      );
+
+    this.reconnectTimer =
+      window.setTimeout(
+        () => {
+          this.reconnectTimer = null;
+          void this.connectRealtime()
+            .catch((error) => {
+              if (!this.handleTerminalError(error)) {
+                this.scheduleReconnect();
+              }
+            });
+        },
+        delay,
+      );
+  }
+
+  handleVisibilityChange() {
+    if (
+      this.closed ||
+      !this.polling
+    ) {
+      return;
+    }
+
+    if (document.hidden) {
+      this.clearFallbackTimer();
+      this.clearReconnectTimer();
+      return;
+    }
+
+    if (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.socketAuthenticated
+    ) {
+      return;
+    }
+
+    void this.connectRealtime()
+      .catch((error) => {
+        if (!this.handleTerminalError(error)) {
+          this.scheduleFallbackPoll();
+          this.scheduleReconnect();
+        }
+      });
   }
 
   async startPolling({
@@ -690,54 +1141,90 @@ export class OnlineGameClient {
       return null;
     }
 
-    this.polling =
-      true;
+    this.polling = true;
 
-    if (immediate) {
-      try {
-        return await this.getState();
-      } finally {
-        this.schedulePoll();
-      }
+    if (document.hidden) {
+      return this.state;
     }
 
-    this.schedulePoll();
+    try {
+      const state = await this.connectRealtime();
+      return state;
+    } catch (error) {
+      if (this.handleTerminalError(error)) {
+        throw error;
+      }
 
-    return this.state;
+      this.scheduleReconnect();
+
+      if (!immediate) {
+        this.scheduleFallbackPoll();
+        return this.state;
+      }
+
+      try {
+        const state = await this.getState();
+        this.fallbackDelayMs = this.pollIntervalMs;
+        this.scheduleFallbackPoll();
+        return state;
+      } catch (fallbackError) {
+        this.notifyError(fallbackError);
+        this.scheduleFallbackPoll();
+        throw fallbackError;
+      }
+    }
   }
 
   stopPolling() {
-    this.polling =
-      false;
+    this.polling = false;
+    this.clearFallbackTimer();
+    this.clearReconnectTimer();
+  }
 
-    if (this.pollTimer) {
-      window.clearTimeout(
-        this.pollTimer,
+  closeSocket(rejectPending = true) {
+    const socket = this.socket;
+    this.socket = null;
+    this.socketAuthenticated = false;
+    this.socketConnecting = null;
+
+    if (rejectPending) {
+      const error = createSocketError(
+        'A ligação realtime foi terminada.',
       );
+      this.clearConnectWaiter(error);
+      this.rejectPendingRequests(error);
+    }
 
-      this.pollTimer =
-        null;
+    if (!socket) {
+      return;
+    }
+
+    try {
+      socket.close(1000, 'Cliente encerrado');
+    } catch {
+      return;
     }
   }
 
   close() {
     this.stopPolling();
+    this.closed = true;
 
-    if (
-      this.countdownTimer
-    ) {
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange,
+    );
+
+    this.closeSocket(true);
+
+    if (this.countdownTimer) {
       window.clearInterval(
         this.countdownTimer,
       );
-
-      this.countdownTimer =
-        null;
+      this.countdownTimer = null;
     }
 
     removePresenceCountdown();
-
-    this.closed =
-      true;
 
     this.listeners.clear();
     this.errorListeners.clear();
