@@ -24,6 +24,10 @@ import {
 } from '../../lib/maQuadro/brandKits'
 
 import {
+  createMAQuadroBrandedProjectFromStoredProject
+} from '../../lib/maQuadro/brandApplication'
+
+import {
   MA_QUADRO_QUICK_STYLE_PRESETS,
   type MAQuadroQuickStylePreset
 } from '../../lib/maQuadro/quickStylePresets'
@@ -805,6 +809,105 @@ export default function BrandQuickStyles() {
       }
     }
 
+  const applyBrandToWholeDesign =
+    async () => {
+      if (
+        locked ||
+        !editor.project ||
+        editor.project.isTemplate
+      ) {
+        return
+      }
+
+      const confirmed =
+        window.confirm(
+          `Criar uma cópia de “${editor.project.name}” com a marca “${activeKit.name}” aplicada a todas as páginas?\n\nO projeto original será preservado.`
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setLocalBusy(
+        true
+      )
+
+      setMessage(
+        ''
+      )
+
+      try {
+        const projectId =
+          editor.project.id
+
+        const saved =
+          await editor.saveProject(
+            true
+          )
+
+        if (!saved) {
+          setMessage(
+            'Não foi possível guardar o projeto antes de aplicar a marca.'
+          )
+
+          return
+        }
+
+        const branded =
+          await createMAQuadroBrandedProjectFromStoredProject(
+            projectId,
+            activeKit
+          )
+
+        const file =
+          new File(
+            [
+              JSON.stringify(
+                branded
+              )
+            ],
+            `${branded.name}.ma-quadro.json`,
+            {
+              type:
+                'application/json'
+            }
+          )
+
+        const syntheticEvent = {
+          target: {
+            files: [file],
+            value: ''
+          }
+        } as unknown as Parameters<
+          typeof editor.importProject
+        >[0]
+
+        await editor.importProject(
+          syntheticEvent
+        )
+
+        editor.setActivePanel(
+          'brand'
+        )
+
+        setMessage(
+          `Cópia criada com a marca “${activeKit.name}”.`
+        )
+      } catch (error) {
+        console.error(
+          error
+        )
+
+        setMessage(
+          'Não foi possível aplicar a marca ao design.'
+        )
+      } finally {
+        setLocalBusy(
+          false
+        )
+      }
+    }
+
   if (
     !host
   ) {
@@ -1121,6 +1224,33 @@ export default function BrandQuickStyles() {
           activeKit.id
         }
       />
+
+      <div className="mq-brand-kit-card">
+        <div className="mq-brand-kit-subsection">
+          <strong>
+            Aplicar ao design inteiro
+          </strong>
+
+          <div className="mq-brand-quick-styles__notice">
+            Cria uma nova cópia do projeto e aplica as cores e fontes desta marca a todas as páginas. O original permanece intacto.
+          </div>
+
+          <button
+            type="button"
+            className="mq-wide-action"
+            disabled={
+              locked ||
+              !editor.project ||
+              editor.project.isTemplate
+            }
+            onClick={() =>
+              void applyBrandToWholeDesign()
+            }
+          >
+            Aplicar marca a todo o design
+          </button>
+        </div>
+      </div>
 
       <div className="mq-brand-quick-styles__heading">
         <div>
