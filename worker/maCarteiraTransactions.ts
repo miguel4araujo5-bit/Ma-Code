@@ -116,7 +116,9 @@ const normalizeTimestamp = (value: unknown) => {
     ? new Date(Number(raw) * (raw.length <= 10 ? 1000 : 1))
     : new Date(raw)
 
-  return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString()
+  return Number.isNaN(date.getTime())
+    ? new Date(0).toISOString()
+    : date.toISOString()
 }
 
 const getDirection = (
@@ -383,6 +385,7 @@ const normalizeTokenTransactions = (
 
     const token = asRecord(item.token)
     const total = asRecord(item.total)
+
     const from = getAddressValue(item.from)
     const to = getAddressValue(item.to) || null
 
@@ -444,7 +447,9 @@ const normalizeTokenTransactions = (
           readString(token, 'symbol') ||
           'TOKEN',
         tokenName:
-          readString(item, 'tokenName') || readString(token, 'name') || null,
+          readString(item, 'tokenName') ||
+          readString(token, 'name') ||
+          null,
         tokenAddress,
         feeRaw: getFeeRaw(item)
       }
@@ -477,7 +482,9 @@ const normalizeInternalTransactions = (
     const from = getAddressValue(item.from)
 
     const to =
-      getAddressValue(item.to) || readString(item, 'contractAddress') || null
+      getAddressValue(item.to) ||
+      readString(item, 'contractAddress') ||
+      null
 
     if (!isAddressInTransaction(address, from, to)) {
       return []
@@ -565,7 +572,8 @@ const finalizeTransactions = (
         return transaction
       }
 
-      const directions = directionsByHash.get(transaction.hash.toLowerCase())
+      const directions =
+        directionsByHash.get(transaction.hash.toLowerCase())
 
       return directions?.has('in') && directions.has('out')
         ? {
@@ -618,7 +626,10 @@ const requestJson = async (
     })
 
     if (!response.ok) {
-      throw new MaCarteiraTransactionsError(fallbackMessage, response.status)
+      throw new MaCarteiraTransactionsError(
+        fallbackMessage,
+        response.status
+      )
     }
 
     return await response.json()
@@ -634,7 +645,10 @@ const requestJson = async (
       )
     }
 
-    throw new MaCarteiraTransactionsError(fallbackMessage, 502)
+    throw new MaCarteiraTransactionsError(
+      fallbackMessage,
+      502
+    )
   } finally {
     clearTimeout(timer)
   }
@@ -677,15 +691,83 @@ const requestJsonRpc = async (
   return body.result
 }
 
+const requestJsonRpcBatch = async (
+  rpcUrl: string,
+  requests: Array<{
+    id: string
+    method: string
+    params: unknown[]
+  }>,
+  fallbackMessage: string
+): Promise<Map<string, unknown>> => {
+  if (requests.length === 0) {
+    return new Map()
+  }
+
+  const body = await requestJson(
+    rpcUrl,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(
+        requests.map((request) => ({
+          jsonrpc: '2.0',
+          id: request.id,
+          method: request.method,
+          params: request.params
+        }))
+      )
+    },
+    fallbackMessage
+  )
+
+  if (!Array.isArray(body)) {
+    throw new MaCarteiraTransactionsError(
+      fallbackMessage,
+      502
+    )
+  }
+
+  const results = new Map<string, unknown>()
+
+  body.forEach((value) => {
+    const response = asRecord(value)
+    const id = readString(response, 'id')
+
+    if (
+      !response ||
+      !id ||
+      response.error !== undefined ||
+      response.result === undefined
+    ) {
+      return
+    }
+
+    results.set(
+      id,
+      response.result
+    )
+  })
+
+  return results
+}
+
 const getBitcoinTransactions = async (
   chainId: ChainId,
   address: string,
   limit: number
 ): Promise<MaCarteiraTransactionsResult> => {
   const chain = getChainConfig(chainId)
+
   const body = await requestJson(
-    `${chain.dataApiUrl.replace(/\/$/, '')}/address/${encodeURIComponent(address)}/txs`,
-    { method: 'GET' },
+    `${chain.dataApiUrl.replace(/\/$/, '')}/address/${encodeURIComponent(
+      address
+    )}/txs`,
+    {
+      method: 'GET'
+    },
     'Não foi possível consultar as transações Bitcoin.'
   )
 
@@ -696,503 +778,169 @@ const getBitcoinTransactions = async (
     )
   }
 
-  const transactions = body.flatMap((value, index): MaCarteiraTransaction[] => {
-    const item = asRecord(value)
-    const hash = readString(item, 'txid')
-
-    if (!item || !hash) {
-      return []
-    }
-
-    const vin = Array.isArray(item.vin) ? item.vin : []
-    const vout = Array.isArray(item.vout) ? item.vout : []
-
-    const inputAddresses = vin.flatMap((input): string[] => {
-      const record = asRecord(input)
-      const previousOutput = asRecord(record?.prevout)
-      const inputAddress = readString(previousOutput, 'scriptpubkey_address')
-
-      return inputAddress ? [inputAddress] : []
-    })
-
-    const outputAddresses = vout.flatMap((output): string[] => {
-      const record = asRecord(output)
-      const outputAddress = readString(record, 'scriptpubkey_address')
-
-      return outputAddress ? [outputAddress] : []
-    })
-
-    const inputFromWallet = vin.reduce<bigint>((total, input) => {
-      const record = asRecord(input)
-      const previousOutput = asRecord(record?.prevout)
-
-      if (readString(previousOutput, 'scriptpubkey_address') !== address) {
-        return total
-      }
-
-      try {
-        return total + BigInt(readString(previousOutput, 'value') || '0')
-      } catch {
-        return total
-      }
-    }, 0n)
-
-    const outputToWallet = vout.reduce<bigint>((total, output) => {
-      const record = asRecord(output)
-
-      if (readString(record, 'scriptpubkey_address') !== address) {
-        return total
-      }
-
-      try {
-        return total + BigInt(readString(record, 'value') || '0')
-      } catch {
-        return total
-      }
-    }, 0n)
-
-    const delta = outputToWallet - inputFromWallet
-    const direction: TransactionDirection =
-      inputFromWallet > 0n && outputToWallet > 0n && delta === 0n
-        ? 'self'
-        : delta < 0n
-          ? 'out'
-          : 'in'
-
-    const statusRecord = asRecord(item.status)
-    const confirmed = statusRecord?.confirmed === true
-    const blockTime = readString(statusRecord, 'block_time')
-    const timestamp = blockTime
-      ? normalizeTimestamp(blockTime)
-      : new Date().toISOString()
-
-    const from = inputAddresses[0] || address
-    const to =
-      direction === 'out'
-        ? outputAddresses.find((candidate) => candidate !== address) || null
-        : address
-
-    let fee = 0n
-
-    try {
-      fee = BigInt(readString(item, 'fee') || '0')
-    } catch {
-      fee = 0n
-    }
-
-    const absoluteDelta = delta < 0n ? -delta : delta
-    const transferredAmount =
-      direction === 'out' && absoluteDelta >= fee
-        ? absoluteDelta - fee
-        : absoluteDelta
-
-    return [
-      {
-        id: `${chainId}:${hash}:native:${index}`,
-        chainId,
-        hash,
-        timestamp,
-        blockNumber: readString(statusRecord, 'block_height') || null,
-        kind: 'native',
-        direction,
-        status: confirmed ? 'success' : 'pending',
-        from,
-        to,
-        method: null,
-        amountRaw: transferredAmount.toString(),
-        decimals: chain.nativeCurrency.decimals,
-        symbol: chain.nativeCurrency.symbol,
-        tokenName: null,
-        tokenAddress: null,
-        feeRaw: fee.toString()
-      }
-    ]
-  })
-
-  return {
-    chainId,
-    address,
-    fetchedAt: new Date().toISOString(),
-    partial: body.length >= 25,
-    transactions: finalizeTransactions(transactions, limit)
-  }
-}
-
-const getSolanaTransactions = async (
-  chainId: ChainId,
-  address: string,
-  limit: number
-): Promise<MaCarteiraTransactionsResult> => {
-  const chain = getChainConfig(chainId)
-  const rpcUrl = chain.rpcUrls[0]
-
-  if (!rpcUrl) {
-    throw new MaCarteiraTransactionsError('O RPC de Solana não está configurado.', 503)
-  }
-
-  const safeLimit = Math.min(limit, 35)
-  const signaturesResult = await requestJsonRpc(
-    rpcUrl,
-    'getSignaturesForAddress',
-    [
-      address,
-      {
-        limit: safeLimit,
-        commitment: 'confirmed'
-      }
-    ],
-    'Não foi possível consultar as assinaturas de Solana.'
-  )
-
-  if (!Array.isArray(signaturesResult)) {
-    throw new MaCarteiraTransactionsError(
-      'O histórico Solana devolveu um formato inválido.',
-      502
-    )
-  }
-
-  const details = await Promise.all(
-    signaturesResult.map(async (signatureItem) => {
-      const signatureRecord = asRecord(signatureItem)
-      const signature = readString(signatureRecord, 'signature')
-
-      if (!signature) {
-        return null
-      }
-
-      try {
-        const transaction = await requestJsonRpc(
-          rpcUrl,
-          'getTransaction',
-          [
-            signature,
-            {
-              commitment: 'confirmed',
-              encoding: 'jsonParsed',
-              maxSupportedTransactionVersion: 0
-            }
-          ],
-          'Não foi possível consultar uma transação de Solana.'
-        )
-
-        return {
-          signature,
-          summary: signatureRecord,
-          transaction: asRecord(transaction)
-        }
-      } catch {
-        return {
-          signature,
-          summary: signatureRecord,
-          transaction: null
-        }
-      }
-    })
-  )
-
-  const transactions = details.flatMap((detail, index): MaCarteiraTransaction[] => {
-    if (!detail) {
-      return []
-    }
-
-    const summary = detail.summary
-    const transaction = detail.transaction
-    const meta = asRecord(transaction?.meta)
-    const transactionData = asRecord(transaction?.transaction)
-    const message = asRecord(transactionData?.message)
-    const accountKeys = Array.isArray(message?.accountKeys)
-      ? message.accountKeys
-      : []
-
-    const normalizedKeys = accountKeys.map((key) => {
-      if (typeof key === 'string') {
-        return {
-          pubkey: key,
-          signer: false
-        }
-      }
-
-      const keyRecord = asRecord(key)
-
-      return {
-        pubkey: readString(keyRecord, 'pubkey'),
-        signer: keyRecord?.signer === true
-      }
-    })
-
-    const walletIndex = normalizedKeys.findIndex((key) => key.pubkey === address)
-    const preBalances = Array.isArray(meta?.preBalances) ? meta.preBalances : []
-    const postBalances = Array.isArray(meta?.postBalances) ? meta.postBalances : []
-
-    let preBalance = 0n
-    let postBalance = 0n
-
-    try {
-      preBalance = BigInt(toStringValue(preBalances[walletIndex]) || '0')
-      postBalance = BigInt(toStringValue(postBalances[walletIndex]) || '0')
-    } catch {
-      preBalance = 0n
-      postBalance = 0n
-    }
-
-    let delta = postBalance - preBalance
-    let fee = 0n
-
-    try {
-      fee = BigInt(readString(meta, 'fee') || '0')
-    } catch {
-      fee = 0n
-    }
-
-    const direction: TransactionDirection =
-      delta < 0n ? 'out' : delta > 0n ? 'in' : 'self'
-
-    if (direction === 'out' && -delta >= fee) {
-      delta += fee
-    }
-
-    const from =
-      normalizedKeys.find((key) => key.signer)?.pubkey || address
-
-    let to: string | null = address
-
-    if (direction === 'out') {
-      const positiveIndex = postBalances.findIndex((value, keyIndex) => {
-        try {
-          return (
-            keyIndex !== walletIndex &&
-            BigInt(toStringValue(value) || '0') >
-              BigInt(toStringValue(preBalances[keyIndex]) || '0')
-          )
-        } catch {
-          return false
-        }
-      })
-
-      to = normalizedKeys[positiveIndex]?.pubkey || null
-    }
-
-    const blockTime = readString(transaction, 'blockTime') || readString(summary, 'blockTime')
-    const blockNumber = readString(transaction, 'slot') || readString(summary, 'slot') || null
-    const failed = meta?.err !== null && meta?.err !== undefined
-    const amountRaw = delta < 0n ? -delta : delta
-
-    return [
-      {
-        id: `${chainId}:${detail.signature}:native:${index}`,
-        chainId,
-        hash: detail.signature,
-        timestamp: blockTime
-          ? normalizeTimestamp(blockTime)
-          : new Date().toISOString(),
-        blockNumber,
-        kind: amountRaw === 0n ? 'contract' : 'native',
-        direction,
-        status: failed ? 'failed' : transaction ? 'success' : 'pending',
-        from,
-        to,
-        method: amountRaw === 0n ? 'Programa Solana' : null,
-        amountRaw: amountRaw.toString(),
-        decimals: chain.nativeCurrency.decimals,
-        symbol: chain.nativeCurrency.symbol,
-        tokenName: null,
-        tokenAddress: null,
-        feeRaw: fee.toString()
-      }
-    ]
-  })
-
-  return {
-    chainId,
-    address,
-    fetchedAt: new Date().toISOString(),
-    partial: true,
-    transactions: finalizeTransactions(transactions, limit)
-  }
-}
-
-const hexToBytes = (value: string) => {
-  const clean = value.startsWith('0x') ? value.slice(2) : value
-
-  if (!/^[a-fA-F0-9]+$/.test(clean) || clean.length % 2 !== 0) {
-    return null
-  }
-
-  const bytes = new Uint8Array(clean.length / 2)
-
-  for (let index = 0; index < clean.length; index += 2) {
-    bytes[index / 2] = Number.parseInt(clean.slice(index, index + 2), 16)
-  }
-
-  return bytes
-}
-
-const encodeBase58 = (bytes: Uint8Array) => {
-  const alphabet =
-    '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-  const digits = [0]
-
-  for (const byte of bytes) {
-    let carry = byte
-
-    for (let index = 0; index < digits.length; index += 1) {
-      carry += digits[index] << 8
-      digits[index] = carry % 58
-      carry = Math.floor(carry / 58)
-    }
-
-    while (carry > 0) {
-      digits.push(carry % 58)
-      carry = Math.floor(carry / 58)
-    }
-  }
-
-  let leadingZeros = 0
-
-  while (leadingZeros < bytes.length && bytes[leadingZeros] === 0) {
-    leadingZeros += 1
-  }
-
-  return (
-    '1'.repeat(leadingZeros) +
-    digits.reverse().map((digit) => alphabet[digit]).join('')
-  )
-}
-
-const tronHexToBase58 = async (value: string) => {
-  if (!/^41[a-fA-F0-9]{40}$/.test(value)) {
-    return value
-  }
-
-  const payload = hexToBytes(value)
-
-  if (!payload) {
-    return value
-  }
-
-  const firstHash = await crypto.subtle.digest('SHA-256', payload)
-  const secondHash = await crypto.subtle.digest('SHA-256', firstHash)
-  const checksum = new Uint8Array(secondHash).slice(0, 4)
-  const combined = new Uint8Array(payload.length + checksum.length)
-
-  combined.set(payload)
-  combined.set(checksum, payload.length)
-
-  return encodeBase58(combined)
-}
-
-const getTronTransactions = async (
-  chainId: ChainId,
-  address: string,
-  limit: number
-): Promise<MaCarteiraTransactionsResult> => {
-  const chain = getChainConfig(chainId)
-  const baseUrl = chain.dataApiUrl.replace(/\/$/, '')
-  const safeLimit = Math.min(limit, 100)
-
-  const [nativeBody, tokenBody] = await Promise.all([
-    requestJson(
-      `${baseUrl}/v1/accounts/${encodeURIComponent(address)}/transactions?only_confirmed=true&limit=${safeLimit}`,
-      { method: 'GET' },
-      'Não foi possível consultar as transações TRX.'
-    ),
-    requestJson(
-      `${baseUrl}/v1/accounts/${encodeURIComponent(address)}/transactions/trc20?only_confirmed=true&limit=${safeLimit}`,
-      { method: 'GET' },
-      'Não foi possível consultar as transferências TRC-20.'
-    ).catch(() => null)
-  ])
-
-  const nativeResponse = asRecord(nativeBody)
-  const tokenResponse = asRecord(tokenBody)
-  const nativeData = Array.isArray(nativeResponse?.data) ? nativeResponse.data : []
-  const tokenData = Array.isArray(tokenResponse?.data) ? tokenResponse.data : []
-
-  const nativeTransactions = await Promise.all(
-    nativeData.map(async (value, index): Promise<MaCarteiraTransaction | null> => {
-      const item = asRecord(value)
-      const hash = readString(item, 'txID')
-      const rawData = asRecord(item?.raw_data)
-      const contracts = Array.isArray(rawData?.contract) ? rawData.contract : []
-      const contract = asRecord(contracts[0])
-      const contractType = readString(contract, 'type')
-      const parameter = asRecord(contract?.parameter)
-      const parameterValue = asRecord(parameter?.value)
-
-      if (!item || !hash || contractType !== 'TransferContract' || !parameterValue) {
-        return null
-      }
-
-      const rawFrom = readString(parameterValue, 'owner_address')
-      const rawTo = readString(parameterValue, 'to_address')
-      const from = await tronHexToBase58(rawFrom)
-      const to = await tronHexToBase58(rawTo)
-
-      if (from !== address && to !== address) {
-        return null
-      }
-
-      const ret = Array.isArray(item.ret) ? asRecord(item.ret[0]) : null
-      const success = readString(ret, 'contractRet') === 'SUCCESS'
-
-      return {
-        id: `${chainId}:${hash}:native:${index}`,
-        chainId,
-        hash,
-        timestamp: normalizeTimestamp(item.block_timestamp),
-        blockNumber: readString(item, 'blockNumber') || null,
-        kind: 'native',
-        direction: getDirection(address, from, to),
-        status: success ? 'success' : 'failed',
-        from,
-        to,
-        method: null,
-        amountRaw: readString(parameterValue, 'amount') || '0',
-        decimals: chain.nativeCurrency.decimals,
-        symbol: chain.nativeCurrency.symbol,
-        tokenName: null,
-        tokenAddress: null,
-        feeRaw: readString(ret, 'fee') || '0'
-      }
-    })
-  )
-
-  const tokenTransactions = tokenData.flatMap(
+  const transactions = body.flatMap(
     (value, index): MaCarteiraTransaction[] => {
       const item = asRecord(value)
-      const hash = readString(item, 'transaction_id')
-      const from = readString(item, 'from')
-      const to = readString(item, 'to')
-      const tokenInfo = asRecord(item?.token_info)
+      const hash = readString(item, 'txid')
 
-      if (!item || !hash || (from !== address && to !== address)) {
+      if (!item || !hash) {
         return []
       }
 
-      const decimalsValue = Number(readString(tokenInfo, 'decimals') || '0')
-      const decimals = Number.isFinite(decimalsValue)
-        ? Math.max(0, Math.trunc(decimalsValue))
-        : 0
+      const vin = Array.isArray(item.vin)
+        ? item.vin
+        : []
+
+      const vout = Array.isArray(item.vout)
+        ? item.vout
+        : []
+
+      const inputAddresses = vin.flatMap((input): string[] => {
+        const record = asRecord(input)
+        const previousOutput = asRecord(record?.prevout)
+        const inputAddress = readString(
+          previousOutput,
+          'scriptpubkey_address'
+        )
+
+        return inputAddress
+          ? [inputAddress]
+          : []
+      })
+
+      const outputAddresses = vout.flatMap((output): string[] => {
+        const record = asRecord(output)
+        const outputAddress = readString(
+          record,
+          'scriptpubkey_address'
+        )
+
+        return outputAddress
+          ? [outputAddress]
+          : []
+      })
+
+      const inputFromWallet = vin.reduce<bigint>((total, input) => {
+        const record = asRecord(input)
+        const previousOutput = asRecord(record?.prevout)
+
+        if (
+          readString(previousOutput, 'scriptpubkey_address') !==
+          address
+        ) {
+          return total
+        }
+
+        try {
+          return total + BigInt(
+            readString(previousOutput, 'value') || '0'
+          )
+        } catch {
+          return total
+        }
+      }, 0n)
+
+      const outputToWallet = vout.reduce<bigint>((total, output) => {
+        const record = asRecord(output)
+
+        if (
+          readString(record, 'scriptpubkey_address') !==
+          address
+        ) {
+          return total
+        }
+
+        try {
+          return total + BigInt(
+            readString(record, 'value') || '0'
+          )
+        } catch {
+          return total
+        }
+      }, 0n)
+
+      const delta =
+        outputToWallet -
+        inputFromWallet
+
+      const direction: TransactionDirection =
+        inputFromWallet > 0n &&
+        outputToWallet > 0n &&
+        delta === 0n
+          ? 'self'
+          : delta < 0n
+            ? 'out'
+            : 'in'
+
+      const statusRecord = asRecord(item.status)
+      const confirmed = statusRecord?.confirmed === true
+      const blockTime = readString(statusRecord, 'block_time')
+
+      const timestamp = blockTime
+        ? normalizeTimestamp(blockTime)
+        : new Date().toISOString()
+
+      const from =
+        inputAddresses[0] ||
+        address
+
+      const to =
+        direction === 'out'
+          ? outputAddresses.find(
+              (candidate) => candidate !== address
+            ) || null
+          : address
+
+      let fee = 0n
+
+      try {
+        fee = BigInt(
+          readString(item, 'fee') ||
+          '0'
+        )
+      } catch {
+        fee = 0n
+      }
+
+      const absoluteDelta =
+        delta < 0n
+          ? -delta
+          : delta
+
+      const transferredAmount =
+        direction === 'out' &&
+        absoluteDelta >= fee
+          ? absoluteDelta - fee
+          : absoluteDelta
 
       return [
         {
-          id: `${chainId}:${hash}:token:${index}`,
+          id: `${chainId}:${hash}:native:${index}`,
           chainId,
           hash,
-          timestamp: normalizeTimestamp(item.block_timestamp),
-          blockNumber: null,
-          kind: 'token',
-          direction: getDirection(address, from, to),
-          status: 'success',
+          timestamp,
+          blockNumber:
+            readString(statusRecord, 'block_height') ||
+            null,
+          kind: 'native',
+          direction,
+          status:
+            confirmed
+              ? 'success'
+              : 'pending',
           from,
           to,
-          method: readString(item, 'type') || null,
-          amountRaw: readString(item, 'value') || '0',
-          decimals,
-          symbol: readString(tokenInfo, 'symbol') || 'TRC-20',
-          tokenName: readString(tokenInfo, 'name') || null,
-          tokenAddress: readString(tokenInfo, 'address') || null,
-          feeRaw: '0'
+          method: null,
+          amountRaw:
+            transferredAmount.toString(),
+          decimals:
+            chain.nativeCurrency.decimals,
+          symbol:
+            chain.nativeCurrency.symbol,
+          tokenName: null,
+          tokenAddress: null,
+          feeRaw:
+            fee.toString()
         }
       ]
     }
@@ -1201,26 +949,1138 @@ const getTronTransactions = async (
   return {
     chainId,
     address,
-    fetchedAt: new Date().toISOString(),
-    partial: tokenBody === null,
-    transactions: finalizeTransactions(
-      [
-        ...nativeTransactions.filter(
-          (transaction): transaction is MaCarteiraTransaction => Boolean(transaction)
-        ),
-        ...tokenTransactions
-      ],
-      limit
+    fetchedAt:
+      new Date().toISOString(),
+    partial:
+      body.length >= 25,
+    transactions:
+      finalizeTransactions(
+        transactions,
+        limit
+      )
+  }
+}
+
+const getSolanaTransactions = async (
+  chainId: ChainId,
+  address: string,
+  limit: number
+): Promise<MaCarteiraTransactionsResult> => {
+  const chain =
+    getChainConfig(chainId)
+
+  const rpcUrl =
+    chain.rpcUrls[0]
+
+  if (!rpcUrl) {
+    throw new MaCarteiraTransactionsError(
+      'O RPC de Solana não está configurado.',
+      503
     )
+  }
+
+  const safeLimit =
+    Math.min(
+      limit,
+      35
+    )
+
+  const signaturesResult =
+    await requestJsonRpc(
+      rpcUrl,
+      'getSignaturesForAddress',
+      [
+        address,
+        {
+          limit:
+            safeLimit,
+          commitment:
+            'confirmed'
+        }
+      ],
+      'Não foi possível consultar as assinaturas de Solana.'
+    )
+
+  if (
+    !Array.isArray(
+      signaturesResult
+    )
+  ) {
+    throw new MaCarteiraTransactionsError(
+      'O histórico Solana devolveu um formato inválido.',
+      502
+    )
+  }
+
+  const signatureDetails =
+    signaturesResult.flatMap(
+      (
+        signatureItem,
+        index
+      ) => {
+        const summary =
+          asRecord(
+            signatureItem
+          )
+
+        const signature =
+          readString(
+            summary,
+            'signature'
+          )
+
+        if (
+          !summary ||
+          !signature
+        ) {
+          return []
+        }
+
+        return [
+          {
+            batchId:
+              `solana-transaction-${index}`,
+            signature,
+            summary
+          }
+        ]
+      }
+    )
+
+  let batchResults =
+    new Map<
+      string,
+      unknown
+    >()
+
+  try {
+    batchResults =
+      await requestJsonRpcBatch(
+        rpcUrl,
+        signatureDetails.map(
+          (detail) => ({
+            id:
+              detail.batchId,
+
+            method:
+              'getTransaction',
+
+            params: [
+              detail.signature,
+              {
+                commitment:
+                  'confirmed',
+
+                encoding:
+                  'jsonParsed',
+
+                maxSupportedTransactionVersion:
+                  0
+              }
+            ]
+          })
+        ),
+        'Não foi possível consultar o lote de transações Solana.'
+      )
+  } catch {
+    batchResults =
+      new Map()
+  }
+
+  const details =
+    await Promise.all(
+      signatureDetails.map(
+        async (detail) => {
+          if (
+            batchResults.has(
+              detail.batchId
+            )
+          ) {
+            return {
+              signature:
+                detail.signature,
+
+              summary:
+                detail.summary,
+
+              transaction:
+                asRecord(
+                  batchResults.get(
+                    detail.batchId
+                  )
+                )
+            }
+          }
+
+          try {
+            const transaction =
+              await requestJsonRpc(
+                rpcUrl,
+                'getTransaction',
+                [
+                  detail.signature,
+                  {
+                    commitment:
+                      'confirmed',
+
+                    encoding:
+                      'jsonParsed',
+
+                    maxSupportedTransactionVersion:
+                      0
+                  }
+                ],
+                'Não foi possível consultar uma transação de Solana.'
+              )
+
+            return {
+              signature:
+                detail.signature,
+
+              summary:
+                detail.summary,
+
+              transaction:
+                asRecord(
+                  transaction
+                )
+            }
+          } catch {
+            return {
+              signature:
+                detail.signature,
+
+              summary:
+                detail.summary,
+
+              transaction:
+                null
+            }
+          }
+        }
+      )
+    )
+
+  const transactions =
+    details.flatMap(
+      (
+        detail,
+        index
+      ): MaCarteiraTransaction[] => {
+        const summary =
+          detail.summary
+
+        const transaction =
+          detail.transaction
+
+        const meta =
+          asRecord(
+            transaction?.meta
+          )
+
+        const transactionData =
+          asRecord(
+            transaction?.transaction
+          )
+
+        const message =
+          asRecord(
+            transactionData?.message
+          )
+
+        const accountKeys =
+          Array.isArray(
+            message?.accountKeys
+          )
+            ? message.accountKeys
+            : []
+
+        const normalizedKeys =
+          accountKeys.map(
+            (key) => {
+              if (
+                typeof key ===
+                'string'
+              ) {
+                return {
+                  pubkey:
+                    key,
+                  signer:
+                    false
+                }
+              }
+
+              const keyRecord =
+                asRecord(key)
+
+              return {
+                pubkey:
+                  readString(
+                    keyRecord,
+                    'pubkey'
+                  ),
+
+                signer:
+                  keyRecord?.signer ===
+                  true
+              }
+            }
+          )
+
+        const walletIndex =
+          normalizedKeys.findIndex(
+            (key) =>
+              key.pubkey ===
+              address
+          )
+
+        const preBalances =
+          Array.isArray(
+            meta?.preBalances
+          )
+            ? meta.preBalances
+            : []
+
+        const postBalances =
+          Array.isArray(
+            meta?.postBalances
+          )
+            ? meta.postBalances
+            : []
+
+        let preBalance =
+          0n
+
+        let postBalance =
+          0n
+
+        try {
+          preBalance =
+            BigInt(
+              toStringValue(
+                preBalances[
+                  walletIndex
+                ]
+              ) ||
+              '0'
+            )
+
+          postBalance =
+            BigInt(
+              toStringValue(
+                postBalances[
+                  walletIndex
+                ]
+              ) ||
+              '0'
+            )
+        } catch {
+          preBalance =
+            0n
+
+          postBalance =
+            0n
+        }
+
+        let delta =
+          postBalance -
+          preBalance
+
+        let fee =
+          0n
+
+        try {
+          fee =
+            BigInt(
+              readString(
+                meta,
+                'fee'
+              ) ||
+              '0'
+            )
+        } catch {
+          fee =
+            0n
+        }
+
+        const direction: TransactionDirection =
+          delta < 0n
+            ? 'out'
+            : delta > 0n
+              ? 'in'
+              : 'self'
+
+        if (
+          direction ===
+            'out' &&
+          -delta >=
+            fee
+        ) {
+          delta +=
+            fee
+        }
+
+        const from =
+          normalizedKeys.find(
+            (key) =>
+              key.signer
+          )?.pubkey ||
+          address
+
+        let to:
+          string | null =
+          address
+
+        if (
+          direction ===
+          'out'
+        ) {
+          const positiveIndex =
+            postBalances.findIndex(
+              (
+                value,
+                keyIndex
+              ) => {
+                try {
+                  return (
+                    keyIndex !==
+                      walletIndex &&
+                    BigInt(
+                      toStringValue(
+                        value
+                      ) ||
+                      '0'
+                    ) >
+                      BigInt(
+                        toStringValue(
+                          preBalances[
+                            keyIndex
+                          ]
+                        ) ||
+                        '0'
+                      )
+                  )
+                } catch {
+                  return false
+                }
+              }
+            )
+
+          to =
+            normalizedKeys[
+              positiveIndex
+            ]?.pubkey ||
+            null
+        }
+
+        const blockTime =
+          readString(
+            transaction,
+            'blockTime'
+          ) ||
+          readString(
+            summary,
+            'blockTime'
+          )
+
+        const blockNumber =
+          readString(
+            transaction,
+            'slot'
+          ) ||
+          readString(
+            summary,
+            'slot'
+          ) ||
+          null
+
+        const failed =
+          meta?.err !== null &&
+          meta?.err !== undefined
+
+        const amountRaw =
+          delta < 0n
+            ? -delta
+            : delta
+
+        return [
+          {
+            id:
+              `${chainId}:${detail.signature}:native:${index}`,
+
+            chainId,
+
+            hash:
+              detail.signature,
+
+            timestamp:
+              blockTime
+                ? normalizeTimestamp(
+                    blockTime
+                  )
+                : new Date()
+                    .toISOString(),
+
+            blockNumber,
+
+            kind:
+              amountRaw === 0n
+                ? 'contract'
+                : 'native',
+
+            direction,
+
+            status:
+              failed
+                ? 'failed'
+                : transaction
+                  ? 'success'
+                  : 'pending',
+
+            from,
+
+            to,
+
+            method:
+              amountRaw === 0n
+                ? 'Programa Solana'
+                : null,
+
+            amountRaw:
+              amountRaw.toString(),
+
+            decimals:
+              chain.nativeCurrency.decimals,
+
+            symbol:
+              chain.nativeCurrency.symbol,
+
+            tokenName:
+              null,
+
+            tokenAddress:
+              null,
+
+            feeRaw:
+              fee.toString()
+          }
+        ]
+      }
+    )
+
+  return {
+    chainId,
+    address,
+    fetchedAt:
+      new Date().toISOString(),
+    partial:
+      true,
+    transactions:
+      finalizeTransactions(
+        transactions,
+        limit
+      )
+  }
+}
+
+const hexToBytes = (value: string) => {
+  const clean =
+    value.startsWith('0x')
+      ? value.slice(2)
+      : value
+
+  if (
+    !/^[a-fA-F0-9]+$/.test(clean) ||
+    clean.length % 2 !== 0
+  ) {
+    return null
+  }
+
+  const bytes =
+    new Uint8Array(
+      clean.length / 2
+    )
+
+  for (
+    let index = 0;
+    index < clean.length;
+    index += 2
+  ) {
+    bytes[index / 2] =
+      Number.parseInt(
+        clean.slice(
+          index,
+          index + 2
+        ),
+        16
+      )
+  }
+
+  return bytes
+}
+
+const encodeBase58 = (bytes: Uint8Array) => {
+  const alphabet =
+    '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+  const digits = [0]
+
+  for (
+    const byte of
+    bytes
+  ) {
+    let carry =
+      byte
+
+    for (
+      let index = 0;
+      index < digits.length;
+      index += 1
+    ) {
+      carry +=
+        digits[index] <<
+        8
+
+      digits[index] =
+        carry % 58
+
+      carry =
+        Math.floor(
+          carry / 58
+        )
+    }
+
+    while (
+      carry > 0
+    ) {
+      digits.push(
+        carry % 58
+      )
+
+      carry =
+        Math.floor(
+          carry / 58
+        )
+    }
+  }
+
+  let leadingZeros =
+    0
+
+  while (
+    leadingZeros <
+      bytes.length &&
+    bytes[
+      leadingZeros
+    ] === 0
+  ) {
+    leadingZeros +=
+      1
+  }
+
+  return (
+    '1'.repeat(
+      leadingZeros
+    ) +
+    digits
+      .reverse()
+      .map(
+        (digit) =>
+          alphabet[digit]
+      )
+      .join('')
+  )
+}
+
+const tronHexToBase58 = async (value: string) => {
+  if (
+    !/^41[a-fA-F0-9]{40}$/.test(value)
+  ) {
+    return value
+  }
+
+  const payload =
+    hexToBytes(value)
+
+  if (!payload) {
+    return value
+  }
+
+  const firstHash =
+    await crypto.subtle.digest(
+      'SHA-256',
+      payload
+    )
+
+  const secondHash =
+    await crypto.subtle.digest(
+      'SHA-256',
+      firstHash
+    )
+
+  const checksum =
+    new Uint8Array(
+      secondHash
+    ).slice(
+      0,
+      4
+    )
+
+  const combined =
+    new Uint8Array(
+      payload.length +
+      checksum.length
+    )
+
+  combined.set(
+    payload
+  )
+
+  combined.set(
+    checksum,
+    payload.length
+  )
+
+  return encodeBase58(
+    combined
+  )
+}
+
+const getTronTransactions = async (
+  chainId: ChainId,
+  address: string,
+  limit: number
+): Promise<MaCarteiraTransactionsResult> => {
+  const chain =
+    getChainConfig(chainId)
+
+  const baseUrl =
+    chain.dataApiUrl.replace(
+      /\/$/,
+      ''
+    )
+
+  const safeLimit =
+    Math.min(
+      limit,
+      100
+    )
+
+  const [
+    nativeBody,
+    tokenBody
+  ] =
+    await Promise.all([
+      requestJson(
+        `${baseUrl}/v1/accounts/${encodeURIComponent(
+          address
+        )}/transactions?only_confirmed=true&limit=${safeLimit}`,
+        {
+          method: 'GET'
+        },
+        'Não foi possível consultar as transações TRX.'
+      ),
+
+      requestJson(
+        `${baseUrl}/v1/accounts/${encodeURIComponent(
+          address
+        )}/transactions/trc20?only_confirmed=true&limit=${safeLimit}`,
+        {
+          method: 'GET'
+        },
+        'Não foi possível consultar as transferências TRC-20.'
+      ).catch(
+        () => null
+      )
+    ])
+
+  const nativeResponse =
+    asRecord(
+      nativeBody
+    )
+
+  const tokenResponse =
+    asRecord(
+      tokenBody
+    )
+
+  const nativeData =
+    Array.isArray(
+      nativeResponse?.data
+    )
+      ? nativeResponse.data
+      : []
+
+  const tokenData =
+    Array.isArray(
+      tokenResponse?.data
+    )
+      ? tokenResponse.data
+      : []
+
+  const nativeTransactions =
+    await Promise.all(
+      nativeData.map(
+        async (
+          value,
+          index
+        ): Promise<
+          MaCarteiraTransaction | null
+        > => {
+          const item =
+            asRecord(value)
+
+          const hash =
+            readString(
+              item,
+              'txID'
+            )
+
+          const rawData =
+            asRecord(
+              item?.raw_data
+            )
+
+          const contracts =
+            Array.isArray(
+              rawData?.contract
+            )
+              ? rawData.contract
+              : []
+
+          const contract =
+            asRecord(
+              contracts[0]
+            )
+
+          const contractType =
+            readString(
+              contract,
+              'type'
+            )
+
+          const parameter =
+            asRecord(
+              contract?.parameter
+            )
+
+          const parameterValue =
+            asRecord(
+              parameter?.value
+            )
+
+          if (
+            !item ||
+            !hash ||
+            contractType !==
+              'TransferContract' ||
+            !parameterValue
+          ) {
+            return null
+          }
+
+          const rawFrom =
+            readString(
+              parameterValue,
+              'owner_address'
+            )
+
+          const rawTo =
+            readString(
+              parameterValue,
+              'to_address'
+            )
+
+          const from =
+            await tronHexToBase58(
+              rawFrom
+            )
+
+          const to =
+            await tronHexToBase58(
+              rawTo
+            )
+
+          if (
+            from !==
+              address &&
+            to !==
+              address
+          ) {
+            return null
+          }
+
+          const ret =
+            Array.isArray(
+              item.ret
+            )
+              ? asRecord(
+                  item.ret[0]
+                )
+              : null
+
+          const success =
+            readString(
+              ret,
+              'contractRet'
+            ) ===
+            'SUCCESS'
+
+          return {
+            id:
+              `${chainId}:${hash}:native:${index}`,
+
+            chainId,
+
+            hash,
+
+            timestamp:
+              normalizeTimestamp(
+                item.block_timestamp
+              ),
+
+            blockNumber:
+              readString(
+                item,
+                'blockNumber'
+              ) ||
+              null,
+
+            kind:
+              'native',
+
+            direction:
+              getDirection(
+                address,
+                from,
+                to
+              ),
+
+            status:
+              success
+                ? 'success'
+                : 'failed',
+
+            from,
+
+            to,
+
+            method:
+              null,
+
+            amountRaw:
+              readString(
+                parameterValue,
+                'amount'
+              ) ||
+              '0',
+
+            decimals:
+              chain.nativeCurrency.decimals,
+
+            symbol:
+              chain.nativeCurrency.symbol,
+
+            tokenName:
+              null,
+
+            tokenAddress:
+              null,
+
+            feeRaw:
+              readString(
+                ret,
+                'fee'
+              ) ||
+              '0'
+          }
+        }
+      )
+    )
+
+  const tokenTransactions =
+    tokenData.flatMap(
+      (
+        value,
+        index
+      ): MaCarteiraTransaction[] => {
+        const item =
+          asRecord(value)
+
+        const hash =
+          readString(
+            item,
+            'transaction_id'
+          )
+
+        const from =
+          readString(
+            item,
+            'from'
+          )
+
+        const to =
+          readString(
+            item,
+            'to'
+          )
+
+        const tokenInfo =
+          asRecord(
+            item?.token_info
+          )
+
+        if (
+          !item ||
+          !hash ||
+          (
+            from !==
+              address &&
+            to !==
+              address
+          )
+        ) {
+          return []
+        }
+
+        const decimalsValue =
+          Number(
+            readString(
+              tokenInfo,
+              'decimals'
+            ) ||
+            '0'
+          )
+
+        const decimals =
+          Number.isFinite(
+            decimalsValue
+          )
+            ? Math.max(
+                0,
+                Math.trunc(
+                  decimalsValue
+                )
+              )
+            : 0
+
+        return [
+          {
+            id:
+              `${chainId}:${hash}:token:${index}`,
+
+            chainId,
+
+            hash,
+
+            timestamp:
+              normalizeTimestamp(
+                item.block_timestamp
+              ),
+
+            blockNumber:
+              null,
+
+            kind:
+              'token',
+
+            direction:
+              getDirection(
+                address,
+                from,
+                to
+              ),
+
+            status:
+              'success',
+
+            from,
+
+            to,
+
+            method:
+              readString(
+                item,
+                'type'
+              ) ||
+              null,
+
+            amountRaw:
+              readString(
+                item,
+                'value'
+              ) ||
+              '0',
+
+            decimals,
+
+            symbol:
+              readString(
+                tokenInfo,
+                'symbol'
+              ) ||
+              'TRC-20',
+
+            tokenName:
+              readString(
+                tokenInfo,
+                'name'
+              ) ||
+              null,
+
+            tokenAddress:
+              readString(
+                tokenInfo,
+                'address'
+              ) ||
+              null,
+
+            feeRaw:
+              '0'
+          }
+        ]
+      }
+    )
+
+  return {
+    chainId,
+    address,
+    fetchedAt:
+      new Date().toISOString(),
+    partial:
+      tokenBody === null,
+    transactions:
+      finalizeTransactions(
+        [
+          ...nativeTransactions.filter(
+            (
+              transaction
+            ): transaction is MaCarteiraTransaction =>
+              Boolean(
+                transaction
+              )
+          ),
+          ...tokenTransactions
+        ],
+        limit
+      )
   }
 }
 
 const getRequestedChainId = (url: URL): ChainId => {
-  const requested = (
-    url.searchParams.get('chainId') || DEFAULT_CHAIN_ID
-  ).trim()
+  const requested =
+    (
+      url.searchParams.get(
+        'chainId'
+      ) ||
+      DEFAULT_CHAIN_ID
+    ).trim()
 
-  if (!isSupportedChainId(requested)) {
+  if (
+    !isSupportedChainId(
+      requested
+    )
+  ) {
     throw new MaCarteiraTransactionsError(
       'A rede indicada ainda não é suportada.',
       400
@@ -1233,99 +2093,190 @@ const getRequestedChainId = (url: URL): ChainId => {
 export async function getMaCarteiraTransactions(
   url: URL
 ): Promise<MaCarteiraTransactionsResult> {
-  const chainId = getRequestedChainId(url)
-  const chain = getChainConfig(chainId)
-  const address = normalizeChainAddress(
-    url.searchParams.get('address') || '',
-    chainId
-  )
-  const limit = getLimit(url.searchParams.get('limit'))
+  const chainId =
+    getRequestedChainId(
+      url
+    )
 
-  if (chain.status !== 'active') {
+  const chain =
+    getChainConfig(
+      chainId
+    )
+
+  const address =
+    normalizeChainAddress(
+      url.searchParams.get(
+        'address'
+      ) ||
+        '',
+      chainId
+    )
+
+  const limit =
+    getLimit(
+      url.searchParams.get(
+        'limit'
+      )
+    )
+
+  if (
+    chain.status !==
+    'active'
+  ) {
     throw new MaCarteiraTransactionsError(
       `${chain.name} ainda não está ativa na MA-Carteira.`,
       409
     )
   }
 
-  if (!isValidChainAddress(address, chainId)) {
+  if (
+    !isValidChainAddress(
+      address,
+      chainId
+    )
+  ) {
     throw new MaCarteiraTransactionsError(
       `Indique um endereço público válido para ${chain.name}.`,
       400
     )
   }
 
-  if (chain.transactionProvider === 'blockstream') {
-    return getBitcoinTransactions(chainId, address, limit)
+  if (
+    chain.transactionProvider ===
+    'blockstream'
+  ) {
+    return getBitcoinTransactions(
+      chainId,
+      address,
+      limit
+    )
   }
 
-  if (chain.transactionProvider === 'solana-rpc') {
-    return getSolanaTransactions(chainId, address, limit)
+  if (
+    chain.transactionProvider ===
+    'solana-rpc'
+  ) {
+    return getSolanaTransactions(
+      chainId,
+      address,
+      limit
+    )
   }
 
-  if (chain.transactionProvider === 'trongrid') {
-    return getTronTransactions(chainId, address, limit)
+  if (
+    chain.transactionProvider ===
+    'trongrid'
+  ) {
+    return getTronTransactions(
+      chainId,
+      address,
+      limit
+    )
   }
 
-  if (chain.transactionProvider === 'none') {
+  if (
+    chain.transactionProvider ===
+    'none'
+  ) {
     throw new MaCarteiraTransactionsError(
       `O histórico de transações ainda não está configurado para ${chain.name}.`,
       501
     )
   }
 
-  if (!supportsAccountApi(chain.explorer.apiFamily)) {
+  if (
+    !supportsAccountApi(
+      chain.explorer.apiFamily
+    )
+  ) {
     throw new MaCarteiraTransactionsError(
       `O histórico de transações ainda não está configurado para ${chain.name}.`,
       501
     )
   }
 
-  const [nativeResult, tokenResult, internalResult] = await Promise.all([
-    fetchExplorerItems(
-      buildExplorerUrl(chain.explorer.apiUrl, 'txlist', address, limit)
-    ),
-    fetchExplorerItems(
-      buildExplorerUrl(chain.explorer.apiUrl, 'tokentx', address, limit)
-    ),
-    fetchExplorerItems(
-      buildExplorerUrl(chain.explorer.apiUrl, 'txlistinternal', address, limit)
-    )
-  ])
+  const [
+    nativeResult,
+    tokenResult,
+    internalResult
+  ] =
+    await Promise.all([
+      fetchExplorerItems(
+        buildExplorerUrl(
+          chain.explorer.apiUrl,
+          'txlist',
+          address,
+          limit
+        )
+      ),
 
-  if (!nativeResult.ok && !tokenResult.ok && !internalResult.ok) {
+      fetchExplorerItems(
+        buildExplorerUrl(
+          chain.explorer.apiUrl,
+          'tokentx',
+          address,
+          limit
+        )
+      ),
+
+      fetchExplorerItems(
+        buildExplorerUrl(
+          chain.explorer.apiUrl,
+          'txlistinternal',
+          address,
+          limit
+        )
+      )
+    ])
+
+  if (
+    !nativeResult.ok &&
+    !tokenResult.ok &&
+    !internalResult.ok
+  ) {
     throw new MaCarteiraTransactionsError(
       `Não foi possível consultar as transações em ${chain.name}.`,
       502
     )
   }
 
-  const transactions = finalizeTransactions(
-    [
-      ...normalizeNativeTransactions(
-        nativeResult.items,
-        address,
-        chainId,
-        chain.nativeCurrency.symbol,
-        chain.nativeCurrency.decimals
-      ),
-      ...normalizeTokenTransactions(tokenResult.items, address, chainId),
-      ...normalizeInternalTransactions(
-        internalResult.items,
-        address,
-        chainId,
-        chain.nativeCurrency.symbol,
-        chain.nativeCurrency.decimals
-      )
-    ],
-    limit
-  )
+  const transactions =
+    finalizeTransactions(
+      [
+        ...normalizeNativeTransactions(
+          nativeResult.items,
+          address,
+          chainId,
+          chain.nativeCurrency.symbol,
+          chain.nativeCurrency.decimals
+        ),
+
+        ...normalizeTokenTransactions(
+          tokenResult.items,
+          address,
+          chainId
+        ),
+
+        ...normalizeInternalTransactions(
+          internalResult.items,
+          address,
+          chainId,
+          chain.nativeCurrency.symbol,
+          chain.nativeCurrency.decimals
+        )
+      ],
+      limit
+    )
 
   return {
     chainId,
     address,
-    fetchedAt: new Date().toISOString(),
-    partial: !nativeResult.ok || !tokenResult.ok || !internalResult.ok,
+    fetchedAt:
+      new Date().toISOString(),
+    partial:
+      !nativeResult.ok ||
+      !tokenResult.ok ||
+      !internalResult.ok,
     transactions
   }
 }
