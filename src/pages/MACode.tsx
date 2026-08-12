@@ -458,6 +458,7 @@ function ServiceIcon({
           height="14.5"
           rx="2.4"
         />
+
         <path d="M8 3.8v3.4M16 3.8v3.4M4.2 9.2h15.6" />
       </svg>
     )
@@ -587,24 +588,24 @@ function HeroDevices() {
           alt=""
           width={1200}
           height={800}
-          className="relative z-10 h-auto w-full scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
+          className="relative z-10 mx-auto h-auto w-full max-w-none scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
           loading="eager"
           decoding="async"
         />
       </div>
 
       <div
-        className="relative mt-8 lg:hidden"
+        className="relative mt-8 flex justify-end lg:hidden"
         aria-hidden="true"
       >
-        <div className="absolute -inset-8 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.10),transparent_34%)] blur-3xl" />
+        <div className="absolute -inset-8 bg-[radial-gradient(circle_at_66%_42%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_74%_65%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
 
         <img
           src="/ma-code-hero-devices.png"
           alt=""
           width={1200}
           height={800}
-          className="relative z-10 mx-auto h-auto w-full max-w-[560px] object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)]"
+          className="relative z-10 h-auto w-[94%] max-w-[560px] translate-x-[7%] object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)] sm:w-[90%] sm:max-w-[640px] sm:translate-x-[5%]"
           loading="eager"
           decoding="async"
         />
