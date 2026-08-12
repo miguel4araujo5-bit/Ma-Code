@@ -26,6 +26,21 @@ type CategoryFilter =
   | 'all'
   | MAQuadroElementCategory
 
+type LibraryView =
+  | 'all'
+  | 'recent'
+  | 'favourites'
+
+type StoredElementPreferences = {
+  favourites: string[]
+  recent: string[]
+}
+
+const STORAGE_KEY =
+  'ma-quadro-element-library-v1'
+
+const MAX_RECENT_ELEMENTS = 12
+
 function normalizeSearch(
   value: string
 ) {
@@ -39,6 +54,86 @@ function normalizeSearch(
       /[\u0300-\u036f]/g,
       ''
     )
+}
+
+function readPreferences(): StoredElementPreferences {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return {
+      favourites: [],
+      recent: []
+    }
+  }
+
+  try {
+    const raw =
+      window.localStorage.getItem(
+        STORAGE_KEY
+      )
+
+    if (!raw) {
+      return {
+        favourites: [],
+        recent: []
+      }
+    }
+
+    const parsed =
+      JSON.parse(raw) as
+        Partial<StoredElementPreferences>
+
+    return {
+      favourites:
+        Array.isArray(
+          parsed.favourites
+        )
+          ? parsed.favourites.filter(
+              (value): value is string =>
+                typeof value ===
+                'string'
+            )
+          : [],
+      recent:
+        Array.isArray(
+          parsed.recent
+        )
+          ? parsed.recent.filter(
+              (value): value is string =>
+                typeof value ===
+                'string'
+            )
+          : []
+    }
+  } catch {
+    return {
+      favourites: [],
+      recent: []
+    }
+  }
+}
+
+function writePreferences(
+  preferences: StoredElementPreferences
+) {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(
+        preferences
+      )
+    )
+  } catch {
+    // Preferências de navegação não podem bloquear o editor.
+  }
 }
 
 export default function ElementLibrary() {
@@ -62,6 +157,20 @@ export default function ElementLibrary() {
     setCategory
   ] = useState<CategoryFilter>(
     'all'
+  )
+
+  const [
+    view,
+    setView
+  ] = useState<LibraryView>(
+    'all'
+  )
+
+  const [
+    preferences,
+    setPreferences
+  ] = useState<StoredElementPreferences>(
+    readPreferences
   )
 
   const [
@@ -139,6 +248,29 @@ export default function ElementLibrary() {
     editor.ready
   ])
 
+  const favouriteSet =
+    useMemo(
+      () =>
+        new Set(
+          preferences.favourites
+        ),
+      [preferences.favourites]
+    )
+
+  const recentRank =
+    useMemo(
+      () =>
+        new Map(
+          preferences.recent.map(
+            (id, index) => [
+              id,
+              index
+            ]
+          )
+        ),
+      [preferences.recent]
+    )
+
   const filteredElements =
     useMemo(() => {
       const query =
@@ -146,36 +278,74 @@ export default function ElementLibrary() {
           search
         )
 
-      return MA_QUADRO_LIBRARY_ELEMENTS.filter(
-        (element) => {
-          if (
-            category !== 'all' &&
-            element.category !==
-              category
-          ) {
-            return false
-          }
+      const filtered =
+        MA_QUADRO_LIBRARY_ELEMENTS.filter(
+          (element) => {
+            if (
+              category !== 'all' &&
+              element.category !==
+                category
+            ) {
+              return false
+            }
 
-          if (!query) {
-            return true
-          }
+            if (
+              view ===
+                'favourites' &&
+              !favouriteSet.has(
+                element.id
+              )
+            ) {
+              return false
+            }
 
-          const haystack =
-            normalizeSearch(
-              [
-                element.name,
-                ...element.keywords
-              ].join(' ')
+            if (
+              view ===
+                'recent' &&
+              !recentRank.has(
+                element.id
+              )
+            ) {
+              return false
+            }
+
+            if (!query) {
+              return true
+            }
+
+            const haystack =
+              normalizeSearch(
+                [
+                  element.name,
+                  ...element.keywords
+                ].join(' ')
+              )
+
+            return haystack.includes(
+              query
             )
+          }
+        )
 
-          return haystack.includes(
-            query
-          )
-        }
-      )
+      if (view === 'recent') {
+        return filtered.sort(
+          (first, second) =>
+            (recentRank.get(
+              first.id
+            ) ?? 999) -
+            (recentRank.get(
+              second.id
+            ) ?? 999)
+        )
+      }
+
+      return filtered
     }, [
       category,
-      search
+      favouriteSet,
+      recentRank,
+      search,
+      view
     ])
 
   if (!host) {
@@ -187,6 +357,57 @@ export default function ElementLibrary() {
     editor.structureBusy ||
     editor.imageCropEditing ||
     insertingId !== null
+
+  const persistPreferences = (
+    next: StoredElementPreferences
+  ) => {
+    setPreferences(next)
+    writePreferences(next)
+  }
+
+  const toggleFavourite = (
+    elementId: string
+  ) => {
+    const exists =
+      preferences.favourites.includes(
+        elementId
+      )
+
+    const favourites = exists
+      ? preferences.favourites.filter(
+          (id) =>
+            id !== elementId
+        )
+      : [
+          elementId,
+          ...preferences.favourites
+        ]
+
+    persistPreferences({
+      ...preferences,
+      favourites
+    })
+  }
+
+  const markRecent = (
+    elementId: string
+  ) => {
+    const recent = [
+      elementId,
+      ...preferences.recent.filter(
+        (id) =>
+          id !== elementId
+      )
+    ].slice(
+      0,
+      MAX_RECENT_ELEMENTS
+    )
+
+    persistPreferences({
+      ...preferences,
+      recent
+    })
+  }
 
   const insertElement =
     async (
@@ -216,6 +437,10 @@ export default function ElementLibrary() {
             )
           ])
 
+        markRecent(
+          elementId
+        )
+
         setMessage(
           'Elemento inserido.'
         )
@@ -230,19 +455,26 @@ export default function ElementLibrary() {
       }
     }
 
+  const clearFilters = () => {
+    setSearch('')
+    setCategory('all')
+    setView('all')
+    setMessage('')
+  }
+
   return createPortal(
     <section
       className="mq-element-library"
-      aria-label="Biblioteca de formas e ícones"
+      aria-label="Biblioteca de formas, ícones e elementos gráficos"
     >
       <div className="mq-element-library__heading">
         <div>
           <h3>
-            Formas e ícones
+            Biblioteca de elementos
           </h3>
 
           <small>
-            Biblioteca local, pesquisável e sem serviços externos.
+            Elementos locais, pesquisáveis e editáveis, sem serviços externos.
           </small>
         </div>
 
@@ -292,6 +524,68 @@ export default function ElementLibrary() {
       </div>
 
       <div
+        className="mq-element-library__views"
+        aria-label="Vista da biblioteca"
+      >
+        <button
+          type="button"
+          className={
+            view === 'all'
+              ? 'is-active'
+              : ''
+          }
+          aria-pressed={
+            view === 'all'
+          }
+          disabled={locked}
+          onClick={() =>
+            setView('all')
+          }
+        >
+          Todos
+        </button>
+
+        <button
+          type="button"
+          className={
+            view === 'recent'
+              ? 'is-active'
+              : ''
+          }
+          aria-pressed={
+            view === 'recent'
+          }
+          disabled={locked}
+          onClick={() =>
+            setView('recent')
+          }
+        >
+          Recentes
+        </button>
+
+        <button
+          type="button"
+          className={
+            view === 'favourites'
+              ? 'is-active'
+              : ''
+          }
+          aria-pressed={
+            view ===
+            'favourites'
+          }
+          disabled={locked}
+          onClick={() =>
+            setView(
+              'favourites'
+            )
+          }
+        >
+          ★ Favoritos
+        </button>
+      </div>
+
+      <div
         className="mq-element-library__categories"
         role="tablist"
         aria-label="Categorias de elementos"
@@ -304,11 +598,11 @@ export default function ElementLibrary() {
               role="tab"
               aria-selected={
                 category ===
-                item.id
+                  item.id
               }
               className={
                 category ===
-                item.id
+                  item.id
                   ? 'is-active'
                   : ''
               }
@@ -335,46 +629,102 @@ export default function ElementLibrary() {
                   color
                 )
 
-              return (
-                <button
-                  key={element.id}
-                  type="button"
-                  disabled={locked}
-                  title={`Inserir ${element.name}`}
-                  aria-label={`Inserir ${element.name}`}
-                  onClick={() =>
-                    void insertElement(
-                      element.id
-                    )
-                  }
-                >
-                  <span className="mq-element-library__preview">
-                    <img
-                      src={
-                        createMAQuadroLibraryElementPreviewUrl(
-                          document
-                        )
-                      }
-                      alt=""
-                    />
-                  </span>
+              const favourite =
+                favouriteSet.has(
+                  element.id
+                )
 
-                  <small>
-                    {element.name}
-                  </small>
-                </button>
+              return (
+                <article
+                  key={element.id}
+                  className="mq-element-library__item"
+                >
+                  <button
+                    type="button"
+                    className="mq-element-library__insert"
+                    disabled={locked}
+                    title={`Inserir ${element.name}`}
+                    aria-label={`Inserir ${element.name}`}
+                    onClick={() =>
+                      void insertElement(
+                        element.id
+                      )
+                    }
+                  >
+                    <span className="mq-element-library__preview">
+                      <img
+                        src={
+                          createMAQuadroLibraryElementPreviewUrl(
+                            document
+                          )
+                        }
+                        alt=""
+                      />
+                    </span>
+
+                    <small>
+                      {element.name}
+                    </small>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`mq-element-library__favourite${
+                      favourite
+                        ? ' is-active'
+                        : ''
+                    }`}
+                    disabled={locked}
+                    aria-pressed={
+                      favourite
+                    }
+                    aria-label={
+                      favourite
+                        ? `Remover ${element.name} dos favoritos`
+                        : `Adicionar ${element.name} aos favoritos`
+                    }
+                    title={
+                      favourite
+                        ? 'Remover dos favoritos'
+                        : 'Adicionar aos favoritos'
+                    }
+                    onClick={() =>
+                      toggleFavourite(
+                        element.id
+                      )
+                    }
+                  >
+                    {favourite
+                      ? '★'
+                      : '☆'}
+                  </button>
+                </article>
               )
             }
           )}
         </div>
       ) : (
         <div className="mq-element-library__empty">
-          Nenhum elemento corresponde à pesquisa.
+          <strong>
+            Nenhum elemento encontrado.
+          </strong>
+
+          <span>
+            Ajuste a pesquisa, a categoria ou a vista.
+          </span>
+
+          <button
+            type="button"
+            disabled={locked}
+            onClick={clearFilters}
+          >
+            Limpar filtros
+          </button>
         </div>
       )}
 
       <p className="mq-element-library__note">
-        Depois de inserir, selecione o elemento para alterar a cor no painel da direita.
+        Depois de inserir, selecione o elemento para alterar a cor e a espessura no painel da direita.
       </p>
 
       {message ? (
