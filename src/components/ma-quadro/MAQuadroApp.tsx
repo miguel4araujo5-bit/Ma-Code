@@ -38,6 +38,7 @@ import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
+import VideoEditor from './VideoEditor'
 import VideoUploads from './VideoUploads'
 import {
   useMAQuadroEditor
@@ -63,6 +64,7 @@ function targetUsesNativeKeyboard(
       Element
       ? target
       : null
+
   return Boolean(
     element?.closest(
       [
@@ -93,6 +95,7 @@ MAQuadroApp() {
   ] = useState(
     false
   )
+
   const [
     contextMenu,
     setContextMenu
@@ -112,6 +115,7 @@ MAQuadroApp() {
       },
       []
     )
+
   const openContextMenu =
     useCallback(
       (
@@ -132,6 +136,7 @@ MAQuadroApp() {
         ) {
           return
         }
+
         setContextMenu(
           position
         )
@@ -152,6 +157,7 @@ MAQuadroApp() {
     editor.activePage?.id,
     editor.project?.id
   ])
+
   useEffect(() => {
     const handleGlobalKeyDown = (
       event:
@@ -176,7 +182,9 @@ MAQuadroApp() {
       ) {
         event.preventDefault()
         event.stopPropagation()
+
         closeContextMenu()
+
         setShortcutsOpen(
           true
         )
@@ -198,6 +206,7 @@ MAQuadroApp() {
       ) {
         return
       }
+
       if (
         editor
           .selection
@@ -223,6 +232,7 @@ MAQuadroApp() {
       const bounds =
         workspace
           ?.getBoundingClientRect()
+
       openContextMenu({
         x:
           bounds
@@ -235,6 +245,7 @@ MAQuadroApp() {
               )
             : window.innerWidth /
               2,
+
         y:
           bounds
             ? bounds.top +
@@ -248,6 +259,7 @@ MAQuadroApp() {
               2
       })
     }
+
     window.addEventListener(
       'keydown',
       handleGlobalKeyDown
@@ -276,6 +288,7 @@ MAQuadroApp() {
     ) {
       return
     }
+
     const frame =
       window.requestAnimationFrame(
         () => {
@@ -307,6 +320,7 @@ MAQuadroApp() {
     ) {
       return
     }
+
     const modifier =
       event.ctrlKey ||
       event.metaKey
@@ -332,6 +346,7 @@ MAQuadroApp() {
 
     event.stopPropagation()
   }
+
   return (
     <MAQuadroEditorProvider
       editor={
@@ -359,6 +374,7 @@ MAQuadroApp() {
         <FormatPainterController />
 
         <FrameDropController />
+
         <BrandQuickStyles />
 
         <TableBuilder />
@@ -377,6 +393,8 @@ MAQuadroApp() {
 
         <VideoUploads />
 
+        <VideoEditor />
+
         <TableEditor />
 
         <ChartEditor />
@@ -392,6 +410,7 @@ MAQuadroApp() {
         <LayersManager />
 
         <AnimationPanel />
+
         <EditorHeader
           onOpenShortcuts={() => {
             closeContextMenu()
@@ -416,6 +435,7 @@ MAQuadroApp() {
 
             <PagesStrip />
           </div>
+
           <PropertiesPanel />
         </div>
 
@@ -433,6 +453,7 @@ MAQuadroApp() {
             )
           }
         />
+
         {contextMenu ? (
           <CanvasContextMenu
             position={
@@ -443,6 +464,7 @@ MAQuadroApp() {
             }
           />
         ) : null}
+
         {!editor.ready ? (
           <div
             className="mq-loading-screen"
@@ -462,6 +484,7 @@ MAQuadroApp() {
               A preparar o
               MA-Quadro…
             </strong>
+
             <span>
               O editor e os
               projetos locais
