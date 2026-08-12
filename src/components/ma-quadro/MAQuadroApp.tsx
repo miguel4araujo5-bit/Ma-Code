@@ -26,10 +26,11 @@ import {
 import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
-import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import ImageFilterPresets from './ImageFilterPresets'
+import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LayersManager from './LayersManager'
 import LeftSidebar from './LeftSidebar'
+import MAQuadroHome from './MAQuadroHome'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
 import QRCodeBuilder from './QRCodeBuilder'
@@ -43,6 +44,7 @@ import VideoUploads from './VideoUploads'
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
+
 import './maQuadro.css'
 import './maQuadroFixes.css'
 import './maQuadroWorkflow.css'
@@ -84,10 +86,16 @@ function targetUsesNativeKeyboard(
   )
 }
 
-export default function
-MAQuadroApp() {
+export default function MAQuadroApp() {
   const editor =
     useMAQuadroEditor()
+
+  const [
+    homeOpen,
+    setHomeOpen
+  ] = useState(
+    true
+  )
 
   const [
     shortcutsOpen,
@@ -116,6 +124,63 @@ MAQuadroApp() {
       []
     )
 
+  const enterEditor =
+    useCallback(
+      () => {
+        setHomeOpen(
+          false
+        )
+      },
+      []
+    )
+
+  const goHome =
+    useCallback(
+      async () => {
+        if (
+          !editor.ready ||
+          editor.busy ||
+          editor.structureBusy ||
+          editor.imageCropEditing
+        ) {
+          return
+        }
+
+        if (
+          editor.project &&
+          !editor.project.isTemplate
+        ) {
+          const saved =
+            await editor.saveProject(
+              true
+            )
+
+          if (!saved) {
+            return
+          }
+        }
+
+        closeContextMenu()
+
+        setShortcutsOpen(
+          false
+        )
+
+        setHomeOpen(
+          true
+        )
+      },
+      [
+        closeContextMenu,
+        editor.busy,
+        editor.imageCropEditing,
+        editor.project,
+        editor.ready,
+        editor.saveProject,
+        editor.structureBusy
+      ]
+    )
+
   const openContextMenu =
     useCallback(
       (
@@ -123,6 +188,7 @@ MAQuadroApp() {
           MAQuadroContextMenuPosition
       ) => {
         if (
+          homeOpen ||
           !editor.ready ||
           editor
             .selection
@@ -146,7 +212,8 @@ MAQuadroApp() {
         editor.imageCropEditing,
         editor.ready,
         editor.selection.count,
-        editor.structureBusy
+        editor.structureBusy,
+        homeOpen
       ]
     )
 
@@ -164,6 +231,7 @@ MAQuadroApp() {
         KeyboardEvent
     ) => {
       if (
+        homeOpen ||
         !editor.ready ||
         event.defaultPrevented ||
         targetUsesNativeKeyboard(
@@ -279,12 +347,14 @@ MAQuadroApp() {
     editor.selection.count,
     editor.structureBusy,
     editor.workspaceRef,
+    homeOpen,
     openContextMenu
   ])
 
   useEffect(() => {
     if (
-      !editor.ready
+      !editor.ready ||
+      homeOpen
     ) {
       return
     }
@@ -304,7 +374,8 @@ MAQuadroApp() {
   }, [
     editor.activePage?.id,
     editor.fitCanvas,
-    editor.ready
+    editor.ready,
+    homeOpen
   ])
 
   const protectNativeKeyboard = (
@@ -336,10 +407,9 @@ MAQuadroApp() {
       event.preventDefault()
       event.stopPropagation()
 
-      void editor
-        .saveProject(
-          false
-        )
+      void editor.saveProject(
+        false
+      )
 
       return
     }
@@ -357,12 +427,18 @@ MAQuadroApp() {
         className="mq-app"
         style={{
           visibility:
-            editor.ready
+            editor.ready &&
+            !homeOpen
               ? 'visible'
               : 'hidden'
         }}
         aria-busy={
           !editor.ready
+        }
+        aria-hidden={
+          homeOpen
+            ? true
+            : undefined
         }
         onKeyDown={
           protectNativeKeyboard
@@ -412,6 +488,9 @@ MAQuadroApp() {
         <AnimationPanel />
 
         <EditorHeader
+          onGoHome={() => {
+            void goHome()
+          }}
           onOpenShortcuts={() => {
             closeContextMenu()
 
@@ -440,8 +519,6 @@ MAQuadroApp() {
         </div>
 
         <SmartSpacingOverlay />
-
-        <EditorDialogs />
 
         <KeyboardShortcutsDialog
           open={
@@ -494,6 +571,17 @@ MAQuadroApp() {
           </div>
         ) : null}
       </main>
+
+      {editor.ready &&
+      homeOpen ? (
+        <MAQuadroHome
+          onEnterEditor={
+            enterEditor
+          }
+        />
+      ) : null}
+
+      <EditorDialogs />
     </MAQuadroEditorProvider>
   )
 }
