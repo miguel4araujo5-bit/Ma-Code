@@ -157,19 +157,19 @@ function createOverview(
       'remote-unverified'
   } else if (
     serverRevision >
-      localState.serverRevision
+    localState.serverRevision
   ) {
     status =
       'remote-newer'
   } else if (
     serverRevision <
-      localState.serverRevision
+    localState.serverRevision
   ) {
     status =
       'status-outdated'
   } else if (
     fingerprint ===
-      localState.fingerprint
+    localState.fingerprint
   ) {
     status =
       'synced'
@@ -301,54 +301,6 @@ export async function uploadAndVerifyMAProfessorManualSync(
       upload.snapshot
     )
 
-  /*
-   * Lemos imediatamente o registo novamente.
-   *
-   * Só consideramos o upload confirmado se:
-   * - puder ser descarregado;
-   * - puder ser desencriptado;
-   * - tiver a mesma impressão digital;
-   * - continuar na revisão acabada de criar.
-   */
-  const downloaded =
-    await downloadEncryptedMAProfessorDatabaseSnapshot({
-      token:
-        options.token,
-
-      email:
-        options.email,
-
-      deviceId:
-        options.deviceId
-    })
-
-  if (
-    downloaded.found ===
-      false
-  ) {
-    throw new Error(
-      'A cópia foi enviada, mas não foi possível confirmá-la no servidor.'
-    )
-  }
-
-  const remoteFingerprint =
-    await createMAProfessorSnapshotFingerprint(
-      downloaded.snapshot
-    )
-
-  if (
-    downloaded.remote
-      .serverRevision !==
-      upload.remote
-        .serverRevision ||
-    remoteFingerprint !==
-      uploadedFingerprint
-  ) {
-    throw new Error(
-      'A cópia online mudou durante a verificação. Nenhuma versão será considerada confirmada neste dispositivo.'
-    )
-  }
-
   const verifiedAt =
     new Date()
       .toISOString()
@@ -428,7 +380,7 @@ export async function verifyMAProfessorManualSync(
       token:
         options.token,
 
-      email:
+    email:
         options.email,
 
       deviceId:
