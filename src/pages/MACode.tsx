@@ -16,7 +16,11 @@ const marqueeItems = [
   'Performance e SEO'
 ]
 
-const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
+const marqueeLoopItems = [
+  ...marqueeItems,
+  ...marqueeItems,
+  ...marqueeItems
+]
 
 const serviceCards = [
   {
@@ -85,7 +89,10 @@ const featuredProducts = [
   }
 ]
 
-type AnalyticsParameters = Record<string, string | number | boolean | undefined>
+type AnalyticsParameters = Record<
+  string,
+  string | number | boolean | undefined
+>
 
 type AnalyticsWindow = Window & {
   gtag?: (
@@ -109,7 +116,9 @@ type AttributionData = {
 const attributionStorageKey = 'ma_code_attribution'
 
 function updateMeta(name: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+  let meta = document.querySelector<HTMLMetaElement>(
+    `meta[name="${name}"]`
+  )
 
   if (!meta) {
     meta = document.createElement('meta')
@@ -120,7 +129,10 @@ function updateMeta(name: string, content: string) {
   meta.content = content
 }
 
-function updatePropertyMeta(property: string, content: string) {
+function updatePropertyMeta(
+  property: string,
+  content: string
+) {
   let meta = document.querySelector<HTMLMetaElement>(
     `meta[property="${property}"]`
   )
@@ -135,9 +147,10 @@ function updatePropertyMeta(property: string, content: string) {
 }
 
 function updateCanonical(href: string) {
-  let canonical = document.querySelector<HTMLLinkElement>(
-    'link[rel="canonical"]'
-  )
+  let canonical =
+    document.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]'
+    )
 
   if (!canonical) {
     canonical = document.createElement('link')
@@ -154,7 +167,10 @@ function getReferrerSource(referrer: string) {
   }
 
   try {
-    return new URL(referrer).hostname.replace(/^www\./, '')
+    return new URL(referrer).hostname.replace(
+      /^www\./,
+      ''
+    )
   } catch {
     return 'referral'
   }
@@ -165,7 +181,10 @@ function getTrafficAttribution(): AttributionData {
     return {}
   }
 
-  const searchParams = new URLSearchParams(window.location.search)
+  const searchParams = new URLSearchParams(
+    window.location.search
+  )
+
   const hasCampaignParams = [
     'utm_source',
     'utm_medium',
@@ -175,12 +194,18 @@ function getTrafficAttribution(): AttributionData {
   ].some((param) => searchParams.has(param))
 
   try {
-    const storedAttribution = window.sessionStorage.getItem(
-      attributionStorageKey
-    )
+    const storedAttribution =
+      window.sessionStorage.getItem(
+        attributionStorageKey
+      )
 
-    if (storedAttribution && !hasCampaignParams) {
-      return JSON.parse(storedAttribution) as AttributionData
+    if (
+      storedAttribution &&
+      !hasCampaignParams
+    ) {
+      return JSON.parse(
+        storedAttribution
+      ) as AttributionData
     }
   } catch {
     return {
@@ -189,12 +214,22 @@ function getTrafficAttribution(): AttributionData {
         getReferrerSource(document.referrer),
       traffic_medium:
         searchParams.get('utm_medium') ||
-        (document.referrer ? 'referral' : 'direct'),
-      traffic_campaign: searchParams.get('utm_campaign') || undefined,
-      traffic_term: searchParams.get('utm_term') || undefined,
-      traffic_content: searchParams.get('utm_content') || undefined,
-      traffic_referrer: document.referrer || undefined,
-      landing_page: window.location.href
+        (document.referrer
+          ? 'referral'
+          : 'direct'),
+      traffic_campaign:
+        searchParams.get('utm_campaign') ||
+        undefined,
+      traffic_term:
+        searchParams.get('utm_term') ||
+        undefined,
+      traffic_content:
+        searchParams.get('utm_content') ||
+        undefined,
+      traffic_referrer:
+        document.referrer || undefined,
+      landing_page:
+        window.location.href
     }
   }
 
@@ -204,12 +239,22 @@ function getTrafficAttribution(): AttributionData {
       getReferrerSource(document.referrer),
     traffic_medium:
       searchParams.get('utm_medium') ||
-      (document.referrer ? 'referral' : 'direct'),
-    traffic_campaign: searchParams.get('utm_campaign') || undefined,
-    traffic_term: searchParams.get('utm_term') || undefined,
-    traffic_content: searchParams.get('utm_content') || undefined,
-    traffic_referrer: document.referrer || undefined,
-    landing_page: window.location.href
+      (document.referrer
+        ? 'referral'
+        : 'direct'),
+    traffic_campaign:
+      searchParams.get('utm_campaign') ||
+      undefined,
+    traffic_term:
+      searchParams.get('utm_term') ||
+      undefined,
+    traffic_content:
+      searchParams.get('utm_content') ||
+      undefined,
+    traffic_referrer:
+      document.referrer || undefined,
+    landing_page:
+      window.location.href
   }
 
   try {
@@ -232,7 +277,8 @@ function trackEvent(
     return
   }
 
-  const analyticsWindow = window as AnalyticsWindow
+  const analyticsWindow =
+    window as AnalyticsWindow
 
   const eventParameters = {
     event_category: 'ma_code_homepage',
@@ -243,14 +289,24 @@ function trackEvent(
     ...parameters
   }
 
-  if (typeof analyticsWindow.gtag === 'function') {
-    analyticsWindow.gtag('event', eventName, eventParameters)
+  if (
+    typeof analyticsWindow.gtag ===
+    'function'
+  ) {
+    analyticsWindow.gtag(
+      'event',
+      eventName,
+      eventParameters
+    )
     return
   }
 
-  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer)
-    ? analyticsWindow.dataLayer
-    : []
+  analyticsWindow.dataLayer =
+    Array.isArray(
+      analyticsWindow.dataLayer
+    )
+      ? analyticsWindow.dataLayer
+      : []
 
   analyticsWindow.dataLayer.push({
     event: eventName,
@@ -382,14 +438,16 @@ function ServiceMarquee() {
         className="ma-service-marquee__track"
         aria-hidden="true"
       >
-        {marqueeLoopItems.map((item, index) => (
-          <span
-            key={`${item}-${index}`}
-            className="ma-service-marquee__item"
-          >
-            {item}
-          </span>
-        ))}
+        {marqueeLoopItems.map(
+          (item, index) => (
+            <span
+              key={`${item}-${index}`}
+              className="ma-service-marquee__item"
+            >
+              {item}
+            </span>
+          )
+        )}
       </div>
     </div>
   )
@@ -398,7 +456,10 @@ function ServiceMarquee() {
 function ServiceIcon({
   type
 }: {
-  type: 'website' | 'booking' | 'system'
+  type:
+    | 'website'
+    | 'booking'
+    | 'system'
 }) {
   if (type === 'website') {
     return (
@@ -572,17 +633,17 @@ function HeroDevices() {
 function MobileHeroDevices() {
   return (
     <div
-      className="pointer-events-none absolute -right-[4.75rem] top-[5.25rem] z-0 w-[14.5rem] lg:hidden sm:-right-14 sm:top-16 sm:w-[18rem]"
+      className="relative z-0 min-w-0 self-center lg:hidden"
       aria-hidden="true"
     >
-      <div className="absolute -inset-8 bg-[radial-gradient(circle_at_66%_42%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_74%_65%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
+      <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.13),transparent_32%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.11),transparent_36%)] blur-3xl" />
 
       <img
         src="/ma-code-hero-devices.png"
         alt=""
         width={1200}
         height={800}
-        className="relative z-10 h-auto w-full max-w-none object-contain drop-shadow-[0_20px_44px_rgba(2,132,199,0.14)]"
+        className="relative z-10 ml-auto h-auto w-full max-w-none object-contain drop-shadow-[0_18px_40px_rgba(2,132,199,0.14)]"
         loading="eager"
         decoding="async"
       />
@@ -634,7 +695,8 @@ function ProjectsShowcase({
                       : 'opacity-0'
                   }`}
                   style={{
-                    animationDelay: `${index * 100}ms`
+                    animationDelay:
+                      `${index * 100}ms`
                   }}
                   onClick={() =>
                     trackEvent(
@@ -721,6 +783,7 @@ function ProjectsShowcase({
             }
           >
             <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-cyan-300/10 blur-3xl" />
+
             <div className="pointer-events-none absolute -bottom-14 left-8 size-36 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10">
@@ -920,13 +983,23 @@ export default function MACode() {
                 MA-CODE
               </span>
 
-              <h1 className="mt-5 max-w-[10.8ch] text-[clamp(2.7rem,5.7vw,5.15rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] xl:max-w-[14.2ch]">
-                Websites e sistemas à
-                medida que fazem{' '}
-                <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
-                  a diferença.
-                </span>
-              </h1>
+              <div
+                className="mt-5 grid items-center gap-1 lg:block"
+                style={{
+                  gridTemplateColumns:
+                    'minmax(0, 1fr) clamp(6rem, 34vw, 14rem)'
+                }}
+              >
+                <h1 className="relative z-10 max-w-none text-[clamp(2.15rem,10.8vw,2.7rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] lg:text-[clamp(2.7rem,5.7vw,5.15rem)] xl:max-w-[14.2ch]">
+                  Websites e sistemas à
+                  medida que fazem{' '}
+                  <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+                    a diferença.
+                  </span>
+                </h1>
+
+                <MobileHeroDevices />
+              </div>
 
               <p className="mt-6 max-w-2xl text-[1rem] leading-8 text-slate-300 md:text-[1.12rem]">
                 Desenvolvemos websites
@@ -1029,6 +1102,7 @@ export default function MACode() {
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-400 sm:text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
+
                   <span>
                     Domínio + Alojamento
                     incluídos
@@ -1037,6 +1111,7 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
+
                   <span>
                     Mobile-first
                   </span>
@@ -1044,14 +1119,13 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
+
                   <span>
                     Proposta gratuita
                   </span>
                 </div>
               </div>
             </div>
-
-            <MobileHeroDevices />
 
             <div
               className={
@@ -1156,8 +1230,11 @@ export default function MACode() {
               Produtos próprios
             </span>
 
-            <h2 className="mt-5 max-w-[12ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:text-4xl">
-              Ferramentas MA-Code
+            <h2 className="mt-5 max-w-[18ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:max-w-[16ch] md:text-4xl">
+              Ferramentas{' '}
+              <span className="whitespace-nowrap">
+                MA-Code
+              </span>{' '}
               que{' '}
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 impulsionam
@@ -1193,6 +1270,7 @@ export default function MACode() {
             >
               Explorar todos os
               produtos
+
               <span>→</span>
             </a>
           </div>
