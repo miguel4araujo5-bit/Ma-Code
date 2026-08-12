@@ -109,9 +109,7 @@ type AttributionData = {
 const attributionStorageKey = 'ma_code_attribution'
 
 function updateMeta(name: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(
-    `meta[name="${name}"]`
-  )
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
   if (!meta) {
     meta = document.createElement('meta')
@@ -168,7 +166,6 @@ function getTrafficAttribution(): AttributionData {
   }
 
   const searchParams = new URLSearchParams(window.location.search)
-
   const hasCampaignParams = [
     'utm_source',
     'utm_medium',
@@ -193,16 +190,11 @@ function getTrafficAttribution(): AttributionData {
       traffic_medium:
         searchParams.get('utm_medium') ||
         (document.referrer ? 'referral' : 'direct'),
-      traffic_campaign:
-        searchParams.get('utm_campaign') || undefined,
-      traffic_term:
-        searchParams.get('utm_term') || undefined,
-      traffic_content:
-        searchParams.get('utm_content') || undefined,
-      traffic_referrer:
-        document.referrer || undefined,
-      landing_page:
-        window.location.href
+      traffic_campaign: searchParams.get('utm_campaign') || undefined,
+      traffic_term: searchParams.get('utm_term') || undefined,
+      traffic_content: searchParams.get('utm_content') || undefined,
+      traffic_referrer: document.referrer || undefined,
+      landing_page: window.location.href
     }
   }
 
@@ -213,16 +205,11 @@ function getTrafficAttribution(): AttributionData {
     traffic_medium:
       searchParams.get('utm_medium') ||
       (document.referrer ? 'referral' : 'direct'),
-    traffic_campaign:
-      searchParams.get('utm_campaign') || undefined,
-    traffic_term:
-      searchParams.get('utm_term') || undefined,
-    traffic_content:
-      searchParams.get('utm_content') || undefined,
-    traffic_referrer:
-      document.referrer || undefined,
-    landing_page:
-      window.location.href
+    traffic_campaign: searchParams.get('utm_campaign') || undefined,
+    traffic_term: searchParams.get('utm_term') || undefined,
+    traffic_content: searchParams.get('utm_content') || undefined,
+    traffic_referrer: document.referrer || undefined,
+    landing_page: window.location.href
   }
 
   try {
@@ -257,18 +244,11 @@ function trackEvent(
   }
 
   if (typeof analyticsWindow.gtag === 'function') {
-    analyticsWindow.gtag(
-      'event',
-      eventName,
-      eventParameters
-    )
-
+    analyticsWindow.gtag('event', eventName, eventParameters)
     return
   }
 
-  analyticsWindow.dataLayer = Array.isArray(
-    analyticsWindow.dataLayer
-  )
+  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer)
     ? analyticsWindow.dataLayer
     : []
 
@@ -402,16 +382,14 @@ function ServiceMarquee() {
         className="ma-service-marquee__track"
         aria-hidden="true"
       >
-        {marqueeLoopItems.map(
-          (item, index) => (
-            <span
-              key={`${item}-${index}`}
-              className="ma-service-marquee__item"
-            >
-              {item}
-            </span>
-          )
-        )}
+        {marqueeLoopItems.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            className="ma-service-marquee__item"
+          >
+            {item}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -436,9 +414,7 @@ function ServiceIcon({
           cy="12"
           r="8.2"
         />
-
         <path d="M3.8 12h16.4" />
-
         <path d="M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2c-2.3-2.5-3.5-5.3-3.5-8.2S9.7 6.3 12 3.8Z" />
       </svg>
     )
@@ -460,7 +436,6 @@ function ServiceIcon({
           height="14.5"
           rx="2.4"
         />
-
         <path d="M8 3.8v3.4M16 3.8v3.4M4.2 9.2h15.6" />
       </svg>
     )
@@ -498,7 +473,6 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
-
         <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
       </svg>
     )
@@ -514,7 +488,6 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
-
         <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
       </svg>
     )
@@ -536,7 +509,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="4.5"
@@ -544,7 +516,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="4.5"
           y="13.3"
@@ -552,7 +523,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="13.3"
@@ -573,7 +543,6 @@ function ProductIcon({
       strokeWidth="1.8"
     >
       <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
-
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
     </svg>
   )
@@ -581,41 +550,43 @@ function ProductIcon({
 
 function HeroDevices() {
   return (
-    <>
-      <div
-        className="relative hidden min-h-[430px] lg:block"
-        aria-hidden="true"
-      >
-        <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
+    <div
+      className="relative min-h-[430px]"
+      aria-hidden="true"
+    >
+      <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
 
-        <img
-          src="/ma-code-hero-devices.png"
-          alt=""
-          width={1200}
-          height={800}
-          className="relative z-10 mx-auto h-auto w-full max-w-none scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
-          loading="eager"
-          decoding="async"
-        />
-      </div>
+      <img
+        src="/ma-code-hero-devices.png"
+        alt=""
+        width={1200}
+        height={800}
+        className="relative z-10 mx-auto h-auto w-full max-w-none scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
+        loading="eager"
+        decoding="async"
+      />
+    </div>
+  )
+}
 
-      <div
-        className="relative mt-4 h-[215px] lg:hidden sm:mt-5 sm:h-[350px]"
-        aria-hidden="true"
-      >
-        <div className="pointer-events-none absolute -inset-8 bg-[radial-gradient(circle_at_72%_44%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_78%_66%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
+function MobileHeroDevices() {
+  return (
+    <div
+      className="pointer-events-none absolute -right-[4.75rem] top-[5.25rem] z-0 w-[14.5rem] lg:hidden sm:-right-14 sm:top-16 sm:w-[18rem]"
+      aria-hidden="true"
+    >
+      <div className="absolute -inset-8 bg-[radial-gradient(circle_at_66%_42%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_74%_65%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
 
-        <img
-          src="/ma-code-hero-devices.png"
-          alt=""
-          width={1200}
-          height={800}
-          className="absolute right-[-12%] top-0 z-10 h-auto w-[82%] max-w-none object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)] sm:right-[-6%] sm:w-[76%]"
-          loading="eager"
-          decoding="async"
-        />
-      </div>
-    </>
+      <img
+        src="/ma-code-hero-devices.png"
+        alt=""
+        width={1200}
+        height={800}
+        className="relative z-10 h-auto w-full max-w-none object-contain drop-shadow-[0_20px_44px_rgba(2,132,199,0.14)]"
+        loading="eager"
+        decoding="async"
+      />
+    </div>
   )
 }
 
@@ -663,8 +634,7 @@ function ProjectsShowcase({
                       : 'opacity-0'
                   }`}
                   style={{
-                    animationDelay:
-                      `${index * 100}ms`
+                    animationDelay: `${index * 100}ms`
                   }}
                   onClick={() =>
                     trackEvent(
@@ -751,7 +721,6 @@ function ProjectsShowcase({
             }
           >
             <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-cyan-300/10 blur-3xl" />
-
             <div className="pointer-events-none absolute -bottom-14 left-8 size-36 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10">
@@ -939,12 +908,12 @@ export default function MACode() {
             </a>
           </header>
 
-          <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(500px,1.05fr)] xl:gap-10">
+          <div className="relative grid items-center gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(500px,1.05fr)] xl:gap-10">
             <div
               className={
                 mounted
-                  ? 'animate-fade-in-up'
-                  : 'opacity-0'
+                  ? 'relative z-10 animate-fade-in-up'
+                  : 'relative z-10 opacity-0'
               }
             >
               <span className="inline-flex rounded-full border border-cyan-300/[0.22] bg-cyan-300/[0.07] px-4 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
@@ -954,7 +923,6 @@ export default function MACode() {
               <h1 className="mt-5 max-w-[10.8ch] text-[clamp(2.7rem,5.7vw,5.15rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] xl:max-w-[14.2ch]">
                 Websites e sistemas à
                 medida que fazem{' '}
-
                 <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                   a diferença.
                 </span>
@@ -966,7 +934,6 @@ export default function MACode() {
                 e sistemas personalizados
                 para automatizar e fazer
                 crescer o seu negócio —{' '}
-
                 <span className="font-semibold text-cyan-200">
                   desde 19€/mês.
                 </span>
@@ -1062,7 +1029,6 @@ export default function MACode() {
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-400 sm:text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Domínio + Alojamento
                     incluídos
@@ -1071,7 +1037,6 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Mobile-first
                   </span>
@@ -1079,7 +1044,6 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Proposta gratuita
                   </span>
@@ -1087,11 +1051,13 @@ export default function MACode() {
               </div>
             </div>
 
+            <MobileHeroDevices />
+
             <div
               className={
                 mounted
-                  ? 'animate-fade-in-scale'
-                  : 'opacity-0'
+                  ? 'hidden animate-fade-in-scale lg:block'
+                  : 'hidden opacity-0 lg:block'
               }
             >
               <HeroDevices />
@@ -1109,11 +1075,9 @@ export default function MACode() {
           <div className="text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
-
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 caminho certo
               </span>{' '}
-
               para o seu negócio
             </h2>
 
@@ -1195,11 +1159,9 @@ export default function MACode() {
             <h2 className="mt-5 max-w-[12ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:text-4xl">
               Ferramentas MA-Code
               que{' '}
-
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 impulsionam
               </span>{' '}
-
               o seu dia a dia
             </h2>
 
@@ -1231,7 +1193,6 @@ export default function MACode() {
             >
               Explorar todos os
               produtos
-
               <span>→</span>
             </a>
           </div>
@@ -1329,7 +1290,6 @@ export default function MACode() {
                   <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white md:text-3xl">
                     Pronto para dar
                     o{' '}
-
                     <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                       próximo passo?
                     </span>
