@@ -30,6 +30,7 @@ import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
+import ImageFilterPresets from './ImageFilterPresets'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
@@ -52,6 +53,7 @@ import './maQuadroToolbarPolish.css'
 import './maQuadroWorkspacePolish.css'
 import './maQuadroFrames.css'
 import './maQuadroElementLibrary.css'
+import './maQuadroImagePresets.css'
 
 function targetUsesNativeKeyboard(
   target:
@@ -359,6 +361,8 @@ MAQuadroApp() {
         <CurvedTextEditor />
 
         <ElementEditor />
+
+        <ImageFilterPresets />
 
         <AnimationPanel />
 
