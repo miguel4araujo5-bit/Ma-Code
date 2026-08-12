@@ -1486,7 +1486,7 @@ export default function MACode() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.78fr_1.6fr] lg:items-center lg:gap-10">
           <div className="text-center lg:text-left">
             <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-              Produtos próprios
+              Produtos
             </span>
 
             <h2 className="mx-auto mt-5 max-w-[18ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:max-w-[16ch] md:text-4xl lg:mx-0">
