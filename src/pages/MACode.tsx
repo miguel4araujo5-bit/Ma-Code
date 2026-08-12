@@ -1648,7 +1648,7 @@ export default function MACode() {
 
               <a
                 href="/contacto"
-                className="inline-flex min-h-[3.55rem] items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
+                className="ma-hero-cta inline-flex min-h-[3.55rem] items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5"
                 onClick={() =>
                   trackEvent(
                     'cta_click',
@@ -1663,8 +1663,18 @@ export default function MACode() {
                   )
                 }
               >
-                Pedir proposta
-                gratuita →
+                <svg
+                  className="ma-hero-cta__bolt"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z" />
+                </svg>
+
+                <span className="ma-hero-cta__content whitespace-nowrap">
+                  Pedir proposta gratuita →
+                </span>
               </a>
             </div>
           </div>
