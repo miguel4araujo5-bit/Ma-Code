@@ -575,22 +575,41 @@ function ProductIcon({
 
 function HeroDevices() {
   return (
-    <div
-      className="relative mt-8 lg:mt-0 lg:min-h-[430px]"
-      aria-hidden="true"
-    >
-      <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
+    <>
+      <div
+        className="relative hidden min-h-[430px] lg:block"
+        aria-hidden="true"
+      >
+        <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
 
-      <img
-        src="/ma-code-hero-devices.png"
-        alt=""
-        width={1200}
-        height={800}
-        className="relative z-10 mx-auto h-auto w-full max-w-[560px] scale-100 object-contain drop-shadow-[0_24px_55px_rgba(2,132,199,0.16)] sm:max-w-[640px] lg:max-w-none lg:scale-[1.05] lg:drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
-        loading="eager"
-        decoding="async"
-      />
-    </div>
+        <img
+          src="/ma-code-hero-devices.png"
+          alt=""
+          width={1200}
+          height={800}
+          className="relative z-10 h-auto w-full scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
+
+      <div
+        className="relative mt-8 lg:hidden"
+        aria-hidden="true"
+      >
+        <div className="absolute -inset-8 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.10),transparent_34%)] blur-3xl" />
+
+        <img
+          src="/ma-code-hero-devices.png"
+          alt=""
+          width={1200}
+          height={800}
+          className="relative z-10 mx-auto h-auto w-full max-w-[560px] object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)]"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
+    </>
   )
 }
 
@@ -677,8 +696,6 @@ function ProjectsShowcase({
                     ) : null}
 
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.55] via-transparent to-transparent" />
-
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(2,6,23,0.40),transparent_34%),radial-gradient(circle_at_top_right,rgba(2,6,23,0.32),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(2,6,23,0.24),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(2,6,23,0.40),transparent_36%)]" />
                   </div>
 
                   <div className="flex items-center justify-between gap-3 px-4 py-4">
@@ -728,6 +745,7 @@ function ProjectsShowcase({
             }
           >
             <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-cyan-300/10 blur-3xl" />
+
             <div className="pointer-events-none absolute -bottom-14 left-8 size-36 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10">
