@@ -8,6 +8,10 @@ import {
   AccessGate
 } from '../access/AccessGate'
 
+import {
+  AccountIsolationGate
+} from '../access/AccountIsolationGate'
+
 import DailyWorkspaceView from '../daily/DailyWorkspaceView'
 
 import {
@@ -31,7 +35,6 @@ import {
 import {
   ProductMenuWorkspace
 } from './ProductMenuWorkspace'
-
 import {
   ProductNavigation,
   type ProductTheme,
@@ -598,9 +601,11 @@ function ProductContent() {
 export function MAProfessorProduct() {
   return (
     <AccessGate>
-      <CryptoSetupGate>
-        <ProductContent />
-      </CryptoSetupGate>
+      <AccountIsolationGate>
+        <CryptoSetupGate>
+          <ProductContent />
+        </CryptoSetupGate>
+      </AccountIsolationGate>
     </AccessGate>
   )
 }
