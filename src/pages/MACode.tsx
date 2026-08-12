@@ -3,9 +3,7 @@ import { FeatureList, SectionHeader } from '../components/DesignSystem'
 import FeaturedProjects from '../components/FeaturedProjects'
 
 const marqueeItems = ['Websites desde 19€/mês','Domínio + Alojamento','Sites Mobile-First','Lojas Online','Marcações Online','Áreas Administrativas','Automação e IA','Integrações API','Web3 / Blockchain','Performance e SEO','Integração Blockchain','Projetos Crypto','Apps PWA','Inteligência Artificial','Projetos à Medida']
-
 const marqueeLoopItems = [...marqueeItems, ...marqueeItems, ...marqueeItems]
-
 const pathCards = [{title: 'Quero um website profissional',eyebrow: 'Presença online',href: '/contacto?tipo=website',learnLinks: [{label: 'Ver criação de websites',href: '/criacao-websites'}],projectType: 'Website profissional',projectGoal: 'Receber mais contactos',cta: 'Pedir proposta para website',description:'Para apresentar o negócio, explicar serviços, transmitir confiança e receber contactos de forma simples e profissional.',points: ['Página inicial clara', 'Serviços bem explicados', 'Contactos e WhatsApp']},{title: 'Quero vender ou receber marcações',eyebrow: 'Vendas e reservas',href: '/contacto?tipo=vendas-marcacoes',learnLinks: [{label: 'Ver lojas online',href: '/lojas-online'},{label: 'Ver marcações',href: '/sistemas-marcacao'}],projectType: 'Loja online / Sistema de marcações',projectGoal: 'Vender online',cta: 'Pedir proposta para vendas ou marcações',description:'Para criar uma loja online, receber encomendas, aceitar reservas, gerir pedidos ou facilitar o contacto com clientes.',points: ['Loja online ou marcações', 'Pedido rápido', 'Experiência preparada para telemóvel']},{title: 'Quero automatizar ou criar um sistema',eyebrow: 'Sistema à medida',href: '/contacto?tipo=sistema-medida',learnLinks: [{label: 'Ver automação e IA',href: '/automacao-ia'}],projectType: 'Sistema à medida',projectGoal: 'Automatizar tarefas',cta: 'Pedir proposta para sistema à medida',description:'Para criar uma área administrativa, dashboard, base de dados, automação, integração com IA ou aplicação web personalizada.',points: ['Painel administrativo', 'Automação de tarefas', 'Integrações e dados']}]
 
 function updateMeta(name: string, content: string) {
@@ -142,7 +140,9 @@ function trackEvent(eventName: string, parameters: AnalyticsParameters = {}) {
     return
   }
 
-  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer) ? analyticsWindow.dataLayer : []
+  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer)
+    ? analyticsWindow.dataLayer
+    : []
 
   analyticsWindow.dataLayer.push({
     event: eventName,
@@ -317,7 +317,12 @@ function ServiceMarquee() {
 }
 
 function DigitalStackVisual() {
-  const stackItems = [{label: 'Website',detail: 'Presença clara',marker: '01'},{label: 'Contactos',detail: 'Pedidos reais',marker: '02'},{label: 'Marcações / vendas',detail: 'Menos atrito',marker: '03'},{label: 'Automação',detail: 'Menos trabalho manual',marker: '04'}]
+  const stackItems = [
+    { label: 'Website', detail: 'Presença clara', marker: '01' },
+    { label: 'Contactos', detail: 'Pedidos reais', marker: '02' },
+    { label: 'Marcações / vendas', detail: 'Menos atrito', marker: '03' },
+    { label: 'Automação', detail: 'Menos trabalho manual', marker: '04' }
+  ]
 
   return (
     <div>
@@ -345,16 +350,26 @@ function DigitalStackVisual() {
           <desc id="digital-stack-description">
             Representação visual da evolução de um website simples para contactos, marcações, vendas e automação.
           </desc>
+
           <defs>
-            <linearGradient id="digitalStackLine" x1="52" x2="468" y1="182" y2="92" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="digitalStackLine"
+              x1="52"
+              x2="468"
+              y1="182"
+              y2="92"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop stopColor="#67e8f9" stopOpacity="0.25" />
               <stop offset="0.5" stopColor="#22d3ee" stopOpacity="0.9" />
               <stop offset="1" stopColor="#a78bfa" stopOpacity="0.75" />
             </linearGradient>
+
             <linearGradient id="digitalStackCard" x1="0" x2="1" y1="0" y2="1">
               <stop stopColor="#0f172a" stopOpacity="0.94" />
               <stop offset="1" stopColor="#083344" stopOpacity="0.78" />
             </linearGradient>
+
             <filter id="digitalStackGlow" x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="8" result="blur" />
               <feColorMatrix
@@ -373,6 +388,7 @@ function DigitalStackVisual() {
             strokeLinecap="round"
             strokeWidth="4"
           />
+
           <path
             d="M70 250 C150 196 212 246 286 188 C350 138 394 160 456 122"
             fill="none"
@@ -391,9 +407,36 @@ function DigitalStackVisual() {
           </g>
 
           <g opacity="0.9">
-            <rect x="54" y="66" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
-            <rect x="202" y="34" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#67e8f9" strokeOpacity="0.18" />
-            <rect x="340" y="128" width="126" height="82" rx="18" fill="url(#digitalStackCard)" stroke="#a78bfa" strokeOpacity="0.22" />
+            <rect
+              x="54"
+              y="66"
+              width="126"
+              height="82"
+              rx="18"
+              fill="url(#digitalStackCard)"
+              stroke="#67e8f9"
+              strokeOpacity="0.18"
+            />
+            <rect
+              x="202"
+              y="34"
+              width="126"
+              height="82"
+              rx="18"
+              fill="url(#digitalStackCard)"
+              stroke="#67e8f9"
+              strokeOpacity="0.18"
+            />
+            <rect
+              x="340"
+              y="128"
+              width="126"
+              height="82"
+              rx="18"
+              fill="url(#digitalStackCard)"
+              stroke="#a78bfa"
+              strokeOpacity="0.22"
+            />
           </g>
 
           <g opacity="0.52" stroke="#cffafe" strokeLinecap="round" strokeWidth="3">
@@ -416,7 +459,9 @@ function DigitalStackVisual() {
                 {item.marker}
               </span>
 
-              <strong className="mt-1 block text-xs font-semibold text-white">{item.label}</strong>
+              <strong className="mt-1 block text-xs font-semibold text-white">
+                {item.label}
+              </strong>
 
               <span className="mt-1 block text-[0.68rem] leading-4 text-slate-400">
                 {item.detail}
@@ -430,357 +475,365 @@ function DigitalStackVisual() {
 }
 
 export default function MACode() {
-const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-useEffect(() => {setMounted(true)
+  useEffect(() => {
+    setMounted(true)
 
-document.title = 'Websites Profissionais desde 19€/mês | MA-Code'
+    document.title = 'Websites Profissionais desde 19€/mês | MA-Code'
 
-updateMeta(
-  'description',
-  'Websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos e evoluir para loja online, marcações, automação, IA ou sistemas digitais.'
-)
+    updateMeta(
+      'description',
+      'Websites profissionais desde 19€/mês para negócios que querem começar simples, gerar contactos e evoluir para loja online, marcações, automação, IA ou sistemas digitais.'
+    )
 
-updateMeta(
-  'keywords',
-  'criação de websites, websites profissionais, websites para negócios, lojas online, desenvolvimento web Portugal, sistema de marcações, aplicações web, automação, integração de IA, CRM, bases de dados, MA-Code'
-)
+    updateMeta(
+      'keywords',
+      'criação de websites, websites profissionais, websites para negócios, lojas online, desenvolvimento web Portugal, sistema de marcações, aplicações web, automação, integração de IA, CRM, bases de dados, manutenção de sites, MA-Code'
+    )
 
-updateMeta(
-  'robots',
-  'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
-)
+    updateMeta(
+      'robots',
+      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1, indexifembedded'
+    )
 
-updatePropertyMeta('og:type', 'website')
-updatePropertyMeta('og:locale', 'pt_PT')
-updatePropertyMeta('og:site_name', 'MA-Code')
-updatePropertyMeta('og:url', 'https://ma-code.pt/')
+    updatePropertyMeta('og:type', 'website')
+    updatePropertyMeta('og:locale', 'pt_PT')
+    updatePropertyMeta('og:site_name', 'MA-Code')
+    updatePropertyMeta('og:url', 'https://ma-code.pt/')
 
-updatePropertyMeta(
-  'og:title',
-  'Websites Profissionais desde 19€/mês | MA-Code'
-)
+    updatePropertyMeta(
+      'og:title',
+      'Websites Profissionais desde 19€/mês | MA-Code'
+    )
 
-updatePropertyMeta(
-  'og:description',
-  'Comece com um website profissional desde 19€/mês e evolua para loja online, marcações, automação, IA ou sistemas digitais à medida.'
-)
+    updatePropertyMeta(
+      'og:description',
+      'Comece com um website profissional desde 19€/mês e evolua para loja online, marcações, automação, IA ou sistemas digitais à medida.'
+    )
 
-updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
+    updatePropertyMeta('og:image', 'https://ma-code.pt/ma-code.png')
 
-updatePropertyMeta(
-  'og:image:alt',
-  'MA-Code - criação de websites profissionais, lojas online, automação e IA'
-)
+    updatePropertyMeta(
+      'og:image:alt',
+      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+    )
 
-updateMeta('twitter:card', 'summary_large_image')
-updateMeta('twitter:url', 'https://ma-code.pt/')
+    updateMeta('twitter:card', 'summary_large_image')
+    updateMeta('twitter:url', 'https://ma-code.pt/')
 
-updateMeta(
-  'twitter:title',
-  'Websites Profissionais desde 19€/mês | MA-Code'
-)
+    updateMeta(
+      'twitter:title',
+      'Websites Profissionais desde 19€/mês | MA-Code'
+    )
 
-updateMeta(
-  'twitter:description',
-  'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais.'
-)
+    updateMeta(
+      'twitter:description',
+      'Websites profissionais desde 19€/mês, preparados para gerar contactos e evoluir para loja online, marcações, automação, IA e sistemas digitais.'
+    )
 
-updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
+    updateMeta('twitter:image', 'https://ma-code.pt/ma-code.png')
 
-updateMeta(
-  'twitter:image:alt',
-  'MA-Code - criação de websites profissionais, lojas online, automação e IA'
-)
+    updateMeta(
+      'twitter:image:alt',
+      'MA-Code - criação de websites profissionais, lojas online, automação e IA'
+    )
 
-updateCanonical('https://ma-code.pt/')
+    updateCanonical('https://ma-code.pt/')
 
-trackEvent('homepage_view', {
-  page_name: 'homepage',
-  page_type: 'landing_page'
-})
+    trackEvent('homepage_view', {
+      page_name: 'homepage',
+      page_type: 'landing_page'
+    })
+  }, [])
 
-}, [])
+  return (
+    <main>
+      <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
+        <div className="mx-auto max-w-7xl">
+          <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
+            <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
+              <img
+                src="/ma-code.png"
+                alt="MA-Code.pt"
+                className="shrink-0 object-contain"
+                loading="eager"
+                decoding="async"
+              />
+              <span>MA-Code.pt</span>
+            </a>
 
-return (
-<main>
-  <section className="relative overflow-hidden px-5 pb-12 pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-8">
-    <div className="mx-auto max-w-7xl">
-      <header className="mb-8 flex items-center justify-between gap-4 md:mb-12">
-        <a href="/" className="brand-mark" aria-label="MA-Code.pt - Página inicial">
-          <img
-            src="/ma-code.png"
-            alt="MA-Code.pt"
-            className="shrink-0 object-contain"
-            loading="eager"
-            decoding="async"
-          />
-          <span>MA-Code.pt</span>
-        </a>
-
-        <a
-          href="/contacto"
-          className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
-          onClick={() => trackEvent('cta_click', {
-            cta_text: 'Pedir proposta gratuita',
-            cta_location: 'header',
-            destination: '/contacto'
-          })}
-        >
-          Pedir proposta gratuita
-        </a>
-      </header>
-
-      <div className="hero-layout">
-        <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
-          <div className="hero-topline">
-            <span className="hero-topline__dot" />
-            <span>Website hoje. Sistema amanhã.</span>
-          </div>
-
-          <h1 className="hero-title">
-            <span className="sm:hidden">
-              Websites desde 19€/mês para começar simples e crescer depois.
-            </span>
-
-            <span className="hidden sm:inline">
-              Websites profissionais desde 19€/mês para começar simples e crescer depois.
-            </span>
-          </h1>
-
-          <div className="hero-price-badge">
-            Desde 19€/mês · domínio + alojamento incluídos · proposta gratuita
-          </div>
-
-          <p className="hero-subtitle">
-            <span className="sm:hidden">
-              Criamos websites, lojas, marcações e automações para negócios que querem gerar contactos sem complicar o arranque.
-            </span>
-
-            <span className="hidden sm:inline">
-              Criamos websites e sistemas digitais para negócios que querem gerar contactos,
-              vender, receber marcações ou automatizar processos — começando por uma base simples,
-              clara e preparada para evoluir.
-            </span>
-          </p>
-
-          <div className="hero-actions flex-wrap">
             <a
               href="/contacto"
-              className="btn-primary hightech-button"
-              onClick={() => trackEvent('cta_click', {
-                cta_text: 'Pedir proposta gratuita',
-                cta_location: 'hero_primary',
-                destination: '/contacto'
-              })}
+              className="btn-ghost hidden text-sm sm:inline-flex sm:text-base"
+              onClick={() =>
+                trackEvent('cta_click', {
+                  cta_text: 'Pedir proposta gratuita',
+                  cta_location: 'header',
+                  destination: '/contacto'
+                })
+              }
             >
-              <span className="btn-shine" />
-              <span className="relative z-10">Pedir proposta gratuita</span>
+              Pedir proposta gratuita
             </a>
+          </header>
 
-            <a
-              href="/projetos"
-              className="btn-secondary hightech-button-secondary"
-              onClick={() => trackEvent('cta_click', {
-                cta_text: 'Ver projetos reais',
-                cta_location: 'hero_secondary',
-                destination: '/projetos'
-              })}
-            >
-              Ver projetos reais
-            </a>
-
-            <a
-              href="/produtos"
-              className="btn-secondary hightech-button-secondary"
-              onClick={() => trackEvent('cta_click', {
-                cta_text: 'Ver produtos',
-                cta_location: 'hero_products',
-                destination: '/produtos'
-              })}
-            >
-              Ver produtos
-            </a>
-          </div>
-
-          <p className="mt-4 max-w-xl text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70 sm:text-sm">
-            Proposta gratuita · Sem compromisso · Pode começar simples
-          </p>
-
-          <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
-            <li>Domínio + alojamento</li>
-            <li>Mobile-first</li>
-            <li>Pode evoluir por fases</li>
-          </ul>
-
-          <ServiceMarquee />
-        </div>
-
-        <div
-          className={`relative hidden lg:block ${
-            mounted ? 'animate-fade-in-scale' : 'opacity-0'
-          }`}
-        >
-          <div className="hero-panel">
-            <div className="hero-panel__glow" />
-
-            <div className="hero-panel__header">
-              <div className="hero-panel__dots">
-                <span />
-                <span />
-                <span />
+          <div className="hero-layout">
+            <div className={`hero-copy ${mounted ? 'animate-fade-in-up' : 'opacity-0'}`}>
+              <div className="hero-topline">
+                <span className="hero-topline__dot" />
+                <span>Website hoje. Sistema amanhã.</span>
               </div>
 
-              <span className="hero-panel__label">MA-Code</span>
+              <h1 className="hero-title">
+                Websites profissionais desde 19€/mês para começar simples e crescer depois.
+              </h1>
+
+              <div className="hero-price-badge">
+                Domínio + alojamento incluídos
+              </div>
+
+              <p className="hero-subtitle">
+                Criamos websites e sistemas digitais para gerar contactos, vender, receber
+                marcações ou automatizar processos — com uma base simples, clara e preparada
+                para evoluir.
+              </p>
+
+              <div className="hero-actions flex-wrap">
+                <a
+                  href="/contacto"
+                  className="btn-primary hightech-button"
+                  onClick={() =>
+                    trackEvent('cta_click', {
+                      cta_text: 'Pedir proposta gratuita',
+                      cta_location: 'hero_primary',
+                      destination: '/contacto'
+                    })
+                  }
+                >
+                  <span className="btn-shine" />
+                  <span className="relative z-10">Pedir proposta gratuita</span>
+                </a>
+
+                <a
+                  href="/projetos"
+                  className="btn-secondary hightech-button-secondary"
+                  onClick={() =>
+                    trackEvent('cta_click', {
+                      cta_text: 'Ver projetos reais',
+                      cta_location: 'hero_secondary',
+                      destination: '/projetos'
+                    })
+                  }
+                >
+                  Ver projetos reais
+                </a>
+              </div>
+
+              <div className="mt-4 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70 sm:text-sm">
+                <span>Proposta gratuita · Sem compromisso</span>
+
+                <a
+                  href="/produtos"
+                  className="text-cyan-200 transition hover:text-cyan-50"
+                  onClick={() =>
+                    trackEvent('cta_click', {
+                      cta_text: 'Ver produtos',
+                      cta_location: 'hero_products',
+                      destination: '/produtos'
+                    })
+                  }
+                >
+                  Explorar produtos MA-Code →
+                </a>
+              </div>
+
+              <ul className="hero-mini-points" aria-label="Pontos fortes da MA-Code">
+                <li>Mobile-first</li>
+                <li>Performance e SEO</li>
+                <li>Pode evoluir por fases</li>
+              </ul>
+
+              <ServiceMarquee />
             </div>
 
-            <div className="hero-panel__content">
-              <div className="hud-card hud-card--wide">
-                <span className="hud-card__label">Comece simples</span>
-                <strong>Website claro, profissional e preparado para gerar contactos</strong>
-              </div>
+            <div
+              className={`relative hidden lg:block ${
+                mounted ? 'animate-fade-in-scale' : 'opacity-0'
+              }`}
+            >
+              <div className="hero-panel">
+                <div className="hero-panel__glow" />
 
-              <DigitalStackVisual />
+                <div className="hero-panel__header">
+                  <div className="hero-panel__dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="hud-card">
-                  <span className="hud-card__label">Inclui</span>
-                  <strong>Domínio + alojamento</strong>
+                  <span className="hero-panel__label">MA-Code</span>
                 </div>
 
-                <div className="hud-card">
-                  <span className="hud-card__label">Pode evoluir para</span>
-                  <strong>Loja, marcações, automação ou sistema à medida</strong>
+                <div className="hero-panel__content">
+                  <div className="hud-card hud-card--wide">
+                    <span className="hud-card__label">Comece simples</span>
+                    <strong>
+                      Website claro, profissional e preparado para gerar contactos
+                    </strong>
+                  </div>
+
+                  <DigitalStackVisual />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="hud-card">
+                      <span className="hud-card__label">Inclui</span>
+                      <strong>Domínio + alojamento</strong>
+                    </div>
+
+                    <div className="hud-card">
+                      <span className="hud-card__label">Pode evoluir para</span>
+                      <strong>
+                        Loja, marcações, automação ou sistema à medida
+                      </strong>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
-    <div className="mx-auto max-w-7xl">
-      <SectionHeader
-        eyebrow="Escolha o caminho"
-        title="O que precisa neste momento?"
-        description="Escolha o ponto de partida. Pode ver os detalhes nas páginas próprias ou pedir proposta gratuita diretamente."
-      />
+      <section className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+        <div className="mx-auto max-w-7xl">
+          <SectionHeader
+            eyebrow="Escolha o caminho"
+            title="O que precisa neste momento?"
+            description="Escolha o ponto de partida. Pode ver os detalhes nas páginas próprias ou pedir proposta gratuita diretamente."
+          />
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {pathCards.map((card, index) => (
-          <article
-            key={card.title}
-            className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
-              mounted ? 'animate-fade-in-up' : 'opacity-0'
-            }`}
-            style={{ animationDelay: `${index * 120}ms` }}
-          >
-            <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
-            <span className="pointer-events-none absolute -right-14 -top-16 size-40 rounded-full bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/20" />
-            <span className="pointer-events-none absolute -bottom-20 left-8 size-32 rounded-full bg-violet-400/10 blur-3xl transition duration-500 group-hover:bg-violet-400/15" />
+          <div className="grid gap-6 md:grid-cols-3">
+            {pathCards.map((card, index) => (
+              <article
+                key={card.title}
+                className={`service-card group relative flex h-full overflow-hidden rounded-[2rem] border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/20 transition duration-300 hover:-translate-y-1 hover:border-cyan-200/35 hover:bg-slate-900/80 hover:shadow-cyan-950/35 md:p-6 ${
+                  mounted ? 'animate-fade-in-up' : 'opacity-0'
+                }`}
+                style={{ animationDelay: `${index * 120}ms` }}
+              >
+                <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent opacity-70" />
+                <span className="pointer-events-none absolute -right-14 -top-16 size-40 rounded-full bg-cyan-300/10 blur-3xl transition duration-500 group-hover:bg-cyan-300/20" />
+                <span className="pointer-events-none absolute -bottom-20 left-8 size-32 rounded-full bg-violet-400/10 blur-3xl transition duration-500 group-hover:bg-violet-400/15" />
 
-            <div className="relative z-10 flex h-full w-full flex-col">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <span className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                    {card.eyebrow}
-                  </span>
+                <div className="relative z-10 flex h-full w-full flex-col">
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <span className="mb-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        {card.eyebrow}
+                      </span>
 
-                  <h3 className="service-card__title">{card.title}</h3>
-                </div>
+                      <h3 className="service-card__title">{card.title}</h3>
+                    </div>
 
-                <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center shadow-inner shadow-white/5">
-                  <span className="text-[0.58rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Opção
-                  </span>
+                    <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center shadow-inner shadow-white/5">
+                      <span className="text-[0.58rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Opção
+                      </span>
 
-                  <strong className="mt-1 text-sm font-semibold text-cyan-100">
-                    {String(index + 1).padStart(2, '0')}
-                  </strong>
-                </div>
-              </div>
+                      <strong className="mt-1 text-sm font-semibold text-cyan-100">
+                        {String(index + 1).padStart(2, '0')}
+                      </strong>
+                    </div>
+                  </div>
 
-              <p className="service-card__description">{card.description}</p>
+                  <p className="service-card__description">{card.description}</p>
 
-              <FeatureList items={card.points} className="mt-5" />
+                  <FeatureList items={card.points} className="mt-5" />
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                {card.learnLinks.map((link) => (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {card.learnLinks.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 transition duration-300 hover:border-cyan-200/35 hover:bg-cyan-300/10 hover:text-cyan-50"
+                        onClick={() =>
+                          trackEvent('service_page_link_click', {
+                            service_name: link.label,
+                            destination: link.href,
+                            section: 'path_cards'
+                          })
+                        }
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+
                   <a
-                    key={link.href}
-                    href={link.href}
-                    className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 transition duration-300 hover:border-cyan-200/35 hover:bg-cyan-300/10 hover:text-cyan-50"
-                    onClick={() => trackEvent('service_page_link_click', {
-                      service_name: link.label,
-                      destination: link.href,
-                      section: 'path_cards'
-                    })}
+                    href={card.href}
+                    onClick={() =>
+                      trackEvent('project_path_selected', {
+                        project_type: card.projectType,
+                        project_goal: card.projectGoal,
+                        section: 'path_cards',
+                        destination: card.href
+                      })
+                    }
+                    aria-label={`${card.cta}. Abre a página de contacto para pedir proposta.`}
+                    className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15"
                   >
-                    {link.label}
+                    <span>{card.cta}</span>
+
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
                   </a>
-                ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <FeaturedProjects mounted={mounted} />
+
+      <section className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
+            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <span className="section-label">Próximo passo</span>
+
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                  Pronto para perceber o melhor caminho para o seu projeto?
+                </h2>
+
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+                  Explique o que precisa ou o problema que quer resolver. A proposta é
+                  gratuita, sem compromisso, e pode começar por uma solução simples preparada
+                  para crescer.
+                </p>
               </div>
 
               <a
-                href={card.href}
-                onClick={() => trackEvent('project_path_selected', {
-                  project_type: card.projectType,
-                  project_goal: card.projectGoal,
-                  section: 'path_cards',
-                  destination: card.href
-                })}
-                aria-label={`${card.cta}. Abre a página de contacto para pedir proposta.`}
-                className="mt-6 inline-flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition duration-300 group-hover:border-cyan-200/40 group-hover:bg-cyan-300/15"
+                href="/contacto"
+                className="btn-primary hightech-button"
+                onClick={() =>
+                  trackEvent('cta_click', {
+                    cta_text: 'Pedir proposta gratuita',
+                    cta_location: 'homepage_final_cta',
+                    destination: '/contacto'
+                  })
+                }
               >
-                <span>{card.cta}</span>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-slate-950 transition duration-300 group-hover:translate-x-1">
-                  →
-                </span>
+                <span className="btn-shine" />
+                <span className="relative z-10">Pedir proposta gratuita</span>
               </a>
             </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <FeaturedProjects mounted={mounted} />
-
-  <section className="px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
-    <div className="mx-auto max-w-7xl">
-      <div className="rounded-3xl border border-cyan-300/15 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur md:p-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <span className="section-label">Próximo passo</span>
-
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Pronto para perceber o melhor caminho para o seu projeto?
-            </h2>
-
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Explique o que precisa ou o problema que quer resolver. A proposta é gratuita,
-              sem compromisso, e pode começar por uma solução simples preparada para crescer.
-            </p>
           </div>
-
-          <a
-            href="/contacto"
-            className="btn-primary hightech-button"
-            onClick={() => trackEvent('cta_click', {
-              cta_text: 'Pedir proposta gratuita',
-              cta_location: 'homepage_final_cta',
-              destination: '/contacto'
-            })}
-          >
-            <span className="btn-shine" />
-            <span className="relative z-10">Pedir proposta gratuita</span>
-          </a>
         </div>
-      </div>
-    </div>
-  </section>
-</main>
-
-)}
+      </section>
+    </main>
+  )
+}
