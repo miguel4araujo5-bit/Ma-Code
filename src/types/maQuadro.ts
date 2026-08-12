@@ -16,7 +16,6 @@ export type MAQuadroBrand = {
     colors: MAQuadroBrandColor[];
     fonts: MAQuadroBrandFont[];
 };
-
 export type MAQuadroStoredBrandKit = {
     id: string;
     name: string;
@@ -39,7 +38,6 @@ export type MAQuadroBackgroundType =
     | 'solid'
     | 'transparent'
     | 'gradient';
-
 export type MAQuadroBackground = {
     type: MAQuadroBackgroundType;
     color: string;
@@ -65,7 +63,6 @@ export type MAQuadroProjectCategory =
     | 'print'
     | 'invitation'
     | 'custom';
-
 export type MAQuadroProject = {
     schemaVersion: 2;
     id: string;
@@ -86,7 +83,6 @@ export type MAQuadroStoredFont = {
     data: ArrayBuffer;
     createdAt: string;
 };
-
 export type MAQuadroStoredLogo = {
     id: string;
     name: string;
@@ -95,6 +91,19 @@ export type MAQuadroStoredLogo = {
     data: ArrayBuffer;
     size: number;
     brandKitId?: string;
+    createdAt: string;
+};
+export type MAQuadroStoredVideo = {
+    id: string;
+    name: string;
+    fileName: string;
+    mimeType: string;
+    data: ArrayBuffer;
+    size: number;
+    durationMs: number;
+    width: number;
+    height: number;
+    posterDataUrl: string;
     createdAt: string;
 };
 
@@ -108,7 +117,6 @@ export type MAQuadroExportScale =
     | 1
     | 2
     | 3;
-
 export type MAQuadroExportFormat =
     | 'png'
     | 'jpg'
@@ -139,7 +147,6 @@ export type MAQuadroTextPreset =
     | 'subheading'
     | 'body'
     | 'caption';
-
 export type MAQuadroShapeKind =
     | 'rectangle'
     | 'circle'
