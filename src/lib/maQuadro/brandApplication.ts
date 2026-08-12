@@ -197,6 +197,7 @@ function transformTextStyles(
   }
 
   const source = value as CanvasObject
+
   const next: CanvasObject = {
     ...source
   }
@@ -319,6 +320,7 @@ export function createMAQuadroBrandedProject(
   kit: MAQuadroStoredBrandKit
 ) {
   const palette = paletteEntries(kit)
+
   const copy = duplicateProject(
     cloneMAQuadroValue(source),
     `${source.name} — ${kit.name}`
@@ -387,3 +389,6 @@ export async function createMAQuadroBrandedProjectCopy(
 
   return branded
 }
+
+export const createMAQuadroBrandedProjectFromStoredProject =
+  createMAQuadroBrandedProjectCopy
