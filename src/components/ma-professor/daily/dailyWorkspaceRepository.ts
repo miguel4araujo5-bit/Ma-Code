@@ -558,6 +558,12 @@ function buildAssessmentEntries(
 }
 
 export class DailyWorkspaceRepository {
+  private readonly loadedLessonVersions =
+    new Map<
+      EntityId,
+      string
+    >()
+
   async getDateWorkspace(
     academicYearId:
       EntityId,
@@ -746,7 +752,7 @@ export class DailyWorkspaceRepository {
           )
       )
 
-    return {
+    const workspace = {
       context,
       attendance,
       assessmentWorkspace,
@@ -767,6 +773,13 @@ export class DailyWorkspaceRepository {
           provisionalAverageByStudent
         )
     }
+
+    this.loadedLessonVersions.set(
+      lessonId,
+      context.lessonRow.lesson.updatedAt
+    )
+
+    return workspace
   }
 
   async saveLesson(
@@ -927,10 +940,43 @@ export class DailyWorkspaceRepository {
       }
     }
 
-    return maProfessorDb.transaction(
+    const expectedUpdatedAt =
+      this.loadedLessonVersions.get(
+        input.lessonId
+      )
+
+    if (!expectedUpdatedAt) {
+      throw new Error(
+        'Atualize a aula antes de guardar.'
+      )
+    }
+
+    const result = await maProfessorDb.transaction(
       'rw',
       maProfessorDb.tables,
       async () => {
+        const currentLesson =
+          await maProfessorDb
+            .lessons
+            .get(
+              input.lessonId
+            )
+
+        if (!currentLesson) {
+          throw new Error(
+            'A aula indicada não existe.'
+          )
+        }
+
+        if (
+          currentLesson.updatedAt !==
+          expectedUpdatedAt
+        ) {
+          throw new Error(
+            'Esta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
+          )
+        }
+
         const scheduleRepairChanges =
           await getLegacyScheduleRepairChanges(
             input.lessonId
@@ -1150,6 +1196,13 @@ export class DailyWorkspaceRepository {
         }
       }
     )
+
+    this.loadedLessonVersions.set(
+      input.lessonId,
+      result.lesson.updatedAt
+    )
+
+    return result
   }
 
   describeError(
