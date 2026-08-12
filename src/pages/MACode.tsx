@@ -436,7 +436,9 @@ function ServiceIcon({
           cy="12"
           r="8.2"
         />
+
         <path d="M3.8 12h16.4" />
+
         <path d="M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2c-2.3-2.5-3.5-5.3-3.5-8.2S9.7 6.3 12 3.8Z" />
       </svg>
     )
@@ -496,6 +498,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
+
         <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
       </svg>
     )
@@ -511,6 +514,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
+
         <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
       </svg>
     )
@@ -569,6 +573,7 @@ function ProductIcon({
       strokeWidth="1.8"
     >
       <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
+
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
     </svg>
   )
@@ -595,17 +600,17 @@ function HeroDevices() {
       </div>
 
       <div
-        className="relative mt-8 flex justify-end lg:hidden"
+        className="relative mt-4 h-[215px] lg:hidden sm:mt-5 sm:h-[350px]"
         aria-hidden="true"
       >
-        <div className="absolute -inset-8 bg-[radial-gradient(circle_at_66%_42%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_74%_65%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
+        <div className="pointer-events-none absolute -inset-8 bg-[radial-gradient(circle_at_72%_44%,rgba(34,211,238,0.13),transparent_30%),radial-gradient(circle_at_78%_66%,rgba(139,92,246,0.11),transparent_34%)] blur-3xl" />
 
         <img
           src="/ma-code-hero-devices.png"
           alt=""
           width={1200}
           height={800}
-          className="relative z-10 h-auto w-[94%] max-w-[560px] translate-x-[7%] object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)] sm:w-[90%] sm:max-w-[640px] sm:translate-x-[5%]"
+          className="absolute right-[-12%] top-0 z-10 h-auto w-[82%] max-w-none object-contain drop-shadow-[0_22px_48px_rgba(2,132,199,0.15)] sm:right-[-6%] sm:w-[76%]"
           loading="eager"
           decoding="async"
         />
@@ -949,6 +954,7 @@ export default function MACode() {
               <h1 className="mt-5 max-w-[10.8ch] text-[clamp(2.7rem,5.7vw,5.15rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] xl:max-w-[14.2ch]">
                 Websites e sistemas à
                 medida que fazem{' '}
+
                 <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                   a diferença.
                 </span>
@@ -960,6 +966,7 @@ export default function MACode() {
                 e sistemas personalizados
                 para automatizar e fazer
                 crescer o seu negócio —{' '}
+
                 <span className="font-semibold text-cyan-200">
                   desde 19€/mês.
                 </span>
@@ -1102,9 +1109,11 @@ export default function MACode() {
           <div className="text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
+
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 caminho certo
               </span>{' '}
+
               para o seu negócio
             </h2>
 
@@ -1186,9 +1195,11 @@ export default function MACode() {
             <h2 className="mt-5 max-w-[12ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:text-4xl">
               Ferramentas MA-Code
               que{' '}
+
               <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 impulsionam
               </span>{' '}
+
               o seu dia a dia
             </h2>
 
@@ -1318,6 +1329,7 @@ export default function MACode() {
                   <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white md:text-3xl">
                     Pronto para dar
                     o{' '}
+
                     <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                       próximo passo?
                     </span>
