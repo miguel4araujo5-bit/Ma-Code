@@ -1,6 +1,7 @@
 const API_BASE = '/api/conquistador/matchmaking';
 const GAME_API_URL = '/api/conquistador/game';
 const FALLBACK_STATUS_INTERVAL_MS = 2000;
+const MAX_FALLBACK_STATUS_INTERVAL_MS = 30000;
 const REALTIME_RECONNECT_MIN_MS = 500;
 const REALTIME_RECONNECT_MAX_MS = 4000;
 const STORED_NAME_KEY = 'conquistador-online-name';
@@ -14,6 +15,7 @@ let fallbackTimer = null;
 let reconnectTimer = null;
 let realtimeSocket = null;
 let reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
+let fallbackDelayMs = FALLBACK_STATUS_INTERVAL_MS;
 let deadlineAt = null;
 let busy = false;
 let readyMatchData = null;
@@ -136,12 +138,27 @@ async function post(action, payload = {}) {
   }
 
   if (!response.ok || !data?.success) {
-    throw new Error(
+    const error = new Error(
       data?.message || 'Não foi possível contactar o matchmaking.',
     );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
   }
 
   return data;
+}
+
+function isTerminalStatus(status) {
+  return [
+    400,
+    401,
+    403,
+    404,
+    410,
+  ].includes(Number(status));
 }
 
 function createRealtimeUrl(currentTicketId) {
@@ -154,8 +171,10 @@ function createRealtimeUrl(currentTicketId) {
     API_BASE,
     window.location.href,
   );
+
   url.protocol = protocol;
   url.searchParams.set('ticketId', currentTicketId);
+
   return url.toString();
 }
 
@@ -201,6 +220,7 @@ function stopTimers() {
 
 function resetSession() {
   stopTimers();
+
   ticketId = null;
   playerId = null;
   reconnectToken = null;
@@ -209,10 +229,13 @@ function resetSession() {
   readyMatchData = null;
   deadlineStatusRequested = false;
   reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
+  fallbackDelayMs = FALLBACK_STATUS_INTERVAL_MS;
 }
 
 function removeOverlay() {
-  document.querySelector('#online-matchmaking-overlay')?.remove();
+  document
+    .querySelector('#online-matchmaking-overlay')
+    ?.remove();
 }
 
 function closeOverlay() {
@@ -221,19 +244,41 @@ function closeOverlay() {
 }
 
 function getOverlay() {
-  return document.querySelector('#online-matchmaking-overlay');
+  return document.querySelector(
+    '#online-matchmaking-overlay',
+  );
 }
 
 function createOverlay() {
   removeOverlay();
 
-  const overlay = document.createElement('div');
-  overlay.id = 'online-matchmaking-overlay';
-  overlay.className = 'online-matchmaking-overlay';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-labelledby', 'online-matchmaking-title');
-  document.body.appendChild(overlay);
+  const overlay =
+    document.createElement('div');
+
+  overlay.id =
+    'online-matchmaking-overlay';
+
+  overlay.className =
+    'online-matchmaking-overlay';
+
+  overlay.setAttribute(
+    'role',
+    'dialog',
+  );
+
+  overlay.setAttribute(
+    'aria-modal',
+    'true',
+  );
+
+  overlay.setAttribute(
+    'aria-labelledby',
+    'online-matchmaking-title',
+  );
+
+  document.body.appendChild(
+    overlay,
+  );
 
   return overlay;
 }
@@ -241,8 +286,11 @@ function createOverlay() {
 function renderEntry() {
   resetSession();
 
-  const overlay = createOverlay();
-  const storedName = getStoredName();
+  const overlay =
+    createOverlay();
+
+  const storedName =
+    getStoredName();
 
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-entry">
@@ -267,9 +315,13 @@ function renderEntry() {
         Procuramos jogadores durante 5 segundos. Os lugares que ficarem livres são preenchidos automaticamente.
       </p>
 
-      <form id="online-matchmaking-form" class="online-matchmaking-form">
+      <form
+        id="online-matchmaking-form"
+        class="online-matchmaking-form"
+      >
         <label>
           <span>O seu nome</span>
+
           <input
             id="online-player-name"
             name="name"
@@ -290,17 +342,26 @@ function renderEntry() {
         </button>
       </form>
 
-      <p id="online-matchmaking-error" class="online-matchmaking-error" hidden></p>
+      <p
+        id="online-matchmaking-error"
+        class="online-matchmaking-error"
+        hidden
+      ></p>
     </section>
   `;
 
   overlay
-    .querySelector('#online-player-name')
+    .querySelector(
+      '#online-player-name',
+    )
     ?.focus();
 }
 
 function renderWaiting() {
-  const overlay = getOverlay() || createOverlay();
+  const overlay =
+    getOverlay() ||
+    createOverlay();
+
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-waiting">
       <button
@@ -316,9 +377,17 @@ function renderWaiting() {
         A procurar jogadores
       </p>
 
-      <div class="online-matchmaking-countdown" aria-live="polite">
-        <strong id="online-countdown-value">5</strong>
-        <span>segundos</span>
+      <div
+        class="online-matchmaking-countdown"
+        aria-live="polite"
+      >
+        <strong id="online-countdown-value">
+          5
+        </strong>
+
+        <span>
+          segundos
+        </span>
       </div>
 
       <h2 id="online-matchmaking-title">
@@ -329,7 +398,10 @@ function renderWaiting() {
         Se quatro jogadores estiverem disponíveis, a partida fica pronta imediatamente.
       </p>
 
-      <div class="online-matchmaking-search-slots" aria-hidden="true">
+      <div
+        class="online-matchmaking-search-slots"
+        aria-hidden="true"
+      >
         <span class="is-human">●</span>
         <span>●</span>
         <span>●</span>
@@ -348,84 +420,170 @@ function renderWaiting() {
 
   updateCountdown();
 
-  countdownTimer = window.setInterval(
-    updateCountdown,
-    100,
-  );
+  countdownTimer =
+    window.setInterval(
+      updateCountdown,
+      100,
+    );
 }
 
 function updateCountdown() {
-  const value = document.querySelector('#online-countdown-value');
+  const value =
+    document.querySelector(
+      '#online-countdown-value',
+    );
 
-  if (!value || !deadlineAt) {
+  if (
+    !value ||
+    !deadlineAt
+  ) {
     return;
   }
 
-  const remaining = Math.max(0, deadlineAt - Date.now());
-  value.textContent = String(Math.max(0, Math.ceil(remaining / 1000)));
+  const remaining =
+    Math.max(
+      0,
+      deadlineAt -
+        Date.now(),
+    );
+
+  value.textContent =
+    String(
+      Math.max(
+        0,
+        Math.ceil(
+          remaining /
+            1000,
+        ),
+      ),
+    );
 
   if (
     remaining === 0 &&
     !deadlineStatusRequested &&
-    realtimeSocket?.readyState === WebSocket.OPEN
+    realtimeSocket?.readyState ===
+      WebSocket.OPEN
   ) {
-    deadlineStatusRequested = true;
+    deadlineStatusRequested =
+      true;
 
     try {
-      realtimeSocket.send(JSON.stringify({ type: 'status' }));
+      realtimeSocket.send(
+        JSON.stringify({
+          type:
+            'status',
+        }),
+      );
     } catch {
-      scheduleFallbackStatus(500);
+      scheduleFallbackStatus(
+        500,
+      );
     }
   }
 }
 
-function participantMarkup(participant) {
-  const isBot = participant.kind === 'bot';
-  const isSelf = participant.id === playerId;
-  const icon = isBot ? escapeHtml(participant.icon || '⚙') : '';
+function participantMarkup(
+  participant,
+) {
+  const isBot =
+    participant.kind ===
+    'bot';
+
+  const isSelf =
+    participant.id ===
+    playerId;
+
+  const icon =
+    isBot
+      ? escapeHtml(
+          participant.icon ||
+            '⚙',
+        )
+      : '';
 
   return `
-    <li class="online-participant ${isBot ? 'is-bot' : 'is-human'} ${isSelf ? 'is-self' : ''}">
-      <span class="online-participant-marker" aria-hidden="true">
-        ${isBot ? icon : '●'}
+    <li class="online-participant ${
+      isBot
+        ? 'is-bot'
+        : 'is-human'
+    } ${
+      isSelf
+        ? 'is-self'
+        : ''
+    }">
+      <span
+        class="online-participant-marker"
+        aria-hidden="true"
+      >
+        ${
+          isBot
+            ? icon
+            : '●'
+        }
       </span>
 
       <span class="online-participant-name">
-        ${escapeHtml(participant.name)}
+        ${escapeHtml(
+          participant.name,
+        )}
       </span>
 
-      ${isSelf ? '<small>Você</small>' : ''}
+      ${
+        isSelf
+          ? '<small>Você</small>'
+          : ''
+      }
     </li>
   `;
 }
 
 function renderMatch(data) {
   stopTimers();
+
   busy = false;
 
-  const overlay = getOverlay() || createOverlay();
-  const participants = Array.isArray(data.participants)
-    ? data.participants
-    : [];
+  const overlay =
+    getOverlay() ||
+    createOverlay();
 
-  playerId = data.playerId || playerId;
-  reconnectToken = data.reconnectToken || reconnectToken;
+  const participants =
+    Array.isArray(
+      data.participants,
+    )
+      ? data.participants
+      : [];
 
-  if (!data.matchId || !playerId || !reconnectToken) {
+  playerId =
+    data.playerId ||
+    playerId;
+
+  reconnectToken =
+    data.reconnectToken ||
+    reconnectToken;
+
+  if (
+    !data.matchId ||
+    !playerId ||
+    !reconnectToken
+  ) {
     throw new Error(
       'A partida foi encontrada, mas a credencial de reconexão não ficou disponível.',
     );
   }
 
   readyMatchData = {
-    matchId: data.matchId,
+    matchId:
+      data.matchId,
     playerId,
     reconnectToken,
     participants,
-    savedAt: Date.now(),
+    savedAt:
+      Date.now(),
   };
 
-  storeSession(readyMatchData);
+  storeSession(
+    readyMatchData,
+  );
 
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-found">
@@ -433,7 +591,10 @@ function renderMatch(data) {
         Partida encontrada
       </p>
 
-      <div class="online-matchmaking-success" aria-hidden="true">
+      <div
+        class="online-matchmaking-success"
+        aria-hidden="true"
+      >
         ✓
       </div>
 
@@ -442,15 +603,48 @@ function renderMatch(data) {
       </h2>
 
       <p class="online-matchmaking-copy">
-        ${Number(data.humanCount) || 0} jogador${Number(data.humanCount) === 1 ? '' : 'es'} online · ${Number(data.botCount) || 0} adversário${Number(data.botCount) === 1 ? '' : 's'} automático${Number(data.botCount) === 1 ? '' : 's'}
+        ${
+          Number(
+            data.humanCount,
+          ) || 0
+        } jogador${
+          Number(
+            data.humanCount,
+          ) === 1
+            ? ''
+            : 'es'
+        } online · ${
+          Number(
+            data.botCount,
+          ) || 0
+        } adversário${
+          Number(
+            data.botCount,
+          ) === 1
+            ? ''
+            : 's'
+        } automático${
+          Number(
+            data.botCount,
+          ) === 1
+            ? ''
+            : 's'
+        }
       </p>
 
       <ul class="online-participants">
-        ${participants.map(participantMarkup).join('')}
+        ${
+          participants
+            .map(
+              participantMarkup,
+            )
+            .join('')
+        }
       </ul>
 
       <div class="online-matchmaking-ready-note">
         <span>⚙</span>
+
         <p>
           O ícone identifica discretamente os adversários automáticos.
         </p>
@@ -476,111 +670,228 @@ function renderMatch(data) {
 }
 
 function showError(message) {
-  const element = document.querySelector('#online-matchmaking-error');
+  const element =
+    document.querySelector(
+      '#online-matchmaking-error',
+    );
 
   if (!element) {
     return;
   }
 
-  element.textContent = message;
-  element.hidden = false;
+  element.textContent =
+    message;
+
+  element.hidden =
+    false;
 }
 
-function renderConnectionError(message) {
+function renderConnectionError(
+  message,
+) {
   stopTimers();
+
   busy = false;
 
-  const overlay = getOverlay();
+  const overlay =
+    getOverlay();
+
   if (!overlay) {
     return;
   }
 
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-entry">
-      <p class="online-matchmaking-eyebrow">Conquistador Online</p>
-      <h2 id="online-matchmaking-title">Ligação interrompida</h2>
-      <p class="online-matchmaking-copy">
-        ${escapeHtml(message || 'Não foi possível continuar o matchmaking.')}
+      <p class="online-matchmaking-eyebrow">
+        Conquistador Online
       </p>
-      <button type="button" class="button button-primary" data-online-retry>
+
+      <h2 id="online-matchmaking-title">
+        Ligação interrompida
+      </h2>
+
+      <p class="online-matchmaking-copy">
+        ${escapeHtml(
+          message ||
+            'Não foi possível continuar o matchmaking.',
+        )}
+      </p>
+
+      <button
+        type="button"
+        class="button button-primary"
+        data-online-retry
+      >
         Tentar novamente
       </button>
-      <button type="button" class="text-button online-matchmaking-back" data-online-close>
+
+      <button
+        type="button"
+        class="text-button online-matchmaking-back"
+        data-online-close
+      >
         Voltar
       </button>
     </section>
   `;
 }
 
-function applyMatchmakingStatus(response) {
-  if (!response || typeof response !== 'object') {
+function applyMatchmakingStatus(
+  response,
+) {
+  if (
+    !response ||
+    typeof response !==
+      'object'
+  ) {
     return false;
   }
 
-  if (response.success === false || response.status === 'error') {
+  if (
+    response.success ===
+      false ||
+    response.status ===
+      'error'
+  ) {
     renderConnectionError(
-      response.message || 'Não foi possível preparar a partida online.',
+      response.message ||
+        'Não foi possível preparar a partida online.',
     );
+
     return true;
   }
 
-  playerId = response.playerId || playerId;
-  reconnectToken = response.reconnectToken || reconnectToken;
+  playerId =
+    response.playerId ||
+    playerId;
 
-  if (response.status === 'matched') {
-    renderMatch(response);
+  reconnectToken =
+    response.reconnectToken ||
+    reconnectToken;
+
+  if (
+    response.status ===
+    'matched'
+  ) {
+    renderMatch(
+      response,
+    );
+
     return true;
   }
 
-  if (response.status === 'left') {
+  if (
+    response.status ===
+    'left'
+  ) {
     renderEntry();
+
     return true;
   }
 
-  if (Number.isFinite(Number(response.deadlineAt))) {
-    deadlineAt = Number(response.deadlineAt);
+  if (
+    Number.isFinite(
+      Number(
+        response.deadlineAt,
+      ),
+    )
+  ) {
+    deadlineAt =
+      Number(
+        response.deadlineAt,
+      );
   }
 
   return false;
 }
 
-function scheduleFallbackStatus(delay = FALLBACK_STATUS_INTERVAL_MS) {
+function scheduleFallbackStatus(
+  delay = fallbackDelayMs,
+) {
   clearFallbackTimer();
 
   if (
     !ticketId ||
     readyMatchData?.matchId ||
-    realtimeSocket?.readyState === WebSocket.OPEN
+    document.hidden ||
+    realtimeSocket?.readyState ===
+      WebSocket.OPEN
   ) {
     return;
   }
 
-  fallbackTimer = window.setTimeout(
-    () => void fallbackStatusOnce(),
-    Math.max(500, Number(delay) || FALLBACK_STATUS_INTERVAL_MS),
-  );
+  fallbackTimer =
+    window.setTimeout(
+      () =>
+        void fallbackStatusOnce(),
+      Math.max(
+        500,
+        Number(delay) ||
+          FALLBACK_STATUS_INTERVAL_MS,
+      ),
+    );
 }
 
 async function fallbackStatusOnce() {
-  if (!ticketId || readyMatchData?.matchId) {
+  if (
+    !ticketId ||
+    readyMatchData?.matchId ||
+    document.hidden
+  ) {
     return;
   }
 
   try {
-    const response = await post('status', { ticketId });
+    const response =
+      await post(
+        'status',
+        {
+          ticketId,
+        },
+      );
 
-    if (applyMatchmakingStatus(response)) {
+    fallbackDelayMs =
+      FALLBACK_STATUS_INTERVAL_MS;
+
+    if (
+      applyMatchmakingStatus(
+        response,
+      )
+    ) {
       return;
     }
 
     scheduleFallbackStatus();
+
     scheduleRealtimeReconnect();
   } catch (error) {
-    renderConnectionError(
-      error instanceof Error
-        ? error.message
-        : 'Não foi possível continuar o matchmaking.',
-    );
+    if (
+      isTerminalStatus(
+        error?.status,
+      )
+    ) {
+      renderConnectionError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível continuar o matchmaking.',
+      );
+
+      return;
+    }
+
+    fallbackDelayMs =
+      Math.min(
+        MAX_FALLBACK_STATUS_INTERVAL_MS,
+        Math.max(
+          FALLBACK_STATUS_INTERVAL_MS,
+          fallbackDelayMs *
+            2,
+        ),
+      );
+
+    scheduleFallbackStatus();
+
+    scheduleRealtimeReconnect();
   }
 }
 
@@ -590,28 +901,36 @@ function scheduleRealtimeReconnect() {
   if (
     !ticketId ||
     readyMatchData?.matchId ||
-    realtimeSocket?.readyState === WebSocket.OPEN ||
+    realtimeSocket?.readyState ===
+      WebSocket.OPEN ||
     document.hidden
   ) {
     return;
   }
 
-  const delay = reconnectDelayMs;
-  reconnectDelayMs = Math.min(
-    REALTIME_RECONNECT_MAX_MS,
-    Math.max(
-      REALTIME_RECONNECT_MIN_MS,
-      reconnectDelayMs * 2,
-    ),
-  );
+  const delay =
+    reconnectDelayMs;
 
-  reconnectTimer = window.setTimeout(
-    () => {
-      reconnectTimer = null;
-      connectRealtime();
-    },
-    delay,
-  );
+  reconnectDelayMs =
+    Math.min(
+      REALTIME_RECONNECT_MAX_MS,
+      Math.max(
+        REALTIME_RECONNECT_MIN_MS,
+        reconnectDelayMs *
+          2,
+      ),
+    );
+
+  reconnectTimer =
+    window.setTimeout(
+      () => {
+        reconnectTimer =
+          null;
+
+        connectRealtime();
+      },
+      delay,
+    );
 }
 
 function connectRealtime() {
@@ -626,8 +945,10 @@ function connectRealtime() {
   if (
     realtimeSocket &&
     (
-      realtimeSocket.readyState === WebSocket.OPEN ||
-      realtimeSocket.readyState === WebSocket.CONNECTING
+      realtimeSocket.readyState ===
+        WebSocket.OPEN ||
+      realtimeSocket.readyState ===
+        WebSocket.CONNECTING
     )
   ) {
     return;
@@ -638,104 +959,211 @@ function connectRealtime() {
   let socket;
 
   try {
-    socket = new WebSocket(
-      createRealtimeUrl(ticketId),
-    );
+    socket =
+      new WebSocket(
+        createRealtimeUrl(
+          ticketId,
+        ),
+      );
   } catch {
-    scheduleFallbackStatus(500);
+    scheduleFallbackStatus(
+      500,
+    );
+
     scheduleRealtimeReconnect();
+
     return;
   }
 
-  realtimeSocket = socket;
+  realtimeSocket =
+    socket;
 
-  socket.addEventListener('open', () => {
-    if (realtimeSocket !== socket) {
-      return;
-    }
+  socket.addEventListener(
+    'open',
+    () => {
+      if (
+        realtimeSocket !==
+        socket
+      ) {
+        return;
+      }
 
-    reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
-    clearFallbackTimer();
-  });
+      reconnectDelayMs =
+        REALTIME_RECONNECT_MIN_MS;
 
-  socket.addEventListener('message', (event) => {
-    if (realtimeSocket !== socket) {
-      return;
-    }
+      fallbackDelayMs =
+        FALLBACK_STATUS_INTERVAL_MS;
 
-    let message = null;
+      clearFallbackTimer();
+    },
+  );
 
-    try {
-      message = JSON.parse(String(event.data || ''));
-    } catch {
-      return;
-    }
+  socket.addEventListener(
+    'message',
+    event => {
+      if (
+        realtimeSocket !==
+        socket
+      ) {
+        return;
+      }
 
-    if (message?.type === 'matchmaking-status') {
-      applyMatchmakingStatus(message.data || {});
-      return;
-    }
+      let message =
+        null;
 
-    if (message?.type === 'matchmaking-error') {
-      renderConnectionError(
-        message.message || 'Não foi possível continuar o matchmaking.',
+      try {
+        message =
+          JSON.parse(
+            String(
+              event.data ||
+                '',
+            ),
+          );
+      } catch {
+        return;
+      }
+
+      if (
+        message?.type ===
+        'matchmaking-status'
+      ) {
+        fallbackDelayMs =
+          FALLBACK_STATUS_INTERVAL_MS;
+
+        applyMatchmakingStatus(
+          message.data ||
+            {},
+        );
+
+        return;
+      }
+
+      if (
+        message?.type ===
+        'matchmaking-error'
+      ) {
+        renderConnectionError(
+          message.message ||
+            'Não foi possível continuar o matchmaking.',
+        );
+      }
+    },
+  );
+
+  socket.addEventListener(
+    'close',
+    () => {
+      if (
+        realtimeSocket !==
+        socket
+      ) {
+        return;
+      }
+
+      realtimeSocket =
+        null;
+
+      if (
+        !ticketId ||
+        readyMatchData?.matchId
+      ) {
+        return;
+      }
+
+      scheduleFallbackStatus(
+        500,
       );
-    }
-  });
 
-  socket.addEventListener('close', () => {
-    if (realtimeSocket !== socket) {
-      return;
-    }
+      scheduleRealtimeReconnect();
+    },
+  );
 
-    realtimeSocket = null;
+  socket.addEventListener(
+    'error',
+    () => {
+      if (
+        realtimeSocket !==
+        socket
+      ) {
+        return;
+      }
 
-    if (
-      !ticketId ||
-      readyMatchData?.matchId
-    ) {
-      return;
-    }
-
-    scheduleFallbackStatus(500);
-    scheduleRealtimeReconnect();
-  });
-
-  socket.addEventListener('error', () => {
-    if (realtimeSocket !== socket) {
-      return;
-    }
-
-    scheduleFallbackStatus(500);
-  });
+      scheduleFallbackStatus(
+        500,
+      );
+    },
+  );
 }
 
-async function startSearch(name) {
+async function startSearch(
+  name,
+) {
   if (busy) {
     return;
   }
 
   busy = true;
-  storeName(name);
+
+  storeName(
+    name,
+  );
+
+  fallbackDelayMs =
+    FALLBACK_STATUS_INTERVAL_MS;
+
+  reconnectDelayMs =
+    REALTIME_RECONNECT_MIN_MS;
 
   try {
-    const response = await post('join', { name });
+    const response =
+      await post(
+        'join',
+        {
+          name,
+        },
+      );
 
-    ticketId = response.ticketId || null;
-    playerId = response.playerId || playerId;
-    reconnectToken = response.reconnectToken || reconnectToken;
+    ticketId =
+      response.ticketId ||
+      null;
 
-    if (response.status === 'matched') {
-      renderMatch(response);
+    playerId =
+      response.playerId ||
+      playerId;
+
+    reconnectToken =
+      response.reconnectToken ||
+      reconnectToken;
+
+    if (
+      response.status ===
+      'matched'
+    ) {
+      renderMatch(
+        response,
+      );
+
       return;
     }
 
-    deadlineAt = Number(response.deadlineAt) || (Date.now() + 5000);
-    deadlineStatusRequested = false;
+    deadlineAt =
+      Number(
+        response.deadlineAt,
+      ) ||
+      (
+        Date.now() +
+        5000
+      );
+
+    deadlineStatusRequested =
+      false;
+
     renderWaiting();
+
     connectRealtime();
   } catch (error) {
     busy = false;
+
     showError(
       error instanceof Error
         ? error.message
@@ -745,13 +1173,22 @@ async function startSearch(name) {
 }
 
 async function cancelSearch() {
-  const pendingTicketId = ticketId;
+  const pendingTicketId =
+    ticketId;
 
   resetSession();
 
-  if (pendingTicketId) {
+  if (
+    pendingTicketId
+  ) {
     try {
-      await post('leave', { ticketId: pendingTicketId });
+      await post(
+        'leave',
+        {
+          ticketId:
+            pendingTicketId,
+        },
+      );
     } catch {
       return renderEntry();
     }
@@ -761,56 +1198,110 @@ async function cancelSearch() {
 }
 
 function injectOnlineButton() {
-  const heroActions = document.querySelector('.home-screen .hero-actions');
+  const heroActions =
+    document.querySelector(
+      '.home-screen .hero-actions',
+    );
 
-  if (!heroActions || heroActions.querySelector('#online-game-button')) {
+  if (
+    !heroActions ||
+    heroActions.querySelector(
+      '#online-game-button',
+    )
+  ) {
     return;
   }
 
-  const button = document.createElement('button');
-  button.id = 'online-game-button';
-  button.type = 'button';
-  button.className = 'button button-secondary button-large online-game-button';
-  button.innerHTML = '<span aria-hidden="true">◉</span> Jogar Online';
+  const button =
+    document.createElement(
+      'button',
+    );
 
-  heroActions.appendChild(button);
+  button.id =
+    'online-game-button';
+
+  button.type =
+    'button';
+
+  button.className =
+    'button button-secondary button-large online-game-button';
+
+  button.innerHTML =
+    '<span aria-hidden="true">◉</span> Jogar Online';
+
+  heroActions.appendChild(
+    button,
+  );
 }
 
-const app = document.querySelector('#app');
+const app =
+  document.querySelector(
+    '#app',
+  );
 
 if (app) {
-  new MutationObserver(injectOnlineButton).observe(app, {
-    childList: true,
-    subtree: true,
-  });
+  new MutationObserver(
+    injectOnlineButton,
+  ).observe(
+    app,
+    {
+      childList: true,
+      subtree: true,
+    },
+  );
 
   injectOnlineButton();
 }
 
-document.addEventListener('submit', (event) => {
-  const form = event.target.closest('#online-matchmaking-form');
+document.addEventListener(
+  'submit',
+  event => {
+    const form =
+      event.target.closest(
+        '#online-matchmaking-form',
+      );
 
-  if (!form) {
-    return;
-  }
+    if (!form) {
+      return;
+    }
 
-  event.preventDefault();
+    event.preventDefault();
 
-  const formData = new FormData(form);
-  const name = String(formData.get('name') || '').trim();
+    const formData =
+      new FormData(
+        form,
+      );
 
-  if (!name) {
-    showError('Indique o seu nome para entrar no matchmaking.');
-    return;
-  }
+    const name =
+      String(
+        formData.get(
+          'name',
+        ) ||
+          '',
+      ).trim();
 
-  startSearch(name);
-});
+    if (!name) {
+      showError(
+        'Indique o seu nome para entrar no matchmaking.',
+      );
+
+      return;
+    }
+
+    startSearch(
+      name,
+    );
+  },
+);
 
 document.addEventListener(
   'click',
-  (event) => {
-    if (!event.target.closest('#leave-game-button')) {
+  event => {
+    if (
+      !event.target.closest(
+        '#leave-game-button',
+      )
+    ) {
       return;
     }
 
@@ -818,114 +1309,220 @@ document.addEventListener(
       readyMatchData ||
       getStoredSession();
 
-    notifyVoluntaryGameLeave(sessionToLeave);
+    notifyVoluntaryGameLeave(
+      sessionToLeave,
+    );
+
     clearStoredSession();
-    readyMatchData = null;
+
+    readyMatchData =
+      null;
   },
   true,
 );
 
-document.addEventListener('click', (event) => {
-  const onlineButton = event.target.closest('#online-game-button');
+document.addEventListener(
+  'click',
+  event => {
+    const onlineButton =
+      event.target.closest(
+        '#online-game-button',
+      );
 
-  if (onlineButton) {
-    renderEntry();
-    return;
-  }
-
-  if (event.target.closest('[data-online-cancel]')) {
-    cancelSearch();
-    return;
-  }
-
-  if (event.target.closest('[data-online-retry]')) {
-    renderEntry();
-    return;
-  }
-
-  if (event.target.closest('[data-online-enter]')) {
     if (
-      !readyMatchData?.matchId ||
-      !readyMatchData?.playerId ||
-      !readyMatchData?.reconnectToken
+      onlineButton
+    ) {
+      renderEntry();
+
+      return;
+    }
+
+    if (
+      event.target.closest(
+        '[data-online-cancel]',
+      )
+    ) {
+      cancelSearch();
+
+      return;
+    }
+
+    if (
+      event.target.closest(
+        '[data-online-retry]',
+      )
+    ) {
+      renderEntry();
+
+      return;
+    }
+
+    if (
+      event.target.closest(
+        '[data-online-enter]',
+      )
+    ) {
+      if (
+        !readyMatchData?.matchId ||
+        !readyMatchData?.playerId ||
+        !readyMatchData?.reconnectToken
+      ) {
+        return;
+      }
+
+      const detail = {
+        matchId:
+          readyMatchData.matchId,
+
+        playerId:
+          readyMatchData.playerId,
+
+        reconnectToken:
+          readyMatchData.reconnectToken,
+
+        participants:
+          readyMatchData.participants,
+      };
+
+      window.dispatchEvent(
+        new CustomEvent(
+          'conquistador:online-match-ready',
+          {
+            detail,
+          },
+        ),
+      );
+
+      closeOverlay();
+
+      return;
+    }
+
+    if (
+      event.target.closest(
+        '[data-online-close]',
+      )
+    ) {
+      closeOverlay();
+    }
+  },
+);
+
+window.addEventListener(
+  'pagehide',
+  () => {
+    if (
+      !ticketId ||
+      readyMatchData?.matchId
     ) {
       return;
     }
 
-    const detail = {
-      matchId: readyMatchData.matchId,
-      playerId: readyMatchData.playerId,
-      reconnectToken: readyMatchData.reconnectToken,
-      participants: readyMatchData.participants,
-    };
+    const body =
+      JSON.stringify({
+        ticketId,
+      });
 
-    window.dispatchEvent(
-      new CustomEvent(
-        'conquistador:online-match-ready',
-        { detail },
+    navigator.sendBeacon?.(
+      `${API_BASE}/leave`,
+      new Blob(
+        [
+          body,
+        ],
+        {
+          type:
+            'application/json',
+        },
       ),
     );
+  },
+);
 
-    closeOverlay();
-    return;
-  }
+document.addEventListener(
+  'visibilitychange',
+  () => {
+    if (
+      !ticketId ||
+      readyMatchData?.matchId
+    ) {
+      return;
+    }
 
-  if (event.target.closest('[data-online-close]')) {
-    closeOverlay();
-  }
-});
+    if (
+      document.hidden
+    ) {
+      clearFallbackTimer();
 
-window.addEventListener('pagehide', () => {
-  if (!ticketId || readyMatchData?.matchId) {
-    return;
-  }
+      clearReconnectTimer();
 
-  const body = JSON.stringify({ ticketId });
+      return;
+    }
 
-  navigator.sendBeacon?.(
-    `${API_BASE}/leave`,
-    new Blob([body], { type: 'application/json' }),
-  );
-});
+    fallbackDelayMs =
+      FALLBACK_STATUS_INTERVAL_MS;
 
-document.addEventListener('visibilitychange', () => {
-  if (
-    document.hidden ||
-    !ticketId ||
-    readyMatchData?.matchId
-  ) {
-    return;
-  }
+    reconnectDelayMs =
+      REALTIME_RECONNECT_MIN_MS;
 
-  if (
-    !realtimeSocket ||
-    realtimeSocket.readyState === WebSocket.CLOSED
-  ) {
-    connectRealtime();
-  }
-});
+    if (
+      !realtimeSocket ||
+      realtimeSocket.readyState ===
+        WebSocket.CLOSED
+    ) {
+      connectRealtime();
+
+      scheduleFallbackStatus();
+
+      return;
+    }
+
+    if (
+      realtimeSocket.readyState !==
+      WebSocket.OPEN
+    ) {
+      scheduleRealtimeReconnect();
+
+      scheduleFallbackStatus();
+    }
+  },
+);
 
 function restoreStoredSession() {
-  const stored = getStoredSession();
+  const stored =
+    getStoredSession();
 
   if (!stored) {
     return;
   }
 
-  readyMatchData = stored;
-  playerId = stored.playerId;
-  reconnectToken = stored.reconnectToken;
+  readyMatchData =
+    stored;
+
+  playerId =
+    stored.playerId;
+
+  reconnectToken =
+    stored.reconnectToken;
 
   window.dispatchEvent(
     new CustomEvent(
       'conquistador:online-match-ready',
       {
         detail: {
-          matchId: stored.matchId,
-          playerId: stored.playerId,
-          reconnectToken: stored.reconnectToken,
-          participants: stored.participants,
-          restored: true,
+          matchId:
+            stored.matchId,
+
+          playerId:
+            stored.playerId,
+
+          reconnectToken:
+            stored.reconnectToken,
+
+          participants:
+            stored.participants,
+
+          restored:
+            true,
         },
       },
     ),
