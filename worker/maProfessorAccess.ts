@@ -36,7 +36,6 @@ const PASSWORD_MAX_LENGTH =
 
 const MAX_FAILED_ACTIVATION_ATTEMPTS =
   5
-
 const ACTIVATION_BLOCK_MINUTES =
   15
 
@@ -71,7 +70,6 @@ interface LicenseSummary {
 
   validFrom:
     string | null
-
   validUntil:
     string | null
 
@@ -153,7 +151,6 @@ interface StoredAccessRequest {
 
   requestedAt:
     number
-
   approvedAt:
     number | null
 
@@ -1616,6 +1613,12 @@ export class MaProfessorAccessDurableObject {
               body
             )
 
+        case '/confirm-pilot':
+          return this
+            .handleConfirmPilot(
+              body
+            )
+
         case '/renew':
           return this
             .handleRenew(
@@ -2602,6 +2605,132 @@ export class MaProfessorAccessDurableObject {
         buildLicenseSummary(
           authenticated
             .license
+        )
+    })
+  }
+
+  private async handleConfirmPilot(
+    body:
+      JsonBody
+  ) {
+    const authenticated =
+      await this
+        .authenticate(
+          body
+        )
+
+    if (
+      !authenticated
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A sessão já não é válida.'
+        },
+        401
+      )
+    }
+
+    const now =
+      Date.now()
+
+    const {
+      license
+    } =
+      authenticated
+
+    if (
+      license.plan !==
+      'beta_30_days'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A confirmação periódica aplica-se apenas ao acesso gratuito da fase piloto.'
+        },
+        409
+      )
+    }
+
+    const status =
+      getLicenseStatus(
+        license,
+        now
+      )
+
+    if (
+      status ===
+      'revoked'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'Esta licença foi revogada.'
+        },
+        403
+      )
+    }
+
+    if (
+      status ===
+      'expired'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'O período de confirmação terminou e esta vaga piloto já não está ativa.'
+        },
+        410
+      )
+    }
+
+    if (
+      status !==
+      'expiring'
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A confirmação da vaga piloto ainda não está disponível. Esta ação só pode ser realizada durante o período de confirmação.'
+        },
+        409
+      )
+    }
+
+    license.validUntil =
+      addDays(
+        license.validUntil,
+        BETA_DAYS
+      )
+
+    license.updatedAt =
+      now
+
+    await this.save()
+
+    return json({
+      success:
+        true,
+
+      license:
+        buildLicenseSummary(
+          license,
+          now
         )
     })
   }
