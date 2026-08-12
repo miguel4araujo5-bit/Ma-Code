@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent
@@ -12,6 +13,27 @@ import type {
 import {
   useMAQuadroEditorContext
 } from './editorContext'
+
+import './maQuadroPagesManager.css'
+
+type PageViewMode =
+  | 'cards'
+  | 'compact'
+
+function normalizeSearch(
+  value: string
+) {
+  return value
+    .trim()
+    .toLocaleLowerCase(
+      'pt-PT'
+    )
+    .normalize('NFD')
+    .replace(
+      /[\u0300-\u036f]/g,
+      ''
+    )
+}
 
 function PageNameField({
   page,
@@ -168,8 +190,74 @@ export default function PagesStrip() {
     setReorderBusy
   ] = useState(false)
 
+  const [
+    search,
+    setSearch
+  ] = useState('')
+
+  const [
+    viewMode,
+    setViewMode
+  ] = useState<PageViewMode>(
+    'cards'
+  )
+
   const project =
     editor.project
+
+  const activePageId =
+    project?.activePageId ||
+    null
+
+  useEffect(() => {
+    if (!activePageId) {
+      return
+    }
+
+    const card =
+      document.querySelector<HTMLElement>(
+        `[data-ma-quadro-page-id="${CSS.escape(activePageId)}"]`
+      )
+
+    card?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest'
+    })
+  }, [
+    activePageId,
+    viewMode
+  ])
+
+  const filteredPages =
+    useMemo(() => {
+      if (!project) {
+        return []
+      }
+
+      const query =
+        normalizeSearch(
+          search
+        )
+
+      return project.pages
+        .map((page, index) => ({
+          page,
+          index
+        }))
+        .filter(({ page, index }) => {
+          if (!query) {
+            return true
+          }
+
+          return normalizeSearch(
+            `${page.name} pagina ${index + 1}`
+          ).includes(query)
+        })
+    }, [
+      project,
+      search
+    ])
 
   if (!project) {
     return null
@@ -180,6 +268,13 @@ export default function PagesStrip() {
     editor.busy ||
     editor.imageCropEditing ||
     reorderBusy
+
+  const activeIndex =
+    project.pages.findIndex(
+      (page) =>
+        page.id ===
+        project.activePageId
+    )
 
   const movePageToIndex =
     async (
@@ -261,13 +356,68 @@ export default function PagesStrip() {
       }
     }
 
+  const duplicatePageById =
+    async (
+      pageId: string
+    ) => {
+      if (locked) {
+        return
+      }
+
+      if (
+        project.activePageId !==
+        pageId
+      ) {
+        await editor.setActivePage(
+          pageId
+        )
+      }
+
+      await editor
+        .duplicateActivePage()
+    }
+
+  const openPreviousPage =
+    async () => {
+      if (
+        locked ||
+        activeIndex <= 0
+      ) {
+        return
+      }
+
+      await editor.setActivePage(
+        project.pages[
+          activeIndex - 1
+        ].id
+      )
+    }
+
+  const openNextPage =
+    async () => {
+      if (
+        locked ||
+        activeIndex < 0 ||
+        activeIndex >=
+          project.pages.length - 1
+      ) {
+        return
+      }
+
+      await editor.setActivePage(
+        project.pages[
+          activeIndex + 1
+        ].id
+      )
+    }
+
   return (
     <section
-      className="mq-pages-strip"
+      className={`mq-pages-strip mq-pages-strip--managed mq-pages-strip--${viewMode}`}
       aria-label="Páginas do projeto"
       aria-busy={locked}
     >
-      <div className="mq-pages-strip__header">
+      <div className="mq-pages-strip__header mq-pages-manager__header">
         <span className="mq-pages-strip__title">
           <strong>
             Páginas
@@ -286,7 +436,7 @@ export default function PagesStrip() {
           </span>
         </span>
 
-        <div>
+        <div className="mq-pages-manager__primary-actions">
           <button
             type="button"
             onClick={() =>
@@ -314,286 +464,451 @@ export default function PagesStrip() {
         </div>
       </div>
 
-      <div className="mq-pages-list">
-        {project.pages.map(
-          (
-            page,
-            index
-          ) => {
-            const active =
-              project
-                .activePageId ===
-              page.id
+      <div className="mq-pages-manager__toolbar">
+        <label className="mq-pages-manager__search">
+          <span aria-hidden="true">
+            ⌕
+          </span>
 
-            const dragging =
-              dragPageId ===
-              page.id
+          <input
+            type="search"
+            value={search}
+            disabled={locked}
+            placeholder="Pesquisar páginas…"
+            aria-label="Pesquisar páginas"
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+          />
 
-            const dragOver =
-              dragOverPageId ===
-                page.id &&
-              dragPageId !==
+          {search ? (
+            <button
+              type="button"
+              disabled={locked}
+              aria-label="Limpar pesquisa de páginas"
+              title="Limpar pesquisa"
+              onClick={() =>
+                setSearch('')
+              }
+            >
+              ×
+            </button>
+          ) : null}
+        </label>
+
+        <div
+          className="mq-pages-manager__navigator"
+          aria-label="Navegação entre páginas"
+        >
+          <button
+            type="button"
+            disabled={
+              locked ||
+              activeIndex <= 0
+            }
+            title="Página anterior"
+            aria-label="Abrir página anterior"
+            onClick={() =>
+              void openPreviousPage()
+            }
+          >
+            ←
+          </button>
+
+          <span>
+            {activeIndex >= 0
+              ? activeIndex + 1
+              : 0}
+            {' / '}
+            {project.pages.length}
+          </span>
+
+          <button
+            type="button"
+            disabled={
+              locked ||
+              activeIndex < 0 ||
+              activeIndex >=
+                project.pages.length - 1
+            }
+            title="Página seguinte"
+            aria-label="Abrir página seguinte"
+            onClick={() =>
+              void openNextPage()
+            }
+          >
+            →
+          </button>
+        </div>
+
+        <div
+          className="mq-pages-manager__view-switch"
+          aria-label="Modo de apresentação das páginas"
+        >
+          <button
+            type="button"
+            className={
+              viewMode ===
+              'cards'
+                ? 'is-active'
+                : ''
+            }
+            disabled={locked}
+            aria-pressed={
+              viewMode ===
+              'cards'
+            }
+            title="Miniaturas grandes"
+            onClick={() =>
+              setViewMode(
+                'cards'
+              )
+            }
+          >
+            ▦
+          </button>
+
+          <button
+            type="button"
+            className={
+              viewMode ===
+              'compact'
+                ? 'is-active'
+                : ''
+            }
+            disabled={locked}
+            aria-pressed={
+              viewMode ===
+              'compact'
+            }
+            title="Miniaturas compactas"
+            onClick={() =>
+              setViewMode(
+                'compact'
+              )
+            }
+          >
+            ☷
+          </button>
+        </div>
+      </div>
+
+      {filteredPages.length > 0 ? (
+        <div className="mq-pages-list mq-pages-manager__list">
+          {filteredPages.map(
+            ({
+              page,
+              index
+            }) => {
+              const active =
+                project
+                  .activePageId ===
                 page.id
 
-            return (
-              <article
-                key={page.id}
-                className={`mq-page-card${
-                  active
-                    ? ' is-active'
-                    : ''
-                }${
-                  dragging
-                    ? ' is-dragging'
-                    : ''
-                }${
-                  dragOver
-                    ? ' is-drag-over'
-                    : ''
-                }`}
-                onDragOver={(event) => {
-                  if (
-                    locked ||
-                    !dragPageId ||
-                    dragPageId ===
-                      page.id
-                  ) {
-                    return
-                  }
+              const dragging =
+                dragPageId ===
+                page.id
 
-                  event.preventDefault()
+              const dragOver =
+                dragOverPageId ===
+                  page.id &&
+                dragPageId !==
+                  page.id
 
-                  event.dataTransfer
-                    .dropEffect =
-                    'move'
+              return (
+                <article
+                  key={page.id}
+                  data-ma-quadro-page-id={page.id}
+                  className={`mq-page-card${
+                    active
+                      ? ' is-active'
+                      : ''
+                  }${
+                    dragging
+                      ? ' is-dragging'
+                      : ''
+                  }${
+                    dragOver
+                      ? ' is-drag-over'
+                      : ''
+                  }`}
+                  onDragOver={(event) => {
+                    if (
+                      locked ||
+                      !dragPageId ||
+                      dragPageId ===
+                        page.id
+                    ) {
+                      return
+                    }
 
-                  setDragOverPageId(
-                    page.id
-                  )
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
+                    event.preventDefault()
 
-                  if (locked) {
-                    return
-                  }
-
-                  const sourceId =
-                    dragPageId ||
                     event.dataTransfer
-                      .getData(
-                        'application/x-ma-quadro-page'
-                      ) ||
-                    event.dataTransfer
-                      .getData(
-                        'text/plain'
-                      )
+                      .dropEffect =
+                      'move'
 
-                  setDragOverPageId(
-                    null
-                  )
-
-                  if (
-                    !sourceId ||
-                    sourceId ===
+                    setDragOverPageId(
                       page.id
-                  ) {
-                    setDragPageId(
+                    )
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+
+                    if (locked) {
+                      return
+                    }
+
+                    const sourceId =
+                      dragPageId ||
+                      event.dataTransfer
+                        .getData(
+                          'application/x-ma-quadro-page'
+                        ) ||
+                      event.dataTransfer
+                        .getData(
+                          'text/plain'
+                        )
+
+                    setDragOverPageId(
                       null
                     )
 
-                    return
-                  }
-
-                  void movePageToIndex(
-                    sourceId,
-                    index
-                  )
-                }}
-              >
-                <button
-                  type="button"
-                  className="mq-page-card__preview"
-                  onClick={() =>
-                    void editor
-                      .setActivePage(
+                    if (
+                      !sourceId ||
+                      sourceId ===
                         page.id
+                    ) {
+                      setDragPageId(
+                        null
                       )
-                  }
-                  disabled={
-                    locked ||
-                    active
-                  }
-                  aria-label={`Abrir ${page.name}`}
-                  aria-current={
-                    active
-                      ? 'page'
-                      : undefined
-                  }
+
+                      return
+                    }
+
+                    void movePageToIndex(
+                      sourceId,
+                      index
+                    )
+                  }}
                 >
-                  <span className="mq-page-card__number">
-                    {index + 1}
-                  </span>
+                  <button
+                    type="button"
+                    className="mq-page-card__preview"
+                    onClick={() =>
+                      void editor
+                        .setActivePage(
+                          page.id
+                        )
+                    }
+                    disabled={
+                      locked ||
+                      active
+                    }
+                    aria-label={`Abrir ${page.name}`}
+                    aria-current={
+                      active
+                        ? 'page'
+                        : undefined
+                    }
+                  >
+                    <span className="mq-page-card__number">
+                      {index + 1}
+                    </span>
 
-                  {page.thumbnail ? (
-                    <img
-                      src={
-                        page.thumbnail
-                      }
-                      alt=""
-                      draggable={false}
-                    />
-                  ) : (
-                    <span
-                      className="mq-page-card__blank"
-                      style={{
-                        background:
-                          page.background
-                            .type ===
-                          'transparent'
-                            ? 'repeating-conic-gradient(#E2E8F0 0 25%, #FFFFFF 0 50%) 50% / 14px 14px'
-                            : page.background
-                                .type ===
-                              'gradient'
-                              ? `linear-gradient(${page.background.gradientAngle}deg, ${page.background.gradientFrom}, ${page.background.gradientTo})`
+                    {page.thumbnail ? (
+                      <img
+                        src={
+                          page.thumbnail
+                        }
+                        alt=""
+                        draggable={false}
+                      />
+                    ) : (
+                      <span
+                        className="mq-page-card__blank"
+                        style={{
+                          background:
+                            page.background
+                              .type ===
+                            'transparent'
+                              ? 'repeating-conic-gradient(#E2E8F0 0 25%, #FFFFFF 0 50%) 50% / 14px 14px'
                               : page.background
-                                  .color
-                      }}
-                    />
-                  )}
-                </button>
+                                  .type ===
+                                'gradient'
+                                ? `linear-gradient(${page.background.gradientAngle}deg, ${page.background.gradientFrom}, ${page.background.gradientTo})`
+                                : page.background
+                                    .color
+                        }}
+                      />
+                    )}
+                  </button>
 
-                <PageNameField
-                  page={page}
-                  index={index}
-                  disabled={locked}
-                  onCommit={
-                    editor.renamePage
-                  }
-                />
-
-                <div className="mq-page-card__actions">
-                  <button
-                    type="button"
-                    className="mq-page-card__drag-handle"
-                    draggable={!locked}
+                  <PageNameField
+                    page={page}
+                    index={index}
                     disabled={locked}
-                    onDragStart={(event) => {
-                      if (locked) {
+                    onCommit={
+                      editor.renamePage
+                    }
+                  />
+
+                  <div className="mq-page-card__actions mq-pages-manager__card-actions">
+                    <button
+                      type="button"
+                      className="mq-page-card__drag-handle"
+                      draggable={!locked}
+                      disabled={locked}
+                      onDragStart={(event) => {
+                        if (locked) {
+                          event.preventDefault()
+
+                          return
+                        }
+
+                        setDragPageId(
+                          page.id
+                        )
+
+                        setDragOverPageId(
+                          null
+                        )
+
+                        event.dataTransfer
+                          .effectAllowed =
+                          'move'
+
+                        event.dataTransfer
+                          .setData(
+                            'application/x-ma-quadro-page',
+                            page.id
+                          )
+
+                        event.dataTransfer
+                          .setData(
+                            'text/plain',
+                            page.id
+                          )
+                      }}
+                      onDragEnd={() => {
+                        setDragPageId(
+                          null
+                        )
+
+                        setDragOverPageId(
+                          null
+                        )
+                      }}
+                      onClick={(event) => {
                         event.preventDefault()
+                      }}
+                      title="Arrastar para reordenar"
+                      aria-label={`Arrastar ${page.name} para reordenar`}
+                    >
+                      ⋮⋮
+                    </button>
 
-                        return
+                    <button
+                      type="button"
+                      disabled={locked}
+                      title={`Duplicar ${page.name}`}
+                      aria-label={`Duplicar ${page.name}`}
+                      onClick={() =>
+                        void duplicatePageById(
+                          page.id
+                        )
                       }
+                    >
+                      ⧉
+                    </button>
 
-                      setDragPageId(
-                        page.id
-                      )
-
-                      setDragOverPageId(
-                        null
-                      )
-
-                      event.dataTransfer
-                        .effectAllowed =
-                        'move'
-
-                      event.dataTransfer
-                        .setData(
-                          'application/x-ma-quadro-page',
-                          page.id
-                        )
-
-                      event.dataTransfer
-                        .setData(
-                          'text/plain',
-                          page.id
-                        )
-                    }}
-                    onDragEnd={() => {
-                      setDragPageId(
-                        null
-                      )
-
-                      setDragOverPageId(
-                        null
-                      )
-                    }}
-                    onClick={(event) => {
-                      event.preventDefault()
-                    }}
-                    title="Arrastar para reordenar"
-                    aria-label={`Arrastar ${page.name} para reordenar`}
-                  >
-                    ⋮⋮
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void editor
-                        .movePage(
-                          page.id,
-                          'left'
-                        )
-                    }
-                    disabled={
-                      locked ||
-                      index ===
-                        0
-                    }
-                    title="Mover para a esquerda"
-                    aria-label={`Mover ${page.name} para a esquerda`}
-                  >
-                    ←
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void editor
-                        .movePage(
-                          page.id,
-                          'right'
-                        )
-                    }
-                    disabled={
-                      locked ||
-                      index ===
-                        project.pages
-                          .length -
-                          1
-                    }
-                    title="Mover para a direita"
-                    aria-label={`Mover ${page.name} para a direita`}
-                  >
-                    →
-                  </button>
-
-                  {active ? (
                     <button
                       type="button"
                       onClick={() =>
                         void editor
-                          .deleteActivePage()
+                          .movePage(
+                            page.id,
+                            'left'
+                          )
                       }
                       disabled={
                         locked ||
-                        project.pages
-                          .length ===
-                          1
+                        index === 0
                       }
-                      title="Eliminar página"
-                      aria-label={`Eliminar ${page.name}`}
+                      title="Mover para a esquerda"
+                      aria-label={`Mover ${page.name} para a esquerda`}
                     >
-                      ×
+                      ←
                     </button>
-                  ) : null}
-                </div>
-              </article>
-            )
-          }
-        )}
-      </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void editor
+                          .movePage(
+                            page.id,
+                            'right'
+                          )
+                      }
+                      disabled={
+                        locked ||
+                        index ===
+                          project.pages
+                            .length - 1
+                      }
+                      title="Mover para a direita"
+                      aria-label={`Mover ${page.name} para a direita`}
+                    >
+                      →
+                    </button>
+
+                    {active ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void editor
+                            .deleteActivePage()
+                        }
+                        disabled={
+                          locked ||
+                          project.pages
+                            .length === 1
+                        }
+                        title="Eliminar página"
+                        aria-label={`Eliminar ${page.name}`}
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            }
+          )}
+        </div>
+      ) : (
+        <div className="mq-pages-manager__empty">
+          <strong>
+            Nenhuma página encontrada.
+          </strong>
+
+          <span>
+            Experimente outro nome ou limpe a pesquisa.
+          </span>
+
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() =>
+              setSearch('')
+            }
+          >
+            Limpar pesquisa
+          </button>
+        </div>
+      )}
     </section>
   )
 }
