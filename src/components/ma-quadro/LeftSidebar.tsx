@@ -1,3 +1,8 @@
+import {
+    useMemo,
+    useState
+} from 'react';
+
 import type {
     MAQuadroPanelId,
     MAQuadroShapeKind,
@@ -7,6 +12,8 @@ import type {
 import {
     useMAQuadroEditorContext
 } from './editorContext';
+
+import './maQuadroDiscovery.css';
 
 const panels: Array<{
     id: MAQuadroPanelId;
@@ -122,6 +129,378 @@ const textPresets: Array<{
     }
 ];
 
+type LibraryCategoryFilter =
+    | 'all'
+    | 'social'
+    | 'story'
+    | 'presentation'
+    | 'print'
+    | 'invitation'
+    | 'custom';
+
+type ProjectViewFilter =
+    | 'all'
+    | 'recent'
+    | 'favourites';
+
+type FavouriteCollection = {
+    templates: string[];
+    projects: string[];
+};
+
+const FAVOURITES_STORAGE_KEY =
+    'ma-quadro-favourites-v1';
+
+const categoryOptions: Array<{
+    id: LibraryCategoryFilter;
+    label: string;
+}> = [
+    {
+        id: 'all',
+        label: 'Todos'
+    },
+    {
+        id: 'social',
+        label: 'Social'
+    },
+    {
+        id: 'story',
+        label: 'Stories'
+    },
+    {
+        id: 'presentation',
+        label: 'Apresentações'
+    },
+    {
+        id: 'print',
+        label: 'Impressão'
+    },
+    {
+        id: 'invitation',
+        label: 'Convites'
+    },
+    {
+        id: 'custom',
+        label: 'Outros'
+    }
+];
+
+const categoryLabels: Record<
+    Exclude<LibraryCategoryFilter, 'all'>,
+    string
+> = {
+    social: 'Social',
+    story: 'Story',
+    presentation: 'Apresentação',
+    print: 'Impressão',
+    invitation: 'Convite',
+    custom: 'Personalizado'
+};
+
+function normalizeSearch(
+    value: string
+) {
+    return value
+        .trim()
+        .toLocaleLowerCase(
+            'pt-PT'
+        )
+        .normalize('NFD')
+        .replace(
+            /[\u0300-\u036f]/g,
+            ''
+        );
+}
+
+function formatUpdatedAt(
+    value: string
+) {
+    const date = new Date(
+        value
+    );
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return 'Data indisponível';
+    }
+
+    return new Intl.DateTimeFormat(
+        'pt-PT',
+        {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }
+    ).format(date);
+}
+
+function readFavouriteCollection(): FavouriteCollection {
+    if (
+        typeof window ===
+        'undefined'
+    ) {
+        return {
+            templates: [],
+            projects: []
+        };
+    }
+
+    try {
+        const raw =
+            window.localStorage.getItem(
+                FAVOURITES_STORAGE_KEY
+            );
+
+        if (!raw) {
+            return {
+                templates: [],
+                projects: []
+            };
+        }
+
+        const parsed =
+            JSON.parse(raw) as
+                Partial<FavouriteCollection>;
+
+        return {
+            templates:
+                Array.isArray(
+                    parsed.templates
+                )
+                    ? parsed.templates.filter(
+                          (value): value is string =>
+                              typeof value ===
+                              'string'
+                      )
+                    : [],
+            projects:
+                Array.isArray(
+                    parsed.projects
+                )
+                    ? parsed.projects.filter(
+                          (value): value is string =>
+                              typeof value ===
+                              'string'
+                      )
+                    : []
+        };
+    } catch {
+        return {
+            templates: [],
+            projects: []
+        };
+    }
+}
+
+function useFavouriteIds(
+    collection:
+        keyof FavouriteCollection
+) {
+    const [ids, setIds] =
+        useState<string[]>(() =>
+            readFavouriteCollection()[
+                collection
+            ]
+        );
+
+    const idSet = useMemo(
+        () => new Set(ids),
+        [ids]
+    );
+
+    const toggle = (
+        id: string
+    ) => {
+        setIds((current) => {
+            const exists =
+                current.includes(id);
+
+            const next = exists
+                ? current.filter(
+                      (item) =>
+                          item !== id
+                  )
+                : [id, ...current];
+
+            if (
+                typeof window !==
+                'undefined'
+            ) {
+                const stored =
+                    readFavouriteCollection();
+
+                stored[collection] =
+                    next;
+
+                try {
+                    window.localStorage.setItem(
+                        FAVOURITES_STORAGE_KEY,
+                        JSON.stringify(
+                            stored
+                        )
+                    );
+                } catch {
+                    // Favoritos são uma melhoria de navegação.
+                    // O editor continua funcional mesmo sem localStorage.
+                }
+            }
+
+            return next;
+        });
+    };
+
+    return {
+        favouriteIds: idSet,
+        toggleFavourite: toggle
+    };
+}
+
+function SearchField({
+    value,
+    placeholder,
+    label,
+    disabled,
+    onChange
+}: {
+    value: string;
+    placeholder: string;
+    label: string;
+    disabled: boolean;
+    onChange: (
+        value: string
+    ) => void;
+}) {
+    return (
+        <label className="mq-discovery-search">
+            <span
+                className="mq-discovery-search__icon"
+                aria-hidden="true"
+            >
+                ⌕
+            </span>
+
+            <input
+                type="search"
+                value={value}
+                disabled={disabled}
+                placeholder={placeholder}
+                aria-label={label}
+                onChange={(event) =>
+                    onChange(
+                        event.target.value
+                    )
+                }
+            />
+
+            {value ? (
+                <button
+                    type="button"
+                    className="mq-discovery-search__clear"
+                    disabled={disabled}
+                    aria-label="Limpar pesquisa"
+                    title="Limpar pesquisa"
+                    onClick={() =>
+                        onChange('')
+                    }
+                >
+                    ×
+                </button>
+            ) : null}
+        </label>
+    );
+}
+
+function CategoryFilters({
+    value,
+    disabled,
+    onChange
+}: {
+    value:
+        LibraryCategoryFilter;
+    disabled: boolean;
+    onChange: (
+        value:
+            LibraryCategoryFilter
+    ) => void;
+}) {
+    return (
+        <div
+            className="mq-discovery-chips"
+            aria-label="Categorias"
+        >
+            {categoryOptions.map(
+                (option) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        className={
+                            value ===
+                            option.id
+                                ? 'is-active'
+                                : ''
+                        }
+                        disabled={disabled}
+                        aria-pressed={
+                            value ===
+                            option.id
+                        }
+                        onClick={() =>
+                            onChange(
+                                option.id
+                            )
+                        }
+                    >
+                        {option.label}
+                    </button>
+                )
+            )}
+        </div>
+    );
+}
+
+function FavouriteButton({
+    active,
+    disabled,
+    label,
+    onClick
+}: {
+    active: boolean;
+    disabled: boolean;
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className={`mq-favourite-button${
+                active
+                    ? ' is-active'
+                    : ''
+            }`}
+            disabled={disabled}
+            aria-pressed={active}
+            aria-label={
+                active
+                    ? `Remover ${label} dos favoritos`
+                    : `Adicionar ${label} aos favoritos`
+            }
+            title={
+                active
+                    ? 'Remover dos favoritos'
+                    : 'Adicionar aos favoritos'
+            }
+            onClick={onClick}
+        >
+            {active
+                ? '★'
+                : '☆'}
+        </button>
+    );
+}
+
 function PanelHeading({
     title,
     description
@@ -152,14 +531,123 @@ function TemplatesPanel() {
         editor.busy ||
         editor.structureBusy;
 
-    const templates =
-        editor.projects.filter(
-            (project) =>
-                project.isTemplate
+    const [search, setSearch] =
+        useState('');
+
+    const [category, setCategory] =
+        useState<LibraryCategoryFilter>(
+            'all'
+        );
+
+    const [favouritesOnly, setFavouritesOnly] =
+        useState(false);
+
+    const {
+        favouriteIds,
+        toggleFavourite
+    } = useFavouriteIds(
+        'templates'
+    );
+
+    const query =
+        normalizeSearch(search);
+
+    const templates = useMemo(
+        () =>
+            editor.projects.filter(
+                (project) =>
+                    project.isTemplate
+            ),
+        [editor.projects]
+    );
+
+    const filteredPresets =
+        useMemo(
+            () =>
+                editor.presets.filter(
+                    (preset) => {
+                        if (
+                            category !==
+                                'all' &&
+                            preset.category !==
+                                category
+                        ) {
+                            return false;
+                        }
+
+                        if (!query) {
+                            return true;
+                        }
+
+                        return normalizeSearch(
+                            [
+                                preset.name,
+                                preset.description,
+                                categoryLabels[
+                                    preset.category
+                                ]
+                            ].join(' ')
+                        ).includes(query);
+                    }
+                ),
+            [
+                category,
+                editor.presets,
+                query
+            ]
+        );
+
+    const filteredTemplates =
+        useMemo(
+            () =>
+                templates.filter(
+                    (template) => {
+                        if (
+                            category !==
+                                'all' &&
+                            template.category !==
+                                category
+                        ) {
+                            return false;
+                        }
+
+                        if (
+                            favouritesOnly &&
+                            !favouriteIds.has(
+                                template.id
+                            )
+                        ) {
+                            return false;
+                        }
+
+                        if (!query) {
+                            return true;
+                        }
+
+                        return normalizeSearch(
+                            [
+                                template.name,
+                                categoryLabels[
+                                    template.category
+                                ],
+                                template.isTemplate
+                                    ? 'modelo template'
+                                    : ''
+                            ].join(' ')
+                        ).includes(query);
+                    }
+                ),
+            [
+                category,
+                favouriteIds,
+                favouritesOnly,
+                query,
+                templates
+            ]
         );
 
     const systemTemplates =
-        templates.filter(
+        filteredTemplates.filter(
             (project) =>
                 project.id.startsWith(
                     'template-'
@@ -167,139 +655,234 @@ function TemplatesPanel() {
         );
 
     const personalTemplates =
-        templates.filter(
+        filteredTemplates.filter(
             (project) =>
                 !project.id.startsWith(
                     'template-'
                 )
         );
 
+    const hasResults =
+        filteredPresets.length > 0 ||
+        filteredTemplates.length > 0;
+
     return (
         <>
             <PanelHeading
                 title="Começar um design"
-                description="Escolha um formato vazio ou duplique um modelo editável."
+                description="Encontre um formato ou um modelo e comece a editar de imediato."
             />
 
-            <div className="mq-preset-grid">
-                {editor.presets.map(
-                    (preset) => (
-                        <button
-                            key={preset.id}
-                            type="button"
-                            className="mq-preset-card"
-                            disabled={locked}
-                            onClick={() =>
-                                void editor
-                                    .createFromPreset(
-                                        preset
-                                    )
-                            }
-                        >
-                            <span
-                                className="mq-preset-card__preview"
-                                data-ratio={
-                                    preset.category
-                                }
-                            />
+            <div className="mq-discovery-controls">
+                <SearchField
+                    value={search}
+                    disabled={locked}
+                    label="Pesquisar modelos e formatos"
+                    placeholder="Pesquisar modelos e formatos…"
+                    onChange={setSearch}
+                />
 
-                            <strong>
-                                {preset.name}
-                            </strong>
+                <CategoryFilters
+                    value={category}
+                    disabled={locked}
+                    onChange={setCategory}
+                />
 
-                            <small>
-                                {preset.width} ×{' '}
-                                {preset.height}
-                            </small>
-                        </button>
-                    )
-                )}
+                <button
+                    type="button"
+                    className={`mq-favourites-filter${
+                        favouritesOnly
+                            ? ' is-active'
+                            : ''
+                    }`}
+                    disabled={locked}
+                    aria-pressed={
+                        favouritesOnly
+                    }
+                    onClick={() =>
+                        setFavouritesOnly(
+                            (value) =>
+                                !value
+                        )
+                    }
+                >
+                    <span aria-hidden="true">
+                        ★
+                    </span>
+                    Só favoritos
+                </button>
             </div>
 
-            <button
-                type="button"
-                className="mq-wide-action"
-                disabled={locked}
-                onClick={() =>
-                    editor.setNewDesignOpen(
-                        true
-                    )
-                }
-            >
-                + Tamanho personalizado
-            </button>
+            {filteredPresets.length > 0 &&
+            !favouritesOnly ? (
+                <>
+                    <div className="mq-section-title">
+                        <h3>
+                            Formatos
+                        </h3>
 
-            <div className="mq-section-title">
-                <h3>
-                    Modelos profissionais
-                </h3>
-
-                <span>
-                    {systemTemplates.length}
-                </span>
-            </div>
-
-            <div className="mq-template-list">
-                {systemTemplates.map(
-                    (template) => (
-                        <button
-                            key={template.id}
-                            type="button"
-                            className="mq-template-card"
-                            disabled={locked}
-                            onClick={() =>
-                                void editor.openProject(
-                                    template.id
-                                )
+                        <span>
+                            {
+                                filteredPresets.length
                             }
-                        >
-                            <span className="mq-template-card__thumb">
-                                {template.pages[0]
-                                    ?.thumbnail ? (
-                                    <img
-                                        src={
-                                            template.pages[0]
-                                                .thumbnail
-                                        }
-                                        alt=""
-                                    />
-                                ) : (
-                                    <span>
-                                        MQ
-                                    </span>
-                                )}
-                            </span>
+                        </span>
+                    </div>
 
-                            <span className="mq-template-card__copy">
-                                <strong>
-                                    {template.name}
-                                </strong>
-
-                                <small>
-                                    {
-                                        template.pages
-                                            .length
-                                    }{' '}
-                                    {
-                                        template.pages
-                                            .length ===
-                                        1
-                                            ? 'página'
-                                            : 'páginas'
+                    <div className="mq-preset-grid">
+                        {filteredPresets.map(
+                            (preset) => (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    className="mq-preset-card"
+                                    disabled={locked}
+                                    onClick={() =>
+                                        void editor
+                                            .createFromPreset(
+                                                preset
+                                            )
                                     }
-                                </small>
-                            </span>
+                                >
+                                    <span
+                                        className="mq-preset-card__preview"
+                                        data-ratio={
+                                            preset.category
+                                        }
+                                    />
 
-                            <span className="mq-template-card__arrow">
-                                →
-                            </span>
-                        </button>
-                    )
-                )}
-            </div>
+                                    <strong>
+                                        {preset.name}
+                                    </strong>
 
-            {personalTemplates.length >
-            0 ? (
+                                    <small>
+                                        {preset.width} ×{' '}
+                                        {preset.height}
+                                    </small>
+                                </button>
+                            )
+                        )}
+                    </div>
+                </>
+            ) : null}
+
+            {!query &&
+            category === 'all' &&
+            !favouritesOnly ? (
+                <button
+                    type="button"
+                    className="mq-wide-action"
+                    disabled={locked}
+                    onClick={() =>
+                        editor.setNewDesignOpen(
+                            true
+                        )
+                    }
+                >
+                    + Tamanho personalizado
+                </button>
+            ) : null}
+
+            {systemTemplates.length > 0 ? (
+                <>
+                    <div className="mq-section-title">
+                        <h3>
+                            Modelos profissionais
+                        </h3>
+
+                        <span>
+                            {
+                                systemTemplates.length
+                            }
+                        </span>
+                    </div>
+
+                    <div className="mq-template-list">
+                        {systemTemplates.map(
+                            (template) => (
+                                <article
+                                    key={template.id}
+                                    className="mq-template-card-shell"
+                                >
+                                    <button
+                                        type="button"
+                                        className="mq-template-card"
+                                        disabled={locked}
+                                        onClick={() =>
+                                            void editor.openProject(
+                                                template.id
+                                            )
+                                        }
+                                    >
+                                        <span className="mq-template-card__thumb">
+                                            {template.pages[0]
+                                                ?.thumbnail ? (
+                                                <img
+                                                    src={
+                                                        template.pages[0]
+                                                            .thumbnail
+                                                    }
+                                                    alt=""
+                                                />
+                                            ) : (
+                                                <span>
+                                                    MQ
+                                                </span>
+                                            )}
+                                        </span>
+
+                                        <span className="mq-template-card__copy">
+                                            <strong>
+                                                {
+                                                    template.name
+                                                }
+                                            </strong>
+
+                                            <small>
+                                                {
+                                                    categoryLabels[
+                                                        template.category
+                                                    ]
+                                                }
+                                                {' · '}
+                                                {
+                                                    template.pages.length
+                                                }{' '}
+                                                {template.pages.length ===
+                                                1
+                                                    ? 'página'
+                                                    : 'páginas'}
+                                            </small>
+                                        </span>
+
+                                        <span className="mq-template-card__arrow">
+                                            →
+                                        </span>
+                                    </button>
+
+                                    <FavouriteButton
+                                        active={
+                                            favouriteIds.has(
+                                                template.id
+                                            )
+                                        }
+                                        disabled={locked}
+                                        label={
+                                            template.name
+                                        }
+                                        onClick={() =>
+                                            toggleFavourite(
+                                                template.id
+                                            )
+                                        }
+                                    />
+                                </article>
+                            )
+                        )}
+                    </div>
+                </>
+            ) : null}
+
+            {personalTemplates.length > 0 ? (
                 <>
                     <div className="mq-section-title">
                         <h3>
@@ -308,8 +891,7 @@ function TemplatesPanel() {
 
                         <span>
                             {
-                                personalTemplates
-                                    .length
+                                personalTemplates.length
                             }
                         </span>
                     </div>
@@ -326,10 +908,9 @@ function TemplatesPanel() {
                                         className="mq-project-card__open"
                                         disabled={locked}
                                         onClick={() =>
-                                            void editor
-                                                .openProject(
-                                                    template.id
-                                                )
+                                            void editor.openProject(
+                                                template.id
+                                            )
                                         }
                                     >
                                         <span className="mq-project-card__thumb">
@@ -351,24 +932,47 @@ function TemplatesPanel() {
 
                                         <span>
                                             <strong>
-                                                {template.name}
+                                                {
+                                                    template.name
+                                                }
                                             </strong>
 
                                             <small>
-                                                Modelo pessoal
+                                                Modelo pessoal ·{' '}
+                                                {
+                                                    categoryLabels[
+                                                        template.category
+                                                    ]
+                                                }
                                             </small>
                                         </span>
                                     </button>
 
-                                    <div className="mq-project-card__actions">
+                                    <div className="mq-project-card__actions mq-project-card__actions--with-favourite">
+                                        <FavouriteButton
+                                            active={
+                                                favouriteIds.has(
+                                                    template.id
+                                                )
+                                            }
+                                            disabled={locked}
+                                            label={
+                                                template.name
+                                            }
+                                            onClick={() =>
+                                                toggleFavourite(
+                                                    template.id
+                                                )
+                                            }
+                                        />
+
                                         <button
                                             type="button"
                                             disabled={locked}
                                             onClick={() =>
-                                                void editor
-                                                    .openProject(
-                                                        template.id
-                                                    )
+                                                void editor.openProject(
+                                                    template.id
+                                                )
                                             }
                                         >
                                             Usar
@@ -378,10 +982,9 @@ function TemplatesPanel() {
                                             type="button"
                                             disabled={locked}
                                             onClick={() =>
-                                                void editor
-                                                    .deleteProject(
-                                                        template.id
-                                                    )
+                                                void editor.deleteProject(
+                                                    template.id
+                                                )
                                             }
                                         >
                                             Eliminar
@@ -392,6 +995,37 @@ function TemplatesPanel() {
                         )}
                     </div>
                 </>
+            ) : null}
+
+            {!hasResults ||
+            (favouritesOnly &&
+                filteredTemplates.length ===
+                    0) ? (
+                <div className="mq-empty-state mq-discovery-empty">
+                    <strong>
+                        Nenhum resultado
+                    </strong>
+
+                    <p>
+                        Ajuste a pesquisa ou os filtros para ver mais opções.
+                    </p>
+
+                    <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => {
+                            setSearch('');
+                            setCategory(
+                                'all'
+                            );
+                            setFavouritesOnly(
+                                false
+                            );
+                        }}
+                    >
+                        Limpar filtros
+                    </button>
+                </div>
             ) : null}
         </>
     );
@@ -920,21 +1554,198 @@ function ProjectsPanel() {
         editor.busy ||
         editor.structureBusy;
 
-    const projects =
-        editor.projects.filter(
-            (project) =>
-                !project.isTemplate
+    const [search, setSearch] =
+        useState('');
+
+    const [view, setView] =
+        useState<ProjectViewFilter>(
+            'recent'
+        );
+
+    const {
+        favouriteIds,
+        toggleFavourite
+    } = useFavouriteIds(
+        'projects'
+    );
+
+    const projects = useMemo(
+        () =>
+            editor.projects
+                .filter(
+                    (project) =>
+                        !project.isTemplate
+                )
+                .sort((first, second) =>
+                    second.updatedAt.localeCompare(
+                        first.updatedAt
+                    )
+                ),
+        [editor.projects]
+    );
+
+    const query =
+        normalizeSearch(search);
+
+    const matchingProjects =
+        useMemo(
+            () => {
+                const searched =
+                    projects.filter(
+                        (project) => {
+                            if (!query) {
+                                return true;
+                            }
+
+                            return normalizeSearch(
+                                [
+                                    project.name,
+                                    categoryLabels[
+                                        project.category
+                                    ]
+                                ].join(' ')
+                            ).includes(
+                                query
+                            );
+                        }
+                    );
+
+                if (
+                    view ===
+                    'favourites'
+                ) {
+                    return searched.filter(
+                        (project) =>
+                            favouriteIds.has(
+                                project.id
+                            )
+                    );
+                }
+
+                if (
+                    view === 'recent'
+                ) {
+                    return searched.slice(
+                        0,
+                        8
+                    );
+                }
+
+                return searched;
+            },
+            [
+                favouriteIds,
+                projects,
+                query,
+                view
+            ]
         );
 
     return (
         <>
             <PanelHeading
                 title="Os seus projetos"
-                description="Guardados no IndexedDB deste browser. Exporte o projeto para criar uma cópia de segurança."
+                description="Pesquise, retome os mais recentes ou marque os projetos que usa mais vezes."
             />
 
+            <div className="mq-discovery-controls">
+                <SearchField
+                    value={search}
+                    disabled={locked}
+                    label="Pesquisar projetos"
+                    placeholder="Pesquisar projetos…"
+                    onChange={setSearch}
+                />
+
+                <div
+                    className="mq-discovery-chips mq-discovery-chips--views"
+                    aria-label="Vista de projetos"
+                >
+                    <button
+                        type="button"
+                        className={
+                            view ===
+                            'recent'
+                                ? 'is-active'
+                                : ''
+                        }
+                        disabled={locked}
+                        aria-pressed={
+                            view ===
+                            'recent'
+                        }
+                        onClick={() =>
+                            setView(
+                                'recent'
+                            )
+                        }
+                    >
+                        Recentes
+                    </button>
+
+                    <button
+                        type="button"
+                        className={
+                            view ===
+                            'favourites'
+                                ? 'is-active'
+                                : ''
+                        }
+                        disabled={locked}
+                        aria-pressed={
+                            view ===
+                            'favourites'
+                        }
+                        onClick={() =>
+                            setView(
+                                'favourites'
+                            )
+                        }
+                    >
+                        ★ Favoritos
+                    </button>
+
+                    <button
+                        type="button"
+                        className={
+                            view === 'all'
+                                ? 'is-active'
+                                : ''
+                        }
+                        disabled={locked}
+                        aria-pressed={
+                            view === 'all'
+                        }
+                        onClick={() =>
+                            setView(
+                                'all'
+                            )
+                        }
+                    >
+                        Todos
+                    </button>
+                </div>
+            </div>
+
+            <div className="mq-section-title mq-section-title--discovery">
+                <h3>
+                    {view === 'recent'
+                        ? 'Projetos recentes'
+                        : view ===
+                            'favourites'
+                          ? 'Projetos favoritos'
+                          : 'Todos os projetos'}
+                </h3>
+
+                <span>
+                    {
+                        matchingProjects.length
+                    }
+                </span>
+            </div>
+
             <div className="mq-project-list">
-                {projects.map(
+                {matchingProjects.map(
                     (project) => (
                         <article
                             key={project.id}
@@ -972,36 +1783,59 @@ function ProjectsPanel() {
                                     )}
                                 </span>
 
-                                <span>
+                                <span className="mq-project-card__copy">
                                     <strong>
                                         {project.name}
                                     </strong>
 
                                     <small>
                                         {
-                                            project.pages
-                                                .length
-                                        }{' '}
-                                        {
-                                            project.pages
-                                                .length ===
-                                            1
-                                                ? 'página'
-                                                : 'páginas'
+                                            categoryLabels[
+                                                project.category
+                                            ]
                                         }
+                                        {' · '}
+                                        {project.pages.length}{' '}
+                                        {project.pages.length ===
+                                        1
+                                            ? 'página'
+                                            : 'páginas'}
+                                    </small>
+
+                                    <small className="mq-project-card__date">
+                                        Atualizado em{' '}
+                                        {formatUpdatedAt(
+                                            project.updatedAt
+                                        )}
                                     </small>
                                 </span>
                             </button>
 
-                            <div className="mq-project-card__actions">
+                            <div className="mq-project-card__actions mq-project-card__actions--with-favourite">
+                                <FavouriteButton
+                                    active={
+                                        favouriteIds.has(
+                                            project.id
+                                        )
+                                    }
+                                    disabled={locked}
+                                    label={
+                                        project.name
+                                    }
+                                    onClick={() =>
+                                        toggleFavourite(
+                                            project.id
+                                        )
+                                    }
+                                />
+
                                 <button
                                     type="button"
                                     disabled={locked}
                                     onClick={() =>
-                                        void editor
-                                            .duplicateProject(
-                                                project.id
-                                            )
+                                        void editor.duplicateProject(
+                                            project.id
+                                        )
                                     }
                                 >
                                     Duplicar
@@ -1011,10 +1845,9 @@ function ProjectsPanel() {
                                     type="button"
                                     disabled={locked}
                                     onClick={() =>
-                                        void editor
-                                            .deleteProject(
-                                                project.id
-                                            )
+                                        void editor.deleteProject(
+                                            project.id
+                                        )
                                     }
                                 >
                                     Eliminar
@@ -1025,12 +1858,47 @@ function ProjectsPanel() {
                 )}
             </div>
 
-            {projects.length === 0 ? (
-                <div className="mq-empty-state">
-                    Ainda não existem
-                    projetos guardados.
+            {matchingProjects.length ===
+            0 ? (
+                <div className="mq-empty-state mq-discovery-empty">
+                    <strong>
+                        {projects.length === 0
+                            ? 'Ainda não existem projetos guardados.'
+                            : 'Nenhum projeto corresponde a esta vista.'}
+                    </strong>
+
+                    {projects.length > 0 ? (
+                        <p>
+                            Experimente limpar a pesquisa ou mostrar todos os projetos.
+                        </p>
+                    ) : null}
+
+                    {projects.length > 0 ? (
+                        <button
+                            type="button"
+                            disabled={locked}
+                            onClick={() => {
+                                setSearch('');
+                                setView(
+                                    'all'
+                                );
+                            }}
+                        >
+                            Mostrar todos
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
+
+            <div className="mq-info-card mq-info-card--compact">
+                <strong>
+                    Guardado neste dispositivo
+                </strong>
+
+                <p>
+                    Os projetos continuam no IndexedDB do browser. Use a exportação de projeto para manter uma cópia de segurança fora do browser.
+                </p>
+            </div>
 
             <button
                 type="button"
