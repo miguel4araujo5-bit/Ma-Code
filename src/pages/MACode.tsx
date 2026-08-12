@@ -123,11 +123,11 @@ function TechAccentStyles() {
     linear-gradient(
       110deg,
       transparent 0%,
-      transparent 43%,
-      rgba(186, 230, 253, 0.10) 46%,
-      rgba(224, 247, 255, 0.88) 50%,
-      rgba(165, 243, 252, 0.42) 53%,
-      transparent 57%,
+      transparent 42%,
+      rgba(186, 230, 253, 0.12) 46%,
+      rgba(240, 249, 255, 0.96) 50%,
+      rgba(165, 243, 252, 0.44) 54%,
+      transparent 58%,
       transparent 100%
     ),
     linear-gradient(
@@ -138,10 +138,10 @@ function TechAccentStyles() {
       #c4b5fd 100%
     );
   background-size:
-    320% 100%,
+    250% 100%,
     100% 100%;
   background-position:
-    100% 50%,
+    -220% 50%,
     0% 50%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -149,30 +149,33 @@ function TechAccentStyles() {
   -webkit-text-fill-color: transparent;
   color: transparent;
   text-shadow:
-    0 0 9px rgba(103, 232, 249, 0.10),
-    0 0 18px rgba(139, 92, 246, 0.05);
-  animation: ma-tech-accent-sweep 10.6s linear infinite;
-  will-change: background-position, text-shadow;
+    0 0 9px rgba(103, 232, 249, 0.11),
+    0 0 18px rgba(139, 92, 246, 0.055);
+  animation: ma-tech-accent-sweep 10s linear infinite;
+  will-change: background-position;
 }
 
 .ma-tech-accent--hero {
-  animation-duration: 8.6s;
+  animation-duration: 8.8s;
+  text-shadow:
+    0 0 11px rgba(103, 232, 249, 0.14),
+    0 0 22px rgba(139, 92, 246, 0.07);
 }
 
 .ma-tech-accent--phase-1 {
-  animation-delay: -1.9s;
+  animation-delay: -2s;
 }
 
 .ma-tech-accent--phase-2 {
-  animation-delay: -4.1s;
+  animation-delay: -4s;
 }
 
 .ma-tech-accent--phase-3 {
-  animation-delay: -6.4s;
+  animation-delay: -6s;
 }
 
 .ma-tech-accent--phase-4 {
-  animation-delay: -8.5s;
+  animation-delay: -8s;
 }
 
 .ma-tech-price {
@@ -183,30 +186,22 @@ function TechAccentStyles() {
 
 @keyframes ma-tech-accent-sweep {
   0%,
-  70% {
+  72% {
     background-position:
-      100% 50%,
+      -220% 50%,
       0% 50%;
-    text-shadow:
-      0 0 9px rgba(103, 232, 249, 0.10),
-      0 0 18px rgba(139, 92, 246, 0.05);
   }
 
-  77% {
-    text-shadow:
-      0 0 12px rgba(103, 232, 249, 0.22),
-      0 0 24px rgba(56, 189, 248, 0.11),
-      0 0 32px rgba(139, 92, 246, 0.08);
+  86% {
+    background-position:
+      220% 50%,
+      0% 50%;
   }
 
-  84%,
   100% {
     background-position:
-      0% 50%,
+      220% 50%,
       0% 50%;
-    text-shadow:
-      0 0 9px rgba(103, 232, 249, 0.10),
-      0 0 18px rgba(139, 92, 246, 0.05);
   }
 }
 
@@ -214,11 +209,8 @@ function TechAccentStyles() {
   .ma-tech-accent {
     animation: none;
     background-position:
-      50% 50%,
+      -220% 50%,
       0% 50%;
-    text-shadow:
-      0 0 10px rgba(103, 232, 249, 0.16),
-      0 0 20px rgba(139, 92, 246, 0.08);
   }
 }
     `}</style>
@@ -853,9 +845,7 @@ function ProjectsShowcase({
                       </h3>
 
                       <p className="mt-1 truncate text-[0.7rem] text-slate-500">
-                        {
-                          project.category
-                        }
+                        {project.category}
                       </p>
                     </div>
 
@@ -893,7 +883,6 @@ function ProjectsShowcase({
             }
           >
             <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-cyan-300/10 blur-3xl" />
-
             <div className="pointer-events-none absolute -bottom-14 left-8 size-36 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10">
@@ -1039,7 +1028,6 @@ export default function MACode() {
 
       <section className="relative overflow-hidden px-5 pb-8 pt-6 sm:px-6 md:px-10 md:pb-10 md:pt-8">
         <div className="pointer-events-none absolute left-[-12rem] top-[-10rem] size-[28rem] rounded-full bg-cyan-400/[0.05] blur-3xl" />
-
         <div className="pointer-events-none absolute right-[-10rem] top-[-8rem] size-[32rem] rounded-full bg-violet-500/[0.06] blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-7xl">
@@ -1129,7 +1117,7 @@ export default function MACode() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <a
                   href="/contacto"
-                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
+                  className="inline-flex min-h-[3.65rem] shrink-0 items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
                   onClick={() =>
                     trackEvent(
                       'cta_click',
@@ -1144,13 +1132,12 @@ export default function MACode() {
                     )
                   }
                 >
-                  <span className="flex flex-col leading-tight">
-                    <span>
-                      Pedir proposta
-                      gratuita
+                  <span className="flex flex-col items-center leading-tight">
+                    <span className="whitespace-nowrap">
+                      Pedir proposta gratuita
                     </span>
 
-                    <span className="mt-1 text-[0.66rem] font-medium text-cyan-50/80">
+                    <span className="mt-1 whitespace-nowrap text-[0.66rem] font-medium text-cyan-50/80">
                       Sem compromisso
                     </span>
                   </span>
@@ -1216,7 +1203,6 @@ export default function MACode() {
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-400 sm:text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Domínio + Alojamento
                     incluídos
@@ -1308,7 +1294,6 @@ export default function MACode() {
                   }
                 >
                   <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/[0.35] to-transparent" />
-
                   <div className="pointer-events-none absolute -right-14 -top-14 size-32 rounded-full bg-cyan-300/[0.05] blur-3xl" />
 
                   <div className="relative z-10 flex flex-col items-center">
@@ -1323,9 +1308,7 @@ export default function MACode() {
                     </h3>
 
                     <p className="mt-3 max-w-sm text-sm leading-6 text-slate-400">
-                      {
-                        card.description
-                      }
+                      {card.description}
                     </p>
 
                     <span className="mt-5 text-sm font-semibold text-cyan-200">
@@ -1390,7 +1373,6 @@ export default function MACode() {
             >
               Explorar todos os
               produtos
-
               <span>→</span>
             </a>
           </div>
@@ -1428,16 +1410,12 @@ export default function MACode() {
                     className={`relative z-10 flex size-14 items-center justify-center rounded-2xl border ${product.accentClassName}`}
                   >
                     <ProductIcon
-                      type={
-                        product.icon
-                      }
+                      type={product.icon}
                     />
                   </div>
 
                   <span className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    {
-                      product.eyebrow
-                    }
+                    {product.eyebrow}
                   </span>
 
                   <h3 className="relative z-10 mt-2 text-lg font-semibold tracking-[-0.025em] text-white">
@@ -1445,9 +1423,7 @@ export default function MACode() {
                   </h3>
 
                   <p className="relative z-10 mt-3 text-xs leading-5 text-slate-400">
-                    {
-                      product.description
-                    }
+                    {product.description}
                   </p>
 
                   <span className="relative z-10 mt-auto pt-5 text-xs font-semibold text-cyan-200">
@@ -1468,7 +1444,6 @@ export default function MACode() {
         <div className="mx-auto max-w-7xl">
           <div className="relative overflow-hidden rounded-[1.7rem] border border-cyan-300/[0.15] bg-[linear-gradient(110deg,rgba(8,47,73,0.22),rgba(10,13,22,0.98)_45%,rgba(76,29,149,0.14))] px-6 py-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)] md:px-8 md:py-7">
             <div className="pointer-events-none absolute -left-10 -top-14 size-36 rounded-full bg-cyan-300/10 blur-3xl" />
-
             <div className="pointer-events-none absolute -right-12 -bottom-16 size-40 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
