@@ -633,7 +633,7 @@ function HeroDevices() {
 function MobileHeroDevices() {
   return (
     <div
-      className="relative z-0 min-w-0 self-center lg:hidden"
+      className="relative z-0 min-w-0 translate-y-1 self-center lg:hidden sm:translate-y-2"
       aria-hidden="true"
     >
       <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.13),transparent_32%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.11),transparent_36%)] blur-3xl" />
@@ -643,7 +643,7 @@ function MobileHeroDevices() {
         alt=""
         width={1200}
         height={800}
-        className="relative z-10 ml-auto h-auto w-full max-w-none object-contain drop-shadow-[0_18px_40px_rgba(2,132,199,0.14)]"
+        className="relative z-10 ml-auto h-auto w-full max-w-none origin-right scale-[1.12] object-contain drop-shadow-[0_18px_40px_rgba(2,132,199,0.14)]"
         loading="eager"
         decoding="async"
       />
@@ -1225,12 +1225,12 @@ export default function MACode() {
 
       <section className="border-y border-cyan-300/10 bg-[radial-gradient(circle_at_10%_35%,rgba(34,211,238,0.10),transparent_25%),radial-gradient(circle_at_88%_72%,rgba(139,92,246,0.11),transparent_27%),linear-gradient(180deg,#080a13_0%,#090b16_100%)] px-5 py-12 sm:px-6 md:px-10 md:py-14">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.78fr_1.6fr] lg:items-center lg:gap-10">
-          <div>
+          <div className="text-center lg:text-left">
             <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
               Produtos próprios
             </span>
 
-            <h2 className="mt-5 max-w-[18ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:max-w-[16ch] md:text-4xl">
+            <h2 className="mx-auto mt-5 max-w-[18ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:max-w-[16ch] md:text-4xl lg:mx-0">
               Ferramentas{' '}
               <span className="whitespace-nowrap">
                 MA-Code
@@ -1242,7 +1242,7 @@ export default function MACode() {
               o seu dia a dia
             </h2>
 
-            <p className="mt-5 max-w-md text-sm leading-7 text-slate-300 md:text-base">
+            <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-slate-300 md:text-base lg:mx-0">
               Além de serviços à
               medida, desenvolvemos
               produtos próprios para
