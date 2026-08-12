@@ -12,8 +12,10 @@ import {
     getMAProfessorSyncStatus,
     type MAProfessorSyncStatus
 } from '../sync/syncApi';
+
 import {
     activateMAProfessorAccess,
+    confirmMAProfessorPilotAccess,
     endMAProfessorSession,
     requestMAProfessorAccess,
     requestMAProfessorRenewal,
@@ -24,6 +26,7 @@ import {
     AccessEntryScreen,
     type MAProfessorEntryMode
 } from './AccessEntryScreen';
+
 import {
     clearMAProfessorAccessSession,
     getOrCreateMAProfessorDeviceId,
@@ -43,17 +46,25 @@ import {
 interface AccessContextValue {
     session: MAProfessorAccessSession;
     refreshing: boolean;
+
     syncStatus:
         | MAProfessorSyncStatus
         | null;
+
     syncChecking: boolean;
     syncError: string;
+
     refresh: () => Promise<void>;
-    refreshSyncStatus: () => Promise<void>;
+
+    refreshSyncStatus:
+        () => Promise<void>;
+
     requestRenewal: (
         plan: RenewableLicensePlan
     ) => Promise<string>;
-    signOut: () => Promise<void>;
+
+    signOut:
+        () => Promise<void>;
 }
 
 const AccessContext =
@@ -108,13 +119,15 @@ function getRequestMessage(
     status: MAProfessorAccessRequestStatus
 ) {
     if (
-        status === 'approved'
+        status ===
+        'approved'
     ) {
         return 'O pedido foi aprovado. Consulte o email enviado pela MA-CODE com as instruções necessárias para aceder ao MA-Professor.';
     }
 
     if (
-        status === 'rejected'
+        status ===
+        'rejected'
     ) {
         return 'O pedido não foi aprovado. Se necessitar de esclarecimentos, contacte a MA-CODE.';
     }
@@ -124,7 +137,9 @@ function getRequestMessage(
 
 export function useMAProfessorAccess() {
     const context =
-        useContext(AccessContext);
+        useContext(
+            AccessContext
+        );
 
     if (!context) {
         throw new Error(
@@ -151,12 +166,18 @@ export function AccessGate({
     const [
         loading,
         setLoading
-    ] = useState(true);
+    ] =
+        useState(
+            true
+        );
 
     const [
         refreshing,
         setRefreshing
-    ] = useState(false);
+    ] =
+        useState(
+            false
+        );
 
     const [
         mode,
@@ -169,12 +190,14 @@ export function AccessGate({
     const [
         email,
         setEmail
-    ] = useState('');
+    ] =
+        useState('');
 
     const [
         password,
         setPassword
-    ] = useState('');
+    ] =
+        useState('');
 
     const [
         requestStatus,
@@ -187,17 +210,22 @@ export function AccessGate({
     const [
         entryMessage,
         setEntryMessage
-    ] = useState('');
+    ] =
+        useState('');
 
     const [
         error,
         setError
-    ] = useState('');
+    ] =
+        useState('');
 
     const [
         submitting,
         setSubmitting
-    ] = useState(false);
+    ] =
+        useState(
+            false
+        );
 
     const [
         renewingPlan,
@@ -205,6 +233,14 @@ export function AccessGate({
     ] =
         useState<RenewableLicensePlan | null>(
             null
+        );
+
+    const [
+        confirmingPilot,
+        setConfirmingPilot
+    ] =
+        useState(
+            false
         );
 
     const [
@@ -218,17 +254,22 @@ export function AccessGate({
     const [
         syncChecking,
         setSyncChecking
-    ] = useState(false);
+    ] =
+        useState(
+            false
+        );
 
     const [
         syncError,
         setSyncError
-    ] = useState('');
+    ] =
+        useState('');
 
     const persistSession =
         useCallback(
             (
-                nextSession: MAProfessorAccessSession
+                nextSession:
+                    MAProfessorAccessSession
             ) => {
                 setSession(
                     nextSession
@@ -244,10 +285,16 @@ export function AccessGate({
     const checkSyncStatus =
         useCallback(
             async (
-                targetSession: MAProfessorAccessSession
+                targetSession:
+                    MAProfessorAccessSession
             ) => {
-                setSyncChecking(true);
-                setSyncError('');
+                setSyncChecking(
+                    true
+                );
+
+                setSyncError(
+                    ''
+                );
 
                 try {
                     const response =
@@ -281,158 +328,224 @@ export function AccessGate({
         );
 
     const verifyStoredSession =
-        useCallback(async () => {
-            const stored =
-                readMAProfessorAccessSession();
+        useCallback(
+            async () => {
+                const stored =
+                    readMAProfessorAccessSession();
 
-            if (!stored) {
-                setSession(null);
-                setSyncStatus(null);
-                setSyncError('');
-                setLoading(false);
-                return;
-            }
-
-            try {
-                const response =
-                    await verifyMAProfessorAccess(
-                        stored.token,
-                        stored.deviceId
+                if (!stored) {
+                    setSession(
+                        null
                     );
 
-                const nextSession: MAProfessorAccessSession =
-                    {
-                        ...stored,
-                        email:
-                            response
-                                .license
-                                .email,
-                        license:
-                            response
-                                .license,
-                        checkedAt:
-                            new Date().toISOString()
-                    };
-
-                persistSession(
-                    nextSession
-                );
-
-                if (
-                    isLicenseUsable(
-                        nextSession.license
-                    )
-                ) {
-                    void checkSyncStatus(
-                        nextSession
-                    );
-                } else {
                     setSyncStatus(
                         null
                     );
-                    setSyncError('');
-                }
-            } catch {
-                clearMAProfessorAccessSession();
-                setSession(null);
-                setSyncStatus(null);
-                setSyncError('');
-            } finally {
-                setLoading(false);
-            }
-        }, [
-            checkSyncStatus,
-            persistSession
-        ]);
 
-    useEffect(() => {
-        void verifyStoredSession();
-    }, [
-        verifyStoredSession
-    ]);
+                    setSyncError(
+                        ''
+                    );
+
+                    setLoading(
+                        false
+                    );
+
+                    return;
+                }
+
+                try {
+                    const response =
+                        await verifyMAProfessorAccess(
+                            stored.token,
+                            stored.deviceId
+                        );
+
+                    const nextSession:
+                        MAProfessorAccessSession =
+                        {
+                            ...stored,
+
+                            email:
+                                response
+                                    .license
+                                    .email,
+
+                            license:
+                                response
+                                    .license,
+
+                            checkedAt:
+                                new Date()
+                                    .toISOString()
+                        };
+
+                    persistSession(
+                        nextSession
+                    );
+
+                    if (
+                        isLicenseUsable(
+                            nextSession
+                                .license
+                        )
+                    ) {
+                        void checkSyncStatus(
+                            nextSession
+                        );
+                    } else {
+                        setSyncStatus(
+                            null
+                        );
+
+                        setSyncError(
+                            ''
+                        );
+                    }
+                } catch {
+                    clearMAProfessorAccessSession();
+
+                    setSession(
+                        null
+                    );
+
+                    setSyncStatus(
+                        null
+                    );
+
+                    setSyncError(
+                        ''
+                    );
+                } finally {
+                    setLoading(
+                        false
+                    );
+                }
+            },
+            [
+                checkSyncStatus,
+                persistSession
+            ]
+        );
+
+    useEffect(
+        () => {
+            void verifyStoredSession();
+        },
+        [
+            verifyStoredSession
+        ]
+    );
 
     const refresh =
-        useCallback(async () => {
-            if (!session) {
-                return;
-            }
+        useCallback(
+            async () => {
+                if (
+                    !session
+                ) {
+                    return;
+                }
 
-            setRefreshing(true);
-
-            try {
-                const response =
-                    await verifyMAProfessorAccess(
-                        session.token,
-                        session.deviceId
-                    );
-
-                const nextSession: MAProfessorAccessSession =
-                    {
-                        ...session,
-                        email:
-                            response
-                                .license
-                                .email,
-                        license:
-                            response
-                                .license,
-                        checkedAt:
-                            new Date().toISOString()
-                    };
-
-                persistSession(
-                    nextSession
+                setRefreshing(
+                    true
                 );
 
-                if (
-                    isLicenseUsable(
-                        nextSession.license
-                    )
-                ) {
-                    void checkSyncStatus(
+                try {
+                    const response =
+                        await verifyMAProfessorAccess(
+                            session.token,
+                            session.deviceId
+                        );
+
+                    const nextSession:
+                        MAProfessorAccessSession =
+                        {
+                            ...session,
+
+                            email:
+                                response
+                                    .license
+                                    .email,
+
+                            license:
+                                response
+                                    .license,
+
+                            checkedAt:
+                                new Date()
+                                    .toISOString()
+                        };
+
+                    persistSession(
                         nextSession
                     );
-                } else {
+
+                    if (
+                        isLicenseUsable(
+                            nextSession
+                                .license
+                        )
+                    ) {
+                        void checkSyncStatus(
+                            nextSession
+                        );
+                    } else {
+                        setSyncStatus(
+                            null
+                        );
+
+                        setSyncError(
+                            ''
+                        );
+                    }
+                } finally {
+                    setRefreshing(
+                        false
+                    );
+                }
+            },
+            [
+                checkSyncStatus,
+                persistSession,
+                session
+            ]
+        );
+
+    const refreshSyncStatus =
+        useCallback(
+            async () => {
+                if (
+                    !session
+                ) {
                     setSyncStatus(
                         null
                     );
-                    setSyncError('');
+
+                    setSyncError(
+                        ''
+                    );
+
+                    return;
                 }
-            } finally {
-                setRefreshing(
-                    false
-                );
-            }
-        }, [
-            checkSyncStatus,
-            persistSession,
-            session
-        ]);
 
-    const refreshSyncStatus =
-        useCallback(async () => {
-            if (!session) {
-                setSyncStatus(
-                    null
+                await checkSyncStatus(
+                    session
                 );
-                setSyncError('');
-                return;
-            }
-
-            await checkSyncStatus(
+            },
+            [
+                checkSyncStatus,
                 session
-            );
-        }, [
-            checkSyncStatus,
-            session
-        ]);
+            ]
+        );
 
     const requestRenewal =
         useCallback(
             async (
-                plan: RenewableLicensePlan
+                plan:
+                    RenewableLicensePlan
             ) => {
-                if (!session) {
+                if (
+                    !session
+                ) {
                     throw new Error(
                         'A sessão já não está disponível.'
                     );
@@ -445,13 +558,18 @@ export function AccessGate({
                         plan
                     );
 
-                const nextSession: MAProfessorAccessSession =
+                const nextSession:
+                    MAProfessorAccessSession =
                     {
                         ...session,
+
                         license:
-                            response.license,
+                            response
+                                .license,
+
                         checkedAt:
-                            new Date().toISOString()
+                            new Date()
+                                .toISOString()
                     };
 
                 persistSession(
@@ -460,7 +578,8 @@ export function AccessGate({
 
                 if (
                     isLicenseUsable(
-                        nextSession.license
+                        nextSession
+                            .license
                     )
                 ) {
                     void checkSyncStatus(
@@ -468,7 +587,8 @@ export function AccessGate({
                     );
                 }
 
-                return response.message;
+                return response
+                    .message;
             },
             [
                 checkSyncStatus,
@@ -478,45 +598,89 @@ export function AccessGate({
         );
 
     const resetEntry =
-        useCallback(() => {
-            setMode('intro');
-            setEmail('');
-            setPassword('');
-            setRequestStatus(null);
-            setEntryMessage('');
-            setError('');
-        }, []);
+        useCallback(
+            () => {
+                setMode(
+                    'intro'
+                );
+
+                setEmail(
+                    ''
+                );
+
+                setPassword(
+                    ''
+                );
+
+                setRequestStatus(
+                    null
+                );
+
+                setEntryMessage(
+                    ''
+                );
+
+                setError(
+                    ''
+                );
+            },
+            []
+        );
 
     const signOut =
-        useCallback(async () => {
-            const current =
-                session;
+        useCallback(
+            async () => {
+                const current =
+                    session;
 
-            clearMAProfessorAccessSession();
-            setSession(null);
-            setSyncStatus(null);
-            setSyncError('');
-            setSyncChecking(false);
-            resetEntry();
+                clearMAProfessorAccessSession();
 
-            if (current) {
-                try {
-                    await endMAProfessorSession(
-                        current.token,
-                        current.deviceId
-                    );
-                } catch {
-                    // A sessão local fica terminada mesmo que o servidor esteja indisponível.
+                setSession(
+                    null
+                );
+
+                setSyncStatus(
+                    null
+                );
+
+                setSyncError(
+                    ''
+                );
+
+                setSyncChecking(
+                    false
+                );
+
+                setConfirmingPilot(
+                    false
+                );
+
+                resetEntry();
+
+                if (
+                    current
+                ) {
+                    try {
+                        await endMAProfessorSession(
+                            current.token,
+                            current.deviceId
+                        );
+                    } catch {
+                        // A sessão local fica terminada mesmo que o servidor esteja indisponível.
+                    }
                 }
-            }
-        }, [
-            resetEntry,
-            session
-        ]);
+            },
+            [
+                resetEntry,
+                session
+            ]
+        );
 
     const handleRequest =
         async () => {
-            setError('');
+            setError(
+                ''
+            );
 
             const normalizedEmail =
                 normalizeEmail(
@@ -531,10 +695,13 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
+
                 return;
             }
 
-            setSubmitting(true);
+            setSubmitting(
+                true
+            );
 
             try {
                 const response =
@@ -543,20 +710,25 @@ export function AccessGate({
                     );
 
                 const status =
-                    response.request.status;
+                    response
+                        .request
+                        .status;
 
                 setEmail(
                     normalizedEmail
                 );
+
                 setRequestStatus(
                     status
                 );
+
                 setEntryMessage(
                     response.message ||
                         getRequestMessage(
                             status
                         )
                 );
+
                 setMode(
                     'request-sent'
                 );
@@ -577,7 +749,9 @@ export function AccessGate({
 
     const handleRefreshEntryStatus =
         async () => {
-            setError('');
+            setError(
+                ''
+            );
 
             const normalizedEmail =
                 normalizeEmail(
@@ -592,10 +766,13 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
+
                 return;
             }
 
-            setSubmitting(true);
+            setSubmitting(
+                true
+            );
 
             try {
                 const response =
@@ -604,20 +781,25 @@ export function AccessGate({
                     );
 
                 const status =
-                    response.request.status;
+                    response
+                        .request
+                        .status;
 
                 setEmail(
                     normalizedEmail
                 );
+
                 setRequestStatus(
                     status
                 );
+
                 setEntryMessage(
                     response.message ||
                         getRequestMessage(
                             status
                         )
                 );
+
                 setMode(
                     'request-sent'
                 );
@@ -638,7 +820,9 @@ export function AccessGate({
 
     const handleActivate =
         async () => {
-            setError('');
+            setError(
+                ''
+            );
 
             const normalizedEmail =
                 normalizeEmail(
@@ -646,7 +830,8 @@ export function AccessGate({
                 );
 
             const normalizedPassword =
-                password.trim();
+                password
+                    .trim();
 
             if (
                 !isValidEmail(
@@ -656,6 +841,7 @@ export function AccessGate({
                 setError(
                     'Indique um email válido.'
                 );
+
                 return;
             }
 
@@ -665,10 +851,13 @@ export function AccessGate({
                 setError(
                     'Indique a senha recebida da MA-CODE.'
                 );
+
                 return;
             }
 
-            setSubmitting(true);
+            setSubmitting(
+                true
+            );
 
             try {
                 const deviceId =
@@ -681,25 +870,40 @@ export function AccessGate({
                         deviceId
                     );
 
-                const nextSession: MAProfessorAccessSession =
+                const nextSession:
+                    MAProfessorAccessSession =
                     {
                         token:
-                            response.token,
+                            response
+                                .token,
+
                         deviceId,
+
                         email:
                             response
                                 .license
                                 .email,
+
                         license:
                             response
                                 .license,
+
                         checkedAt:
-                            new Date().toISOString()
+                            new Date()
+                                .toISOString()
                     };
 
-                setPassword('');
-                setRequestStatus(null);
-                setEntryMessage('');
+                setPassword(
+                    ''
+                );
+
+                setRequestStatus(
+                    null
+                );
+
+                setEntryMessage(
+                    ''
+                );
 
                 persistSession(
                     nextSession
@@ -707,7 +911,8 @@ export function AccessGate({
 
                 if (
                     isLicenseUsable(
-                        nextSession.license
+                        nextSession
+                            .license
                     )
                 ) {
                     void checkSyncStatus(
@@ -731,10 +936,16 @@ export function AccessGate({
 
     const handleRenewFromGate =
         async (
-            plan: RenewableLicensePlan
+            plan:
+                RenewableLicensePlan
         ) => {
-            setError('');
-            setRenewingPlan(plan);
+            setError(
+                ''
+            );
+
+            setRenewingPlan(
+                plan
+            );
 
             try {
                 await requestRenewal(
@@ -751,6 +962,77 @@ export function AccessGate({
             } finally {
                 setRenewingPlan(
                     null
+                );
+            }
+        };
+
+    const handleConfirmPilotFromGate =
+        async () => {
+            if (
+                !session
+            ) {
+                return;
+            }
+
+            setError(
+                ''
+            );
+
+            setConfirmingPilot(
+                true
+            );
+
+            try {
+                const response =
+                    await confirmMAProfessorPilotAccess(
+                        session.token,
+                        session.deviceId
+                    );
+
+                const nextSession:
+                    MAProfessorAccessSession =
+                    {
+                        ...session,
+
+                        email:
+                            response
+                                .license
+                                .email,
+
+                        license:
+                            response
+                                .license,
+
+                        checkedAt:
+                            new Date()
+                                .toISOString()
+                    };
+
+                persistSession(
+                    nextSession
+                );
+
+                if (
+                    isLicenseUsable(
+                        nextSession
+                            .license
+                    )
+                ) {
+                    void checkSyncStatus(
+                        nextSession
+                    );
+                }
+            } catch (
+                confirmationError
+            ) {
+                setError(
+                    getErrorMessage(
+                        confirmationError
+                    )
+                );
+            } finally {
+                setConfirmingPilot(
+                    false
                 );
             }
         };
@@ -784,95 +1066,276 @@ export function AccessGate({
             ]
         );
 
-    if (loading) {
+    if (
+        loading
+    ) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
                 <div className="text-center">
                     <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+
                     <p className="mt-4 text-sm font-semibold text-slate-400">
-                        A verificar o acesso
-                        ao MA-Professor…
+                        A verificar o acesso ao MA-Professor…
                     </p>
                 </div>
             </main>
         );
     }
 
-    if (!session) {
+    if (
+        !session
+    ) {
         return (
             <AccessEntryScreen
-                mode={mode}
-                email={email}
-                password={password}
+                mode={
+                    mode
+                }
+                email={
+                    email
+                }
+                password={
+                    password
+                }
                 requestStatus={
                     requestStatus
                 }
                 message={
                     entryMessage
                 }
-                error={error}
+                error={
+                    error
+                }
                 submitting={
                     submitting
                 }
-                onEmailChange={value => {
-                    setEmail(value);
-                    setError('');
-                }}
-                onPasswordChange={value => {
-                    setPassword(
-                        value
-                    );
-                    setError('');
-                }}
-                onRequest={() =>
-                    void handleRequest()
+                onEmailChange={
+                    value => {
+                        setEmail(
+                            value
+                        );
+
+                        setError(
+                            ''
+                        );
+                    }
                 }
-                onActivate={() =>
-                    void handleActivate()
+                onPasswordChange={
+                    value => {
+                        setPassword(
+                            value
+                        );
+
+                        setError(
+                            ''
+                        );
+                    }
                 }
-                onShowIntro={() => {
-                    setMode(
-                        'intro'
-                    );
-                    setPassword('');
-                    setError('');
-                }}
-                onShowRequest={() => {
-                    setMode(
-                        'request'
-                    );
-                    setPassword('');
-                    setRequestStatus(
-                        null
-                    );
-                    setEntryMessage('');
-                    setError('');
-                }}
-                onShowActivate={() => {
-                    setMode(
-                        'activate'
-                    );
-                    setPassword('');
-                    setError('');
-                }}
-                onRefreshStatus={() =>
-                    void handleRefreshEntryStatus()
+                onRequest={
+                    () =>
+                        void handleRequest()
+                }
+                onActivate={
+                    () =>
+                        void handleActivate()
+                }
+                onShowIntro={
+                    () => {
+                        setMode(
+                            'intro'
+                        );
+
+                        setPassword(
+                            ''
+                        );
+
+                        setError(
+                            ''
+                        );
+                    }
+                }
+                onShowRequest={
+                    () => {
+                        setMode(
+                            'request'
+                        );
+
+                        setPassword(
+                            ''
+                        );
+
+                        setRequestStatus(
+                            null
+                        );
+
+                        setEntryMessage(
+                            ''
+                        );
+
+                        setError(
+                            ''
+                        );
+                    }
+                }
+                onShowActivate={
+                    () => {
+                        setMode(
+                            'activate'
+                        );
+
+                        setPassword(
+                            ''
+                        );
+
+                        setError(
+                            ''
+                        );
+                    }
+                }
+                onRefreshStatus={
+                    () =>
+                        void handleRefreshEntryStatus()
                 }
             />
         );
     }
 
     const isPilotPhaseLicense =
-        session.license.plan ===
+        session
+            .license
+            .plan ===
             'beta_30_days' ||
-        session.license.plan ===
+        session
+            .license
+            .plan ===
             'courtesy_30_days' ||
-        session.license.plan ===
+        session
+            .license
+            .plan ===
             'courtesy_school_year';
+
+    const requiresPilotConfirmation =
+        session
+            .license
+            .plan ===
+            'beta_30_days' &&
+        session
+            .license
+            .status ===
+            'expiring';
+
+    if (
+        requiresPilotConfirmation
+    ) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-white sm:px-6">
+                <section className="w-full max-w-2xl rounded-[2rem] border border-cyan-300/20 bg-slate-900 p-7 shadow-2xl sm:p-10">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">
+                        Fase piloto · confirmação mensal
+                    </p>
+
+                    <h1 className="mt-3 text-3xl font-black">
+                        Confirme que pretende manter a sua vaga.
+                    </h1>
+
+                    <p className="mt-3 text-sm leading-7 text-slate-300">
+                        O seu acesso piloto continua ativo até{' '}
+                        <strong className="text-white">
+                            {formatDate(
+                                session
+                                    .license
+                                    .validUntil
+                            )}
+                        </strong>
+                        . Para manter esta vaga por mais 30 dias, confirme que pretende continuar a utilizar o MA-Professor.
+                    </p>
+
+                    <div className="mt-7 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-5">
+                        <p className="text-sm font-black text-cyan-100">
+                            Confirmação gratuita
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                            Esta confirmação não envolve pagamento e não altera os seus dados. Serve apenas para garantir que as vagas gratuitas da fase piloto continuam atribuídas a professores que estão a utilizar o serviço.
+                        </p>
+
+                        {session
+                            .license
+                            .daysRemaining !==
+                        null ? (
+                            <p className="mt-3 text-xs font-bold text-cyan-200/80">
+                                {session
+                                    .license
+                                    .daysRemaining ===
+                                1
+                                    ? 'Resta 1 dia para confirmar esta vaga.'
+                                    : `Restam ${session.license.daysRemaining} dias para confirmar esta vaga.`}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    {error ? (
+                        <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
+                            {error}
+                        </p>
+                    ) : null}
+
+                    <button
+                        type="button"
+                        disabled={
+                            confirmingPilot
+                        }
+                        onClick={
+                            () =>
+                                void handleConfirmPilotFromGate()
+                        }
+                        className="mt-6 w-full rounded-2xl bg-cyan-300 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        {confirmingPilot
+                            ? 'A confirmar…'
+                            : 'Confirmar e manter a vaga'}
+                    </button>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            disabled={
+                                confirmingPilot ||
+                                refreshing
+                            }
+                            onClick={
+                                () =>
+                                    void refresh()
+                            }
+                            className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-white/5 disabled:cursor-wait disabled:opacity-50"
+                        >
+                            {refreshing
+                                ? 'A verificar…'
+                                : 'Verificar novamente'}
+                        </button>
+
+                        <button
+                            type="button"
+                            disabled={
+                                confirmingPilot
+                            }
+                            onClick={
+                                () =>
+                                    void signOut()
+                            }
+                            className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:text-white disabled:opacity-50"
+                        >
+                            Usar outro email
+                        </button>
+                    </div>
+                </section>
+            </main>
+        );
+    }
 
     if (
         !isLicenseUsable(
-            session.license
+            session
+                .license
         )
     ) {
         return (
@@ -886,11 +1349,13 @@ export function AccessGate({
                                 .status
                         )}
                     </p>
+
                     <h1 className="mt-3 text-3xl font-black">
                         {isPilotPhaseLicense
                             ? 'O acesso piloto está inativo.'
                             : 'O período de acesso terminou.'}
                     </h1>
+
                     <p className="mt-3 text-sm leading-7 text-slate-300">
                         {isPilotPhaseLicense ? (
                             <>
@@ -930,6 +1395,7 @@ export function AccessGate({
                             <p className="text-sm font-black text-cyan-100">
                                 Fase piloto
                             </p>
+
                             <p className="mt-2 text-sm leading-6 text-slate-300">
                                 Durante a fase piloto, a manutenção da vaga depende da confirmação periódica de utilização. Consulte o email associado à conta para verificar se existe alguma ação pendente.
                             </p>
@@ -939,19 +1405,23 @@ export function AccessGate({
                             <div className="mt-7 grid gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"
-                                    disabled={Boolean(
-                                        renewingPlan
-                                    )}
-                                    onClick={() =>
-                                        void handleRenewFromGate(
-                                            'paid_30_days'
+                                    disabled={
+                                        Boolean(
+                                            renewingPlan
                                         )
+                                    }
+                                    onClick={
+                                        () =>
+                                            void handleRenewFromGate(
+                                                'paid_30_days'
+                                            )
                                     }
                                     className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-left transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-60"
                                 >
                                     <span className="block text-base font-black text-cyan-200">
                                         3,49 € / 30 dias
                                     </span>
+
                                     <span className="mt-1 block text-xs text-slate-400">
                                         Renovação manual · sem renovação automática
                                     </span>
@@ -959,19 +1429,23 @@ export function AccessGate({
 
                                 <button
                                     type="button"
-                                    disabled={Boolean(
-                                        renewingPlan
-                                    )}
-                                    onClick={() =>
-                                        void handleRenewFromGate(
-                                            'school_year'
+                                    disabled={
+                                        Boolean(
+                                            renewingPlan
                                         )
+                                    }
+                                    onClick={
+                                        () =>
+                                            void handleRenewFromGate(
+                                                'school_year'
+                                            )
                                     }
                                     className="rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-4 text-left transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
                                 >
                                     <span className="block text-base font-black text-violet-200">
                                         15 €
                                     </span>
+
                                     <span className="mt-1 block text-xs text-slate-400">
                                         Até 1 de agosto do respetivo ano letivo
                                     </span>
@@ -993,19 +1467,20 @@ export function AccessGate({
                     <div className="mt-6 flex flex-wrap gap-3">
                         <button
                             type="button"
-                            onClick={() =>
-                                void refresh()
+                            onClick={
+                                () =>
+                                    void refresh()
                             }
                             className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-white/5"
                         >
-                            Verificar
-                            novamente
+                            Verificar novamente
                         </button>
 
                         <button
                             type="button"
-                            onClick={() =>
-                                void signOut()
+                            onClick={
+                                () =>
+                                    void signOut()
                             }
                             className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:text-white"
                         >
