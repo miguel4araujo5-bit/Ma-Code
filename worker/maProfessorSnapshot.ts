@@ -14,6 +14,7 @@ const ACCESS_DURABLE_OBJECT_NAME =
 const MAX_BODY_BYTES = 1_500_000
 const MAX_RECORD_ID_LENGTH = 128
 const MAX_CIPHERTEXT_CHARACTERS = 1_480_000
+const MIN_CIPHERTEXT_CHARACTERS = 24
 const NONCE_BYTES = 12
 const HASH_BYTES = 32
 const ENCRYPTION_VERSION = 1
@@ -394,16 +395,12 @@ async function readBody(
     )
   }
 
-  const text =
-    await request.text()
+  const bytes =
+    await request.arrayBuffer()
 
   if (
-    new TextEncoder()
-      .encode(
-        text
-      )
-      .byteLength >
-    MAX_BODY_BYTES
+    bytes.byteLength >
+      MAX_BODY_BYTES
   ) {
     throw new SnapshotApiError(
       'O registo cifrado ultrapassa o limite permitido.',
@@ -416,7 +413,10 @@ async function readBody(
   try {
     parsed =
       JSON.parse(
-        text
+        new TextDecoder()
+          .decode(
+            bytes
+          )
       )
   } catch {
     throw new SnapshotApiError(
@@ -572,7 +572,7 @@ async function verifyAccessSession(
 
   let result:
     AccessVerifyResult | null =
-      null
+    null
 
   try {
     result =
@@ -805,10 +805,8 @@ function parseEncryptedRecord(
       nonce
     ) !==
       NONCE_BYTES ||
-    base64ByteLength(
-      ciphertext
-    ) <
-      17 ||
+    ciphertext.length <
+      MIN_CIPHERTEXT_CHARACTERS ||
     base64ByteLength(
       ciphertextHash
     ) !==
