@@ -10,7 +10,6 @@ import Dexie, {
 
 import {
   MA_PROFESSOR_DEFAULT_SETTINGS_ID,
-  maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
 
@@ -143,6 +142,34 @@ async function claimLocalDataOwner(
       return true
     }
   )
+}
+
+async function replaceLocalDataOwner(
+  email: string
+) {
+  const normalizedEmail =
+    normalizeEmail(
+      email
+    )
+
+  await ownershipDb.open()
+
+  const timestamp =
+    new Date()
+      .toISOString()
+
+  await ownershipDb
+    .owners
+    .put({
+      id:
+        OWNERSHIP_RECORD_ID,
+      email:
+        normalizedEmail,
+      createdAt:
+        timestamp,
+      updatedAt:
+        timestamp
+    })
 }
 
 async function hasMeaningfulLocalData() {
@@ -292,13 +319,45 @@ export function AccountIsolationGate({
           }
 
           if (owner) {
-            setStage(
+            const sameOwner =
               normalizeEmail(
                 owner.email
               ) ===
-                currentEmail
-                ? 'ready'
-                : 'conflict'
+              currentEmail
+
+            if (sameOwner) {
+              setStage(
+                'ready'
+              )
+
+              return
+            }
+
+            const hasLocalData =
+              await hasMeaningfulLocalData()
+
+            if (cancelled) {
+              return
+            }
+
+            if (hasLocalData) {
+              setStage(
+                'conflict'
+              )
+
+              return
+            }
+
+            await replaceLocalDataOwner(
+              currentEmail
+            )
+
+            if (cancelled) {
+              return
+            }
+
+            setStage(
+              'ready'
             )
 
             return
