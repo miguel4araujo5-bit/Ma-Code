@@ -5,6 +5,9 @@ export type MAQuadroElementCategory =
   | 'education'
   | 'technology'
   | 'interface'
+  | 'decorative'
+  | 'media'
+  | 'people'
 
 export type MAQuadroLibraryElementDefinition = {
   id: string
@@ -32,7 +35,10 @@ export const MA_QUADRO_ELEMENT_CATEGORIES: Array<{
   { id: 'business', label: 'Negócio' },
   { id: 'education', label: 'Educação' },
   { id: 'technology', label: 'Tecnologia' },
-  { id: 'interface', label: 'Interface' }
+  { id: 'interface', label: 'Interface' },
+  { id: 'decorative', label: 'Decoração' },
+  { id: 'media', label: 'Multimédia' },
+  { id: 'people', label: 'Pessoas' }
 ]
 
 export const MA_QUADRO_ELEMENT_MIN_STROKE = 4
@@ -217,6 +223,126 @@ export const MA_QUADRO_LIBRARY_ELEMENTS: MAQuadroLibraryElementDefinition[] = [
     id: 'user', name: 'Pessoa', category: 'interface',
     keywords: ['pessoa', 'user', 'utilizador', 'perfil'], usesStroke: true,
     body: '<circle cx="256" cy="166" r="92" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M84 448C98 340 166 292 256 292C346 292 414 340 428 448" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'sparkles', name: 'Brilhos', category: 'decorative',
+    keywords: ['brilhos', 'sparkles', 'estrela', 'magia', 'decoracao', 'decoração'], usesStroke: false,
+    body: '<path d="M174 54L196 122L264 144L196 166L174 234L152 166L84 144L152 122Z" fill="{{color}}"/><path d="M350 196L374 270L448 294L374 318L350 392L326 318L252 294L326 270Z" fill="{{color}}"/><circle cx="120" cy="354" r="28" fill="{{color}}"/>'
+  },
+  {
+    id: 'flower', name: 'Flor', category: 'decorative',
+    keywords: ['flor', 'flower', 'natureza', 'primavera', 'decoracao', 'decoração'], usesStroke: true,
+    body: '<circle cx="256" cy="256" r="48" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><ellipse cx="256" cy="128" rx="62" ry="88" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><ellipse cx="256" cy="384" rx="62" ry="88" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><ellipse cx="128" cy="256" rx="88" ry="62" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><ellipse cx="384" cy="256" rx="88" ry="62" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/>'
+  },
+  {
+    id: 'sun', name: 'Sol', category: 'decorative',
+    keywords: ['sol', 'sun', 'verao', 'verão', 'tempo', 'natureza'], usesStroke: true,
+    body: '<circle cx="256" cy="256" r="92" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M256 48V104M256 408V464M48 256H104M408 256H464M109 109L149 149M363 363L403 403M403 109L363 149M149 363L109 403" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'moon', name: 'Lua', category: 'decorative',
+    keywords: ['lua', 'moon', 'noite', 'ceu', 'céu'], usesStroke: false,
+    body: '<path d="M350 64C246 78 166 168 166 276C166 354 210 424 278 458C150 466 48 368 48 244C48 120 152 24 276 34C302 36 326 46 350 64Z" fill="{{color}}"/>'
+  },
+  {
+    id: 'cloud', name: 'Nuvem', category: 'decorative',
+    keywords: ['nuvem', 'cloud', 'ceu', 'céu', 'tempo'], usesStroke: true,
+    body: '<path d="M124 390H394C442 390 472 354 472 312C472 268 438 232 394 232C386 232 378 234 370 236C350 166 292 122 224 122C146 122 82 184 78 262C40 274 18 306 18 342C18 370 40 390 68 390Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'leaf', name: 'Folha', category: 'decorative',
+    keywords: ['folha', 'leaf', 'natureza', 'eco', 'verde'], usesStroke: true,
+    body: '<path d="M80 420C78 212 188 82 432 58C430 294 322 430 80 420Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/><path d="M104 392C190 302 274 224 406 92" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'confetti', name: 'Confetes', category: 'decorative',
+    keywords: ['confetes', 'confetti', 'festa', 'celebracao', 'celebração'], usesStroke: true,
+    body: '<path d="M120 76L150 140M278 62L266 138M398 112L350 166M86 264L154 276M410 258L344 282M138 392L188 346M330 420L312 354" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/><circle cx="230" cy="248" r="34" fill="{{color}}"/><rect x="362" y="340" width="58" height="58" rx="10" fill="{{color}}"/>'
+  },
+  {
+    id: 'music-note', name: 'Música', category: 'media',
+    keywords: ['musica', 'música', 'music', 'som', 'nota'], usesStroke: true,
+    body: '<path d="M198 100V360M198 126L406 82V316" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="142" cy="382" rx="64" ry="46" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><ellipse cx="350" cy="338" rx="64" ry="46" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/>'
+  },
+  {
+    id: 'play', name: 'Reproduzir', category: 'media',
+    keywords: ['play', 'reproduzir', 'video', 'vídeo', 'media'], usesStroke: false,
+    body: '<circle cx="256" cy="256" r="214" fill="{{color}}"/><path d="M212 154L370 256L212 358Z" fill="#ffffff"/>'
+  },
+  {
+    id: 'camera', name: 'Câmara', category: 'media',
+    keywords: ['camera', 'câmara', 'foto', 'fotografia', 'imagem'], usesStroke: true,
+    body: '<rect x="54" y="142" width="404" height="278" rx="34" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M160 142L198 90H314L352 142" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/><circle cx="256" cy="280" r="86" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/>'
+  },
+  {
+    id: 'image', name: 'Imagem', category: 'media',
+    keywords: ['imagem', 'image', 'foto', 'paisagem', 'galeria'], usesStroke: true,
+    body: '<rect x="58" y="70" width="396" height="372" rx="28" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><circle cx="176" cy="170" r="42" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M82 394L184 286L258 350L330 264L430 394" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'microphone', name: 'Microfone', category: 'media',
+    keywords: ['microfone', 'microphone', 'audio', 'áudio', 'voz', 'podcast'], usesStroke: true,
+    body: '<rect x="188" y="56" width="136" height="278" rx="68" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M126 250V270C126 342 184 400 256 400C328 400 386 342 386 270V250M256 400V462M188 462H324" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'volume', name: 'Som', category: 'media',
+    keywords: ['som', 'volume', 'audio', 'áudio', 'speaker'], usesStroke: true,
+    body: '<path d="M72 216H166L268 130V382L166 296H72Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/><path d="M326 200C354 228 354 284 326 312M374 150C434 210 434 302 374 362" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'users', name: 'Grupo', category: 'people',
+    keywords: ['grupo', 'pessoas', 'users', 'equipa', 'equipe', 'team'], usesStroke: true,
+    body: '<circle cx="210" cy="160" r="76" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><circle cx="364" cy="188" r="58" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M56 432C68 330 128 280 210 280C292 280 352 330 364 432M330 304C394 306 438 344 454 412" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'teacher', name: 'Professor', category: 'people',
+    keywords: ['professor', 'professora', 'teacher', 'educacao', 'educação', 'aula'], usesStroke: true,
+    body: '<circle cx="168" cy="148" r="66" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M60 420C70 328 112 286 168 286C224 286 266 328 276 420M302 106H458V316H302M332 164H428M332 218H404" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'child', name: 'Aluno', category: 'people',
+    keywords: ['aluno', 'aluna', 'crianca', 'criança', 'student', 'escola'], usesStroke: true,
+    body: '<circle cx="256" cy="162" r="82" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M92 442C108 338 164 292 256 292C348 292 404 338 420 442" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/><path d="M184 104C208 64 304 58 336 112" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/>'
+  },
+  {
+    id: 'trophy', name: 'Troféu', category: 'decorative',
+    keywords: ['trofeu', 'troféu', 'premio', 'prémio', 'winner', 'vencedor'], usesStroke: true,
+    body: '<path d="M166 70H346V188C346 266 310 318 256 318C202 318 166 266 166 188ZM256 318V392M184 442H328M214 392H298" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/><path d="M166 112H86V166C86 226 124 264 178 272M346 112H426V166C426 226 388 264 334 272" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'gift', name: 'Presente', category: 'decorative',
+    keywords: ['presente', 'gift', 'oferta', 'aniversario', 'aniversário'], usesStroke: true,
+    body: '<rect x="72" y="190" width="368" height="254" rx="20" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M256 190V444M72 268H440M256 190C206 190 146 174 146 124C146 84 188 68 218 92C240 110 252 144 256 190ZM256 190C306 190 366 174 366 124C366 84 324 68 294 92C272 110 260 144 256 190Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'flag', name: 'Bandeira', category: 'decorative',
+    keywords: ['bandeira', 'flag', 'marcador', 'objetivo'], usesStroke: true,
+    body: '<path d="M112 458V62M126 84H404L344 176L404 268H126" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'rocket', name: 'Foguetão', category: 'technology',
+    keywords: ['foguetao', 'foguetão', 'rocket', 'lancamento', 'lançamento', 'startup'], usesStroke: true,
+    body: '<path d="M222 310C160 292 126 250 112 204C194 102 300 48 418 54C424 172 370 278 268 360C250 346 234 330 222 310Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/><circle cx="314" cy="158" r="42" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M178 328L94 412L100 340L172 268M246 386L188 454L180 368" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'globe', name: 'Mundo', category: 'education',
+    keywords: ['mundo', 'globe', 'planeta', 'geografia', 'global'], usesStroke: true,
+    body: '<circle cx="256" cy="256" r="202" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M54 256H458M256 54C316 108 344 174 344 256C344 338 316 404 256 458C196 404 168 338 168 256C168 174 196 108 256 54ZM88 148H424M88 364H424" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/>'
+  },
+  {
+    id: 'clock', name: 'Relógio', category: 'interface',
+    keywords: ['relogio', 'relógio', 'clock', 'tempo', 'hora'], usesStroke: true,
+    body: '<circle cx="256" cy="256" r="202" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M256 126V264L350 326" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round" stroke-linejoin="round"/>'
+  },
+  {
+    id: 'lock', name: 'Cadeado', category: 'interface',
+    keywords: ['cadeado', 'lock', 'seguranca', 'segurança', 'privado'], usesStroke: true,
+    body: '<rect x="98" y="222" width="316" height="232" rx="28" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/><path d="M166 222V158C166 108 204 68 256 68C308 68 346 108 346 158V222" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linecap="round"/><circle cx="256" cy="330" r="24" fill="{{color}}"/>'
+  },
+  {
+    id: 'eye', name: 'Visualizar', category: 'interface',
+    keywords: ['olho', 'eye', 'visualizar', 'ver', 'preview'], usesStroke: true,
+    body: '<path d="M48 256C104 154 176 106 256 106C336 106 408 154 464 256C408 358 336 406 256 406C176 406 104 358 48 256Z" fill="none" stroke="{{color}}" stroke-width="{{stroke}}" stroke-linejoin="round"/><circle cx="256" cy="256" r="70" fill="none" stroke="{{color}}" stroke-width="{{stroke}}"/>'
   }
 ]
 
