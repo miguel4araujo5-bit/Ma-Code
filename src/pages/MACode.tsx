@@ -89,6 +89,11 @@ const featuredProducts = [
   }
 ]
 
+const accentGlowStyle = {
+  textShadow:
+    '0 0 16px rgba(103, 232, 249, 0.24), 0 0 28px rgba(139, 92, 246, 0.14)'
+}
+
 type AnalyticsParameters = Record<
   string,
   string | number | boolean | undefined
@@ -475,7 +480,9 @@ function ServiceIcon({
           cy="12"
           r="8.2"
         />
+
         <path d="M3.8 12h16.4" />
+
         <path d="M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2c-2.3-2.5-3.5-5.3-3.5-8.2S9.7 6.3 12 3.8Z" />
       </svg>
     )
@@ -497,6 +504,7 @@ function ServiceIcon({
           height="14.5"
           rx="2.4"
         />
+
         <path d="M8 3.8v3.4M16 3.8v3.4M4.2 9.2h15.6" />
       </svg>
     )
@@ -534,6 +542,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
+
         <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
       </svg>
     )
@@ -549,6 +558,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
+
         <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
       </svg>
     )
@@ -570,6 +580,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="13.3"
           y="4.5"
@@ -577,6 +588,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="4.5"
           y="13.3"
@@ -584,6 +596,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="13.3"
           y="13.3"
@@ -604,6 +617,7 @@ function ProductIcon({
       strokeWidth="1.8"
     >
       <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
+
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
     </svg>
   )
@@ -668,7 +682,10 @@ function ProjectsShowcase({
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
             Projetos que{' '}
-            <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+            <span
+              className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
+              style={accentGlowStyle}
+            >
               geram resultados
             </span>
           </h2>
@@ -993,7 +1010,11 @@ export default function MACode() {
                 <h1 className="relative z-10 max-w-none text-[clamp(2.15rem,10.8vw,2.7rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] lg:text-[clamp(2.7rem,5.7vw,5.15rem)] xl:max-w-[14.2ch]">
                   Websites e sistemas à
                   medida que fazem{' '}
-                  <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+
+                  <span
+                    className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
+                    style={accentGlowStyle}
+                  >
                     a diferença.
                   </span>
                 </h1>
@@ -1007,7 +1028,11 @@ export default function MACode() {
                 e sistemas personalizados
                 para automatizar e fazer
                 crescer o seu negócio —{' '}
-                <span className="font-semibold text-cyan-200">
+
+                <span
+                  className="font-semibold text-cyan-200"
+                  style={accentGlowStyle}
+                >
                   desde 19€/mês.
                 </span>
               </p>
@@ -1149,9 +1174,14 @@ export default function MACode() {
           <div className="text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
-              <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+
+              <span
+                className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
+                style={accentGlowStyle}
+              >
                 caminho certo
               </span>{' '}
+
               para o seu negócio
             </h2>
 
@@ -1232,17 +1262,24 @@ export default function MACode() {
 
             <h2 className="mx-auto mt-5 max-w-[18ch] text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-white md:max-w-[16ch] md:text-4xl lg:mx-0">
               Ferramentas{' '}
+
               <span className="whitespace-nowrap">
                 MA-Code
               </span>{' '}
+
               que{' '}
-              <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+
+              <span
+                className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
+                style={accentGlowStyle}
+              >
                 impulsionam
               </span>{' '}
+
               o seu dia a dia
             </h2>
 
-            <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-slate-300 md:text-base lg:mx-0">
+            <p className="mx-auto mt-5 max-w-md hyphens-auto text-justify text-sm leading-7 text-slate-300 [text-align-last:center] md:text-base lg:mx-0 lg:text-left lg:[text-align-last:left]">
               Além de serviços à
               medida, desenvolvemos
               produtos próprios para
@@ -1368,7 +1405,11 @@ export default function MACode() {
                   <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white md:text-3xl">
                     Pronto para dar
                     o{' '}
-                    <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+
+                    <span
+                      className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
+                      style={accentGlowStyle}
+                    >
                       próximo passo?
                     </span>
                   </h2>
