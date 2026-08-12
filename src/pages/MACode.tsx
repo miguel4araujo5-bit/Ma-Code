@@ -184,6 +184,73 @@ function TechAccentStyles() {
     0 0 22px rgba(34, 211, 238, 0.08);
 }
 
+.ma-hero-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ma-hero-cta::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -70%;
+  bottom: -70%;
+  left: -55%;
+  width: 42%;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 30%,
+      rgba(207, 250, 254, 0.88) 48%,
+      rgba(255, 255, 255, 0.95) 50%,
+      rgba(165, 243, 252, 0.40) 54%,
+      transparent 74%
+    );
+  filter: blur(1px);
+  transform: skewX(-16deg);
+}
+
+.ma-hero-cta__content {
+  position: relative;
+  z-index: 4;
+}
+
+.ma-hero-cta__bolt {
+  position: absolute;
+  z-index: 3;
+  top: 0.48rem;
+  right: 0.48rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  pointer-events: none;
+  opacity: 0;
+  color: rgba(236, 254, 255, 0.98);
+  transform: rotate(-10deg) scale(0.62);
+  filter:
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 9px rgba(34, 211, 238, 0.92))
+    drop-shadow(0 0 16px rgba(139, 92, 246, 0.55));
+}
+
+.ma-hero-cta:hover::before {
+  animation: ma-hero-cta-flash 760ms cubic-bezier(0.16, 1, 0.3, 1) 1 both;
+}
+
+.ma-hero-cta:hover .ma-hero-cta__bolt {
+  animation: ma-hero-cta-bolt 760ms ease-out 1 both;
+}
+
+.ma-hero-cta:hover {
+  box-shadow:
+    0 22px 54px rgba(14, 165, 233, 0.28),
+    0 0 28px rgba(34, 211, 238, 0.14),
+    0 0 42px rgba(139, 92, 246, 0.10);
+}
+
 @keyframes ma-tech-accent-sweep {
   0%,
   72% {
@@ -205,12 +272,82 @@ function TechAccentStyles() {
   }
 }
 
+@keyframes ma-hero-cta-flash {
+  0% {
+    left: -55%;
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 0.35;
+  }
+
+  38% {
+    opacity: 0.95;
+  }
+
+  72% {
+    opacity: 0.55;
+  }
+
+  100% {
+    left: 120%;
+    opacity: 0;
+  }
+}
+
+@keyframes ma-hero-cta-bolt {
+  0% {
+    opacity: 0;
+    transform: rotate(-14deg) scale(0.55);
+  }
+
+  18% {
+    opacity: 1;
+    transform: rotate(-7deg) scale(1.12);
+  }
+
+  33% {
+    opacity: 0.22;
+    transform: rotate(-11deg) scale(0.92);
+  }
+
+  47% {
+    opacity: 1;
+    transform: rotate(-5deg) scale(1.04);
+  }
+
+  72% {
+    opacity: 0.55;
+    transform: rotate(-8deg) scale(0.88);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.72);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ma-tech-accent {
     animation: none;
     background-position:
       -220% 50%,
       0% 50%;
+  }
+
+  .ma-hero-cta:hover::before,
+  .ma-hero-cta:hover .ma-hero-cta__bolt {
+    animation: none;
+  }
+
+  .ma-hero-cta:hover::before {
+    opacity: 0;
+  }
+
+  .ma-hero-cta:hover .ma-hero-cta__bolt {
+    opacity: 0.72;
+    transform: rotate(-8deg) scale(1);
   }
 }
     `}</style>
@@ -577,7 +714,9 @@ function ServiceIcon({
           cy="12"
           r="8.2"
         />
+
         <path d="M3.8 12h16.4" />
+
         <path d="M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2c-2.3-2.5-3.5-5.3-3.5-8.2S9.7 6.3 12 3.8Z" />
       </svg>
     )
@@ -599,6 +738,7 @@ function ServiceIcon({
           height="14.5"
           rx="2.4"
         />
+
         <path d="M8 3.8v3.4M16 3.8v3.4M4.2 9.2h15.6" />
       </svg>
     )
@@ -636,6 +776,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
+
         <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
       </svg>
     )
@@ -651,6 +792,7 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
+
         <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
       </svg>
     )
@@ -672,6 +814,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="13.3"
           y="4.5"
@@ -679,6 +822,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="4.5"
           y="13.3"
@@ -686,6 +830,7 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
+
         <rect
           x="13.3"
           y="13.3"
@@ -706,6 +851,7 @@ function ProductIcon({
       strokeWidth="1.8"
     >
       <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
+
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
     </svg>
   )
@@ -770,6 +916,7 @@ function ProjectsShowcase({
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
             Projetos que{' '}
+
             <span className="ma-tech-accent ma-tech-accent--phase-3">
               geram resultados
             </span>
@@ -883,6 +1030,7 @@ function ProjectsShowcase({
             }
           >
             <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-cyan-300/10 blur-3xl" />
+
             <div className="pointer-events-none absolute -bottom-14 left-8 size-36 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10">
@@ -1028,6 +1176,7 @@ export default function MACode() {
 
       <section className="relative overflow-hidden px-5 pb-8 pt-6 sm:px-6 md:px-10 md:pb-10 md:pt-8">
         <div className="pointer-events-none absolute left-[-12rem] top-[-10rem] size-[28rem] rounded-full bg-cyan-400/[0.05] blur-3xl" />
+
         <div className="pointer-events-none absolute right-[-10rem] top-[-8rem] size-[32rem] rounded-full bg-violet-500/[0.06] blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-7xl">
@@ -1117,7 +1266,7 @@ export default function MACode() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <a
                   href="/contacto"
-                  className="inline-flex min-h-[3.65rem] shrink-0 items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
+                  className="ma-hero-cta inline-flex min-h-[3.65rem] shrink-0 items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5"
                   onClick={() =>
                     trackEvent(
                       'cta_click',
@@ -1132,7 +1281,16 @@ export default function MACode() {
                     )
                   }
                 >
-                  <span className="flex flex-col items-center leading-tight">
+                  <svg
+                    className="ma-hero-cta__bolt"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z" />
+                  </svg>
+
+                  <span className="ma-hero-cta__content flex flex-col items-center leading-tight">
                     <span className="whitespace-nowrap">
                       Pedir proposta gratuita
                     </span>
@@ -1203,6 +1361,7 @@ export default function MACode() {
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-400 sm:text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
+
                   <span>
                     Domínio + Alojamento
                     incluídos
@@ -1294,6 +1453,7 @@ export default function MACode() {
                   }
                 >
                   <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/[0.35] to-transparent" />
+
                   <div className="pointer-events-none absolute -right-14 -top-14 size-32 rounded-full bg-cyan-300/[0.05] blur-3xl" />
 
                   <div className="relative z-10 flex flex-col items-center">
@@ -1373,6 +1533,7 @@ export default function MACode() {
             >
               Explorar todos os
               produtos
+
               <span>→</span>
             </a>
           </div>
@@ -1410,12 +1571,16 @@ export default function MACode() {
                     className={`relative z-10 flex size-14 items-center justify-center rounded-2xl border ${product.accentClassName}`}
                   >
                     <ProductIcon
-                      type={product.icon}
+                      type={
+                        product.icon
+                      }
                     />
                   </div>
 
                   <span className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    {product.eyebrow}
+                    {
+                      product.eyebrow
+                    }
                   </span>
 
                   <h3 className="relative z-10 mt-2 text-lg font-semibold tracking-[-0.025em] text-white">
@@ -1423,7 +1588,9 @@ export default function MACode() {
                   </h3>
 
                   <p className="relative z-10 mt-3 text-xs leading-5 text-slate-400">
-                    {product.description}
+                    {
+                      product.description
+                    }
                   </p>
 
                   <span className="relative z-10 mt-auto pt-5 text-xs font-semibold text-cyan-200">
@@ -1444,6 +1611,7 @@ export default function MACode() {
         <div className="mx-auto max-w-7xl">
           <div className="relative overflow-hidden rounded-[1.7rem] border border-cyan-300/[0.15] bg-[linear-gradient(110deg,rgba(8,47,73,0.22),rgba(10,13,22,0.98)_45%,rgba(76,29,149,0.14))] px-6 py-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)] md:px-8 md:py-7">
             <div className="pointer-events-none absolute -left-10 -top-14 size-36 rounded-full bg-cyan-300/10 blur-3xl" />
+
             <div className="pointer-events-none absolute -right-12 -bottom-16 size-40 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
