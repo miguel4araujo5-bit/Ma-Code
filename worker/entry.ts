@@ -20,7 +20,6 @@ import {
   handleMAProfessorAccessApiRequest,
   isMAProfessorAccessApiPath
 } from './maProfessorAccess'
-
 import {
   MaProfessorAccessDurableObject
 } from './maProfessorAccessAdminBridge'
@@ -42,7 +41,6 @@ import {
   isMAProfessorSnapshotApiPath,
   type MaProfessorSnapshotEnv
 } from './maProfessorSnapshot'
-
 import {
   handleMAProfessorSyncApiRequest,
   isMAProfessorSyncApiPath,
@@ -50,19 +48,22 @@ import {
 } from './maProfessorSync'
 
 import {
-  ConquistadorMatchmakingDurableObject,
   handleConquistadorMatchmakingApiRequest,
   isConquistadorMatchmakingApiPath,
   type ConquistadorMatchmakingEnv
 } from './conquistadorMatchmaking'
-
 import {
-  ConquistadorGameSessionDurableObject,
   ensureConquistadorGameSession,
   handleConquistadorGameSessionApiRequest,
   isConquistadorGameSessionApiPath,
   type ConquistadorGameSessionEnv
 } from './conquistadorGameSession'
+import {
+  ConquistadorGameSessionDurableObject,
+  ConquistadorMatchmakingDurableObject,
+  handleConquistadorGameRealtimeApiRequest,
+  handleConquistadorMatchmakingRealtimeApiRequest
+} from './conquistadorRealtime'
 
 export {
   BtcAlertsDurableObject,
@@ -87,6 +88,17 @@ type ExecutionContextLike = {
     promise: Promise<unknown>
   ): void
 }
+
+const isWebSocketUpgrade = (
+  request: Request
+) =>
+  request.method === 'GET' &&
+  (
+    request.headers.get(
+      'Upgrade'
+    ) || ''
+  ).toLowerCase() ===
+    'websocket'
 
 const prepareMatchedGameSession =
   async (
@@ -256,6 +268,17 @@ export default {
         url.pathname
       )
     ) {
+      if (
+        isWebSocketUpgrade(
+          request
+        )
+      ) {
+        return handleConquistadorGameRealtimeApiRequest(
+          request,
+          env
+        )
+      }
+
       return handleConquistadorGameSessionApiRequest(
         request,
         env
@@ -267,6 +290,17 @@ export default {
         url.pathname
       )
     ) {
+      if (
+        isWebSocketUpgrade(
+          request
+        )
+      ) {
+        return handleConquistadorMatchmakingRealtimeApiRequest(
+          request,
+          env
+        )
+      }
+
       const response =
         await handleConquistadorMatchmakingApiRequest(
           request,
