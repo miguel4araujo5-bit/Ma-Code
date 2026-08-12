@@ -11,7 +11,6 @@ import BrandQuickStyles from './BrandQuickStyles'
 import CanvasContextMenu, {
   type MAQuadroContextMenuPosition
 } from './CanvasContextMenu'
-
 import CanvasStage from './CanvasStage'
 import ChartBuilder from './ChartBuilder'
 import ChartEditor from './ChartEditor'
@@ -25,7 +24,6 @@ import ElementLibrary from './ElementLibrary'
 import {
   MAQuadroEditorProvider
 } from './editorContext'
-
 import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
@@ -41,7 +39,6 @@ import SmartSpacingOverlay from './SmartSpacingOverlay'
 import TableBuilder from './TableBuilder'
 import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
-
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -126,6 +123,7 @@ MAQuadroApp() {
           MAQuadroContextMenuPosition
       ) => {
         if (
+          !editor.ready ||
           editor
             .selection
             .count ===
@@ -146,6 +144,7 @@ MAQuadroApp() {
       [
         editor.busy,
         editor.imageCropEditing,
+        editor.ready,
         editor.selection.count,
         editor.structureBusy
       ]
@@ -165,6 +164,7 @@ MAQuadroApp() {
         KeyboardEvent
     ) => {
       if (
+        !editor.ready ||
         event.defaultPrevented ||
         targetUsesNativeKeyboard(
           event.target
@@ -184,7 +184,6 @@ MAQuadroApp() {
         event.stopPropagation()
 
         closeContextMenu()
-
         setShortcutsOpen(
           true
         )
@@ -245,7 +244,6 @@ MAQuadroApp() {
               )
             : window.innerWidth /
               2,
-
         y:
           bounds
             ? bounds.top +
@@ -275,10 +273,36 @@ MAQuadroApp() {
     closeContextMenu,
     editor.busy,
     editor.imageCropEditing,
+    editor.ready,
     editor.selection.count,
     editor.structureBusy,
     editor.workspaceRef,
     openContextMenu
+  ])
+
+  useEffect(() => {
+    if (
+      !editor.ready
+    ) {
+      return
+    }
+
+    const frame =
+      window.requestAnimationFrame(
+        () => {
+          editor.fitCanvas()
+        }
+      )
+
+    return () => {
+      window.cancelAnimationFrame(
+        frame
+      )
+    }
+  }, [
+    editor.activePage?.id,
+    editor.fitCanvas,
+    editor.ready
   ])
 
   const protectNativeKeyboard = (
@@ -329,6 +353,15 @@ MAQuadroApp() {
     >
       <main
         className="mq-app"
+        style={{
+          visibility:
+            editor.ready
+              ? 'visible'
+              : 'hidden'
+        }}
+        aria-busy={
+          !editor.ready
+        }
         onKeyDown={
           protectNativeKeyboard
         }
@@ -427,6 +460,10 @@ MAQuadroApp() {
         {!editor.ready ? (
           <div
             className="mq-loading-screen"
+            style={{
+              visibility:
+                'visible'
+            }}
             role="status"
             aria-live="polite"
           >
