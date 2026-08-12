@@ -41,14 +41,19 @@
 }
 
 html {
+  width: 100%;
   min-width: 320px;
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
+  width: 100%;
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
 
   background:
     radial-gradient(
@@ -1875,9 +1880,17 @@ input:focus-visible,
     order: 3;
   }
 
-  .board-frame,
+  .board-frame {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .board-svg {
-    min-height: 650px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
   }
 }
 
@@ -1931,13 +1944,15 @@ input:focus-visible,
   }
 
   .board-frame {
-    min-height: 560px;
+    min-height: 0;
   }
 
   .board-svg {
-    min-width: 610px;
-
-    min-height: 560px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
   }
 }
 
