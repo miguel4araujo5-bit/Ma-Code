@@ -17,7 +17,10 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: rgba(4, 29, 40, 0.78);
   backdrop-filter: blur(7px);
 }
@@ -25,6 +28,9 @@
 .online-matchmaking-card {
   position: relative;
   width: min(100%, 510px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 34px;
   border: 1px solid rgba(215, 187, 105, 0.72);
   border-radius: 24px;
@@ -105,6 +111,7 @@
   background: rgba(255, 255, 255, 0.09);
   color: #fff;
   font: inherit;
+  font-size: 1rem;
 }
 
 .online-matchmaking-form input:focus {
@@ -214,7 +221,7 @@
 
 .online-participant {
   display: grid;
-  grid-template-columns: 30px 1fr auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   min-height: 52px;
   padding: 8px 14px;
@@ -239,6 +246,8 @@
 }
 
 .online-participant-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 800;
 }
 
@@ -292,11 +301,13 @@
 
 @media (max-width: 620px) {
   .online-matchmaking-overlay {
-    padding: 14px;
+    padding: 10px;
   }
 
   .online-matchmaking-card {
-    padding: 29px 20px 24px;
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    padding: 28px 16px 22px;
     border-radius: 19px;
   }
 
