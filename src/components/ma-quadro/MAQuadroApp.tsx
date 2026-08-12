@@ -7,7 +7,6 @@ import {
 
 import AnimationPanel from './AnimationPanel'
 import BrandQuickStyles from './BrandQuickStyles'
-
 import CanvasContextMenu, {
   type MAQuadroContextMenuPosition
 } from './CanvasContextMenu'
@@ -20,7 +19,7 @@ import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
 import ElementEditor from './ElementEditor'
 import ElementLibrary from './ElementLibrary'
-
+import ElementToolsLayoutController from './ElementToolsLayoutController'
 import {
   MAQuadroEditorProvider
 } from './editorContext'
@@ -42,7 +41,6 @@ import TextEffectsToolbar from './TextEffectsToolbar'
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
-
 import './maQuadro.css'
 import './maQuadroFixes.css'
 import './maQuadroWorkflow.css'
@@ -64,7 +62,6 @@ function targetUsesNativeKeyboard(
       Element
       ? target
       : null
-
   return Boolean(
     element?.closest(
       [
@@ -95,7 +92,6 @@ MAQuadroApp() {
   ] = useState(
     false
   )
-
   const [
     contextMenu,
     setContextMenu
@@ -115,7 +111,6 @@ MAQuadroApp() {
       },
       []
     )
-
   const openContextMenu =
     useCallback(
       (
@@ -136,7 +131,6 @@ MAQuadroApp() {
         ) {
           return
         }
-
         setContextMenu(
           position
         )
@@ -157,7 +151,6 @@ MAQuadroApp() {
     editor.activePage?.id,
     editor.project?.id
   ])
-
   useEffect(() => {
     const handleGlobalKeyDown = (
       event:
@@ -182,7 +175,6 @@ MAQuadroApp() {
       ) {
         event.preventDefault()
         event.stopPropagation()
-
         closeContextMenu()
         setShortcutsOpen(
           true
@@ -205,7 +197,6 @@ MAQuadroApp() {
       ) {
         return
       }
-
       if (
         editor
           .selection
@@ -231,7 +222,6 @@ MAQuadroApp() {
       const bounds =
         workspace
           ?.getBoundingClientRect()
-
       openContextMenu({
         x:
           bounds
@@ -257,7 +247,6 @@ MAQuadroApp() {
               2
       })
     }
-
     window.addEventListener(
       'keydown',
       handleGlobalKeyDown
@@ -286,7 +275,6 @@ MAQuadroApp() {
     ) {
       return
     }
-
     const frame =
       window.requestAnimationFrame(
         () => {
@@ -318,7 +306,6 @@ MAQuadroApp() {
     ) {
       return
     }
-
     const modifier =
       event.ctrlKey ||
       event.metaKey
@@ -386,6 +373,8 @@ MAQuadroApp() {
         <FrameBuilder />
 
         <ElementLibrary />
+
+        <ElementToolsLayoutController />
 
         <TableEditor />
 
