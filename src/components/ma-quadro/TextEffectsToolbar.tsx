@@ -20,7 +20,7 @@ type TypographyPreset = {
   fontMode: TypographyFontMode
   fontWeight: string
   fontStyle: string
-  textAlign: string
+  textAlign: 'left' | 'center' | 'right' | 'justify'
   lineHeight: number
   charSpacing: number
 }
