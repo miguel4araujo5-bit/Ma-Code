@@ -31,6 +31,7 @@ import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import ImageFilterPresets from './ImageFilterPresets'
+import LayersManager from './LayersManager'
 import LeftSidebar from './LeftSidebar'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
@@ -54,6 +55,7 @@ import './maQuadroWorkspacePolish.css'
 import './maQuadroFrames.css'
 import './maQuadroElementLibrary.css'
 import './maQuadroImagePresets.css'
+import './maQuadroLayersManager.css'
 
 function targetUsesNativeKeyboard(
   target:
@@ -363,6 +365,8 @@ MAQuadroApp() {
         <ElementEditor />
 
         <ImageFilterPresets />
+
+        <LayersManager />
 
         <AnimationPanel />
 
