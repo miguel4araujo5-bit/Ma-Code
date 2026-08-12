@@ -1,17 +1,23 @@
 const API_BASE = '/api/conquistador/matchmaking';
 const GAME_API_URL = '/api/conquistador/game';
-const POLL_INTERVAL_MS = 250;
+const FALLBACK_STATUS_INTERVAL_MS = 2000;
+const REALTIME_RECONNECT_MIN_MS = 500;
+const REALTIME_RECONNECT_MAX_MS = 4000;
 const STORED_NAME_KEY = 'conquistador-online-name';
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 
 let ticketId = null;
 let playerId = null;
 let reconnectToken = null;
-let pollTimer = null;
 let countdownTimer = null;
+let fallbackTimer = null;
+let reconnectTimer = null;
+let realtimeSocket = null;
+let reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
 let deadlineAt = null;
 let busy = false;
 let readyMatchData = null;
+let deadlineStatusRequested = false;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -138,11 +144,54 @@ async function post(action, payload = {}) {
   return data;
 }
 
-function stopTimers() {
-  if (pollTimer) {
-    clearTimeout(pollTimer);
-    pollTimer = null;
+function createRealtimeUrl(currentTicketId) {
+  const protocol =
+    window.location.protocol === 'https:'
+      ? 'wss:'
+      : 'ws:';
+
+  const url = new URL(
+    API_BASE,
+    window.location.href,
+  );
+  url.protocol = protocol;
+  url.searchParams.set('ticketId', currentTicketId);
+  return url.toString();
+}
+
+function closeRealtimeSocket() {
+  const socket = realtimeSocket;
+  realtimeSocket = null;
+
+  if (!socket) {
+    return;
   }
+
+  try {
+    socket.close(1000, 'Matchmaking concluído');
+  } catch {
+    return;
+  }
+}
+
+function clearFallbackTimer() {
+  if (fallbackTimer) {
+    window.clearTimeout(fallbackTimer);
+    fallbackTimer = null;
+  }
+}
+
+function clearReconnectTimer() {
+  if (reconnectTimer) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function stopTimers() {
+  clearFallbackTimer();
+  clearReconnectTimer();
+  closeRealtimeSocket();
 
   if (countdownTimer) {
     clearInterval(countdownTimer);
@@ -158,6 +207,8 @@ function resetSession() {
   deadlineAt = null;
   busy = false;
   readyMatchData = null;
+  deadlineStatusRequested = false;
+  reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
 }
 
 function removeOverlay() {
@@ -182,7 +233,6 @@ function createOverlay() {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'online-matchmaking-title');
-
   document.body.appendChild(overlay);
 
   return overlay;
@@ -251,7 +301,6 @@ function renderEntry() {
 
 function renderWaiting() {
   const overlay = getOverlay() || createOverlay();
-
   overlay.innerHTML = `
     <section class="online-matchmaking-card online-matchmaking-waiting">
       <button
@@ -314,6 +363,20 @@ function updateCountdown() {
 
   const remaining = Math.max(0, deadlineAt - Date.now());
   value.textContent = String(Math.max(0, Math.ceil(remaining / 1000)));
+
+  if (
+    remaining === 0 &&
+    !deadlineStatusRequested &&
+    realtimeSocket?.readyState === WebSocket.OPEN
+  ) {
+    deadlineStatusRequested = true;
+
+    try {
+      realtimeSocket.send(JSON.stringify({ type: 'status' }));
+    } catch {
+      scheduleFallbackStatus(500);
+    }
+  }
 }
 
 function participantMarkup(participant) {
@@ -423,6 +486,230 @@ function showError(message) {
   element.hidden = false;
 }
 
+function renderConnectionError(message) {
+  stopTimers();
+  busy = false;
+
+  const overlay = getOverlay();
+  if (!overlay) {
+    return;
+  }
+
+  overlay.innerHTML = `
+    <section class="online-matchmaking-card online-matchmaking-entry">
+      <p class="online-matchmaking-eyebrow">Conquistador Online</p>
+      <h2 id="online-matchmaking-title">Ligação interrompida</h2>
+      <p class="online-matchmaking-copy">
+        ${escapeHtml(message || 'Não foi possível continuar o matchmaking.')}
+      </p>
+      <button type="button" class="button button-primary" data-online-retry>
+        Tentar novamente
+      </button>
+      <button type="button" class="text-button online-matchmaking-back" data-online-close>
+        Voltar
+      </button>
+    </section>
+  `;
+}
+
+function applyMatchmakingStatus(response) {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+
+  if (response.success === false || response.status === 'error') {
+    renderConnectionError(
+      response.message || 'Não foi possível preparar a partida online.',
+    );
+    return true;
+  }
+
+  playerId = response.playerId || playerId;
+  reconnectToken = response.reconnectToken || reconnectToken;
+
+  if (response.status === 'matched') {
+    renderMatch(response);
+    return true;
+  }
+
+  if (response.status === 'left') {
+    renderEntry();
+    return true;
+  }
+
+  if (Number.isFinite(Number(response.deadlineAt))) {
+    deadlineAt = Number(response.deadlineAt);
+  }
+
+  return false;
+}
+
+function scheduleFallbackStatus(delay = FALLBACK_STATUS_INTERVAL_MS) {
+  clearFallbackTimer();
+
+  if (
+    !ticketId ||
+    readyMatchData?.matchId ||
+    realtimeSocket?.readyState === WebSocket.OPEN
+  ) {
+    return;
+  }
+
+  fallbackTimer = window.setTimeout(
+    () => void fallbackStatusOnce(),
+    Math.max(500, Number(delay) || FALLBACK_STATUS_INTERVAL_MS),
+  );
+}
+
+async function fallbackStatusOnce() {
+  if (!ticketId || readyMatchData?.matchId) {
+    return;
+  }
+
+  try {
+    const response = await post('status', { ticketId });
+
+    if (applyMatchmakingStatus(response)) {
+      return;
+    }
+
+    scheduleFallbackStatus();
+    scheduleRealtimeReconnect();
+  } catch (error) {
+    renderConnectionError(
+      error instanceof Error
+        ? error.message
+        : 'Não foi possível continuar o matchmaking.',
+    );
+  }
+}
+
+function scheduleRealtimeReconnect() {
+  clearReconnectTimer();
+
+  if (
+    !ticketId ||
+    readyMatchData?.matchId ||
+    realtimeSocket?.readyState === WebSocket.OPEN ||
+    document.hidden
+  ) {
+    return;
+  }
+
+  const delay = reconnectDelayMs;
+  reconnectDelayMs = Math.min(
+    REALTIME_RECONNECT_MAX_MS,
+    Math.max(
+      REALTIME_RECONNECT_MIN_MS,
+      reconnectDelayMs * 2,
+    ),
+  );
+
+  reconnectTimer = window.setTimeout(
+    () => {
+      reconnectTimer = null;
+      connectRealtime();
+    },
+    delay,
+  );
+}
+
+function connectRealtime() {
+  if (
+    !ticketId ||
+    readyMatchData?.matchId ||
+    document.hidden
+  ) {
+    return;
+  }
+
+  if (
+    realtimeSocket &&
+    (
+      realtimeSocket.readyState === WebSocket.OPEN ||
+      realtimeSocket.readyState === WebSocket.CONNECTING
+    )
+  ) {
+    return;
+  }
+
+  clearReconnectTimer();
+
+  let socket;
+
+  try {
+    socket = new WebSocket(
+      createRealtimeUrl(ticketId),
+    );
+  } catch {
+    scheduleFallbackStatus(500);
+    scheduleRealtimeReconnect();
+    return;
+  }
+
+  realtimeSocket = socket;
+
+  socket.addEventListener('open', () => {
+    if (realtimeSocket !== socket) {
+      return;
+    }
+
+    reconnectDelayMs = REALTIME_RECONNECT_MIN_MS;
+    clearFallbackTimer();
+  });
+
+  socket.addEventListener('message', (event) => {
+    if (realtimeSocket !== socket) {
+      return;
+    }
+
+    let message = null;
+
+    try {
+      message = JSON.parse(String(event.data || ''));
+    } catch {
+      return;
+    }
+
+    if (message?.type === 'matchmaking-status') {
+      applyMatchmakingStatus(message.data || {});
+      return;
+    }
+
+    if (message?.type === 'matchmaking-error') {
+      renderConnectionError(
+        message.message || 'Não foi possível continuar o matchmaking.',
+      );
+    }
+  });
+
+  socket.addEventListener('close', () => {
+    if (realtimeSocket !== socket) {
+      return;
+    }
+
+    realtimeSocket = null;
+
+    if (
+      !ticketId ||
+      readyMatchData?.matchId
+    ) {
+      return;
+    }
+
+    scheduleFallbackStatus(500);
+    scheduleRealtimeReconnect();
+  });
+
+  socket.addEventListener('error', () => {
+    if (realtimeSocket !== socket) {
+      return;
+    }
+
+    scheduleFallbackStatus(500);
+  });
+}
+
 async function startSearch(name) {
   if (busy) {
     return;
@@ -444,8 +731,9 @@ async function startSearch(name) {
     }
 
     deadlineAt = Number(response.deadlineAt) || (Date.now() + 5000);
+    deadlineStatusRequested = false;
     renderWaiting();
-    schedulePoll();
+    connectRealtime();
   } catch (error) {
     busy = false;
     showError(
@@ -453,69 +741,6 @@ async function startSearch(name) {
         ? error.message
         : 'Não foi possível iniciar a procura.',
     );
-  }
-}
-
-function schedulePoll() {
-  if (!ticketId) {
-    return;
-  }
-
-  pollTimer = window.setTimeout(
-    pollStatus,
-    POLL_INTERVAL_MS,
-  );
-}
-
-async function pollStatus() {
-  if (!ticketId) {
-    return;
-  }
-
-  try {
-    const response = await post('status', { ticketId });
-
-    playerId = response.playerId || playerId;
-    reconnectToken = response.reconnectToken || reconnectToken;
-
-    if (response.status === 'matched') {
-      renderMatch(response);
-      return;
-    }
-
-    if (response.status === 'left') {
-      renderEntry();
-      return;
-    }
-
-    if (Number.isFinite(Number(response.deadlineAt))) {
-      deadlineAt = Number(response.deadlineAt);
-    }
-
-    schedulePoll();
-  } catch (error) {
-    stopTimers();
-    busy = false;
-
-    const overlay = getOverlay();
-
-    if (overlay) {
-      overlay.innerHTML = `
-        <section class="online-matchmaking-card online-matchmaking-entry">
-          <p class="online-matchmaking-eyebrow">Conquistador Online</p>
-          <h2 id="online-matchmaking-title">Ligação interrompida</h2>
-          <p class="online-matchmaking-copy">
-            ${escapeHtml(error instanceof Error ? error.message : 'Não foi possível continuar o matchmaking.')}
-          </p>
-          <button type="button" class="button button-primary" data-online-retry>
-            Tentar novamente
-          </button>
-          <button type="button" class="text-button online-matchmaking-back" data-online-close>
-            Voltar
-          </button>
-        </section>
-      `;
-    }
   }
 }
 
@@ -661,6 +886,23 @@ window.addEventListener('pagehide', () => {
     `${API_BASE}/leave`,
     new Blob([body], { type: 'application/json' }),
   );
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (
+    document.hidden ||
+    !ticketId ||
+    readyMatchData?.matchId
+  ) {
+    return;
+  }
+
+  if (
+    !realtimeSocket ||
+    realtimeSocket.readyState === WebSocket.CLOSED
+  ) {
+    connectRealtime();
+  }
 });
 
 function restoreStoredSession() {
