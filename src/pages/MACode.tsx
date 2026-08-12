@@ -88,11 +88,7 @@ const featuredProducts = [
 type AnalyticsParameters = Record<string, string | number | boolean | undefined>
 
 type AnalyticsWindow = Window & {
-  gtag?: (
-    command: 'event',
-    eventName: string,
-    parameters?: AnalyticsParameters
-  ) => void
+  gtag?: (command: 'event', eventName: string, parameters?: AnalyticsParameters) => void
   dataLayer?: unknown[]
 }
 
@@ -109,9 +105,7 @@ type AttributionData = {
 const attributionStorageKey = 'ma_code_attribution'
 
 function updateMeta(name: string, content: string) {
-  let meta = document.querySelector<HTMLMetaElement>(
-    `meta[name="${name}"]`
-  )
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
 
   if (!meta) {
     meta = document.createElement('meta')
@@ -168,7 +162,6 @@ function getTrafficAttribution(): AttributionData {
   }
 
   const searchParams = new URLSearchParams(window.location.search)
-
   const hasCampaignParams = [
     'utm_source',
     'utm_medium',
@@ -193,16 +186,11 @@ function getTrafficAttribution(): AttributionData {
       traffic_medium:
         searchParams.get('utm_medium') ||
         (document.referrer ? 'referral' : 'direct'),
-      traffic_campaign:
-        searchParams.get('utm_campaign') || undefined,
-      traffic_term:
-        searchParams.get('utm_term') || undefined,
-      traffic_content:
-        searchParams.get('utm_content') || undefined,
-      traffic_referrer:
-        document.referrer || undefined,
-      landing_page:
-        window.location.href
+      traffic_campaign: searchParams.get('utm_campaign') || undefined,
+      traffic_term: searchParams.get('utm_term') || undefined,
+      traffic_content: searchParams.get('utm_content') || undefined,
+      traffic_referrer: document.referrer || undefined,
+      landing_page: window.location.href
     }
   }
 
@@ -213,16 +201,11 @@ function getTrafficAttribution(): AttributionData {
     traffic_medium:
       searchParams.get('utm_medium') ||
       (document.referrer ? 'referral' : 'direct'),
-    traffic_campaign:
-      searchParams.get('utm_campaign') || undefined,
-    traffic_term:
-      searchParams.get('utm_term') || undefined,
-    traffic_content:
-      searchParams.get('utm_content') || undefined,
-    traffic_referrer:
-      document.referrer || undefined,
-    landing_page:
-      window.location.href
+    traffic_campaign: searchParams.get('utm_campaign') || undefined,
+    traffic_term: searchParams.get('utm_term') || undefined,
+    traffic_content: searchParams.get('utm_content') || undefined,
+    traffic_referrer: document.referrer || undefined,
+    landing_page: window.location.href
   }
 
   try {
@@ -257,18 +240,11 @@ function trackEvent(
   }
 
   if (typeof analyticsWindow.gtag === 'function') {
-    analyticsWindow.gtag(
-      'event',
-      eventName,
-      eventParameters
-    )
-
+    analyticsWindow.gtag('event', eventName, eventParameters)
     return
   }
 
-  analyticsWindow.dataLayer = Array.isArray(
-    analyticsWindow.dataLayer
-  )
+  analyticsWindow.dataLayer = Array.isArray(analyticsWindow.dataLayer)
     ? analyticsWindow.dataLayer
     : []
 
@@ -402,16 +378,14 @@ function ServiceMarquee() {
         className="ma-service-marquee__track"
         aria-hidden="true"
       >
-        {marqueeLoopItems.map(
-          (item, index) => (
-            <span
-              key={`${item}-${index}`}
-              className="ma-service-marquee__item"
-            >
-              {item}
-            </span>
-          )
-        )}
+        {marqueeLoopItems.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            className="ma-service-marquee__item"
+          >
+            {item}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -531,7 +505,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="4.5"
@@ -539,7 +512,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="4.5"
           y="13.3"
@@ -547,7 +519,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="13.3"
@@ -576,7 +547,7 @@ function ProductIcon({
 function HeroDevices() {
   return (
     <div
-      className="relative mt-8 lg:mt-0 lg:min-h-[430px]"
+      className="relative hidden min-h-[430px] lg:block"
       aria-hidden="true"
     >
       <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
@@ -586,7 +557,7 @@ function HeroDevices() {
         alt=""
         width={1200}
         height={800}
-        className="relative z-10 mx-auto h-auto w-full max-w-[560px] scale-100 object-contain drop-shadow-[0_24px_55px_rgba(2,132,199,0.16)] sm:max-w-[640px] lg:max-w-none lg:scale-[1.05] lg:drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
+        className="relative z-10 h-auto w-full scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
         loading="eager"
         decoding="async"
       />
@@ -638,8 +609,7 @@ function ProjectsShowcase({
                       : 'opacity-0'
                   }`}
                   style={{
-                    animationDelay:
-                      `${index * 100}ms`
+                    animationDelay: `${index * 100}ms`
                   }}
                   onClick={() =>
                     trackEvent(
@@ -925,7 +895,7 @@ export default function MACode() {
                 MA-CODE
               </span>
 
-              <h1 className="mt-5 max-w-[10.8ch] text-[clamp(2.7rem,5.7vw,5.15rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white lg:max-w-[13.8ch] xl:max-w-[14.2ch]">
+              <h1 className="mt-5 max-w-[10.8ch] text-[clamp(2.7rem,5.7vw,5.15rem)] font-semibold leading-[0.96] tracking-[-0.062em] text-white">
                 Websites e sistemas à
                 medida que fazem{' '}
                 <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
@@ -1034,7 +1004,6 @@ export default function MACode() {
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-400 sm:text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Domínio + Alojamento
                     incluídos
@@ -1043,7 +1012,6 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Mobile-first
                   </span>
@@ -1051,7 +1019,6 @@ export default function MACode() {
 
                 <div className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-cyan-300" />
-
                   <span>
                     Proposta gratuita
                   </span>
@@ -1199,7 +1166,6 @@ export default function MACode() {
             >
               Explorar todos os
               produtos
-
               <span>→</span>
             </a>
           </div>
