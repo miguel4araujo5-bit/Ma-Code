@@ -52,6 +52,8 @@ body {
   width: 100%;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
+
   margin: 0;
   overflow-x: hidden;
 
@@ -74,7 +76,6 @@ body::before {
 
   position: fixed;
   inset: 0;
-
   pointer-events: none;
 
   opacity: 0.15;
@@ -144,6 +145,7 @@ input:focus-visible,
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .eyebrow {
@@ -274,8 +276,33 @@ input:focus-visible,
   place-items: center;
 
   min-height: 100vh;
+  min-height: 100dvh;
 
   padding: 28px;
+
+  padding-top:
+    max(
+      28px,
+      env(safe-area-inset-top)
+    );
+
+  padding-right:
+    max(
+      28px,
+      env(safe-area-inset-right)
+    );
+
+  padding-bottom:
+    max(
+      28px,
+      env(safe-area-inset-bottom)
+    );
+
+  padding-left:
+    max(
+      28px,
+      env(safe-area-inset-left)
+    );
 }
 
 .hero-panel,
@@ -469,7 +496,6 @@ input:focus-visible,
   color: #566873;
 
   font-size: 1.05rem;
-
   line-height: 1.72;
 }
 
@@ -497,7 +523,6 @@ input:focus-visible,
   color: #7a776d;
 
   font-size: 0.72rem;
-
   font-weight: 650;
 }
 
@@ -579,7 +604,6 @@ input:focus-visible,
   min-height: 44px;
 
   border: 0;
-
   border-radius: 10px;
 
   color:
@@ -719,6 +743,7 @@ input:focus-visible,
 
 .game-screen {
   min-height: 100vh;
+  min-height: 100dvh;
 
   padding:
     18px
@@ -728,6 +753,38 @@ input:focus-visible,
       28px
     )
     30px;
+
+  padding-top:
+    max(
+      18px,
+      env(safe-area-inset-top)
+    );
+
+  padding-right:
+    max(
+      clamp(
+        10px,
+        2vw,
+        28px
+      ),
+      env(safe-area-inset-right)
+    );
+
+  padding-bottom:
+    max(
+      30px,
+      env(safe-area-inset-bottom)
+    );
+
+  padding-left:
+    max(
+      clamp(
+        10px,
+        2vw,
+        28px
+      ),
+      env(safe-area-inset-left)
+    );
 }
 
 .game-header {
@@ -793,7 +850,6 @@ input:focus-visible,
     );
 
   font-size: 0.68rem;
-
   font-weight: 680;
 }
 
@@ -915,7 +971,6 @@ input:focus-visible,
   background: #fff;
 
   font-size: 1.05rem;
-
   font-weight: 900;
 }
 
@@ -944,7 +999,6 @@ input:focus-visible,
   border-radius: 11px;
 
   font-size: 0.82rem;
-
   font-weight: 720;
 }
 
@@ -1356,8 +1410,15 @@ input:focus-visible,
   width: 100%;
 
   min-width: 650px;
-
   min-height: 760px;
+
+  touch-action: manipulation;
+
+  -webkit-user-select: none;
+  user-select: none;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
 
 .atlantic-label {
@@ -1488,6 +1549,27 @@ input:focus-visible,
   fill: #f4df9b;
 
   font-size: 25px;
+}
+
+.board-edge-hit,
+.board-vertex-hit,
+.building-hit {
+  cursor: pointer;
+
+  -webkit-tap-highlight-color:
+    transparent;
+
+  touch-action:
+    manipulation;
+}
+
+.board-edge-hit {
+  pointer-events: stroke;
+}
+
+.board-vertex-hit,
+.building-hit {
+  pointer-events: all;
 }
 
 .board-edge {
@@ -1837,8 +1919,17 @@ input:focus-visible,
   max-width: 900px
 ) {
   .game-screen {
-    padding-inline:
-      8px;
+    padding-left:
+      max(
+        8px,
+        env(safe-area-inset-left)
+      );
+
+    padding-right:
+      max(
+        8px,
+        env(safe-area-inset-right)
+      );
   }
 
   .game-header {
@@ -1876,20 +1967,38 @@ input:focus-visible,
       1fr;
   }
 
+  .game-sidebar-right
+  .action-panel {
+    order: 1;
+  }
+
+  .game-sidebar-right
+  .private-panel {
+    order: 2;
+  }
+
+  .game-sidebar-right
+  .bank-panel {
+    order: 3;
+  }
+
   .game-sidebar-left {
     order: 3;
   }
 
   .board-frame {
     min-height: 0;
+
     overflow: hidden;
   }
 
   .board-svg {
     width: 100%;
     max-width: 100%;
+
     min-width: 0;
     min-height: 0;
+
     height: auto;
   }
 }
@@ -1900,6 +2009,30 @@ input:focus-visible,
   .home-screen,
   .setup-screen {
     padding: 12px;
+
+    padding-top:
+      max(
+        12px,
+        env(safe-area-inset-top)
+      );
+
+    padding-right:
+      max(
+        12px,
+        env(safe-area-inset-right)
+      );
+
+    padding-bottom:
+      max(
+        12px,
+        env(safe-area-inset-bottom)
+      );
+
+    padding-left:
+      max(
+        12px,
+        env(safe-area-inset-left)
+      );
   }
 
   .hero-panel,
@@ -1950,9 +2083,366 @@ input:focus-visible,
   .board-svg {
     width: 100%;
     max-width: 100%;
+
     min-width: 0;
     min-height: 0;
+
     height: auto;
+  }
+}
+
+@media (
+  max-width: 480px
+) {
+  .game-screen {
+    padding-top:
+      max(
+        10px,
+        env(safe-area-inset-top)
+      );
+
+    padding-right:
+      max(
+        6px,
+        env(safe-area-inset-right)
+      );
+
+    padding-bottom:
+      max(
+        18px,
+        env(safe-area-inset-bottom)
+      );
+
+    padding-left:
+      max(
+        6px,
+        env(safe-area-inset-left)
+      );
+  }
+
+  .game-header {
+    gap:
+      7px 9px;
+
+    margin-bottom:
+      8px;
+  }
+
+  .game-brand {
+    min-width: 0;
+  }
+
+  .game-brand .eyebrow {
+    margin-bottom:
+      4px;
+
+    font-size:
+      0.58rem;
+
+    letter-spacing:
+      0.11em;
+  }
+
+  .game-header h1 {
+    font-size:
+      1.68rem;
+
+    line-height:
+      0.98;
+  }
+
+  .game-header-actions {
+    flex-direction:
+      row;
+
+    gap: 5px;
+  }
+
+  .game-header-actions
+  .button {
+    min-height:
+      40px;
+
+    padding:
+      7px 9px;
+
+    border-radius:
+      10px;
+
+    font-size:
+      0.72rem;
+  }
+
+  .game-meta {
+    gap: 4px;
+  }
+
+  .game-meta span {
+    max-width: 100%;
+
+    padding:
+      4px 7px;
+
+    overflow: hidden;
+
+    font-size:
+      0.6rem;
+
+    text-overflow:
+      ellipsis;
+
+    white-space:
+      nowrap;
+  }
+
+  .turn-banner {
+    gap: 8px;
+
+    margin-bottom:
+      8px;
+
+    padding:
+      8px 9px;
+
+    border-left-width:
+      4px;
+
+    border-radius:
+      12px;
+  }
+
+  .turn-player-symbol {
+    width: 36px;
+    height: 36px;
+
+    border-radius:
+      9px;
+  }
+
+  .turn-copy strong {
+    font-size:
+      0.9rem;
+  }
+
+  .turn-copy small {
+    font-size:
+      0.65rem;
+  }
+
+  .dice-result {
+    gap: 4px;
+  }
+
+  .dice-result span {
+    width: 32px;
+    height: 32px;
+
+    font-size:
+      0.95rem;
+  }
+
+  .dice-result strong {
+    min-width:
+      34px;
+
+    font-size:
+      1.1rem;
+  }
+
+  .status-message {
+    margin-bottom:
+      8px;
+
+    padding:
+      8px 10px;
+
+    border-radius:
+      9px;
+
+    font-size:
+      0.74rem;
+  }
+
+  .game-layout,
+  .game-sidebar {
+    gap: 9px;
+  }
+
+  .board-panel {
+    padding: 6px;
+
+    border-radius:
+      14px;
+  }
+
+  .board-title-row {
+    gap: 7px;
+
+    padding:
+      3px 4px 7px;
+  }
+
+  .board-title-row strong {
+    font-size:
+      0.92rem;
+  }
+
+  .board-kicker,
+  .board-seed {
+    font-size:
+      0.55rem;
+  }
+
+  .board-seed {
+    max-width: 46%;
+
+    overflow: hidden;
+
+    text-overflow:
+      ellipsis;
+
+    white-space:
+      nowrap;
+  }
+
+  .board-frame {
+    border-width:
+      5px;
+
+    border-radius:
+      12px;
+  }
+
+  .panel {
+    padding: 10px;
+
+    border-radius:
+      14px;
+  }
+
+  .panel-heading {
+    margin-bottom:
+      8px;
+  }
+
+  .resources-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(
+          0,
+          1fr
+        )
+      );
+
+    gap: 6px;
+  }
+
+  .resource-card {
+    grid-template-columns:
+      26px minmax(0, 1fr) auto;
+
+    gap: 5px;
+
+    padding: 6px;
+  }
+
+  .resource-symbol {
+    width: 26px;
+    height: 26px;
+
+    border-radius:
+      7px;
+
+    font-size:
+      0.82rem;
+  }
+
+  .resource-name {
+    overflow: hidden;
+
+    font-size:
+      0.66rem;
+
+    text-overflow:
+      ellipsis;
+
+    white-space:
+      nowrap;
+  }
+
+  .resource-card strong {
+    font-size:
+      0.9rem;
+  }
+
+  .history-list {
+    max-height:
+      220px;
+  }
+}
+
+@media (
+  max-width: 900px
+) and (
+  max-height: 520px
+) and (
+  orientation: landscape
+) {
+  .game-screen {
+    padding-top:
+      max(
+        7px,
+        env(safe-area-inset-top)
+      );
+
+    padding-bottom:
+      max(
+        12px,
+        env(safe-area-inset-bottom)
+      );
+  }
+
+  .game-header {
+    margin-bottom:
+      7px;
+  }
+
+  .game-brand .eyebrow {
+    margin-bottom:
+      3px;
+  }
+
+  .game-header h1 {
+    font-size:
+      1.75rem;
+  }
+
+  .game-meta span {
+    padding:
+      4px 7px;
+  }
+
+  .turn-banner {
+    margin-bottom:
+      7px;
+
+    padding:
+      7px 10px;
+  }
+
+  .status-message {
+    margin-bottom:
+      7px;
+  }
+
+  .board-panel {
+    padding: 6px;
+  }
+
+  .board-title-row {
+    padding:
+      3px 5px 7px;
   }
 }
 
