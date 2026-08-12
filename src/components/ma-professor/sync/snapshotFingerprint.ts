@@ -66,23 +66,93 @@ function bytesToBase64Url(
     )
 }
 
+function isPristineDefaultSettingsOnly(
+  snapshot:
+    MAProfessorDatabaseSnapshot
+) {
+  const totalRecords =
+    Object
+      .values(
+        snapshot.recordCounts
+      )
+      .reduce(
+        (
+          total,
+          count
+        ) =>
+          total +
+          count,
+        0
+      )
+
+  if (
+    totalRecords !== 1 ||
+    snapshot.recordCounts
+      .settings !== 1
+  ) {
+    return false
+  }
+
+  const settings =
+    snapshot.tables
+      .settings[0]
+
+  if (!settings) {
+    return false
+  }
+
+  return (
+    settings.id ===
+      'default' &&
+    settings.defaultPeriodMinutes ===
+      50 &&
+    settings.defaultAbsentAssessmentScore ===
+      0 &&
+    settings.defaultExemptAssessmentScore ===
+      10 &&
+    settings.absenceWarningPercent ===
+      8 &&
+    settings.learningRecoveryThresholdPercent ===
+      10 &&
+    settings.weekStartsOn ===
+      1 &&
+    settings.locale ===
+      'pt-PT' &&
+    settings.theme ===
+      'dark' &&
+    settings.createdAt ===
+      settings.updatedAt
+  )
+}
+
 export function countMAProfessorSnapshotRecords(
   snapshot:
     MAProfessorDatabaseSnapshot
 ) {
-  return Object
-    .values(
-      snapshot.recordCounts
+  const totalRecords =
+    Object
+      .values(
+        snapshot.recordCounts
+      )
+      .reduce(
+        (
+          total,
+          count
+        ) =>
+          total +
+          count,
+        0
+      )
+
+  if (
+    isPristineDefaultSettingsOnly(
+      snapshot
     )
-    .reduce(
-      (
-        total,
-        count
-      ) =>
-        total +
-        count,
-      0
-    )
+  ) {
+    return 0
+  }
+
+  return totalRecords
 }
 
 export function getMAProfessorSnapshotBytes(
@@ -111,12 +181,6 @@ export async function createMAProfessorSnapshotFingerprint(
     )
   }
 
-  /*
-   * A data de criação não faz parte da impressão digital.
-   *
-   * Dois snapshots criados em momentos diferentes mas com exatamente
-   * os mesmos dados devem produzir a mesma impressão digital.
-   */
   const canonical =
     JSON.stringify({
       format:
