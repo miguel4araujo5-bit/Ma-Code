@@ -17,6 +17,10 @@ import {
   useMAProfessorAccess
 } from './AccessGate'
 
+import {
+  MA_PROFESSOR_ACCESS_STORAGE_KEY
+} from './accessTypes'
+
 type GuardStage =
   | 'checking'
   | 'claim-required'
@@ -421,6 +425,55 @@ export function AccountIsolationGate({
     [
       retryNonce,
       session.email
+    ]
+  )
+
+  useEffect(
+    () => {
+      const handleStorage =
+        (
+          event:
+            StorageEvent
+        ) => {
+          if (
+            event.storageArea !==
+            window.localStorage
+          ) {
+            return
+          }
+
+          if (
+            event.key !==
+              MA_PROFESSOR_ACCESS_STORAGE_KEY &&
+            event.key !== null
+          ) {
+            return
+          }
+
+          if (
+            event.newValue !==
+            null
+          ) {
+            return
+          }
+
+          void signOut()
+        }
+
+      window.addEventListener(
+        'storage',
+        handleStorage
+      )
+
+      return () => {
+        window.removeEventListener(
+          'storage',
+          handleStorage
+        )
+      }
+    },
+    [
+      signOut
     ]
   )
 
