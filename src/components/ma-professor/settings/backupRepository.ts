@@ -75,83 +75,89 @@ function buildValidationResult(
 export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
   await openMAProfessorDatabase()
 
-  const [
-    teacherProfiles,
-    academicYears,
-    groups,
-    subjects,
-    teachingAssignments,
-    modules,
-    students,
-    assessmentSchemes,
-    assessmentCriteria,
-    planifications,
-    planificationItems,
-    weeklyScheduleSlots,
-    schoolCalendarEvents,
-    lessons,
-    summarySuggestions,
-    lessonAttendance,
-    lessonAssessments,
-    assessmentResults,
-    moduleFinalGrades,
-    learningRecoveries,
-    settings,
-    setupProgress
-  ] = await Promise.all([
-    maProfessorDb.teacherProfiles.toArray(),
-    maProfessorDb.academicYears.toArray(),
-    maProfessorDb.groups.toArray(),
-    maProfessorDb.subjects.toArray(),
-    maProfessorDb.teachingAssignments.toArray(),
-    maProfessorDb.modules.toArray(),
-    maProfessorDb.students.toArray(),
-    maProfessorDb.assessmentSchemes.toArray(),
-    maProfessorDb.assessmentCriteria.toArray(),
-    maProfessorDb.planifications.toArray(),
-    maProfessorDb.planificationItems.toArray(),
-    maProfessorDb.weeklyScheduleSlots.toArray(),
-    maProfessorDb.schoolCalendarEvents.toArray(),
-    maProfessorDb.lessons.toArray(),
-    maProfessorDb.summarySuggestions.toArray(),
-    maProfessorDb.lessonAttendance.toArray(),
-    maProfessorDb.lessonAssessments.toArray(),
-    maProfessorDb.assessmentResults.toArray(),
-    maProfessorDb.moduleFinalGrades.toArray(),
-    maProfessorDb.learningRecoveries.toArray(),
-    maProfessorDb.settings.toArray(),
-    maProfessorDb.setupProgress.toArray()
-  ])
+  return maProfessorDb.transaction(
+    'r',
+    maProfessorDb.tables,
+    async () => {
+      const [
+        teacherProfiles,
+        academicYears,
+        groups,
+        subjects,
+        teachingAssignments,
+        modules,
+        students,
+        assessmentSchemes,
+        assessmentCriteria,
+        planifications,
+        planificationItems,
+        weeklyScheduleSlots,
+        schoolCalendarEvents,
+        lessons,
+        summarySuggestions,
+        lessonAttendance,
+        lessonAssessments,
+        assessmentResults,
+        moduleFinalGrades,
+        learningRecoveries,
+        settings,
+        setupProgress
+      ] = await Promise.all([
+        maProfessorDb.teacherProfiles.toArray(),
+        maProfessorDb.academicYears.toArray(),
+        maProfessorDb.groups.toArray(),
+        maProfessorDb.subjects.toArray(),
+        maProfessorDb.teachingAssignments.toArray(),
+        maProfessorDb.modules.toArray(),
+        maProfessorDb.students.toArray(),
+        maProfessorDb.assessmentSchemes.toArray(),
+        maProfessorDb.assessmentCriteria.toArray(),
+        maProfessorDb.planifications.toArray(),
+        maProfessorDb.planificationItems.toArray(),
+        maProfessorDb.weeklyScheduleSlots.toArray(),
+        maProfessorDb.schoolCalendarEvents.toArray(),
+        maProfessorDb.lessons.toArray(),
+        maProfessorDb.summarySuggestions.toArray(),
+        maProfessorDb.lessonAttendance.toArray(),
+        maProfessorDb.lessonAssessments.toArray(),
+        maProfessorDb.assessmentResults.toArray(),
+        maProfessorDb.moduleFinalGrades.toArray(),
+        maProfessorDb.learningRecoveries.toArray(),
+        maProfessorDb.settings.toArray(),
+        maProfessorDb.setupProgress.toArray()
+      ])
 
-  return {
-    product: 'ma-professor',
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    data: {
-      teacherProfiles,
-      academicYears,
-      groups,
-      subjects,
-      teachingAssignments,
-      modules,
-      students,
-      assessmentSchemes,
-      assessmentCriteria,
-      planifications,
-      planificationItems,
-      weeklyScheduleSlots,
-      schoolCalendarEvents,
-      lessons,
-      summarySuggestions,
-      lessonAttendance,
-      lessonAssessments,
-      assessmentResults,
-      moduleFinalGrades,
-      learningRecoveries,
-      settings,
-      setupProgress
+      return {
+        product: 'ma-professor',
+        schemaVersion: 1,
+        exportedAt: new Date().toISOString(),
+        data: {
+          teacherProfiles,
+          academicYears,
+          groups,
+          subjects,
+          teachingAssignments,
+          modules,
+          students,
+          assessmentSchemes,
+          assessmentCriteria,
+          planifications,
+          planificationItems,
+          weeklyScheduleSlots,
+          schoolCalendarEvents,
+          lessons,
+          summarySuggestions,
+          lessonAttendance,
+          lessonAssessments,
+          assessmentResults,
+          moduleFinalGrades,
+          learningRecoveries,
+          settings,
+          setupProgress
+        }
+      }
     }
-  }
+  )
 }
 
 export function validateMAProfessorBackup(
@@ -202,6 +208,7 @@ export function validateMAProfessorBackup(
       message: 'A área de dados está em falta ou é inválida.',
       severity: 'error'
     })
+
     return buildValidationResult(issues, null)
   }
 
@@ -378,5 +385,6 @@ export async function resetMAProfessorDatabase() {
 
 export function getBackupFileName(exportedAt: string) {
   const date = exportedAt.slice(0, 10)
+
   return `ma-professor-backup-${date}.json`
 }
