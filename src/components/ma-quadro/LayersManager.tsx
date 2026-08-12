@@ -135,28 +135,94 @@ export default function LayersManager() {
       return
     }
 
-    const list = findLayersList()
+    let currentList:
+      | HTMLElement
+      | null
+      | undefined
 
-    if (!list) {
-      setHost(null)
-      return
+    let mount:
+      | HTMLDivElement
+      | null = null
+
+    const syncHost = () => {
+      const list =
+        findLayersList()
+
+      if (
+        list === currentList &&
+        (
+          (
+            list === null &&
+            mount === null
+          ) ||
+          Boolean(
+            mount?.isConnected
+          )
+        )
+      ) {
+        return
+      }
+
+      if (mount) {
+        mount.remove()
+        mount = null
+      }
+
+      currentList = list
+
+      if (!list) {
+        setHost(null)
+        return
+      }
+
+      const nextMount =
+        document.createElement('div')
+
+      nextMount.className =
+        'mq-layers-manager-host'
+
+      list.insertAdjacentElement(
+        'beforebegin',
+        nextMount
+      )
+
+      mount = nextMount
+
+      setHost(nextMount)
     }
 
-    const mount =
-      document.createElement('div')
+    syncHost()
 
-    mount.className =
-      'mq-layers-manager-host'
+    const propertiesPanel =
+      document.querySelector<HTMLElement>(
+        '.mq-properties-panel'
+      )
 
-    list.insertAdjacentElement(
-      'beforebegin',
-      mount
+    if (!propertiesPanel) {
+      return () => {
+        mount?.remove()
+      }
+    }
+
+    const observer =
+      new MutationObserver(
+        syncHost
+      )
+
+    observer.observe(
+      propertiesPanel,
+      {
+        childList: true,
+        subtree: true
+      }
     )
 
-    setHost(mount)
-
     return () => {
-      mount.remove()
+      observer.disconnect()
+
+      if (mount) {
+        mount.remove()
+      }
     }
   }, [
     editor.activePage?.id,
@@ -293,7 +359,9 @@ export default function LayersManager() {
     }
 
     editor.selectLayer(layer.id)
+
     skipRenameCommitRef.current = false
+
     setEditingId(layer.id)
     setRenameDraft(layer.name)
     setMessage('')
@@ -405,9 +473,21 @@ export default function LayersManager() {
       >
         {([
           ['all', 'Todas', counts.all],
-          ['visible', 'Visíveis', counts.visible],
-          ['hidden', 'Ocultas', counts.hidden],
-          ['locked', 'Bloqueadas', counts.locked]
+          [
+            'visible',
+            'Visíveis',
+            counts.visible
+          ],
+          [
+            'hidden',
+            'Ocultas',
+            counts.hidden
+          ],
+          [
+            'locked',
+            'Bloqueadas',
+            counts.locked
+          ]
         ] as const).map(
           ([id, label, count]) => (
             <button
@@ -422,8 +502,13 @@ export default function LayersManager() {
               aria-pressed={view === id}
               onClick={() => setView(id)}
             >
-              <span>{label}</span>
-              <small>{count}</small>
+              <span>
+                {label}
+              </span>
+
+              <small>
+                {count}
+              </small>
             </button>
           )
         )}
@@ -466,7 +551,8 @@ export default function LayersManager() {
         {filteredLayers.map((layer) => {
           const originalIndex =
             editor.layers.findIndex(
-              (item) => item.id === layer.id
+              (item) =>
+                item.id === layer.id
             )
 
           const isFirst =
@@ -498,7 +584,9 @@ export default function LayersManager() {
             >
               <div className="mq-layers-manager__main">
                 <span className="mq-layers-manager__icon">
-                  {getLayerTypeIcon(layer)}
+                  {getLayerTypeIcon(
+                    layer
+                  )}
                 </span>
 
                 <span className="mq-layers-manager__copy">
@@ -515,7 +603,9 @@ export default function LayersManager() {
                         )
                       }
                       onBlur={() =>
-                        commitRename(layer)
+                        commitRename(
+                          layer
+                        )
                       }
                       onKeyDown={(event) =>
                         handleRenameKeyDown(
@@ -541,7 +631,9 @@ export default function LayersManager() {
                             : `Selecionar ${layer.name}`
                       }
                       onClick={() => {
-                        editor.selectLayer(layer.id)
+                        editor.selectLayer(
+                          layer.id
+                        )
                         setMessage('')
                       }}
                     >
@@ -552,7 +644,9 @@ export default function LayersManager() {
                   )}
 
                   <small>
-                    {getLayerTypeLabel(layer)}
+                    {getLayerTypeLabel(
+                      layer
+                    )}
                     {!layer.visible
                       ? ' · Oculta'
                       : ''}
@@ -670,7 +764,9 @@ export default function LayersManager() {
                   aria-label={`Renomear ${layer.name}`}
                   title="Renomear camada"
                   onClick={() =>
-                    startRename(layer)
+                    startRename(
+                      layer
+                    )
                   }
                 >
                   ✎
@@ -698,7 +794,9 @@ export default function LayersManager() {
               <button
                 type="button"
                 disabled={locked}
-                onClick={clearFilters}
+                onClick={
+                  clearFilters
+                }
               >
                 Limpar filtros
               </button>
