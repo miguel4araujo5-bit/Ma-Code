@@ -87,7 +87,9 @@ function ProjectNameField() {
       return
     }
 
-    setDraft(next)
+    setDraft(
+      next
+    )
 
     if (
       next !==
@@ -143,7 +145,9 @@ function ProjectNameField() {
           event.target.value
         )
       }
-      onBlur={commit}
+      onBlur={
+        commit
+      }
       onKeyDown={
         handleKeyDown
       }
@@ -159,9 +163,12 @@ function ProjectNameField() {
 }
 
 export default function EditorHeader({
-  onOpenShortcuts
+  onOpenShortcuts,
+  onGoHome
 }: {
   onOpenShortcuts:
+    () => void
+  onGoHome:
     () => void
 }) {
   const editor =
@@ -169,8 +176,11 @@ export default function EditorHeader({
 
   const menuRef =
     useRef<
-      HTMLDetailsElement | null
-    >(null)
+      HTMLDetailsElement |
+      null
+    >(
+      null
+    )
 
   const locked =
     editor.busy ||
@@ -186,17 +196,28 @@ export default function EditorHeader({
     }
   }
 
-  const openNewDesign = () => {
+  const goHome = () => {
     if (locked) {
       return
     }
 
     closeMenu()
 
-    editor.setNewDesignOpen(
-      true
-    )
+    onGoHome()
   }
+
+  const openNewDesign =
+    () => {
+      if (locked) {
+        return
+      }
+
+      closeMenu()
+
+      editor.setNewDesignOpen(
+        true
+      )
+    }
 
   const openImport = () => {
     if (locked) {
@@ -210,34 +231,37 @@ export default function EditorHeader({
       ?.click()
   }
 
-  const saveAsTemplate = () => {
-    if (locked) {
-      return
+  const saveAsTemplate =
+    () => {
+      if (locked) {
+        return
+      }
+
+      closeMenu()
+
+      void editor
+        .saveProjectAsTemplate()
     }
 
-    closeMenu()
+  const saveProject =
+    () => {
+      if (locked) {
+        return
+      }
 
-    void editor
-      .saveProjectAsTemplate()
-  }
+      closeMenu()
 
-  const saveProject = () => {
-    if (locked) {
-      return
+      void editor.saveProject(
+        false
+      )
     }
 
-    closeMenu()
+  const openShortcuts =
+    () => {
+      closeMenu()
 
-    void editor.saveProject(
-      false
-    )
-  }
-
-  const openShortcuts = () => {
-    closeMenu()
-
-    onOpenShortcuts()
-  }
+      onOpenShortcuts()
+    }
 
   return (
     <header className="mq-header">
@@ -250,6 +274,19 @@ export default function EditorHeader({
         >
           ←
         </a>
+
+        <button
+          type="button"
+          className="mq-icon-button"
+          disabled={locked}
+          onClick={
+            goHome
+          }
+          aria-label="Início do MA-Quadro"
+          title="Início do MA-Quadro"
+        >
+          ⌂
+        </button>
 
         <a
           className="mq-brand"
@@ -344,7 +381,9 @@ export default function EditorHeader({
         </button>
 
         <details
-          ref={menuRef}
+          ref={
+            menuRef
+          }
           className="mq-header-menu"
         >
           <summary
@@ -355,6 +394,16 @@ export default function EditorHeader({
           </summary>
 
           <div className="mq-header-menu__panel">
+            <button
+              type="button"
+              onClick={
+                goHome
+              }
+              disabled={locked}
+            >
+              Início do MA-Quadro
+            </button>
+
             <button
               type="button"
               onClick={
