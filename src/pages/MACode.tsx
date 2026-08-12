@@ -677,6 +677,8 @@ function ProjectsShowcase({
                     ) : null}
 
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.55] via-transparent to-transparent" />
+
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(2,6,23,0.40),transparent_34%),radial-gradient(circle_at_top_right,rgba(2,6,23,0.32),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(2,6,23,0.24),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(2,6,23,0.40),transparent_36%)]" />
                   </div>
 
                   <div className="flex items-center justify-between gap-3 px-4 py-4">
