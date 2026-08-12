@@ -8,79 +8,98 @@ export default function FeaturedProjects({ mounted }: FeaturedProjectsProps) {
   const featuredProjects = portfolioProjects.slice(0, 3)
 
   return (
-    <section id="projetos" className="px-5 pb-8 sm:px-6 md:px-10 md:pb-14">
+    <section id="projetos" className="px-5 pb-16 sm:px-6 md:px-10">
       <div className="mx-auto max-w-7xl">
-        <a
-          href="/projetos"
-          aria-label="Ver portefólio completo da MA-Code"
-          className={`group relative block overflow-hidden rounded-[2.25rem] border border-cyan-300/15 bg-slate-950/70 p-5 no-underline shadow-2xl shadow-cyan-950/20 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-950/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 sm:p-6 md:p-7 ${
-            mounted ? 'animate-fade-in-up' : 'opacity-0'
-          }`}
-        >
-          <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100">
-            <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl" />
-            <div className="absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
-          </div>
+        <div className="text-center">
+          <h2 className="text-3xl font-semibold tracking-tight text-white md:text-[3rem]">
+            Projetos que{' '}
+            <span className="bg-gradient-to-r from-violet-200 via-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
+              geram resultados
+            </span>
+          </h2>
 
-          <div className="relative z-10">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="mb-4 section-label-wrap">
-                  <span className="section-label">Projetos reais</span>
+          <p className="mt-3 text-base text-slate-400">
+            Alguns dos negócios que confiaram na MA-Code
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {featuredProjects.map((project, index) => {
+            const featuredImage = project.images[0]
+
+            return (
+              <a
+                key={project.slug}
+                href={project.href}
+                target="_blank"
+                rel="noreferrer"
+                className={`group relative block overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(180deg,rgba(10,13,22,0.96),rgba(6,9,16,0.98))] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/28 hover:shadow-[0_28px_70px_rgba(91,33,182,0.18)] ${
+                  mounted ? 'animate-fade-in-up' : 'opacity-0'
+                }`}
+                style={{ animationDelay: `${index * 110}ms` }}
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  {featuredImage ? (
+                    <img
+                      src={featuredImage.src}
+                      alt={featuredImage.alt}
+                      className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.04]"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  ) : null}
+
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
                 </div>
 
-                <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                  Veja aqui uma amostra do nosso Portefólio.
-                </h2>
+                <div className="flex items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-white">
+                      {project.title}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">{project.category}</div>
+                  </div>
+
+                  <div className="shrink-0 text-sm font-semibold text-slate-200 transition duration-300 group-hover:text-violet-200">
+                    Ver projeto →
+                  </div>
+                </div>
+              </a>
+            )
+          })}
+
+          <a
+            href="/projetos"
+            className={`group relative flex min-h-[100%] flex-col justify-between overflow-hidden rounded-[1.65rem] border border-violet-300/18 bg-[linear-gradient(180deg,rgba(18,11,34,0.96),rgba(9,10,18,0.98))] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-violet-200/35 hover:shadow-[0_28px_70px_rgba(91,33,182,0.22)] ${
+              mounted ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
+            style={{ animationDelay: '330ms' }}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_22%,rgba(168,85,247,0.22),transparent_24%),radial-gradient(circle_at_82%_78%,rgba(59,130,246,0.14),transparent_26%)]" />
+
+            <div className="relative z-10">
+              <div className="inline-flex rounded-full border border-violet-300/20 bg-violet-500/10 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-violet-100">
+                Portefólio
               </div>
 
-              <div className="inline-flex w-fit items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-cyan-200/50 group-hover:bg-cyan-300/15">
-                Ver projetos
-                <span aria-hidden="true">→</span>
-              </div>
+              <h3 className="mt-5 text-2xl font-semibold tracking-tight text-white">
+                Ver mais projetos
+              </h3>
+
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Conheça melhor o portefólio da MA-Code e explore mais exemplos de trabalho real.
+              </p>
             </div>
 
-            <div className="relative mt-6 overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-cyan-300/5 p-3 shadow-2xl shadow-sky-950/20 sm:p-4">
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-300/10 via-transparent to-blue-500/10 opacity-70" />
-
-              <div className="relative grid gap-3 sm:grid-cols-3">
-                {featuredProjects.map((project) => {
-                  const featuredImage = project.images[0]
-
-                  return (
-                    <article
-                      key={project.slug}
-                      className="relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black"
-                    >
-                      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[1.35rem] bg-slate-950 sm:aspect-[16/11]">
-                        {featuredImage ? (
-                          <img
-                            src={featuredImage.src}
-                            alt={featuredImage.alt}
-                            className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.04]"
-                            loading="lazy"
-                            decoding="async"
-                            onError={(event) => {
-                              event.currentTarget.style.display = 'none'
-                            }}
-                          />
-                        ) : null}
-
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-
-                        <div className="absolute bottom-3 left-3 right-3 z-20">
-                          <h3 className="line-clamp-1 text-xs font-semibold text-white sm:text-sm">
-                            {project.title}
-                          </h3>
-                        </div>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
+            <div className="relative z-10 mt-8 inline-flex items-center gap-2 text-sm font-semibold text-violet-200 transition duration-300 group-hover:text-violet-100">
+              Ver portefólio completo
+              <span>→</span>
             </div>
-          </div>
-        </a>
+          </a>
+        </div>
       </div>
     </section>
   )
