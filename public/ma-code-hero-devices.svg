@@ -1,0 +1,135 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="frame" x1="320" y1="40" x2="1020" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#334155"/>
+      <stop offset="0.45" stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="420" y1="100" x2="960" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#080B14"/>
+      <stop offset="0.55" stop-color="#0A1220"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="cyanViolet" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="violetGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="0.45" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+    <radialGradient id="ambient" cx="0" cy="0" r="1" gradientTransform="translate(760 350) rotate(90) scale(330 440)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE" stop-opacity=".16"/>
+      <stop offset=".42" stop-color="#8B5CF6" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur24" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="blur12" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="30" stdDeviation="30" flood-color="#020617" flood-opacity=".72"/>
+    </filter>
+    <clipPath id="laptopScreenClip">
+      <path d="M441 91L1028 134L960 568L381 515L441 91Z"/>
+    </clipPath>
+    <clipPath id="phoneClip">
+      <rect x="260" y="240" width="242" height="424" rx="40"/>
+    </clipPath>
+  </defs>
+
+  <ellipse cx="715" cy="377" rx="455" ry="320" fill="url(#ambient)"/>
+
+  <path d="M278 612C418 520 637 559 809 505C942 463 1001 388 1109 396" stroke="#22D3EE" stroke-opacity=".22" stroke-width="10" stroke-linecap="round" filter="url(#blur24)"/>
+  <path d="M280 612C421 520 637 557 809 505C941 465 1002 388 1108 396" stroke="url(#violetGlow)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M383 690C546 631 729 663 896 615C979 591 1059 548 1127 499" stroke="#A78BFA" stroke-opacity=".18" stroke-width="12" stroke-linecap="round" filter="url(#blur24)"/>
+
+  <!-- Laptop -->
+  <g filter="url(#shadow)">
+    <path d="M420 60C424 40 443 27 463 29L1032 74C1053 76 1068 95 1064 116L984 590C981 610 962 624 942 622L373 568C352 566 337 547 341 526L420 60Z" fill="url(#frame)" stroke="#94A3B8" stroke-opacity=".38" stroke-width="3"/>
+    <path d="M441 91L1028 134L960 568L381 515L441 91Z" fill="url(#screen)" stroke="#64748B" stroke-opacity=".32" stroke-width="2"/>
+    <g clip-path="url(#laptopScreenClip)">
+      <rect x="350" y="72" width="720" height="530" fill="#070B14"/>
+      <rect x="350" y="72" width="720" height="530" fill="url(#ambient)" opacity=".7"/>
+
+      <path d="M660 566C791 476 857 489 1032 421" stroke="#22D3EE" stroke-opacity=".22" stroke-width="18" filter="url(#blur12)"/>
+      <path d="M661 565C792 475 857 488 1031 421" stroke="url(#cyanViolet)" stroke-width="5" stroke-linecap="round"/>
+      <path d="M735 558C835 505 903 493 998 450" stroke="#A78BFA" stroke-opacity=".26" stroke-width="8" filter="url(#blur12)"/>
+
+      <g transform="matrix(.97 .075 -.15 .98 474 122)">
+        <text x="0" y="0" fill="#CFFAFE" font-family="Inter,Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="2">MA-CODE</text>
+
+        <rect x="380" y="-17" width="84" height="28" rx="14" fill="#0F172A" stroke="#67E8F9" stroke-opacity=".26"/>
+        <text x="402" y="2" fill="#CFFAFE" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700">PROPOSTA</text>
+
+        <text x="20" y="112" fill="#67E8F9" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Transformamos ideias</text>
+        <text x="20" y="145" fill="#FFFFFF" font-family="Inter,Arial,sans-serif" font-size="27" font-weight="800">em soluções digitais</text>
+        <text x="20" y="179" fill="#FFFFFF" font-family="Inter,Arial,sans-serif" font-size="27" font-weight="800">que geram resultados.</text>
+
+        <text x="20" y="220" fill="#94A3B8" font-family="Inter,Arial,sans-serif" font-size="14">Websites, produtos e sistemas preparados</text>
+        <text x="20" y="242" fill="#94A3B8" font-family="Inter,Arial,sans-serif" font-size="14">para crescer com o seu negócio.</text>
+
+        <rect x="20" y="278" width="150" height="42" rx="14" fill="url(#cyanViolet)"/>
+        <text x="48" y="304" fill="#03111A" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="800">PEDIR PROPOSTA</text>
+        <rect x="184" y="278" width="118" height="42" rx="14" fill="#0B1220" stroke="#CBD5E1" stroke-opacity=".18"/>
+        <text x="209" y="304" fill="#E2E8F0" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">PRODUTOS</text>
+
+        <rect x="338" y="102" width="154" height="176" rx="22" fill="#07111C" fill-opacity=".9" stroke="#67E8F9" stroke-opacity=".18"/>
+        <text x="358" y="132" fill="#64748B" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="1.3">ECOSSISTEMA</text>
+        <circle cx="470" cy="128" r="5" fill="#67E8F9"/>
+        <rect x="356" y="151" width="118" height="24" rx="8" fill="#0F172A"/>
+        <rect x="356" y="184" width="118" height="24" rx="8" fill="#0F172A"/>
+        <rect x="356" y="217" width="118" height="24" rx="8" fill="#0F172A"/>
+        <text x="369" y="167" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="10">Websites</text>
+        <text x="369" y="200" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="10">Produtos</text>
+        <text x="369" y="233" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="10">Automação</text>
+      </g>
+    </g>
+
+    <!-- laptop base -->
+    <path d="M335 566L984 622L1098 671C1113 678 1107 699 1091 701L447 690C427 690 408 684 392 674L317 628C297 616 307 563 335 566Z" fill="url(#frame)" stroke="#64748B" stroke-opacity=".28" stroke-width="2"/>
+    <path d="M427 661L1020 675" stroke="#94A3B8" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
+    <path d="M634 650L788 655" stroke="#CBD5E1" stroke-opacity=".18" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <!-- Phone -->
+  <g filter="url(#shadow)">
+    <rect x="246" y="222" width="270" height="460" rx="52" fill="url(#frame)" stroke="#94A3B8" stroke-opacity=".42" stroke-width="3"/>
+    <rect x="260" y="240" width="242" height="424" rx="40" fill="#070B14"/>
+    <g clip-path="url(#phoneClip)">
+      <rect x="260" y="240" width="242" height="424" fill="#070B14"/>
+      <rect x="260" y="240" width="242" height="424" fill="url(#ambient)" opacity=".6"/>
+      <path d="M275 630C337 587 408 598 488 552" stroke="#22D3EE" stroke-opacity=".24" stroke-width="13" filter="url(#blur12)"/>
+      <path d="M275 630C337 587 408 598 488 552" stroke="url(#cyanViolet)" stroke-width="4" stroke-linecap="round"/>
+
+      <text x="284" y="281" fill="#CFFAFE" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">MA-CODE</text>
+      <text x="284" y="334" fill="#67E8F9" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">Soluções digitais</text>
+      <text x="284" y="357" fill="#FFFFFF" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">à medida do seu</text>
+      <text x="284" y="380" fill="#FFFFFF" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">negócio</text>
+
+      <g>
+        <rect x="282" y="416" width="198" height="46" rx="14" fill="#0F172A" stroke="#67E8F9" stroke-opacity=".16"/>
+        <circle cx="304" cy="439" r="10" fill="#0E7490"/>
+        <text x="326" y="443" fill="#E2E8F0" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">Websites</text>
+
+        <rect x="282" y="472" width="198" height="46" rx="14" fill="#0F172A" stroke="#A78BFA" stroke-opacity=".16"/>
+        <circle cx="304" cy="495" r="10" fill="#7C3AED"/>
+        <text x="326" y="499" fill="#E2E8F0" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">Produtos</text>
+
+        <rect x="282" y="528" width="198" height="46" rx="14" fill="#0F172A" stroke="#38BDF8" stroke-opacity=".16"/>
+        <circle cx="304" cy="551" r="10" fill="#0284C7"/>
+        <text x="326" y="555" fill="#E2E8F0" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">Automação</text>
+      </g>
+
+      <rect x="282" y="601" width="198" height="40" rx="13" fill="url(#cyanViolet)"/>
+      <text x="326" y="626" fill="#03111A" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="800">PEDIR PROPOSTA</text>
+    </g>
+    <rect x="337" y="233" width="88" height="12" rx="6" fill="#020617"/>
+  </g>
+
+  <ellipse cx="660" cy="700" rx="390" ry="34" fill="#020617" fill-opacity=".72" filter="url(#blur12)"/>
+</svg>
