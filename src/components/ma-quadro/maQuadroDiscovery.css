@@ -9,24 +9,31 @@
     display: flex;
     align-items: center;
     min-height: 2.65rem;
-    border: 1px solid rgba(15, 23, 42, 0.14);
+    border: 1px solid var(--mq-border);
     border-radius: 0.8rem;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.035);
     transition:
         border-color 140ms ease,
+        background 140ms ease,
         box-shadow 140ms ease;
 }
 
+.mq-discovery-search:hover {
+    border-color: rgba(103, 232, 249, 0.22);
+    background: rgba(255, 255, 255, 0.05);
+}
+
 .mq-discovery-search:focus-within {
-    border-color: rgba(124, 58, 237, 0.58);
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    border-color: rgba(103, 232, 249, 0.52);
+    background: rgba(34, 211, 238, 0.045);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08);
 }
 
 .mq-discovery-search__icon {
     display: grid;
     flex: 0 0 2.35rem;
     place-items: center;
-    color: #64748b;
+    color: var(--mq-muted);
     font-size: 1.2rem;
     line-height: 1;
 }
@@ -37,13 +44,13 @@
     border: 0;
     outline: 0;
     background: transparent;
-    color: #0f172a;
+    color: var(--mq-text);
     font: inherit;
     font-size: 0.88rem;
 }
 
 .mq-discovery-search input::placeholder {
-    color: #94a3b8;
+    color: var(--mq-dim);
 }
 
 .mq-discovery-search__clear {
@@ -56,14 +63,17 @@
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: #64748b;
+    color: var(--mq-muted);
     font-size: 1.25rem;
     cursor: pointer;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
 }
 
 .mq-discovery-search__clear:hover:not(:disabled) {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: rgba(34, 211, 238, 0.09);
+    color: var(--mq-cyan);
 }
 
 .mq-discovery-chips {
@@ -72,16 +82,17 @@
     overflow-x: auto;
     padding: 0.05rem 0 0.2rem;
     scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
 
 .mq-discovery-chips button,
 .mq-favourites-filter {
     flex: 0 0 auto;
     min-height: 2rem;
-    border: 1px solid rgba(15, 23, 42, 0.12);
+    border: 1px solid var(--mq-border);
     border-radius: 999px;
-    background: #fff;
-    color: #475569;
+    background: rgba(255, 255, 255, 0.03);
+    color: #cbd5e1;
     padding: 0.35rem 0.7rem;
     font: inherit;
     font-size: 0.75rem;
@@ -96,16 +107,17 @@
 
 .mq-discovery-chips button:hover:not(:disabled),
 .mq-favourites-filter:hover:not(:disabled) {
-    border-color: rgba(124, 58, 237, 0.35);
-    color: #6d28d9;
+    border-color: rgba(103, 232, 249, 0.34);
+    background: rgba(34, 211, 238, 0.065);
+    color: #cffafe;
     transform: translateY(-1px);
 }
 
 .mq-discovery-chips button.is-active,
 .mq-favourites-filter.is-active {
-    border-color: rgba(124, 58, 237, 0.28);
-    background: rgba(124, 58, 237, 0.1);
-    color: #6d28d9;
+    border-color: rgba(103, 232, 249, 0.38);
+    background: rgba(34, 211, 238, 0.1);
+    color: var(--mq-cyan);
 }
 
 .mq-discovery-chips--views {
@@ -129,7 +141,7 @@
 }
 
 .mq-favourites-filter > span {
-    color: #f59e0b;
+    color: #fbbf24;
 }
 
 .mq-template-card-shell {
@@ -160,33 +172,36 @@
     min-width: 2rem;
     height: 2rem;
     place-items: center;
-    border: 1px solid rgba(15, 23, 42, 0.12);
+    border: 1px solid var(--mq-border);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.96);
-    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.94);
+    color: var(--mq-muted);
     padding: 0;
     font: inherit;
     font-size: 1rem;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
     transition:
         border-color 120ms ease,
         color 120ms ease,
         transform 120ms ease,
-        background 120ms ease;
+        background 120ms ease,
+        box-shadow 120ms ease;
 }
 
 .mq-favourite-button:hover:not(:disabled) {
-    border-color: rgba(245, 158, 11, 0.4);
-    color: #d97706;
+    border-color: rgba(251, 191, 36, 0.42);
+    background: rgba(251, 191, 36, 0.08);
+    color: #fbbf24;
     transform: scale(1.05);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.28);
 }
 
 .mq-favourite-button.is-active {
-    border-color: rgba(245, 158, 11, 0.34);
-    background: #fffbeb;
-    color: #f59e0b;
+    border-color: rgba(251, 191, 36, 0.38);
+    background: rgba(251, 191, 36, 0.11);
+    color: #fbbf24;
 }
 
 .mq-project-card__actions--with-favourite {
@@ -204,7 +219,7 @@
 .mq-project-card__date {
     display: block;
     margin-top: 0.18rem;
-    color: #94a3b8 !important;
+    color: var(--mq-dim) !important;
     font-size: 0.69rem !important;
 }
 
@@ -219,12 +234,12 @@
 }
 
 .mq-discovery-empty strong {
-    color: #0f172a;
+    color: var(--mq-text);
 }
 
 .mq-discovery-empty p {
     margin: 0;
-    color: #64748b;
+    color: var(--mq-muted);
     font-size: 0.78rem;
     line-height: 1.5;
 }
@@ -233,12 +248,19 @@
     justify-self: start;
     border: 0;
     background: transparent;
-    color: #6d28d9;
+    color: var(--mq-cyan);
     padding: 0;
     font: inherit;
     font-size: 0.76rem;
     font-weight: 800;
     cursor: pointer;
+    transition:
+        color 120ms ease,
+        opacity 120ms ease;
+}
+
+.mq-discovery-empty button:hover:not(:disabled) {
+    color: #cffafe;
 }
 
 .mq-info-card--compact {
