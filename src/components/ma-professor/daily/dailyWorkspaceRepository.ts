@@ -927,146 +927,201 @@ export class DailyWorkspaceRepository {
       }
     }
 
-    const scheduleRepairChanges =
-      await getLegacyScheduleRepairChanges(
-        input.lessonId
-      )
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.tables,
+      async () => {
+        const scheduleRepairChanges =
+          await getLegacyScheduleRepairChanges(
+            input.lessonId
+          )
 
-    let updated =
-      await lessonRepository.updateLesson(
-        input.lessonId,
-        {
-          ...scheduleRepairChanges,
-          status:
-            input.status,
-          startTime:
-            input.startTime,
-          endTime:
-            input.endTime,
-          periodCount:
-            input.periodCount,
-          countTowardProgress:
-            input.status ===
-            'cancelled'
-              ? false
-              : input.countTowardProgress,
-          plannedActivity:
-            input.plannedActivity,
-          summary:
-            input.summary,
-          summarySource:
-            input.summarySource,
-          planificationItemIds:
-            input.planificationItemIds,
-          notes:
-            input.notes
+        let updated =
+          await lessonRepository.updateLesson(
+            input.lessonId,
+            {
+              ...scheduleRepairChanges,
+              status:
+                input.status,
+              startTime:
+                input.startTime,
+              endTime:
+                input.endTime,
+              periodCount:
+                input.periodCount,
+              countTowardProgress:
+                input.status ===
+                'cancelled'
+                  ? false
+                  : input.countTowardProgress,
+              plannedActivity:
+                input.plannedActivity,
+              summary:
+                input.summary,
+              summarySource:
+                input.summarySource,
+              planificationItemIds:
+                input.planificationItemIds,
+              notes:
+                input.notes
+            }
+          )
+
+        if (
+          input.giaeStatus ===
+            'submitted' &&
+          updated.status ===
+            'taught' &&
+          updated.summary.trim()
+        ) {
+          updated =
+            await lessonRepository.markGIAESubmitted(
+              updated.id
+            )
+        } else if (
+          updated.giaeStatus ===
+          'submitted'
+        ) {
+          updated =
+            await lessonRepository.markGIAEPending(
+              updated.id
+            )
         }
-      )
 
-    if (
-      input.giaeStatus ===
-        'submitted' &&
-      updated.status ===
-        'taught' &&
-      updated.summary.trim()
-    ) {
-      updated =
-        await lessonRepository.markGIAESubmitted(
-          updated.id
-        )
-    } else if (
-      updated.giaeStatus ===
-      'submitted'
-    ) {
-      updated =
-        await lessonRepository.markGIAEPending(
-          updated.id
-        )
-    }
+        if (
+          updated.status !==
+          'taught'
+        ) {
+          if (
+            assessmentToDeleteId
+          ) {
+            await assessmentRepository.deleteLessonAssessment(
+              assessmentToDeleteId
+            )
+          }
 
-    if (
-      updated.status !==
-      'taught'
-    ) {
-      if (
-        assessmentToDeleteId
-      ) {
-        await assessmentRepository.deleteLessonAssessment(
-          assessmentToDeleteId
-        )
-      }
+          return {
+            lesson: updated,
+            assessmentId: null
+          }
+        }
 
-      return {
-        lesson: updated,
-        assessmentId: null
-      }
-    }
+        const attendanceEntries:
+          AttendanceEntryDraft[] =
+          input.students.map(
+            row => ({
+              studentId:
+                row.studentId,
+              status:
+                row.attendanceStatus,
+              code:
+                row.attendanceStatus ===
+                'absent'
+                  ? row.attendanceCode ||
+                    'F'
+                  : '',
+              note:
+                row.attendanceNote
+            })
+          )
 
-    const attendanceEntries:
-      AttendanceEntryDraft[] =
-      input.students.map(
-        row => ({
-          studentId:
-            row.studentId,
-          status:
-            row.attendanceStatus,
-          code:
-            row.attendanceStatus ===
-            'absent'
-              ? row.attendanceCode ||
-                'F'
-              : '',
-          note:
-            row.attendanceNote
-        })
-      )
-
-    await attendanceRepository.saveLessonAttendance(
-      updated.id,
-      attendanceEntries,
-      {
-        fillMissingAsPresent:
-          true,
-        synchronizeRecoveries:
-          true
-      }
-    )
-
-    if (
-      input.assessment
-        .mode === 'none'
-    ) {
-      if (
-        assessmentToDeleteId
-      ) {
-        await assessmentRepository.deleteLessonAssessment(
-          assessmentToDeleteId
-        )
-      }
-
-      return {
-        lesson: updated,
-        assessmentId: null
-      }
-    }
-
-    if (
-      !assessmentEntries
-    ) {
-      throw new Error(
-        'Não foi possível preparar as classificações desta aula.'
-      )
-    }
-
-    if (
-      input.assessment
-        .mode === 'new'
-    ) {
-      const assessment =
-        await assessmentRepository.createLessonAssessment(
+        await attendanceRepository.saveLessonAttendance(
+          updated.id,
+          attendanceEntries,
           {
-            lessonId:
-              updated.id,
+            fillMissingAsPresent:
+              true,
+            synchronizeRecoveries:
+              true
+          }
+        )
+
+        if (
+          input.assessment
+            .mode === 'none'
+        ) {
+          if (
+            assessmentToDeleteId
+          ) {
+            await assessmentRepository.deleteLessonAssessment(
+              assessmentToDeleteId
+            )
+          }
+
+          return {
+            lesson: updated,
+            assessmentId: null
+          }
+        }
+
+        if (
+          !assessmentEntries
+        ) {
+          throw new Error(
+            'Não foi possível preparar as classificações desta aula.'
+          )
+        }
+
+        if (
+          input.assessment
+            .mode === 'new'
+        ) {
+          const assessment =
+            await assessmentRepository.createLessonAssessment(
+              {
+                lessonId:
+                  updated.id,
+                criterionId:
+                  input.assessment
+                    .criterionId,
+                title:
+                  assessmentTitle,
+                activityType:
+                  input.assessment
+                    .activityType,
+                description:
+                  input.assessment
+                    .description
+              }
+            )
+
+          try {
+            await assessmentRepository.saveAssessmentResults(
+              assessment.id,
+              assessmentEntries
+            )
+          } catch (error) {
+            try {
+              await assessmentRepository.deleteLessonAssessment(
+                assessment.id
+              )
+            } catch {
+              // A falha original é a mais importante.
+            }
+
+            throw error
+          }
+
+          return {
+            lesson: updated,
+            assessmentId:
+              assessment.id
+          }
+        }
+
+        if (
+          !input.assessment
+            .assessmentId
+        ) {
+          throw new Error(
+            'Não foi possível identificar a atividade de avaliação selecionada.'
+          )
+        }
+
+        await assessmentRepository.updateLessonAssessment(
+          input.assessment
+            .assessmentId,
+          {
             criterionId:
               input.assessment
                 .criterionId,
@@ -1081,69 +1136,20 @@ export class DailyWorkspaceRepository {
           }
         )
 
-      try {
         await assessmentRepository.saveAssessmentResults(
-          assessment.id,
+          input.assessment
+            .assessmentId,
           assessmentEntries
         )
-      } catch (error) {
-        try {
-          await assessmentRepository.deleteLessonAssessment(
-            assessment.id
-          )
-        } catch {
-          // A falha original é a mais importante.
+
+        return {
+          lesson: updated,
+          assessmentId:
+            input.assessment
+              .assessmentId
         }
-
-        throw error
-      }
-
-      return {
-        lesson: updated,
-        assessmentId:
-          assessment.id
-      }
-    }
-
-    if (
-      !input.assessment
-        .assessmentId
-    ) {
-      throw new Error(
-        'Não foi possível identificar a atividade de avaliação selecionada.'
-      )
-    }
-
-    await assessmentRepository.updateLessonAssessment(
-      input.assessment
-        .assessmentId,
-      {
-        criterionId:
-          input.assessment
-            .criterionId,
-        title:
-          assessmentTitle,
-        activityType:
-          input.assessment
-            .activityType,
-        description:
-          input.assessment
-            .description
       }
     )
-
-    await assessmentRepository.saveAssessmentResults(
-      input.assessment
-        .assessmentId,
-      assessmentEntries
-    )
-
-    return {
-      lesson: updated,
-      assessmentId:
-        input.assessment
-          .assessmentId
-    }
   }
 
   describeError(
