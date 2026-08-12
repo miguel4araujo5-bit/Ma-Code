@@ -51,7 +51,7 @@ const featuredProducts = [
     href: '/produtos/mapdf',
     icon: 'pdf' as const,
     accentClassName:
-      'border-red-400/30 bg-red-500/15 text-red-100 shadow-[0_12px_34px_rgba(239,68,68,0.16)]'
+      'border-red-400/30 bg-red-500/[0.15] text-red-100 shadow-[0_12px_34px_rgba(239,68,68,0.16)]'
   },
   {
     name: 'MA-Professor',
@@ -61,7 +61,7 @@ const featuredProducts = [
     href: '/produtos/ma-professor',
     icon: 'professor' as const,
     accentClassName:
-      'border-emerald-400/30 bg-emerald-500/15 text-emerald-100 shadow-[0_12px_34px_rgba(34,197,94,0.16)]'
+      'border-emerald-400/30 bg-emerald-500/[0.15] text-emerald-100 shadow-[0_12px_34px_rgba(34,197,94,0.16)]'
   },
   {
     name: 'MA-Quadro',
@@ -71,7 +71,7 @@ const featuredProducts = [
     href: '/produtos/ma-quadro',
     icon: 'quadro' as const,
     accentClassName:
-      'border-amber-400/30 bg-amber-500/15 text-amber-100 shadow-[0_12px_34px_rgba(245,158,11,0.16)]'
+      'border-amber-400/30 bg-amber-500/[0.15] text-amber-100 shadow-[0_12px_34px_rgba(245,158,11,0.16)]'
   },
   {
     name: 'MA-Recortes',
@@ -81,7 +81,7 @@ const featuredProducts = [
     href: '/produtos/ma-recortes',
     icon: 'recortes' as const,
     accentClassName:
-      'border-sky-400/30 bg-sky-500/15 text-sky-100 shadow-[0_12px_34px_rgba(14,165,233,0.16)]'
+      'border-sky-400/30 bg-sky-500/[0.15] text-sky-100 shadow-[0_12px_34px_rgba(14,165,233,0.16)]'
   }
 ]
 
@@ -553,8 +553,10 @@ function HeroDevices() {
       <div className="absolute -inset-12 bg-[radial-gradient(circle_at_62%_42%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_70%_65%,rgba(139,92,246,0.14),transparent_34%)] blur-3xl" />
 
       <img
-        src="/ma-code-hero-devices.svg"
+        src="/ma-code-hero-devices.png"
         alt=""
+        width={1200}
+        height={800}
         className="relative z-10 h-auto w-full scale-[1.05] object-contain drop-shadow-[0_32px_70px_rgba(2,132,199,0.18)]"
         loading="eager"
         decoding="async"
@@ -644,7 +646,7 @@ function ProjectsShowcase({
                       />
                     ) : null}
 
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.55] via-transparent to-transparent" />
                   </div>
 
                   <div className="flex items-center justify-between gap-3 px-4 py-4">
@@ -671,7 +673,7 @@ function ProjectsShowcase({
 
           <a
             href="/projetos"
-            className={`group relative flex min-h-[245px] flex-col justify-between overflow-hidden rounded-[1.45rem] border border-cyan-300/16 bg-[linear-gradient(145deg,rgba(8,47,73,0.28),rgba(15,23,42,0.84)_52%,rgba(76,29,149,0.18))] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 ${
+            className={`group relative flex min-h-[245px] flex-col justify-between overflow-hidden rounded-[1.45rem] border border-cyan-300/[0.16] bg-[linear-gradient(145deg,rgba(8,47,73,0.28),rgba(15,23,42,0.84)_52%,rgba(76,29,149,0.18))] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/30 ${
               mounted
                 ? 'animate-fade-in-up'
                 : 'opacity-0'
@@ -889,7 +891,7 @@ export default function MACode() {
                   : 'opacity-0'
               }
             >
-              <span className="inline-flex rounded-full border border-cyan-300/22 bg-cyan-300/[0.07] px-4 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
+              <span className="inline-flex rounded-full border border-cyan-300/[0.22] bg-cyan-300/[0.07] px-4 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
                 MA-CODE
               </span>
 
@@ -915,7 +917,7 @@ export default function MACode() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <a
                   href="/contacto"
-                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-cyan-300/28 bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
+                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
                   onClick={() =>
                     trackEvent(
                       'cta_click',
@@ -944,7 +946,7 @@ export default function MACode() {
 
                 <a
                   href="/projetos"
-                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3.5 text-sm font-semibold text-slate-100 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.045]"
+                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3.5 text-sm font-semibold text-slate-100 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/[0.24] hover:bg-white/[0.045]"
                   onClick={() =>
                     trackEvent(
                       'cta_click',
@@ -972,7 +974,7 @@ export default function MACode() {
 
                 <a
                   href="/produtos"
-                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3.5 text-sm font-semibold text-slate-100 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.045]"
+                  className="inline-flex min-h-[3.65rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3.5 text-sm font-semibold text-slate-100 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/[0.24] hover:bg-white/[0.045]"
                   onClick={() =>
                     trackEvent(
                       'cta_click',
@@ -1065,7 +1067,7 @@ export default function MACode() {
                 <a
                   key={card.title}
                   href={card.href}
-                  className={`group relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(180deg,rgba(12,15,23,0.98),rgba(7,10,16,0.98))] px-6 py-7 text-center shadow-[0_22px_55px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/24 ${
+                  className={`group relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(180deg,rgba(12,15,23,0.98),rgba(7,10,16,0.98))] px-6 py-7 text-center shadow-[0_22px_55px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/[0.24] ${
                     mounted
                       ? 'animate-fade-in-up'
                       : 'opacity-0'
@@ -1088,12 +1090,12 @@ export default function MACode() {
                     )
                   }
                 >
-                  <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/[0.35] to-transparent" />
 
                   <div className="pointer-events-none absolute -right-14 -top-14 size-32 rounded-full bg-cyan-300/[0.05] blur-3xl" />
 
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="flex size-14 items-center justify-center rounded-2xl border border-cyan-300/18 bg-gradient-to-br from-cyan-400/12 to-violet-500/12 text-cyan-100 shadow-[0_10px_30px_rgba(34,211,238,0.10)]">
+                    <div className="flex size-14 items-center justify-center rounded-2xl border border-cyan-300/[0.18] bg-gradient-to-br from-cyan-400/[0.12] to-violet-500/[0.12] text-cyan-100 shadow-[0_10px_30px_rgba(34,211,238,0.10)]">
                       <ServiceIcon
                         type={card.key}
                       />
@@ -1147,7 +1149,7 @@ export default function MACode() {
 
             <a
               href="/produtos"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl border border-cyan-300/24 bg-cyan-300/[0.07] px-5 py-3 text-sm font-semibold text-cyan-50 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-200/36 hover:bg-cyan-300/[0.11]"
+              className="mt-7 inline-flex items-center gap-2 rounded-2xl border border-cyan-300/[0.24] bg-cyan-300/[0.07] px-5 py-3 text-sm font-semibold text-cyan-50 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-200/[0.36] hover:bg-cyan-300/[0.11]"
               onClick={() =>
                 trackEvent(
                   'cta_click',
@@ -1174,7 +1176,7 @@ export default function MACode() {
                 <a
                   key={product.name}
                   href={product.href}
-                  className={`group relative flex min-h-[245px] flex-col overflow-hidden rounded-[1.45rem] border border-white/10 bg-[#0a0d14]/95 p-5 shadow-[0_18px_44px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/22 ${
+                  className={`group relative flex min-h-[245px] flex-col overflow-hidden rounded-[1.45rem] border border-white/10 bg-[#0a0d14]/95 p-5 shadow-[0_18px_44px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/[0.22] ${
                     mounted
                       ? 'animate-fade-in-up'
                       : 'opacity-0'
@@ -1239,7 +1241,7 @@ export default function MACode() {
 
       <section className="bg-[#05070d] px-5 pb-20 sm:px-6 md:px-10 md:pb-24">
         <div className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-[1.7rem] border border-cyan-300/15 bg-[linear-gradient(110deg,rgba(8,47,73,0.22),rgba(10,13,22,0.98)_45%,rgba(76,29,149,0.14))] px-6 py-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)] md:px-8 md:py-7">
+          <div className="relative overflow-hidden rounded-[1.7rem] border border-cyan-300/[0.15] bg-[linear-gradient(110deg,rgba(8,47,73,0.22),rgba(10,13,22,0.98)_45%,rgba(76,29,149,0.14))] px-6 py-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)] md:px-8 md:py-7">
             <div className="pointer-events-none absolute -left-10 -top-14 size-36 rounded-full bg-cyan-300/10 blur-3xl" />
 
             <div className="pointer-events-none absolute -right-12 -bottom-16 size-40 rounded-full bg-violet-500/10 blur-3xl" />
@@ -1277,7 +1279,7 @@ export default function MACode() {
 
               <a
                 href="/contacto"
-                className="inline-flex min-h-[3.55rem] items-center justify-center rounded-2xl border border-cyan-300/28 bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
+                className="inline-flex min-h-[3.55rem] items-center justify-center rounded-2xl border border-cyan-300/[0.28] bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(14,165,233,0.20)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(14,165,233,0.26)]"
                 onClick={() =>
                   trackEvent(
                     'cta_click',
