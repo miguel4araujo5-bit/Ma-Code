@@ -122,36 +122,57 @@ function TechAccentStyles() {
   background-image:
     linear-gradient(
       110deg,
+      transparent 0%,
+      transparent 43%,
+      rgba(186, 230, 253, 0.10) 46%,
+      rgba(224, 247, 255, 0.88) 50%,
+      rgba(165, 243, 252, 0.42) 53%,
+      transparent 57%,
+      transparent 100%
+    ),
+    linear-gradient(
+      90deg,
       #a5f3fc 0%,
-      #7dd3fc 22%,
-      #818cf8 38%,
-      #c4b5fd 46%,
-      #f8fafc 50%,
-      #a5f3fc 54%,
-      #38bdf8 62%,
-      #a78bfa 78%,
-      #a5f3fc 100%
+      #7dd3fc 34%,
+      #818cf8 67%,
+      #c4b5fd 100%
     );
-  background-size: 320% 100%;
-  background-position: 100% 50%;
+  background-size:
+    320% 100%,
+    100% 100%;
+  background-position:
+    100% 50%,
+    0% 50%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
   text-shadow:
-    0 0 10px rgba(103, 232, 249, 0.12),
-    0 0 22px rgba(139, 92, 246, 0.07);
-  animation:
-    ma-tech-accent-sweep 9.5s ease-in-out infinite alternate;
+    0 0 9px rgba(103, 232, 249, 0.10),
+    0 0 18px rgba(139, 92, 246, 0.05);
+  animation: ma-tech-accent-sweep 10.6s linear infinite;
   will-change: background-position, text-shadow;
 }
 
 .ma-tech-accent--hero {
-  text-shadow:
-    0 0 12px rgba(103, 232, 249, 0.16),
-    0 0 26px rgba(139, 92, 246, 0.09);
-  animation-duration: 8s;
+  animation-duration: 8.6s;
+}
+
+.ma-tech-accent--phase-1 {
+  animation-delay: -1.9s;
+}
+
+.ma-tech-accent--phase-2 {
+  animation-delay: -4.1s;
+}
+
+.ma-tech-accent--phase-3 {
+  animation-delay: -6.4s;
+}
+
+.ma-tech-accent--phase-4 {
+  animation-delay: -8.5s;
 }
 
 .ma-tech-price {
@@ -162,33 +183,39 @@ function TechAccentStyles() {
 
 @keyframes ma-tech-accent-sweep {
   0%,
-  54% {
-    background-position: 100% 50%;
+  70% {
+    background-position:
+      100% 50%,
+      0% 50%;
     text-shadow:
       0 0 9px rgba(103, 232, 249, 0.10),
       0 0 18px rgba(139, 92, 246, 0.05);
   }
 
-  70% {
+  77% {
     text-shadow:
-      0 0 13px rgba(103, 232, 249, 0.24),
-      0 0 26px rgba(56, 189, 248, 0.12),
-      0 0 34px rgba(139, 92, 246, 0.09);
+      0 0 12px rgba(103, 232, 249, 0.22),
+      0 0 24px rgba(56, 189, 248, 0.11),
+      0 0 32px rgba(139, 92, 246, 0.08);
   }
 
-  82%,
+  84%,
   100% {
-    background-position: 0% 50%;
+    background-position:
+      0% 50%,
+      0% 50%;
     text-shadow:
-      0 0 9px rgba(103, 232, 249, 0.11),
-      0 0 19px rgba(139, 92, 246, 0.06);
+      0 0 9px rgba(103, 232, 249, 0.10),
+      0 0 18px rgba(139, 92, 246, 0.05);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ma-tech-accent {
     animation: none;
-    background-position: 50% 50%;
+    background-position:
+      50% 50%,
+      0% 50%;
     text-shadow:
       0 0 10px rgba(103, 232, 249, 0.16),
       0 0 20px rgba(139, 92, 246, 0.08);
@@ -751,7 +778,7 @@ function ProjectsShowcase({
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
             Projetos que{' '}
-            <span className="ma-tech-accent">
+            <span className="ma-tech-accent ma-tech-accent--phase-3">
               geram resultados
             </span>
           </h2>
@@ -1237,7 +1264,7 @@ export default function MACode() {
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
 
-              <span className="ma-tech-accent">
+              <span className="ma-tech-accent ma-tech-accent--phase-1">
                 caminho certo
               </span>{' '}
 
@@ -1328,7 +1355,7 @@ export default function MACode() {
 
               que{' '}
 
-              <span className="ma-tech-accent">
+              <span className="ma-tech-accent ma-tech-accent--phase-2">
                 impulsionam
               </span>{' '}
 
@@ -1462,7 +1489,7 @@ export default function MACode() {
                     Pronto para dar
                     o{' '}
 
-                    <span className="ma-tech-accent">
+                    <span className="ma-tech-accent ma-tech-accent--phase-4">
                       próximo passo?
                     </span>
                   </h2>
