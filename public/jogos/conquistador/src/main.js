@@ -33,7 +33,6 @@ let game = null;
 
 let onlineClient =
   null;
-
 let onlineState =
   null;
 
@@ -54,7 +53,6 @@ let statusType =
 
 let sevenDiscardDraft =
   {};
-
 let sevenDiscardPlayerId =
   null;
 
@@ -67,7 +65,6 @@ const RESOURCE_VISUALS =
         fill:
           'url(#tile-cork)',
       }),
-
     stone:
       Object.freeze({
         label: 'Pedra',
@@ -91,7 +88,6 @@ const RESOURCE_VISUALS =
         fill:
           'url(#tile-cod)',
       }),
-
     iron:
       Object.freeze({
         label: 'Ferro',
@@ -198,7 +194,6 @@ function createOnlinePlayerView(
     ...rawPlayer,
     resources,
     pieces,
-
     getTotalResources() {
       return totalResources;
     },
@@ -854,7 +849,6 @@ function createPlayerFields(
                 house.name,
               )}
             </strong>
-
             <input
               type="text"
               name="player-${index}"
@@ -1986,27 +1980,57 @@ function renderBoardSvg() {
               ?.targetId ===
               edge.id;
 
+          const x1 =
+            geometry.mapX(
+              first.x,
+            );
+
+          const y1 =
+            geometry.mapY(
+              first.y,
+            );
+
+          const x2 =
+            geometry.mapX(
+              second.x,
+            );
+
+          const y2 =
+            geometry.mapY(
+              second.y,
+            );
+
           const midpointX =
             (
-              geometry.mapX(
-                first.x,
-              ) +
-              geometry.mapX(
-                second.x,
-              )
+              x1 +
+              x2
             ) / 2;
 
           const midpointY =
             (
-              geometry.mapY(
-                first.y,
-              ) +
-              geometry.mapY(
-                second.y,
-              )
+              y1 +
+              y2
             ) / 2;
 
           return `
+            ${
+              isValid
+                ? `
+                  <line
+                    class="board-edge-hit"
+                    data-edge-id="${edge.id}"
+                    x1="${x1}"
+                    y1="${y1}"
+                    x2="${x2}"
+                    y2="${y2}"
+                    stroke="transparent"
+                    stroke-width="44"
+                    stroke-linecap="round"
+                  />
+                `
+                : ''
+            }
+
             <line
               class="
                 board-edge
@@ -2031,26 +2055,10 @@ function renderBoardSvg() {
                 }
               "
               data-edge-id="${edge.id}"
-              x1="${
-                geometry.mapX(
-                  first.x,
-                )
-              }"
-              y1="${
-                geometry.mapY(
-                  first.y,
-                )
-              }"
-              x2="${
-                geometry.mapX(
-                  second.x,
-                )
-              }"
-              y2="${
-                geometry.mapY(
-                  second.y,
-                )
-              }"
+              x1="${x1}"
+              y1="${y1}"
+              x2="${x2}"
+              y2="${y2}"
               stroke="${
                 edge.segment
                   ? color
@@ -2090,6 +2098,7 @@ function renderBoardSvg() {
                       stroke="#fff0a8"
                       stroke-width="2.5"
                     />
+
                     <text
                       x="0"
                       y="6"
@@ -2167,6 +2176,20 @@ function renderBoardSvg() {
                 data-vertex-id="${vertex.id}"
                 transform="translate(${x} ${y})"
               >
+                ${
+                  isValid
+                    ? `
+                      <circle
+                        class="building-hit"
+                        cx="0"
+                        cy="0"
+                        r="26"
+                        fill="transparent"
+                      />
+                    `
+                    : ''
+                }
+
                 <path
                   d="
                     M${-size} ${size * 0.55}
@@ -2201,7 +2224,6 @@ function renderBoardSvg() {
                           V${-size * 0.7}
                           H${-size * 0.15}
                           V${-size * 0.25}
-
                           M${size * 0.15} ${-size * 0.25}
                           V${-size * 0.7}
                           H${size * 0.7}
@@ -2219,6 +2241,21 @@ function renderBoardSvg() {
           }
 
           return `
+            ${
+              isValid
+                ? `
+                  <circle
+                    class="board-vertex-hit"
+                    data-vertex-id="${vertex.id}"
+                    cx="${x}"
+                    cy="${y}"
+                    r="26"
+                    fill="transparent"
+                  />
+                `
+                : ''
+            }
+
             <circle
               class="
                 board-vertex
@@ -2780,6 +2817,7 @@ function renderSevenEventActions() {
           <span>
             Contrabandista
           </span>
+
           <small>
             Bloquear território · roubar 1 recurso
           </small>
@@ -2793,6 +2831,7 @@ function renderSevenEventActions() {
           <span>
             Tempestade Atlântica
           </span>
+
           <small>
             Região costeira ou ligação marítima
           </small>
@@ -2876,6 +2915,7 @@ function renderSevenEventActions() {
                       player.name,
                     )}
                   </span>
+
                   <small>
                     ${player.getTotalResources()} recursos
                   </small>
@@ -3650,6 +3690,7 @@ async function handleTerritoryClick(
       result.reason,
       'error',
     );
+
     return;
   }
 
@@ -3748,6 +3789,7 @@ async function handleEdgeClick(
         'success';
 
       renderGame();
+
       return;
     }
   } else if (
@@ -4019,6 +4061,7 @@ function attachGameEvents() {
             result.reason,
             'error',
           );
+
           return;
         }
 
@@ -4075,6 +4118,7 @@ function attachGameEvents() {
                 result.reason,
                 'error',
               );
+
               return;
             }
 
@@ -4126,6 +4170,7 @@ function attachGameEvents() {
                 result.reason,
                 'error',
               );
+
               return;
             }
 
@@ -4164,6 +4209,7 @@ function attachGameEvents() {
             result.reason,
             'error',
           );
+
           return;
         }
 
@@ -4236,6 +4282,7 @@ function attachGameEvents() {
             'Não foi possível obter o resultado dos dados.',
             'error',
           );
+
           return;
         }
 
@@ -4343,7 +4390,6 @@ window.addEventListener(
     startOnlineSession({
       matchId:
         detail.matchId,
-
       playerId:
         detail.playerId,
     });
