@@ -89,11 +89,6 @@ const featuredProducts = [
   }
 ]
 
-const accentGlowStyle = {
-  textShadow:
-    '0 0 16px rgba(103, 232, 249, 0.24), 0 0 28px rgba(139, 92, 246, 0.14)'
-}
-
 type AnalyticsParameters = Record<
   string,
   string | number | boolean | undefined
@@ -119,6 +114,41 @@ type AttributionData = {
 }
 
 const attributionStorageKey = 'ma_code_attribution'
+
+function AccentGlowStyles() {
+  return (
+    <style>{`
+.ma-accent-glow {
+  animation: ma-accent-glow-pulse 4.8s ease-in-out infinite;
+}
+
+@keyframes ma-accent-glow-pulse {
+  0%,
+  100% {
+    text-shadow:
+      0 0 7px rgba(103, 232, 249, 0.10),
+      0 0 15px rgba(139, 92, 246, 0.06);
+  }
+
+  50% {
+    text-shadow:
+      0 0 13px rgba(103, 232, 249, 0.42),
+      0 0 25px rgba(56, 189, 248, 0.22),
+      0 0 38px rgba(139, 92, 246, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-accent-glow {
+    animation: none;
+    text-shadow:
+      0 0 12px rgba(103, 232, 249, 0.22),
+      0 0 24px rgba(139, 92, 246, 0.12);
+  }
+}
+    `}</style>
+  )
+}
 
 function updateMeta(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(
@@ -480,9 +510,7 @@ function ServiceIcon({
           cy="12"
           r="8.2"
         />
-
         <path d="M3.8 12h16.4" />
-
         <path d="M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2c-2.3-2.5-3.5-5.3-3.5-8.2S9.7 6.3 12 3.8Z" />
       </svg>
     )
@@ -504,7 +532,6 @@ function ServiceIcon({
           height="14.5"
           rx="2.4"
         />
-
         <path d="M8 3.8v3.4M16 3.8v3.4M4.2 9.2h15.6" />
       </svg>
     )
@@ -542,7 +569,6 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
-
         <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
       </svg>
     )
@@ -558,7 +584,6 @@ function ProductIcon({
         strokeWidth="1.8"
       >
         <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
-
         <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
       </svg>
     )
@@ -580,7 +605,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="4.5"
@@ -588,7 +612,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="4.5"
           y="13.3"
@@ -596,7 +619,6 @@ function ProductIcon({
           height="6.2"
           rx="1.4"
         />
-
         <rect
           x="13.3"
           y="13.3"
@@ -617,7 +639,6 @@ function ProductIcon({
       strokeWidth="1.8"
     >
       <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
-
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
     </svg>
   )
@@ -682,10 +703,7 @@ function ProjectsShowcase({
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
             Projetos que{' '}
-            <span
-              className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
-              style={accentGlowStyle}
-            >
+            <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
               geram resultados
             </span>
           </h2>
@@ -942,6 +960,8 @@ export default function MACode() {
 
   return (
     <main className="bg-[#05070d]">
+      <AccentGlowStyles />
+
       <section className="relative overflow-hidden px-5 pb-8 pt-6 sm:px-6 md:px-10 md:pb-10 md:pt-8">
         <div className="pointer-events-none absolute left-[-12rem] top-[-10rem] size-[28rem] rounded-full bg-cyan-400/[0.05] blur-3xl" />
 
@@ -1011,10 +1031,7 @@ export default function MACode() {
                   Websites e sistemas à
                   medida que fazem{' '}
 
-                  <span
-                    className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
-                    style={accentGlowStyle}
-                  >
+                  <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                     a diferença.
                   </span>
                 </h1>
@@ -1029,10 +1046,7 @@ export default function MACode() {
                 para automatizar e fazer
                 crescer o seu negócio —{' '}
 
-                <span
-                  className="font-semibold text-cyan-200"
-                  style={accentGlowStyle}
-                >
+                <span className="ma-accent-glow font-semibold text-cyan-200">
                   desde 19€/mês.
                 </span>
               </p>
@@ -1175,10 +1189,7 @@ export default function MACode() {
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
               Escolha o{' '}
 
-              <span
-                className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
-                style={accentGlowStyle}
-              >
+              <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 caminho certo
               </span>{' '}
 
@@ -1269,10 +1280,7 @@ export default function MACode() {
 
               que{' '}
 
-              <span
-                className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
-                style={accentGlowStyle}
-              >
+              <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                 impulsionam
               </span>{' '}
 
@@ -1406,10 +1414,7 @@ export default function MACode() {
                     Pronto para dar
                     o{' '}
 
-                    <span
-                      className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent"
-                      style={accentGlowStyle}
-                    >
+                    <span className="ma-accent-glow bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
                       próximo passo?
                     </span>
                   </h2>
