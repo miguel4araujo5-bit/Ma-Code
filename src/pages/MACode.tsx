@@ -329,27 +329,26 @@ function TechAccentStyles() {
 }
 
 @keyframes ma-hero-cta-mobile-flash {
-  0%,
-  84% {
+  0% {
     left: -55%;
     opacity: 0;
   }
 
-  86% {
+  2% {
     opacity: 0.35;
   }
 
-  90% {
+  6% {
     left: 15%;
     opacity: 0.95;
   }
 
-  94% {
+  10% {
     left: 85%;
     opacity: 0.55;
   }
 
-  96%,
+  12%,
   100% {
     left: 120%;
     opacity: 0;
@@ -357,49 +356,67 @@ function TechAccentStyles() {
 }
 
 @keyframes ma-hero-cta-mobile-bolt {
-  0%,
-  84% {
+  0% {
     opacity: 0;
     transform: rotate(-14deg) scale(0.55);
   }
 
-  86% {
+  2% {
     opacity: 1;
     transform: rotate(-7deg) scale(1.12);
   }
 
-  88% {
+  4% {
     opacity: 0.22;
     transform: rotate(-11deg) scale(0.92);
   }
 
-  90% {
+  6% {
     opacity: 1;
     transform: rotate(-5deg) scale(1.04);
   }
 
-  94% {
+  10% {
     opacity: 0.55;
     transform: rotate(-8deg) scale(0.88);
   }
 
-  96%,
+  12%,
   100% {
     opacity: 0;
     transform: rotate(-4deg) scale(0.72);
   }
 }
 
-@media (hover: none) and (pointer: coarse) {
+@media (hover: none), (pointer: coarse) {
   .ma-hero-cta::before {
-    animation: ma-hero-cta-mobile-flash 6.5s linear infinite;
+    animation: ma-hero-cta-mobile-flash 6.5s linear infinite !important;
   }
 
   .ma-hero-cta .ma-hero-cta__bolt {
-    animation: ma-hero-cta-mobile-bolt 6.5s linear infinite;
+    animation: ma-hero-cta-mobile-bolt 6.5s linear infinite !important;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ma-tech-accent {
+    animation: ma-tech-accent-sweep 10s linear infinite !important;
+  }
+
+  .ma-tech-accent--hero {
+    animation-duration: 8.8s !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (hover: hover) and (pointer: fine) {
+  .ma-hero-cta:hover::before {
+    animation: ma-hero-cta-flash 760ms cubic-bezier(0.16, 1, 0.3, 1) 1 both !important;
+  }
+
+  .ma-hero-cta:hover .ma-hero-cta__bolt {
+    animation: ma-hero-cta-bolt 760ms ease-out 1 both !important;
+  }
+}
     `}</style>
   )
 }
