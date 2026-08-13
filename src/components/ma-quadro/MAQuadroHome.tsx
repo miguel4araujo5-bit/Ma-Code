@@ -16,24 +16,19 @@ import {
 } from './editorContext'
 
 import './maQuadroHome.css'
+import './maQuadroHomeProjects.css'
 
 const categoryLabels:
   Record<
     MAQuadroProjectCategory,
     string
   > = {
-    social:
-      'Redes sociais',
-    story:
-      'Vertical',
-    presentation:
-      'Apresentação',
-    print:
-      'Impressão',
-    invitation:
-      'Convite',
-    custom:
-      'Personalizado'
+    social: 'Redes sociais',
+    story: 'Vertical',
+    presentation: 'Apresentação',
+    print: 'Impressão',
+    invitation: 'Convite',
+    custom: 'Personalizado'
   }
 
 function normalizeSearch(
@@ -111,6 +106,175 @@ function ProjectPreview({
   )
 }
 
+function ProjectActionsMenu({
+  project,
+  locked,
+  onOpen,
+  onDuplicate,
+  onRename,
+  onSaveAsTemplate,
+  onDelete
+}: {
+  project:
+    MAQuadroProject
+  locked:
+    boolean
+  onOpen:
+    () => void
+  onDuplicate:
+    () => void
+  onRename:
+    () => void
+  onSaveAsTemplate:
+    () => void
+  onDelete:
+    () => void
+}) {
+  const detailsRef =
+    useRef<HTMLDetailsElement | null>(
+      null
+    )
+
+  useEffect(() => {
+    const handlePointerDown = (
+      event:
+        PointerEvent
+    ) => {
+      const details =
+        detailsRef.current
+
+      if (
+        !details?.open ||
+        !(event.target instanceof Node) ||
+        details.contains(
+          event.target
+        )
+      ) {
+        return
+      }
+
+      details.open =
+        false
+    }
+
+    document.addEventListener(
+      'pointerdown',
+      handlePointerDown
+    )
+
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        handlePointerDown
+      )
+    }
+  }, [])
+
+  const run = (
+    action:
+      () => void
+  ) => {
+    if (locked) {
+      return
+    }
+
+    if (
+      detailsRef.current
+    ) {
+      detailsRef.current.open =
+        false
+    }
+
+    action()
+  }
+
+  return (
+    <details
+      ref={
+        detailsRef
+      }
+      className="mq-home-project-actions"
+    >
+      <summary
+        aria-label={`Ações de ${project.name}`}
+        title="Mais ações"
+        onClick={(event) => {
+          if (locked) {
+            event.preventDefault()
+          }
+        }}
+      >
+        ⋯
+      </summary>
+
+      <div className="mq-home-project-actions__panel">
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() =>
+            run(
+              onOpen
+            )
+          }
+        >
+          Abrir
+        </button>
+
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() =>
+            run(
+              onDuplicate
+            )
+          }
+        >
+          Duplicar
+        </button>
+
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() =>
+            run(
+              onRename
+            )
+          }
+        >
+          Renomear
+        </button>
+
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() =>
+            run(
+              onSaveAsTemplate
+            )
+          }
+        >
+          Guardar como modelo
+        </button>
+
+        <div className="mq-home-project-actions__separator" />
+
+        <button
+          type="button"
+          className="is-danger"
+          disabled={locked}
+          onClick={() =>
+            run(
+              onDelete
+            )
+          }
+        >
+          Eliminar
+        </button>
+      </div>
+    </details>
+  )
+}
+
 export default function MAQuadroHome({
   onEnterEditor
 }: {
@@ -152,6 +316,30 @@ export default function MAQuadroHome({
     setWaitingForCustom
   ] = useState(
     false
+  )
+
+  const [
+    renameProject,
+    setRenameProject
+  ] = useState<
+    MAQuadroProject |
+    null
+  >(
+    null
+  )
+
+  const [
+    renameDraft,
+    setRenameDraft
+  ] = useState(
+    ''
+  )
+
+  const [
+    renameError,
+    setRenameError
+  ] = useState(
+    ''
   )
 
   const locked =
@@ -348,7 +536,8 @@ export default function MAQuadroHome({
 
   const openProject =
     async (
-      projectId: string
+      projectId:
+        string
     ) => {
       if (locked) {
         return
@@ -371,9 +560,217 @@ export default function MAQuadroHome({
       }
     }
 
+  const duplicateProject =
+    async (
+      project:
+        MAQuadroProject
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setActionId(
+        `duplicate:${project.id}`
+      )
+
+      try {
+        await editor.duplicateProject(
+          project.id
+        )
+      } finally {
+        setActionId(
+          null
+        )
+      }
+    }
+
+  const beginRename =
+    (
+      project:
+        MAQuadroProject
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setRenameProject(
+        project
+      )
+
+      setRenameDraft(
+        project.name
+      )
+
+      setRenameError(
+        ''
+      )
+    }
+
+  const closeRename =
+    () => {
+      if (
+        actionId?.startsWith(
+          'rename:'
+        )
+      ) {
+        return
+      }
+
+      setRenameProject(
+        null
+      )
+
+      setRenameDraft(
+        ''
+      )
+
+      setRenameError(
+        ''
+      )
+    }
+
+  const commitRename =
+    async () => {
+      if (
+        !renameProject ||
+        locked
+      ) {
+        return
+      }
+
+      const nextName =
+        renameDraft.trim()
+
+      if (!nextName) {
+        setRenameError(
+          'Introduza um nome para o projeto.'
+        )
+
+        return
+      }
+
+      if (
+        nextName ===
+        renameProject.name
+      ) {
+        closeRename()
+
+        return
+      }
+
+      setActionId(
+        `rename:${renameProject.id}`
+      )
+
+      setRenameError(
+        ''
+      )
+
+      try {
+        if (
+          editor.project?.id !==
+          renameProject.id
+        ) {
+          await editor.openProject(
+            renameProject.id
+          )
+        }
+
+        editor.setProjectName(
+          nextName
+        )
+
+        const saved =
+          await editor.saveProject(
+            true
+          )
+
+        if (!saved) {
+          setRenameError(
+            'Não foi possível guardar o novo nome.'
+          )
+
+          return
+        }
+
+        setRenameProject(
+          null
+        )
+
+        setRenameDraft(
+          ''
+        )
+      } catch {
+        setRenameError(
+          'Não foi possível renomear o projeto.'
+        )
+      } finally {
+        setActionId(
+          null
+        )
+      }
+    }
+
+  const saveAsTemplate =
+    async (
+      project:
+        MAQuadroProject
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setActionId(
+        `template:${project.id}`
+      )
+
+      try {
+        if (
+          editor.project?.id !==
+          project.id
+        ) {
+          await editor.openProject(
+            project.id
+          )
+        }
+
+        await editor
+          .saveProjectAsTemplate()
+      } finally {
+        setActionId(
+          null
+        )
+      }
+    }
+
+  const deleteProject =
+    async (
+      project:
+        MAQuadroProject
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setActionId(
+        `delete:${project.id}`
+      )
+
+      try {
+        await editor.deleteProject(
+          project.id
+        )
+      } finally {
+        setActionId(
+          null
+        )
+      }
+    }
+
   const createFromPreset =
     async (
-      presetId: string
+      presetId:
+        string
     ) => {
       if (locked) {
         return
@@ -783,8 +1180,8 @@ export default function MAQuadroHome({
                 </h2>
 
                 <p>
-                  Os projetos ficam
-                  guardados localmente
+                  Abra ou faça a gestão
+                  dos projetos guardados
                   neste dispositivo.
                 </p>
               </span>
@@ -812,62 +1209,100 @@ export default function MAQuadroHome({
                 (
                   project
                 ) => (
-                  <button
+                  <article
                     key={
                       project.id
                     }
-                    type="button"
-                    className="mq-home-project"
-                    disabled={locked}
-                    onClick={() =>
-                      void openProject(
-                        project.id
-                      )
-                    }
+                    className="mq-home-project-shell"
                   >
-                    <span className="mq-home-project__preview">
-                      <ProjectPreview
-                        project={
-                          project
-                        }
-                      />
-                    </span>
-
-                    <span className="mq-home-project__copy">
-                      <strong>
-                        {
-                          project.name
-                        }
-                      </strong>
-
-                      <small>
-                        {
-                          categoryLabels[
+                    <button
+                      type="button"
+                      className="mq-home-project"
+                      disabled={locked}
+                      onClick={() =>
+                        void openProject(
+                          project.id
+                        )
+                      }
+                    >
+                      <span className="mq-home-project__preview">
+                        <ProjectPreview
+                          project={
                             project
-                              .category
-                          ]
-                        }
-                        {' · '}
-                        {
-                          project
-                            .pages
-                            .length
-                        }{' '}
-                        {project
-                          .pages
-                          .length ===
-                        1
-                          ? 'página'
-                          : 'páginas'}
-                      </small>
-
-                      <span>
-                        {formatUpdatedAt(
-                          project.updatedAt
-                        )}
+                          }
+                        />
                       </span>
-                    </span>
-                  </button>
+
+                      <span className="mq-home-project__copy">
+                        <strong>
+                          {
+                            project.name
+                          }
+                        </strong>
+
+                        <small>
+                          {
+                            categoryLabels[
+                              project
+                                .category
+                            ]
+                          }
+                          {' · '}
+                          {
+                            project
+                              .pages
+                              .length
+                          }{' '}
+                          {project
+                            .pages
+                            .length ===
+                          1
+                            ? 'página'
+                            : 'páginas'}
+                        </small>
+
+                        <span>
+                          {formatUpdatedAt(
+                            project.updatedAt
+                          )}
+                        </span>
+                      </span>
+                    </button>
+
+                    <ProjectActionsMenu
+                      project={
+                        project
+                      }
+                      locked={
+                        locked
+                      }
+                      onOpen={() =>
+                        void openProject(
+                          project.id
+                        )
+                      }
+                      onDuplicate={() =>
+                        void duplicateProject(
+                          project
+                        )
+                      }
+                      onRename={() =>
+                        beginRename(
+                          project
+                        )
+                      }
+                      onSaveAsTemplate={() =>
+                        void saveAsTemplate(
+                          project
+                        )
+                      }
+                      onDelete={() =>
+                        void deleteProject(
+                          project
+                        )
+                      }
+                    />
+                  </article>
                 )
               )}
             </div>
@@ -997,6 +1432,149 @@ export default function MAQuadroHome({
           </span>
         </footer>
       </div>
+
+      {renameProject ? (
+        <div
+          className="mq-home-project-modal-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeRename()
+            }
+          }}
+        >
+          <section
+            className="mq-home-project-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mq-home-project-rename-title"
+          >
+            <div className="mq-home-project-modal__heading">
+              <span>
+                <h2 id="mq-home-project-rename-title">
+                  Renomear projeto
+                </h2>
+
+                <p>
+                  Escolha um novo nome
+                  para este design.
+                </p>
+              </span>
+
+              <button
+                type="button"
+                disabled={
+                  actionId?.startsWith(
+                    'rename:'
+                  )
+                }
+                aria-label="Fechar"
+                onClick={
+                  closeRename
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <label className="mq-home-project-modal__field">
+              <span>
+                Nome
+              </span>
+
+              <input
+                autoFocus
+                type="text"
+                value={
+                  renameDraft
+                }
+                maxLength={180}
+                disabled={
+                  actionId?.startsWith(
+                    'rename:'
+                  )
+                }
+                onChange={(event) => {
+                  setRenameDraft(
+                    event.target.value
+                  )
+
+                  setRenameError(
+                    ''
+                  )
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key ===
+                    'Enter'
+                  ) {
+                    event.preventDefault()
+
+                    void commitRename()
+                  }
+
+                  if (
+                    event.key ===
+                    'Escape'
+                  ) {
+                    event.preventDefault()
+
+                    closeRename()
+                  }
+                }}
+              />
+            </label>
+
+            {renameError ? (
+              <p
+                className="mq-home-project-modal__error"
+                role="alert"
+              >
+                {renameError}
+              </p>
+            ) : null}
+
+            <div className="mq-home-project-modal__actions">
+              <button
+                type="button"
+                className="is-secondary"
+                disabled={
+                  actionId?.startsWith(
+                    'rename:'
+                  )
+                }
+                onClick={
+                  closeRename
+                }
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="is-primary"
+                disabled={
+                  actionId?.startsWith(
+                    'rename:'
+                  ) ||
+                  !renameDraft.trim()
+                }
+                onClick={() =>
+                  void commitRename()
+                }
+              >
+                {actionId?.startsWith(
+                  'rename:'
+                )
+                  ? 'A guardar…'
+                  : 'Guardar nome'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }
