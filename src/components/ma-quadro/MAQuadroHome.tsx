@@ -17,6 +17,7 @@ import {
 
 import './maQuadroHome.css'
 import './maQuadroHomeProjects.css'
+import './maQuadroHomeFilters.css'
 
 const categoryLabels:
   Record<
@@ -30,6 +31,11 @@ const categoryLabels:
     invitation: 'Convite',
     custom: 'Personalizado'
   }
+
+type HomeViewFilter =
+  | 'recent'
+  | 'all'
+  | 'templates'
 
 function normalizeSearch(
   value: string
@@ -302,6 +308,13 @@ export default function MAQuadroHome({
   )
 
   const [
+    viewFilter,
+    setViewFilter
+  ] = useState<HomeViewFilter>(
+    'recent'
+  )
+
+  const [
     actionId,
     setActionId
   ] = useState<
@@ -397,9 +410,16 @@ export default function MAQuadroHome({
       ]
     )
 
-  const matchingProjects =
+  const filteredProjects =
     useMemo(
       () => {
+        if (
+          viewFilter ===
+          'templates'
+        ) {
+          return []
+        }
+
         const filtered =
           query
             ? projects.filter(
@@ -421,57 +441,72 @@ export default function MAQuadroHome({
               )
             : projects
 
-        return filtered.slice(
-          0,
-          query
-            ? 8
-            : 6
-        )
+        if (
+          viewFilter ===
+          'recent'
+        ) {
+          return filtered.slice(
+            0,
+            6
+          )
+        }
+
+        return filtered
       },
       [
         projects,
-        query
+        query,
+        viewFilter
       ]
     )
 
-  const matchingTemplates =
+  const filteredTemplates =
     useMemo(
       () => {
-        const filtered =
-          query
-            ? templates.filter(
-                (
-                  template
-                ) =>
-                  normalizeSearch(
-                    [
-                      template.name,
-                      categoryLabels[
-                        template.category
-                      ]
-                    ].join(
-                      ' '
-                    )
-                  ).includes(
-                    query
-                  )
-              )
-            : templates
+        if (
+          viewFilter !==
+          'templates'
+        ) {
+          return []
+        }
 
-        return filtered.slice(
-          0,
-          6
-        )
+        return query
+          ? templates.filter(
+              (
+                template
+              ) =>
+                normalizeSearch(
+                  [
+                    template.name,
+                    categoryLabels[
+                      template.category
+                    ]
+                  ].join(
+                    ' '
+                  )
+                ).includes(
+                  query
+                )
+            )
+          : templates
       },
       [
         query,
-        templates
+        templates,
+        viewFilter
       ]
     )
 
   const matchingPresets =
     useMemo(
       () => {
+        if (
+          viewFilter ===
+          'templates'
+        ) {
+          return []
+        }
+
         const filtered =
           query
             ? editor.presets.filter(
@@ -501,7 +536,8 @@ export default function MAQuadroHome({
       },
       [
         editor.presets,
-        query
+        query,
+        viewFilter
       ]
     )
 
@@ -865,13 +901,25 @@ export default function MAQuadroHome({
       : projects[0] ||
         null
 
-  const hasSearchResults =
-    matchingProjects.length >
-      0 ||
-    matchingTemplates.length >
-      0 ||
-    matchingPresets.length >
-      0
+  const hasVisibleResults =
+    viewFilter ===
+      'templates'
+      ? filteredTemplates.length >
+        0
+      : filteredProjects.length >
+          0 ||
+        matchingPresets.length >
+          0
+
+  const projectsHeading =
+    viewFilter ===
+      'recent'
+      ? query
+        ? 'Projetos recentes encontrados'
+        : 'Projetos recentes'
+      : query
+        ? 'Projetos encontrados'
+        : 'Todos os projetos'
 
   return (
     <main className="mq-home">
@@ -981,8 +1029,13 @@ export default function MAQuadroHome({
             <input
               type="search"
               value={search}
-              placeholder="Pesquisar projetos, modelos e formatos…"
-              aria-label="Pesquisar projetos, modelos e formatos"
+              placeholder={
+                viewFilter ===
+                'templates'
+                  ? 'Pesquisar modelos…'
+                  : 'Pesquisar projetos e formatos…'
+              }
+              aria-label="Pesquisar na Home do MA-Quadro"
               onChange={(event) =>
                 setSearch(
                   event.target.value
@@ -1006,7 +1059,98 @@ export default function MAQuadroHome({
           </label>
         </section>
 
+        <nav
+          className="mq-home-filters"
+          aria-label="Filtrar conteúdos"
+        >
+          <button
+            type="button"
+            className={
+              viewFilter ===
+              'recent'
+                ? 'is-active'
+                : ''
+            }
+            aria-pressed={
+              viewFilter ===
+              'recent'
+            }
+            onClick={() =>
+              setViewFilter(
+                'recent'
+              )
+            }
+          >
+            <span>
+              Recentes
+            </span>
+
+            <small>
+              {Math.min(
+                projects.length,
+                6
+              )}
+            </small>
+          </button>
+
+          <button
+            type="button"
+            className={
+              viewFilter ===
+              'all'
+                ? 'is-active'
+                : ''
+            }
+            aria-pressed={
+              viewFilter ===
+              'all'
+            }
+            onClick={() =>
+              setViewFilter(
+                'all'
+              )
+            }
+          >
+            <span>
+              Todos
+            </span>
+
+            <small>
+              {projects.length}
+            </small>
+          </button>
+
+          <button
+            type="button"
+            className={
+              viewFilter ===
+              'templates'
+                ? 'is-active'
+                : ''
+            }
+            aria-pressed={
+              viewFilter ===
+              'templates'
+            }
+            onClick={() =>
+              setViewFilter(
+                'templates'
+              )
+            }
+          >
+            <span>
+              Modelos
+            </span>
+
+            <small>
+              {templates.length}
+            </small>
+          </button>
+        </nav>
+
         {!query &&
+        viewFilter ===
+          'recent' &&
         continueProject ? (
           <section className="mq-home-continue">
             <button
@@ -1168,15 +1312,15 @@ export default function MAQuadroHome({
           </section>
         ) : null}
 
-        {matchingProjects.length >
-        0 ? (
+        {viewFilter !==
+          'templates' &&
+        filteredProjects.length >
+          0 ? (
           <section className="mq-home-section">
             <div className="mq-home-section__heading">
               <span>
                 <h2>
-                  {query
-                    ? 'Projetos encontrados'
-                    : 'Projetos recentes'}
+                  {projectsHeading}
                 </h2>
 
                 <p>
@@ -1187,17 +1331,17 @@ export default function MAQuadroHome({
               </span>
 
               {!query &&
+              viewFilter ===
+                'recent' &&
               projects.length > 6 ? (
                 <button
                   type="button"
                   disabled={locked}
-                  onClick={() => {
-                    editor.setActivePanel(
-                      'projects'
+                  onClick={() =>
+                    setViewFilter(
+                      'all'
                     )
-
-                    onEnterEditor()
-                  }}
+                  }
                 >
                   Ver todos
                 </button>
@@ -1205,7 +1349,7 @@ export default function MAQuadroHome({
             </div>
 
             <div className="mq-home-project-grid">
-              {matchingProjects.map(
+              {filteredProjects.map(
                 (
                   project
                 ) => (
@@ -1309,13 +1453,17 @@ export default function MAQuadroHome({
           </section>
         ) : null}
 
-        {matchingTemplates.length >
-        0 ? (
-          <section className="mq-home-section">
+        {viewFilter ===
+          'templates' &&
+        filteredTemplates.length >
+          0 ? (
+          <section className="mq-home-section mq-home-section--templates">
             <div className="mq-home-section__heading">
               <span>
                 <h2>
-                  Modelos
+                  {query
+                    ? 'Modelos encontrados'
+                    : 'Modelos'}
                 </h2>
 
                 <p>
@@ -1324,26 +1472,10 @@ export default function MAQuadroHome({
                   o original.
                 </p>
               </span>
-
-              {!query ? (
-                <button
-                  type="button"
-                  disabled={locked}
-                  onClick={() => {
-                    editor.setActivePanel(
-                      'templates'
-                    )
-
-                    onEnterEditor()
-                  }}
-                >
-                  Explorar modelos
-                </button>
-              ) : null}
             </div>
 
             <div className="mq-home-template-grid">
-              {matchingTemplates.map(
+              {filteredTemplates.map(
                 (
                   template
                 ) => (
@@ -1391,29 +1523,61 @@ export default function MAQuadroHome({
           </section>
         ) : null}
 
-        {query &&
-        !hasSearchResults ? (
+        {!hasVisibleResults ? (
           <section className="mq-home-empty">
             <strong>
-              Nenhum resultado
-              encontrado.
+              {viewFilter ===
+              'templates'
+                ? query
+                  ? 'Nenhum modelo encontrado.'
+                  : 'Ainda não existem modelos.'
+                : query
+                  ? 'Nenhum projeto encontrado.'
+                  : 'Ainda não existem projetos nesta vista.'}
             </strong>
 
             <span>
-              Experimente outro termo
-              ou limpe a pesquisa.
+              {query
+                ? 'Experimente outro termo ou limpe a pesquisa.'
+                : viewFilter ===
+                    'templates'
+                  ? 'Pode guardar um projeto como modelo a partir do menu de ações.'
+                  : 'Crie um novo design para começar.'}
             </span>
 
-            <button
-              type="button"
-              onClick={() =>
-                setSearch(
-                  ''
-                )
-              }
-            >
-              Limpar pesquisa
-            </button>
+            {query ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setSearch(
+                    ''
+                  )
+                }
+              >
+                Limpar pesquisa
+              </button>
+            ) : viewFilter ===
+              'templates' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setViewFilter(
+                    'recent'
+                  )
+                }
+              >
+                Voltar aos recentes
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={
+                  openCustomDesign
+                }
+              >
+                Criar design
+              </button>
+            )}
           </section>
         ) : null}
 
