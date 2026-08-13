@@ -12,6 +12,11 @@ const MAX_NAME_LENGTH = 24
 const BOT_RETRY_DELAY_MS = 1600
 const PRESENCE_TIMEOUT_MS = 30_000
 const PRESENCE_WARNING_MS = 15_000
+const TURN_SETUP_TIMEOUT_MS = 30_000
+const TURN_DEFAULT_TIMEOUT_MS = 15_000
+const TURN_TIMEOUT_GRACE_MS = 1_000
+const MAX_CONSECUTIVE_TIMEOUTS = 2
+const MAX_TIMEOUT_AUTOMATION_STEPS = 8
 const BOT_ICON = '⚙'
 
 const BOT_NAMES = [
@@ -70,6 +75,14 @@ type HumanPresenceState = {
   abandonedAt?: number
 }
 
+type TurnTimerState = {
+  actorId: string
+  sequence: number
+  startedAt: number
+  deadlineAt: number
+  durationMs: number
+}
+
 type SessionCredential = {
   playerId: string
   reconnectToken: string
@@ -84,6 +97,9 @@ type StoredSession = {
   game: Record<string, unknown>
   presence?: Record<string, HumanPresenceState>
   bot?: BotRuntimeState
+  turnTimer?: TurnTimerState | null
+  turnSequence?: number
+  timeoutStrikes?: Record<string, number>
 }
 
 type CommandType =
@@ -1093,6 +1109,130 @@ const getEffectiveParticipants = (
     }
   )
 
+const getTimedActorId = (
+  game: any
+) => {
+  if (
+    game?.phase ===
+      'game-over'
+  ) {
+    return ''
+  }
+
+  if (
+    game?.phase ===
+      'event-seven' &&
+    game?.sevenEvent
+      ?.step ===
+      'discard'
+  ) {
+    return normalizeId(
+      game
+        .getCurrentSevenDiscardPlayer
+        ?.()
+        ?.id
+    )
+  }
+
+  return normalizeId(
+    game
+      ?.currentPlayer
+      ?.id
+  )
+}
+
+const getTurnTimeoutDuration = (
+  game: any
+) =>
+  (
+    game?.phase ===
+      'setup-village' ||
+    game?.phase ===
+      'setup-road'
+  )
+    ? TURN_SETUP_TIMEOUT_MS
+    : TURN_DEFAULT_TIMEOUT_MS
+
+const getTurnTimerView = (
+  session: StoredSession,
+  game: any,
+  now = Date.now()
+) => {
+  const timer =
+    session.turnTimer
+
+  if (!timer) {
+    return null
+  }
+
+  const actorId =
+    getTimedActorId(
+      game
+    )
+
+  if (
+    !actorId ||
+    actorId !==
+      timer.actorId
+  ) {
+    return null
+  }
+
+  const participant =
+    getEffectiveParticipants(
+      session
+    )
+      .find(
+        (candidate) =>
+          candidate.id ===
+          actorId
+      )
+
+  if (
+    !participant ||
+    participant.kind !==
+      'human'
+  ) {
+    return null
+  }
+
+  const timeoutStrikes =
+    Math.max(
+      0,
+      Number(
+        session
+          .timeoutStrikes?.[
+            actorId
+          ]
+      ) || 0
+    )
+
+  return {
+    actorId,
+
+    actorName:
+      participant.name,
+
+    sequence:
+      timer.sequence,
+
+    durationMs:
+      timer.durationMs,
+
+    remainingMs:
+      Math.max(
+        0,
+        timer.deadlineAt -
+        now
+      ),
+
+    timeoutStrikes,
+
+    maxTimeoutStrikes:
+      MAX_CONSECUTIVE_TIMEOUTS
+  }
+}
+
 const getPresenceWarnings = (
   session: StoredSession,
   now = Date.now()
@@ -1104,18 +1244,27 @@ const getPresenceWarnings = (
   return session.participants
     .filter(
       (participant) => {
-        if (participant.kind !== 'human') {
+        if (
+          participant.kind !==
+          'human'
+        ) {
           return false
         }
 
         const presence =
-          session.presence?.[participant.id]
+          session.presence?.[
+            participant.id
+          ]
 
         if (
           !presence ||
           presence.automated ||
-          Number(presence.abandonedAt) > 0 ||
-          !Number.isFinite(presence.takeoverAt) ||
+          Number(
+            presence.abandonedAt
+          ) > 0 ||
+          !Number.isFinite(
+            presence.takeoverAt
+          ) ||
           presence.takeoverAt <= 0
         ) {
           return false
@@ -1127,24 +1276,36 @@ const getPresenceWarnings = (
 
         return (
           now >= warningAt &&
-          now < presence.takeoverAt
+          now <
+            presence.takeoverAt
         )
       }
     )
     .map(
       (participant) => {
         const presence =
-          session.presence![participant.id]
+          session.presence![
+            participant.id
+          ]
 
         return {
-          playerId: participant.id,
-          playerName: participant.name,
-          expiresAt: presence.takeoverAt,
+          playerId:
+            participant.id,
+
+          playerName:
+            participant.name,
+
+          expiresAt:
+            presence.takeoverAt,
+
           secondsRemaining:
             Math.max(
               0,
               Math.ceil(
-                (presence.takeoverAt - now) /
+                (
+                  presence.takeoverAt -
+                  now
+                ) /
                 1000
               )
             )
@@ -1152,7 +1313,10 @@ const getPresenceWarnings = (
       }
     )
     .sort(
-      (first, second) =>
+      (
+        first,
+        second
+      ) =>
         first.expiresAt -
         second.expiresAt
     )
@@ -1356,6 +1520,12 @@ const createClientView = (
     presenceWarnings:
       getPresenceWarnings(
         session
+      ),
+
+    turnTimer:
+      getTurnTimerView(
+        session,
+        game
       ),
 
     actions:
@@ -2309,7 +2479,10 @@ export const handleConquistadorGameSessionApiRequest =
           : body.action ===
               'leave'
             ? 'leave'
-            : 'state'
+            : body.action ===
+                'timeout'
+              ? 'turn-timeout'
+              : 'state'
 
       if (
         !matchId ||
@@ -2551,6 +2724,612 @@ export class ConquistadorGameSessionDurableObject {
       : []
   }
 
+  private getTimeoutStrike(
+    playerId:
+      string
+  ) {
+    return Math.max(
+      0,
+      Number(
+        this.session
+          ?.timeoutStrikes?.[
+            playerId
+          ]
+      ) || 0
+    )
+  }
+
+  private setTimeoutStrike(
+    playerId:
+      string,
+    value:
+      number
+  ) {
+    if (!this.session) {
+      return
+    }
+
+    if (
+      !this.session
+        .timeoutStrikes
+    ) {
+      this.session.timeoutStrikes =
+        {}
+    }
+
+    this.session
+      .timeoutStrikes[
+        playerId
+      ] =
+      Math.max(
+        0,
+        Math.min(
+          MAX_CONSECUTIVE_TIMEOUTS,
+          Math.floor(
+            Number(value) || 0
+          )
+        )
+      )
+  }
+
+  private isEffectiveHuman(
+    playerId:
+      string
+  ) {
+    return this
+      .getEffectiveParticipants()
+      .some(
+        (participant) =>
+          participant.id ===
+            playerId &&
+          participant.kind ===
+            'human'
+      )
+  }
+
+  private syncTurnTimer(
+    game:
+      any,
+    now =
+      Date.now(),
+    forceRestart =
+      false
+  ) {
+    if (!this.session) {
+      return false
+    }
+
+    const actorId =
+      getTimedActorId(
+        game
+      )
+
+    if (
+      !actorId ||
+      !this.isEffectiveHuman(
+        actorId
+      )
+    ) {
+      const changed =
+        Boolean(
+          this.session
+            .turnTimer
+        )
+
+      this.session.turnTimer =
+        null
+
+      return changed
+    }
+
+    const durationMs =
+      getTurnTimeoutDuration(
+        game
+      )
+
+    const existing =
+      this.session.turnTimer
+
+    if (
+      !forceRestart &&
+      existing &&
+      existing.actorId ===
+        actorId &&
+      existing.durationMs ===
+        durationMs &&
+      existing.deadlineAt > 0
+    ) {
+      return false
+    }
+
+    const sequence =
+      Math.max(
+        0,
+        Number(
+          this.session
+            .turnSequence
+        ) || 0
+      ) + 1
+
+    this.session.turnSequence =
+      sequence
+
+    this.session.turnTimer = {
+      actorId,
+      sequence,
+
+      startedAt:
+        now,
+
+      deadlineAt:
+        now +
+        durationMs,
+
+      durationMs
+    }
+
+    return true
+  }
+
+  private getTimeoutCommand(
+    game:
+      any,
+    actorId:
+      string
+  ):
+    GameCommand |
+    null {
+    const emergency =
+      chooseEmergencyBotCommand(
+        game,
+        actorId
+      )
+
+    if (
+      game?.phase ===
+        'turn-roll' ||
+      game?.phase ===
+        'turn-actions' ||
+      (
+        game?.phase ===
+          'event-seven' &&
+        game?.sevenEvent
+          ?.step ===
+          'discard'
+      )
+    ) {
+      return emergency
+    }
+
+    const temporaryParticipants =
+      this
+        .getEffectiveParticipants()
+        .map(
+          (participant) =>
+            participant.id ===
+              actorId
+              ? {
+                  ...participant,
+
+                  kind:
+                    'bot' as const,
+
+                  icon:
+                    BOT_ICON
+                }
+              : participant
+        )
+
+    const preferred =
+      normalizeCommand(
+        chooseConquistadorBotCommand(
+          game,
+          temporaryParticipants,
+          actorId
+        )
+      )
+
+    return (
+      preferred ||
+      emergency
+    )
+  }
+
+  private executeTimeoutAutomation(
+    game:
+      any,
+    actorId:
+      string
+  ) {
+    let steps =
+      0
+
+    while (
+      steps <
+        MAX_TIMEOUT_AUTOMATION_STEPS &&
+      getTimedActorId(
+        game
+      ) ===
+        actorId
+    ) {
+      const command =
+        this.getTimeoutCommand(
+          game,
+          actorId
+        )
+
+      if (!command) {
+        break
+      }
+
+      let result:
+        Record<
+          string,
+          unknown
+        >
+
+      try {
+        result =
+          executeCommand(
+            game,
+            actorId,
+            command
+          ) as Record<
+            string,
+            unknown
+          >
+      } catch {
+        break
+      }
+
+      if (
+        result?.success !==
+        true
+      ) {
+        const fallback =
+          chooseEmergencyBotCommand(
+            game,
+            actorId
+          )
+
+        if (
+          !fallback ||
+          JSON.stringify(
+            fallback
+          ) ===
+            JSON.stringify(
+              command
+            )
+        ) {
+          break
+        }
+
+        try {
+          const fallbackResult =
+            executeCommand(
+              game,
+              actorId,
+              fallback
+            ) as Record<
+              string,
+              unknown
+            >
+
+          if (
+            fallbackResult
+              ?.success !==
+            true
+          ) {
+            break
+          }
+        } catch {
+          break
+        }
+      }
+
+      steps +=
+        1
+    }
+
+    return steps
+  }
+
+  private isTurnExpiredFor(
+    playerId:
+      string,
+    now =
+      Date.now()
+  ) {
+    const timer =
+      this.session
+        ?.turnTimer
+
+    return Boolean(
+      timer &&
+      timer.actorId ===
+        playerId &&
+      now >=
+        timer.deadlineAt +
+        TURN_TIMEOUT_GRACE_MS
+    )
+  }
+
+  private async resolveTurnTimeout(
+    game:
+      any,
+    actorId:
+      string,
+    sequence:
+      number,
+    now =
+      Date.now()
+  ) {
+    if (!this.session) {
+      return {
+        success:
+          false as const,
+
+        status:
+          404,
+
+        message:
+          'A sessão desta partida ainda não foi criada.'
+      }
+    }
+
+    const timer =
+      this.session
+        .turnTimer
+
+    if (
+      !timer ||
+      timer.actorId !==
+        actorId ||
+      timer.sequence !==
+        sequence ||
+      getTimedActorId(
+        game
+      ) !==
+        actorId
+    ) {
+      return {
+        success:
+          false as const,
+
+        status:
+          409,
+
+        message:
+          'Este limite de tempo já não pertence à jogada atual.'
+      }
+    }
+
+    if (
+      now <
+      timer.deadlineAt +
+        TURN_TIMEOUT_GRACE_MS
+    ) {
+      return {
+        success:
+          false as const,
+
+        status:
+          409,
+
+        message:
+          'O tempo desta jogada ainda não terminou.'
+      }
+    }
+
+    if (
+      !this.isEffectiveHuman(
+        actorId
+      )
+    ) {
+      return {
+        success:
+          false as const,
+
+        status:
+          409,
+
+        message:
+          'Este lugar já não pertence a um jogador humano.'
+      }
+    }
+
+    const participant =
+      this.session
+        .participants
+        .find(
+          (candidate) =>
+            candidate.id ===
+            actorId
+        )
+
+    const previousName =
+      participant?.name ||
+      'Jogador'
+
+    const strikes =
+      this.getTimeoutStrike(
+        actorId
+      ) + 1
+
+    this.setTimeoutStrike(
+      actorId,
+      strikes
+    )
+
+    if (
+      strikes >=
+      MAX_CONSECUTIVE_TIMEOUTS
+    ) {
+      const replaced =
+        this.finalizePlayerAbandonment(
+          game,
+          actorId,
+          now,
+          'inactivity'
+        )
+
+      if (!replaced) {
+        return {
+          success:
+            false as const,
+
+          status:
+            409,
+
+          message:
+            'Não foi possível substituir o jogador inativo.'
+        }
+      }
+
+      this.session.game =
+        game.toJSON()
+
+      this.session.revision +=
+        1
+
+      this.session.updatedAt =
+        now
+
+      this.session.bot = {
+        actorId:
+          null,
+
+        nextActionAt:
+          0
+      }
+
+      this.syncTurnTimer(
+        game,
+        now,
+        true
+      )
+
+      await this.save()
+
+      await this
+        .scheduleBot(
+          game,
+          now
+        )
+
+      return {
+        success:
+          true as const,
+
+        status:
+          200,
+
+        kicked:
+          true,
+
+        strikes:
+          MAX_CONSECUTIVE_TIMEOUTS,
+
+        message:
+          `${previousName} foi substituído por inatividade.`
+      }
+    }
+
+    game?.addHistory?.(
+      'player-timeout',
+      `${previousName} não jogou a tempo. A jogada foi concluída automaticamente.`,
+      {
+        timeoutStrikes:
+          strikes
+      },
+      actorId
+    )
+
+    const steps =
+      this.executeTimeoutAutomation(
+        game,
+        actorId
+      )
+
+    if (
+      steps <= 0
+    ) {
+      this.setTimeoutStrike(
+        actorId,
+        strikes - 1
+      )
+
+      this.syncTurnTimer(
+        game,
+        now,
+        true
+      )
+
+      this.session.updatedAt =
+        now
+
+      await this.save()
+
+      return {
+        success:
+          false as const,
+
+        status:
+          409,
+
+        message:
+          'Não foi possível concluir automaticamente esta jogada.'
+      }
+    }
+
+    this.session.game =
+      game.toJSON()
+
+    this.session.revision +=
+      1
+
+    this.session.updatedAt =
+      now
+
+    this.session.bot = {
+      actorId:
+        null,
+
+      nextActionAt:
+        0
+    }
+
+    this.syncTurnTimer(
+      game,
+      now,
+      true
+    )
+
+    await this.save()
+
+    await this
+      .scheduleBot(
+        game,
+        now
+      )
+
+    return {
+      success:
+        true as const,
+
+      status:
+        200,
+
+      kicked:
+        false,
+
+      strikes,
+
+      message:
+        'O tempo terminou. A jogada foi concluída automaticamente.'
+    }
+  }
+
   private getNextPresenceTakeoverAt() {
     if (
       !this.session
@@ -2616,20 +3395,25 @@ export class ConquistadorGameSessionDurableObject {
 
     for (
       let index = 0;
-      index < BOT_NAMES.length;
+      index <
+        BOT_NAMES.length;
       index += 1
     ) {
       const candidate =
         BOT_NAMES[
-          (offset + index) %
+          (
+            offset +
+            index
+          ) %
           BOT_NAMES.length
         ]
 
       if (
         !usedNames.has(
-          candidate.toLocaleLowerCase(
-            'pt-PT'
-          )
+          candidate
+            .toLocaleLowerCase(
+              'pt-PT'
+            )
         )
       ) {
         return candidate
@@ -2645,7 +3429,11 @@ export class ConquistadorGameSessionDurableObject {
     playerId:
       string,
     now:
-      number
+      number,
+    reason:
+      'disconnect' |
+      'inactivity' =
+      'disconnect'
   ) {
     if (!this.session) {
       return false
@@ -2690,7 +3478,8 @@ export class ConquistadorGameSessionDurableObject {
     if (presence) {
       presence.lastSeenAt =
         Math.min(
-          presence.lastSeenAt || now,
+          presence.lastSeenAt ||
+            now,
           now
         )
 
@@ -2730,11 +3519,20 @@ export class ConquistadorGameSessionDurableObject {
     }
 
     game?.addHistory?.(
-      'player-abandoned',
-      `${previousName} abandonou o jogo.`,
+      reason ===
+        'inactivity'
+        ? 'player-inactive'
+        : 'player-abandoned',
+
+      reason ===
+        'inactivity'
+        ? `${previousName} foi substituído por inatividade.`
+        : `${previousName} abandonou o jogo.`,
+
       {
         previousName,
-        replacementName
+        replacementName,
+        reason
       },
       playerId
     )
@@ -2893,7 +3691,10 @@ export class ConquistadorGameSessionDurableObject {
       Record<
         string,
         unknown
-      >
+      >,
+    options: {
+      touchPresence?: boolean
+    } = {}
   ) {
     if (!this.session) {
       return {
@@ -2907,6 +3708,10 @@ export class ConquistadorGameSessionDurableObject {
           'A sessão desta partida ainda não foi criada.'
       }
     }
+
+    const touchPresence =
+      options.touchPresence !==
+      false
 
     const matchId =
       normalizeId(
@@ -3080,7 +3885,8 @@ export class ConquistadorGameSessionDurableObject {
     if (
       !Number(
         presence.connectedAt
-      )
+      ) &&
+      touchPresence
     ) {
       presence.connectedAt =
         now
@@ -3143,6 +3949,12 @@ export class ConquistadorGameSessionDurableObject {
         this.session.updatedAt =
           now
 
+        this.syncTurnTimer(
+          game,
+          now,
+          true
+        )
+
         await this.save()
 
         await this
@@ -3167,6 +3979,27 @@ export class ConquistadorGameSessionDurableObject {
     const revisionBefore =
       this.session
         .revision
+
+    if (
+      !touchPresence
+    ) {
+      return {
+        ok:
+          true as const,
+
+        playerId,
+
+        now,
+
+        reactivated:
+          false,
+
+        revisionBefore,
+
+        legacy:
+          false as const
+      }
+    }
 
     const warningWasActive =
       presence.takeoverAt > 0 &&
@@ -3283,11 +4116,11 @@ export class ConquistadorGameSessionDurableObject {
 
     if (
       currentAlarm ===
-      null ||
+        null ||
       desiredAt <
-      currentAlarm ||
+        currentAlarm ||
       currentAlarm <=
-      now
+        now
     ) {
       await this
         .state
@@ -3371,7 +4204,7 @@ export class ConquistadorGameSessionDurableObject {
 
     if (
       runtime?.actorId !==
-      actorId ||
+        actorId ||
       nextActionAt <= 0
     ) {
       nextActionAt =
@@ -3460,7 +4293,7 @@ export class ConquistadorGameSessionDurableObject {
 
     if (
       runtime?.actorId !==
-      actorId ||
+        actorId ||
       !runtime?.nextActionAt
     ) {
       await this
@@ -3574,6 +4407,9 @@ export class ConquistadorGameSessionDurableObject {
       return false
     }
 
+    const completedAt =
+      Date.now()
+
     this.session.game =
       game.toJSON()
 
@@ -3581,7 +4417,7 @@ export class ConquistadorGameSessionDurableObject {
       1
 
     this.session.updatedAt =
-      Date.now()
+      completedAt
 
     this.session.bot = {
       actorId:
@@ -3591,12 +4427,18 @@ export class ConquistadorGameSessionDurableObject {
         0
     }
 
+    this.syncTurnTimer(
+      game,
+      completedAt,
+      true
+    )
+
     await this.save()
 
     await this
       .scheduleBot(
         game,
-        Date.now()
+        completedAt
       )
 
     return true
@@ -3629,6 +4471,12 @@ export class ConquistadorGameSessionDurableObject {
 
       this.session.updatedAt =
         now
+
+      this.syncTurnTimer(
+        game,
+        now,
+        true
+      )
 
       await this.save()
     }
@@ -3684,11 +4532,11 @@ export class ConquistadorGameSessionDurableObject {
     if (
       !matchId ||
       participants.length !==
-      MATCH_SIZE ||
+        MATCH_SIZE ||
       (
         credentialsSupplied &&
         credentials.length !==
-        humanCount
+          humanCount
       )
     ) {
       return json(
@@ -3871,17 +4719,27 @@ export class ConquistadorGameSessionDurableObject {
         }
       }
 
+      const existingGame =
+        Game.fromJSON(
+          this.session.game
+        )
+
+      const turnTimerChanged =
+        this.syncTurnTimer(
+          existingGame,
+          now
+        )
+
       if (
-        presenceChanged
+        presenceChanged ||
+        turnTimerChanged
       ) {
         await this.save()
       }
 
       await this
         .scheduleBot(
-          Game.fromJSON(
-            this.session.game
-          ),
+          existingGame,
           now
         )
 
@@ -3950,8 +4808,23 @@ export class ConquistadorGameSessionDurableObject {
 
         nextActionAt:
           0
-      }
+      },
+
+      turnTimer:
+        null,
+
+      turnSequence:
+        0,
+
+      timeoutStrikes:
+        {}
     }
+
+    this.syncTurnTimer(
+      game,
+      now,
+      true
+    )
 
     await this.save()
 
@@ -4061,6 +4934,12 @@ export class ConquistadorGameSessionDurableObject {
     this.session.updatedAt =
       now
 
+    this.syncTurnTimer(
+      game,
+      now,
+      true
+    )
+
     await this.save()
 
     await this
@@ -4135,11 +5014,23 @@ export class ConquistadorGameSessionDurableObject {
     const playerId =
       authentication.playerId
 
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    if (
+      this.syncTurnTimer(
+        game,
+        authentication.now
+      )
+    ) {
+      await this.save()
+    }
+
     await this
       .scheduleBot(
-        Game.fromJSON(
-          this.session.game
-        ),
+        game,
         authentication.now
       )
 
@@ -4148,10 +5039,20 @@ export class ConquistadorGameSessionDurableObject {
         body.knownRevision
       )
 
+    const now =
+      Date.now()
+
     const presenceWarnings =
       getPresenceWarnings(
         this.session,
-        Date.now()
+        now
+      )
+
+    const turnTimer =
+      getTurnTimerView(
+        this.session,
+        game,
+        now
       )
 
     if (
@@ -4173,7 +5074,9 @@ export class ConquistadorGameSessionDurableObject {
         revision:
           this.session.revision,
 
-        presenceWarnings
+        presenceWarnings,
+
+        turnTimer
       })
     }
 
@@ -4239,14 +5142,6 @@ export class ConquistadorGameSessionDurableObject {
 
     const playerId =
       authentication.playerId
-
-    await this
-      .scheduleBot(
-        Game.fromJSON(
-          this.session.game
-        ),
-        authentication.now
-      )
 
     const expectedRevision =
       normalizeRevision(
@@ -4339,6 +5234,72 @@ export class ConquistadorGameSessionDurableObject {
       )
     }
 
+    this.syncTurnTimer(
+      game,
+      authentication.now
+    )
+
+    if (
+      this.isTurnExpiredFor(
+        playerId,
+        authentication.now
+      )
+    ) {
+      const sequence =
+        this.session
+          .turnTimer
+          ?.sequence
+
+      if (
+        Number.isInteger(
+          sequence
+        )
+      ) {
+        const timeoutResult =
+          await this
+            .resolveTurnTimeout(
+              game,
+              playerId,
+              Number(
+                sequence
+              ),
+              authentication.now
+            )
+
+        if (
+          timeoutResult
+            .success
+        ) {
+          return json(
+            {
+              success:
+                false,
+
+              status:
+                timeoutResult
+                  .kicked
+                  ? 'player-replaced'
+                  : 'turn-timeout',
+
+              message:
+                timeoutResult
+                  .message,
+
+              ...createClientView(
+                this.session,
+                playerId
+              )
+            },
+
+            timeoutResult
+              .kicked
+              ? 410
+              : 409
+          )
+        }
+      }
+    }
+
     let result:
       Record<
         string,
@@ -4395,6 +5356,14 @@ export class ConquistadorGameSessionDurableObject {
       )
     }
 
+    const completedAt =
+      Date.now()
+
+    this.setTimeoutStrike(
+      playerId,
+      0
+    )
+
     this.session.game =
       game.toJSON()
 
@@ -4402,7 +5371,7 @@ export class ConquistadorGameSessionDurableObject {
       1
 
     this.session.updatedAt =
-      Date.now()
+      completedAt
 
     this.session.bot = {
       actorId:
@@ -4412,12 +5381,18 @@ export class ConquistadorGameSessionDurableObject {
         0
     }
 
+    this.syncTurnTimer(
+      game,
+      completedAt,
+      true
+    )
+
     await this.save()
 
     await this
       .scheduleBot(
         game,
-        Date.now()
+        completedAt
       )
 
     return json({
@@ -4429,6 +5404,181 @@ export class ConquistadorGameSessionDurableObject {
 
       command:
         command.type,
+
+      ...createClientView(
+        this.session,
+        playerId
+      )
+    })
+  }
+
+  private async handleTurnTimeout(
+    request:
+      Request
+  ) {
+    if (!this.session) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A sessão desta partida ainda não foi criada.'
+        },
+
+        404
+      )
+    }
+
+    const body =
+      await getBody(
+        request
+      )
+
+    const authentication =
+      await this
+        .authenticateHuman(
+          body,
+          {
+            touchPresence:
+              false
+          }
+        )
+
+    if (
+      !authentication.ok
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            authentication
+              .message
+        },
+
+        authentication.status
+      )
+    }
+
+    const playerId =
+      authentication.playerId
+
+    const sequence =
+      normalizeRevision(
+        body.sequence
+      )
+
+    if (
+      sequence ===
+      null
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'O identificador do limite de tempo não é válido.'
+        },
+
+        400
+      )
+    }
+
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    this.syncTurnTimer(
+      game,
+      authentication.now
+    )
+
+    const timer =
+      this.session
+        .turnTimer
+
+    if (
+      !timer ||
+      timer.actorId !==
+        playerId ||
+      timer.sequence !==
+        sequence
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          status:
+            'turn-timeout-stale',
+
+          message:
+            'Este limite de tempo já não pertence à jogada atual.',
+
+          ...createClientView(
+            this.session,
+            playerId
+          )
+        },
+
+        409
+      )
+    }
+
+    const result =
+      await this
+        .resolveTurnTimeout(
+          game,
+          playerId,
+          sequence,
+          authentication.now
+        )
+
+    if (
+      !result.success
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          status:
+            'turn-timeout-pending',
+
+          message:
+            result.message,
+
+          ...createClientView(
+            this.session,
+            playerId
+          )
+        },
+
+        result.status
+      )
+    }
+
+    return json({
+      success:
+        true,
+
+      status:
+        result.kicked
+          ? 'player-replaced'
+          : 'turn-timeout',
+
+      kicked:
+        result.kicked,
+
+      timeoutStrikes:
+        result.strikes,
+
+      message:
+        result.message,
 
       ...createClientView(
         this.session,
@@ -4488,6 +5638,12 @@ export class ConquistadorGameSessionDurableObject {
         case '/command':
           return this
             .handleCommand(
+              request
+            )
+
+        case '/turn-timeout':
+          return this
+            .handleTurnTimeout(
               request
             )
 
