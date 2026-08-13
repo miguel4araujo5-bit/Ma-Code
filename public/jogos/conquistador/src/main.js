@@ -10,7 +10,7 @@ import {
 
 import {
   OnlineGameClient,
-} from './online/OnlineGameClient.js?v=online-presence-3';
+} from './online/OnlineGameClient.js?v=online-session-1';
 
 import {
   SaveManager,
@@ -49,6 +49,12 @@ let statusMessage =
   '';
 
 let statusType =
+  'info';
+
+let homeStatusMessage =
+  '';
+
+let homeStatusType =
   'info';
 
 let sevenDiscardDraft =
@@ -238,6 +244,67 @@ function createOnlinePlayerView(
   };
 }
 
+function getOnlineActivePlayerId(
+  state,
+  source,
+  players,
+) {
+  const playerIds =
+    new Set(
+      players.map(
+        (player) =>
+          player.id,
+      ),
+    );
+
+  const candidates = [
+    state?.turnTimer
+      ?.actorId,
+  ];
+
+  if (
+    source.sevenEvent
+      ?.step ===
+    'discard'
+  ) {
+    const queue =
+      Array.isArray(
+        source.sevenEvent
+          .discardQueue,
+      )
+        ? source.sevenEvent
+            .discardQueue
+        : [];
+
+    candidates.push(
+      queue[
+        Number(
+          source.sevenEvent
+            .discardIndex,
+        ) || 0
+      ]?.playerId,
+    );
+  }
+
+  candidates.push(
+    source.currentPlayerId,
+    players[
+      Number(
+        source.currentPlayerIndex,
+      ) || 0
+    ]?.id,
+  );
+
+  return (
+    candidates.find(
+      (candidate) =>
+        playerIds.has(
+          candidate,
+        ),
+    ) || null
+  );
+}
+
 function createOnlineGameView(
   state,
 ) {
@@ -256,11 +323,18 @@ function createOnlineGameView(
         )
       : [];
 
+  const activePlayerId =
+    getOnlineActivePlayerId(
+      state,
+      source,
+      players,
+    );
+
   const currentPlayer =
     players.find(
       (player) =>
         player.id ===
-        source.currentPlayerId,
+        activePlayerId,
     ) ||
     players[
       Number(
@@ -519,6 +593,37 @@ function closeOnlineSession() {
     false;
 }
 
+function returnOnlineSessionToHome(
+  detail = {},
+) {
+  const reason =
+    String(
+      detail.reason || '',
+    );
+
+  homeStatusMessage =
+    String(
+      detail.message ||
+      'A sua sessão nesta partida terminou.',
+    );
+
+  homeStatusType =
+    reason ===
+    'player-replaced'
+      ? 'warning'
+      : 'error';
+
+  closeOnlineSession();
+
+  game =
+    null;
+
+  selectedAction =
+    null;
+
+  renderHome();
+}
+
 function applyOnlineState(
   state,
 ) {
@@ -561,25 +666,60 @@ async function startOnlineSession({
 }) {
   closeOnlineSession();
 
+  homeStatusMessage =
+    '';
+
+  homeStatusType =
+    'info';
+
   onlinePlayerId =
     String(
       playerId || '',
     );
 
+  let client =
+    null;
+
   try {
-    onlineClient =
+    client =
       new OnlineGameClient({
         matchId,
         playerId:
           onlinePlayerId,
       });
 
-    onlineClient.onState(
+    onlineClient =
+      client;
+
+    client.onState(
       applyOnlineState,
     );
 
-    onlineClient.onError(
+    client.onSessionEnd(
+      (detail) => {
+        if (
+          onlineClient !==
+          client
+        ) {
+          return;
+        }
+
+        returnOnlineSessionToHome(
+          detail,
+        );
+      },
+    );
+
+    client.onError(
       (error) => {
+        if (
+          client.sessionEnded ||
+          onlineClient !==
+            client
+        ) {
+          return;
+        }
+
         setStatus(
           error instanceof Error
             ? error.message
@@ -596,10 +736,18 @@ async function startOnlineSession({
       'info';
 
     const state =
-      await onlineClient
+      await client
         .startPolling({
           immediate: true,
         });
+
+    if (
+      client.sessionEnded ||
+      onlineClient !==
+        client
+    ) {
+      return;
+    }
 
     if (!state?.game) {
       throw new Error(
@@ -618,6 +766,17 @@ async function startOnlineSession({
 
     renderGame();
   } catch (error) {
+    if (
+      client?.sessionEnded ||
+      (
+        client &&
+        onlineClient !==
+          client
+      )
+    ) {
+      return;
+    }
+
     closeOnlineSession();
 
     game =
@@ -867,6 +1026,18 @@ function renderHome() {
   selectedAction =
     null;
 
+  const messageType =
+    [
+      'info',
+      'success',
+      'warning',
+      'error',
+    ].includes(
+      homeStatusType,
+    )
+      ? homeStatusType
+      : 'info';
+
   app.innerHTML = `
     <main class="home-screen">
       <section class="hero-panel">
@@ -901,6 +1072,21 @@ function renderHome() {
           através de um território inspirado
           em Portugal Continental.
         </p>
+
+        ${
+          homeStatusMessage
+            ? `
+              <p
+                class="status-message status-${messageType}"
+                role="status"
+              >
+                ${escapeHtml(
+                  homeStatusMessage,
+                )}
+              </p>
+            `
+            : ''
+        }
 
         <div class="hero-actions">
           <button
@@ -947,8 +1133,12 @@ function renderHome() {
     )
     ?.addEventListener(
       'click',
-      () =>
-        renderNewGame(),
+      () => {
+        homeStatusMessage =
+          '';
+
+        renderNewGame();
+      },
     );
 
   document
@@ -958,6 +1148,9 @@ function renderHome() {
     ?.addEventListener(
       'click',
       () => {
+        homeStatusMessage =
+          '';
+
         const result =
           saveManager.load(
             Game,
@@ -4368,13 +4561,32 @@ function attachGameEvents() {
       'click',
       () => {
         if (isOnlineGame()) {
+          const leaveRequest =
+            onlineClient
+              ?.leave();
+
           closeOnlineSession();
 
           game =
             null;
+
+          homeStatusMessage =
+            '';
+
+          renderHome();
+
+          void leaveRequest
+            ?.catch(
+              () => {},
+            );
+
+          return;
         } else {
           saveGame();
         }
+
+        homeStatusMessage =
+          '';
 
         renderHome();
       },
