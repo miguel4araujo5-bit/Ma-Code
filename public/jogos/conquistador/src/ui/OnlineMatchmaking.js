@@ -1,9 +1,9 @@
 const API_BASE = '/api/conquistador/matchmaking';
 const GAME_API_URL = '/api/conquistador/game';
-const FALLBACK_STATUS_INTERVAL_MS = 2000;
+const FALLBACK_STATUS_INTERVAL_MS = 6000;
 const MAX_FALLBACK_STATUS_INTERVAL_MS = 30000;
-const REALTIME_RECONNECT_MIN_MS = 500;
-const REALTIME_RECONNECT_MAX_MS = 4000;
+const REALTIME_RECONNECT_MIN_MS = 5000;
+const REALTIME_RECONNECT_MAX_MS = 30000;
 const STORED_NAME_KEY = 'conquistador-online-name';
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 
@@ -825,7 +825,7 @@ function scheduleFallbackStatus(
       () =>
         void fallbackStatusOnce(),
       Math.max(
-        500,
+        FALLBACK_STATUS_INTERVAL_MS,
         Number(delay) ||
           FALLBACK_STATUS_INTERVAL_MS,
       ),
@@ -850,9 +850,6 @@ async function fallbackStatusOnce() {
         },
       );
 
-    fallbackDelayMs =
-      FALLBACK_STATUS_INTERVAL_MS;
-
     if (
       applyMatchmakingStatus(
         response,
@@ -860,6 +857,16 @@ async function fallbackStatusOnce() {
     ) {
       return;
     }
+
+    fallbackDelayMs =
+      Math.min(
+        MAX_FALLBACK_STATUS_INTERVAL_MS,
+        Math.max(
+          FALLBACK_STATUS_INTERVAL_MS,
+          fallbackDelayMs *
+            2,
+        ),
+      );
 
     scheduleFallbackStatus();
 
@@ -967,7 +974,7 @@ function connectRealtime() {
       );
   } catch {
     scheduleFallbackStatus(
-      500,
+      FALLBACK_STATUS_INTERVAL_MS,
     );
 
     scheduleRealtimeReconnect();
@@ -1071,7 +1078,7 @@ function connectRealtime() {
       }
 
       scheduleFallbackStatus(
-        500,
+        FALLBACK_STATUS_INTERVAL_MS,
       );
 
       scheduleRealtimeReconnect();
@@ -1089,7 +1096,7 @@ function connectRealtime() {
       }
 
       scheduleFallbackStatus(
-        500,
+        FALLBACK_STATUS_INTERVAL_MS,
       );
     },
   );
@@ -1161,6 +1168,8 @@ async function startSearch(
     renderWaiting();
 
     connectRealtime();
+
+    scheduleFallbackStatus();
   } catch (error) {
     busy = false;
 
