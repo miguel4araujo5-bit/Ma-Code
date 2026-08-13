@@ -100,6 +100,98 @@ const isWebSocketUpgrade = (
   ).toLowerCase() ===
     'websocket'
 
+const CONQUISTADOR_CLIENT_VERSION =
+  'realtime-free-safe-1'
+
+const rejectLegacyConquistadorStateRequest =
+  async (
+    request: Request
+  ) => {
+    if (
+      request.method !==
+        'POST' ||
+      request.headers.get(
+        'X-Conquistador-Client'
+      ) ===
+        CONQUISTADOR_CLIENT_VERSION
+    ) {
+      return null
+    }
+
+    let body:
+      Record<string, unknown>
+
+    try {
+      const candidate =
+        await request
+          .clone()
+          .json()
+
+      if (
+        !candidate ||
+        typeof candidate !==
+          'object' ||
+        Array.isArray(
+          candidate
+        )
+      ) {
+        return null
+      }
+
+      body =
+        candidate as
+          Record<
+            string,
+            unknown
+          >
+    } catch {
+      return null
+    }
+
+    if (
+      [
+        'command',
+        'leave',
+        'timeout'
+      ].includes(
+        String(
+          body.action ||
+            ''
+        )
+      )
+    ) {
+      return null
+    }
+
+    return new Response(
+      JSON.stringify({
+        success:
+          false,
+
+        status:
+          'client-upgrade-required',
+
+        message:
+          'Atualize a página para restabelecer a ligação eficiente à partida.'
+      }),
+      {
+        status:
+          426,
+
+        headers: {
+          'Content-Type':
+            'application/json; charset=utf-8',
+
+          'Cache-Control':
+            'no-store',
+
+          'Retry-After':
+            '300'
+        }
+      }
+    )
+  }
+
 const prepareMatchedGameSession =
   async (
     response: Response,
@@ -277,6 +369,15 @@ export default {
           request,
           env
         )
+      }
+
+      const legacyResponse =
+        await rejectLegacyConquistadorStateRequest(
+          request
+        )
+
+      if (legacyResponse) {
+        return legacyResponse
       }
 
       return handleConquistadorGameSessionApiRequest(
