@@ -8,5 +8,15 @@
   "cache": {
     "enabled": true
   },
-  "workers_dev": true
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "ma-code.pt/api/ma-carteira/wallet*",
+      "zone_name": "ma-code.pt"
+    },
+    {
+      "pattern": "www.ma-code.pt/api/ma-carteira/wallet*",
+      "zone_name": "ma-code.pt"
+    }
+  ]
 }
