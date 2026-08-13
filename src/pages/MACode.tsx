@@ -1617,14 +1617,12 @@ export default function MACode() {
             <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
               <div className="flex items-center gap-4">
                 <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-sky-500 to-violet-500 text-slate-950 shadow-[0_14px_36px_rgba(14,165,233,0.25)]">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-7 w-7"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z" />
-                  </svg>
+                 <img
+  src="/logo.svg"
+  alt=""
+  className="h-8 w-8 object-contain brightness-0 invert"
+  aria-hidden="true"
+/>
                 </div>
 
                 <div>
