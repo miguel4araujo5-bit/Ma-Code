@@ -1,10 +1,11 @@
 const API_URL = '/api/conquistador/game';
-const DEFAULT_FALLBACK_POLL_INTERVAL_MS = 5000;
-const MAX_FALLBACK_POLL_INTERVAL_MS = 30000;
+const CLIENT_VERSION = 'realtime-free-safe-1';
+const DEFAULT_FALLBACK_POLL_INTERVAL_MS = 30000;
+const MAX_FALLBACK_POLL_INTERVAL_MS = 120000;
 const REALTIME_CONNECT_TIMEOUT_MS = 8000;
 const REALTIME_REQUEST_TIMEOUT_MS = 10000;
-const REALTIME_RECONNECT_MIN_MS = 1000;
-const REALTIME_RECONNECT_MAX_MS = 30000;
+const REALTIME_RECONNECT_MIN_MS = 5000;
+const REALTIME_RECONNECT_MAX_MS = 60000;
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
 const TURN_COUNTDOWN_ID = 'online-turn-countdown';
@@ -837,6 +838,9 @@ export class OnlineGameClient {
           headers: {
             'Content-Type':
               'application/json',
+
+            'X-Conquistador-Client':
+              CLIENT_VERSION,
           },
 
           keepalive:
@@ -855,6 +859,9 @@ export class OnlineGameClient {
                 this.reconnectToken,
 
               ...payload,
+
+              clientVersion:
+                CLIENT_VERSION,
             }),
         },
       );
@@ -1533,6 +1540,9 @@ export class OnlineGameClient {
       this.reconnectDelayMs =
         REALTIME_RECONNECT_MIN_MS;
 
+      this.fallbackDelayMs =
+        this.pollIntervalMs;
+
       this.clearFallbackTimer();
 
       this.applyRealtimeState(
@@ -2111,9 +2121,6 @@ export class OnlineGameClient {
 
     try {
       await this.getState();
-
-      this.fallbackDelayMs =
-        this.pollIntervalMs;
     } catch (error) {
       this.notifyError(
         error,
@@ -2126,17 +2133,17 @@ export class OnlineGameClient {
       ) {
         return;
       }
-
-      this.fallbackDelayMs =
-        Math.min(
-          MAX_FALLBACK_POLL_INTERVAL_MS,
-          Math.max(
-            this.pollIntervalMs,
-            this.fallbackDelayMs *
-              2,
-          ),
-        );
     }
+
+    this.fallbackDelayMs =
+      Math.min(
+        MAX_FALLBACK_POLL_INTERVAL_MS,
+        Math.max(
+          this.pollIntervalMs,
+          this.fallbackDelayMs *
+            2,
+        ),
+      );
 
     this.scheduleFallbackPoll();
   }
