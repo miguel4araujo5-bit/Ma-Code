@@ -124,8 +124,16 @@ function applyClockState(
     );
 
   if (number) {
-    number.textContent =
+    const nextText =
       String(seconds);
+
+    if (
+      number.textContent !==
+      nextText
+    ) {
+      number.textContent =
+        nextText;
+    }
   }
 }
 
@@ -598,8 +606,6 @@ function mount(element) {
     element ===
     source
   ) {
-    updateClock();
-
     return;
   }
 
@@ -657,6 +663,13 @@ function discover() {
     document.getElementById(
       SOURCE_ID,
     );
+
+  if (
+    element ===
+    source
+  ) {
+    return;
+  }
 
   if (element) {
     mount(
