@@ -983,6 +983,8 @@ function ProjectsShowcase({
                     ) : null}
 
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.55] via-transparent to-transparent" />
+
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_58%,rgba(109,40,217,0.10)_82%,rgba(88,28,135,0.22)_100%)] shadow-[inset_0_0_24px_rgba(139,92,246,0.12)] ring-1 ring-inset ring-violet-400/[0.14]" />
                   </div>
 
                   <div className="flex items-center justify-between gap-3 px-4 py-4">
@@ -1624,7 +1626,6 @@ export default function MACode() {
     aria-hidden="true"
   />
 </div>
-
                 <div>
                   <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white md:text-3xl">
                     Pronto para dar
