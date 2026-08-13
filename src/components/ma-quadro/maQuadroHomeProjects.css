@@ -1,0 +1,295 @@
+.mq-home-project-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.mq-home-project-shell > .mq-home-project {
+  width: 100%;
+  height: 100%;
+}
+
+.mq-home-project-actions {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 4;
+}
+
+.mq-home-project-actions[open] {
+  z-index: 20;
+}
+
+.mq-home-project-actions > summary {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.55rem;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.78);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.2);
+  font-size: 1rem;
+  line-height: 1;
+  list-style: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.mq-home-project-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mq-home-project-actions > summary:hover {
+  border-color: rgba(103, 232, 249, 0.42);
+  color: #cffafe;
+  background: rgba(8, 47, 73, 0.9);
+  transform: translateY(-1px);
+}
+
+.mq-home-project-actions__panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  display: grid;
+  width: 11.5rem;
+  overflow: hidden;
+  padding: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.72rem;
+  background: rgba(5, 8, 20, 0.98);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(18px);
+}
+
+.mq-home-project-actions__panel button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.15rem;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-radius: 0.48rem;
+  color: #cbd5e1;
+  background: transparent;
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.mq-home-project-actions__panel button:hover:not(:disabled) {
+  color: #ecfeff;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.mq-home-project-actions__panel button.is-danger {
+  color: #fca5a5;
+}
+
+.mq-home-project-actions__panel button.is-danger:hover:not(:disabled) {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.mq-home-project-actions__panel button:disabled {
+  cursor: wait;
+  opacity: 0.4;
+}
+
+.mq-home-project-actions__separator {
+  height: 1px;
+  margin: 0.25rem 0.35rem;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.mq-home-project-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.mq-home-project-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(27rem, 100%);
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1rem;
+  color: #e2e8f0;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(34, 211, 238, 0.04),
+      transparent 45%
+    ),
+    #080d1b;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.48);
+}
+
+.mq-home-project-modal__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mq-home-project-modal__heading > span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.mq-home-project-modal__heading h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.mq-home-project-modal__heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.55rem;
+  line-height: 1.5;
+}
+
+.mq-home-project-modal__heading > button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.55rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.mq-home-project-modal__heading > button:hover:not(:disabled) {
+  border-color: rgba(103, 232, 249, 0.32);
+  color: #cffafe;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.mq-home-project-modal__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mq-home-project-modal__field > span {
+  color: #94a3b8;
+  font-size: 0.52rem;
+  font-weight: 700;
+}
+
+.mq-home-project-modal__field input {
+  width: 100%;
+  min-height: 2.7rem;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.65rem;
+  outline: 0;
+  color: #f1f5f9;
+  background: rgba(15, 23, 42, 0.7);
+  font-size: 0.65rem;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+
+.mq-home-project-modal__field input:focus {
+  border-color: rgba(103, 232, 249, 0.52);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.07);
+}
+
+.mq-home-project-modal__field input:disabled {
+  opacity: 0.55;
+}
+
+.mq-home-project-modal__error {
+  margin: -0.4rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 0.55rem;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.07);
+  font-size: 0.52rem;
+  line-height: 1.45;
+}
+
+.mq-home-project-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.2rem;
+}
+
+.mq-home-project-modal__actions button {
+  min-height: 2.3rem;
+  padding: 0.48rem 0.8rem;
+  border-radius: 0.6rem;
+  font-size: 0.56rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mq-home-project-modal__actions button.is-secondary {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.mq-home-project-modal__actions button.is-primary {
+  border: 1px solid rgba(103, 232, 249, 0.48);
+  color: #042f3e;
+  background: #67e8f9;
+}
+
+.mq-home-project-modal__actions button:hover:not(:disabled).is-secondary {
+  border-color: rgba(103, 232, 249, 0.32);
+  color: #ecfeff;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.mq-home-project-modal__actions button:hover:not(:disabled).is-primary {
+  background: #a5f3fc;
+}
+
+.mq-home-project-modal__actions button:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+@media (max-width: 800px) {
+  .mq-home-project-actions {
+    top: 0.4rem;
+    right: 0.4rem;
+  }
+
+  .mq-home-project-actions__panel {
+    width: 10.5rem;
+  }
+
+  .mq-home-project-modal {
+    padding: 0.85rem;
+  }
+}
