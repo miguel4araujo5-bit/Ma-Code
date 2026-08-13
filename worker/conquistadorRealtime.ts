@@ -746,6 +746,30 @@ export class ConquistadorGameSessionDurableObject
     await this
       .closeExpiredPendingSockets()
 
+    if (
+      this.getGameSockets()
+        .length === 0 &&
+      !this.hasActiveHumanLease()
+    ) {
+      const currentAlarm =
+        await this
+          .realtimeState
+          .storage
+          .getAlarm()
+
+      if (
+        currentAlarm !==
+          null
+      ) {
+        await this
+          .realtimeState
+          .storage
+          .deleteAlarm()
+      }
+
+      return
+    }
+
     await super.alarm()
 
     await this
@@ -2437,7 +2461,7 @@ export class ConquistadorMatchmakingDurableObject
   ) {
     if (
       data.status !==
-      'waiting'
+        'waiting'
     ) {
       return
     }
