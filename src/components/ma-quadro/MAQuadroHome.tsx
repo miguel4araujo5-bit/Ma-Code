@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -18,6 +19,7 @@ import {
 import './maQuadroHome.css'
 import './maQuadroHomeProjects.css'
 import './maQuadroHomeFilters.css'
+import './maQuadroHomeFavourites.css'
 
 const categoryLabels:
   Record<
@@ -34,8 +36,17 @@ const categoryLabels:
 
 type HomeViewFilter =
   | 'recent'
+  | 'favourites'
   | 'all'
   | 'templates'
+
+type FavouriteCollection = {
+  templates: string[]
+  projects: string[]
+}
+
+const FAVOURITES_STORAGE_KEY =
+  'ma-quadro-favourites-v1'
 
 function normalizeSearch(
   value: string
@@ -83,6 +94,74 @@ function formatUpdatedAt(
   )
 }
 
+function readFavouriteCollection():
+  FavouriteCollection {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return {
+      templates: [],
+      projects: []
+    }
+  }
+
+  try {
+    const raw =
+      window.localStorage.getItem(
+        FAVOURITES_STORAGE_KEY
+      )
+
+    if (!raw) {
+      return {
+        templates: [],
+        projects: []
+      }
+    }
+
+    const parsed =
+      JSON.parse(
+        raw
+      ) as
+        Partial<
+          FavouriteCollection
+        >
+
+    return {
+      templates:
+        Array.isArray(
+          parsed.templates
+        )
+          ? parsed.templates.filter(
+              (
+                value
+              ): value is string =>
+                typeof value ===
+                'string'
+            )
+          : [],
+
+      projects:
+        Array.isArray(
+          parsed.projects
+        )
+          ? parsed.projects.filter(
+              (
+                value
+              ): value is string =>
+                typeof value ===
+                'string'
+            )
+          : []
+    }
+  } catch {
+    return {
+      templates: [],
+      projects: []
+    }
+  }
+}
+
 function ProjectPreview({
   project
 }: {
@@ -109,6 +188,49 @@ function ProjectPreview({
     <span className="mq-home-project__placeholder">
       MQ
     </span>
+  )
+}
+
+function HomeFavouriteButton({
+  active,
+  disabled,
+  label,
+  onClick
+}: {
+  active: boolean
+  disabled: boolean
+  label: string
+  onClick:
+    () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={`mq-home-favourite${
+        active
+          ? ' is-active'
+          : ''
+      }`}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={
+        active
+          ? `Remover ${label} dos favoritos`
+          : `Adicionar ${label} aos favoritos`
+      }
+      title={
+        active
+          ? 'Remover dos favoritos'
+          : 'Adicionar aos favoritos'
+      }
+      onClick={
+        onClick
+      }
+    >
+      {active
+        ? '★'
+        : '☆'}
+    </button>
   )
 }
 
@@ -315,6 +437,21 @@ export default function MAQuadroHome({
   )
 
   const [
+    favourites,
+    setFavourites
+  ] = useState<FavouriteCollection>(
+    () =>
+      readFavouriteCollection()
+  )
+
+  const [
+    favouritesChanged,
+    setFavouritesChanged
+  ] = useState(
+    false
+  )
+
+  const [
     actionId,
     setActionId
   ] = useState<
@@ -366,6 +503,28 @@ export default function MAQuadroHome({
       search
     )
 
+  const favouriteProjectIds =
+    useMemo(
+      () =>
+        new Set(
+          favourites.projects
+        ),
+      [
+        favourites.projects
+      ]
+    )
+
+  const favouriteTemplateIds =
+    useMemo(
+      () =>
+        new Set(
+          favourites.templates
+        ),
+      [
+        favourites.templates
+      ]
+    )
+
   const projects =
     useMemo(
       () =>
@@ -410,6 +569,40 @@ export default function MAQuadroHome({
       ]
     )
 
+  const favouriteProjectCount =
+    useMemo(
+      () =>
+        projects.filter(
+          (project) =>
+            favouriteProjectIds.has(
+              project.id
+            )
+        ).length,
+      [
+        favouriteProjectIds,
+        projects
+      ]
+    )
+
+  const favouriteTemplateCount =
+    useMemo(
+      () =>
+        templates.filter(
+          (template) =>
+            favouriteTemplateIds.has(
+              template.id
+            )
+        ).length,
+      [
+        favouriteTemplateIds,
+        templates
+      ]
+    )
+
+  const favouriteCount =
+    favouriteProjectCount +
+    favouriteTemplateCount
+
   const filteredProjects =
     useMemo(
       () => {
@@ -420,7 +613,7 @@ export default function MAQuadroHome({
           return []
         }
 
-        const filtered =
+        let filtered =
           query
             ? projects.filter(
                 (
@@ -443,6 +636,19 @@ export default function MAQuadroHome({
 
         if (
           viewFilter ===
+          'favourites'
+        ) {
+          filtered =
+            filtered.filter(
+              (project) =>
+                favouriteProjectIds.has(
+                  project.id
+                )
+            )
+        }
+
+        if (
+          viewFilter ===
           'recent'
         ) {
           return filtered.slice(
@@ -454,6 +660,7 @@ export default function MAQuadroHome({
         return filtered
       },
       [
+        favouriteProjectIds,
         projects,
         query,
         viewFilter
@@ -465,32 +672,51 @@ export default function MAQuadroHome({
       () => {
         if (
           viewFilter !==
-          'templates'
+            'templates' &&
+          viewFilter !==
+            'favourites'
         ) {
           return []
         }
 
-        return query
-          ? templates.filter(
-              (
-                template
-              ) =>
-                normalizeSearch(
-                  [
-                    template.name,
-                    categoryLabels[
-                      template.category
-                    ]
-                  ].join(
-                    ' '
+        let filtered =
+          query
+            ? templates.filter(
+                (
+                  template
+                ) =>
+                  normalizeSearch(
+                    [
+                      template.name,
+                      categoryLabels[
+                        template.category
+                      ]
+                    ].join(
+                      ' '
+                    )
+                  ).includes(
+                    query
                   )
-                ).includes(
-                  query
+              )
+            : templates
+
+        if (
+          viewFilter ===
+          'favourites'
+        ) {
+          filtered =
+            filtered.filter(
+              (template) =>
+                favouriteTemplateIds.has(
+                  template.id
                 )
             )
-          : templates
+        }
+
+        return filtered
       },
       [
+        favouriteTemplateIds,
         query,
         templates,
         viewFilter
@@ -502,7 +728,9 @@ export default function MAQuadroHome({
       () => {
         if (
           viewFilter ===
-          'templates'
+            'templates' ||
+          viewFilter ===
+            'favourites'
         ) {
           return []
         }
@@ -541,6 +769,83 @@ export default function MAQuadroHome({
       ]
     )
 
+  const enterEditor =
+    useCallback(
+      () => {
+        if (
+          !favouritesChanged
+        ) {
+          onEnterEditor()
+
+          return
+        }
+
+        const activePanel =
+          editor.activePanel
+
+        const temporaryPanel =
+          activePanel ===
+          'projects'
+            ? 'templates'
+            : 'projects'
+
+        setFavouritesChanged(
+          false
+        )
+
+        editor.setActivePanel(
+          temporaryPanel
+        )
+
+        window.requestAnimationFrame(
+          () => {
+            editor.setActivePanel(
+              activePanel
+            )
+
+            onEnterEditor()
+          }
+        )
+      },
+      [
+        editor.activePanel,
+        editor.setActivePanel,
+        favouritesChanged,
+        onEnterEditor
+      ]
+    )
+
+  useEffect(() => {
+    const handleStorage = (
+      event:
+        StorageEvent
+    ) => {
+      if (
+        event.key &&
+        event.key !==
+          FAVOURITES_STORAGE_KEY
+      ) {
+        return
+      }
+
+      setFavourites(
+        readFavouriteCollection()
+      )
+    }
+
+    window.addEventListener(
+      'storage',
+      handleStorage
+    )
+
+    return () => {
+      window.removeEventListener(
+        'storage',
+        handleStorage
+      )
+    }
+  }, [])
+
   useEffect(() => {
     if (
       !waitingForCustom ||
@@ -557,7 +862,7 @@ export default function MAQuadroHome({
       currentId !==
       customStartProjectRef.current
     ) {
-      onEnterEditor()
+      enterEditor()
     }
 
     setWaitingForCustom(
@@ -566,9 +871,74 @@ export default function MAQuadroHome({
   }, [
     editor.newDesignOpen,
     editor.project?.id,
-    onEnterEditor,
+    enterEditor,
     waitingForCustom
   ])
+
+  const toggleFavourite =
+    (
+      collection:
+        keyof FavouriteCollection,
+      id:
+        string
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setFavouritesChanged(
+        true
+      )
+
+      setFavourites(
+        (current) => {
+          const currentIds =
+            current[
+              collection
+            ]
+
+          const exists =
+            currentIds.includes(
+              id
+            )
+
+          const nextIds =
+            exists
+              ? currentIds.filter(
+                  (
+                    item
+                  ) =>
+                    item !== id
+                )
+              : [
+                  id,
+                  ...currentIds
+                ]
+
+          const next:
+            FavouriteCollection = {
+            ...current,
+            [
+              collection
+            ]:
+              nextIds
+          }
+
+          try {
+            window.localStorage.setItem(
+              FAVOURITES_STORAGE_KEY,
+              JSON.stringify(
+                next
+              )
+            )
+          } catch {
+            return next
+          }
+
+          return next
+        }
+      )
+    }
 
   const openProject =
     async (
@@ -588,7 +958,7 @@ export default function MAQuadroHome({
           projectId
         )
 
-        onEnterEditor()
+        enterEditor()
       } finally {
         setActionId(
           null
@@ -834,7 +1204,7 @@ export default function MAQuadroHome({
           preset
         )
 
-        onEnterEditor()
+        enterEditor()
       } finally {
         setActionId(
           null
@@ -886,7 +1256,7 @@ export default function MAQuadroHome({
           event
         )
 
-        onEnterEditor()
+        enterEditor()
       } finally {
         setActionId(
           null
@@ -906,10 +1276,16 @@ export default function MAQuadroHome({
       'templates'
       ? filteredTemplates.length >
         0
-      : filteredProjects.length >
-          0 ||
-        matchingPresets.length >
-          0
+      : viewFilter ===
+          'favourites'
+        ? filteredProjects.length >
+            0 ||
+          filteredTemplates.length >
+            0
+        : filteredProjects.length >
+            0 ||
+          matchingPresets.length >
+            0
 
   const projectsHeading =
     viewFilter ===
@@ -917,9 +1293,14 @@ export default function MAQuadroHome({
       ? query
         ? 'Projetos recentes encontrados'
         : 'Projetos recentes'
-      : query
-        ? 'Projetos encontrados'
-        : 'Todos os projetos'
+      : viewFilter ===
+          'favourites'
+        ? query
+          ? 'Projetos favoritos encontrados'
+          : 'Projetos favoritos'
+        : query
+          ? 'Projetos encontrados'
+          : 'Todos os projetos'
 
   return (
     <main className="mq-home">
@@ -1033,7 +1414,10 @@ export default function MAQuadroHome({
                 viewFilter ===
                 'templates'
                   ? 'Pesquisar modelos…'
-                  : 'Pesquisar projetos e formatos…'
+                  : viewFilter ===
+                      'favourites'
+                    ? 'Pesquisar favoritos…'
+                    : 'Pesquisar projetos e formatos…'
               }
               aria-label="Pesquisar na Home do MA-Quadro"
               onChange={(event) =>
@@ -1060,7 +1444,7 @@ export default function MAQuadroHome({
         </section>
 
         <nav
-          className="mq-home-filters"
+          className="mq-home-filters mq-home-filters--with-favourites"
           aria-label="Filtrar conteúdos"
         >
           <button
@@ -1090,6 +1474,33 @@ export default function MAQuadroHome({
                 projects.length,
                 6
               )}
+            </small>
+          </button>
+
+          <button
+            type="button"
+            className={
+              viewFilter ===
+              'favourites'
+                ? 'is-active'
+                : ''
+            }
+            aria-pressed={
+              viewFilter ===
+              'favourites'
+            }
+            onClick={() =>
+              setViewFilter(
+                'favourites'
+              )
+            }
+          >
+            <span>
+              ★ Favoritos
+            </span>
+
+            <small>
+              {favouriteCount}
             </small>
           </button>
 
@@ -1156,8 +1567,8 @@ export default function MAQuadroHome({
             <button
               type="button"
               disabled={locked}
-              onClick={() =>
-                onEnterEditor()
+              onClick={
+                enterEditor
               }
             >
               <span className="mq-home-continue__preview">
@@ -1324,9 +1735,10 @@ export default function MAQuadroHome({
                 </h2>
 
                 <p>
-                  Abra ou faça a gestão
-                  dos projetos guardados
-                  neste dispositivo.
+                  {viewFilter ===
+                  'favourites'
+                    ? 'Projetos que marcou para acesso rápido.'
+                    : 'Abra ou faça a gestão dos projetos guardados neste dispositivo.'}
                 </p>
               </span>
 
@@ -1413,6 +1825,24 @@ export default function MAQuadroHome({
                       </span>
                     </button>
 
+                    <HomeFavouriteButton
+                      active={
+                        favouriteProjectIds.has(
+                          project.id
+                        )
+                      }
+                      disabled={locked}
+                      label={
+                        project.name
+                      }
+                      onClick={() =>
+                        toggleFavourite(
+                          'projects',
+                          project.id
+                        )
+                      }
+                    />
+
                     <ProjectActionsMenu
                       project={
                         project
@@ -1453,23 +1883,31 @@ export default function MAQuadroHome({
           </section>
         ) : null}
 
-        {viewFilter ===
-          'templates' &&
+        {(viewFilter ===
+          'templates' ||
+          viewFilter ===
+            'favourites') &&
         filteredTemplates.length >
           0 ? (
           <section className="mq-home-section mq-home-section--templates">
             <div className="mq-home-section__heading">
               <span>
                 <h2>
-                  {query
-                    ? 'Modelos encontrados'
-                    : 'Modelos'}
+                  {viewFilter ===
+                  'favourites'
+                    ? query
+                      ? 'Modelos favoritos encontrados'
+                      : 'Modelos favoritos'
+                    : query
+                      ? 'Modelos encontrados'
+                      : 'Modelos'}
                 </h2>
 
                 <p>
-                  Utilize um modelo
-                  existente sem alterar
-                  o original.
+                  {viewFilter ===
+                  'favourites'
+                    ? 'Modelos que marcou para encontrar rapidamente.'
+                    : 'Utilize um modelo existente sem alterar o original.'}
                 </p>
               </span>
             </div>
@@ -1479,44 +1917,66 @@ export default function MAQuadroHome({
                 (
                   template
                 ) => (
-                  <button
+                  <article
                     key={
                       template.id
                     }
-                    type="button"
-                    className="mq-home-template"
-                    disabled={locked}
-                    onClick={() =>
-                      void openProject(
-                        template.id
-                      )
-                    }
+                    className="mq-home-template-shell"
                   >
-                    <span className="mq-home-template__preview">
-                      <ProjectPreview
-                        project={
-                          template
-                        }
-                      />
-                    </span>
-
-                    <span>
-                      <strong>
-                        {
-                          template.name
-                        }
-                      </strong>
-
-                      <small>
-                        {
-                          categoryLabels[
+                    <button
+                      type="button"
+                      className="mq-home-template"
+                      disabled={locked}
+                      onClick={() =>
+                        void openProject(
+                          template.id
+                        )
+                      }
+                    >
+                      <span className="mq-home-template__preview">
+                        <ProjectPreview
+                          project={
                             template
-                              .category
-                          ]
-                        }
-                      </small>
-                    </span>
-                  </button>
+                          }
+                        />
+                      </span>
+
+                      <span>
+                        <strong>
+                          {
+                            template.name
+                          }
+                        </strong>
+
+                        <small>
+                          {
+                            categoryLabels[
+                              template
+                                .category
+                            ]
+                          }
+                        </small>
+                      </span>
+                    </button>
+
+                    <HomeFavouriteButton
+                      active={
+                        favouriteTemplateIds.has(
+                          template.id
+                        )
+                      }
+                      disabled={locked}
+                      label={
+                        template.name
+                      }
+                      onClick={() =>
+                        toggleFavourite(
+                          'templates',
+                          template.id
+                        )
+                      }
+                    />
+                  </article>
                 )
               )}
             </div>
@@ -1527,22 +1987,30 @@ export default function MAQuadroHome({
           <section className="mq-home-empty">
             <strong>
               {viewFilter ===
-              'templates'
+              'favourites'
                 ? query
-                  ? 'Nenhum modelo encontrado.'
-                  : 'Ainda não existem modelos.'
-                : query
-                  ? 'Nenhum projeto encontrado.'
-                  : 'Ainda não existem projetos nesta vista.'}
+                  ? 'Nenhum favorito encontrado.'
+                  : 'Ainda não tem favoritos.'
+                : viewFilter ===
+                    'templates'
+                  ? query
+                    ? 'Nenhum modelo encontrado.'
+                    : 'Ainda não existem modelos.'
+                  : query
+                    ? 'Nenhum projeto encontrado.'
+                    : 'Ainda não existem projetos nesta vista.'}
             </strong>
 
             <span>
               {query
                 ? 'Experimente outro termo ou limpe a pesquisa.'
                 : viewFilter ===
-                    'templates'
-                  ? 'Pode guardar um projeto como modelo a partir do menu de ações.'
-                  : 'Crie um novo design para começar.'}
+                    'favourites'
+                  ? 'Utilize a estrela nos projetos e modelos que pretende encontrar mais rapidamente.'
+                  : viewFilter ===
+                      'templates'
+                    ? 'Pode guardar um projeto como modelo a partir do menu de ações.'
+                    : 'Crie um novo design para começar.'}
             </span>
 
             {query ? (
@@ -1555,6 +2023,18 @@ export default function MAQuadroHome({
                 }
               >
                 Limpar pesquisa
+              </button>
+            ) : viewFilter ===
+              'favourites' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setViewFilter(
+                    'all'
+                  )
+                }
+              >
+                Ver todos os projetos
               </button>
             ) : viewFilter ===
               'templates' ? (
