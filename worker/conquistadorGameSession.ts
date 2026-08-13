@@ -615,7 +615,7 @@ const normalizeParticipants = (
 
   if (
     participants.length !==
-    MATCH_SIZE
+      MATCH_SIZE
   ) {
     return []
   }
@@ -3883,47 +3883,6 @@ export class ConquistadorGameSessionDurableObject {
       Date.now()
 
     if (
-      !Number(
-        presence.connectedAt
-      ) &&
-      touchPresence
-    ) {
-      presence.connectedAt =
-        now
-
-      presence.lastSeenAt =
-        now
-
-      presence.takeoverAt =
-        now +
-        PRESENCE_TIMEOUT_MS
-
-      presence.automated =
-        false
-
-      await this.save()
-
-      return {
-        ok:
-          true as const,
-
-        playerId,
-
-        now,
-
-        reactivated:
-          false,
-
-        revisionBefore:
-          this.session
-            .revision,
-
-        legacy:
-          false as const
-      }
-    }
-
-    if (
       presence.takeoverAt > 0 &&
       now >=
         presence.takeoverAt
@@ -4001,15 +3960,106 @@ export class ConquistadorGameSessionDurableObject {
       }
     }
 
-    const warningWasActive =
-      presence.takeoverAt > 0 &&
-      now >=
-        presence.takeoverAt -
-        PRESENCE_WARNING_MS
+    if (
+      !Number(
+        presence.connectedAt
+      )
+    ) {
+      presence.connectedAt =
+        now
 
-    const reactivated =
-      presence.automated ||
-      warningWasActive
+      presence.lastSeenAt =
+        now
+
+      presence.takeoverAt =
+        now +
+        PRESENCE_TIMEOUT_MS
+
+      presence.automated =
+        false
+
+      await this.save()
+
+      return {
+        ok:
+          true as const,
+
+        playerId,
+
+        now,
+
+        reactivated:
+          false,
+
+        revisionBefore,
+
+        legacy:
+          false as const
+      }
+    }
+
+    if (
+      presence.takeoverAt <= 0
+    ) {
+      presence.lastSeenAt =
+        now
+
+      presence.takeoverAt =
+        now +
+        PRESENCE_TIMEOUT_MS
+
+      presence.automated =
+        false
+
+      await this.save()
+
+      return {
+        ok:
+          true as const,
+
+        playerId,
+
+        now,
+
+        reactivated:
+          false,
+
+        revisionBefore,
+
+        legacy:
+          false as const
+      }
+    }
+
+    const warningAt =
+      presence.takeoverAt -
+      PRESENCE_WARNING_MS
+
+    if (
+      now <
+      warningAt
+    ) {
+      return {
+        ok:
+          true as const,
+
+        playerId,
+
+        now,
+
+        reactivated:
+          false,
+
+        revisionBefore,
+
+        legacy:
+          false as const
+      }
+    }
+
+    const warningWasActive =
+      now >=
+      warningAt
 
     presence.lastSeenAt =
       now
@@ -4022,7 +4072,7 @@ export class ConquistadorGameSessionDurableObject {
       false
 
     if (
-      reactivated
+      warningWasActive
     ) {
       this.session.revision +=
         1
@@ -4041,13 +4091,329 @@ export class ConquistadorGameSessionDurableObject {
 
       now,
 
-      reactivated,
+      reactivated:
+        warningWasActive,
 
       revisionBefore,
 
       legacy:
         false as const
     }
+  }
+
+  private async handleSocketConnect(
+    request:
+      Request
+  ) {
+    if (!this.session) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A sessão desta partida ainda não foi criada.'
+        },
+
+        404
+      )
+    }
+
+    const body =
+      await getBody(
+        request
+      )
+
+    const authentication =
+      await this
+        .authenticateHuman(
+          body,
+          {
+            touchPresence:
+              false
+          }
+        )
+
+    if (
+      !authentication.ok
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            authentication
+              .message
+        },
+
+        authentication.status
+      )
+    }
+
+    const playerId =
+      authentication.playerId
+
+    const now =
+      authentication.now
+
+    let presenceChanged =
+      false
+
+    let presenceReactivated =
+      false
+
+    if (
+      this.session
+        .presence
+    ) {
+      const presence =
+        this.session
+          .presence[
+            playerId
+          ]
+
+      if (presence) {
+        const warningWasActive =
+          presence.takeoverAt > 0 &&
+          now >=
+            presence.takeoverAt -
+            PRESENCE_WARNING_MS
+
+        if (
+          presence.takeoverAt > 0 ||
+          presence.automated
+        ) {
+          presence.lastSeenAt =
+            now
+
+          presence.takeoverAt =
+            0
+
+          presence.automated =
+            false
+
+          if (
+            !Number(
+              presence.connectedAt
+            )
+          ) {
+            presence.connectedAt =
+              now
+          }
+
+          presenceChanged =
+            true
+
+          presenceReactivated =
+            warningWasActive
+
+          if (
+            warningWasActive
+          ) {
+            this.session.revision +=
+              1
+
+            this.session.updatedAt =
+              now
+          }
+        }
+      }
+    }
+
+    const game =
+      Game.fromJSON(
+        this.session.game
+      )
+
+    const turnTimerChanged =
+      this.syncTurnTimer(
+        game,
+        now
+      )
+
+    if (
+      presenceChanged ||
+      turnTimerChanged
+    ) {
+      await this.save()
+    }
+
+    return json({
+      success:
+        true,
+
+      status:
+        'ready',
+
+      presenceReactivated,
+
+      ...createClientView(
+        this.session,
+        playerId
+      )
+    })
+  }
+
+  private async handleSocketDisconnect(
+    request:
+      Request
+  ) {
+    if (!this.session) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'A sessão desta partida ainda não foi criada.'
+        },
+
+        404
+      )
+    }
+
+    const body =
+      await getBody(
+        request
+      )
+
+    const authentication =
+      await this
+        .authenticateHuman(
+          body,
+          {
+            touchPresence:
+              false
+          }
+        )
+
+    if (
+      !authentication.ok
+    ) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            authentication
+              .message
+        },
+
+        authentication.status
+      )
+    }
+
+    const playerId =
+      authentication.playerId
+
+    const now =
+      authentication.now
+
+    if (
+      !this.session
+        .presence
+    ) {
+      return json({
+        success:
+          true,
+
+        status:
+          'disconnect-ignored',
+
+        playerId,
+
+        warningAt:
+          0,
+
+        takeoverAt:
+          0
+      })
+    }
+
+    const presence =
+      this.session
+        .presence[
+          playerId
+        ]
+
+    if (!presence) {
+      return json(
+        {
+          success:
+            false,
+
+          message:
+            'O estado de presença deste jogador não está disponível.'
+        },
+
+        404
+      )
+    }
+
+    if (
+      presence.takeoverAt >
+      now
+    ) {
+      return json({
+        success:
+          true,
+
+        status:
+          'disconnect-pending',
+
+        playerId,
+
+        warningAt:
+          Math.max(
+            now,
+            presence.takeoverAt -
+            PRESENCE_WARNING_MS
+          ),
+
+        takeoverAt:
+          presence.takeoverAt
+      })
+    }
+
+    presence.lastSeenAt =
+      now
+
+    presence.takeoverAt =
+      now +
+      PRESENCE_TIMEOUT_MS
+
+    presence.automated =
+      false
+
+    if (
+      !Number(
+        presence.connectedAt
+      )
+    ) {
+      presence.connectedAt =
+        now
+    }
+
+    await this.save()
+
+    return json({
+      success:
+        true,
+
+      status:
+        'disconnect-pending',
+
+      playerId,
+
+      warningAt:
+        presence.takeoverAt -
+        PRESENCE_WARNING_MS,
+
+      takeoverAt:
+        presence.takeoverAt
+    })
   }
 
   private getBotDelay(
@@ -4874,7 +5240,11 @@ export class ConquistadorGameSessionDurableObject {
     const authentication =
       await this
         .authenticateHuman(
-          body
+          body,
+          {
+            touchPresence:
+              false
+          }
         )
 
     if (
@@ -4967,7 +5337,9 @@ export class ConquistadorGameSessionDurableObject {
 
   private async handleState(
     request:
-      Request
+      Request,
+    touchPresence =
+      true
   ) {
     if (!this.session) {
       return json(
@@ -4991,7 +5363,10 @@ export class ConquistadorGameSessionDurableObject {
     const authentication =
       await this
         .authenticateHuman(
-          body
+          body,
+          {
+            touchPresence
+          }
         )
 
     if (
@@ -5028,11 +5403,15 @@ export class ConquistadorGameSessionDurableObject {
       await this.save()
     }
 
-    await this
-      .scheduleBot(
-        game,
-        authentication.now
-      )
+    if (
+      touchPresence
+    ) {
+      await this
+        .scheduleBot(
+          game,
+          authentication.now
+        )
+    }
 
     const knownRevision =
       normalizeRevision(
@@ -5096,7 +5475,9 @@ export class ConquistadorGameSessionDurableObject {
 
   private async handleCommand(
     request:
-      Request
+      Request,
+    touchPresence =
+      true
   ) {
     if (!this.session) {
       return json(
@@ -5120,7 +5501,10 @@ export class ConquistadorGameSessionDurableObject {
     const authentication =
       await this
         .authenticateHuman(
-          body
+          body,
+          {
+            touchPresence
+          }
         )
 
     if (
@@ -5645,6 +6029,32 @@ export class ConquistadorGameSessionDurableObject {
           return this
             .handleTurnTimeout(
               request
+            )
+
+        case '/socket-connect':
+          return this
+            .handleSocketConnect(
+              request
+            )
+
+        case '/socket-disconnect':
+          return this
+            .handleSocketDisconnect(
+              request
+            )
+
+        case '/socket-state':
+          return this
+            .handleState(
+              request,
+              false
+            )
+
+        case '/socket-command':
+          return this
+            .handleCommand(
+              request,
+              false
             )
 
         default:
