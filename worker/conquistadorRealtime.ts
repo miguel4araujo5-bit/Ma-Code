@@ -109,6 +109,7 @@ type GameSocketAttachment = {
   reconnectToken: string
   revision: number | null
   lastTouchedAt: number
+  disconnectNotifiedAt?: number
 }
 
 type MatchmakingSocketAttachment = {
@@ -294,7 +295,9 @@ const createWebSocketResponse = (
     null,
     {
       status: 101,
-      webSocket: socket
+
+      webSocket:
+        socket
     } as ResponseInit & {
       webSocket: WebSocket
     }
@@ -389,12 +392,14 @@ const setAttachment = (
   attachment:
     SocketAttachment
 ) => {
-  (
-    socket as
-      HibernationWebSocket
-  ).serializeAttachment(
-    attachment
-  )
+  try {
+    (
+      socket as
+        HibernationWebSocket
+    ).serializeAttachment(
+      attachment
+    )
+  } catch {}
 }
 
 const sendSocketJson = (
@@ -737,9 +742,6 @@ export class ConquistadorGameSessionDurableObject
     await this
       .closeExpiredPendingSockets()
 
-    await this
-      .refreshOpenSocketPresence()
-
     await super.alarm()
 
     await this
@@ -899,31 +901,29 @@ export class ConquistadorGameSessionDurableObject
   }
 
   async webSocketClose(
-    _socket: WebSocket,
+    socket: WebSocket,
     _code: number,
     _reason: string
   ) {
     await this
-      .scheduleAlarmNoLaterThan(
-        Date.now() +
-          PRESENCE_WARNING_AFTER_DISCONNECT_MS
+      .markSocketDisconnected(
+        socket
       )
   }
 
   async webSocketError(
     socket: WebSocket
   ) {
+    await this
+      .markSocketDisconnected(
+        socket
+      )
+
     closeSocket(
       socket,
       1011,
       'Erro realtime'
     )
-
-    await this
-      .scheduleAlarmNoLaterThan(
-        Date.now() +
-          PRESENCE_WARNING_AFTER_DISCONNECT_MS
-      )
   }
 
   private async handleWebSocketUpgrade(
@@ -1067,13 +1067,10 @@ export class ConquistadorGameSessionDurableObject
 
     const result =
       await this
-        .callGameState(
+        .callSocketConnect(
           pending.matchId,
           playerId,
-          reconnectToken,
-          normalizeRevision(
-            body.knownRevision
-          )
+          reconnectToken
         )
 
     if (
@@ -1103,9 +1100,8 @@ export class ConquistadorGameSessionDurableObject
         result.data.revision
       )
 
-    setAttachment(
-      socket,
-      {
+    const attachment:
+      GameSocketAttachment = {
         kind:
           'game',
 
@@ -1121,6 +1117,15 @@ export class ConquistadorGameSessionDurableObject
         lastTouchedAt:
           Date.now()
       }
+
+    setAttachment(
+      socket,
+      attachment
+    )
+
+    this.closeOtherPlayerSockets(
+      socket,
+      attachment
     )
 
     sendSocketJson(
@@ -1149,7 +1154,7 @@ export class ConquistadorGameSessionDurableObject
 
     const result =
       await this
-        .callGameState(
+        .callSocketState(
           attachment.matchId,
           attachment.playerId,
           attachment.reconnectToken,
@@ -1263,7 +1268,7 @@ export class ConquistadorGameSessionDurableObject
     const response =
       await super.fetch(
         internalJsonRequest(
-          '/command',
+          '/socket-command',
           {
             matchId:
               attachment.matchId,
@@ -1488,881 +1493,4 @@ export class ConquistadorGameSessionDurableObject
     }
   }
 
-  private async callGameState(
-    matchId: string,
-    playerId: string,
-    reconnectToken: string,
-    knownRevision:
-      number | null
-  ) {
-    const response =
-      await super.fetch(
-        internalJsonRequest(
-          '/state',
-          {
-            matchId,
-            playerId,
-            reconnectToken,
-            knownRevision
-          }
-        )
-      )
-
-    return parseResponse(
-      response
-    )
-  }
-
-  private updateGameAttachment(
-    socket: WebSocket,
-    current:
-      GameSocketAttachment,
-    data: JsonObject
-  ) {
-    setAttachment(
-      socket,
-      {
-        ...current,
-
-        revision:
-          normalizeRevision(
-            data.revision
-          ) ??
-          current.revision,
-
-        lastTouchedAt:
-          Date.now()
-      }
-    )
-  }
-
-  private getGameSockets() {
-    return this
-      .realtimeState
-      .getWebSockets()
-      .map(
-        (socket) => ({
-          socket,
-
-          attachment:
-            getAttachment(
-              socket
-            )
-        })
-      )
-      .filter(
-        (
-          item
-        ): item is {
-          socket: WebSocket
-          attachment:
-            GameSocketAttachment
-        } =>
-          item.attachment
-            ?.kind ===
-          'game'
-      )
-  }
-
-  private async refreshOpenSocketPresence() {
-    const now =
-      Date.now()
-
-    for (
-      const {
-        socket,
-        attachment
-      }
-      of this.getGameSockets()
-    ) {
-      if (
-        now -
-          attachment
-            .lastTouchedAt <
-        20_000
-      ) {
-        continue
-      }
-
-      const result =
-        await this
-          .callGameState(
-            attachment.matchId,
-            attachment.playerId,
-            attachment.reconnectToken,
-            attachment.revision
-          )
-
-      if (
-        result.response.ok &&
-        result.data.success ===
-          true
-      ) {
-        this.updateGameAttachment(
-          socket,
-          attachment,
-          result.data
-        )
-
-        if (
-          result.data.status ===
-          'ready'
-        ) {
-          sendSocketJson(
-            socket,
-            {
-              type:
-                'state',
-
-              data:
-                result.data
-            }
-          )
-        } else if (
-          Object.prototype
-            .hasOwnProperty.call(
-              result.data,
-              'presenceWarnings'
-            )
-        ) {
-          sendSocketJson(
-            socket,
-            {
-              type:
-                'presence',
-
-              data:
-                result.data
-            }
-          )
-        }
-      } else if (
-        [
-          401,
-          403,
-          410
-        ].includes(
-          result.response.status
-        )
-      ) {
-        sendSocketJson(
-          socket,
-          publicGameError(
-            result.response.status,
-            result.data
-          )
-        )
-
-        closeSocket(
-          socket,
-          1008,
-          'Sessão terminada'
-        )
-      }
-    }
-  }
-
-  private async broadcastGameState(
-    excludedSocket?:
-      WebSocket
-  ) {
-    for (
-      const {
-        socket,
-        attachment
-      }
-      of this.getGameSockets()
-    ) {
-      if (
-        socket ===
-        excludedSocket
-      ) {
-        continue
-      }
-
-      const result =
-        await this
-          .callGameState(
-            attachment.matchId,
-            attachment.playerId,
-            attachment.reconnectToken,
-            attachment.revision
-          )
-
-      if (
-        result.response.ok &&
-        result.data.success ===
-          true
-      ) {
-        this.updateGameAttachment(
-          socket,
-          attachment,
-          result.data
-        )
-
-        if (
-          result.data.status ===
-          'ready'
-        ) {
-          sendSocketJson(
-            socket,
-            {
-              type:
-                'state',
-
-              data:
-                result.data
-            }
-          )
-        } else if (
-          Object.prototype
-            .hasOwnProperty.call(
-              result.data,
-              'presenceWarnings'
-            )
-        ) {
-          sendSocketJson(
-            socket,
-            {
-              type:
-                'presence',
-
-              data:
-                result.data
-            }
-          )
-        }
-      } else if (
-        [
-          401,
-          403,
-          410
-        ].includes(
-          result.response.status
-        )
-      ) {
-        sendSocketJson(
-          socket,
-          publicGameError(
-            result.response.status,
-            result.data
-          )
-        )
-
-        closeSocket(
-          socket,
-          1008,
-          'Sessão terminada'
-        )
-      }
-    }
-  }
-
-  private async closeExpiredPendingSockets() {
-    const now =
-      Date.now()
-
-    for (
-      const socket
-      of this
-        .realtimeState
-        .getWebSockets()
-    ) {
-      const attachment =
-        getAttachment(
-          socket
-        )
-
-      if (
-        attachment
-          ?.kind ===
-          'game-pending' &&
-        now -
-          attachment.openedAt >=
-          PENDING_SOCKET_MAX_AGE_MS
-      ) {
-        closeSocket(
-          socket,
-          1008,
-          'Autenticação expirada'
-        )
-      }
-    }
-  }
-
-  private async scheduleAlarmNoLaterThan(
-    timestamp: number
-  ) {
-    const current =
-      await this
-        .realtimeState
-        .storage
-        .getAlarm()
-
-    if (
-      current ===
-        null ||
-      timestamp <
-        current
-    ) {
-      await this
-        .realtimeState
-        .storage
-        .setAlarm(
-          timestamp
-        )
-    }
-  }
-}
-
-export class ConquistadorMatchmakingDurableObject
-  extends BaseConquistadorMatchmakingDurableObject {
-  private readonly realtimeState:
-    RealtimeDurableObjectStateLike
-
-  private readonly realtimeEnv:
-    ConquistadorRealtimeEnv
-
-  constructor(
-    state:
-      RealtimeDurableObjectStateLike,
-    env:
-      ConquistadorRealtimeEnv
-  ) {
-    super(
-      state,
-      env
-    )
-
-    this.realtimeState =
-      state
-
-    this.realtimeEnv =
-      env
-  }
-
-  async fetch(
-    request: Request
-  ): Promise<Response> {
-    if (
-      isWebSocketUpgrade(
-        request
-      )
-    ) {
-      return this
-        .handleWebSocketUpgrade(
-          request
-        )
-    }
-
-    const response =
-      await super.fetch(
-        request
-      )
-
-    const snapshot =
-      await parseResponse(
-        response
-      )
-
-    if (
-      snapshot.response.ok &&
-      snapshot.data.success ===
-        true
-    ) {
-      await this
-        .scheduleFromMatchmakingData(
-          snapshot.data
-        )
-
-      if (
-        snapshot.data.status ===
-        'matched'
-      ) {
-        await this
-          .broadcastMatchmakingStatuses()
-      }
-    }
-
-    return response
-  }
-
-  async alarm():
-    Promise<void> {
-    await this
-      .broadcastMatchmakingStatuses()
-  }
-
-  async webSocketMessage(
-    socket: WebSocket,
-    message:
-      | string
-      | ArrayBuffer
-  ) {
-    let body:
-      JsonObject
-
-    try {
-      body =
-        parseSocketMessage(
-          message
-        )
-    } catch {
-      closeSocket(
-        socket,
-        1003,
-        'Mensagem inválida'
-      )
-
-      return
-    }
-
-    if (
-      body.type !==
-      'status'
-    ) {
-      return
-    }
-
-    const attachment =
-      getAttachment(
-        socket
-      )
-
-    if (
-      attachment
-        ?.kind !==
-      'matchmaking'
-    ) {
-      closeSocket(
-        socket,
-        1008,
-        'Pedido inválido'
-      )
-
-      return
-    }
-
-    await this
-      .sendMatchmakingStatus(
-        socket,
-        attachment.ticketId
-      )
-  }
-
-  webSocketClose(
-    socket: WebSocket,
-    code: number,
-    reason: string
-  ) {
-    closeSocket(
-      socket,
-      code || 1000,
-      reason
-    )
-  }
-
-  webSocketError(
-    socket: WebSocket
-  ) {
-    closeSocket(
-      socket,
-      1011,
-      'Erro realtime'
-    )
-  }
-
-  private async handleWebSocketUpgrade(
-    request: Request
-  ) {
-    const url =
-      new URL(
-        request.url
-      )
-
-    const ticketId =
-      normalizeId(
-        url.searchParams.get(
-          'ticketId'
-        )
-      )
-
-    if (!ticketId) {
-      return json(
-        {
-          success:
-            false,
-
-          message:
-            'O pedido de matchmaking não é válido.'
-        },
-
-        400
-      )
-    }
-
-    const result =
-      await this
-        .getMatchmakingStatus(
-          ticketId
-        )
-
-    if (
-      !result.response.ok ||
-      result.data.success !==
-        true
-    ) {
-      return json(
-        {
-          success:
-            false,
-
-          message:
-            typeof result.data.message ===
-              'string'
-              ? result.data.message
-              : 'A procura desta partida já não existe.'
-        },
-
-        result.response.status ||
-          404
-      )
-    }
-
-    const pair =
-      new WebSocketPair()
-
-    const client =
-      pair[0]
-
-    const server =
-      pair[1] as
-        HibernationWebSocket
-
-    this.realtimeState
-      .acceptWebSocket(
-        server
-      )
-
-    setAttachment(
-      server,
-      {
-        kind:
-          'matchmaking',
-
-        ticketId,
-
-        openedAt:
-          Date.now()
-      }
-    )
-
-    const publicData =
-      await this
-        .preparePublicMatchmakingData(
-          result.data
-        )
-
-    sendSocketJson(
-      server,
-      {
-        type:
-          'matchmaking-status',
-
-        data:
-          publicData
-      }
-    )
-
-    await this
-      .scheduleFromMatchmakingData(
-        result.data
-      )
-
-    if (
-      publicData.success !==
-        true ||
-      publicData.status ===
-        'error'
-    ) {
-      closeSocket(
-        server,
-        1011,
-        'Matchmaking indisponível'
-      )
-    } else if (
-      publicData.status ===
-        'matched' ||
-      publicData.status ===
-        'left'
-    ) {
-      closeSocket(
-        server,
-        1000,
-        'Matchmaking concluído'
-      )
-    }
-
-    return createWebSocketResponse(
-      client
-    )
-  }
-
-  private async getMatchmakingStatus(
-    ticketId: string
-  ) {
-    const response =
-      await super.fetch(
-        internalJsonRequest(
-          `${MATCHMAKING_API_PREFIX}/status`,
-          {
-            ticketId
-          }
-        )
-      )
-
-    return parseResponse(
-      response
-    )
-  }
-
-  private async sendMatchmakingStatus(
-    socket: WebSocket,
-    ticketId: string
-  ) {
-    const result =
-      await this
-        .getMatchmakingStatus(
-          ticketId
-        )
-
-    if (
-      !result.response.ok ||
-      result.data.success !==
-        true
-    ) {
-      sendSocketJson(
-        socket,
-        {
-          type:
-            'matchmaking-error',
-
-          status:
-            result.response.status,
-
-          message:
-            typeof result.data.message ===
-              'string'
-              ? result.data.message
-              : 'Não foi possível continuar o matchmaking.'
-        }
-      )
-
-      closeSocket(
-        socket,
-        1008,
-        'Matchmaking indisponível'
-      )
-
-      return
-    }
-
-    const publicData =
-      await this
-        .preparePublicMatchmakingData(
-          result.data
-        )
-
-    sendSocketJson(
-      socket,
-      {
-        type:
-          'matchmaking-status',
-
-        data:
-          publicData
-      }
-    )
-
-    await this
-      .scheduleFromMatchmakingData(
-        result.data
-      )
-
-    if (
-      publicData.success !==
-        true ||
-      publicData.status ===
-        'error'
-    ) {
-      closeSocket(
-        socket,
-        1011,
-        'Matchmaking indisponível'
-      )
-    } else if (
-      publicData.status ===
-        'matched' ||
-      publicData.status ===
-        'left'
-    ) {
-      closeSocket(
-        socket,
-        1000,
-        'Matchmaking concluído'
-      )
-    }
-  }
-
-  private async broadcastMatchmakingStatuses() {
-    const sockets =
-      this.realtimeState
-        .getWebSockets()
-
-    for (
-      const socket
-      of sockets
-    ) {
-      const attachment =
-        getAttachment(
-          socket
-        )
-
-      if (
-        attachment
-          ?.kind !==
-        'matchmaking'
-      ) {
-        continue
-      }
-
-      await this
-        .sendMatchmakingStatus(
-          socket,
-          attachment.ticketId
-        )
-    }
-  }
-
-  private async preparePublicMatchmakingData(
-    data: JsonObject
-  ) {
-    if (
-      data.success !==
-        true ||
-      data.status !==
-        'matched'
-    ) {
-      return data
-    }
-
-    const {
-      gameSessionCredentials,
-      ...publicData
-    } = data
-
-    if (
-      typeof data.matchId !==
-        'string' ||
-      !Array.isArray(
-        data.participants
-      ) ||
-      !Array.isArray(
-        gameSessionCredentials
-      )
-    ) {
-      return {
-        ...publicData,
-
-        success:
-          false,
-
-        status:
-          'error',
-
-        message:
-          'Não foi possível preparar as credenciais seguras da partida online.'
-      }
-    }
-
-    try {
-      await ensureConquistadorGameSession(
-        this.realtimeEnv,
-        data.matchId,
-        data.participants,
-        gameSessionCredentials
-      )
-
-      return {
-        ...publicData,
-
-        gameSessionReady:
-          true
-      }
-    } catch (
-      error
-    ) {
-      return {
-        ...publicData,
-
-        success:
-          false,
-
-        status:
-          'error',
-
-        message:
-          error instanceof
-          Error
-            ? error.message
-            : 'Não foi possível preparar a partida online.'
-      }
-    }
-  }
-
-  private async scheduleFromMatchmakingData(
-    data: JsonObject
-  ) {
-    if (
-      data.status !==
-      'waiting'
-    ) {
-      return
-    }
-
-    const deadlineAt =
-      Number(
-        data.deadlineAt
-      )
-
-    if (
-      !Number.isFinite(
-        deadlineAt
-      ) ||
-      deadlineAt <=
-        Date.now()
-    ) {
-      return
-    }
-
-    const current =
-      await this
-        .realtimeState
-        .storage
-        .getAlarm()
-
-    if (
-      current ===
-        null ||
-      deadlineAt <
-        current
-    ) {
-      await this
-        .realtimeState
-        .storage
-        .setAlarm(
-          deadlineAt
-        )
-    }
-  }
-}
+  private async callSocketConnect(
