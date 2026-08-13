@@ -9,6 +9,7 @@ const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
 const TURN_COUNTDOWN_ID = 'online-turn-countdown';
 const COUNTDOWN_TICK_MS = 250;
+const TURN_TIMEOUT_CLIENT_GRACE_MS = 1100;
 
 function normalizeId(value) {
   return String(value ?? '')
@@ -18,6 +19,7 @@ function normalizeId(value) {
 
 function normalizeReconnectToken(value) {
   const token = String(value ?? '').trim();
+
   return (
     token.length >= 32 &&
     token.length <= 256 &&
@@ -44,6 +46,7 @@ function getStoredReconnectToken(matchId, playerId) {
     }
 
     const stored = JSON.parse(raw);
+
     if (
       !stored ||
       typeof stored !== 'object' ||
@@ -68,6 +71,7 @@ function clearStoredSession(matchId, playerId) {
     }
 
     const stored = JSON.parse(raw);
+
     if (
       normalizeId(stored?.matchId) === matchId &&
       normalizeId(stored?.playerId) === playerId
@@ -156,7 +160,8 @@ function normalizeTurnTimer(data) {
     return null;
   }
 
-  const actorId = normalizeId(timer.actorId);
+  const actorId =
+    normalizeId(timer.actorId);
 
   const actorName =
     String(timer.actorName ?? '').trim();
@@ -218,6 +223,29 @@ function normalizeTurnTimer(data) {
         ? performance.now()
         : Date.now(),
   };
+}
+
+function getLocalTurnRemainingMs(timer) {
+  if (!timer) {
+    return null;
+  }
+
+  const now =
+    typeof performance !== 'undefined'
+      ? performance.now()
+      : Date.now();
+
+  const elapsedMs =
+    Math.max(
+      0,
+      now -
+      Number(timer.receivedAt || 0),
+    );
+
+  return (
+    Number(timer.remainingMs || 0) -
+    elapsedMs
+  );
 }
 
 function renderPresenceCountdown(warning) {
@@ -385,23 +413,15 @@ function renderTurnCountdown(timer) {
     return;
   }
 
-  const now =
-    typeof performance !== 'undefined'
-      ? performance.now()
-      : Date.now();
-
-  const elapsedMs =
-    Math.max(
-      0,
-      now -
-      Number(timer.receivedAt || 0),
+  const rawRemainingMs =
+    getLocalTurnRemainingMs(
+      timer,
     );
 
   const remainingMs =
     Math.max(
       0,
-      Number(timer.remainingMs || 0) -
-      elapsedMs,
+      Number(rawRemainingMs) || 0,
     );
 
   const seconds =
@@ -737,6 +757,9 @@ export class OnlineGameClient {
     this.turnTimer =
       null;
 
+    this.turnTimeoutSentSequence =
+      null;
+
     this.socket =
       null;
 
@@ -857,12 +880,108 @@ export class OnlineGameClient {
       return;
     }
 
-    this.turnTimer =
+    const previousSequence =
+      this.turnTimer?.sequence ??
+      null;
+
+    const nextTimer =
       normalizeTurnTimer(
         data,
       );
 
+    this.turnTimer =
+      nextTimer;
+
+    if (
+      !nextTimer ||
+      nextTimer.sequence !==
+        previousSequence
+    ) {
+      this.turnTimeoutSentSequence =
+        null;
+    }
+
     this.renderCountdown();
+  }
+
+  maybeSubmitTurnTimeout() {
+    const timer =
+      this.turnTimer;
+
+    if (
+      !timer ||
+      timer.actorId !==
+        this.playerId
+    ) {
+      return;
+    }
+
+    if (
+      this.turnTimeoutSentSequence ===
+      timer.sequence
+    ) {
+      return;
+    }
+
+    if (
+      !this.socket ||
+      this.socket.readyState !==
+        WebSocket.OPEN ||
+      !this.socketAuthenticated
+    ) {
+      return;
+    }
+
+    const remainingMs =
+      getLocalTurnRemainingMs(
+        timer,
+      );
+
+    if (
+      remainingMs === null ||
+      remainingMs >
+        -TURN_TIMEOUT_CLIENT_GRACE_MS
+    ) {
+      return;
+    }
+
+    this.turnTimeoutSentSequence =
+      timer.sequence;
+
+    void this.sendRealtimeRequest(
+      'turn-timeout',
+      {
+        sequence:
+          timer.sequence,
+      },
+    )
+      .catch(
+        (error) => {
+          if (
+            this.closed
+          ) {
+            return;
+          }
+
+          if (
+            error?.data?.game
+          ) {
+            this.applyRealtimeState(
+              error.data,
+            );
+          }
+
+          if (
+            isTerminalStatus(
+              error?.status,
+            )
+          ) {
+            this.handleTerminalError(
+              error,
+            );
+          }
+        },
+      );
   }
 
   renderCountdown() {
@@ -871,6 +990,8 @@ export class OnlineGameClient {
       removeTurnCountdown();
       return;
     }
+
+    this.maybeSubmitTurnTimeout();
 
     if (
       this.presenceWarning &&
@@ -1268,7 +1389,9 @@ export class OnlineGameClient {
       message.type ===
         'state-result' ||
       message.type ===
-        'command-result'
+        'command-result' ||
+      message.type ===
+        'turn-timeout-result'
     ) {
       this.resolvePendingRequest(
         message,
@@ -1321,6 +1444,9 @@ export class OnlineGameClient {
       null;
 
     this.turnTimer =
+      null;
+
+    this.turnTimeoutSentSequence =
       null;
 
     this.renderCountdown();
@@ -1898,6 +2024,8 @@ export class OnlineGameClient {
         WebSocket.OPEN &&
       this.socketAuthenticated
     ) {
+      this.renderCountdown();
+
       return;
     }
 
@@ -2061,6 +2189,12 @@ export class OnlineGameClient {
       this.countdownTimer =
         null;
     }
+
+    this.turnTimer =
+      null;
+
+    this.turnTimeoutSentSequence =
+      null;
 
     removePresenceCountdown();
     removeTurnCountdown();
