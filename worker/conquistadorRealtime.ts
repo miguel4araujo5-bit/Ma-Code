@@ -134,14 +134,19 @@ const json = (
   status = 200
 ) =>
   new Response(
-    JSON.stringify(body),
+    JSON.stringify(
+      body
+    ),
     {
       status,
+
       headers: {
         'Content-Type':
           'application/json; charset=utf-8',
+
         'Cache-Control':
           'no-store',
+
         'X-Content-Type-Options':
           'nosniff'
       }
@@ -152,7 +157,8 @@ const normalizeId = (
   value: unknown,
   maxLength = 128
 ) =>
-  typeof value === 'string'
+  typeof value ===
+  'string'
     ? value
         .replace(
           /[^A-Za-z0-9_-]/g,
@@ -168,13 +174,16 @@ const normalizeReconnectToken = (
   value: unknown
 ) => {
   const token =
-    typeof value === 'string'
+    typeof value ===
+    'string'
       ? value.trim()
       : ''
 
   return (
-    token.length >= 32 &&
-    token.length <= 256 &&
+    token.length >=
+      32 &&
+    token.length <=
+      256 &&
     /^[A-Za-z0-9_-]+$/.test(
       token
     )
@@ -187,13 +196,16 @@ const normalizeRevision = (
   value: unknown
 ) => {
   const revision =
-    Number(value)
+    Number(
+      value
+    )
 
   return (
     Number.isInteger(
       revision
     ) &&
-    revision >= 0
+    revision >=
+      0
   )
     ? revision
     : null
@@ -266,7 +278,8 @@ const isAllowedOrigin = (
 const isWebSocketUpgrade = (
   request: Request
 ) =>
-  request.method === 'GET' &&
+  request.method ===
+    'GET' &&
   (
     request.headers.get(
       'Upgrade'
@@ -431,11 +444,14 @@ const internalJsonRequest = (
   new Request(
     `https://conquistador.internal${path}`,
     {
-      method: 'POST',
+      method:
+        'POST',
+
       headers: {
         'Content-Type':
           'application/json'
       },
+
       body:
         JSON.stringify(
           body
@@ -454,7 +470,8 @@ const parseResponse =
       data =
         await response
           .clone()
-          .json() as JsonObject
+          .json() as
+            JsonObject
     } catch {}
 
     return {
@@ -467,13 +484,17 @@ const publicGameError = (
   status: number,
   data: JsonObject
 ) => ({
-  type: 'error',
+  type:
+    'error',
+
   status,
+
   message:
     typeof data.message ===
       'string'
       ? data.message
       : 'Não foi possível continuar a partida online.',
+
   data
 })
 
@@ -490,10 +511,13 @@ export const handleConquistadorGameRealtimeApiRequest =
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'Este endpoint realtime requer WebSocket.'
         },
+
         426
       )
     }
@@ -505,10 +529,13 @@ export const handleConquistadorGameRealtimeApiRequest =
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'Pedido bloqueado por origem inválida.'
         },
+
         403
       )
     }
@@ -528,10 +555,13 @@ export const handleConquistadorGameRealtimeApiRequest =
     if (!matchId) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'A sessão da partida não é válida.'
         },
+
         400
       )
     }
@@ -546,7 +576,9 @@ export const handleConquistadorGameRealtimeApiRequest =
       )
 
     return namespace
-      .get(id)
+      .get(
+        id
+      )
       .fetch(
         request
       )
@@ -565,10 +597,13 @@ export const handleConquistadorMatchmakingRealtimeApiRequest =
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'Este endpoint realtime requer WebSocket.'
         },
+
         426
       )
     }
@@ -580,10 +615,13 @@ export const handleConquistadorMatchmakingRealtimeApiRequest =
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'Pedido bloqueado por origem inválida.'
         },
+
         403
       )
     }
@@ -603,10 +641,13 @@ export const handleConquistadorMatchmakingRealtimeApiRequest =
     if (!ticketId) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'O pedido de matchmaking não é válido.'
         },
+
         400
       )
     }
@@ -621,7 +662,9 @@ export const handleConquistadorMatchmakingRealtimeApiRequest =
       )
 
     return namespace
-      .get(id)
+      .get(
+        id
+      )
       .fetch(
         request
       )
@@ -677,7 +720,9 @@ export class ConquistadorGameSessionDurableObject
         pathname ===
           '/command' ||
         pathname ===
-          '/leave'
+          '/leave' ||
+        pathname ===
+          '/turn-timeout'
       )
     ) {
       await this
@@ -721,10 +766,15 @@ export class ConquistadorGameSessionDurableObject
       sendSocketJson(
         socket,
         {
-          type: 'error',
-          status: 400,
+          type:
+            'error',
+
+          status:
+            400,
+
           message:
-            error instanceof Error
+            error instanceof
+            Error
               ? error.message
               : 'A mensagem realtime não é válida.'
         }
@@ -746,7 +796,8 @@ export class ConquistadorGameSessionDurableObject
         : ''
 
     if (
-      type === 'auth'
+      type ===
+      'auth'
     ) {
       await this
         .handleSocketAuth(
@@ -770,8 +821,12 @@ export class ConquistadorGameSessionDurableObject
       sendSocketJson(
         socket,
         {
-          type: 'error',
-          status: 401,
+          type:
+            'error',
+
+          status:
+            401,
+
           message:
             'A ligação realtime ainda não está autenticada.'
         }
@@ -787,7 +842,8 @@ export class ConquistadorGameSessionDurableObject
     }
 
     if (
-      type === 'state'
+      type ===
+      'state'
     ) {
       await this
         .handleSocketState(
@@ -800,7 +856,8 @@ export class ConquistadorGameSessionDurableObject
     }
 
     if (
-      type === 'command'
+      type ===
+      'command'
     ) {
       await this
         .handleSocketCommand(
@@ -812,11 +869,29 @@ export class ConquistadorGameSessionDurableObject
       return
     }
 
+    if (
+      type ===
+      'turn-timeout'
+    ) {
+      await this
+        .handleSocketTurnTimeout(
+          socket,
+          attachment,
+          body
+        )
+
+      return
+    }
+
     sendSocketJson(
       socket,
       {
-        type: 'error',
-        status: 400,
+        type:
+          'error',
+
+        status:
+          400,
+
         message:
           'A mensagem realtime não é suportada.'
       }
@@ -869,10 +944,13 @@ export class ConquistadorGameSessionDurableObject
     if (!matchId) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'A sessão da partida não é válida.'
         },
+
         400
       )
     }
@@ -900,7 +978,9 @@ export class ConquistadorGameSessionDurableObject
       {
         kind:
           'game-pending',
+
         matchId,
+
         openedAt:
           now
       }
@@ -934,8 +1014,12 @@ export class ConquistadorGameSessionDurableObject
       sendSocketJson(
         socket,
         {
-          type: 'error',
-          status: 409,
+          type:
+            'error',
+
+          status:
+            409,
+
           message:
             'Esta ligação realtime já foi inicializada.'
         }
@@ -961,8 +1045,12 @@ export class ConquistadorGameSessionDurableObject
       sendSocketJson(
         socket,
         {
-          type: 'error',
-          status: 400,
+          type:
+            'error',
+
+          status:
+            400,
+
           message:
             'A credencial da partida não é válida.'
         }
@@ -1018,12 +1106,18 @@ export class ConquistadorGameSessionDurableObject
     setAttachment(
       socket,
       {
-        kind: 'game',
+        kind:
+          'game',
+
         matchId:
           pending.matchId,
+
         playerId,
+
         reconnectToken,
+
         revision,
+
         lastTouchedAt:
           Date.now()
       }
@@ -1032,7 +1126,9 @@ export class ConquistadorGameSessionDurableObject
     sendSocketJson(
       socket,
       {
-        type: 'state',
+        type:
+          'state',
+
         data:
           result.data
       }
@@ -1080,13 +1176,17 @@ export class ConquistadorGameSessionDurableObject
       {
         type:
           'state-result',
+
         requestId,
+
         ok:
           result.response.ok &&
           result.data.success ===
             true,
+
         status:
           result.response.status,
+
         data:
           result.data
       }
@@ -1138,11 +1238,19 @@ export class ConquistadorGameSessionDurableObject
         {
           type:
             'command-result',
+
           requestId,
-          ok: false,
-          status: 400,
+
+          ok:
+            false,
+
+          status:
+            400,
+
           data: {
-            success: false,
+            success:
+              false,
+
             message:
               'A ação online não é válida.'
           }
@@ -1159,15 +1267,19 @@ export class ConquistadorGameSessionDurableObject
           {
             matchId:
               attachment.matchId,
+
             playerId:
               attachment.playerId,
+
             reconnectToken:
               attachment.reconnectToken,
+
             revision:
               normalizeRevision(
                 body.revision
               ) ??
                 attachment.revision,
+
             command
           }
         )
@@ -1193,13 +1305,17 @@ export class ConquistadorGameSessionDurableObject
       {
         type:
           'command-result',
+
         requestId,
+
         ok:
           result.response.ok &&
           result.data.success ===
             true,
+
         status:
           result.response.status,
+
         data:
           result.data
       }
@@ -1217,6 +1333,145 @@ export class ConquistadorGameSessionDurableObject
     }
 
     if (
+      [
+        401,
+        403,
+        410
+      ].includes(
+        result.response.status
+      )
+    ) {
+      closeSocket(
+        socket,
+        1008,
+        'Sessão terminada'
+      )
+    }
+  }
+
+  private async handleSocketTurnTimeout(
+    socket: WebSocket,
+    attachment:
+      GameSocketAttachment,
+    body: JsonObject
+  ) {
+    const requestId =
+      normalizeId(
+        body.requestId,
+        96
+      )
+
+    const sequence =
+      normalizeRevision(
+        body.sequence
+      )
+
+    if (
+      sequence ===
+      null
+    ) {
+      sendSocketJson(
+        socket,
+        {
+          type:
+            'turn-timeout-result',
+
+          requestId,
+
+          ok:
+            false,
+
+          status:
+            400,
+
+          data: {
+            success:
+              false,
+
+            message:
+              'O identificador do limite de tempo não é válido.'
+          }
+        }
+      )
+
+      return
+    }
+
+    const response =
+      await super.fetch(
+        internalJsonRequest(
+          '/turn-timeout',
+          {
+            matchId:
+              attachment.matchId,
+
+            playerId:
+              attachment.playerId,
+
+            reconnectToken:
+              attachment.reconnectToken,
+
+            sequence
+          }
+        )
+      )
+
+    const result =
+      await parseResponse(
+        response
+      )
+
+    if (
+      result.data.game
+    ) {
+      this.updateGameAttachment(
+        socket,
+        attachment,
+        result.data
+      )
+    }
+
+    const succeeded =
+      result.response.ok &&
+      result.data.success ===
+        true
+
+    const kicked =
+      result.data.kicked ===
+        true ||
+      result.data.status ===
+        'player-replaced'
+
+    sendSocketJson(
+      socket,
+      {
+        type:
+          'turn-timeout-result',
+
+        requestId,
+
+        ok:
+          succeeded,
+
+        status:
+          result.response.status,
+
+        data:
+          result.data
+      }
+    )
+
+    if (
+      succeeded
+    ) {
+      await this
+        .broadcastGameState(
+          socket
+        )
+    }
+
+    if (
+      kicked ||
       [
         401,
         403,
@@ -1268,11 +1523,13 @@ export class ConquistadorGameSessionDurableObject
       socket,
       {
         ...current,
+
         revision:
           normalizeRevision(
             data.revision
           ) ??
           current.revision,
+
         lastTouchedAt:
           Date.now()
       }
@@ -1286,6 +1543,7 @@ export class ConquistadorGameSessionDurableObject
       .map(
         (socket) => ({
           socket,
+
           attachment:
             getAttachment(
               socket
@@ -1348,12 +1606,14 @@ export class ConquistadorGameSessionDurableObject
 
         if (
           result.data.status ===
-            'ready'
+          'ready'
         ) {
           sendSocketJson(
             socket,
             {
-              type: 'state',
+              type:
+                'state',
+
               data:
                 result.data
             }
@@ -1368,7 +1628,9 @@ export class ConquistadorGameSessionDurableObject
           sendSocketJson(
             socket,
             {
-              type: 'presence',
+              type:
+                'presence',
+
               data:
                 result.data
             }
@@ -1440,12 +1702,14 @@ export class ConquistadorGameSessionDurableObject
 
         if (
           result.data.status ===
-            'ready'
+          'ready'
         ) {
           sendSocketJson(
             socket,
             {
-              type: 'state',
+              type:
+                'state',
+
               data:
                 result.data
             }
@@ -1460,7 +1724,9 @@ export class ConquistadorGameSessionDurableObject
           sendSocketJson(
             socket,
             {
-              type: 'presence',
+              type:
+                'presence',
+
               data:
                 result.data
             }
@@ -1534,8 +1800,10 @@ export class ConquistadorGameSessionDurableObject
         .getAlarm()
 
     if (
-      current === null ||
-      timestamp < current
+      current ===
+        null ||
+      timestamp <
+        current
     ) {
       await this
         .realtimeState
@@ -1609,7 +1877,7 @@ export class ConquistadorMatchmakingDurableObject
 
       if (
         snapshot.data.status ===
-          'matched'
+        'matched'
       ) {
         await this
           .broadcastMatchmakingStatuses()
@@ -1664,7 +1932,7 @@ export class ConquistadorMatchmakingDurableObject
     if (
       attachment
         ?.kind !==
-        'matchmaking'
+      'matchmaking'
     ) {
       closeSocket(
         socket,
@@ -1722,10 +1990,13 @@ export class ConquistadorMatchmakingDurableObject
     if (!ticketId) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             'O pedido de matchmaking não é válido.'
         },
+
         400
       )
     }
@@ -1743,13 +2014,16 @@ export class ConquistadorMatchmakingDurableObject
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             typeof result.data.message ===
               'string'
               ? result.data.message
               : 'A procura desta partida já não existe.'
         },
+
         result.response.status ||
           404
       )
@@ -1775,7 +2049,9 @@ export class ConquistadorMatchmakingDurableObject
       {
         kind:
           'matchmaking',
+
         ticketId,
+
         openedAt:
           Date.now()
       }
@@ -1792,6 +2068,7 @@ export class ConquistadorMatchmakingDurableObject
       {
         type:
           'matchmaking-status',
+
         data:
           publicData
       }
@@ -1803,7 +2080,8 @@ export class ConquistadorMatchmakingDurableObject
       )
 
     if (
-      publicData.success !== true ||
+      publicData.success !==
+        true ||
       publicData.status ===
         'error'
     ) {
@@ -1868,8 +2146,10 @@ export class ConquistadorMatchmakingDurableObject
         {
           type:
             'matchmaking-error',
+
           status:
             result.response.status,
+
           message:
             typeof result.data.message ===
               'string'
@@ -1898,6 +2178,7 @@ export class ConquistadorMatchmakingDurableObject
       {
         type:
           'matchmaking-status',
+
         data:
           publicData
       }
@@ -1909,7 +2190,8 @@ export class ConquistadorMatchmakingDurableObject
       )
 
     if (
-      publicData.success !== true ||
+      publicData.success !==
+        true ||
       publicData.status ===
         'error'
     ) {
@@ -1966,7 +2248,8 @@ export class ConquistadorMatchmakingDurableObject
     data: JsonObject
   ) {
     if (
-      data.success !== true ||
+      data.success !==
+        true ||
       data.status !==
         'matched'
     ) {
@@ -1990,8 +2273,13 @@ export class ConquistadorMatchmakingDurableObject
     ) {
       return {
         ...publicData,
-        success: false,
-        status: 'error',
+
+        success:
+          false,
+
+        status:
+          'error',
+
         message:
           'Não foi possível preparar as credenciais seguras da partida online.'
       }
@@ -2007,6 +2295,7 @@ export class ConquistadorMatchmakingDurableObject
 
       return {
         ...publicData,
+
         gameSessionReady:
           true
       }
@@ -2015,10 +2304,16 @@ export class ConquistadorMatchmakingDurableObject
     ) {
       return {
         ...publicData,
-        success: false,
-        status: 'error',
+
+        success:
+          false,
+
+        status:
+          'error',
+
         message:
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : 'Não foi possível preparar a partida online.'
       }
@@ -2030,7 +2325,7 @@ export class ConquistadorMatchmakingDurableObject
   ) {
     if (
       data.status !==
-        'waiting'
+      'waiting'
     ) {
       return
     }
@@ -2057,8 +2352,10 @@ export class ConquistadorMatchmakingDurableObject
         .getAlarm()
 
     if (
-      current === null ||
-      deadlineAt < current
+      current ===
+        null ||
+      deadlineAt <
+        current
     ) {
       await this
         .realtimeState
