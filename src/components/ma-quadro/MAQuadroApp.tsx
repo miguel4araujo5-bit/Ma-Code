@@ -20,9 +20,11 @@ import EditorHeader from './EditorHeader'
 import ElementEditor from './ElementEditor'
 import ElementLibrary from './ElementLibrary'
 import ElementToolsLayoutController from './ElementToolsLayoutController'
+
 import {
   MAQuadroEditorProvider
 } from './editorContext'
+
 import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
@@ -41,6 +43,7 @@ import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
 import VideoEditor from './VideoEditor'
 import VideoUploads from './VideoUploads'
+
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
