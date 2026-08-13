@@ -23,6 +23,7 @@ export type PortfolioProvider =
   | 'solana-rpc'
   | 'trongrid'
   | 'blockstream'
+
 export type TransactionProvider =
   | 'evm-explorer'
   | 'solana-rpc'
@@ -44,6 +45,7 @@ export type ChainExplorerConfig = {
   apiUrl: string
   apiFamily: ExplorerApiFamily
 }
+
 export type ChainPriceConfig = {
   provider: PriceProvider
   networkId: string
@@ -56,6 +58,7 @@ export type ChainCapabilities = {
   transactions: boolean
   prices: boolean
 }
+
 export type ChainConfig = {
   id: string
   chainId: number | null
@@ -75,6 +78,7 @@ export type ChainConfig = {
   explorer: ChainExplorerConfig
   price: ChainPriceConfig | null
 }
+
 export const CHAIN_CONFIGS = {
   pulsechain: {
     id: 'pulsechain',
@@ -331,7 +335,11 @@ export const CHAIN_CONFIGS = {
       symbol: 'ETH',
       decimals: 18
     },
-    rpcUrls: ['https://mainnet.base.org'],
+    rpcUrls: [
+      'https://base-rpc.publicnode.com',
+      'https://base.drpc.org',
+      'https://mainnet.base.org'
+    ],
     dataApiUrl: 'https://base.blockscout.com/api/v2',
     portfolioProvider: 'blockscout-v2',
     transactionProvider: 'evm-explorer',
@@ -371,7 +379,11 @@ export const CHAIN_CONFIGS = {
       symbol: 'ETH',
       decimals: 18
     },
-    rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+    rpcUrls: [
+      'https://arbitrum-one-rpc.publicnode.com',
+      'https://arbitrum.drpc.org',
+      'https://arb1.arbitrum.io/rpc'
+    ],
     dataApiUrl: 'https://arbitrum.blockscout.com/api/v2',
     portfolioProvider: 'blockscout-v2',
     transactionProvider: 'evm-explorer',
@@ -441,6 +453,7 @@ export const CHAIN_CONFIGS = {
     }
   }
 } as const satisfies Record<string, ChainConfig>
+
 export type ChainId = keyof typeof CHAIN_CONFIGS
 
 export const DEFAULT_CHAIN_ID: ChainId = 'pulsechain'
@@ -462,6 +475,7 @@ const getBase58DecodedLength = (value: string) => {
   }
 
   const bytes: number[] = [0]
+
   for (const character of value) {
     const digit = BASE58_ALPHABET.indexOf(character)
 
@@ -484,6 +498,7 @@ const getBase58DecodedLength = (value: string) => {
   }
 
   let leadingZeros = 0
+
   while (
     leadingZeros < value.length &&
     value[leadingZeros] === '1'
@@ -505,6 +520,7 @@ export function getChainConfig(chainId?: string | null): ChainConfig {
 
   return CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
 }
+
 export function getDefaultChainConfig() {
   return CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
 }
@@ -520,6 +536,7 @@ export function getRpcUrls(chainId?: string | null) {
 export function getPrimaryRpcUrl(chainId?: string | null) {
   const chain = getChainConfig(chainId)
   const rpcUrl = chain.rpcUrls[0]
+
   if (!rpcUrl) {
     throw new Error(`Não existe RPC configurado para ${chain.name}.`)
   }
@@ -540,6 +557,7 @@ export function getExplorerTransactionUrl(
 ) {
   return `${getChainConfig(chainId).explorer.transactionUrl}/${transactionHash}`
 }
+
 export function getExplorerTokenUrl(
   contractAddress: string,
   chainId?: string | null
@@ -554,6 +572,7 @@ export function getExplorerApiUrl(chainId?: string | null) {
 export function getNativeCurrency(chainId?: string | null) {
   return getChainConfig(chainId).nativeCurrency
 }
+
 export function getWrappedNativeToken(chainId?: string | null) {
   return getChainConfig(chainId).price?.wrappedNativeToken || null
 }
@@ -569,6 +588,7 @@ export function getCoinGeckoCoinId(chainId?: string | null) {
 export function getTokenStandard(chainId?: string | null) {
   return getChainConfig(chainId).tokenStandard
 }
+
 export function getAddressPlaceholder(chainId?: string | null) {
   return getChainConfig(chainId).addressPlaceholder
 }
@@ -584,6 +604,7 @@ export function supportsTransactions(chainId?: string | null) {
 export function supportsPrices(chainId?: string | null) {
   return getChainConfig(chainId).capabilities.prices
 }
+
 export function normalizeChainAddress(
   value: string,
   chainId: string = DEFAULT_CHAIN_ID
@@ -610,6 +631,7 @@ export function normalizeChainAddress(
 
   return clean
 }
+
 export function isValidChainAddress(
   value: string,
   chainId: string = DEFAULT_CHAIN_ID
@@ -627,6 +649,7 @@ export function isValidChainAddress(
       getBase58DecodedLength(address) === 32
     )
   }
+
   if (chain.addressType === 'tron') {
     return (
       /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address) &&
@@ -643,6 +666,7 @@ export function isValidChainAddress(
     getBase58DecodedLength(address) === 25
   )
 }
+
 export function getCanonicalAddress(
   address: string,
   chainId: string = DEFAULT_CHAIN_ID
@@ -664,6 +688,7 @@ export function createWalletStorageKey(
   const safeChainId = isSupportedChainId(chainId)
     ? chainId
     : DEFAULT_CHAIN_ID
+
   return `${safeChainId}:${getCanonicalAddress(address, safeChainId)}`
 }
 
@@ -678,9 +703,11 @@ export function parseWalletStorageKey(value: string) {
   }
 
   const possibleChainId = value.slice(0, separatorIndex).trim()
+
   const chainId = isSupportedChainId(possibleChainId)
     ? possibleChainId
     : DEFAULT_CHAIN_ID
+
   return {
     chainId,
     address: getCanonicalAddress(
