@@ -12,9 +12,28 @@ import type {
   MAQuadroProjectCategory
 } from '../../types/maQuadro'
 
+import type {
+  MAQuadroProjectFolder,
+  MAQuadroProjectFolderCollection
+} from '../../lib/maQuadro/projectFolders'
+
+import {
+  MA_QUADRO_PROJECT_FOLDERS_STORAGE_KEY,
+  MA_QUADRO_UNFILED_FOLDER_ID,
+  createMAQuadroProjectFolderId,
+  hasMAQuadroProjectFolderName,
+  normalizeMAQuadroProjectFolderName,
+  readMAQuadroProjectFolderCollection,
+  writeMAQuadroProjectFolderCollection
+} from '../../lib/maQuadro/projectFolders'
+
 import {
   useMAQuadroEditorContext
 } from './editorContext'
+
+import ProjectFoldersPanel, {
+  type MAQuadroProjectFolderActionResult
+} from './ProjectFoldersPanel'
 
 import './maQuadroHome.css'
 import './maQuadroHomeProjects.css'
@@ -236,15 +255,23 @@ function HomeFavouriteButton({
 
 function ProjectActionsMenu({
   project,
+  folders,
+  folderId,
   locked,
   onOpen,
   onDuplicate,
   onRename,
   onSaveAsTemplate,
+  onMove,
   onDelete
 }: {
   project:
     MAQuadroProject
+  folders:
+    MAQuadroProjectFolder[]
+  folderId:
+    string |
+    null
   locked:
     boolean
   onOpen:
@@ -255,6 +282,12 @@ function ProjectActionsMenu({
     () => void
   onSaveAsTemplate:
     () => void
+  onMove:
+    (
+      folderId:
+        string |
+        null
+    ) => void
   onDelete:
     () => void
 }) {
@@ -384,6 +417,51 @@ function ProjectActionsMenu({
           Guardar como modelo
         </button>
 
+        <label className="mq-home-project-actions__folder">
+          <span>
+            Pasta
+          </span>
+
+          <select
+            value={
+              folderId || ''
+            }
+            disabled={locked}
+            aria-label={`Pasta de ${project.name}`}
+            onChange={(event) => {
+              const nextFolderId =
+                event.target.value ||
+                null
+
+              if (
+                detailsRef.current
+              ) {
+                detailsRef.current.open =
+                  false
+              }
+
+              onMove(
+                nextFolderId
+              )
+            }}
+          >
+            <option value="">
+              Sem pasta
+            </option>
+
+            {folders.map(
+              (folder) => (
+                <option
+                  key={folder.id}
+                  value={folder.id}
+                >
+                  {folder.name}
+                </option>
+              )
+            )}
+          </select>
+        </label>
+
         <div className="mq-home-project-actions__separator" />
 
         <button
@@ -450,6 +528,22 @@ export default function MAQuadroHome({
   ] = useState(
     false
   )
+
+  const [
+    folderCollection,
+    setFolderCollection
+  ] = useState<MAQuadroProjectFolderCollection>(
+    () =>
+      readMAQuadroProjectFolderCollection()
+  )
+
+  const [
+    selectedFolderId,
+    setSelectedFolderId
+  ] = useState<
+    string |
+    null
+  >(null)
 
   const [
     actionId,
@@ -547,6 +641,113 @@ export default function MAQuadroHome({
       ]
     )
 
+  const folders =
+    useMemo(
+      () =>
+        [...folderCollection.folders]
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              first.name.localeCompare(
+                second.name,
+                'pt-PT',
+                {
+                  sensitivity: 'base'
+                }
+              )
+          ),
+      [
+        folderCollection.folders
+      ]
+    )
+
+  const folderById =
+    useMemo(
+      () =>
+        new Map(
+          folders.map(
+            (folder) => [
+              folder.id,
+              folder
+            ]
+          )
+        ),
+      [folders]
+    )
+
+  const projectCountsByFolder =
+    useMemo(
+      () => {
+        const counts:
+          Record<string, number> = {}
+
+        for (
+          const project of projects
+        ) {
+          const folderId =
+            folderCollection
+              .projectFolderIds[
+                project.id
+              ]
+
+          if (
+            folderId &&
+            folderById.has(
+              folderId
+            )
+          ) {
+            counts[folderId] =
+              (counts[folderId] || 0) +
+              1
+          }
+        }
+
+        return counts
+      },
+      [
+        folderById,
+        folderCollection.projectFolderIds,
+        projects
+      ]
+    )
+
+  const unfiledProjectCount =
+    useMemo(
+      () =>
+        projects.filter(
+          (project) => {
+            const folderId =
+              folderCollection
+                .projectFolderIds[
+                  project.id
+                ]
+
+            return (
+              !folderId ||
+              !folderById.has(
+                folderId
+              )
+            )
+          }
+        ).length,
+      [
+        folderById,
+        folderCollection.projectFolderIds,
+        projects
+      ]
+    )
+
+  const selectedFolder =
+    selectedFolderId &&
+    selectedFolderId !==
+      MA_QUADRO_UNFILED_FOLDER_ID
+      ? folderById.get(
+          selectedFolderId
+        ) || null
+      : null
+
   const templates =
     useMemo(
       () =>
@@ -624,7 +825,13 @@ export default function MAQuadroHome({
                       project.name,
                       categoryLabels[
                         project.category
-                      ]
+                      ],
+                      folderById.get(
+                        folderCollection
+                          .projectFolderIds[
+                            project.id
+                          ] || ''
+                      )?.name || ''
                     ].join(
                       ' '
                     )
@@ -648,6 +855,39 @@ export default function MAQuadroHome({
         }
 
         if (
+          viewFilter === 'all' &&
+          selectedFolderId
+        ) {
+          filtered =
+            filtered.filter(
+              (project) => {
+                const folderId =
+                  folderCollection
+                    .projectFolderIds[
+                      project.id
+                    ]
+
+                if (
+                  selectedFolderId ===
+                  MA_QUADRO_UNFILED_FOLDER_ID
+                ) {
+                  return (
+                    !folderId ||
+                    !folderById.has(
+                      folderId
+                    )
+                  )
+                }
+
+                return (
+                  folderId ===
+                  selectedFolderId
+                )
+              }
+            )
+        }
+
+        if (
           viewFilter ===
           'recent'
         ) {
@@ -661,8 +901,11 @@ export default function MAQuadroHome({
       },
       [
         favouriteProjectIds,
+        folderById,
+        folderCollection.projectFolderIds,
         projects,
         query,
+        selectedFolderId,
         viewFilter
       ]
     )
@@ -730,7 +973,11 @@ export default function MAQuadroHome({
           viewFilter ===
             'templates' ||
           viewFilter ===
-            'favourites'
+            'favourites' ||
+          (
+            viewFilter === 'all' &&
+            selectedFolderId !== null
+          )
         ) {
           return []
         }
@@ -765,6 +1012,7 @@ export default function MAQuadroHome({
       [
         editor.presets,
         query,
+        selectedFolderId,
         viewFilter
       ]
     )
@@ -874,6 +1122,338 @@ export default function MAQuadroHome({
     enterEditor,
     waitingForCustom
   ])
+
+  useEffect(() => {
+    const handleStorage = (
+      event:
+        StorageEvent
+    ) => {
+      if (
+        event.key &&
+        event.key !==
+          MA_QUADRO_PROJECT_FOLDERS_STORAGE_KEY
+      ) {
+        return
+      }
+
+      setFolderCollection(
+        readMAQuadroProjectFolderCollection()
+      )
+    }
+
+    window.addEventListener(
+      'storage',
+      handleStorage
+    )
+
+    return () => {
+      window.removeEventListener(
+        'storage',
+        handleStorage
+      )
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      !selectedFolderId ||
+      selectedFolderId ===
+        MA_QUADRO_UNFILED_FOLDER_ID ||
+      folderById.has(
+        selectedFolderId
+      )
+    ) {
+      return
+    }
+
+    setSelectedFolderId(
+      null
+    )
+  }, [
+    folderById,
+    selectedFolderId
+  ])
+
+  const saveFolderCollection =
+    useCallback(
+      (
+        next:
+          MAQuadroProjectFolderCollection
+      ) => {
+        if (
+          !writeMAQuadroProjectFolderCollection(
+            next
+          )
+        ) {
+          return false
+        }
+
+        setFolderCollection(
+          next
+        )
+
+        return true
+      },
+      []
+    )
+
+  const createFolder =
+    (
+      rawName:
+        string
+    ):
+      MAQuadroProjectFolderActionResult => {
+      const name =
+        normalizeMAQuadroProjectFolderName(
+          rawName
+        )
+
+      if (!name) {
+        return {
+          ok: false,
+          message:
+            'Introduza um nome para a pasta.'
+        }
+      }
+
+      if (
+        hasMAQuadroProjectFolderName(
+          folders,
+          name
+        )
+      ) {
+        return {
+          ok: false,
+          message:
+            'Já existe uma pasta com esse nome.'
+        }
+      }
+
+      const now =
+        new Date().toISOString()
+
+      const folder:
+        MAQuadroProjectFolder = {
+          id:
+            createMAQuadroProjectFolderId(),
+          name,
+          createdAt: now,
+          updatedAt: now
+        }
+
+      const next:
+        MAQuadroProjectFolderCollection = {
+          ...folderCollection,
+          folders: [
+            ...folderCollection.folders,
+            folder
+          ]
+        }
+
+      if (
+        !saveFolderCollection(
+          next
+        )
+      ) {
+        return {
+          ok: false,
+          message:
+            'O navegador não permitiu guardar a pasta.'
+        }
+      }
+
+      setSelectedFolderId(
+        folder.id
+      )
+
+      return {
+        ok: true
+      }
+    }
+
+  const renameFolder =
+    (
+      folderId:
+        string,
+      rawName:
+        string
+    ):
+      MAQuadroProjectFolderActionResult => {
+      const name =
+        normalizeMAQuadroProjectFolderName(
+          rawName
+        )
+
+      if (!name) {
+        return {
+          ok: false,
+          message:
+            'Introduza um nome para a pasta.'
+        }
+      }
+
+      if (
+        hasMAQuadroProjectFolderName(
+          folders,
+          name,
+          folderId
+        )
+      ) {
+        return {
+          ok: false,
+          message:
+            'Já existe uma pasta com esse nome.'
+        }
+      }
+
+      const folder =
+        folderById.get(
+          folderId
+        )
+
+      if (!folder) {
+        return {
+          ok: false,
+          message:
+            'A pasta já não existe.'
+        }
+      }
+
+      if (
+        folder.name === name
+      ) {
+        return {
+          ok: true
+        }
+      }
+
+      const next:
+        MAQuadroProjectFolderCollection = {
+          ...folderCollection,
+          folders:
+            folderCollection.folders.map(
+              (item) =>
+                item.id === folderId
+                  ? {
+                      ...item,
+                      name,
+                      updatedAt:
+                        new Date().toISOString()
+                    }
+                  : item
+            )
+        }
+
+      if (
+        !saveFolderCollection(
+          next
+        )
+      ) {
+        return {
+          ok: false,
+          message:
+            'O navegador não permitiu guardar o novo nome.'
+        }
+      }
+
+      return {
+        ok: true
+      }
+    }
+
+  const deleteFolder =
+    (
+      folderId:
+        string
+    ) => {
+      const projectFolderIds = {
+        ...folderCollection.projectFolderIds
+      }
+
+      for (
+        const [
+          projectId,
+          assignedFolderId
+        ] of Object.entries(
+          projectFolderIds
+        )
+      ) {
+        if (
+          assignedFolderId ===
+          folderId
+        ) {
+          delete projectFolderIds[
+            projectId
+          ]
+        }
+      }
+
+      const next:
+        MAQuadroProjectFolderCollection = {
+          ...folderCollection,
+          folders:
+            folderCollection.folders.filter(
+              (folder) =>
+                folder.id !==
+                folderId
+            ),
+          projectFolderIds
+        }
+
+      if (
+        !saveFolderCollection(
+          next
+        )
+      ) {
+        return
+      }
+
+      if (
+        selectedFolderId ===
+        folderId
+      ) {
+        setSelectedFolderId(
+          MA_QUADRO_UNFILED_FOLDER_ID
+        )
+      }
+    }
+
+  const moveProjectToFolder =
+    (
+      projectId:
+        string,
+      folderId:
+        string |
+        null
+    ) => {
+      if (
+        folderId &&
+        !folderById.has(
+          folderId
+        )
+      ) {
+        return
+      }
+
+      const projectFolderIds = {
+        ...folderCollection.projectFolderIds
+      }
+
+      if (folderId) {
+        projectFolderIds[
+          projectId
+        ] = folderId
+      } else {
+        delete projectFolderIds[
+          projectId
+        ]
+      }
+
+      saveFolderCollection({
+        ...folderCollection,
+        projectFolderIds
+      })
+    }
 
   const toggleFavourite =
     (
@@ -1166,6 +1746,11 @@ export default function MAQuadroHome({
         await editor.deleteProject(
           project.id
         )
+
+        moveProjectToFolder(
+          project.id,
+          null
+        )
       } finally {
         setActionId(
           null
@@ -1298,9 +1883,18 @@ export default function MAQuadroHome({
         ? query
           ? 'Projetos favoritos encontrados'
           : 'Projetos favoritos'
-        : query
-          ? 'Projetos encontrados'
-          : 'Todos os projetos'
+        : selectedFolderId ===
+            MA_QUADRO_UNFILED_FOLDER_ID
+          ? query
+            ? 'Resultados em Sem pasta'
+            : 'Projetos sem pasta'
+          : selectedFolder
+            ? query
+              ? `Resultados em ${selectedFolder.name}`
+              : selectedFolder.name
+            : query
+              ? 'Projetos encontrados'
+              : 'Todos os projetos'
 
   return (
     <main className="mq-home">
@@ -1559,6 +2153,37 @@ export default function MAQuadroHome({
           </button>
         </nav>
 
+        {viewFilter === 'all' ? (
+          <ProjectFoldersPanel
+            folders={folders}
+            projectCounts={
+              projectCountsByFolder
+            }
+            totalCount={
+              projects.length
+            }
+            unfiledCount={
+              unfiledProjectCount
+            }
+            selectedFolderId={
+              selectedFolderId
+            }
+            locked={locked}
+            onSelect={
+              setSelectedFolderId
+            }
+            onCreate={
+              createFolder
+            }
+            onRename={
+              renameFolder
+            }
+            onDelete={
+              deleteFolder
+            }
+          />
+        ) : null}
+
         {!query &&
         viewFilter ===
           'recent' &&
@@ -1738,7 +2363,9 @@ export default function MAQuadroHome({
                   {viewFilter ===
                   'favourites'
                     ? 'Projetos que marcou para acesso rápido.'
-                    : 'Abra ou faça a gestão dos projetos guardados neste dispositivo.'}
+                    : selectedFolderId
+                      ? 'Abra os projetos desta pasta ou altere a organização no menu de ações.'
+                      : 'Abra ou faça a gestão dos projetos guardados neste dispositivo.'}
                 </p>
               </span>
 
@@ -1764,7 +2391,16 @@ export default function MAQuadroHome({
               {filteredProjects.map(
                 (
                   project
-                ) => (
+                ) => {
+                  const folder =
+                    folderById.get(
+                      folderCollection
+                        .projectFolderIds[
+                          project.id
+                        ] || ''
+                    ) || null
+
+                  return (
                   <article
                     key={
                       project.id
@@ -1822,6 +2458,12 @@ export default function MAQuadroHome({
                             project.updatedAt
                           )}
                         </span>
+
+                        {folder ? (
+                          <span className="mq-home-project__folder-label">
+                            ▰ {folder.name}
+                          </span>
+                        ) : null}
                       </span>
                     </button>
 
@@ -1847,6 +2489,13 @@ export default function MAQuadroHome({
                       project={
                         project
                       }
+                      folders={
+                        folders
+                      }
+                      folderId={
+                        folder?.id ||
+                        null
+                      }
                       locked={
                         locked
                       }
@@ -1870,6 +2519,14 @@ export default function MAQuadroHome({
                           project
                         )
                       }
+                      onMove={(
+                        folderId
+                      ) =>
+                        moveProjectToFolder(
+                          project.id,
+                          folderId
+                        )
+                      }
                       onDelete={() =>
                         void deleteProject(
                           project
@@ -1877,7 +2534,8 @@ export default function MAQuadroHome({
                       }
                     />
                   </article>
-                )
+                  )
+                }
               )}
             </div>
           </section>
@@ -1996,9 +2654,13 @@ export default function MAQuadroHome({
                   ? query
                     ? 'Nenhum modelo encontrado.'
                     : 'Ainda não existem modelos.'
-                  : query
-                    ? 'Nenhum projeto encontrado.'
-                    : 'Ainda não existem projetos nesta vista.'}
+                  : selectedFolderId
+                    ? query
+                      ? 'Nenhum projeto encontrado nesta pasta.'
+                      : 'Esta pasta ainda está vazia.'
+                    : query
+                      ? 'Nenhum projeto encontrado.'
+                      : 'Ainda não existem projetos nesta vista.'}
             </strong>
 
             <span>
@@ -2010,7 +2672,9 @@ export default function MAQuadroHome({
                   : viewFilter ===
                       'templates'
                     ? 'Pode guardar um projeto como modelo a partir do menu de ações.'
-                    : 'Crie um novo design para começar.'}
+                    : selectedFolderId
+                      ? 'Abra Todos os projetos e utilize o menu de ações para os mover para esta pasta.'
+                      : 'Crie um novo design para começar.'}
             </span>
 
             {query ? (
@@ -2047,6 +2711,17 @@ export default function MAQuadroHome({
                 }
               >
                 Voltar aos recentes
+              </button>
+            ) : selectedFolderId ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedFolderId(
+                    null
+                  )
+                }
+              >
+                Ver todos os projetos
               </button>
             ) : (
               <button
