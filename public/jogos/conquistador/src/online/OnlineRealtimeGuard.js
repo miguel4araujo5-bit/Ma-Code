@@ -7,9 +7,6 @@
   const STORED_SESSION_KEY =
     'conquistador-online-session-v1';
 
-  const RETURN_TO_LOBBY_KEY =
-    'conquistador-online-return-to-lobby-v1';
-
   const originalFetch =
     window.fetch.bind(
       window,
@@ -24,8 +21,14 @@
   const listenerWrappers =
     new WeakMap();
 
-  let redirectingToLobby =
+  let latestGameData =
+    null;
+
+  let endingSession =
     false;
+
+  let observer =
+    null;
 
   function isRecord(value) {
     return Boolean(
@@ -72,6 +75,20 @@
     }
   }
 
+  function normalizeId(value) {
+    return String(
+      value ?? '',
+    )
+      .replace(
+        /[^A-Za-z0-9_-]/g,
+        '',
+      )
+      .slice(
+        0,
+        96,
+      );
+  }
+
   function getDiscardActorId(game) {
     const event =
       isRecord(
@@ -103,13 +120,10 @@
         ) || 0,
       );
 
-    const entry =
-      queue[index];
-
-    return typeof entry?.playerId ===
-      'string'
-      ? entry.playerId
-      : '';
+    return normalizeId(
+      queue[index]
+        ?.playerId,
+    );
   }
 
   function getActiveActorId(data) {
@@ -120,22 +134,16 @@
         ? data.game
         : null;
 
-    const event =
-      isRecord(
-        game?.sevenEvent,
-      )
-        ? game.sevenEvent
-        : null;
-
-    if (
-      !game ||
-      game.phase !==
-        'event-seven' ||
-      event?.step !==
-        'discard'
-    ) {
+    if (!game) {
       return '';
     }
+
+    const players =
+      Array.isArray(
+        game.players,
+      )
+        ? game.players
+        : [];
 
     const timer =
       isRecord(
@@ -145,31 +153,66 @@
         : null;
 
     const timedActorId =
-      typeof timer?.actorId ===
-      'string'
-        ? timer.actorId
-        : '';
+      normalizeId(
+        timer?.actorId,
+      );
 
-    return (
-      timedActorId ||
+    if (
+      timedActorId &&
+      players.some(
+        player =>
+          normalizeId(
+            player?.id,
+          ) ===
+          timedActorId,
+      )
+    ) {
+      return timedActorId;
+    }
+
+    const discardActorId =
       getDiscardActorId(
         game,
+      );
+
+    if (
+      discardActorId &&
+      players.some(
+        player =>
+          normalizeId(
+            player?.id,
+          ) ===
+          discardActorId,
       )
+    ) {
+      return discardActorId;
+    }
+
+    return normalizeId(
+      game.currentPlayerId,
     );
   }
 
-  function normalizeGameState(data) {
-    if (
-      !isRecord(data) ||
-      !isRecord(
-        data.game,
+  function getActiveActor(data) {
+    const game =
+      isRecord(
+        data?.game,
       )
-    ) {
-      return data;
+        ? data.game
+        : null;
+
+    if (!game) {
+      return null;
     }
 
-    const game =
-      data.game;
+    const actorId =
+      getActiveActorId(
+        data,
+      );
+
+    if (!actorId) {
+      return null;
+    }
 
     const players =
       Array.isArray(
@@ -178,41 +221,218 @@
         ? game.players
         : [];
 
-    const actorId =
-      getActiveActorId(
-        data,
-      );
+    return (
+      players.find(
+        player =>
+          normalizeId(
+            player?.id,
+          ) === actorId,
+      ) || null
+    );
+  }
 
-    if (!actorId) {
-      return data;
+  function setTextIfDifferent(
+    element,
+    value,
+  ) {
+    if (!element) {
+      return;
     }
 
-    const actorIndex =
-      players.findIndex(
-        (player) =>
-          isRecord(player) &&
-          player.id ===
-            actorId,
+    const nextValue =
+      String(
+        value ?? '',
       );
 
     if (
-      actorIndex < 0 ||
-      game.currentPlayerId ===
-        actorId
+      element.textContent !==
+      nextValue
     ) {
-      return data;
+      element.textContent =
+        nextValue;
+    }
+  }
+
+  function syncTurnPresentation() {
+    const data =
+      latestGameData;
+
+    if (
+      !data ||
+      !isRecord(
+        data.game,
+      )
+    ) {
+      return;
     }
 
-    return {
-      ...data,
+    const actor =
+      getActiveActor(
+        data,
+      );
 
-      game: {
-        ...game,
+    if (!actor) {
+      return;
+    }
 
-        currentPlayerId:
-          actorId,
+    const actorId =
+      normalizeId(
+        actor.id,
+      );
+
+    const banner =
+      document.querySelector(
+        '.turn-banner',
+      );
+
+    if (banner) {
+      const color =
+        String(
+          actor.color || '',
+        );
+
+      if (
+        color &&
+        banner.style
+          .getPropertyValue(
+            '--player-color',
+          ) !== color
+      ) {
+        banner.style
+          .setProperty(
+            '--player-color',
+            color,
+          );
+      }
+
+      setTextIfDifferent(
+        banner.querySelector(
+          '.turn-player-symbol',
+        ),
+        actor.symbol || '',
+      );
+
+      setTextIfDifferent(
+        banner.querySelector(
+          '.turn-copy strong',
+        ),
+        actor.name ||
+          'Jogador',
+      );
+    }
+
+    const gamePlayers =
+      Array.isArray(
+        data.game.players,
+      )
+        ? data.game.players
+        : [];
+
+    const summaries =
+      Array.from(
+        document.querySelectorAll(
+          '.players-list .player-summary',
+        ),
+      );
+
+    summaries.forEach(
+      (summary, index) => {
+        const playerId =
+          normalizeId(
+            gamePlayers[index]
+              ?.id,
+          );
+
+        const shouldBeActive =
+          playerId ===
+          actorId;
+
+        if (
+          summary.classList
+            .contains(
+              'is-active',
+            ) !==
+          shouldBeActive
+        ) {
+          summary.classList
+            .toggle(
+              'is-active',
+              shouldBeActive,
+            );
+        }
       },
-    };
+    );
+
+    const instruction =
+      document.querySelector(
+        '.action-buttons .instruction-card',
+      );
+
+    const instructionTitle =
+      instruction?.querySelector(
+        'strong',
+      );
+
+    if (
+      instruction &&
+      instructionTitle
+        ?.textContent
+        ?.trim() ===
+        'Aguarde a sua vez'
+    ) {
+      const copy =
+        instruction.querySelector(
+          'span',
+        );
+
+      setTextIfDifferent(
+        copy,
+        `${actor.name || 'Outro jogador'} está a jogar. O tabuleiro é atualizado automaticamente.`,
+      );
+    }
+  }
+
+  function scheduleTurnPresentation() {
+    window.requestAnimationFrame(
+      () => {
+        syncTurnPresentation();
+      },
+    );
+  }
+
+  function captureGameData(data) {
+    if (!isRecord(data)) {
+      return;
+    }
+
+    if (
+      isRecord(
+        data.game,
+      )
+    ) {
+      latestGameData =
+        data;
+
+      scheduleTurnPresentation();
+      return;
+    }
+
+    if (
+      latestGameData &&
+      Object.prototype
+        .hasOwnProperty.call(
+          data,
+          'turnTimer',
+        )
+    ) {
+      latestGameData = {
+        ...latestGameData,
+        turnTimer:
+          data.turnTimer,
+      };
+
+      scheduleTurnPresentation();
+    }
   }
 
   function isKickedPayload(
@@ -239,130 +459,55 @@
     }
   }
 
-  function markReturnToLobby() {
-    try {
-      sessionStorage.setItem(
-        RETURN_TO_LOBBY_KEY,
-        '1',
-      );
-    } catch {
-      return;
-    }
-  }
-
-  function redirectToLobby() {
-    if (redirectingToLobby) {
+  function returnToMainMenu() {
+    if (endingSession) {
       return;
     }
 
-    redirectingToLobby =
+    endingSession =
       true;
 
     clearStoredSession();
-    markReturnToLobby();
 
-    const target =
-      new URL(
-        '/jogos/conquistador/',
-        window.location.origin,
+    observer?.disconnect();
+
+    const app =
+      document.querySelector(
+        '#app',
       );
 
-    window.location.replace(
-      target.href,
-    );
-  }
-
-  function shouldReturnToLobby() {
-    try {
-      return (
-        sessionStorage.getItem(
-          RETURN_TO_LOBBY_KEY,
-        ) ===
-        '1'
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  function clearReturnToLobby() {
-    try {
-      sessionStorage.removeItem(
-        RETURN_TO_LOBBY_KEY,
-      );
-    } catch {
-      return;
-    }
-  }
-
-  function openOnlineLobbyWhenReady() {
-    if (
-      !shouldReturnToLobby()
-    ) {
-      return;
+    if (app) {
+      app.style.pointerEvents =
+        'none';
     }
 
-    let observer =
-      null;
-
-    let timeoutId =
-      null;
-
-    const openLobby =
+    window.setTimeout(
       () => {
-        const button =
-          document.querySelector(
-            '#online-game-button',
+        const target =
+          new URL(
+            '/jogos/conquistador/',
+            window.location.origin,
           );
 
-        if (!button) {
-          return false;
+        if (
+          window.location.pathname ===
+            target.pathname &&
+          window.location.search ===
+            ''
+        ) {
+          window.location.reload();
+          return;
         }
 
-        clearReturnToLobby();
-
-        observer?.disconnect();
-
-        if (timeoutId) {
-          window.clearTimeout(
-            timeoutId,
-          );
-        }
-
-        button.click();
-
-        return true;
-      };
-
-    if (openLobby()) {
-      return;
-    }
-
-    observer =
-      new MutationObserver(
-        () => {
-          openLobby();
-        },
-      );
-
-    observer.observe(
-      document.documentElement,
-      {
-        childList: true,
-        subtree: true,
+        window.location.replace(
+          target.href,
+        );
       },
+      0,
     );
-
-    timeoutId =
-      window.setTimeout(
-        () => {
-          observer?.disconnect();
-        },
-        10_000,
-      );
   }
 
-  function transformSocketMessage(
+  function inspectMessage(
     socket,
     event,
   ) {
@@ -373,7 +518,7 @@
       typeof event.data !==
         'string'
     ) {
-      return event;
+      return false;
     }
 
     let message =
@@ -385,11 +530,11 @@
           event.data,
         );
     } catch {
-      return event;
+      return false;
     }
 
     if (!isRecord(message)) {
-      return event;
+      return false;
     }
 
     const data =
@@ -405,45 +550,36 @@
         message.status,
       )
     ) {
-      window.queueMicrotask(
-        redirectToLobby,
-      );
+      returnToMainMenu();
+      return true;
     }
 
-    if (!data) {
-      return event;
-    }
-
-    const normalizedData =
-      normalizeGameState(
+    if (data) {
+      captureGameData(
         data,
       );
-
-    if (
-      normalizedData ===
-      data
-    ) {
-      return event;
     }
 
-    return new MessageEvent(
-      'message',
-      {
-        data:
-          JSON.stringify({
-            ...message,
+    return false;
+  }
 
-            data:
-              normalizedData,
-          }),
+  function getSocketWrapperMap(socket) {
+    let map =
+      listenerWrappers.get(
+        socket,
+      );
 
-        origin:
-          event.origin,
+    if (!map) {
+      map =
+        new WeakMap();
 
-        lastEventId:
-          event.lastEventId,
-      },
-    );
+      listenerWrappers.set(
+        socket,
+        map,
+      );
+    }
+
+    return map;
   }
 
   WebSocket.prototype.addEventListener =
@@ -468,64 +604,57 @@
         );
       }
 
-      let socketWrappers =
-        listenerWrappers.get(
+      const wrappers =
+        getSocketWrapperMap(
           this,
         );
 
-      if (!socketWrappers) {
-        socketWrappers =
-          new WeakMap();
-
-        listenerWrappers.set(
-          this,
-          socketWrappers,
-        );
-      }
-
-      let wrappedListener =
-        socketWrappers.get(
+      let wrapped =
+        wrappers.get(
           listener,
         );
 
-      if (!wrappedListener) {
+      if (!wrapped) {
         const socket =
           this;
 
-        wrappedListener =
+        wrapped =
           function (event) {
-            const transformedEvent =
-              transformSocketMessage(
+            if (
+              inspectMessage(
                 socket,
                 event,
-              );
+              )
+            ) {
+              return;
+            }
 
             if (
               typeof listener ===
-              'function'
+                'function'
             ) {
               return listener.call(
                 socket,
-                transformedEvent,
+                event,
               );
             }
 
             return listener
               .handleEvent?.(
-                transformedEvent,
+                event,
               );
           };
 
-        socketWrappers.set(
+        wrappers.set(
           listener,
-          wrappedListener,
+          wrapped,
         );
       }
 
       return originalAddEventListener.call(
         this,
         type,
-        wrappedListener,
+        wrapped,
         options,
       );
     };
@@ -536,20 +665,19 @@
       listener,
       options,
     ) {
-      const socketWrappers =
-        listenerWrappers.get(
-          this,
-        );
-
-      const wrappedListener =
-        socketWrappers?.get(
-          listener,
-        );
+      const wrapped =
+        listenerWrappers
+          .get(
+            this,
+          )
+          ?.get(
+            listener,
+          );
 
       return originalRemoveEventListener.call(
         this,
         type,
-        wrappedListener ||
+        wrapped ||
           listener,
         options,
       );
@@ -566,14 +694,11 @@
           init,
         );
 
-      const requestUrl =
-        getRequestUrl(
-          input,
-        );
-
       if (
         !isGameApiUrl(
-          requestUrl,
+          getRequestUrl(
+            input,
+          ),
         )
       ) {
         return response;
@@ -593,11 +718,9 @@
       ) {
         if (
           response.status ===
-          410
+            410
         ) {
-          window.queueMicrotask(
-            redirectToLobby,
-          );
+          returnToMainMenu();
         }
 
         return response;
@@ -625,64 +748,37 @@
           response.status,
         )
       ) {
-        window.queueMicrotask(
-          redirectToLobby,
-        );
-      }
-
-      const normalizedData =
-        normalizeGameState(
-          data,
-        );
-
-      if (
-        normalizedData ===
-        data
-      ) {
+        returnToMainMenu();
         return response;
       }
 
-      const headers =
-        new Headers(
-          response.headers,
-        );
-
-      headers.delete(
-        'content-length',
+      captureGameData(
+        data,
       );
 
-      headers.delete(
-        'content-encoding',
-      );
-
-      return new Response(
-        JSON.stringify(
-          normalizedData,
-        ),
-        {
-          status:
-            response.status,
-
-          statusText:
-            response.statusText,
-
-          headers,
-        },
-      );
+      return response;
     };
 
-  if (
-    document.readyState ===
-    'loading'
-  ) {
-    document.addEventListener(
-      'DOMContentLoaded',
-      openOnlineLobbyWhenReady,
-      {
-        once: true,
+  observer =
+    new MutationObserver(
+      () => {
+        if (!endingSession) {
+          syncTurnPresentation();
+        }
       },
     );
-  } else {
-    openOnlineLobbyWhenReady();
-  }
+
+  const observeTarget =
+    document.querySelector(
+      '#app',
+    ) ||
+    document.documentElement;
+
+  observer.observe(
+    observeTarget,
+    {
+      childList: true,
+      subtree: true,
+    },
+  );
 })();
