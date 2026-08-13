@@ -656,6 +656,18 @@ function isTerminalStatus(status) {
   );
 }
 
+function isPlayerReplaced(
+  data,
+  status = 0,
+) {
+  return (
+    Number(status) === 410 ||
+    data?.kicked === true ||
+    data?.status ===
+      'player-replaced'
+  );
+}
+
 function createWebSocketUrl(matchId) {
   const protocol =
     window.location.protocol ===
@@ -751,6 +763,12 @@ export class OnlineGameClient {
     this.errorListeners =
       new Set();
 
+    this.sessionEndListeners =
+      new Set();
+
+    this.sessionEnded =
+      false;
+
     this.presenceWarning =
       null;
 
@@ -820,6 +838,10 @@ export class OnlineGameClient {
             'Content-Type':
               'application/json',
           },
+
+          keepalive:
+            payload?.action ===
+            'leave',
 
           body:
             JSON.stringify({
@@ -1024,6 +1046,14 @@ export class OnlineGameClient {
   }
 
   applyState(data) {
+    if (
+      this.handlePlayerReplaced(
+        data,
+      )
+    ) {
+      return this.state;
+    }
+
     if (!data?.game) {
       this.updatePresenceWarning(
         data,
@@ -1158,6 +1188,130 @@ export class OnlineGameClient {
     };
   }
 
+  onSessionEnd(listener) {
+    if (
+      typeof listener !==
+      'function'
+    ) {
+      return () => {};
+    }
+
+    this.sessionEndListeners.add(
+      listener,
+    );
+
+    return () => {
+      this.sessionEndListeners.delete(
+        listener,
+      );
+    };
+  }
+
+  endSession({
+    reason =
+      'session-ended',
+    message =
+      'A sua sessão nesta partida terminou.',
+    status = 0,
+    data = null,
+  } = {}) {
+    if (
+      this.sessionEnded ||
+      this.closed
+    ) {
+      return false;
+    }
+
+    this.sessionEnded =
+      true;
+
+    clearStoredSession(
+      this.matchId,
+      this.playerId,
+    );
+
+    this.stopPolling();
+
+    const error =
+      createSocketError(
+        message,
+        status,
+        data,
+      );
+
+    this.clearConnectWaiter(
+      error,
+    );
+
+    this.rejectPendingRequests(
+      error,
+    );
+
+    this.closeSocket(
+      false,
+    );
+
+    this.presenceWarning =
+      null;
+
+    this.turnTimer =
+      null;
+
+    this.turnTimeoutSentSequence =
+      null;
+
+    removePresenceCountdown();
+    removeTurnCountdown();
+
+    const detail = {
+      reason,
+      message,
+      status:
+        Number(status) || 0,
+      data,
+    };
+
+    for (
+      const listener
+      of this.sessionEndListeners
+    ) {
+      try {
+        listener(
+          detail,
+        );
+      } catch {
+        continue;
+      }
+    }
+
+    return true;
+  }
+
+  handlePlayerReplaced(
+    data,
+    status = 0,
+  ) {
+    if (
+      !isPlayerReplaced(
+        data,
+        status,
+      )
+    ) {
+      return false;
+    }
+
+    return this.endSession({
+      reason:
+        'player-replaced',
+      message:
+        data?.message ||
+        'O seu lugar passou para um jogador automático.',
+      status:
+        Number(status) || 410,
+      data,
+    });
+  }
+
   handleTerminalError(error) {
     if (
       !isTerminalStatus(
@@ -1167,16 +1321,21 @@ export class OnlineGameClient {
       return false;
     }
 
-    clearStoredSession(
-      this.matchId,
-      this.playerId,
-    );
-
-    this.stopPolling();
-
-    this.closeSocket(
-      false,
-    );
+    this.endSession({
+      reason:
+        Number(
+          error?.status,
+        ) === 410
+          ? 'player-replaced'
+          : 'session-invalid',
+      message:
+        error?.message ||
+        'A sua sessão nesta partida terminou.',
+      status:
+        error?.status,
+      data:
+        error?.data || null,
+    });
 
     return true;
   }
@@ -1272,6 +1431,24 @@ export class OnlineGameClient {
       Number(
         message?.status,
       ) || 0;
+
+    if (
+      this.handlePlayerReplaced(
+        data,
+        status,
+      )
+    ) {
+      pending.reject(
+        createSocketError(
+          data?.message ||
+          'O seu lugar passou para um jogador automático.',
+          status || 410,
+          data,
+        ),
+      );
+
+      return true;
+    }
 
     if (data) {
       if (
@@ -1853,6 +2030,30 @@ export class OnlineGameClient {
     }
   }
 
+  async leave() {
+    if (this.closed) {
+      return null;
+    }
+
+    clearStoredSession(
+      this.matchId,
+      this.playerId,
+    );
+
+    this.stopPolling();
+
+    try {
+      return await this.request({
+        action:
+          'leave',
+      });
+    } finally {
+      this.closeSocket(
+        false,
+      );
+    }
+  }
+
   clearFallbackTimer() {
     if (
       this.fallbackTimer
@@ -2201,6 +2402,7 @@ export class OnlineGameClient {
 
     this.listeners.clear();
     this.errorListeners.clear();
+    this.sessionEndListeners.clear();
   }
 }
 
