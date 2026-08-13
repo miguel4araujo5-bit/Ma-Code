@@ -7,16 +7,21 @@ import {
 
 const API_PREFIX = '/api/conquistador/game'
 const STORAGE_KEY = 'conquistador-game-session-v1'
+const FREE_SAFE_CLIENT_VERSION =
+  'realtime-free-safe-1'
 const MATCH_SIZE = 4
 const MAX_NAME_LENGTH = 24
 const BOT_RETRY_DELAY_MS = 1600
 const PRESENCE_TIMEOUT_MS = 30_000
 const PRESENCE_WARNING_MS = 15_000
+const FALLBACK_PRESENCE_TIMEOUT_MS =
+  150_000
 const TURN_SETUP_TIMEOUT_MS = 30_000
 const TURN_DEFAULT_TIMEOUT_MS = 15_000
 const TURN_TIMEOUT_GRACE_MS = 1_000
 const MAX_CONSECUTIVE_TIMEOUTS = 2
 const MAX_TIMEOUT_AUTOMATION_STEPS = 8
+const BOT_MAX_RETRY_ATTEMPTS = 3
 const BOT_ICON = '⚙'
 
 const BOT_NAMES = [
@@ -64,6 +69,8 @@ type MatchParticipant = {
 type BotRuntimeState = {
   actorId: string | null
   nextActionAt: number
+  failureCount?: number
+  suspended?: boolean
 }
 
 type HumanPresenceState = {
@@ -2716,6 +2723,35 @@ export class ConquistadorGameSessionDurableObject {
     )
   }
 
+  protected hasActiveHumanLease(
+    now = Date.now()
+  ) {
+    if (
+      !this.session
+        ?.presence
+    ) {
+      return false
+    }
+
+    return Object
+      .values(
+        this.session
+          .presence
+      )
+      .some(
+        (presence) =>
+          !presence.automated &&
+          !Number(
+            presence.abandonedAt
+          ) &&
+          Number.isFinite(
+            presence.takeoverAt
+          ) &&
+          presence.takeoverAt >
+            now
+      )
+  }
+
   private getEffectiveParticipants() {
     return this.session
       ? getEffectiveParticipants(
@@ -3713,6 +3749,10 @@ export class ConquistadorGameSessionDurableObject {
       options.touchPresence !==
       false
 
+    const usesFreeSafeFallback =
+      body.clientVersion ===
+        FREE_SAFE_CLIENT_VERSION
+
     const matchId =
       normalizeId(
         body.matchId
@@ -3942,6 +3982,46 @@ export class ConquistadorGameSessionDurableObject {
     if (
       !touchPresence
     ) {
+      return {
+        ok:
+          true as const,
+
+        playerId,
+
+        now,
+
+        reactivated:
+          false,
+
+        revisionBefore,
+
+        legacy:
+          false as const
+      }
+    }
+
+    if (usesFreeSafeFallback) {
+      if (
+        !Number(
+          presence.connectedAt
+        )
+      ) {
+        presence.connectedAt =
+          now
+      }
+
+      presence.lastSeenAt =
+        now
+
+      presence.takeoverAt =
+        now +
+        FALLBACK_PRESENCE_TIMEOUT_MS
+
+      presence.automated =
+        false
+
+      await this.save()
+
       return {
         ok:
           true as const,
@@ -4563,6 +4643,22 @@ export class ConquistadorGameSessionDurableObject {
     const runtime =
       this.session.bot
 
+    const suspended =
+      runtime?.actorId ===
+        actorId &&
+      runtime.suspended ===
+        true
+
+    if (suspended) {
+      await this
+        .setNextAlarm(
+          0,
+          now
+        )
+
+      return false
+    }
+
     let nextActionAt =
       runtime
         ?.nextActionAt ||
@@ -4581,7 +4677,11 @@ export class ConquistadorGameSessionDurableObject {
 
       this.session.bot = {
         actorId,
-        nextActionAt
+        nextActionAt,
+        failureCount:
+          0,
+        suspended:
+          false
       }
 
       await this.save()
@@ -4607,13 +4707,57 @@ export class ConquistadorGameSessionDurableObject {
     const now =
       Date.now()
 
+    const runtime =
+      this.session.bot
+
+    const failureCount =
+      (
+        runtime?.actorId ===
+          actorId
+          ? Math.max(
+              0,
+              Number(
+                runtime
+                  .failureCount
+              ) || 0
+            )
+          : 0
+      ) + 1
+
+    if (
+      failureCount >=
+        BOT_MAX_RETRY_ATTEMPTS
+    ) {
+      this.session.bot = {
+        actorId,
+        nextActionAt:
+          0,
+        failureCount,
+        suspended:
+          true
+      }
+
+      await this.save()
+
+      await this
+        .setNextAlarm(
+          0,
+          now
+        )
+
+      return
+    }
+
     const nextActionAt =
       now +
       BOT_RETRY_DELAY_MS
 
     this.session.bot = {
       actorId,
-      nextActionAt
+      nextActionAt,
+      failureCount,
+      suspended:
+        false
     }
 
     await this.save()
