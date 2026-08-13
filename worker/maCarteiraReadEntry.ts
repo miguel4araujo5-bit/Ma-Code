@@ -13,6 +13,12 @@ interface Env {
 const ORIGIN_BLOCKED_MESSAGE =
   'Pedido bloqueado por origem inválida.'
 
+const WALLET_CACHE_CONTROL =
+  'public, max-age=15, stale-while-revalidate=45, stale-if-error=120'
+
+const WALLET_CACHE_VARY =
+  'Origin, Referer'
+
 const securityHeaders: HeaderMap = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
@@ -343,10 +349,25 @@ export default {
           url
         )
 
-      return respond({
-        success: true,
-        ...result
-      })
+      const cacheHeaders:
+        HeaderMap =
+        result.partial
+          ? {}
+          : {
+              'Cache-Control':
+                WALLET_CACHE_CONTROL,
+              Vary:
+                WALLET_CACHE_VARY
+            }
+
+      return respond(
+        {
+          success: true,
+          ...result
+        },
+        200,
+        cacheHeaders
+      )
     } catch (error) {
       if (
         error instanceof
