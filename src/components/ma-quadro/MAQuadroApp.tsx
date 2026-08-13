@@ -20,9 +20,11 @@ import EditorHeader from './EditorHeader'
 import ElementEditor from './ElementEditor'
 import ElementLibrary from './ElementLibrary'
 import ElementToolsLayoutController from './ElementToolsLayoutController'
+
 import {
   MAQuadroEditorProvider
 } from './editorContext'
+
 import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
@@ -41,6 +43,7 @@ import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
 import VideoEditor from './VideoEditor'
 import VideoUploads from './VideoUploads'
+
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -190,15 +193,10 @@ export default function MAQuadroApp() {
         if (
           homeOpen ||
           !editor.ready ||
-          editor
-            .selection
-            .count ===
-              0 ||
+          editor.selection.count === 0 ||
           editor.busy ||
-          editor
-            .structureBusy ||
-          editor
-            .imageCropEditing
+          editor.structureBusy ||
+          editor.imageCropEditing
         ) {
           return
         }
@@ -242,8 +240,7 @@ export default function MAQuadroApp() {
       }
 
       if (
-        event.key ===
-          '?' &&
+        event.key === '?' &&
         !event.ctrlKey &&
         !event.metaKey &&
         !event.altKey
@@ -276,15 +273,10 @@ export default function MAQuadroApp() {
       }
 
       if (
-        editor
-          .selection
-          .count ===
-            0 ||
+        editor.selection.count === 0 ||
         editor.busy ||
-        editor
-          .structureBusy ||
-        editor
-          .imageCropEditing
+        editor.structureBusy ||
+        editor.imageCropEditing
       ) {
         return
       }
@@ -293,9 +285,7 @@ export default function MAQuadroApp() {
       event.stopPropagation()
 
       const workspace =
-        editor
-          .workspaceRef
-          .current
+        editor.workspaceRef.current
 
       const bounds =
         workspace
@@ -306,25 +296,19 @@ export default function MAQuadroApp() {
           bounds
             ? bounds.left +
               Math.min(
-                bounds.width *
-                  0.55,
-                bounds.width -
-                  32
+                bounds.width * 0.55,
+                bounds.width - 32
               )
-            : window.innerWidth /
-              2,
+            : window.innerWidth / 2,
 
         y:
           bounds
             ? bounds.top +
               Math.min(
-                bounds.height *
-                  0.4,
-                bounds.height -
-                  32
+                bounds.height * 0.4,
+                bounds.height - 32
               )
-            : window.innerHeight /
-              2
+            : window.innerHeight / 2
       })
     }
 
@@ -380,9 +364,7 @@ export default function MAQuadroApp() {
 
   const protectNativeKeyboard = (
     event:
-      ReactKeyboardEvent<
-        HTMLElement
-      >
+      ReactKeyboardEvent<HTMLElement>
   ) => {
     if (
       !targetUsesNativeKeyboard(
@@ -398,11 +380,9 @@ export default function MAQuadroApp() {
 
     if (
       modifier &&
-      event.key
-        .toLocaleLowerCase(
-          'pt-PT'
-        ) ===
-        's'
+      event.key.toLocaleLowerCase(
+        'pt-PT'
+      ) === 's'
     ) {
       event.preventDefault()
       event.stopPropagation()
