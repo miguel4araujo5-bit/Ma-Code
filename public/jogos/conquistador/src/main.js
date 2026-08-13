@@ -10,7 +10,7 @@ import {
 
 import {
   OnlineGameClient,
-} from './online/OnlineGameClient.js?v=online-session-1';
+} from './online/OnlineGameClient.js?v=realtime-free-safe-1';
 
 import {
   SaveManager,
