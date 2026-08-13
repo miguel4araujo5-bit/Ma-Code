@@ -1182,7 +1182,7 @@ export default function MACode() {
         <div className="pointer-events-none absolute right-[-10rem] top-[-8rem] size-[32rem] rounded-full bg-violet-500/[0.06] blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-7xl">
-          <header className="mb-8 flex items-center justify-between gap-4 md:mb-10">
+          <header className="relative mb-8 flex items-center justify-between gap-4 md:mb-10">
             <a
               href="/"
               className="brand-mark"
@@ -1200,6 +1200,32 @@ export default function MACode() {
                 MA-Code.pt
               </span>
             </a>
+
+            <nav
+              className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-7 lg:flex"
+              aria-label="Navegação principal"
+            >
+              <a
+                href="#servicos"
+                className="text-[0.78rem] font-medium text-slate-500 transition duration-300 hover:text-cyan-100"
+              >
+                Serviços
+              </a>
+
+              <a
+                href="#produtos"
+                className="text-[0.78rem] font-medium text-slate-500 transition duration-300 hover:text-cyan-100"
+              >
+                Produtos
+              </a>
+
+              <a
+                href="#projetos"
+                className="text-[0.78rem] font-medium text-slate-500 transition duration-300 hover:text-cyan-100"
+              >
+                Projetos
+              </a>
+            </nav>
 
             <a
               href="/contacto"
@@ -1405,7 +1431,10 @@ export default function MACode() {
         <ServiceMarquee />
       </div>
 
-      <section className="bg-[#05070d] px-5 py-14 sm:px-6 md:px-10 md:py-16">
+      <section
+        id="servicos"
+        className="bg-[#05070d] px-5 py-14 sm:px-6 md:px-10 md:py-16"
+      >
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white md:text-4xl">
@@ -1484,7 +1513,10 @@ export default function MACode() {
         </div>
       </section>
 
-      <section className="border-y border-cyan-300/10 bg-[radial-gradient(circle_at_10%_35%,rgba(34,211,238,0.10),transparent_25%),radial-gradient(circle_at_88%_72%,rgba(139,92,246,0.11),transparent_27%),linear-gradient(180deg,#080a13_0%,#090b16_100%)] px-5 py-12 sm:px-6 md:px-10 md:py-14">
+      <section
+        id="produtos"
+        className="border-y border-cyan-300/10 bg-[radial-gradient(circle_at_10%_35%,rgba(34,211,238,0.10),transparent_25%),radial-gradient(circle_at_88%_72%,rgba(139,92,246,0.11),transparent_27%),linear-gradient(180deg,#080a13_0%,#090b16_100%)] px-5 py-12 sm:px-6 md:px-10 md:py-14"
+      >
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.78fr_1.6fr] lg:items-center lg:gap-10">
           <div className="text-center lg:text-left">
             <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100">
@@ -1682,4 +1714,3 @@ export default function MACode() {
     </main>
   )
 }
-
