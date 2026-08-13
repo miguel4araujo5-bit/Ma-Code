@@ -1,29 +1,27 @@
 const SOURCE_ID = 'online-turn-countdown';
 const CLOCK_ID = 'online-turn-voyage-clock';
 const INTRO_ID = 'online-turn-voyage-intro';
-const INTRO_HOLD_MS = 1050;
-const INTRO_FADE_MS = 240;
+const WARNING_THRESHOLD_SECONDS = 5;
 
 let source = null;
 let sourceObserver = null;
 let clock = null;
 let intro = null;
-let introTimer = null;
 let lastSeconds = null;
 let duration = 15;
+let warningShownForWindow = false;
 
 function readSeconds(element) {
-  const value = Number(element?.textContent?.trim());
+  const value = Number(
+    element?.textContent?.trim(),
+  );
 
   return Number.isFinite(value)
-    ? Math.max(0, Math.ceil(value))
+    ? Math.max(
+        0,
+        Math.ceil(value),
+      )
     : null;
-}
-
-function getDuration(seconds) {
-  return seconds > 15
-    ? 30
-    : 15;
 }
 
 function createClockFace() {
@@ -110,7 +108,8 @@ function applyClockState(
 
   element.classList.toggle(
     'is-urgent',
-    seconds <= 5,
+    seconds <=
+      WARNING_THRESHOLD_SECONDS,
   );
 
   element.classList.toggle(
@@ -123,17 +122,13 @@ function applyClockState(
       '.turn-voyage-clock__number',
     );
 
-  if (number) {
-    const nextText =
+  if (
+    number &&
+    number.textContent !==
+      String(seconds)
+  ) {
+    number.textContent =
       String(seconds);
-
-    if (
-      number.textContent !==
-      nextText
-    ) {
-      number.textContent =
-        nextText;
-    }
   }
 }
 
@@ -184,28 +179,52 @@ function ensureClock() {
   return element;
 }
 
-function removeIntro() {
-  if (introTimer) {
-    window.clearTimeout(
-      introTimer,
+function isDiceRolling() {
+  return (
+    document.documentElement
+      .classList
+      .contains(
+        'dice-roll-in-progress',
+      ) ||
+    Boolean(
+      document.querySelector(
+        '.dice-roll-overlay',
+      ),
+    )
+  );
+}
+
+function isViewerExpectedToAct() {
+  const actionArea =
+    document.querySelector(
+      '.action-buttons',
     );
 
-    introTimer =
-      null;
+  if (!actionArea) {
+    return false;
   }
 
+  const instructionTitle =
+    actionArea.querySelector(
+      '.instruction-card strong',
+    )
+      ?.textContent
+      ?.trim();
+
+  return (
+    instructionTitle !==
+    'Aguarde a sua vez'
+  );
+}
+
+function removeIntro() {
   intro?.remove();
 
   intro =
     null;
 }
 
-function showIntro(
-  seconds,
-  total,
-) {
-  removeIntro();
-
+function createIntro() {
   const overlay =
     document.createElement('div');
 
@@ -243,12 +262,6 @@ function showIntro(
 
       backdropFilter:
         'blur(1px)',
-
-      opacity:
-        '1',
-
-      transition:
-        `opacity ${INTRO_FADE_MS}ms ease`,
     },
   );
 
@@ -359,14 +372,11 @@ function showIntro(
   const heroClock =
     createClockFace();
 
+  heroClock.dataset.turnClockHero =
+    'true';
+
   heroClock.style.marginLeft =
     '0';
-
-  applyClockState(
-    heroClock,
-    seconds,
-    total,
-  );
 
   heroScale.appendChild(
     heroClock,
@@ -413,6 +423,7 @@ function showIntro(
     </span>
 
     <strong
+      data-turn-clock-seconds="true"
       style="
         color:#fff1b0;
         font-size:1.55rem;
@@ -420,7 +431,7 @@ function showIntro(
         font-variant-numeric:tabular-nums
       "
     >
-      ${seconds}s
+      —
     </strong>
   `;
 
@@ -438,60 +449,80 @@ function showIntro(
     overlay,
   );
 
-  intro =
-    overlay;
-
-  introTimer =
-    window.setTimeout(
-      () => {
-        if (
-          intro !==
-          overlay
-        ) {
-          return;
-        }
-
-        overlay.style.opacity =
-          '0';
-
-        introTimer =
-          window.setTimeout(
-            () => {
-              if (
-                intro ===
-                overlay
-              ) {
-                overlay.remove();
-
-                intro =
-                  null;
-              }
-
-              introTimer =
-                null;
-            },
-
-            INTRO_FADE_MS,
-          );
-      },
-
-      INTRO_HOLD_MS,
-    );
+  return overlay;
 }
 
-function animateCompactReset() {
-  if (!clock) {
+function updateIntro(
+  seconds,
+  total,
+) {
+  if (!intro) {
     return;
   }
 
-  clock.classList.remove(
-    'is-new-turn',
+  const heroClock =
+    intro.querySelector(
+      '[data-turn-clock-hero="true"]',
+    );
+
+  applyClockState(
+    heroClock,
+    seconds,
+    total,
   );
 
-  void clock.offsetWidth;
+  const secondsElement =
+    intro.querySelector(
+      '[data-turn-clock-seconds="true"]',
+    );
 
-  clock.classList.add(
-    'is-new-turn',
+  if (
+    secondsElement &&
+    secondsElement.textContent !==
+      `${seconds}s`
+  ) {
+    secondsElement.textContent =
+      `${seconds}s`;
+  }
+}
+
+function syncWarning(
+  seconds,
+) {
+  if (
+    seconds >
+    WARNING_THRESHOLD_SECONDS
+  ) {
+    warningShownForWindow =
+      false;
+
+    removeIntro();
+
+    return;
+  }
+
+  if (
+    isDiceRolling() ||
+    !isViewerExpectedToAct()
+  ) {
+    removeIntro();
+
+    return;
+  }
+
+  if (
+    !warningShownForWindow
+  ) {
+    intro =
+      createIntro();
+
+    warningShownForWindow =
+      true;
+  }
+
+  updateIntro(
+    seconds,
+    duration,
   );
 }
 
@@ -517,29 +548,23 @@ function updateClock() {
     );
 
   if (
-    seconds ===
-    null
+    seconds === null
   ) {
     return;
   }
 
-  const firstPaint =
-    lastSeconds ===
-    null;
-
-  const newTurn =
-    !firstPaint &&
-    seconds >
-      lastSeconds + 2;
-
   if (
-    firstPaint ||
-    newTurn
+    seconds > 15
   ) {
     duration =
-      getDuration(
-        seconds,
-      );
+      30;
+  } else if (
+    lastSeconds !== null &&
+    seconds >
+      lastSeconds + 2
+  ) {
+    duration =
+      15;
   }
 
   applyClockState(
@@ -557,21 +582,9 @@ function updateClock() {
       `${seconds} segundos restantes`,
   );
 
-  if (firstPaint) {
-    showIntro(
-      seconds,
-      duration,
-    );
-  } else if (
-    newTurn
-  ) {
-    animateCompactReset();
-
-    showIntro(
-      seconds,
-      duration,
-    );
-  }
+  syncWarning(
+    seconds,
+  );
 
   lastSeconds =
     seconds;
@@ -593,18 +606,11 @@ function unmount() {
     null;
 
   removeIntro();
-
-  lastSeconds =
-    null;
-
-  duration =
-    15;
 }
 
 function mount(element) {
   if (
-    element ===
-    source
+    element === source
   ) {
     return;
   }
@@ -614,16 +620,6 @@ function mount(element) {
 
   source =
     element;
-
-  lastSeconds =
-    null;
-
-  duration =
-    getDuration(
-      readSeconds(
-        element,
-      ) || 15,
-    );
 
   clock =
     ensureClock();
@@ -665,8 +661,7 @@ function discover() {
     );
 
   if (
-    element ===
-    source
+    element === source
   ) {
     return;
   }
@@ -697,6 +692,29 @@ pageObserver.observe(
 
     subtree:
       true,
+  },
+);
+
+const diceObserver =
+  new MutationObserver(
+    () => {
+      if (
+        isDiceRolling()
+      ) {
+        removeIntro();
+      }
+    },
+  );
+
+diceObserver.observe(
+  document.documentElement,
+  {
+    attributes:
+      true,
+
+    attributeFilter: [
+      'class',
+    ],
   },
 );
 
