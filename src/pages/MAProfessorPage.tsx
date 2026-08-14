@@ -2,7 +2,10 @@ import {
   useEffect
 } from 'react'
 
-import MAProfessorProduct from '../components/ma-professor/MAProfessorProduct'
+import {
+  MAProfessorProduct
+} from '../components/ma-professor/product/MAProfessorProduct'
+
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 
 const siteUrl =
