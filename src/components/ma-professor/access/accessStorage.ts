@@ -1,57 +1,73 @@
-import type {
-  MAProfessorStoredAccess
+import {
+  MA_PROFESSOR_ACCESS_STORAGE_KEY,
+  MA_PROFESSOR_DEVICE_STORAGE_KEY,
+  type MAProfessorAccessSession
 } from './accessTypes'
-
-const ACCESS_STORAGE_KEY =
-  'ma-professor-access-v1'
-
-const DEVICE_STORAGE_KEY =
-  'ma-professor-device-id-v1'
 
 export const MA_PROFESSOR_ACCESS_SESSION_EVENT =
   'ma-professor-access-session-change'
 
-function notifySessionChange() {
-  if (
-    typeof window !==
-    'undefined'
-  ) {
-    window.dispatchEvent(
-      new Event(
-        MA_PROFESSOR_ACCESS_SESSION_EVENT
-      )
-    )
+type MAProfessorStoredAccessInput =
+  Omit<
+    MAProfessorAccessSession,
+    'checkedAt'
+  > & {
+    checkedAt?: string
   }
+
+function canUseStorage() {
+  return (
+    typeof window !==
+      'undefined' &&
+    typeof window.localStorage !==
+      'undefined'
+  )
 }
 
-function createDeviceId() {
+function notifySessionChange() {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return
+  }
+
+  window.dispatchEvent(
+    new Event(
+      MA_PROFESSOR_ACCESS_SESSION_EVENT
+    )
+  )
+}
+
+function createId(
+  prefix: string
+) {
   const uuid =
     globalThis.crypto
       ?.randomUUID?.()
 
-  if (
-    uuid
-  ) {
-    return uuid
-  }
-
-  return [
-    Date.now()
-      .toString(36),
-    Math.random()
-      .toString(36)
-      .slice(2, 12),
-    Math.random()
-      .toString(36)
-      .slice(2, 12)
-  ].join('-')
+  return uuid
+    ? `${prefix}-${uuid}`
+    : `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 12)}`
 }
 
 export function getOrCreateMAProfessorDeviceId() {
-  const stored =
-    localStorage.getItem(
-      DEVICE_STORAGE_KEY
+  if (
+    !canUseStorage()
+  ) {
+    return createId(
+      'device'
     )
+  }
+
+  const stored =
+    window.localStorage
+      .getItem(
+        MA_PROFESSOR_DEVICE_STORAGE_KEY
+      )
+      ?.trim()
 
   if (
     stored
@@ -60,22 +76,30 @@ export function getOrCreateMAProfessorDeviceId() {
   }
 
   const deviceId =
-    createDeviceId()
+    createId(
+      'device'
+    )
 
-  localStorage.setItem(
-    DEVICE_STORAGE_KEY,
+  window.localStorage.setItem(
+    MA_PROFESSOR_DEVICE_STORAGE_KEY,
     deviceId
   )
 
   return deviceId
 }
 
-export function readMAProfessorStoredAccess():
-  MAProfessorStoredAccess |
+export function readMAProfessorAccessSession():
+  MAProfessorAccessSession |
   null {
+  if (
+    !canUseStorage()
+  ) {
+    return null
+  }
+
   const raw =
-    localStorage.getItem(
-      ACCESS_STORAGE_KEY
+    window.localStorage.getItem(
+      MA_PROFESSOR_ACCESS_STORAGE_KEY
     )
 
   if (
@@ -85,48 +109,107 @@ export function readMAProfessorStoredAccess():
   }
 
   try {
-    const parsed =
+    const value =
       JSON.parse(
         raw
-      ) as MAProfessorStoredAccess
+      ) as Partial<MAProfessorAccessSession>
 
     if (
-      !parsed ||
-      typeof parsed.token !==
+      typeof value.token !==
         'string' ||
-      typeof parsed.email !==
+      typeof value.deviceId !==
         'string' ||
-      typeof parsed.deviceId !==
+      typeof value.email !==
         'string' ||
-      !parsed.license
+      !value.license ||
+      typeof value.license !==
+        'object'
     ) {
-      return null
+      throw new Error(
+        'Sessão inválida.'
+      )
     }
 
-    return parsed
+    return {
+      token:
+        value.token,
+      deviceId:
+        value.deviceId,
+      email:
+        value.email,
+      license:
+        value.license,
+      checkedAt:
+        typeof value.checkedAt ===
+        'string'
+          ? value.checkedAt
+          : new Date()
+              .toISOString()
+    }
   } catch {
+    clearMAProfessorAccessSession()
+
     return null
   }
 }
 
-export function saveMAProfessorStoredAccess(
-  access:
-    MAProfessorStoredAccess
+export function saveMAProfessorAccessSession(
+  session:
+    MAProfessorAccessSession
 ) {
-  localStorage.setItem(
-    ACCESS_STORAGE_KEY,
+  if (
+    !canUseStorage()
+  ) {
+    return
+  }
+
+  window.localStorage.setItem(
+    MA_PROFESSOR_ACCESS_STORAGE_KEY,
     JSON.stringify(
-      access
+      session
     )
   )
 
   notifySessionChange()
 }
 
-export function clearMAProfessorStoredAccess() {
-  localStorage.removeItem(
-    ACCESS_STORAGE_KEY
+export function clearMAProfessorAccessSession() {
+  if (
+    !canUseStorage()
+  ) {
+    return
+  }
+
+  window.localStorage.removeItem(
+    MA_PROFESSOR_ACCESS_STORAGE_KEY
   )
 
   notifySessionChange()
+}
+
+/*
+ * Nomes utilizados pelo novo gate de autenticação.
+ *
+ * São aliases sobre o mesmo armazenamento da aplicação para
+ * não criar duas sessões paralelas.
+ */
+export function readMAProfessorStoredAccess() {
+  return readMAProfessorAccessSession()
+}
+
+export function saveMAProfessorStoredAccess(
+  access:
+    MAProfessorStoredAccessInput
+) {
+  saveMAProfessorAccessSession({
+    ...access,
+    checkedAt:
+      access.checkedAt ??
+      new Date()
+        .toISOString()
+  })
+}
+
+export function clearMAProfessorStoredAccess() {
+  clearMAProfessorAccessSession()
 }
