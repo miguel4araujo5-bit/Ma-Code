@@ -22,13 +22,13 @@ import {
 } from './maProfessorAccess'
 import {
   MaProfessorAccessDurableObject
-} from './maProfessorAccessAdminBridge'
+} from './maProfessorAccessAuthBridge'
 
 import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdmin'
+} from './maProfessorAdminFixed'
 
 import {
   handleMAProfessorRecoveryApiRequest,
