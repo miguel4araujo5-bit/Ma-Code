@@ -1,103 +1,203 @@
-import { useEffect } from 'react'
+import {
+  useEffect
+} from 'react'
 
-import { MAProfessorProduct } from '../components/ma-professor/product/MAProfessorProduct'
+import MAProfessorProduct from '../components/ma-professor/MAProfessorProduct'
+import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 
-const siteUrl = 'https://ma-code.pt'
-const productPath = '/produtos/ma-professor'
+const siteUrl =
+  'https://ma-code.pt'
+
+const productPath =
+  '/produtos/ma-professor'
 
 function updateMeta(
   name: string,
   content: string
 ) {
-  let meta = document.querySelector<HTMLMetaElement>(
-    `meta[name="${name}"]`
-  )
+  let element =
+    document.querySelector(
+      `meta[name="${name}"]`
+    ) as HTMLMetaElement |
+      null
 
-  if (!meta) {
-    meta = document.createElement('meta')
-    meta.name = name
-    document.head.appendChild(meta)
+  if (
+    !element
+  ) {
+    element =
+      document.createElement(
+        'meta'
+      )
+
+    element.setAttribute(
+      'name',
+      name
+    )
+
+    document.head.appendChild(
+      element
+    )
   }
 
-  meta.content = content
+  element.setAttribute(
+    'content',
+    content
+  )
 }
 
 function updatePropertyMeta(
   property: string,
   content: string
 ) {
-  let meta = document.querySelector<HTMLMetaElement>(
-    `meta[property="${property}"]`
-  )
+  let element =
+    document.querySelector(
+      `meta[property="${property}"]`
+    ) as HTMLMetaElement |
+      null
 
-  if (!meta) {
-    meta = document.createElement('meta')
-    meta.setAttribute('property', property)
-    document.head.appendChild(meta)
+  if (
+    !element
+  ) {
+    element =
+      document.createElement(
+        'meta'
+      )
+
+    element.setAttribute(
+      'property',
+      property
+    )
+
+    document.head.appendChild(
+      element
+    )
   }
 
-  meta.content = content
+  element.setAttribute(
+    'content',
+    content
+  )
 }
 
-function updateCanonical(href: string) {
-  let canonical = document.querySelector<HTMLLinkElement>(
-    'link[rel="canonical"]'
-  )
+function updateCanonical(
+  href: string
+) {
+  let element =
+    document.querySelector(
+      'link[rel="canonical"]'
+    ) as HTMLLinkElement |
+      null
 
-  if (!canonical) {
-    canonical = document.createElement('link')
-    canonical.rel = 'canonical'
-    document.head.appendChild(canonical)
+  if (
+    !element
+  ) {
+    element =
+      document.createElement(
+        'link'
+      )
+
+    element.setAttribute(
+      'rel',
+      'canonical'
+    )
+
+    document.head.appendChild(
+      element
+    )
   }
 
-  canonical.href = href
+  element.setAttribute(
+    'href',
+    href
+  )
 }
 
 export default function MAProfessorPage() {
-  useEffect(() => {
-    document.title =
-      'MA-Professor | Fase piloto para docentes'
+  useEffect(
+    () => {
+      document.title =
+        'MA-Professor | Gestão de sumários, UFCD e avaliações'
 
-    updateMeta(
-      'description',
-      'MA-Professor é um ambiente digital para organização do trabalho docente. A fase piloto tem acesso gratuito e vagas limitadas, mediante pedido de acesso.'
-    )
-    updateMeta(
-      'keywords',
-      'MA-Professor, gestão de sumários, UFCD, cursos profissionais, planificação de aulas, avaliações de alunos, faltas, recuperação de aprendizagens'
-    )
-    updateMeta(
-      'robots',
-      'noindex, nofollow, noarchive, nosnippet, noimageindex'
-    )
+      updateMeta(
+        'description',
+        'MA-Professor é uma aplicação da MA-Code para planificar aulas, criar sumários, controlar UFCD, registar avaliações, faltas e recuperações de aprendizagens.'
+      )
 
-    updatePropertyMeta('og:type', 'website')
-    updatePropertyMeta('og:locale', 'pt_PT')
-    updatePropertyMeta('og:site_name', 'MA-Code')
-    updatePropertyMeta('og:url', `${siteUrl}${productPath}`)
-    updatePropertyMeta(
-      'og:title',
-      'MA-Professor | Fase piloto'
-    )
-    updatePropertyMeta(
-      'og:description',
-      'Ambiente digital para organização do trabalho docente, atualmente em fase piloto com acesso gratuito e vagas limitadas.'
-    )
-    updatePropertyMeta('og:image', `${siteUrl}/ma-code.png`)
+      updateMeta(
+        'keywords',
+        'MA-Professor, gestão de sumários, UFCD, cursos profissionais, planificação de aulas, avaliações de alunos, faltas, recuperação de aprendizagens'
+      )
 
-    updateMeta('twitter:card', 'summary_large_image')
-    updateMeta(
-      'twitter:title',
-      'MA-Professor | Fase piloto'
-    )
-    updateMeta(
-      'twitter:description',
-      'MA-Professor em fase piloto: organização de aulas, sumários, turmas, assiduidade e avaliação para docentes.'
-    )
-    updateMeta('twitter:image', `${siteUrl}/ma-code.png`)
+      updateMeta(
+        'robots',
+        'noindex, nofollow, noarchive, nosnippet, noimageindex'
+      )
 
-    updateCanonical(`${siteUrl}${productPath}`)
-  }, [])
+      updatePropertyMeta(
+        'og:type',
+        'website'
+      )
 
-  return <MAProfessorProduct />
+      updatePropertyMeta(
+        'og:locale',
+        'pt_PT'
+      )
+
+      updatePropertyMeta(
+        'og:site_name',
+        'MA-Code'
+      )
+
+      updatePropertyMeta(
+        'og:url',
+        `${siteUrl}${productPath}`
+      )
+
+      updatePropertyMeta(
+        'og:title',
+        'MA-Professor'
+      )
+
+      updatePropertyMeta(
+        'og:description',
+        'Aplicação para gestão de sumários, UFCD, avaliações, faltas e recuperações de aprendizagens.'
+      )
+
+      updatePropertyMeta(
+        'og:image',
+        `${siteUrl}/ma-code.png`
+      )
+
+      updateMeta(
+        'twitter:card',
+        'summary_large_image'
+      )
+
+      updateMeta(
+        'twitter:title',
+        'MA-Professor'
+      )
+
+      updateMeta(
+        'twitter:description',
+        'Gestão de sumários, UFCD, avaliações e faltas para professores.'
+      )
+
+      updateMeta(
+        'twitter:image',
+        `${siteUrl}/ma-code.png`
+      )
+
+      updateCanonical(
+        `${siteUrl}${productPath}`
+      )
+    },
+    []
+  )
+
+  return (
+    <MAProfessorAuthGate>
+      <MAProfessorProduct />
+    </MAProfessorAuthGate>
+  )
 }
