@@ -1,6 +1,7 @@
 interface ProductIntroPanelProps {
     onRequestAccess: () => void;
-    onExistingAccess: () => void;
+    onExistingAccess?: () => void;
+    onAlreadyHasAccess?: () => void;
 }
 
 const managementAreas = [
@@ -51,9 +52,9 @@ const accessSteps = [
     },
     {
         number: '3',
-        title: 'Começar a utilizar',
+        title: 'Ativar o acesso',
         description:
-            'Se o acesso for aprovado, recebe as instruções necessárias para entrar no MA-Professor.'
+            'Se o pedido for aprovado, recebe uma senha de ativação para ativar o período autorizado.'
     }
 ];
 
@@ -71,7 +72,7 @@ const faqs = [
     {
         question: 'Em que consiste a confirmação mensal?',
         answer:
-            'Uma vez por mês será solicitada uma confirmação simples de que pretende continuar a utilizar o MA-Professor. Isto ajuda-nos a manter as vagas disponíveis para docentes que estão efetivamente a utilizar a plataforma.'
+            'Uma vez por mês será solicitada uma confirmação simples de que pretende continuar a utilizar o MA-Professor. Esta confirmação é independente da senha de ativação e da password pessoal da conta.'
     },
     {
         question: 'O que acontece se não confirmar a utilização?',
@@ -92,8 +93,14 @@ const faqs = [
 
 export function ProductIntroPanel({
     onRequestAccess,
-    onExistingAccess
+    onExistingAccess,
+    onAlreadyHasAccess
 }: ProductIntroPanelProps) {
+    const handleExistingAccess =
+        onExistingAccess ??
+        onAlreadyHasAccess ??
+        (() => undefined);
+
     return (
         <main className="min-h-screen bg-slate-950 text-white">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
@@ -150,7 +157,7 @@ export function ProductIntroPanel({
 
                             <button
                                 type="button"
-                                onClick={onExistingAccess}
+                                onClick={handleExistingAccess}
                                 className="rounded-2xl border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-black text-slate-200 transition hover:border-white/25 hover:bg-white/[0.08] focus:outline-none focus:ring-4 focus:ring-white/10"
                             >
                                 Já tenho acesso
@@ -244,7 +251,7 @@ export function ProductIntroPanel({
                         </p>
 
                         <p className="mt-2 text-sm leading-7 text-slate-400">
-                            Se não existir confirmação, a vaga poderá ser libertada para outro docente interessado.
+                            Esta confirmação é independente da senha de ativação e da password pessoal da conta. Se não existir confirmação, a vaga poderá ser libertada para outro docente interessado.
                         </p>
                     </article>
 
@@ -304,7 +311,7 @@ export function ProductIntroPanel({
 
                         <button
                             type="button"
-                            onClick={onExistingAccess}
+                            onClick={handleExistingAccess}
                             className="rounded-2xl border border-white/10 px-6 py-3 text-sm font-black text-slate-300 transition hover:bg-white/5 hover:text-white"
                         >
                             Já tenho acesso
@@ -315,3 +322,5 @@ export function ProductIntroPanel({
         </main>
     );
 }
+
+export default ProductIntroPanel;
