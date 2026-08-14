@@ -1,99 +1,132 @@
-import {
-  MA_PROFESSOR_ACCESS_STORAGE_KEY,
-  MA_PROFESSOR_DEVICE_STORAGE_KEY,
-  type MAProfessorAccessSession
+import type {
+  MAProfessorStoredAccess
 } from './accessTypes'
 
-function canUseStorage() {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.localStorage !== 'undefined'
-  )
+const ACCESS_STORAGE_KEY =
+  'ma-professor-access-v1'
+
+const DEVICE_STORAGE_KEY =
+  'ma-professor-device-id-v1'
+
+export const MA_PROFESSOR_ACCESS_SESSION_EVENT =
+  'ma-professor-access-session-change'
+
+function notifySessionChange() {
+  if (
+    typeof window !==
+    'undefined'
+  ) {
+    window.dispatchEvent(
+      new Event(
+        MA_PROFESSOR_ACCESS_SESSION_EVENT
+      )
+    )
+  }
 }
 
-function createId(prefix: string) {
-  const uuid = globalThis.crypto?.randomUUID?.()
-  return uuid
-    ? `${prefix}-${uuid}`
-    : `${prefix}-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 12)}`
+function createDeviceId() {
+  const uuid =
+    globalThis.crypto
+      ?.randomUUID?.()
+
+  if (
+    uuid
+  ) {
+    return uuid
+  }
+
+  return [
+    Date.now()
+      .toString(36),
+    Math.random()
+      .toString(36)
+      .slice(2, 12),
+    Math.random()
+      .toString(36)
+      .slice(2, 12)
+  ].join('-')
 }
 
 export function getOrCreateMAProfessorDeviceId() {
-  if (!canUseStorage()) {
-    return createId('device')
-  }
+  const stored =
+    localStorage.getItem(
+      DEVICE_STORAGE_KEY
+    )
 
-  const stored = window.localStorage
-    .getItem(MA_PROFESSOR_DEVICE_STORAGE_KEY)
-    ?.trim()
-
-  if (stored) {
+  if (
+    stored
+  ) {
     return stored
   }
 
-  const deviceId = createId('device')
-  window.localStorage.setItem(
-    MA_PROFESSOR_DEVICE_STORAGE_KEY,
+  const deviceId =
+    createDeviceId()
+
+  localStorage.setItem(
+    DEVICE_STORAGE_KEY,
     deviceId
   )
+
   return deviceId
 }
 
-export function readMAProfessorAccessSession(): MAProfessorAccessSession | null {
-  if (!canUseStorage()) {
-    return null
-  }
+export function readMAProfessorStoredAccess():
+  MAProfessorStoredAccess |
+  null {
+  const raw =
+    localStorage.getItem(
+      ACCESS_STORAGE_KEY
+    )
 
-  const raw = window.localStorage.getItem(
-    MA_PROFESSOR_ACCESS_STORAGE_KEY
-  )
-
-  if (!raw) {
+  if (
+    !raw
+  ) {
     return null
   }
 
   try {
-    const value = JSON.parse(raw) as Partial<MAProfessorAccessSession>
+    const parsed =
+      JSON.parse(
+        raw
+      ) as MAProfessorStoredAccess
 
     if (
-      typeof value.token !== 'string' ||
-      typeof value.deviceId !== 'string' ||
-      typeof value.email !== 'string' ||
-      typeof value.checkedAt !== 'string' ||
-      !value.license ||
-      typeof value.license !== 'object'
+      !parsed ||
+      typeof parsed.token !==
+        'string' ||
+      typeof parsed.email !==
+        'string' ||
+      typeof parsed.deviceId !==
+        'string' ||
+      !parsed.license
     ) {
-      throw new Error('Sessão inválida.')
+      return null
     }
 
-    return value as MAProfessorAccessSession
+    return parsed
   } catch {
-    clearMAProfessorAccessSession()
     return null
   }
 }
 
-export function saveMAProfessorAccessSession(
-  session: MAProfessorAccessSession
+export function saveMAProfessorStoredAccess(
+  access:
+    MAProfessorStoredAccess
 ) {
-  if (!canUseStorage()) {
-    return
-  }
-
-  window.localStorage.setItem(
-    MA_PROFESSOR_ACCESS_STORAGE_KEY,
-    JSON.stringify(session)
+  localStorage.setItem(
+    ACCESS_STORAGE_KEY,
+    JSON.stringify(
+      access
+    )
   )
+
+  notifySessionChange()
 }
 
-export function clearMAProfessorAccessSession() {
-  if (!canUseStorage()) {
-    return
-  }
-
-  window.localStorage.removeItem(
-    MA_PROFESSOR_ACCESS_STORAGE_KEY
+export function clearMAProfessorStoredAccess() {
+  localStorage.removeItem(
+    ACCESS_STORAGE_KEY
   )
+
+  notifySessionChange()
 }
