@@ -301,7 +301,7 @@ function buildRetryMessage(
   ) {
     return decision ===
       'approve'
-      ? 'Este pedido comercial já estava aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha.'
+      ? 'Este pedido comercial já estava aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha de ativação.'
       : 'Este pedido comercial já estava rejeitado.'
   }
 
@@ -311,7 +311,7 @@ function buildRetryMessage(
   ) {
     return decision ===
       'approve'
-      ? 'Este pedido piloto já estava aprovado e o envio automático anterior está registado como enviado. Não foi gerada uma nova senha.'
+      ? 'Este pedido piloto já estava aprovado e o envio automático anterior está registado como enviado. Não foi gerada uma nova senha de ativação.'
       : 'Este pedido piloto já estava rejeitado e o email de decisão anterior está registado como enviado.'
   }
 
@@ -321,7 +321,7 @@ function buildRetryMessage(
   ) {
     return decision ===
       'approve'
-      ? 'Este pedido piloto já estava aprovado, mas o envio automático anterior ficou registado como falhado. Consulte a ficha da conta antes de gerar uma nova senha.'
+      ? 'Este pedido piloto já estava aprovado, mas o envio automático anterior ficou registado como falhado. Consulte a ficha da conta antes de gerar uma nova senha de ativação.'
       : 'Este pedido piloto já estava rejeitado, mas o envio automático anterior ficou registado como falhado.'
   }
 
@@ -331,13 +331,13 @@ function buildRetryMessage(
   ) {
     return decision ===
       'approve'
-      ? 'Este pedido piloto já estava aprovado, mas o envio automático não estava configurado. Consulte a ficha da conta para concluir o acesso manualmente.'
+      ? 'Este pedido piloto já estava aprovado, mas o envio automático não estava configurado. Consulte a ficha da conta para emitir a senha de ativação manualmente.'
       : 'Este pedido piloto já estava rejeitado, mas o envio automático não estava configurado.'
   }
 
   return decision ===
     'approve'
-    ? 'Este pedido piloto já estava aprovado. O resultado do envio automático anterior continua por confirmar, por isso não foi gerada nem enviada uma nova senha.'
+    ? 'Este pedido piloto já estava aprovado. O resultado do envio automático anterior continua por confirmar, por isso não foi gerada nem enviada uma nova senha de ativação.'
     : 'Este pedido piloto já estava rejeitado. O resultado do envio automático anterior continua por confirmar.'
 }
 
@@ -435,13 +435,17 @@ function buildApprovalEmail(
       '',
       `Aceda a: ${MA_PROFESSOR_ACCESS_URL}`,
       `Email: ${email}`,
-      `Senha de acesso: ${password}`,
+      `Senha de ativação: ${password}`,
       '',
-      'Na página do MA-Professor, escolha “Já tenho acesso” e introduza o email e a senha acima.',
+      'Na página do MA-Professor, escolha “Já tenho acesso” e depois “Tenho uma senha de ativação”.',
       '',
-      'Esta senha está associada à sua conta e ao respetivo período de acesso. Não a partilhe.',
+      'Esta senha serve apenas para ativar o período de acesso autorizado. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.',
       '',
-      'Durante a fase piloto poderá ser solicitada uma confirmação periódica para manutenção da vaga.',
+      'No ecrã de ativação, introduza o email, esta senha de ativação e a sua password pessoal. Se for a primeira ativação da conta, defina a password pessoal que passará a utilizar nos acessos seguintes.',
+      '',
+      'Depois da ativação, entra normalmente com o seu email e a password pessoal. A senha de ativação deixa de ser necessária para os logins.',
+      '',
+      'A confirmação mensal para manutenção da vaga é um processo separado. Não utiliza esta senha de ativação e não altera a sua password pessoal.',
       '',
       'MA-Professor | MA-CODE'
     ].join('\n'),
@@ -465,7 +469,7 @@ function buildApprovalEmail(
           </p>
 
           <p style="margin:0;">
-            <strong>Senha de acesso:</strong>
+            <strong>Senha de ativação:</strong>
             <span style="font-family:monospace;">${safePassword}</span>
           </p>
         </div>
@@ -480,15 +484,23 @@ function buildApprovalEmail(
         </p>
 
         <p>
-          Na página, escolha <strong>“Já tenho acesso”</strong> e introduza o email e a senha acima.
+          Na página, escolha <strong>“Já tenho acesso”</strong> e depois <strong>“Tenho uma senha de ativação”</strong>.
         </p>
 
         <p style="color:#475569;font-size:14px;">
-          Esta senha está associada à sua conta e ao respetivo período de acesso. Não a partilhe.
+          Esta senha serve <strong>apenas para ativar o período de acesso autorizado</strong>. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.
         </p>
 
         <p style="color:#475569;font-size:14px;">
-          Durante a fase piloto poderá ser solicitada uma confirmação periódica para manutenção da vaga.
+          No ecrã de ativação, introduza o email, esta senha de ativação e a sua password pessoal. Se for a primeira ativação da conta, defina a password pessoal que passará a utilizar nos acessos seguintes.
+        </p>
+
+        <p style="color:#475569;font-size:14px;">
+          Depois da ativação, entra normalmente com o seu email e a <strong>password pessoal</strong>. A senha de ativação deixa de ser necessária para os logins.
+        </p>
+
+        <p style="color:#475569;font-size:14px;">
+          A confirmação mensal para manutenção da vaga é um processo separado. Não utiliza esta senha de ativação e não altera a sua password pessoal.
         </p>
 
         <p style="margin-top:28px;">
@@ -757,7 +769,7 @@ export async function processMAProfessorAccessDecision(
       message:
         decision ===
           'approve'
-          ? 'Pedido aprovado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhuma senha foi gerada automaticamente.'
+          ? 'Pedido aprovado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhuma senha de ativação foi gerada automaticamente.'
           : 'Pedido rejeitado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhum email foi enviado automaticamente.',
       request,
       emailDelivery:
@@ -776,7 +788,7 @@ export async function processMAProfessorAccessDecision(
       success: true,
       message:
         decision === 'approve'
-          ? 'Pedido comercial aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha.'
+          ? 'Pedido comercial aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha de ativação.'
           : 'Pedido comercial rejeitado.',
       request,
       emailDelivery:
@@ -798,7 +810,7 @@ export async function processMAProfessorAccessDecision(
       success: true,
       message:
         decision === 'approve'
-          ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha manualmente através da ficha da conta.'
+          ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha de ativação manualmente através da ficha da conta.'
           : 'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
       request:
         persisted.request ??
@@ -902,7 +914,7 @@ export async function processMAProfessorAccessDecision(
     return json({
       success: true,
       message:
-        'Pedido piloto aprovado, mas não foi possível gerar automaticamente a senha. Pode tentar gerar a senha manualmente na ficha da conta.',
+        'Pedido piloto aprovado, mas não foi possível gerar automaticamente a senha de ativação. Pode tentar gerar uma nova senha de ativação manualmente na ficha da conta.',
       request:
         persisted.request ??
         request,
@@ -936,7 +948,7 @@ export async function processMAProfessorAccessDecision(
     return json({
       success: true,
       message:
-        'Pedido piloto aprovado, mas não foi possível obter a nova senha para envio automático. Pode gerar a senha manualmente na ficha da conta.',
+        'Pedido piloto aprovado, mas não foi possível obter a nova senha de ativação para envio automático. Pode gerar uma nova senha de ativação manualmente na ficha da conta.',
       request:
         persisted.request ??
         request,
@@ -966,7 +978,7 @@ export async function processMAProfessorAccessDecision(
     return json({
       success: true,
       message:
-        'Pedido piloto aprovado, senha criada e email de acesso enviado ao professor através do Resend.',
+        'Pedido piloto aprovado, senha de ativação criada e email de ativação enviado ao professor através do Resend.',
       request:
         persisted.request ??
         request,
@@ -998,7 +1010,7 @@ export async function processMAProfessorAccessDecision(
     return json({
       success: true,
       message:
-        'Pedido piloto aprovado e senha criada, mas o email não foi enviado. Copie a senha apresentada agora e envie-a manualmente ao professor.',
+        'Pedido piloto aprovado e senha de ativação criada, mas o email não foi enviado. Copie a senha de ativação apresentada agora e envie-a manualmente ao professor.',
       request:
         persisted.request ??
         request,
