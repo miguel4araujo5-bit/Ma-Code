@@ -22,20 +22,22 @@ import {
 } from './maProfessorAccess'
 import {
   MaProfessorAccessDurableObject
-} from './maProfessorAccessAuthBridge'
-
+} from './maProfessorAccessAccountAdminBridge'
+import {
+  handleMAProfessorAccountAdminApiRequest,
+  isMAProfessorAccountAdminApiPath
+} from './maProfessorAccountAdmin'
 import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdmin'
+} from './maProfessorAdminFixed'
 
 import {
   handleMAProfessorRecoveryApiRequest,
   isMAProfessorRecoveryApiPath,
   type MaProfessorRecoveryEnv
 } from './maProfessorRecovery'
-
 import {
   handleMAProfessorSnapshotApiRequest,
   isMAProfessorSnapshotApiPath,
@@ -46,7 +48,6 @@ import {
   isMAProfessorSyncApiPath,
   type MaProfessorSyncEnv
 } from './maProfessorSync'
-
 import {
   handleConquistadorMatchmakingApiRequest,
   isConquistadorMatchmakingApiPath,
@@ -64,7 +65,6 @@ import {
   handleConquistadorGameRealtimeApiRequest,
   handleConquistadorMatchmakingRealtimeApiRequest
 } from './conquistadorRealtime'
-
 export {
   BtcAlertsDurableObject,
   MaProfessorAccessDurableObject,
@@ -88,7 +88,6 @@ type ExecutionContextLike = {
     promise: Promise<unknown>
   ): void
 }
-
 const isWebSocketUpgrade = (
   request: Request
 ) =>
@@ -102,7 +101,6 @@ const isWebSocketUpgrade = (
 
 const CONQUISTADOR_CLIENT_VERSION =
   'realtime-free-safe-1'
-
 const rejectLegacyConquistadorStateRequest =
   async (
     request: Request
@@ -126,7 +124,6 @@ const rejectLegacyConquistadorStateRequest =
         await request
           .clone()
           .json()
-
       if (
         !candidate ||
         typeof candidate !==
@@ -147,7 +144,6 @@ const rejectLegacyConquistadorStateRequest =
     } catch {
       return null
     }
-
     if (
       [
         'command',
@@ -172,12 +168,11 @@ const rejectLegacyConquistadorStateRequest =
           'client-upgrade-required',
 
         message:
-          'Atualize a página para restabelecer a ligação eficiente à partida.'
+          'Atualize a página para restabelecer a ligação eficiente à partida online.'
       }),
       {
         status:
           426,
-
         headers: {
           'Content-Type':
             'application/json; charset=utf-8',
@@ -205,7 +200,6 @@ const prepareMatchedGameSession =
       response.headers.get(
         'Content-Type'
       ) || ''
-
     if (
       !contentType
         .toLowerCase()
@@ -253,7 +247,6 @@ const prepareMatchedGameSession =
         'Content-Type',
         'application/json; charset=utf-8'
       )
-
       const {
         gameSessionCredentials:
           _gameSessionCredentials,
@@ -273,7 +266,6 @@ const prepareMatchedGameSession =
         }
       )
     }
-
     try {
       await ensureConquistadorGameSession(
         env,
@@ -297,7 +289,6 @@ const prepareMatchedGameSession =
           _gameSessionCredentials,
         ...publicData
       } = data
-
       return new Response(
         JSON.stringify({
           ...publicData,
@@ -323,7 +314,6 @@ const prepareMatchedGameSession =
       'Content-Type',
       'application/json; charset=utf-8'
     )
-
     const {
       gameSessionCredentials:
         _gameSessionCredentials,
@@ -354,7 +344,6 @@ export default {
       new URL(
         request.url
       )
-
     if (
       isConquistadorGameSessionApiPath(
         url.pathname
@@ -379,7 +368,6 @@ export default {
       if (legacyResponse) {
         return legacyResponse
       }
-
       return handleConquistadorGameSessionApiRequest(
         request,
         env
@@ -407,9 +395,19 @@ export default {
           request,
           env
         )
-
       return prepareMatchedGameSession(
         response,
+        env
+      )
+    }
+
+    if (
+      isMAProfessorAccountAdminApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorAccountAdminApiRequest(
+        request,
         env
       )
     }
@@ -435,7 +433,6 @@ export default {
         env
       )
     }
-
     if (
       isBtcAlertsApiPath(
         url.pathname
@@ -468,7 +465,6 @@ export default {
         env
       )
     }
-
     if (
       isMAProfessorRecoveryApiPath(
         url.pathname
@@ -496,7 +492,6 @@ export default {
       env
     )
   },
-
   async scheduled(
     _controller: unknown,
     env: Env,
