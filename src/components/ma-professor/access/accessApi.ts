@@ -1,8 +1,4 @@
 import type {
-  LicenseSummary
-} from '../types'
-
-import type {
   MAProfessorAccessRequestResponse,
   MAProfessorAccessResponse,
   MAProfessorLicenseResponse,
@@ -10,7 +6,7 @@ import type {
   RenewableLicensePlan
 } from './accessTypes'
 
-const API_PREFIX =
+const MA_PROFESSOR_ACCESS_API_PREFIX =
   '/api/ma-professor/access'
 
 interface ApiErrorBody {
@@ -18,66 +14,77 @@ interface ApiErrorBody {
   message?: string
 }
 
+async function readResponseBody(
+  response: Response
+) {
+  try {
+    return await response
+      .json() as unknown
+  } catch {
+    return null
+  }
+}
+
+function getApiMessage(
+  body: unknown,
+  fallback: string
+) {
+  if (
+    body &&
+    typeof body ===
+      'object'
+  ) {
+    const data =
+      body as ApiErrorBody
+
+    if (
+      typeof data.message ===
+      'string'
+    ) {
+      return data.message
+    }
+  }
+
+  return fallback
+}
+
 async function postJson<T>(
   path: string,
-  body: Record<
-    string,
-    unknown
-  >
+  body:
+    Record<string, unknown>
 ): Promise<T> {
-  let response: Response
-
-  try {
-    response =
-      await fetch(
-        `${API_PREFIX}${path}`,
-        {
-          method:
-            'POST',
-          headers: {
-            'Content-Type':
-              'application/json',
-            Accept:
-              'application/json'
-          },
-          body:
-            JSON.stringify(
-              body
-            ),
-          cache:
-            'no-store'
-        }
-      )
-  } catch {
-    throw new Error(
-      'Não foi possível ligar ao serviço de acesso. Verifique a ligação e tente novamente.'
+  const response =
+    await fetch(
+      `${MA_PROFESSOR_ACCESS_API_PREFIX}${path}`,
+      {
+        method:
+          'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify(
+            body
+          ),
+        cache:
+          'no-store'
+      }
     )
-  }
 
-  let data: unknown
-
-  try {
-    data =
-      await response.json()
-  } catch {
-    data = null
-  }
+  const data =
+    await readResponseBody(
+      response
+    )
 
   if (
     !response.ok
   ) {
-    const message =
-      data &&
-      typeof data ===
-        'object'
-        ? (
-            data as ApiErrorBody
-          ).message
-        : ''
-
     throw new Error(
-      message ||
-        'Não foi possível concluir o pedido. Tente novamente.'
+      getApiMessage(
+        data,
+        'Não foi possível concluir o pedido.'
+      )
     )
   }
 
@@ -95,12 +102,6 @@ export async function requestMAProfessorAccess(
   )
 }
 
-/*
- * Mantido por compatibilidade com o AccessGate existente.
- *
- * O novo fluxo público utiliza activateMAProfessorAccessPeriod,
- * onde a senha MP e a password pessoal são enviadas separadamente.
- */
 export async function activateMAProfessorAccess(
   email: string,
   password: string,
@@ -116,14 +117,6 @@ export async function activateMAProfessorAccess(
   )
 }
 
-/*
- * A senha MP serve apenas para ativar o período.
- *
- * accountPassword é a password pessoal da conta:
- * - na primeira ativação, fica definida;
- * - em ativações posteriores, deve corresponder à password
- *   pessoal já existente.
- */
 export async function activateMAProfessorAccessPeriod(
   email: string,
   activationPassword: string,
@@ -141,11 +134,6 @@ export async function activateMAProfessorAccessPeriod(
   )
 }
 
-/*
- * Login normal depois da ativação.
- *
- * Nunca recebe a senha MP.
- */
 export async function loginMAProfessorAccess(
   email: string,
   password: string,
@@ -187,6 +175,32 @@ export async function verifyMAProfessorAccess(
   )
 }
 
+export async function logoutMAProfessorAccess(
+  token: string,
+  deviceId: string
+) {
+  return postJson<{
+    success: true
+    message?: string
+  }>(
+    '/logout',
+    {
+      token,
+      deviceId
+    }
+  )
+}
+
+export async function endMAProfessorSession(
+  token: string,
+  deviceId: string
+) {
+  return logoutMAProfessorAccess(
+    token,
+    deviceId
+  )
+}
+
 export async function confirmMAProfessorPilotAccess(
   token: string,
   deviceId: string
@@ -203,7 +217,8 @@ export async function confirmMAProfessorPilotAccess(
 export async function requestMAProfessorRenewal(
   token: string,
   deviceId: string,
-  requestedPlan: RenewableLicensePlan
+  requestedPlan:
+    RenewableLicensePlan
 ) {
   return postJson<MAProfessorRenewalResponse>(
     '/renew',
@@ -213,36 +228,4 @@ export async function requestMAProfessorRenewal(
       requestedPlan
     }
   )
-}
-
-export async function endMAProfessorSession(
-  token: string,
-  deviceId: string
-) {
-  return postJson<{
-    success: true
-    message?: string
-  }>(
-    '/logout',
-    {
-      token,
-      deviceId
-    }
-  )
-}
-
-export async function logoutMAProfessorAccess(
-  token: string,
-  deviceId: string
-) {
-  return endMAProfessorSession(
-    token,
-    deviceId
-  )
-}
-
-export function createSessionLicense(
-  license: LicenseSummary
-) {
-  return license
 }
