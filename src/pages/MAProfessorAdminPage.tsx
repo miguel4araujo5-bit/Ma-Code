@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import AdminShell from '../components/admin/AdminShell'
+import MAProfessorAccountMaintenance from '../components/admin/ma-professor/MAProfessorAccountMaintenance'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 
 import {
@@ -14,7 +15,6 @@ import {
   type MAProfessorAccessDecisionResult,
   type MAProfessorAdminOverview
 } from '../lib/admin/maProfessorAdminApi'
-
 const workflow = [
   'Pedido',
   'Análise',
@@ -48,7 +48,6 @@ function formatUpdatedAt(
     }
   ).format(date)
 }
-
 function getErrorMessage(
   error: unknown
 ) {
@@ -61,7 +60,6 @@ function getErrorMessage(
 
   return 'Não foi possível carregar os dados administrativos do MA-Professor.'
 }
-
 function getDecisionFeedbackStyle(
   result: MAProfessorAccessDecisionResult
 ) {
@@ -81,7 +79,6 @@ function getDecisionFeedbackStyle(
         'text-emerald-200'
     }
   }
-
   if (
     result.emailDelivery ===
     'not_configured'
@@ -95,7 +92,6 @@ function getDecisionFeedbackStyle(
         'text-amber-200'
     }
   }
-
   if (
     result.emailDelivery ===
     'pending'
@@ -109,7 +105,6 @@ function getDecisionFeedbackStyle(
         'text-cyan-200'
     }
   }
-
   if (
     result.emailDelivery ===
     'not_applicable'
@@ -123,7 +118,6 @@ function getDecisionFeedbackStyle(
         'text-violet-200'
     }
   }
-
   return {
     title:
       result.fallbackCredential
@@ -149,7 +143,6 @@ function MAProfessorAdminContent() {
     loading,
     setLoading
   ] = useState(true)
-
   const [
     error,
     setError
@@ -177,7 +170,6 @@ function MAProfessorAdminContent() {
         try {
           const nextOverview =
             await getMAProfessorAdminOverview()
-
           setOverview(
             nextOverview
           )
@@ -201,7 +193,6 @@ function MAProfessorAdminContent() {
       ) => {
         setDecisionFeedback(null)
         setPasswordCopied(false)
-
         const result =
           await approveMAProfessorAccessRequest(
             email
@@ -228,7 +219,6 @@ function MAProfessorAdminContent() {
           await rejectMAProfessorAccessRequest(
             email
           )
-
         setDecisionFeedback(
           result
         )
@@ -254,7 +244,6 @@ function MAProfessorAdminContent() {
           await navigator.clipboard.writeText(
             password
           )
-
           setPasswordCopied(true)
         } catch {
           setPasswordCopied(false)
@@ -276,7 +265,6 @@ function MAProfessorAdminContent() {
           decisionFeedback
         )
       : null
-
   return (
     <>
       <section className="rounded-[1.75rem] border border-cyan-300/15 bg-cyan-300/[0.04] p-5 sm:p-6">
@@ -289,12 +277,10 @@ function MAProfessorAdminContent() {
             <h2 className="mt-2 text-xl font-black">
               Do pedido ao acesso
             </h2>
-
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
               O acesso público atual é gratuito e sujeito à disponibilidade de vagas. O professor submete o pedido, a MA-CODE aprova ou rejeita e, quando o envio automático estiver ativo, uma aprovação piloto gera a senha e envia as instruções diretamente por email.
             </p>
           </div>
-
           <span
             className={[
               'rounded-full border px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em]',
@@ -312,7 +298,6 @@ function MAProfessorAdminContent() {
                 : 'Dados reais ativos'}
           </span>
         </div>
-
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {workflow.map(
             (item, index) => (
@@ -328,7 +313,6 @@ function MAProfessorAdminContent() {
                     '0'
                   )}
                 </span>
-
                 <p className="mt-2 text-sm font-black text-slate-200">
                   {item}
                 </p>
@@ -337,7 +321,6 @@ function MAProfessorAdminContent() {
           )}
         </div>
       </section>
-
       {decisionFeedback &&
       feedbackStyle ? (
         <section
@@ -356,12 +339,10 @@ function MAProfessorAdminContent() {
               >
                 {feedbackStyle.title}
               </p>
-
               <p className="mt-2 max-w-4xl text-xs leading-5 text-slate-400">
                 {decisionFeedback.message}
               </p>
             </div>
-
             <button
               type="button"
               onClick={() => {
@@ -377,18 +358,15 @@ function MAProfessorAdminContent() {
               Fechar
             </button>
           </div>
-
           {decisionFeedback
             .fallbackCredential ? (
             <div className="mt-4 rounded-xl border border-amber-300/20 bg-slate-950/50 p-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
                 Senha de acesso — copiar agora
               </p>
-
               <p className="mt-2 text-xs leading-5 text-slate-400">
                 A senha foi criada, mas o email não chegou a ser enviado. Por segurança, esta é a oportunidade de a copiar e enviar manualmente ao professor.
               </p>
-
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   readOnly
@@ -400,7 +378,6 @@ function MAProfessorAdminContent() {
                   aria-label="Senha de fallback do acesso piloto"
                   className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
                 />
-
                 <button
                   type="button"
                   onClick={() => {
@@ -417,7 +394,6 @@ function MAProfessorAdminContent() {
           ) : null}
         </section>
       ) : null}
-
       <section className="mt-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -429,7 +405,6 @@ function MAProfessorAdminContent() {
               Pedidos e acessos
             </h2>
           </div>
-
           <div className="flex flex-wrap items-center gap-2">
             {overview ? (
               <span className="text-xs font-semibold text-slate-500">
@@ -439,7 +414,6 @@ function MAProfessorAdminContent() {
                 )}
               </span>
             ) : null}
-
             <button
               type="button"
               onClick={() => {
@@ -454,7 +428,6 @@ function MAProfessorAdminContent() {
             </button>
           </div>
         </div>
-
         {error ? (
           <div
             role="alert"
@@ -469,7 +442,6 @@ function MAProfessorAdminContent() {
             </p>
           </div>
         ) : null}
-
         {loading && !overview ? (
           <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
@@ -477,7 +449,6 @@ function MAProfessorAdminContent() {
             <p className="mt-4 text-sm font-black text-slate-300">
               A carregar pedidos, licenças e renovações
             </p>
-
             <p className="mt-2 text-xs text-slate-600">
               Ligação segura ao motor atual do MA-Professor.
             </p>
@@ -508,6 +479,12 @@ function MAProfessorAdminContent() {
         )}
       </section>
 
+      <MAProfessorAccountMaintenance
+        overview={overview}
+        loading={loading}
+        onChanged={loadOverview}
+      />
+
       <section className="mt-7 grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
           <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
@@ -517,7 +494,6 @@ function MAProfessorAdminContent() {
           <p className="mt-3 text-2xl font-black">
             Acesso gratuito
           </p>
-
           <p className="mt-1 text-sm leading-6 text-slate-400">
             Vagas limitadas, pedido sujeito a decisão administrativa e manutenção da vaga ligada à utilização durante o piloto.
           </p>
@@ -527,7 +503,6 @@ function MAProfessorAdminContent() {
           <p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-300">
             Comunicação de acesso
           </p>
-
           <p className="mt-3 text-2xl font-black">
             Decisão por email
           </p>
@@ -537,17 +512,14 @@ function MAProfessorAdminContent() {
           </p>
         </article>
       </section>
-
       <section className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/[0.035] p-4 sm:p-5">
         <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
           Infraestrutura comercial preservada
         </p>
-
         <p className="mt-2 text-sm leading-6 text-slate-400">
           O piloto gratuito é o fluxo público atual. Autorizações comerciais anteriores continuam reconhecidas pelo backend e mantêm as regras próprias de plano, pagamento e credencial, sem aparecerem como condição de entrada no piloto.
         </p>
       </section>
-
       <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Backend MA-Professor
@@ -556,7 +528,6 @@ function MAProfessorAdminContent() {
         <h2 className="mt-2 text-xl font-black">
           A aprovação piloto não depende de pagamento.
         </h2>
-
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
           Num pedido piloto, a aprovação administrativa permite emitir uma credencial sem criar uma autorização comercial. Com o serviço de email ativo, a senha é criada e enviada ao professor na própria aprovação. O período de acesso continua a ser criado pelo motor de acesso apenas quando ocorre a primeira ativação válida.
         </p>
@@ -564,7 +535,6 @@ function MAProfessorAdminContent() {
     </>
   )
 }
-
 export default function MAProfessorAdminPage() {
   return (
     <AdminShell
