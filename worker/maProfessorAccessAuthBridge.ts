@@ -78,6 +78,11 @@ interface StoredSessionSnapshot {
   revokedAt: number | null
 }
 
+interface StoredAccessRequestSnapshot {
+  email: string
+  activatedAt: number | null
+}
+
 interface StoredAccessCredentialSnapshot {
   email: string
   passwordSalt: string
@@ -95,14 +100,22 @@ interface AccessStateSnapshot {
     string,
     StoredLicenseSnapshot
   >
+
   sessions?: Record<
     string,
     StoredSessionSnapshot
   >
+
+  accessRequests?: Record<
+    string,
+    StoredAccessRequestSnapshot
+  >
+
   credentials?: Record<
     string,
     StoredAccessCredentialSnapshot
   >
+
   updatedAt?: number
 }
 
@@ -123,7 +136,10 @@ interface StoredCommercialAuthorization {
 
 interface StoredCommerceState {
   schemaVersion: 1
-  authorizations: StoredCommercialAuthorization[]
+
+  authorizations:
+    StoredCommercialAuthorization[]
+
   createdAt: number
   updatedAt: number
 }
@@ -139,10 +155,12 @@ interface StoredAccountCredential {
 
 interface StoredAccountAuthState {
   schemaVersion: 1
+
   credentials: Record<
     string,
     StoredAccountCredential
   >
+
   createdAt: number
   updatedAt: number
 }
@@ -1508,6 +1526,32 @@ export class MaProfessorAccessDurableObject {
     if (
       !authorization
     ) {
+      const accessState =
+        await this.state.storage.get<AccessStateSnapshot>(
+          STORAGE_KEY
+        )
+
+      const accessRequest =
+        accessState
+          ?.accessRequests?.[
+            email
+          ]
+
+      if (
+        accessRequest?.activatedAt !=
+        null
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'Este período piloto já foi ativado. A senha de ativação deste período já foi utilizada e não pode ser novamente emitida.'
+          },
+          409
+        )
+      }
+
       return this.existing.fetch(
         request
       )
