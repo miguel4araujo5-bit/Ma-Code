@@ -14,7 +14,6 @@ import type {
   LicenseRenewalRequest,
   LicenseSummary
 } from '../../ma-professor/types'
-
 import {
   confirmMAProfessorPayment,
   dispenseMAProfessorPayment,
@@ -28,7 +27,6 @@ import {
   type MAProfessorDecisionEmailDelivery,
   type MAProfessorGeneratedCredential
 } from '../../../lib/admin/maProfessorAdminApi'
-
 import MAProfessorAdminHistory from './MAProfessorAdminHistory'
 
 interface MAProfessorAdminAccountDetailProps {
@@ -367,9 +365,10 @@ export default function MAProfessorAdminAccountDetail({
   const [
     revokedLicense,
     setRevokedLicense
-  ] = useState<LicenseSummary | null>(
-    null
-  )
+  ] =
+    useState<LicenseSummary | null>(
+      null
+    )
 
   const [
     revokingLicense,
@@ -461,6 +460,12 @@ export default function MAProfessorAdminAccountDetail({
         null
       : null
 
+  const pilotPeriodActivated =
+    Boolean(
+      isPilotRequest &&
+      request?.activatedAt
+    )
+
   const authorizationCredentialIssued =
     Boolean(
       commercialStatus
@@ -491,18 +496,9 @@ export default function MAProfessorAdminAccountDetail({
 
   const pilotManualCredentialAllowed =
     isPilotRequest &&
-    (
-      pilotEmailDispatchStatus ===
-        'failed' ||
-      pilotEmailDispatchStatus ===
-        'not_configured' ||
-      (
-        pilotEmailDispatchStatus ===
-          null &&
-        !credentialStatus
-          ?.hasCredential
-      )
-    ) &&
+    request?.status ===
+      'approved' &&
+    !pilotPeriodActivated &&
     !generatedCredential
 
   const canGenerateCredential =
@@ -867,7 +863,10 @@ export default function MAProfessorAdminAccountDetail({
               'Modalidade: Fase piloto',
               'Custo: Gratuito',
               '',
-              'A nova senha substitui a credencial anterior desta conta.',
+              'Esta senha serve apenas para ativar o período atual.',
+              'A nova senha substitui imediatamente qualquer senha de ativação anterior ainda não utilizada.',
+              'Depois da ativação, o professor entra com a password pessoal da conta.',
+              '',
               'Por segurança, a senha será mostrada apenas agora e não ficará guardada em claro no MA-ADMIN.'
             ]
           : [
@@ -1158,7 +1157,8 @@ export default function MAProfessorAdminAccountDetail({
                 {commercialError}
               </p>
 
-              {dataConnected && request ? (
+              {dataConnected &&
+              request ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1261,7 +1261,7 @@ export default function MAProfessorAdminAccountDetail({
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-slate-400">
-                    O acesso é gratuito nesta fase. Por segurança, o texto da senha não fica guardado em claro no MA-ADMIN; consulte o estado do envio antes de qualquer nova emissão.
+                    O acesso é gratuito nesta fase. Enquanto este período ainda não tiver sido ativado, pode emitir uma nova senha de ativação se a anterior não tiver chegado ao professor. A nova senha substitui a anterior.
                   </p>
                 </div>
               ) : null}
@@ -1279,7 +1279,8 @@ export default function MAProfessorAdminAccountDetail({
                 </div>
               ) : null}
             </div>
-          ) : commercialStatus && hasAuthorization ? (
+          ) : commercialStatus &&
+            hasAuthorization ? (
             <div className="mt-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailValue
@@ -1604,9 +1605,11 @@ export default function MAProfessorAdminAccountDetail({
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-400">
               {credentialLoading
                 ? 'A verificar'
-                : currentCredentialIssued
-                  ? 'Senha emitida'
-                  : 'Sem senha'}
+                : pilotPeriodActivated
+                  ? 'Período ativado'
+                  : currentCredentialIssued
+                    ? 'Senha emitida'
+                    : 'Sem senha'}
             </span>
           </div>
 
@@ -1619,7 +1622,8 @@ export default function MAProfessorAdminAccountDetail({
                 {credentialError}
               </p>
 
-              {dataConnected && request ? (
+              {dataConnected &&
+              request ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1641,7 +1645,7 @@ export default function MAProfessorAdminAccountDetail({
               </p>
 
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Copie esta senha agora. Por segurança, o texto da senha não fica guardado em claro no MA-ADMIN e deixará de estar disponível depois de fechar ou atualizar esta ficha.
+                Esta senha serve apenas para ativar este período. Copie-a agora. Por segurança, o texto da senha não fica guardado em claro no MA-ADMIN e deixará de estar disponível depois de fechar ou atualizar esta ficha.
               </p>
 
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -1669,24 +1673,38 @@ export default function MAProfessorAdminAccountDetail({
                 Os emails automáticos de acesso são enviados por MA-Professor | MA-CODE &lt;acesso@professor.ma-code.pt&gt;.
               </p>
             </div>
-          ) : credentialStatus?.hasCredential ? (
-            <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-              <p className="text-sm font-black text-amber-200">
-                Credencial emitida
+          ) : pilotPeriodActivated ? (
+            <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+              <p className="text-sm font-black text-emerald-200">
+                Período já ativado
               </p>
 
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Existe uma credencial válida associada a esta conta. O hash necessário para validar o acesso está guardado, mas o texto original da senha não é armazenado em claro e não pode ser recuperado.
+                Este período foi ativado em{' '}
+                {formatDate(
+                  request?.activatedAt ??
+                  null
+                )}. A senha de ativação deste período já cumpriu a sua função e não deve ser novamente emitida. O professor entra agora com a password pessoal da conta.
+              </p>
+            </div>
+          ) : credentialStatus?.hasCredential ? (
+            <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+              <p className="text-sm font-black text-amber-200">
+                Senha de ativação emitida
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Existe uma senha de ativação associada a este período. O texto original não é armazenado em claro. Se o professor não a recebeu, pode gerar uma nova enquanto o período ainda não tiver sido ativado; a nova senha substituirá imediatamente a anterior.
               </p>
             </div>
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailValue
-                label="Credencial guardada na conta"
+                label="Senha guardada para ativação"
                 value="Não"
                 note={
                   isPilotRequest
-                    ? 'No piloto, a emissão manual depende do estado persistido do envio automático.'
+                    ? 'No piloto, pode emitir uma senha enquanto este período ainda não tiver sido ativado.'
                     : 'A senha pode ser emitida quando a autorização comercial estiver pronta.'
                 }
               />
@@ -1708,7 +1726,8 @@ export default function MAProfessorAdminAccountDetail({
             </div>
           )}
 
-          {credentialStatus?.hasCredential ? (
+          {credentialStatus?.hasCredential &&
+          !pilotPeriodActivated ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailValue
                 label="Emitida em"
@@ -1739,9 +1758,11 @@ export default function MAProfessorAdminAccountDetail({
           >
             {generatingCredential
               ? 'A gerar…'
-              : credentialStatus?.hasCredential
-                ? 'Gerar nova senha de ativação'
-                : 'Gerar senha de ativação'}
+              : pilotPeriodActivated
+                ? 'Período já ativado'
+                : credentialStatus?.hasCredential
+                  ? 'Gerar nova senha de ativação'
+                  : 'Gerar senha de ativação'}
           </button>
 
           {isPilotRequest ? (
@@ -1750,24 +1771,28 @@ export default function MAProfessorAdminAccountDetail({
               <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
                 No piloto, não pode ser emitida uma senha enquanto o pedido não estiver aprovado.
               </p>
+            ) : pilotPeriodActivated ? (
+              <p className="mt-3 text-[0.68rem] leading-5 text-emerald-300/80">
+                Este período já foi ativado. A senha de ativação já foi consumida e não pode ser reemitida para o mesmo período.
+              </p>
             ) : generatedCredential ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-emerald-300/80">
-                A nova senha está visível acima apenas nesta sessão. Copie-a antes de fechar ou atualizar a ficha.
+                A nova senha está visível acima apenas nesta sessão. Copie-a antes de fechar ou atualizar a ficha. A senha anterior deixou de funcionar.
               </p>
             ) : pilotEmailDispatchStatus ===
               'sent' ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-emerald-300/80">
-                O envio automático está registado como enviado. Para evitar invalidar uma senha que já pode estar com o professor, a geração manual de outra senha fica bloqueada.
+                O sistema registou o email como enviado, mas isso não confirma que chegou à caixa de correio do professor. Enquanto este período não estiver ativado, pode gerar uma nova senha; a nova substituirá imediatamente a anterior.
               </p>
             ) : pilotEmailDispatchStatus ===
               'pending' ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-cyan-300/80">
-                O resultado do envio automático ainda está por confirmar. Por segurança, não é possível gerar outra senha enquanto este estado permanecer incerto.
+                O resultado do envio automático ainda está por confirmar. Se necessário, pode gerar uma nova senha enquanto este período ainda não tiver sido ativado; a senha anterior será invalidada.
               </p>
             ) : pilotEmailDispatchStatus ===
               'failed' ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-rose-300/80">
-                O envio automático ficou registado como falhado. Pode gerar explicitamente uma nova senha; a nova senha substituirá qualquer credencial anterior.
+                O envio automático ficou registado como falhado. Pode gerar uma nova senha de ativação; a nova senha substituirá qualquer senha anterior deste período.
               </p>
             ) : pilotEmailDispatchStatus ===
               'not_configured' ? (
@@ -1776,11 +1801,11 @@ export default function MAProfessorAdminAccountDetail({
               </p>
             ) : credentialStatus?.hasCredential ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-amber-300/80">
-                Este é um pedido anterior sem estado de envio persistido e já existe uma credencial. Por segurança, não é gerada outra senha automaticamente.
+                Já existe uma senha de ativação para este período. Como o período ainda não foi ativado, pode substituí-la por uma nova se necessário.
               </p>
             ) : (
               <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
-                Este é um pedido anterior sem estado de envio persistido e sem credencial conhecida. A geração manual permanece disponível.
+                O período ainda não foi ativado. A geração manual da senha de ativação está disponível.
               </p>
             )
           ) : !commercialStatus?.canGenerateCredential ? (
