@@ -52,9 +52,9 @@ const accessSteps = [
     },
     {
         number: '3',
-        title: 'Ativar o acesso',
+        title: 'Começar a utilizar',
         description:
-            'Se o pedido for aprovado, recebe uma senha de ativação para ativar o período autorizado.'
+            'Se o acesso for aprovado, recebe as instruções necessárias para entrar no MA-Professor.'
     }
 ];
 
@@ -72,7 +72,7 @@ const faqs = [
     {
         question: 'Em que consiste a confirmação mensal?',
         answer:
-            'Uma vez por mês será solicitada uma confirmação simples de que pretende continuar a utilizar o MA-Professor. Esta confirmação é independente da senha de ativação e da password pessoal da conta.'
+            'Uma vez por mês será solicitada uma confirmação simples de que pretende continuar a utilizar o MA-Professor. Isto ajuda-nos a manter as vagas disponíveis para docentes que estão efetivamente a utilizar a plataforma.'
     },
     {
         question: 'O que acontece se não confirmar a utilização?',
@@ -98,8 +98,7 @@ export function ProductIntroPanel({
 }: ProductIntroPanelProps) {
     const handleExistingAccess =
         onExistingAccess ??
-        onAlreadyHasAccess ??
-        (() => undefined);
+        onAlreadyHasAccess;
 
     return (
         <main className="min-h-screen bg-slate-950 text-white">
@@ -251,7 +250,7 @@ export function ProductIntroPanel({
                         </p>
 
                         <p className="mt-2 text-sm leading-7 text-slate-400">
-                            Esta confirmação é independente da senha de ativação e da password pessoal da conta. Se não existir confirmação, a vaga poderá ser libertada para outro docente interessado.
+                            Se não existir confirmação, a vaga poderá ser libertada para outro docente interessado.
                         </p>
                     </article>
 
