@@ -234,7 +234,7 @@ assert.match(
 
 assert.match(
   matchmakingSource,
-  /navigator\.onLine === false/,
+  /navigator\.onLine\s*===\s*false/,
   'O matchmaking deve suspender reconexões quando o browser está offline.',
 );
 
@@ -252,13 +252,13 @@ assert.match(
 
 assert.match(
   gameClientSource,
-  /navigator\.onLine === false/,
+  /navigator\.onLine\s*===\s*false/,
   'A partida deve suspender reconexões quando o browser está offline.',
 );
 
 assert.match(
   gameClientSource,
-  /return this\.startRealtime\(\s*options,\s*\);/,
+  /return\s+this\.startRealtime\(\s*options,\s*\);/,
   'A API legada startPolling deve ser apenas um alias do transporte realtime.',
 );
 
