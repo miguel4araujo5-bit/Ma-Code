@@ -14,7 +14,8 @@
     ]
   },
   "compatibility_flags": [
-    "nodejs_compat"
+    "nodejs_compat",
+    "web_socket_auto_reply_to_close"
   ],
   "durable_objects": {
     "bindings": [
