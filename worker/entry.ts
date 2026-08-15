@@ -28,7 +28,7 @@ import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdminFixed'
+} from './maProfessorAdmin'
 
 import {
   handleMAProfessorRecoveryApiRequest,
