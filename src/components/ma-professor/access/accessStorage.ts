@@ -1,73 +1,58 @@
-import {
-  MA_PROFESSOR_ACCESS_STORAGE_KEY,
-  MA_PROFESSOR_DEVICE_STORAGE_KEY,
-  type MAProfessorAccessSession
+import type {
+  MAProfessorAccessSession,
+  MAProfessorStoredAccess
 } from './accessTypes'
+
+const ACCESS_STORAGE_KEY =
+  'ma-professor-access-v1'
+
+const DEVICE_STORAGE_KEY =
+  'ma-professor-device-id-v1'
 
 export const MA_PROFESSOR_ACCESS_SESSION_EVENT =
   'ma-professor-access-session-change'
 
-type MAProfessorStoredAccessInput =
-  Omit<
-    MAProfessorAccessSession,
-    'checkedAt'
-  > & {
-    checkedAt?: string
-  }
-
-function canUseStorage() {
-  return (
-    typeof window !==
-      'undefined' &&
-    typeof window.localStorage !==
-      'undefined'
-  )
-}
-
 function notifySessionChange() {
   if (
-    typeof window ===
+    typeof window !==
     'undefined'
   ) {
-    return
-  }
-
-  window.dispatchEvent(
-    new Event(
-      MA_PROFESSOR_ACCESS_SESSION_EVENT
+    window.dispatchEvent(
+      new Event(
+        MA_PROFESSOR_ACCESS_SESSION_EVENT
+      )
     )
-  )
+  }
 }
 
-function createId(
-  prefix: string
-) {
+function createDeviceId() {
   const uuid =
     globalThis.crypto
       ?.randomUUID?.()
 
-  return uuid
-    ? `${prefix}-${uuid}`
-    : `${prefix}-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 12)}`
+  if (
+    uuid
+  ) {
+    return uuid
+  }
+
+  return [
+    Date.now()
+      .toString(36),
+    Math.random()
+      .toString(36)
+      .slice(2, 12),
+    Math.random()
+      .toString(36)
+      .slice(2, 12)
+  ].join('-')
 }
 
 export function getOrCreateMAProfessorDeviceId() {
-  if (
-    !canUseStorage()
-  ) {
-    return createId(
-      'device'
-    )
-  }
-
   const stored =
-    window.localStorage
-      .getItem(
-        MA_PROFESSOR_DEVICE_STORAGE_KEY
-      )
-      ?.trim()
+    localStorage.getItem(
+      DEVICE_STORAGE_KEY
+    )
 
   if (
     stored
@@ -76,30 +61,22 @@ export function getOrCreateMAProfessorDeviceId() {
   }
 
   const deviceId =
-    createId(
-      'device'
-    )
+    createDeviceId()
 
-  window.localStorage.setItem(
-    MA_PROFESSOR_DEVICE_STORAGE_KEY,
+  localStorage.setItem(
+    DEVICE_STORAGE_KEY,
     deviceId
   )
 
   return deviceId
 }
 
-export function readMAProfessorAccessSession():
-  MAProfessorAccessSession |
+export function readMAProfessorStoredAccess():
+  MAProfessorStoredAccess |
   null {
-  if (
-    !canUseStorage()
-  ) {
-    return null
-  }
-
   const raw =
-    window.localStorage.getItem(
-      MA_PROFESSOR_ACCESS_STORAGE_KEY
+    localStorage.getItem(
+      ACCESS_STORAGE_KEY
     )
 
   if (
@@ -109,47 +86,71 @@ export function readMAProfessorAccessSession():
   }
 
   try {
-    const value =
+    const parsed =
       JSON.parse(
         raw
-      ) as Partial<MAProfessorAccessSession>
+      ) as MAProfessorStoredAccess
 
     if (
-      typeof value.token !==
+      !parsed ||
+      typeof parsed.token !==
         'string' ||
-      typeof value.deviceId !==
+      typeof parsed.email !==
         'string' ||
-      typeof value.email !==
+      typeof parsed.deviceId !==
         'string' ||
-      !value.license ||
-      typeof value.license !==
-        'object'
+      !parsed.license
     ) {
-      throw new Error(
-        'Sessão inválida.'
-      )
+      return null
     }
 
-    return {
-      token:
-        value.token,
-      deviceId:
-        value.deviceId,
-      email:
-        value.email,
-      license:
-        value.license,
-      checkedAt:
-        typeof value.checkedAt ===
-        'string'
-          ? value.checkedAt
-          : new Date()
-              .toISOString()
-    }
+    return parsed
   } catch {
-    clearMAProfessorAccessSession()
-
     return null
+  }
+}
+
+export function saveMAProfessorStoredAccess(
+  access:
+    MAProfessorStoredAccess
+) {
+  localStorage.setItem(
+    ACCESS_STORAGE_KEY,
+    JSON.stringify(
+      access
+    )
+  )
+
+  notifySessionChange()
+}
+
+export function clearMAProfessorStoredAccess() {
+  localStorage.removeItem(
+    ACCESS_STORAGE_KEY
+  )
+
+  notifySessionChange()
+}
+
+export function readMAProfessorAccessSession():
+  MAProfessorAccessSession |
+  null {
+  const stored =
+    readMAProfessorStoredAccess()
+
+  if (!stored) {
+    return null
+  }
+
+  return {
+    ...stored,
+    checkedAt:
+      typeof stored.checkedAt ===
+        'string' &&
+      stored.checkedAt
+        ? stored.checkedAt
+        : new Date(0)
+            .toISOString()
   }
 }
 
@@ -157,59 +158,11 @@ export function saveMAProfessorAccessSession(
   session:
     MAProfessorAccessSession
 ) {
-  if (
-    !canUseStorage()
-  ) {
-    return
-  }
-
-  window.localStorage.setItem(
-    MA_PROFESSOR_ACCESS_STORAGE_KEY,
-    JSON.stringify(
-      session
-    )
+  saveMAProfessorStoredAccess(
+    session
   )
-
-  notifySessionChange()
 }
 
 export function clearMAProfessorAccessSession() {
-  if (
-    !canUseStorage()
-  ) {
-    return
-  }
-
-  window.localStorage.removeItem(
-    MA_PROFESSOR_ACCESS_STORAGE_KEY
-  )
-
-  notifySessionChange()
-}
-
-/*
- * Nomes utilizados pelo novo gate de autenticação.
- *
- * São aliases sobre o mesmo armazenamento da aplicação para
- * não criar duas sessões paralelas.
- */
-export function readMAProfessorStoredAccess() {
-  return readMAProfessorAccessSession()
-}
-
-export function saveMAProfessorStoredAccess(
-  access:
-    MAProfessorStoredAccessInput
-) {
-  saveMAProfessorAccessSession({
-    ...access,
-    checkedAt:
-      access.checkedAt ??
-      new Date()
-        .toISOString()
-  })
-}
-
-export function clearMAProfessorStoredAccess() {
-  clearMAProfessorAccessSession()
+  clearMAProfessorStoredAccess()
 }
