@@ -18,112 +18,93 @@ function updateMeta(
   name: string,
   content: string
 ) {
-  let element =
-    document.querySelector(
+  let meta =
+    document.querySelector<HTMLMetaElement>(
       `meta[name="${name}"]`
-    ) as HTMLMetaElement |
-      null
+    )
 
-  if (
-    !element
-  ) {
-    element =
+  if (!meta) {
+    meta =
       document.createElement(
         'meta'
       )
 
-    element.setAttribute(
-      'name',
+    meta.name =
       name
-    )
 
     document.head.appendChild(
-      element
+      meta
     )
   }
 
-  element.setAttribute(
-    'content',
+  meta.content =
     content
-  )
 }
 
 function updatePropertyMeta(
   property: string,
   content: string
 ) {
-  let element =
-    document.querySelector(
+  let meta =
+    document.querySelector<HTMLMetaElement>(
       `meta[property="${property}"]`
-    ) as HTMLMetaElement |
-      null
+    )
 
-  if (
-    !element
-  ) {
-    element =
+  if (!meta) {
+    meta =
       document.createElement(
         'meta'
       )
 
-    element.setAttribute(
+    meta.setAttribute(
       'property',
       property
     )
 
     document.head.appendChild(
-      element
+      meta
     )
   }
 
-  element.setAttribute(
-    'content',
+  meta.content =
     content
-  )
 }
 
 function updateCanonical(
   href: string
 ) {
-  let element =
-    document.querySelector(
+  let canonical =
+    document.querySelector<HTMLLinkElement>(
       'link[rel="canonical"]'
-    ) as HTMLLinkElement |
-      null
+    )
 
-  if (
-    !element
-  ) {
-    element =
+  if (!canonical) {
+    canonical =
       document.createElement(
         'link'
       )
 
-    element.setAttribute(
-      'rel',
+    canonical.rel =
       'canonical'
-    )
 
     document.head.appendChild(
-      element
+      canonical
     )
   }
 
-  element.setAttribute(
-    'href',
+  canonical.href =
     href
-  )
 }
 
 export default function MAProfessorPage() {
   useEffect(
     () => {
       document.title =
-        'MA-Professor | Gestão de sumários, UFCD e avaliações'
+        'MA-Professor | Fase piloto para docentes'
 
       updateMeta(
         'description',
-        'MA-Professor é uma aplicação da MA-Code para planificar aulas, criar sumários, controlar UFCD, registar avaliações, faltas e recuperações de aprendizagens.'
+        'MA-Professor é um ambiente digital para organização do trabalho docente. A fase piloto tem acesso gratuito e vagas limitadas, mediante pedido de acesso.'
       )
 
       updateMeta(
@@ -158,12 +139,12 @@ export default function MAProfessorPage() {
 
       updatePropertyMeta(
         'og:title',
-        'MA-Professor'
+        'MA-Professor | Fase piloto'
       )
 
       updatePropertyMeta(
         'og:description',
-        'Aplicação para gestão de sumários, UFCD, avaliações, faltas e recuperações de aprendizagens.'
+        'Ambiente digital para organização do trabalho docente, atualmente em fase piloto com acesso gratuito e vagas limitadas.'
       )
 
       updatePropertyMeta(
@@ -178,12 +159,12 @@ export default function MAProfessorPage() {
 
       updateMeta(
         'twitter:title',
-        'MA-Professor'
+        'MA-Professor | Fase piloto'
       )
 
       updateMeta(
         'twitter:description',
-        'Gestão de sumários, UFCD, avaliações e faltas para professores.'
+        'MA-Professor em fase piloto: organização de aulas, sumários, turmas, assiduidade e avaliação para docentes.'
       )
 
       updateMeta(
