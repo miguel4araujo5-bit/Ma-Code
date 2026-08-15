@@ -1,11 +1,11 @@
 const API_URL = '/api/conquistador/game';
-const CLIENT_VERSION = 'realtime-free-safe-1';
-const DEFAULT_FALLBACK_POLL_INTERVAL_MS = 30000;
-const MAX_FALLBACK_POLL_INTERVAL_MS = 120000;
+const CLIENT_VERSION = 'realtime-no-polling-2';
 const REALTIME_CONNECT_TIMEOUT_MS = 8000;
 const REALTIME_REQUEST_TIMEOUT_MS = 10000;
-const REALTIME_RECONNECT_MIN_MS = 5000;
+const REALTIME_RECONNECT_MIN_MS = 2000;
 const REALTIME_RECONNECT_MAX_MS = 60000;
+const REALTIME_RECONNECT_MAX_ATTEMPTS = 6;
+const REALTIME_RECONNECT_JITTER_RATIO = 0.2;
 const STORED_SESSION_KEY = 'conquistador-online-session-v1';
 const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
 const TURN_COUNTDOWN_ID = 'online-turn-countdown';
@@ -33,51 +33,81 @@ function normalizeReconnectToken(value) {
 function normalizeRevision(value) {
   const revision = Number(value);
 
-  return Number.isInteger(revision) && revision >= 0
+  return (
+    Number.isInteger(revision) &&
+    revision >= 0
+  )
     ? revision
     : null;
 }
 
-function getStoredReconnectToken(matchId, playerId) {
+function getStoredReconnectToken(
+  matchId,
+  playerId,
+) {
   try {
-    const raw = localStorage.getItem(STORED_SESSION_KEY);
+    const raw =
+      localStorage.getItem(
+        STORED_SESSION_KEY,
+      );
 
     if (!raw) {
       return '';
     }
 
-    const stored = JSON.parse(raw);
+    const stored =
+      JSON.parse(raw);
 
     if (
       !stored ||
-      typeof stored !== 'object' ||
-      normalizeId(stored.matchId) !== matchId ||
-      normalizeId(stored.playerId) !== playerId
+      typeof stored !==
+        'object' ||
+      normalizeId(
+        stored.matchId,
+      ) !== matchId ||
+      normalizeId(
+        stored.playerId,
+      ) !== playerId
     ) {
       return '';
     }
 
-    return normalizeReconnectToken(stored.reconnectToken);
+    return normalizeReconnectToken(
+      stored.reconnectToken,
+    );
   } catch {
     return '';
   }
 }
 
-function clearStoredSession(matchId, playerId) {
+function clearStoredSession(
+  matchId,
+  playerId,
+) {
   try {
-    const raw = localStorage.getItem(STORED_SESSION_KEY);
+    const raw =
+      localStorage.getItem(
+        STORED_SESSION_KEY,
+      );
 
     if (!raw) {
       return;
     }
 
-    const stored = JSON.parse(raw);
+    const stored =
+      JSON.parse(raw);
 
     if (
-      normalizeId(stored?.matchId) === matchId &&
-      normalizeId(stored?.playerId) === playerId
+      normalizeId(
+        stored?.matchId,
+      ) === matchId &&
+      normalizeId(
+        stored?.playerId,
+      ) === playerId
     ) {
-      localStorage.removeItem(STORED_SESSION_KEY);
+      localStorage.removeItem(
+        STORED_SESSION_KEY,
+      );
     }
   } catch {
     return;
@@ -95,100 +125,155 @@ function escapeHtml(value) {
 
 function removePresenceCountdown() {
   document
-    .querySelector(`#${PRESENCE_COUNTDOWN_ID}`)
+    .querySelector(
+      `#${PRESENCE_COUNTDOWN_ID}`,
+    )
     ?.remove();
 }
 
 function restoreDiceMargin() {
   const dice =
-    document.querySelector('.turn-banner .dice-result');
+    document.querySelector(
+      '.turn-banner .dice-result',
+    );
 
   if (
     !dice ||
-    dice.dataset.turnTimerMarginAdjusted !== 'true'
+    dice.dataset
+      .turnTimerMarginAdjusted !==
+      'true'
   ) {
     return;
   }
 
   dice.style.marginLeft =
-    dice.dataset.turnTimerOriginalMarginLeft || '';
+    dice.dataset
+      .turnTimerOriginalMarginLeft ||
+    '';
 
-  delete dice.dataset.turnTimerMarginAdjusted;
-  delete dice.dataset.turnTimerOriginalMarginLeft;
+  delete dice.dataset
+    .turnTimerMarginAdjusted;
+
+  delete dice.dataset
+    .turnTimerOriginalMarginLeft;
 }
 
 function removeTurnCountdown() {
   document
-    .querySelector(`#${TURN_COUNTDOWN_ID}`)
+    .querySelector(
+      `#${TURN_COUNTDOWN_ID}`,
+    )
     ?.remove();
 
   restoreDiceMargin();
 }
 
 function getPresenceWarning(data) {
-  const warnings = Array.isArray(data?.presenceWarnings)
-    ? data.presenceWarnings
-    : [];
+  const warnings =
+    Array.isArray(
+      data?.presenceWarnings,
+    )
+      ? data.presenceWarnings
+      : [];
 
-  const valid = warnings
-    .filter((warning) => {
-      const expiresAt = Number(warning?.expiresAt);
+  const valid =
+    warnings
+      .filter(
+        warning => {
+          const expiresAt =
+            Number(
+              warning?.expiresAt,
+            );
 
-      return (
-        warning &&
-        typeof warning === 'object' &&
-        Number.isFinite(expiresAt) &&
-        expiresAt > Date.now()
+          return (
+            warning &&
+            typeof warning ===
+              'object' &&
+            Number.isFinite(
+              expiresAt,
+            ) &&
+            expiresAt >
+              Date.now()
+          );
+        },
+      )
+      .sort(
+        (
+          first,
+          second,
+        ) =>
+          Number(
+            first.expiresAt,
+          ) -
+          Number(
+            second.expiresAt,
+          ),
       );
-    })
-    .sort(
-      (first, second) =>
-        Number(first.expiresAt) -
-        Number(second.expiresAt),
-    );
 
   return valid[0] || null;
 }
 
 function normalizeTurnTimer(data) {
-  const timer = data?.turnTimer;
+  const timer =
+    data?.turnTimer;
 
   if (
     !timer ||
-    typeof timer !== 'object' ||
+    typeof timer !==
+      'object' ||
     Array.isArray(timer)
   ) {
     return null;
   }
 
   const actorId =
-    normalizeId(timer.actorId);
+    normalizeId(
+      timer.actorId,
+    );
 
   const actorName =
-    String(timer.actorName ?? '').trim();
+    String(
+      timer.actorName ?? '',
+    ).trim();
 
   const sequence =
-    Number(timer.sequence);
+    Number(
+      timer.sequence,
+    );
 
   const durationMs =
-    Number(timer.durationMs);
+    Number(
+      timer.durationMs,
+    );
 
   const remainingMs =
-    Number(timer.remainingMs);
+    Number(
+      timer.remainingMs,
+    );
 
   const timeoutStrikes =
-    Number(timer.timeoutStrikes);
+    Number(
+      timer.timeoutStrikes,
+    );
 
   const maxTimeoutStrikes =
-    Number(timer.maxTimeoutStrikes);
+    Number(
+      timer.maxTimeoutStrikes,
+    );
 
   if (
     !actorId ||
-    !Number.isInteger(sequence) ||
+    !Number.isInteger(
+      sequence,
+    ) ||
     sequence < 0 ||
-    !Number.isFinite(durationMs) ||
+    !Number.isFinite(
+      durationMs,
+    ) ||
     durationMs <= 0 ||
-    !Number.isFinite(remainingMs) ||
+    !Number.isFinite(
+      remainingMs,
+    ) ||
     remainingMs < 0
   ) {
     return null;
@@ -196,43 +281,44 @@ function normalizeTurnTimer(data) {
 
   return {
     actorId,
-
     actorName:
       actorName ||
       'Jogador',
-
     sequence,
-
     durationMs,
-
     remainingMs,
-
     timeoutStrikes:
-      Number.isInteger(timeoutStrikes) &&
+      Number.isInteger(
+        timeoutStrikes,
+      ) &&
       timeoutStrikes >= 0
         ? timeoutStrikes
         : 0,
-
     maxTimeoutStrikes:
-      Number.isInteger(maxTimeoutStrikes) &&
+      Number.isInteger(
+        maxTimeoutStrikes,
+      ) &&
       maxTimeoutStrikes > 0
         ? maxTimeoutStrikes
         : 2,
-
     receivedAt:
-      typeof performance !== 'undefined'
+      typeof performance !==
+      'undefined'
         ? performance.now()
         : Date.now(),
   };
 }
 
-function getLocalTurnRemainingMs(timer) {
+function getLocalTurnRemainingMs(
+  timer,
+) {
   if (!timer) {
     return null;
   }
 
   const now =
-    typeof performance !== 'undefined'
+    typeof performance !==
+    'undefined'
       ? performance.now()
       : Date.now();
 
@@ -240,42 +326,56 @@ function getLocalTurnRemainingMs(timer) {
     Math.max(
       0,
       now -
-      Number(timer.receivedAt || 0),
+        Number(
+          timer.receivedAt ||
+            0,
+        ),
     );
 
   return (
-    Number(timer.remainingMs || 0) -
+    Number(
+      timer.remainingMs ||
+        0,
+    ) -
     elapsedMs
   );
 }
 
-function renderPresenceCountdown(warning) {
+function renderPresenceCountdown(
+  warning,
+) {
   if (!warning) {
     removePresenceCountdown();
     return;
   }
 
   const turnBanner =
-    document.querySelector('.turn-banner');
+    document.querySelector(
+      '.turn-banner',
+    );
 
   if (!turnBanner) {
     return;
   }
 
   const expiresAt =
-    Number(warning.expiresAt);
+    Number(
+      warning.expiresAt,
+    );
 
   const remainingMs =
     Math.max(
       0,
-      expiresAt - Date.now(),
+      expiresAt -
+        Date.now(),
     );
 
   const seconds =
     Math.max(
       0,
       Math.ceil(
-        remainingMs / 1000,
+        remainingMs /
+          1000,
       ),
     );
 
@@ -291,7 +391,9 @@ function renderPresenceCountdown(warning) {
 
   if (!element) {
     element =
-      document.createElement('div');
+      document.createElement(
+        'div',
+      );
 
     element.id =
       PRESENCE_COUNTDOWN_ID;
@@ -365,12 +467,14 @@ function renderPresenceCountdown(warning) {
   const playerName =
     String(
       warning.playerName ??
-      'jogador',
+        'jogador',
     ).trim() ||
     'jogador';
 
   const safeName =
-    escapeHtml(playerName);
+    escapeHtml(
+      playerName,
+    );
 
   element.setAttribute(
     'aria-label',
@@ -381,7 +485,9 @@ function renderPresenceCountdown(warning) {
     <span
       aria-hidden="true"
       style="font-size:1.05rem;line-height:1"
-    >⏱</span>
+    >
+      ⏱
+    </span>
 
     <span
       style="display:flex;flex-direction:column;line-height:1.05"
@@ -401,14 +507,18 @@ function renderPresenceCountdown(warning) {
   `;
 }
 
-function renderTurnCountdown(timer) {
+function renderTurnCountdown(
+  timer,
+) {
   if (!timer) {
     removeTurnCountdown();
     return;
   }
 
   const turnBanner =
-    document.querySelector('.turn-banner');
+    document.querySelector(
+      '.turn-banner',
+    );
 
   if (!turnBanner) {
     return;
@@ -422,14 +532,17 @@ function renderTurnCountdown(timer) {
   const remainingMs =
     Math.max(
       0,
-      Number(rawRemainingMs) || 0,
+      Number(
+        rawRemainingMs,
+      ) || 0,
     );
 
   const seconds =
     Math.max(
       0,
       Math.ceil(
-        remainingMs / 1000,
+        remainingMs /
+          1000,
       ),
     );
 
@@ -440,7 +553,9 @@ function renderTurnCountdown(timer) {
 
   if (!element) {
     element =
-      document.createElement('div');
+      document.createElement(
+        'div',
+      );
 
     element.id =
       TURN_COUNTDOWN_ID;
@@ -544,7 +659,7 @@ function renderTurnCountdown(timer) {
   const actorName =
     String(
       timer.actorName ||
-      'Jogador',
+        'Jogador',
     );
 
   const strike =
@@ -592,17 +707,23 @@ function renderTurnCountdown(timer) {
       : '#fff';
 
   element.textContent =
-    String(seconds);
+    String(
+      seconds,
+    );
 }
 
-async function readJsonResponse(response) {
-  let data = null;
+async function readJsonResponse(
+  response,
+) {
+  let data =
+    null;
 
   try {
     data =
       await response.json();
   } catch {
-    data = null;
+    data =
+      null;
   }
 
   if (
@@ -612,7 +733,7 @@ async function readJsonResponse(response) {
     const error =
       new Error(
         data?.message ||
-        'Não foi possível comunicar com a partida online.',
+          'Não foi possível comunicar com a partida online.',
       );
 
     error.status =
@@ -635,11 +756,13 @@ function createSocketError(
   const error =
     new Error(
       message ||
-      'Não foi possível comunicar com a partida online.',
+        'Não foi possível comunicar com a partida online.',
     );
 
   error.status =
-    Number(status) || 0;
+    Number(
+      status,
+    ) || 0;
 
   error.data =
     data;
@@ -653,7 +776,9 @@ function isTerminalStatus(status) {
     403,
     410,
   ].includes(
-    Number(status),
+    Number(
+      status,
+    ),
   );
 }
 
@@ -669,7 +794,9 @@ function isPlayerReplaced(
   );
 }
 
-function createWebSocketUrl(matchId) {
+function createWebSocketUrl(
+  matchId,
+) {
   const protocol =
     window.location.protocol ===
     'https:'
@@ -698,8 +825,6 @@ export class OnlineGameClient {
     matchId,
     playerId,
     reconnectToken = '',
-    pollIntervalMs =
-      DEFAULT_FALLBACK_POLL_INTERVAL_MS,
   }) {
     this.matchId =
       normalizeId(
@@ -718,15 +843,6 @@ export class OnlineGameClient {
       getStoredReconnectToken(
         this.matchId,
         this.playerId,
-      );
-
-    this.pollIntervalMs =
-      Math.max(
-        DEFAULT_FALLBACK_POLL_INTERVAL_MS,
-        Number(
-          pollIntervalMs,
-        ) ||
-        DEFAULT_FALLBACK_POLL_INTERVAL_MS,
       );
 
     if (
@@ -752,7 +868,7 @@ export class OnlineGameClient {
     this.state =
       null;
 
-    this.polling =
+    this.realtimeActive =
       false;
 
     this.closed =
@@ -803,20 +919,40 @@ export class OnlineGameClient {
     this.reconnectDelayMs =
       REALTIME_RECONNECT_MIN_MS;
 
-    this.fallbackTimer =
-      null;
+    this.reconnectAttempts =
+      0;
 
-    this.fallbackDelayMs =
-      this.pollIntervalMs;
+    this.reconnectLimitNotified =
+      false;
 
     this.handleVisibilityChange =
       this.handleVisibilityChange.bind(
         this,
       );
 
+    this.handleOnline =
+      this.handleOnline.bind(
+        this,
+      );
+
+    this.handleOffline =
+      this.handleOffline.bind(
+        this,
+      );
+
     document.addEventListener(
       'visibilitychange',
       this.handleVisibilityChange,
+    );
+
+    window.addEventListener(
+      'online',
+      this.handleOnline,
+    );
+
+    window.addEventListener(
+      'offline',
+      this.handleOffline,
     );
 
     this.countdownTimer =
@@ -882,10 +1018,12 @@ export class OnlineGameClient {
   updatePresenceWarning(data) {
     if (
       !data ||
-      !Object.prototype.hasOwnProperty.call(
-        data,
-        'presenceWarnings',
-      )
+      !Object.prototype
+        .hasOwnProperty
+        .call(
+          data,
+          'presenceWarnings',
+        )
     ) {
       return;
     }
@@ -901,16 +1039,19 @@ export class OnlineGameClient {
   updateTurnTimer(data) {
     if (
       !data ||
-      !Object.prototype.hasOwnProperty.call(
-        data,
-        'turnTimer',
-      )
+      !Object.prototype
+        .hasOwnProperty
+        .call(
+          data,
+          'turnTimer',
+        )
     ) {
       return;
     }
 
     const previousSequence =
-      this.turnTimer?.sequence ??
+      this.turnTimer
+        ?.sequence ??
       null;
 
     const nextTimer =
@@ -977,15 +1118,16 @@ export class OnlineGameClient {
     this.turnTimeoutSentSequence =
       timer.sequence;
 
-    void this.sendRealtimeRequest(
-      'turn-timeout',
-      {
-        sequence:
-          timer.sequence,
-      },
-    )
+    void this
+      .sendRealtimeRequest(
+        'turn-timeout',
+        {
+          sequence:
+            timer.sequence,
+        },
+      )
       .catch(
-        (error) => {
+        error => {
           if (
             this.closed
           ) {
@@ -1169,11 +1311,10 @@ export class OnlineGameClient {
       listener,
     );
 
-    return () => {
+    return () =>
       this.listeners.delete(
         listener,
       );
-    };
   }
 
   onError(listener) {
@@ -1188,11 +1329,10 @@ export class OnlineGameClient {
       listener,
     );
 
-    return () => {
+    return () =>
       this.errorListeners.delete(
         listener,
       );
-    };
   }
 
   onSessionEnd(listener) {
@@ -1207,11 +1347,10 @@ export class OnlineGameClient {
       listener,
     );
 
-    return () => {
+    return () =>
       this.sessionEndListeners.delete(
         listener,
       );
-    };
   }
 
   endSession({
@@ -1237,7 +1376,7 @@ export class OnlineGameClient {
       this.playerId,
     );
 
-    this.stopPolling();
+    this.stopRealtime();
 
     const error =
       createSocketError(
@@ -1274,7 +1413,9 @@ export class OnlineGameClient {
       reason,
       message,
       status:
-        Number(status) || 0,
+        Number(
+          status,
+        ) || 0,
       data,
     };
 
@@ -1310,16 +1451,23 @@ export class OnlineGameClient {
     return this.endSession({
       reason:
         'player-replaced',
+
       message:
         data?.message ||
         'O seu lugar passou para um jogador automático.',
+
       status:
-        Number(status) || 410,
+        Number(
+          status,
+        ) || 410,
+
       data,
     });
   }
 
-  handleTerminalError(error) {
+  handleTerminalError(
+    error,
+  ) {
     if (
       !isTerminalStatus(
         error?.status,
@@ -1335,21 +1483,24 @@ export class OnlineGameClient {
         ) === 410
           ? 'player-replaced'
           : 'session-invalid',
+
       message:
         error?.message ||
         'A sua sessão nesta partida terminou.',
+
       status:
         error?.status,
+
       data:
-        error?.data || null,
+        error?.data ||
+        null,
     });
 
     return true;
   }
 
   createRequestId(prefix) {
-    this.requestSequence +=
-      1;
+    this.requestSequence += 1;
 
     return `${prefix}-${Date.now()}-${this.requestSequence}`;
   }
@@ -1382,10 +1533,13 @@ export class OnlineGameClient {
     }
   }
 
-  rejectPendingRequests(error) {
+  rejectPendingRequests(
+    error,
+  ) {
     for (
       const pending
-      of this.pendingRequests.values()
+      of this.pendingRequests
+        .values()
     ) {
       window.clearTimeout(
         pending.timer,
@@ -1399,7 +1553,9 @@ export class OnlineGameClient {
     this.pendingRequests.clear();
   }
 
-  resolvePendingRequest(message) {
+  resolvePendingRequest(
+    message,
+  ) {
     const requestId =
       normalizeId(
         message?.requestId,
@@ -1431,8 +1587,7 @@ export class OnlineGameClient {
       null;
 
     const ok =
-      message?.ok ===
-      true;
+      message?.ok === true;
 
     const status =
       Number(
@@ -1448,7 +1603,7 @@ export class OnlineGameClient {
       pending.reject(
         createSocketError(
           data?.message ||
-          'O seu lugar passou para um jogador automático.',
+            'O seu lugar passou para um jogador automático.',
           status || 410,
           data,
         ),
@@ -1490,7 +1645,7 @@ export class OnlineGameClient {
     const error =
       createSocketError(
         data?.message ||
-        'Não foi possível concluir a ação online.',
+          'Não foi possível concluir a ação online.',
         status,
         data,
       );
@@ -1506,6 +1661,19 @@ export class OnlineGameClient {
     return true;
   }
 
+  resetReconnectPolicy() {
+    this.clearReconnectTimer();
+
+    this.reconnectDelayMs =
+      REALTIME_RECONNECT_MIN_MS;
+
+    this.reconnectAttempts =
+      0;
+
+    this.reconnectLimitNotified =
+      false;
+  }
+
   handleSocketMessage(event) {
     let message =
       null;
@@ -1515,7 +1683,7 @@ export class OnlineGameClient {
         JSON.parse(
           String(
             event.data ||
-            '',
+              '',
           ),
         );
     } catch {
@@ -1537,17 +1705,11 @@ export class OnlineGameClient {
       this.socketAuthenticated =
         true;
 
-      this.reconnectDelayMs =
-        REALTIME_RECONNECT_MIN_MS;
-
-      this.fallbackDelayMs =
-        this.pollIntervalMs;
-
-      this.clearFallbackTimer();
+      this.resetReconnectPolicy();
 
       this.applyRealtimeState(
         message.data ||
-        {},
+          {},
       );
 
       this.clearConnectWaiter();
@@ -1561,12 +1723,12 @@ export class OnlineGameClient {
     ) {
       this.updatePresenceWarning(
         message.data ||
-        {},
+          {},
       );
 
       this.updateTurnTimer(
         message.data ||
-        {},
+          {},
       );
 
       return;
@@ -1596,7 +1758,7 @@ export class OnlineGameClient {
           message.message,
           message.status,
           message.data ||
-          null,
+            null,
         );
 
       this.handleTerminalError(
@@ -1653,23 +1815,21 @@ export class OnlineGameClient {
 
     if (
       this.closed ||
-      !this.polling
+      !this.realtimeActive ||
+      document.hidden ||
+      navigator.onLine ===
+        false
     ) {
       return;
     }
 
-    if (
-      !document.hidden
-    ) {
-      this.scheduleReconnect();
-      this.scheduleFallbackPoll();
-    }
+    this.scheduleReconnect();
   }
 
   async connectRealtime() {
     if (
       this.closed ||
-      !this.polling
+      !this.realtimeActive
     ) {
       return this.state;
     }
@@ -1689,7 +1849,9 @@ export class OnlineGameClient {
     }
 
     if (
-      document.hidden
+      document.hidden ||
+      navigator.onLine ===
+        false
     ) {
       return this.state;
     }
@@ -1755,27 +1917,37 @@ export class OnlineGameClient {
           return;
         }
 
-        socket.send(
-          JSON.stringify({
-            type:
-              'auth',
+        try {
+          socket.send(
+            JSON.stringify({
+              type:
+                'auth',
 
-            playerId:
-              this.playerId,
+              playerId:
+                this.playerId,
 
-            reconnectToken:
-              this.reconnectToken,
+              reconnectToken:
+                this.reconnectToken,
 
-            knownRevision:
-              this.revision,
-          }),
-        );
+              knownRevision:
+                this.revision,
+            }),
+          );
+        } catch (error) {
+          this.clearConnectWaiter(
+            error,
+          );
+
+          this.closeSocket(
+            false,
+          );
+        }
       },
     );
 
     socket.addEventListener(
       'message',
-      (event) => {
+      event => {
         if (
           this.socket ===
           socket
@@ -1797,13 +1969,14 @@ export class OnlineGameClient {
           return;
         }
 
-        const error =
+        this.clearConnectWaiter(
           createSocketError(
             'Não foi possível estabelecer a ligação realtime à partida.',
-          );
+          ),
+        );
 
-        this.clearConnectWaiter(
-          error,
+        this.closeSocket(
+          false,
         );
       },
     );
@@ -1818,7 +1991,8 @@ export class OnlineGameClient {
     );
 
     try {
-      return await this.socketConnecting;
+      return await this
+        .socketConnecting;
     } finally {
       if (
         this.socket ===
@@ -1913,13 +2087,14 @@ export class OnlineGameClient {
         WebSocket.OPEN &&
       this.socketAuthenticated
     ) {
-      return this.sendRealtimeRequest(
-        'state',
-        {
-          knownRevision:
-            this.revision,
-        },
-      );
+      return this
+        .sendRealtimeRequest(
+          'state',
+          {
+            knownRevision:
+              this.revision,
+          },
+        );
     }
 
     const data =
@@ -1959,13 +2134,10 @@ export class OnlineGameClient {
   ) {
     const commandType =
       String(
-        type ??
-        '',
+        type ?? '',
       ).trim();
 
-    if (
-      !commandType
-    ) {
+    if (!commandType) {
       throw new Error(
         'A ação online não é válida.',
       );
@@ -1976,20 +2148,20 @@ export class OnlineGameClient {
         WebSocket.OPEN &&
       this.socketAuthenticated
     ) {
-      return this.sendRealtimeRequest(
-        'command',
-        {
-          revision:
-            this.revision,
+      return this
+        .sendRealtimeRequest(
+          'command',
+          {
+            revision:
+              this.revision,
 
-          command: {
-            type:
-              commandType,
-
-            payload,
+            command: {
+              type:
+                commandType,
+              payload,
+            },
           },
-        },
-      );
+        );
     }
 
     try {
@@ -2004,7 +2176,6 @@ export class OnlineGameClient {
           command: {
             type:
               commandType,
-
             payload,
           },
         });
@@ -2015,12 +2186,25 @@ export class OnlineGameClient {
         );
 
       if (
-        this.polling &&
-        !document.hidden
+        this.realtimeActive &&
+        !document.hidden &&
+        navigator.onLine !==
+          false &&
+        this.reconnectAttempts <
+          REALTIME_RECONNECT_MAX_ATTEMPTS
       ) {
-        void this.connectRealtime()
+        void this
+          .connectRealtime()
           .catch(
-            () => {},
+            error => {
+              if (
+                !this.handleTerminalError(
+                  error,
+                )
+              ) {
+                this.scheduleReconnect();
+              }
+            },
           );
       }
 
@@ -2050,7 +2234,7 @@ export class OnlineGameClient {
       this.playerId,
     );
 
-    this.stopPolling();
+    this.stopRealtime();
 
     try {
       return await this.request({
@@ -2064,118 +2248,84 @@ export class OnlineGameClient {
     }
   }
 
-  clearFallbackTimer() {
-    if (
-      this.fallbackTimer
-    ) {
-      window.clearTimeout(
-        this.fallbackTimer,
-      );
-
-      this.fallbackTimer =
-        null;
-    }
-  }
-
-  scheduleFallbackPoll(
-    delay =
-      this.fallbackDelayMs,
-  ) {
-    this.clearFallbackTimer();
-
-    if (
-      this.closed ||
-      !this.polling ||
-      document.hidden ||
-      (
-        this.socket?.readyState ===
-          WebSocket.OPEN &&
-        this.socketAuthenticated
-      )
-    ) {
-      return;
-    }
-
-    this.fallbackTimer =
-      window.setTimeout(
-        () =>
-          void this.fallbackPollOnce(),
-        Math.max(
-          DEFAULT_FALLBACK_POLL_INTERVAL_MS,
-          Number(
-            delay,
-          ) ||
-          this.pollIntervalMs,
-        ),
-      );
-  }
-
-  async fallbackPollOnce() {
-    if (
-      this.closed ||
-      !this.polling ||
-      document.hidden
-    ) {
-      return;
-    }
-
-    try {
-      await this.getState();
-    } catch (error) {
-      this.notifyError(
-        error,
-      );
-
-      if (
-        this.handleTerminalError(
-          error,
-        )
-      ) {
-        return;
-      }
-    }
-
-    this.fallbackDelayMs =
-      Math.min(
-        MAX_FALLBACK_POLL_INTERVAL_MS,
-        Math.max(
-          this.pollIntervalMs,
-          this.fallbackDelayMs *
-            2,
-        ),
-      );
-
-    this.scheduleFallbackPoll();
-  }
-
   clearReconnectTimer() {
     if (
-      this.reconnectTimer
+      !this.reconnectTimer
     ) {
-      window.clearTimeout(
-        this.reconnectTimer,
-      );
-
-      this.reconnectTimer =
-        null;
+      return;
     }
+
+    window.clearTimeout(
+      this.reconnectTimer,
+    );
+
+    this.reconnectTimer =
+      null;
+  }
+
+  getReconnectDelay() {
+    const jitter =
+      this.reconnectDelayMs *
+      REALTIME_RECONNECT_JITTER_RATIO;
+
+    return Math.max(
+      REALTIME_RECONNECT_MIN_MS,
+      Math.round(
+        this.reconnectDelayMs -
+          jitter +
+          Math.random() *
+            jitter *
+            2,
+      ),
+    );
+  }
+
+  notifyReconnectLimit() {
+    if (
+      this.reconnectLimitNotified
+    ) {
+      return;
+    }
+
+    this.reconnectLimitNotified =
+      true;
+
+    this.notifyError(
+      createSocketError(
+        'Não foi possível restabelecer a ligação em tempo real. As tentativas automáticas foram interrompidas para evitar chamadas desnecessárias. Recarregue a partida para tentar novamente.',
+      ),
+    );
   }
 
   scheduleReconnect() {
-    this.clearReconnectTimer();
+    if (
+      this.reconnectTimer ||
+      this.closed ||
+      !this.realtimeActive ||
+      document.hidden ||
+      navigator.onLine ===
+        false ||
+      this.socket?.readyState ===
+        WebSocket.OPEN ||
+      this.socket?.readyState ===
+        WebSocket.CONNECTING
+    ) {
+      return;
+    }
 
     if (
-      this.closed ||
-      !this.polling ||
-      document.hidden ||
-      this.socket?.readyState ===
-        WebSocket.OPEN
+      this.reconnectAttempts >=
+      REALTIME_RECONNECT_MAX_ATTEMPTS
     ) {
+      this.notifyReconnectLimit();
       return;
     }
 
     const delay =
-      this.reconnectDelayMs;
+      this.getReconnectDelay();
+
+    this.reconnectAttempts +=
+      1;
 
     this.reconnectDelayMs =
       Math.min(
@@ -2193,9 +2343,10 @@ export class OnlineGameClient {
           this.reconnectTimer =
             null;
 
-          void this.connectRealtime()
+          void this
+            .connectRealtime()
             .catch(
-              (error) => {
+              error => {
                 if (
                   !this.handleTerminalError(
                     error,
@@ -2213,17 +2364,20 @@ export class OnlineGameClient {
   handleVisibilityChange() {
     if (
       this.closed ||
-      !this.polling
+      !this.realtimeActive
     ) {
       return;
     }
 
-    if (
-      document.hidden
-    ) {
-      this.clearFallbackTimer();
+    if (document.hidden) {
       this.clearReconnectTimer();
+      return;
+    }
 
+    if (
+      navigator.onLine ===
+      false
+    ) {
       return;
     }
 
@@ -2233,48 +2387,79 @@ export class OnlineGameClient {
       this.socketAuthenticated
     ) {
       this.renderCountdown();
-
       return;
     }
 
-    void this.connectRealtime()
+    this.resetReconnectPolicy();
+
+    void this
+      .connectRealtime()
       .catch(
-        (error) => {
+        error => {
           if (
             !this.handleTerminalError(
               error,
             )
           ) {
-            this.scheduleFallbackPoll();
             this.scheduleReconnect();
           }
         },
       );
   }
 
-  async startPolling({
+  handleOnline() {
+    if (
+      this.closed ||
+      !this.realtimeActive ||
+      document.hidden
+    ) {
+      return;
+    }
+
+    this.resetReconnectPolicy();
+
+    void this
+      .connectRealtime()
+      .catch(
+        error => {
+          if (
+            !this.handleTerminalError(
+              error,
+            )
+          ) {
+            this.scheduleReconnect();
+          }
+        },
+      );
+  }
+
+  handleOffline() {
+    this.clearReconnectTimer();
+  }
+
+  async startRealtime({
     immediate = true,
   } = {}) {
-    if (
-      this.closed
-    ) {
+    if (this.closed) {
       return null;
     }
 
-    this.polling =
+    this.realtimeActive =
       true;
 
+    this.resetReconnectPolicy();
+
     if (
-      document.hidden
+      document.hidden ||
+      navigator.onLine ===
+        false
     ) {
       return this.state;
     }
 
     try {
-      const state =
-        await this.connectRealtime();
-
-      return state;
+      return await this
+        .connectRealtime();
     } catch (error) {
       if (
         this.handleTerminalError(
@@ -2286,44 +2471,42 @@ export class OnlineGameClient {
 
       this.scheduleReconnect();
 
-      if (
-        !immediate
-      ) {
-        this.scheduleFallbackPoll();
-
+      if (!immediate) {
         return this.state;
       }
 
       try {
-        const state =
-          await this.getState();
-
-        this.fallbackDelayMs =
-          this.pollIntervalMs;
-
-        this.scheduleFallbackPoll();
-
-        return state;
-      } catch (
-        fallbackError
-      ) {
+        return await this
+          .getState();
+      } catch (stateError) {
         this.notifyError(
-          fallbackError,
+          stateError,
         );
 
-        this.scheduleFallbackPoll();
-
-        throw fallbackError;
+        throw stateError;
       }
     }
   }
 
-  stopPolling() {
-    this.polling =
+  stopRealtime() {
+    this.realtimeActive =
       false;
 
-    this.clearFallbackTimer();
     this.clearReconnectTimer();
+  }
+
+  // Alias legado para compatibilidade; não inicia polling HTTP.
+  async startPolling(
+    options = {},
+  ) {
+    return this.startRealtime(
+      options,
+    );
+  }
+
+  // Alias legado para compatibilidade; apenas desativa o ciclo realtime.
+  stopPolling() {
+    this.stopRealtime();
   }
 
   closeSocket(
@@ -2341,9 +2524,7 @@ export class OnlineGameClient {
     this.socketConnecting =
       null;
 
-    if (
-      rejectPending
-    ) {
+    if (rejectPending) {
       const error =
         createSocketError(
           'A ligação realtime foi terminada.',
@@ -2373,7 +2554,7 @@ export class OnlineGameClient {
   }
 
   close() {
-    this.stopPolling();
+    this.stopRealtime();
 
     this.closed =
       true;
@@ -2381,6 +2562,16 @@ export class OnlineGameClient {
     document.removeEventListener(
       'visibilitychange',
       this.handleVisibilityChange,
+    );
+
+    window.removeEventListener(
+      'online',
+      this.handleOnline,
+    );
+
+    window.removeEventListener(
+      'offline',
+      this.handleOffline,
     );
 
     this.closeSocket(
