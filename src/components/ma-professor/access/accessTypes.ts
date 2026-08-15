@@ -23,6 +23,14 @@ export interface MAProfessorAccessRequestSummary {
   activatedAt: string | null
 }
 
+export interface MAProfessorStoredAccess {
+  token: string
+  deviceId: string
+  email: string
+  license: LicenseSummary
+  checkedAt?: string
+}
+
 export interface MAProfessorAccessSession {
   token: string
   deviceId: string
