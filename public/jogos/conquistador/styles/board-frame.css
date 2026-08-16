@@ -1,0 +1,151 @@
+/*
+ * Decorative frame for the Conquistador board.
+ *
+ * Kept in a separate stylesheet on purpose: this file only changes the
+ * presentation of .board-frame and does not touch board sizing, game logic,
+ * hit areas or JavaScript behaviour.
+ */
+
+.board-frame {
+  border:
+    12px solid
+    transparent;
+
+  border-radius: 20px;
+
+  background:
+    radial-gradient(
+      circle at 48% 38%,
+      rgba(67, 145, 166, 0.95),
+      rgba(21, 84, 108, 0.98) 55%,
+      #082f42 100%
+    ) padding-box,
+    repeating-linear-gradient(
+      102deg,
+      #3d2214 0 5px,
+      #5b351f 5px 11px,
+      #784a2a 11px 16px,
+      #4a2918 16px 22px,
+      #684025 22px 28px
+    ) border-box;
+
+  box-shadow:
+    0 16px 28px
+    rgba(5, 25, 35, 0.28),
+    0 3px 0
+    rgba(255, 235, 190, 0.2),
+    inset 0 0 0 2px
+    rgba(244, 226, 184, 0.5),
+    inset 0 0 0 16px
+    rgba(7, 43, 58, 0.22);
+}
+
+/*
+ * Portuguese azulejo-inspired inner trim. The decoration never receives
+ * pointer events, so clicks, taps and drag interactions continue to reach
+ * the board exactly as before.
+ */
+.board-frame::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+
+  pointer-events: none;
+
+  opacity: 0.96;
+
+  border-radius: 8px;
+
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #f7f2e5 0 12px,
+      #2a7390 12px 24px,
+      #f7f2e5 24px 36px,
+      #8ab6c6 36px 48px
+    ) top / 100% 12px no-repeat,
+    repeating-linear-gradient(
+      90deg,
+      #8ab6c6 0 12px,
+      #f7f2e5 12px 24px,
+      #2a7390 24px 36px,
+      #f7f2e5 36px 48px
+    ) bottom / 100% 12px no-repeat,
+    repeating-linear-gradient(
+      180deg,
+      #f7f2e5 0 12px,
+      #2a7390 12px 24px,
+      #f7f2e5 24px 36px,
+      #8ab6c6 36px 48px
+    ) left / 12px 100% no-repeat,
+    repeating-linear-gradient(
+      180deg,
+      #8ab6c6 0 12px,
+      #f7f2e5 12px 24px,
+      #2a7390 24px 36px,
+      #f7f2e5 36px 48px
+    ) right / 12px 100% no-repeat;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(244, 226, 184, 0.7),
+    inset 0 0 0 13px
+    rgba(5, 37, 52, 0.24);
+}
+
+@media (max-width: 760px) {
+  .board-frame {
+    border-width: 7px;
+    border-radius: 12px;
+
+    box-shadow:
+      0 10px 20px
+      rgba(5, 25, 35, 0.22),
+      inset 0 0 0 1px
+      rgba(244, 226, 184, 0.46),
+      inset 0 0 0 10px
+      rgba(7, 43, 58, 0.18);
+  }
+
+  .board-frame::before {
+    border-radius: 5px;
+
+    background:
+      repeating-linear-gradient(
+        90deg,
+        #f7f2e5 0 9px,
+        #2a7390 9px 18px,
+        #f7f2e5 18px 27px,
+        #8ab6c6 27px 36px
+      ) top / 100% 9px no-repeat,
+      repeating-linear-gradient(
+        90deg,
+        #8ab6c6 0 9px,
+        #f7f2e5 9px 18px,
+        #2a7390 18px 27px,
+        #f7f2e5 27px 36px
+      ) bottom / 100% 9px no-repeat,
+      repeating-linear-gradient(
+        180deg,
+        #f7f2e5 0 9px,
+        #2a7390 9px 18px,
+        #f7f2e5 18px 27px,
+        #8ab6c6 27px 36px
+      ) left / 9px 100% no-repeat,
+      repeating-linear-gradient(
+        180deg,
+        #8ab6c6 0 9px,
+        #f7f2e5 9px 18px,
+        #2a7390 18px 27px,
+        #f7f2e5 27px 36px
+      ) right / 9px 100% no-repeat;
+
+    box-shadow:
+      inset 0 0 0 1px
+      rgba(244, 226, 184, 0.62),
+      inset 0 0 0 10px
+      rgba(5, 37, 52, 0.2);
+  }
+}
