@@ -1,5 +1,5 @@
 const API_URL = '/api/conquistador/game';
-const CLIENT_VERSION = 'realtime-no-polling-2';
+const CLIENT_VERSION = 'realtime-free-safe-1';
 const REALTIME_CONNECT_TIMEOUT_MS = 8000;
 const REALTIME_REQUEST_TIMEOUT_MS = 10000;
 const REALTIME_RECONNECT_MIN_MS = 2000;
@@ -11,6 +11,8 @@ const PRESENCE_COUNTDOWN_ID = 'online-presence-countdown';
 const TURN_COUNTDOWN_ID = 'online-turn-countdown';
 const COUNTDOWN_TICK_MS = 250;
 const TURN_TIMEOUT_CLIENT_GRACE_MS = 1100;
+const TURN_TIMEOUT_WATCHDOG_BASE_MS = 1800;
+const TURN_TIMEOUT_WATCHDOG_STAGGER_MS = 250;
 
 function normalizeId(value) {
   return String(value ?? '')
@@ -39,6 +41,25 @@ function normalizeRevision(value) {
   )
     ? revision
     : null;
+}
+
+function getStableWatchdogSlot(value) {
+  const text = normalizeId(value);
+  let hash = 0;
+
+  for (
+    let index = 0;
+    index < text.length;
+    index += 1
+  ) {
+    hash =
+      (
+        hash * 31 +
+        text.charCodeAt(index)
+      ) >>> 0;
+  }
+
+  return hash % 4;
 }
 
 function getStoredReconnectToken(
@@ -895,6 +916,11 @@ export class OnlineGameClient {
     this.turnTimeoutSentSequence =
       null;
 
+    this.turnWatchdogSlot =
+      getStableWatchdogSlot(
+        this.playerId,
+      );
+
     this.socket =
       null;
 
@@ -1078,11 +1104,7 @@ export class OnlineGameClient {
     const timer =
       this.turnTimer;
 
-    if (
-      !timer ||
-      timer.actorId !==
-        this.playerId
-    ) {
+    if (!timer) {
       return;
     }
 
@@ -1108,9 +1130,30 @@ export class OnlineGameClient {
       );
 
     if (
-      remainingMs === null ||
+      remainingMs === null
+    ) {
+      return;
+    }
+
+    const isActor =
+      timer.actorId ===
+      this.playerId;
+
+    const watchdogDelayMs =
+      isActor
+        ? TURN_TIMEOUT_CLIENT_GRACE_MS
+        : (
+            TURN_TIMEOUT_CLIENT_GRACE_MS +
+            TURN_TIMEOUT_WATCHDOG_BASE_MS +
+            (
+              this.turnWatchdogSlot *
+              TURN_TIMEOUT_WATCHDOG_STAGGER_MS
+            )
+          );
+
+    if (
       remainingMs >
-        -TURN_TIMEOUT_CLIENT_GRACE_MS
+      -watchdogDelayMs
     ) {
       return;
     }
@@ -1124,6 +1167,9 @@ export class OnlineGameClient {
         {
           sequence:
             timer.sequence,
+
+          actorId:
+            timer.actorId,
         },
       )
       .catch(
@@ -2495,7 +2541,6 @@ export class OnlineGameClient {
     this.clearReconnectTimer();
   }
 
-  // Alias legado para compatibilidade; não inicia polling HTTP.
   async startPolling(
     options = {},
   ) {
@@ -2504,7 +2549,6 @@ export class OnlineGameClient {
     );
   }
 
-  // Alias legado para compatibilidade; apenas desativa o ciclo realtime.
   stopPolling() {
     this.stopRealtime();
   }
