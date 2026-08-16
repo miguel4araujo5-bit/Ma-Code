@@ -1,19 +1,20 @@
 import {
-  MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
-} from './maProfessorAccessAuthBridge'
+  handleMaCodeAdminApiRequest,
+  type MaCodeAdminEnv
+} from './maCodeAdmin'
 
 import type {
-  MaProfessorAccessEnv
-} from './maProfessorAccess'
+  MaProfessorSyncEnv
+} from './maProfessorSync'
 
-const STORAGE_KEY =
-  'ma-professor-access-state-v1'
+export const MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX =
+  '/api/admin/ma-professor/accounts'
 
-const COMMERCE_STORAGE_KEY =
-  'ma-professor-admin-commerce-v1'
+const RESET_ACCESS_PATH =
+  `${MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX}/reset-access`
 
-const ACCOUNT_AUTH_STORAGE_KEY =
-  'ma-professor-account-auth-v1'
+const DELETE_ACCOUNTS_PATH =
+  `${MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX}/delete`
 
 const INTERNAL_RESET_ACCESS_PATH =
   '/__internal/ma-professor/admin/accounts/reset-access'
@@ -21,59 +22,48 @@ const INTERNAL_RESET_ACCESS_PATH =
 const INTERNAL_DELETE_ACCOUNTS_PATH =
   '/__internal/ma-professor/admin/accounts/delete'
 
-const MAX_BATCH_EMAILS = 100
+const ACCESS_DURABLE_OBJECT_NAME =
+  'ma-professor-access-global'
+
+const DELETE_CONFIRMATION =
+  'APAGAR'
+
+const MAX_BATCH_EMAILS =
+  100
+
+const MAX_BODY_BYTES =
+  20_000
 
 type JsonObject =
   Record<string, unknown>
 
-interface AccessStateSnapshot {
-  licenses?: Record<string, JsonObject>
-  sessions?: Record<string, JsonObject>
-  renewals?: JsonObject[]
-  accessRequests?: Record<string, JsonObject>
-  credentials?: Record<string, JsonObject>
-  updatedAt?: number
-}
+export interface MaProfessorAccountAdminEnv
+  extends MaCodeAdminEnv,
+    MaProfessorSyncEnv {}
 
-interface CommerceStateSnapshot {
-  authorizations?: JsonObject[]
-  updatedAt?: number
-}
-
-interface AccountAuthStateSnapshot {
-  credentials?: Record<string, JsonObject>
-  updatedAt?: number
-}
-
-interface DurableObjectStorageLike {
-  get<T>(
-    key: string
-  ): Promise<T | undefined>
-
-  put<T>(
-    key: string,
-    value: T
-  ): Promise<void>
-
-  put(
-    entries:
-      Record<string, unknown>
-  ): Promise<void>
-}
-
-interface DurableObjectStateLike {
-  storage:
-    DurableObjectStorageLike
-
-  blockConcurrencyWhile<T>(
-    callback:
-      () => Promise<T>
-  ): Promise<T>
-}
+const securityHeaders:
+  Record<string, string> = {
+    'Cache-Control':
+      'no-store',
+    Pragma:
+      'no-cache',
+    'Content-Security-Policy':
+      "default-src 'none'; frame-ancestors 'none'",
+    'X-Content-Type-Options':
+      'nosniff',
+    'X-Frame-Options':
+      'DENY',
+    'Referrer-Policy':
+      'no-referrer',
+    'X-Robots-Tag':
+      'noindex, nofollow'
+  }
 
 function json(
   body: unknown,
-  status = 200
+  status = 200,
+  extraHeaders:
+    Record<string, string> = {}
 ) {
   return new Response(
     JSON.stringify(body),
@@ -82,16 +72,83 @@ function json(
       headers: {
         'Content-Type':
           'application/json; charset=utf-8',
-        'Cache-Control':
-          'no-store',
-        Pragma:
-          'no-cache',
-        'X-Content-Type-Options':
-          'nosniff',
-        'X-Robots-Tag':
-          'noindex, nofollow'
+        ...securityHeaders,
+        ...extraHeaders
       }
     }
+  )
+}
+
+function normalizeOrigin(
+  value: string
+) {
+  try {
+    return new URL(
+      value
+    ).origin
+  } catch {
+    return ''
+  }
+}
+
+function isLocalOrigin(
+  origin: string
+) {
+  try {
+    return [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0'
+    ].includes(
+      new URL(
+        origin
+      ).hostname
+    )
+  } catch {
+    return false
+  }
+}
+
+function isAllowedBrowserRequest(
+  request: Request
+) {
+  const requestOrigin =
+    new URL(
+      request.url
+    ).origin
+
+  const origin =
+    normalizeOrigin(
+      request.headers.get(
+        'Origin'
+      ) || ''
+    )
+
+  const referer =
+    normalizeOrigin(
+      request.headers.get(
+        'Referer'
+      ) || ''
+    )
+
+  const candidate =
+    origin ||
+    referer
+
+  if (!candidate) {
+    return false
+  }
+
+  return (
+    candidate ===
+      requestOrigin ||
+    candidate ===
+      'https://ma-code.pt' ||
+    candidate ===
+      'https://www.ma-code.pt' ||
+    isLocalOrigin(
+      candidate
+    )
   )
 }
 
@@ -103,7 +160,10 @@ function normalizeEmail(
     ? value
         .trim()
         .toLowerCase()
-        .slice(0, 180)
+        .slice(
+          0,
+          180
+        )
     : ''
 }
 
@@ -115,17 +175,72 @@ function isValidEmail(
   )
 }
 
-async function readJson(
+async function readJsonBody(
   request: Request
 ): Promise<JsonObject> {
-  let parsed: unknown
+  const contentType =
+    request.headers.get(
+      'content-type'
+    ) || ''
+
+  if (
+    !contentType
+      .toLowerCase()
+      .includes(
+        'application/json'
+      )
+  ) {
+    throw new Error(
+      'Formato de pedido inválido.'
+    )
+  }
+
+  const contentLength =
+    Number(
+      request.headers.get(
+        'content-length'
+      ) || 0
+    )
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      MAX_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
+    )
+  }
+
+  const text =
+    await request.text()
+
+  if (
+    new TextEncoder()
+      .encode(
+        text
+      )
+      .byteLength >
+      MAX_BODY_BYTES
+  ) {
+    throw new Error(
+      'O pedido é demasiado grande.'
+    )
+  }
+
+  let parsed:
+    unknown
 
   try {
     parsed =
-      await request.json()
+      JSON.parse(
+        text
+      ) as unknown
   } catch {
     throw new Error(
-      'O pedido administrativo contém JSON inválido.'
+      'O pedido enviado não contém JSON válido.'
     )
   }
 
@@ -133,10 +248,12 @@ async function readJson(
     !parsed ||
     typeof parsed !==
       'object' ||
-    Array.isArray(parsed)
+    Array.isArray(
+      parsed
+    )
   ) {
     throw new Error(
-      'O pedido administrativo é inválido.'
+      'O pedido enviado não é válido.'
     )
   }
 
@@ -146,432 +263,558 @@ async function readJson(
 function normalizeEmailList(
   value: unknown
 ) {
-  const candidates =
-    Array.isArray(value)
-      ? value
-      : [value]
+  if (
+    !Array.isArray(
+      value
+    )
+  ) {
+    throw new Error(
+      'A lista de utilizadores é inválida.'
+    )
+  }
 
   const emails =
     Array.from(
       new Set(
-        candidates
-          .map(normalizeEmail)
-          .filter(isValidEmail)
+        value
+          .map(
+            normalizeEmail
+          )
+          .filter(
+            isValidEmail
+          )
       )
     )
 
   if (
-    emails.length === 0
+    emails.length ===
+    0
   ) {
     throw new Error(
-      'Indique pelo menos um email válido.'
+      'Selecione pelo menos um utilizador.'
     )
   }
 
   if (
     emails.length >
-      MAX_BATCH_EMAILS
+    MAX_BATCH_EMAILS
   ) {
     throw new Error(
-      `Só é possível processar até ${MAX_BATCH_EMAILS} utilizadores de cada vez.`
+      `Só é possível apagar até ${MAX_BATCH_EMAILS} utilizadores de cada vez.`
     )
   }
 
   return emails
 }
 
-function getObjectEmail(
-  value: unknown
+async function validateAdminSession(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv
 ) {
-  if (
-    !value ||
-    typeof value !==
-      'object' ||
-    Array.isArray(value)
-  ) {
-    return ''
-  }
-
-  return normalizeEmail(
-    (
-      value as JsonObject
-    ).email
-  )
-}
-
-function removeRecordEntries(
-  record:
-    Record<string, JsonObject> |
-    undefined,
-  targetEmails: Set<string>
-) {
-  if (!record) {
-    return
-  }
-
-  for (
-    const [
-      key,
-      value
-    ] of Object.entries(
-      record
+  const sessionUrl =
+    new URL(
+      request.url
     )
-  ) {
-    if (
-      targetEmails.has(
-        normalizeEmail(key)
-      ) ||
-      targetEmails.has(
-        getObjectEmail(value)
-      )
-    ) {
-      delete record[key]
-    }
-  }
-}
 
-function removeAccessIdentity(
-  state:
-    AccessStateSnapshot |
-    undefined,
-  targetEmails: Set<string>
-) {
-  if (!state) {
-    return
-  }
+  sessionUrl.pathname =
+    '/api/admin/session'
 
-  removeRecordEntries(
-    state.licenses,
-    targetEmails
-  )
+  sessionUrl.search =
+    ''
 
-  removeRecordEntries(
-    state.sessions,
-    targetEmails
-  )
+  sessionUrl.hash =
+    ''
 
-  removeRecordEntries(
-    state.accessRequests,
-    targetEmails
-  )
+  const headers =
+    new Headers()
 
-  removeRecordEntries(
-    state.credentials,
-    targetEmails
-  )
-
-  if (
-    Array.isArray(
-      state.renewals
+  const cookie =
+    request.headers.get(
+      'Cookie'
     )
-  ) {
-    state.renewals =
-      state.renewals.filter(
-        renewal =>
-          !targetEmails.has(
-            getObjectEmail(
-              renewal
-            )
-          )
-      )
-  }
 
-  state.updatedAt =
-    Date.now()
-}
-
-function removeCommerceIdentity(
-  state:
-    CommerceStateSnapshot |
-    undefined,
-  targetEmails: Set<string>
-) {
-  if (!state) {
-    return
-  }
-
-  if (
-    Array.isArray(
-      state.authorizations
+  if (cookie) {
+    headers.set(
+      'Cookie',
+      cookie
     )
-  ) {
-    state.authorizations =
-      state.authorizations.filter(
-        authorization =>
-          !targetEmails.has(
-            getObjectEmail(
-              authorization
-            )
-          )
-      )
   }
 
-  state.updatedAt =
-    Date.now()
-}
-
-function removeAccountAuthentication(
-  state:
-    AccountAuthStateSnapshot |
-    undefined,
-  targetEmails: Set<string>
-) {
-  if (!state) {
-    return
-  }
-
-  removeRecordEntries(
-    state.credentials,
-    targetEmails
-  )
-
-  state.updatedAt =
-    Date.now()
-}
-
-export class MaProfessorAccessDurableObject {
-  private readonly state:
-    DurableObjectStateLike
-
-  private readonly env:
-    MaProfessorAccessEnv
-
-  private existing:
-    ExistingMaProfessorAccessDurableObject
-
-  private operation:
-    Promise<void> =
-      Promise.resolve()
-
-  constructor(
-    state:
-      DurableObjectStateLike,
-    env:
-      MaProfessorAccessEnv
-  ) {
-    this.state =
-      state
-
-    this.env =
+  const response =
+    await handleMaCodeAdminApiRequest(
+      new Request(
+        sessionUrl.toString(),
+        {
+          method:
+            'GET',
+          headers
+        }
+      ),
       env
+    )
 
-    this.existing =
-      new ExistingMaProfessorAccessDurableObject(
-        state,
-        env
+  return response.ok
+}
+
+function getAccessStub(
+  env:
+    MaProfessorAccountAdminEnv
+) {
+  const id =
+    env.MA_PROFESSOR_ACCESS
+      .idFromName(
+        ACCESS_DURABLE_OBJECT_NAME
       )
-  }
 
-  fetch(
-    request: Request
-  ): Promise<Response> {
-    const response =
-      this.operation.then(
-        () =>
-          this.handleRequest(
-            request
+  return env
+    .MA_PROFESSOR_ACCESS
+    .get(
+      id
+    )
+}
+
+async function callInternalAccessMutation(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv,
+  pathname: string,
+  body: JsonObject
+) {
+  const durableObject =
+    getAccessStub(
+      env
+    )
+
+  return durableObject.fetch(
+    new Request(
+      new URL(
+        pathname,
+        request.url
+      ).toString(),
+      {
+        method:
+          'POST',
+        headers: {
+          'Content-Type':
+            'application/json',
+          Accept:
+            'application/json'
+        },
+        body:
+          JSON.stringify(
+            body
+          )
+      }
+    )
+  )
+}
+
+async function createAccountId(
+  email: string
+) {
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase()
+
+  const digest =
+    await globalThis
+      .crypto
+      .subtle
+      .digest(
+        'SHA-256',
+        new TextEncoder()
+          .encode(
+            [
+              'ma-professor-account-v1',
+              normalizedEmail
+            ].join(
+              ':'
+            )
           )
       )
 
-    this.operation =
-      response.then(
-        () => undefined,
-        () => undefined
+  const value =
+    Array.from(
+      new Uint8Array(
+        digest
+      ),
+      byte =>
+        byte
+          .toString(
+            16
+          )
+          .padStart(
+            2,
+            '0'
+          )
+    ).join('')
+
+  return `account-${value}`
+}
+
+async function deleteCloudAccountData(
+  env:
+    MaProfessorAccountAdminEnv,
+  emails: string[]
+) {
+  const accountIds =
+    await Promise.all(
+      emails.map(
+        createAccountId
+      )
+    )
+
+  const placeholders =
+    accountIds
+      .map(
+        () => '?'
+      )
+      .join(
+        ', '
       )
 
+  const results =
+    await env
+      .MA_PROFESSOR_DB
+      .batch([
+        env
+          .MA_PROFESSOR_DB
+          .prepare(
+            `DELETE FROM ma_professor_encrypted_records WHERE account_id IN (${placeholders})`
+          )
+          .bind(
+            ...accountIds
+          ),
+
+        env
+          .MA_PROFESSOR_DB
+          .prepare(
+            `DELETE FROM ma_professor_sync_devices WHERE account_id IN (${placeholders})`
+          )
+          .bind(
+            ...accountIds
+          ),
+
+        env
+          .MA_PROFESSOR_DB
+          .prepare(
+            `DELETE FROM ma_professor_sync_profiles WHERE account_id IN (${placeholders})`
+          )
+          .bind(
+            ...accountIds
+          )
+      ])
+
+  if (
+    results.length !==
+      3 ||
+    results.some(
+      result =>
+        result.success !==
+        true
+    )
+  ) {
+    throw new Error(
+      'Não foi possível eliminar todos os dados cloud selecionados.'
+    )
+  }
+}
+
+async function handleResetAccess(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv,
+  body: JsonObject
+) {
+  const email =
+    normalizeEmail(
+      body.email
+    )
+
+  if (
+    !isValidEmail(
+      email
+    )
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Indique um email válido.'
+      },
+      400
+    )
+  }
+
+  const response =
+    await callInternalAccessMutation(
+      request,
+      env,
+      INTERNAL_RESET_ACCESS_PATH,
+      {
+        email
+      }
+    )
+
+  if (
+    !response.ok
+  ) {
     return response
   }
 
-  private refreshExisting() {
-    this.existing =
-      new ExistingMaProfessorAccessDurableObject(
-        this.state,
-        this.env
-      )
-  }
+  return response
+}
 
-  private async handleAccountReset(
-    request: Request,
-    multiple: boolean
+async function handleDeleteAccounts(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv,
+  body: JsonObject
+) {
+  if (
+    body.confirmation !==
+    DELETE_CONFIRMATION
   ) {
-    if (
-      request.method !==
-      'POST'
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Método não permitido.'
-        },
-        405
-      )
-    }
-
-    let body:
-      JsonObject
-
-    try {
-      body =
-        await readJson(
-          request
-        )
-    } catch (
-      error
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Pedido administrativo inválido.'
-        },
-        400
-      )
-    }
-
-    let emails:
-      string[]
-
-    try {
-      emails =
-        normalizeEmailList(
-          multiple
-            ? body.emails
-            : body.email
-        )
-    } catch (
-      error
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'A lista de utilizadores é inválida.'
-        },
-        400
-      )
-    }
-
-    const targetEmails =
-      new Set(emails)
-
-    const accessState =
-      await this.state.storage.get<AccessStateSnapshot>(
-        STORAGE_KEY
-      )
-
-    const commerceState =
-      await this.state.storage.get<CommerceStateSnapshot>(
-        COMMERCE_STORAGE_KEY
-      )
-
-    const accountAuthState =
-      await this.state.storage.get<AccountAuthStateSnapshot>(
-        ACCOUNT_AUTH_STORAGE_KEY
-      )
-
-    removeAccessIdentity(
-      accessState,
-      targetEmails
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Para confirmar a eliminação escreva exatamente APAGAR.'
+      },
+      400
     )
-
-    removeCommerceIdentity(
-      commerceState,
-      targetEmails
-    )
-
-    removeAccountAuthentication(
-      accountAuthState,
-      targetEmails
-    )
-
-    const updates:
-      Record<string, unknown> =
-        {}
-
-    if (accessState) {
-      updates[
-        STORAGE_KEY
-      ] = accessState
-    }
-
-    if (commerceState) {
-      updates[
-        COMMERCE_STORAGE_KEY
-      ] = commerceState
-    }
-
-    if (accountAuthState) {
-      updates[
-        ACCOUNT_AUTH_STORAGE_KEY
-      ] = accountAuthState
-    }
-
-    if (
-      Object.keys(
-        updates
-      ).length > 0
-    ) {
-      await this.state.storage.put(
-        updates
-      )
-    }
-
-    /*
-     * As bridges existentes mantêm partes do estado em memória.
-     * Recriá-las depois da alteração impede que um pedido seguinte
-     * volte a persistir uma versão anterior do estado eliminado.
-     */
-    this.refreshExisting()
-
-    return json({
-      success:
-        true,
-      emails,
-      message:
-        multiple
-          ? `${emails.length} utilizador(es) removido(s) do estado de acesso do MA-Professor.`
-          : 'O acesso desta conta foi reposto. Pedido, licença, sessões, senhas e password pessoal foram removidos.'
-    })
   }
 
-  private handleRequest(
-    request: Request
-  ): Promise<Response> {
-    const url =
-      new URL(
-        request.url
-      )
+  let emails:
+    string[]
 
-    if (
-      url.pathname ===
-      INTERNAL_RESET_ACCESS_PATH
-    ) {
-      return this.handleAccountReset(
-        request,
-        false
+  try {
+    emails =
+      normalizeEmailList(
+        body.emails
       )
-    }
+  } catch (
+    error
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'A seleção de utilizadores é inválida.'
+      },
+      400
+    )
+  }
 
-    if (
-      url.pathname ===
-      INTERNAL_DELETE_ACCOUNTS_PATH
-    ) {
-      return this.handleAccountReset(
-        request,
-        true
-      )
-    }
+  /*
+   * Primeiro eliminamos o estado cloud cifrado.
+   *
+   * Se esta etapa falhar, o estado de acesso continua intacto
+   * e a conta não fica parcialmente eliminada do ponto de vista
+   * da autenticação.
+   *
+   * As três operações D1 são executadas num único batch.
+   */
+  try {
+    await deleteCloudAccountData(
+      env,
+      emails
+    )
+  } catch {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Não foi possível eliminar os dados cloud selecionados. O estado de acesso não foi apagado.'
+      },
+      500
+    )
+  }
 
-    return this.existing.fetch(
+  /*
+   * Uma única chamada ao Durable Object por operação administrativa,
+   * independentemente do número de emails selecionados.
+   */
+  const accessResponse =
+    await callInternalAccessMutation(
+      request,
+      env,
+      INTERNAL_DELETE_ACCOUNTS_PATH,
+      {
+        emails
+      }
+    )
+
+  if (
+    !accessResponse.ok
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Os dados cloud foram removidos, mas não foi possível concluir a remoção do estado de acesso. Repita a eliminação para concluir.'
+      },
+      500
+    )
+  }
+
+  return json({
+    success:
+      true,
+    emails,
+    cloudDataDeleted:
+      true,
+    message:
+      emails.length ===
+      1
+        ? 'O utilizador foi apagado do MA-Professor. A identidade de acesso e os dados cloud foram removidos.'
+        : `${emails.length} utilizadores foram apagados do MA-Professor. As identidades de acesso e os dados cloud foram removidos.`
+  })
+}
+
+export function isMAProfessorAccountAdminApiPath(
+  pathname: string
+) {
+  return (
+    pathname ===
+      RESET_ACCESS_PATH ||
+    pathname ===
+      DELETE_ACCOUNTS_PATH
+  )
+}
+
+export async function handleMAProfessorAccountAdminApiRequest(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv
+) {
+  if (
+    request.method !==
+    'POST'
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Método não permitido.'
+      },
+      405,
+      {
+        Allow:
+          'POST'
+      }
+    )
+  }
+
+  if (
+    !isAllowedBrowserRequest(
       request
     )
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Pedido bloqueado por origem inválida.'
+      },
+      403
+    )
   }
+
+  const authenticated =
+    await validateAdminSession(
+      request,
+      env
+    )
+
+  if (
+    !authenticated
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          'Sessão administrativa inválida ou expirada.'
+      },
+      401
+    )
+  }
+
+  let body:
+    JsonObject
+
+  try {
+    body =
+      await readJsonBody(
+        request
+      )
+  } catch (
+    error
+  ) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Pedido administrativo inválido.'
+
+    return json(
+      {
+        success:
+          false,
+        message
+      },
+      message ===
+        'O pedido é demasiado grande.'
+        ? 413
+        : 400
+    )
+  }
+
+  const url =
+    new URL(
+      request.url
+    )
+
+  if (
+    url.pathname ===
+    RESET_ACCESS_PATH
+  ) {
+    return handleResetAccess(
+      request,
+      env,
+      body
+    )
+  }
+
+  if (
+    url.pathname ===
+    DELETE_ACCOUNTS_PATH
+  ) {
+    return handleDeleteAccounts(
+      request,
+      env,
+      body
+    )
+  }
+
+  return json(
+    {
+      success:
+        false,
+      message:
+        'Endpoint administrativo de utilizadores não encontrado.'
+    },
+    404
+  )
 }
