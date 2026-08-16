@@ -50,10 +50,8 @@ body::before {
 }
 
 /*
- * Decorative frame only. The image is deliberately larger than the panel so
- * its wooden rails sit outside the playable surface instead of consuming it.
- * contain preserves the source artwork's aspect ratio; it is never stretched
- * independently in X/Y.
+ * The naval frame is decoration only. It follows the outside of the complete
+ * board panel and never decides the size of the playable SVG underneath it.
  */
 .board-panel::after {
   content: "";
@@ -101,6 +99,43 @@ body::before {
   }
 }
 
+/*
+ * Mobile contract:
+ *
+ * wood frame -> blue safety margin -> complete playable SVG -> larger blue
+ * footer -> wood frame.
+ *
+ * The existing SVG already has a dynamic viewBox with internal map padding.
+ * On phones we therefore shrink the whole SVG uniformly inside the board
+ * surface instead of changing topology, vertices or hit targets. The bottom
+ * padding is intentionally larger and acts as the requested visual footer.
+ */
+@media (max-width: 900px) {
+  .board-frame {
+    padding-top:
+      clamp(10px, 2.6vw, 16px);
+
+    padding-right:
+      clamp(10px, 3vw, 18px);
+
+    padding-bottom:
+      clamp(26px, 7vw, 42px);
+
+    padding-left:
+      clamp(10px, 3vw, 18px);
+  }
+
+  .board-svg {
+    display: block;
+
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+
+    margin: 0 auto;
+  }
+}
+
 @media (max-width: 760px) {
   .game-screen {
     background-size:
@@ -114,15 +149,10 @@ body::before {
       rgba(28, 36, 38, 0.16);
   }
 
-  /*
-   * Phone: keep the frame, but make it a thin ornamental edge. With a board
-   * around 390-430px wide these horizontal offsets are roughly 9-11px, so the
-   * artwork no longer occupies the large fraction of the map seen previously.
-   */
   .board-panel::after {
-    top: -2.2%;
+    top: -2.4%;
     right: -2.4%;
-    bottom: -2.2%;
+    bottom: -3.2%;
     left: -2.4%;
 
     background-size:
@@ -133,5 +163,47 @@ body::before {
         0 5px 6px
         rgba(28, 20, 13, 0.16)
       );
+  }
+
+  .board-frame {
+    padding-top:
+      clamp(9px, 2.4vw, 13px);
+
+    padding-right:
+      clamp(9px, 2.8vw, 14px);
+
+    padding-bottom:
+      clamp(28px, 8vw, 40px);
+
+    padding-left:
+      clamp(9px, 2.8vw, 14px);
+  }
+}
+
+@media (max-width: 480px) {
+  /*
+   * Small phones keep the same contract. The horizontal safety margin becomes
+   * slightly leaner to protect board legibility, while the footer remains
+   * clearly visible.
+   */
+  .board-frame {
+    padding-top:
+      clamp(8px, 2.2vw, 11px);
+
+    padding-right:
+      clamp(8px, 2.5vw, 11px);
+
+    padding-bottom:
+      clamp(26px, 8vw, 34px);
+
+    padding-left:
+      clamp(8px, 2.5vw, 11px);
+  }
+
+  .board-panel::after {
+    top: -2%;
+    right: -1.8%;
+    bottom: -3%;
+    left: -1.8%;
   }
 }
