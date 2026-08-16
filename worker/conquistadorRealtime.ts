@@ -41,7 +41,6 @@ type DurableObjectNamespaceLike = {
   idFromName(
     name: string
   ): DurableObjectIdLike
-
   get(
     id: DurableObjectIdLike
   ): DurableObjectStubLike
@@ -1402,6 +1401,12 @@ export class ConquistadorGameSessionDurableObject
         body.sequence
       )
 
+    const requestedActorId =
+      normalizeId(
+        body.actorId
+      ) ||
+      attachment.playerId
+
     if (
       sequence ===
       null
@@ -1433,19 +1438,79 @@ export class ConquistadorGameSessionDurableObject
       return
     }
 
+    const reporterIsActor =
+      requestedActorId ===
+      attachment.playerId
+
+    let timeoutAttachment =
+      attachment
+
+    if (
+      !reporterIsActor
+    ) {
+      const target =
+        this
+          .getGameSockets()
+          .find(
+            candidate =>
+              candidate
+                .attachment
+                .matchId ===
+                attachment.matchId &&
+              candidate
+                .attachment
+                .playerId ===
+                requestedActorId
+          )
+
+      if (!target) {
+        sendSocketJson(
+          socket,
+          {
+            type:
+              'turn-timeout-result',
+
+            requestId,
+
+            ok:
+              false,
+
+            status:
+              409,
+
+            data: {
+              success:
+                false,
+
+              status:
+                'watchdog-target-unavailable',
+
+              message:
+                'O jogador em atraso já não possui uma ligação realtime ativa.'
+            }
+          }
+        )
+
+        return
+      }
+
+      timeoutAttachment =
+        target.attachment
+    }
+
     const response =
       await super.fetch(
         internalJsonRequest(
           '/turn-timeout',
           {
             matchId:
-              attachment.matchId,
+              timeoutAttachment.matchId,
 
             playerId:
-              attachment.playerId,
+              timeoutAttachment.playerId,
 
             reconnectToken:
-              attachment.reconnectToken,
+              timeoutAttachment.reconnectToken,
 
             sequence
           }
@@ -1457,16 +1522,6 @@ export class ConquistadorGameSessionDurableObject
         response
       )
 
-    if (
-      result.data.game
-    ) {
-      this.updateGameAttachment(
-        socket,
-        attachment,
-        result.data
-      )
-    }
-
     const succeeded =
       result.response.ok &&
       result.data.success ===
@@ -1477,6 +1532,41 @@ export class ConquistadorGameSessionDurableObject
         true ||
       result.data.status ===
         'player-replaced'
+
+    if (
+      reporterIsActor &&
+      result.data.game
+    ) {
+      this.updateGameAttachment(
+        socket,
+        attachment,
+        result.data
+      )
+    }
+
+    const responseData =
+      reporterIsActor
+        ? result.data
+        : {
+            success:
+              succeeded,
+
+            status:
+              succeeded
+                ? 'watchdog-timeout-resolved'
+                : 'watchdog-timeout-rejected',
+
+            message:
+              succeeded
+                ? 'O limite de tempo foi aplicado.'
+                : (
+                    typeof result.data
+                      .message ===
+                    'string'
+                      ? result.data.message
+                      : 'O limite de tempo ainda não pode ser aplicado.'
+                  )
+          }
 
     sendSocketJson(
       socket,
@@ -1493,27 +1583,37 @@ export class ConquistadorGameSessionDurableObject
           result.response.status,
 
         data:
-          result.data
+          responseData
       }
     )
 
     if (
       succeeded
     ) {
-      await this
-        .broadcastGameState(
-          socket
-        )
+      if (
+        reporterIsActor
+      ) {
+        await this
+          .broadcastGameState(
+            socket
+          )
+      } else {
+        await this
+          .broadcastGameState()
+      }
     }
 
     if (
-      kicked ||
-      [
-        401,
-        403,
-        410
-      ].includes(
-        result.response.status
+      reporterIsActor &&
+      (
+        kicked ||
+        [
+          401,
+          403,
+          410
+        ].includes(
+          result.response.status
+        )
       )
     ) {
       closeSocket(
@@ -1655,7 +1755,7 @@ export class ConquistadorGameSessionDurableObject
     return this
       .getGameSockets()
       .find(
-        (candidate) =>
+        candidate =>
           candidate.socket !==
             socket &&
           candidate.attachment
@@ -1700,6 +1800,7 @@ export class ConquistadorGameSessionDurableObject
       socket,
       {
         ...attachment,
+
         disconnectNotifiedAt:
           disconnectedAt
       }
