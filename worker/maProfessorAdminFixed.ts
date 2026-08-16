@@ -232,7 +232,6 @@ async function sendApprovalEmail(
       </h1>
 
       <p>Olá,</p>
-
       <p>
         O seu pedido de <strong>acesso gratuito à fase piloto do MA-Professor</strong> foi aprovado.
       </p>
@@ -241,7 +240,6 @@ async function sendApprovalEmail(
         <p style="margin:0 0 8px;">
           <strong>Email:</strong> ${safeEmail}
         </p>
-
         <p style="margin:0;">
           <strong>Senha de ativação:</strong>
           <span style="font-family:monospace;font-weight:700;">${safePassword}</span>
@@ -304,7 +302,7 @@ async function sendApprovalEmail(
           body:
             JSON.stringify({
               from:
-                'MA-Professor | MA-CODE <acesso@ma-code.pt>',
+                'MA-Professor | MA-CODE <acesso@professor.ma-code.pt>',
               to: [
                 email
               ],
