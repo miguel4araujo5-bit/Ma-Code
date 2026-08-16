@@ -49,8 +49,9 @@ body::before {
 }
 
 /*
- * The supplied naval/Descobrimentos frame is a transparent overlay around the
- * central game panel. The board itself stays untouched underneath it.
+ * On large screens the supplied naval/Descobrimentos artwork can work as a
+ * decorative overlay around the complete central panel without changing the
+ * board geometry underneath it.
  */
 .board-panel {
   position: relative;
@@ -91,7 +92,7 @@ body::before {
 
 /*
  * Keep the original board-frame rules from base.css. In particular, do not
- * alter overflow, minimum height, SVG size or interaction geometry here.
+ * alter overflow, SVG sizing, topology or interaction geometry here.
  */
 
 @media (max-width: 980px) {
@@ -101,8 +102,21 @@ body::before {
       170px 170px;
   }
 
+  /*
+   * Start moving the decorative artwork away from the playable surface as the
+   * available width decreases. This keeps the frame ornamental instead of
+   * visually narrowing the map.
+   */
   .board-panel::after {
-    inset: -8px;
+    inset: -24px -18px;
+
+    opacity: 0.86;
+
+    filter:
+      drop-shadow(
+        0 8px 8px
+        rgba(28, 20, 13, 0.18)
+      );
   }
 }
 
@@ -113,13 +127,20 @@ body::before {
       135px 135px;
   }
 
+  /*
+   * The source artwork is a tall, highly ornate desktop frame. Stretching it
+   * over the narrow mobile board makes the wooden sides and top ornaments take
+   * over the playable area. On phones we therefore keep the Portuguese tile
+   * theme and the board's own double border, but remove this desktop-only
+   * overlay. The SVG remains full-width and untouched.
+   */
   .board-panel::after {
-    inset: -5px;
+    display: none;
+  }
 
-    filter:
-      drop-shadow(
-        0 6px 7px
-        rgba(28, 20, 13, 0.18)
-      );
+  .board-panel {
+    box-shadow:
+      0 10px 26px
+      rgba(28, 36, 38, 0.16);
   }
 }
