@@ -1,151 +1,125 @@
 /*
- * Decorative frame for the Conquistador board.
+ * Conquistador visual theme.
  *
- * Kept in a separate stylesheet on purpose: this file only changes the
- * presentation of .board-frame and does not touch board sizing, game logic,
- * hit areas or JavaScript behaviour.
+ * The image assets live in /public/conquistador/theme and are presentation
+ * only. Nothing in this file changes game rules, board topology, hit areas or
+ * multiplayer behaviour.
  */
 
-.board-frame {
-  border:
-    12px solid
-    transparent;
+:root {
+  --conquistador-azulejo:
+    url("/conquistador/theme/azulejo-portugues-repetivel.webp");
 
-  border-radius: 20px;
-
-  background:
-    radial-gradient(
-      circle at 48% 38%,
-      rgba(67, 145, 166, 0.95),
-      rgba(21, 84, 108, 0.98) 55%,
-      #082f42 100%
-    ) padding-box,
-    repeating-linear-gradient(
-      102deg,
-      #3d2214 0 5px,
-      #5b351f 5px 11px,
-      #784a2a 11px 16px,
-      #4a2918 16px 22px,
-      #684025 22px 28px
-    ) border-box;
-
-  box-shadow:
-    0 16px 28px
-    rgba(5, 25, 35, 0.28),
-    0 3px 0
-    rgba(255, 235, 190, 0.2),
-    inset 0 0 0 2px
-    rgba(244, 226, 184, 0.5),
-    inset 0 0 0 16px
-    rgba(7, 43, 58, 0.22);
+  --conquistador-wood-frame:
+    url("/conquistador/theme/moldura-descobrimentos-vertical.webp");
 }
 
 /*
- * Portuguese azulejo-inspired inner trim. The decoration never receives
- * pointer events, so clicks, taps and drag interactions continue to reach
- * the board exactly as before.
+ * Portuguese blue-and-white tiles belong outside the board, in the page
+ * background. Panels remain readable because their existing ivory backgrounds
+ * sit above this layer.
  */
-.board-frame::before {
+.game-screen {
+  background-color: #f6f1e5;
+
+  background-image:
+    linear-gradient(
+      rgba(255, 253, 247, 0.08),
+      rgba(238, 244, 244, 0.08)
+    ),
+    var(--conquistador-azulejo);
+
+  background-repeat:
+    no-repeat,
+    repeat;
+
+  background-size:
+    auto,
+    clamp(165px, 14vw, 225px)
+    clamp(165px, 14vw, 225px);
+
+  background-position:
+    center,
+    top left;
+}
+
+/* The old generic geometric body texture should not compete with the tiles. */
+body::before {
+  opacity: 0.025;
+}
+
+/*
+ * The supplied naval/Descobrimentos frame is a transparent overlay around the
+ * central game panel. The board itself stays untouched underneath it.
+ */
+.board-panel {
+  position: relative;
+  isolation: isolate;
+
+  box-shadow:
+    0 18px 42px
+    rgba(28, 36, 38, 0.2);
+}
+
+.board-panel::after {
   content: "";
 
   position: absolute;
-  inset: 0;
-  z-index: 3;
+  inset: -12px;
+  z-index: 30;
 
   pointer-events: none;
 
-  opacity: 0.96;
+  background-image:
+    var(--conquistador-wood-frame);
 
-  border-radius: 8px;
+  background-repeat:
+    no-repeat;
 
-  background:
-    repeating-linear-gradient(
-      90deg,
-      #f7f2e5 0 12px,
-      #2a7390 12px 24px,
-      #f7f2e5 24px 36px,
-      #8ab6c6 36px 48px
-    ) top / 100% 12px no-repeat,
-    repeating-linear-gradient(
-      90deg,
-      #8ab6c6 0 12px,
-      #f7f2e5 12px 24px,
-      #2a7390 24px 36px,
-      #f7f2e5 36px 48px
-    ) bottom / 100% 12px no-repeat,
-    repeating-linear-gradient(
-      180deg,
-      #f7f2e5 0 12px,
-      #2a7390 12px 24px,
-      #f7f2e5 24px 36px,
-      #8ab6c6 36px 48px
-    ) left / 12px 100% no-repeat,
-    repeating-linear-gradient(
-      180deg,
-      #8ab6c6 0 12px,
-      #f7f2e5 12px 24px,
-      #2a7390 24px 36px,
-      #f7f2e5 36px 48px
-    ) right / 12px 100% no-repeat;
+  background-position:
+    center;
 
-  box-shadow:
-    inset 0 0 0 1px
-    rgba(244, 226, 184, 0.7),
-    inset 0 0 0 13px
-    rgba(5, 37, 52, 0.24);
+  background-size:
+    100% 100%;
+
+  filter:
+    drop-shadow(
+      0 10px 10px
+      rgba(28, 20, 13, 0.22)
+    );
+}
+
+/*
+ * Keep the original board-frame rules from base.css. In particular, do not
+ * alter overflow, minimum height, SVG size or interaction geometry here.
+ */
+
+@media (max-width: 980px) {
+  .game-screen {
+    background-size:
+      auto,
+      170px 170px;
+  }
+
+  .board-panel::after {
+    inset: -8px;
+  }
 }
 
 @media (max-width: 760px) {
-  .board-frame {
-    border-width: 7px;
-    border-radius: 12px;
-
-    box-shadow:
-      0 10px 20px
-      rgba(5, 25, 35, 0.22),
-      inset 0 0 0 1px
-      rgba(244, 226, 184, 0.46),
-      inset 0 0 0 10px
-      rgba(7, 43, 58, 0.18);
+  .game-screen {
+    background-size:
+      auto,
+      135px 135px;
   }
 
-  .board-frame::before {
-    border-radius: 5px;
+  .board-panel::after {
+    inset: -5px;
 
-    background:
-      repeating-linear-gradient(
-        90deg,
-        #f7f2e5 0 9px,
-        #2a7390 9px 18px,
-        #f7f2e5 18px 27px,
-        #8ab6c6 27px 36px
-      ) top / 100% 9px no-repeat,
-      repeating-linear-gradient(
-        90deg,
-        #8ab6c6 0 9px,
-        #f7f2e5 9px 18px,
-        #2a7390 18px 27px,
-        #f7f2e5 27px 36px
-      ) bottom / 100% 9px no-repeat,
-      repeating-linear-gradient(
-        180deg,
-        #f7f2e5 0 9px,
-        #2a7390 9px 18px,
-        #f7f2e5 18px 27px,
-        #8ab6c6 27px 36px
-      ) left / 9px 100% no-repeat,
-      repeating-linear-gradient(
-        180deg,
-        #8ab6c6 0 9px,
-        #f7f2e5 9px 18px,
-        #2a7390 18px 27px,
-        #f7f2e5 27px 36px
-      ) right / 9px 100% no-repeat;
-
-    box-shadow:
-      inset 0 0 0 1px
-      rgba(244, 226, 184, 0.62),
-      inset 0 0 0 10px
-      rgba(5, 37, 52, 0.2);
+    filter:
+      drop-shadow(
+        0 6px 7px
+        rgba(28, 20, 13, 0.18)
+      );
   }
 }
