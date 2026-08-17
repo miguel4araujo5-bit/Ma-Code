@@ -2,21 +2,6 @@
  * Conquistador visual theme.
  * Presentation only: does not change game rules, board topology, hit areas or
  * multiplayer behaviour.
- *
- * Frame contract (all screens):
- * The wood frame image (moldura-descobrimentos-vertical.webp) is 941x1672
- * with a transparent window whose inner edges sit at, in % of the image:
- *   top 1.32% / bottom 15.43% / left 2.13% / right 2.44%
- * To guarantee the frame NEVER covers the map:
- *   1. .board-panel gets aspect-ratio 941/1672, so the panel always has the
- *      exact proportions of the frame image.
- *   2. The ::after frame is stretched to 100% 100% of the panel — no
- *      distortion, because the ratios now match.
- *   3. The panel padding reproduces the window insets (vertical insets are
- *      multiplied by the image ratio 1672/941 = 1.7768 because CSS padding
- *      percentages are relative to the WIDTH), plus a small safety margin.
- * Result: wood frame -> thin teal safety margin -> complete playable SVG ->
- * larger teal footer under the bottom ornament -> wood frame.
  */
 
 :root {
@@ -26,7 +11,6 @@
   --conquistador-wood-frame:
     url("/conquistador/theme/moldura-descobrimentos-vertical.webp");
 
-  /* image ratio 1672 / 941 — used to convert image % into width % */
   --conquistador-frame-ratio: 1.7768;
 }
 
@@ -58,30 +42,48 @@ body::before {
   opacity: 0.025;
 }
 
+/* Readability only: give the main game title a compact azulejo-style plaque. */
+.game-brand {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 13px 8px;
+  border: 1px solid rgba(236, 216, 155, 0.72);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      rgba(8, 47, 66, 0.9),
+      rgba(11, 64, 85, 0.9)
+    ),
+    var(--conquistador-azulejo);
+  background-size:
+    auto,
+    110px 110px;
+  box-shadow:
+    0 4px 12px rgba(8, 47, 66, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.game-brand .eyebrow {
+  color: #ecd89b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
+}
+
+.game-brand h1 {
+  color: #fffdf7;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.45),
+    0 2px 5px rgba(0, 0, 0, 0.28);
+}
+
 .board-panel {
   position: relative;
   isolation: isolate;
 
-  /* The panel always has the exact proportions of the frame image. */
   aspect-ratio: 941 / 1672;
 
   display: flex;
   flex-direction: column;
 
-  /*
-   * Window insets of the frame image converted to width % (CSS padding
-   * percentages are relative to the WIDTH, so vertical insets of the image
-   * are multiplied by the image ratio 1.7768):
-   *   top    — the top crest (caravels/compass/fleur-de-lis) is opaque and
-   *            hangs into the window down to ~12-13% of the image height,
-   *            so the map starts safely below it:
-   *            12% * 1.7768 ~= 21%
-   *   right  2.44% + margin -> 4%
-   *   bottom 15.43% * 1.7768 ~= 27.4% -> 28%
-   *   left   2.13% + margin -> 3.8%
-   * The map is intentionally smaller: everything (hexes, number tokens,
-   * ports, vertices) stays inside the clear window of the frame.
-   */
   padding:
     21%
     4%
@@ -93,11 +95,6 @@ body::before {
     rgba(28, 36, 38, 0.2);
 }
 
-/*
- * The naval frame is decoration only. Because the panel aspect-ratio matches
- * the image, stretching it to 100% 100% is distortion-free and the opaque
- * pillars/ornaments always land OUTSIDE the playable window.
- */
 .board-panel::after {
   content: "";
 
@@ -129,11 +126,6 @@ body::before {
 .board-title-row {
   flex: 0 0 auto;
 
-  /*
-   * The top crest (caravels/compass) hangs into the window down to ~21% of
-   * the image height, so the title must sit ABOVE the frame layer with its
-   * own pill background to stay readable.
-   */
   position: relative;
   z-index: 40;
 
@@ -142,16 +134,37 @@ body::before {
   width: fit-content;
   max-width: 100%;
 
-  padding: 4px 12px;
+  padding: 5px 13px 6px;
 
+  border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 10px;
 
   background:
-    rgba(8, 47, 66, 0.78);
+    linear-gradient(
+      rgba(8, 47, 66, 0.9),
+      rgba(11, 64, 85, 0.9)
+    ),
+    var(--conquistador-azulejo);
+  background-size:
+    auto,
+    90px 90px;
 
   box-shadow:
-    0 2px 8px
-    rgba(8, 47, 66, 0.35);
+    0 2px 8px rgba(8, 47, 66, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.board-title-row strong {
+  color: #fffdf7;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.42),
+    0 2px 4px rgba(0, 0, 0, 0.22);
+}
+
+.board-title-row .board-kicker,
+.board-title-row .board-seed {
+  color: #ecd89b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .board-frame {
@@ -162,19 +175,13 @@ body::before {
   align-items: center;
   justify-content: center;
 
-  /* The wood frame is the border now; the gold double border is removed. */
   border: 0;
   border-radius: 6px;
 
   overflow: hidden;
 }
 
-/*
- * Keep the frame exactly as approved and reduce only the playable map a
- * little further inside its clear window. This gives every outer vertex and
- * port extra teal breathing room without changing the frame, panel geometry,
- * topology or hit areas.
- */
+/* Keep the approved map size unchanged. */
 .board-svg {
   display: block;
 
@@ -200,6 +207,11 @@ body::before {
     background-size:
       auto,
       135px 135px;
+  }
+
+  .game-brand {
+    padding: 6px 10px 7px;
+    border-radius: 10px;
   }
 
   .board-panel {
