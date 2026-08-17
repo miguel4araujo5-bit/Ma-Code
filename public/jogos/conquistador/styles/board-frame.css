@@ -123,18 +123,22 @@ body::before {
     );
 }
 
+/*
+ * The Portugal Continental plaque is decoration/readability only.
+ * Place it in the free upper-right area of the frame, between the nau and
+ * the armillary-sphere ornament, without taking space away from the map.
+ */
 .board-title-row {
-  flex: 0 0 auto;
-
-  position: relative;
+  position: absolute;
   z-index: 40;
 
-  align-self: center;
+  top: 13.5%;
+  right: 6%;
 
   width: fit-content;
-  max-width: 100%;
+  max-width: 43%;
 
-  padding: 5px 13px 6px;
+  padding: 5px 10px 6px;
 
   border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 10px;
@@ -212,6 +216,13 @@ body::before {
   .game-brand {
     padding: 6px 10px 7px;
     border-radius: 10px;
+  }
+
+  .board-title-row {
+    top: 13.5%;
+    right: 5.5%;
+    max-width: 45%;
+    padding: 4px 8px 5px;
   }
 
   .board-panel {
