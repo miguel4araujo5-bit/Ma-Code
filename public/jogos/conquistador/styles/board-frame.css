@@ -2,6 +2,21 @@
  * Conquistador visual theme.
  * Presentation only: does not change game rules, board topology, hit areas or
  * multiplayer behaviour.
+ *
+ * Frame contract (all screens):
+ * The wood frame image (moldura-descobrimentos-vertical.webp) is 941x1672
+ * with a transparent window whose inner edges sit at, in % of the image:
+ *   top 1.32% / bottom 15.43% / left 2.13% / right 2.44%
+ * To guarantee the frame NEVER covers the map:
+ *   1. .board-panel gets aspect-ratio 941/1672, so the panel always has the
+ *      exact proportions of the frame image.
+ *   2. The ::after frame is stretched to 100% 100% of the panel — no
+ *      distortion, because the ratios now match.
+ *   3. The panel padding reproduces the window insets (vertical insets are
+ *      multiplied by the image ratio 1672/941 = 1.7768 because CSS padding
+ *      percentages are relative to the WIDTH), plus a small safety margin.
+ * Result: wood frame -> thin teal safety margin -> complete playable SVG ->
+ * larger teal footer under the bottom ornament -> wood frame.
  */
 
 :root {
@@ -10,6 +25,9 @@
 
   --conquistador-wood-frame:
     url("/conquistador/theme/moldura-descobrimentos-vertical.webp");
+
+  /* image ratio 1672 / 941 — used to convert image % into width % */
+  --conquistador-frame-ratio: 1.7768;
 }
 
 .game-screen {
@@ -44,23 +62,47 @@ body::before {
   position: relative;
   isolation: isolate;
 
+  /* The panel always has the exact proportions of the frame image. */
+  aspect-ratio: 941 / 1672;
+
+  display: flex;
+  flex-direction: column;
+
+  /*
+   * Window insets of the frame image converted to width % (CSS padding
+   * percentages are relative to the WIDTH, so vertical insets of the image
+   * are multiplied by the image ratio 1.7768):
+   *   top    — the top crest (caravels/compass/fleur-de-lis) is opaque and
+   *            hangs into the window down to ~12-13% of the image height,
+   *            so the map starts safely below it:
+   *            12% * 1.7768 ~= 21%
+   *   right  2.44% + margin -> 4%
+   *   bottom 15.43% * 1.7768 ~= 27.4% -> 28%
+   *   left   2.13% + margin -> 3.8%
+   * The map is intentionally smaller: everything (hexes, number tokens,
+   * ports, vertices) stays inside the clear window of the frame.
+   */
+  padding:
+    21%
+    4%
+    28%
+    3.8%;
+
   box-shadow:
     0 18px 42px
     rgba(28, 36, 38, 0.2);
 }
 
 /*
- * The naval frame is decoration only. It follows the outside of the complete
- * board panel and never decides the size of the playable SVG underneath it.
+ * The naval frame is decoration only. Because the panel aspect-ratio matches
+ * the image, stretching it to 100% 100% is distortion-free and the opaque
+ * pillars/ornaments always land OUTSIDE the playable window.
  */
 .board-panel::after {
   content: "";
 
   position: absolute;
-  top: -5.5%;
-  right: -4.5%;
-  bottom: -5.5%;
-  left: -4.5%;
+  inset: 0;
   z-index: 30;
 
   pointer-events: none;
@@ -75,7 +117,7 @@ body::before {
     center;
 
   background-size:
-    contain;
+    100% 100%;
 
   filter:
     drop-shadow(
@@ -84,55 +126,69 @@ body::before {
     );
 }
 
+.board-title-row {
+  flex: 0 0 auto;
+
+  /*
+   * The top crest (caravels/compass) hangs into the window down to ~21% of
+   * the image height, so the title must sit ABOVE the frame layer with its
+   * own pill background to stay readable.
+   */
+  position: relative;
+  z-index: 40;
+
+  align-self: center;
+
+  width: fit-content;
+  max-width: 100%;
+
+  padding: 4px 12px;
+
+  border-radius: 10px;
+
+  background:
+    rgba(8, 47, 66, 0.78);
+
+  box-shadow:
+    0 2px 8px
+    rgba(8, 47, 66, 0.35);
+}
+
+.board-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  display: flex;
+
+  /* The wood frame is the border now; the gold double border is removed. */
+  border: 0;
+  border-radius: 6px;
+
+  overflow: hidden;
+}
+
+/*
+ * The SVG fills the whole window and letterboxes internally
+ * (preserveAspectRatio="xMidYMid meet" is the SVG default), so the complete
+ * map — every hex, vertex, port and number token — is always visible.
+ */
+.board-svg {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0 auto;
+}
+
 @media (max-width: 980px) {
   .game-screen {
     background-size:
       auto,
       170px 170px;
-  }
-
-  .board-panel::after {
-    top: -3.5%;
-    right: -2.2%;
-    bottom: -3.5%;
-    left: -2.2%;
-  }
-}
-
-/*
- * Mobile contract:
- *
- * wood frame -> blue safety margin -> complete playable SVG -> larger blue
- * footer -> wood frame.
- *
- * The existing SVG already has a dynamic viewBox with internal map padding.
- * On phones we therefore shrink the whole SVG uniformly inside the board
- * surface instead of changing topology, vertices or hit targets. The bottom
- * padding is intentionally larger and acts as the requested visual footer.
- */
-@media (max-width: 900px) {
-  .board-frame {
-    padding-top:
-      clamp(10px, 2.6vw, 16px);
-
-    padding-right:
-      clamp(10px, 3vw, 18px);
-
-    padding-bottom:
-      clamp(26px, 7vw, 42px);
-
-    padding-left:
-      clamp(10px, 3vw, 18px);
-  }
-
-  .board-svg {
-    display: block;
-
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-
-    margin: 0 auto;
   }
 }
 
@@ -150,60 +206,10 @@ body::before {
   }
 
   .board-panel::after {
-    top: -2.4%;
-    right: -2.4%;
-    bottom: -3.2%;
-    left: -2.4%;
-
-    background-size:
-      contain;
-
     filter:
       drop-shadow(
         0 5px 6px
         rgba(28, 20, 13, 0.16)
       );
-  }
-
-  .board-frame {
-    padding-top:
-      clamp(9px, 2.4vw, 13px);
-
-    padding-right:
-      clamp(9px, 2.8vw, 14px);
-
-    padding-bottom:
-      clamp(28px, 8vw, 40px);
-
-    padding-left:
-      clamp(9px, 2.8vw, 14px);
-  }
-}
-
-@media (max-width: 480px) {
-  /*
-   * Small phones keep the same contract. The horizontal safety margin becomes
-   * slightly leaner to protect board legibility, while the footer remains
-   * clearly visible.
-   */
-  .board-frame {
-    padding-top:
-      clamp(8px, 2.2vw, 11px);
-
-    padding-right:
-      clamp(8px, 2.5vw, 11px);
-
-    padding-bottom:
-      clamp(26px, 8vw, 34px);
-
-    padding-left:
-      clamp(8px, 2.5vw, 11px);
-  }
-
-  .board-panel::after {
-    top: -2%;
-    right: -1.8%;
-    bottom: -3%;
-    left: -1.8%;
   }
 }
