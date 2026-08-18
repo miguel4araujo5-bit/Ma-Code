@@ -129,7 +129,8 @@ body::before {
   position: relative;
   z-index: 40;
 
-  align-self: center;
+  align-self: flex-start;
+  top: 55%;
 
   width: fit-content;
   max-width: 100%;
