@@ -5,21 +5,6 @@
  */
 
 :root {
-  --navy-950: #3b0608;
-  --navy-900: #611014;
-  --navy-800: #7d171c;
-  --ocean: #9d252b;
-  --azulejo: #b2343a;
-  --azulejo-light: #d99396;
-  --gold: #c99652;
-  --gold-light: #f0d2a1;
-  --wine: #7e1117;
-  --ivory: #fff5f2;
-  --paper: #fff9f7;
-  --ink: #351214;
-  --muted: #806568;
-  --line: rgba(97, 16, 20, 0.18);
-
   --conquistador-azulejo:
     url("/conquistador/theme/azulejo-portugues-repetivel.webp");
 
@@ -29,34 +14,15 @@
   --conquistador-frame-ratio: 1.7768;
 }
 
-body {
-  background:
-    radial-gradient(
-      circle at 15% 12%,
-      rgba(255, 245, 242, 0.88),
-      transparent 26%
-    ),
-    linear-gradient(
-      145deg,
-      #7b1519 0%,
-      #c9494f 48%,
-      #671014 100%
-    );
-}
-
 .game-screen {
-  background-color: #7d171c;
+  background-color: #f6f1e5;
 
   background-image:
     linear-gradient(
-      rgba(139, 24, 29, 0.78),
-      rgba(97, 16, 20, 0.78)
+      rgba(255, 253, 247, 0.08),
+      rgba(238, 244, 244, 0.08)
     ),
     var(--conquistador-azulejo);
-
-  background-blend-mode:
-    multiply,
-    soft-light;
 
   background-repeat:
     no-repeat,
@@ -81,29 +47,29 @@ body::before {
   width: fit-content;
   max-width: 100%;
   padding: 7px 13px 8px;
-  border: 1px solid rgba(240, 210, 161, 0.72);
+  border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 12px;
   background:
     linear-gradient(
-      rgba(79, 9, 13, 0.92),
-      rgba(113, 16, 21, 0.92)
+      rgba(8, 47, 66, 0.9),
+      rgba(11, 64, 85, 0.9)
     ),
     var(--conquistador-azulejo);
   background-size:
     auto,
     110px 110px;
   box-shadow:
-    0 4px 12px rgba(59, 6, 8, 0.24),
+    0 4px 12px rgba(8, 47, 66, 0.2),
     inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .game-brand .eyebrow {
-  color: #f0d2a1;
+  color: #ecd89b;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
 }
 
 .game-brand h1 {
-  color: #fff9f7;
+  color: #fffdf7;
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.45),
     0 2px 5px rgba(0, 0, 0, 0.28);
@@ -171,13 +137,13 @@ body::before {
 
   padding: 5px 13px 6px;
 
-  border: 1px solid rgba(240, 210, 161, 0.72);
+  border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 10px;
 
   background:
     linear-gradient(
-      rgba(79, 9, 13, 0.92),
-      rgba(113, 16, 21, 0.92)
+      rgba(8, 47, 66, 0.9),
+      rgba(11, 64, 85, 0.9)
     ),
     var(--conquistador-azulejo);
   background-size:
@@ -185,12 +151,12 @@ body::before {
     90px 90px;
 
   box-shadow:
-    0 2px 8px rgba(59, 6, 8, 0.35),
+    0 2px 8px rgba(8, 47, 66, 0.35),
     inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .board-title-row strong {
-  color: #fff9f7;
+  color: #fffdf7;
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.42),
     0 2px 4px rgba(0, 0, 0, 0.22);
@@ -198,7 +164,7 @@ body::before {
 
 .board-title-row .board-kicker,
 .board-title-row .board-seed {
-  color: #f0d2a1;
+  color: #ecd89b;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
