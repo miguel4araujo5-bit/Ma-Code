@@ -26,7 +26,7 @@ const APPROVE_PATH =
   '/api/admin/ma-professor/requests/approve'
 
 const MA_PROFESSOR_ACCESS_URL =
-  'https://ma-code.pt/produtos/ma-professor'
+  'https://ma-code.pt/produtos/ma-professor?acesso=ativar'
 
 type JsonObject =
   Record<string, unknown>
@@ -206,17 +206,17 @@ async function sendApprovalEmail(
     `Email: ${email}`,
     `Senha de ativação: ${activationPassword}`,
     '',
-    'Esta senha serve apenas para ativar o período de acesso autorizado. Não é a sua password de entrada no MA-Professor.',
+    'Esta senha serve apenas para ativar o seu acesso ao MA-Professor.',
     '',
-    `Aceda a: ${MA_PROFESSOR_ACCESS_URL}`,
+    `Ativar o meu acesso: ${MA_PROFESSOR_ACCESS_URL}`,
     '',
-    'Na página, escolha “Já tenho acesso” e depois “Tenho uma senha de ativação”.',
+    'Ao abrir a página, introduza o seu email e a senha de ativação indicada acima.',
     '',
-    'Se for a primeira ativação desta conta, irá definir a sua password pessoal. Depois da ativação, deverá entrar normalmente com o seu email e essa password pessoal.',
+    'Depois de concluir a ativação, poderá utilizar normalmente o MA-Professor.',
     '',
-    'A senha de ativação deixa de ser necessária depois de o período ser ativado.',
+    'Nota: a senha de ativação não é a sua password pessoal. A sua password pessoal é aquela que definiu quando criou a sua conta.',
     '',
-    'A eventual confirmação de manutenção da vaga na fase piloto é um processo separado e não utiliza esta senha de ativação.',
+    'A senha de ativação deixa de ser necessária depois de o acesso estar ativado.',
     '',
     'MA-Professor | MA-CODE'
   ].join('\n')
@@ -228,12 +228,16 @@ async function sendApprovalEmail(
       </p>
 
       <h1 style="font-size:24px;line-height:1.25;margin:0 0 18px;color:#0f172a;">
-        O seu pedido foi aprovado
+        O seu acesso foi aprovado
       </h1>
 
       <p>Olá,</p>
       <p>
         O seu pedido de <strong>acesso gratuito à fase piloto do MA-Professor</strong> foi aprovado.
+      </p>
+
+      <p>
+        Para ativar o seu acesso, utilize a senha abaixo:
       </p>
 
       <div style="margin:24px 0;padding:18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
@@ -247,8 +251,7 @@ async function sendApprovalEmail(
       </div>
 
       <p>
-        Esta senha serve <strong>apenas para ativar o período de acesso autorizado</strong>.
-        Não é a sua password normal de entrada no MA-Professor.
+        <strong>Esta senha serve apenas para ativar o seu acesso ao MA-Professor.</strong>
       </p>
 
       <p style="margin:24px 0;">
@@ -256,28 +259,24 @@ async function sendApprovalEmail(
           href="${MA_PROFESSOR_ACCESS_URL}"
           style="display:inline-block;background:#22d3ee;color:#082f49;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;"
         >
-          Aceder ao MA-Professor
+          Ativar o meu acesso
         </a>
       </p>
 
       <p>
-        Na página, escolha <strong>“Já tenho acesso”</strong> e depois
-        <strong>“Tenho uma senha de ativação”</strong>.
+        Ao abrir a página, introduza o seu email e a <strong>senha de ativação</strong> indicada acima.
       </p>
 
       <p>
-        Se for a primeira ativação desta conta, irá definir a sua
-        <strong>password pessoal</strong>. Depois da ativação, deverá entrar normalmente
-        com o seu email e essa password pessoal.
-      </p>
-
-      <p>
-        A senha de ativação deixa de ser necessária depois de o período ser ativado.
+        Depois de concluir a ativação, poderá utilizar normalmente o MA-Professor.
       </p>
 
       <p style="color:#475569;">
-        A eventual confirmação de manutenção da vaga na fase piloto é um processo separado
-        e não utiliza esta senha de ativação.
+        <strong>Nota:</strong> a senha de ativação não é a sua password pessoal. A sua password pessoal é aquela que definiu quando criou a sua conta.
+      </p>
+
+      <p>
+        A senha de ativação deixa de ser necessária depois de o acesso estar ativado.
       </p>
 
       <p style="margin-top:28px;color:#64748b;font-size:13px;">
