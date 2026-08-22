@@ -849,12 +849,8 @@ export class MaProfessorAccessDurableObject {
 
     const activationPassword =
       normalizePassword(
-        body.activationPassword
-      )
-
-    const accountPassword =
-      normalizePassword(
-        body.accountPassword
+        body.activationPassword ??
+        body.password
       )
 
     const deviceId =
@@ -893,22 +889,6 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
-      !isValidPersonalPassword(
-        accountPassword
-      )
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'A password pessoal deve ter entre 6 e 128 caracteres.'
-        },
-        400
-      )
-    }
-
-    if (
       !deviceId
     ) {
       return json(
@@ -935,28 +915,32 @@ export class MaProfessorAccessDurableObject {
       ]
 
     if (
-      existingPersonalCredential
+      !existingPersonalCredential
     ) {
-      const passwordMatches =
-        await verifyAccountPassword(
-          existingPersonalCredential,
-          accountPassword
-        )
-
-      if (
-        !passwordMatches
-      ) {
-        return json(
-          {
-            success:
-              false,
-            message:
-              'A password pessoal está incorreta. Para ativar um novo período deve usar a mesma password pessoal da sua conta.'
-          },
-          401
-        )
-      }
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso”, defina a sua password pessoal e depois utilize novamente esta senha de ativação.'
+        },
+        409
+      )
     }
+
+    const delegatedHeaders =
+      new Headers(
+        request.headers
+      )
+
+    delegatedHeaders.delete(
+      'content-length'
+    )
+
+    delegatedHeaders.set(
+      'Content-Type',
+      'application/json'
+    )
 
     const delegatedRequest =
       new Request(
@@ -965,7 +949,7 @@ export class MaProfessorAccessDurableObject {
           method:
             'POST',
           headers:
-            request.headers,
+            delegatedHeaders,
           body:
             JSON.stringify({
               email,
@@ -1015,21 +999,6 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
-      !existingPersonalCredential
-    ) {
-      authState.credentials[
-        email
-      ] =
-        await createAccountCredential(
-          email,
-          accountPassword
-        )
-    }
-
-    authState.updatedAt =
-      Date.now()
-
-    if (
       accessState.credentials
     ) {
       delete accessState
@@ -1041,19 +1010,15 @@ export class MaProfessorAccessDurableObject {
     accessState.updatedAt =
       Date.now()
 
-    await this.state.storage.put({
-      [ACCOUNT_AUTH_STORAGE_KEY]:
-        authState,
-      [STORAGE_KEY]:
-        accessState
-    })
+    await this.state.storage.put(
+      STORAGE_KEY,
+      accessState
+    )
 
     return json({
       ...delegatedBody,
       message:
-        existingPersonalCredential
-          ? 'Período de acesso ativado. Continue a usar a sua password pessoal para entrar no MA-Professor.'
-          : 'Período de acesso ativado. A sua password pessoal ficou definida e será usada nos próximos acessos.'
+        'Período de acesso ativado. A sua password pessoal continua a ser a credencial de entrada no MA-Professor.'
     })
   }
 
@@ -1157,7 +1122,7 @@ export class MaProfessorAccessDurableObject {
           success:
             false,
           message:
-            'Esta conta ainda não tem uma password pessoal definida. Se recebeu uma senha de ativação, utilize primeiro a opção “Tenho uma senha de ativação”.'
+            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso” para definir a sua password pessoal antes de utilizar a senha de ativação.'
         },
         401
       )
@@ -1344,9 +1309,160 @@ export class MaProfessorAccessDurableObject {
   private async handleRequestStatus(
     request: Request
   ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    let requestBody:
+      JsonObject
+
+    try {
+      requestBody =
+        await readJson(
+          request.clone()
+        )
+    } catch {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const requestedEmail =
+      normalizeEmail(
+        requestBody.email
+      )
+
+    const accountPassword =
+      normalizePassword(
+        requestBody.accountPassword
+      )
+
+    const shouldDefinePersonalPassword =
+      accountPassword.length >
+      0
+
+    let authState:
+      StoredAccountAuthState |
+      null =
+      null
+
+    if (
+      shouldDefinePersonalPassword
+    ) {
+      if (
+        !isValidEmail(
+          requestedEmail
+        )
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'Introduza um endereço de email válido.'
+          },
+          400
+        )
+      }
+
+      if (
+        !isValidPersonalPassword(
+          accountPassword
+        )
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'A password pessoal deve ter entre 6 e 128 caracteres.'
+          },
+          400
+        )
+      }
+
+      authState =
+        normalizeAccountAuthState(
+          await this.state.storage.get<StoredAccountAuthState>(
+            ACCOUNT_AUTH_STORAGE_KEY
+          )
+        )
+
+      const existingCredential =
+        authState.credentials[
+          requestedEmail
+        ]
+
+      if (
+        existingCredential
+      ) {
+        const passwordMatches =
+          await verifyAccountPassword(
+            existingCredential,
+            accountPassword
+          )
+
+        if (
+          !passwordMatches
+        ) {
+          return json(
+            {
+              success:
+                false,
+              message:
+                'Já existe uma password pessoal definida para esta conta. Introduza a mesma password pessoal ou utilize “Já tenho acesso”.'
+            },
+            409
+          )
+        }
+      }
+    }
+
+    let delegatedRequest =
+      request
+
+    if (
+      shouldDefinePersonalPassword
+    ) {
+      const delegatedHeaders =
+        new Headers(
+          request.headers
+        )
+
+      delegatedHeaders.delete(
+        'content-length'
+      )
+
+      delegatedHeaders.set(
+        'Content-Type',
+        'application/json'
+      )
+
+      delegatedRequest =
+        new Request(
+          request.url,
+          {
+            method:
+              'POST',
+            headers:
+              delegatedHeaders,
+            body:
+              JSON.stringify({
+                email:
+                  requestedEmail
+              })
+          }
+        )
+    }
+
     const response =
       await this.existing.fetch(
-        request
+        delegatedRequest
       )
 
     if (
@@ -1368,9 +1484,20 @@ export class MaProfessorAccessDurableObject {
       return response
     }
 
+    const requestSummary =
+      body.request &&
+      typeof body.request ===
+        'object' &&
+      !Array.isArray(
+        body.request
+      )
+        ? body.request as JsonObject
+        : null
+
     const email =
       normalizeEmail(
-        body.email
+        requestSummary?.email ??
+        requestedEmail
       )
 
     if (
@@ -1379,12 +1506,48 @@ export class MaProfessorAccessDurableObject {
       return response
     }
 
-    const authState =
-      normalizeAccountAuthState(
-        await this.state.storage.get<StoredAccountAuthState>(
-          ACCOUNT_AUTH_STORAGE_KEY
+    if (
+      !authState
+    ) {
+      authState =
+        normalizeAccountAuthState(
+          await this.state.storage.get<StoredAccountAuthState>(
+            ACCOUNT_AUTH_STORAGE_KEY
+          )
         )
+    }
+
+    const requestStatus =
+      requestSummary?.status
+
+    if (
+      shouldDefinePersonalPassword &&
+      (
+        requestStatus ===
+          'pending' ||
+        requestStatus ===
+          'approved'
+      ) &&
+      !authState.credentials[
+        email
+      ]
+    ) {
+      authState.credentials[
+        email
+      ] =
+        await createAccountCredential(
+          email,
+          accountPassword
+        )
+
+      authState.updatedAt =
+        Date.now()
+
+      await this.state.storage.put(
+        ACCOUNT_AUTH_STORAGE_KEY,
+        authState
       )
+    }
 
     const hasPersonalPassword =
       Boolean(
@@ -1393,16 +1556,33 @@ export class MaProfessorAccessDurableObject {
         ]
       )
 
+    let message =
+      typeof body.message ===
+        'string'
+        ? body.message
+        : undefined
+
+    if (
+      body.canActivate ===
+        true
+    ) {
+      message =
+        hasPersonalPassword
+          ? 'O seu pedido está aprovado e a sua password pessoal já está definida. Utilize agora apenas a senha de ativação recebida por email.'
+          : 'O pedido foi aprovado, mas esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso”, defina a sua password pessoal e depois utilize a senha de ativação recebida.'
+    } else if (
+      shouldDefinePersonalPassword &&
+      requestStatus ===
+        'pending'
+    ) {
+      message =
+        'Pedido recebido. A sua password pessoal ficou definida. Guarde-a: será usada sempre que entrar no MA-Professor. Aguarde o email da MA-CODE com a decisão.'
+    }
+
     return json({
       ...body,
       hasPersonalPassword,
-      message:
-        body.canActivate ===
-          true
-          ? hasPersonalPassword
-            ? 'Existe uma nova senha de ativação disponível para esta conta. Utilize-a apenas para ativar o novo período.'
-            : 'O pedido foi aprovado. Utilize a senha de ativação recebida para ativar o período e definir a sua password pessoal.'
-          : body.message
+      message
     })
   }
 
