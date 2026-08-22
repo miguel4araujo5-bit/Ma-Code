@@ -48,6 +48,58 @@ function getErrorMessage(
     : 'Não foi possível concluir a operação.'
 }
 
+function getInitialMode(): Mode {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return 'intro'
+  }
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    )
+
+  return params.get(
+    'acesso'
+  ) === 'ativar'
+    ? 'activate'
+    : 'intro'
+}
+
+function clearActivationDeepLink() {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return
+  }
+
+  const url =
+    new URL(
+      window.location.href
+    )
+
+  if (
+    !url.searchParams.has(
+      'acesso'
+    )
+  ) {
+    return
+  }
+
+  url.searchParams.delete(
+    'acesso'
+  )
+
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${url.pathname}${url.search}${url.hash}`
+  )
+}
+
 function Shell({
   children
 }: {
@@ -102,7 +154,7 @@ export default function MAProfessorAuthGate({
     setMode
   ] =
     useState<Mode>(
-      'intro'
+      getInitialMode
     )
 
   const [
@@ -191,7 +243,9 @@ export default function MAProfessorAuthGate({
   )
 
   if (
-    storedAccess
+    storedAccess &&
+    mode !==
+      'activate'
   ) {
     return (
       <>
@@ -209,7 +263,9 @@ export default function MAProfessorAuthGate({
   const goLogin =
     () => {
       resetFeedback()
+      clearActivationDeepLink()
       setActivationPassword('')
+      setPersonalPassword('')
       setPersonalPasswordConfirm('')
       setMode('login')
     }
@@ -241,20 +297,48 @@ export default function MAProfessorAuthGate({
         return
       }
 
+      if (
+        personalPassword.length <
+          6 ||
+        personalPassword.length >
+          128
+      ) {
+        setError(
+          'A password pessoal deve ter entre 6 e 128 caracteres.'
+        )
+
+        return
+      }
+
+      if (
+        personalPassword !==
+        personalPasswordConfirm
+      ) {
+        setError(
+          'As duas passwords pessoais não coincidem.'
+        )
+
+        return
+      }
+
       setBusy(true)
 
       try {
         const response =
           await requestMAProfessorAccess(
-            normalizedEmail
+            normalizedEmail,
+            personalPassword
           )
+
+        setPersonalPassword('')
+        setPersonalPasswordConfirm('')
 
         if (
           response.canActivate
         ) {
           setMessage(
             response.message ||
-            'O seu pedido já está aprovado. Utilize a senha de ativação recebida.'
+            'O seu pedido já está aprovado. Utilize agora a senha de ativação recebida.'
           )
 
           setMode(
@@ -371,28 +455,6 @@ export default function MAProfessorAuthGate({
         return
       }
 
-      if (
-        personalPassword.length <
-          6
-      ) {
-        setError(
-          'A password pessoal deve ter pelo menos 6 caracteres.'
-        )
-
-        return
-      }
-
-      if (
-        personalPassword !==
-        personalPasswordConfirm
-      ) {
-        setError(
-          'As duas passwords pessoais não coincidem.'
-        )
-
-        return
-      }
-
       setBusy(true)
 
       try {
@@ -403,9 +465,14 @@ export default function MAProfessorAuthGate({
           await activateMAProfessorAccessPeriod(
             normalizedEmail,
             activationPassword.trim(),
-            personalPassword,
             deviceId
           )
+
+        clearActivationDeepLink()
+
+        setMode(
+          'intro'
+        )
 
         saveResponse(
           response,
@@ -436,9 +503,13 @@ export default function MAProfessorAuthGate({
       <ProductIntroPanel
         onRequestAccess={() => {
           resetFeedback()
+          clearActivationDeepLink()
+          setActivationPassword('')
+          setPersonalPassword('')
+          setPersonalPasswordConfirm('')
           setMode('request')
         }}
-        onAlreadyHasAccess={
+        onExistingAccess={
           goLogin
         }
       />
@@ -451,6 +522,10 @@ export default function MAProfessorAuthGate({
         type="button"
         onClick={() => {
           resetFeedback()
+          clearActivationDeepLink()
+          setActivationPassword('')
+          setPersonalPassword('')
+          setPersonalPasswordConfirm('')
           setMode('intro')
         }}
         className="mb-6 text-xs font-black uppercase tracking-[0.14em] text-slate-400 transition hover:text-white"
@@ -470,7 +545,7 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Introduza o seu email para pedir acesso ao MA-Professor.
+            Introduza o seu email e defina agora a password pessoal que irá guardar para entrar no MA-Professor.
           </p>
 
           <form
@@ -500,6 +575,65 @@ export default function MAProfessorAuthGate({
                 className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
               />
             </label>
+
+            <label className="block">
+              <span className="text-xs font-bold text-slate-300">
+                Criar password pessoal
+              </span>
+
+              <input
+                type="password"
+                value={
+                  personalPassword
+                }
+                onChange={
+                  event =>
+                    setPersonalPassword(
+                      event
+                        .target
+                        .value
+                    )
+                }
+                autoComplete="new-password"
+                minLength={6}
+                maxLength={128}
+                required
+                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-bold text-slate-300">
+                Confirmar password pessoal
+              </span>
+
+              <input
+                type="password"
+                value={
+                  personalPasswordConfirm
+                }
+                onChange={
+                  event =>
+                    setPersonalPasswordConfirm(
+                      event
+                        .target
+                        .value
+                    )
+                }
+                autoComplete="new-password"
+                minLength={6}
+                maxLength={128}
+                required
+                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+              />
+            </label>
+
+            <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-3 text-xs leading-6 text-cyan-100">
+              <strong>
+                Esta é a sua password pessoal.
+              </strong>{' '}
+              Guarde-a: será usada sempre que entrar no MA-Professor. A senha de ativação que começa por <strong>MP-</strong> é diferente e só será enviada após aprovação.
+            </p>
 
             {error ? (
               <p className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
@@ -655,7 +789,7 @@ export default function MAProfessorAuthGate({
           </p>
 
           <h1 className="mt-3 text-2xl font-black tracking-tight text-white">
-            Ativar período de acesso
+            Ativar acesso
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
@@ -663,7 +797,7 @@ export default function MAProfessorAuthGate({
           </p>
 
           <p className="mt-3 rounded-xl border border-violet-300/15 bg-violet-300/[0.06] px-4 py-3 text-xs leading-6 text-violet-100">
-            A senha de ativação é usada apenas para ativar este período. Depois, entra normalmente com a sua password pessoal.
+            A sua <strong>password pessoal já foi definida quando submeteu o pedido de acesso</strong>. Aqui só precisa do email e da senha de ativação.
           </p>
 
           <form
@@ -721,60 +855,6 @@ export default function MAProfessorAuthGate({
               />
             </label>
 
-            <label className="block">
-              <span className="text-xs font-bold text-slate-300">
-                Password pessoal
-              </span>
-
-              <input
-                type="password"
-                value={
-                  personalPassword
-                }
-                onChange={
-                  event =>
-                    setPersonalPassword(
-                      event
-                        .target
-                        .value
-                    )
-                }
-                autoComplete="new-password"
-                minLength={6}
-                required
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
-              />
-
-              <span className="mt-2 block text-[0.7rem] leading-5 text-slate-500">
-                Na primeira ativação, esta passa a ser a sua password de entrada. Se a conta já foi ativada anteriormente, introduza a password pessoal que já utiliza.
-              </span>
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-bold text-slate-300">
-                Confirmar password pessoal
-              </span>
-
-              <input
-                type="password"
-                value={
-                  personalPasswordConfirm
-                }
-                onChange={
-                  event =>
-                    setPersonalPasswordConfirm(
-                      event
-                        .target
-                        .value
-                    )
-                }
-                autoComplete="new-password"
-                minLength={6}
-                required
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
-              />
-            </label>
-
             {message ? (
               <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100">
                 {message}
@@ -794,7 +874,7 @@ export default function MAProfessorAuthGate({
             >
               {busy
                 ? 'A ativar...'
-                : 'Ativar período'}
+                : 'Ativar acesso'}
             </button>
           </form>
 
