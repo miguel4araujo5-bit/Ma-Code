@@ -34,6 +34,9 @@ const RESEND_EMAIL_API_URL =
 const MA_PROFESSOR_ACCESS_URL =
   'https://ma-code.pt/produtos/ma-professor'
 
+const MA_PROFESSOR_ACTIVATION_URL =
+  `${MA_PROFESSOR_ACCESS_URL}?acesso=ativar`
+
 const MA_PROFESSOR_EMAIL_ADDRESS =
   'acesso@professor.ma-code.pt'
 
@@ -433,15 +436,15 @@ function buildApprovalEmail(
       '',
       'O seu pedido de acesso gratuito à fase piloto do MA-Professor foi aprovado.',
       '',
-      `Aceda a: ${MA_PROFESSOR_ACCESS_URL}`,
+      `Ativar acesso: ${MA_PROFESSOR_ACTIVATION_URL}`,
       `Email: ${email}`,
       `Senha de ativação: ${password}`,
       '',
-      'Na página do MA-Professor, escolha “Já tenho acesso” e depois “Tenho uma senha de ativação”.',
+      'O botão ou link de ativação abre diretamente o ecrã “Ativar acesso”. Nesse ecrã só precisa do seu email e desta senha de ativação.',
       '',
-      'Esta senha serve apenas para ativar o período de acesso autorizado. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.',
+      'A sua password pessoal foi definida quando submeteu o pedido de acesso. Não é pedida novamente durante a ativação e será a password que deverá guardar para os acessos seguintes.',
       '',
-      'No ecrã de ativação, introduza o email, esta senha de ativação e a sua password pessoal. Se for a primeira ativação da conta, defina a password pessoal que passará a utilizar nos acessos seguintes.',
+      'Esta senha de ativação serve apenas para ativar o período de acesso autorizado. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.',
       '',
       'Depois da ativação, entra normalmente com o seu email e a password pessoal. A senha de ativação deixa de ser necessária para os logins.',
       '',
@@ -476,23 +479,23 @@ function buildApprovalEmail(
 
         <p style="margin:24px 0;">
           <a
-            href="${MA_PROFESSOR_ACCESS_URL}"
+            href="${MA_PROFESSOR_ACTIVATION_URL}"
             style="display:inline-block;background:#22d3ee;color:#082f49;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;"
           >
-            Aceder ao MA-Professor
+            Ativar acesso
           </a>
         </p>
 
         <p>
-          Na página, escolha <strong>“Já tenho acesso”</strong> e depois <strong>“Tenho uma senha de ativação”</strong>.
+          O botão abre diretamente o ecrã <strong>“Ativar acesso”</strong>. Nesse ecrã só precisa do seu email e desta senha de ativação.
+        </p>
+
+        <p style="color:#475569;font-size:14px;">
+          A sua <strong>password pessoal</strong> foi definida quando submeteu o pedido de acesso. Não é pedida novamente durante a ativação e será a password que deverá guardar para os acessos seguintes.
         </p>
 
         <p style="color:#475569;font-size:14px;">
           Esta senha serve <strong>apenas para ativar o período de acesso autorizado</strong>. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.
-        </p>
-
-        <p style="color:#475569;font-size:14px;">
-          No ecrã de ativação, introduza o email, esta senha de ativação e a sua password pessoal. Se for a primeira ativação da conta, defina a password pessoal que passará a utilizar nos acessos seguintes.
         </p>
 
         <p style="color:#475569;font-size:14px;">
