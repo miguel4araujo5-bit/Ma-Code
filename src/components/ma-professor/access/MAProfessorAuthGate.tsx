@@ -199,6 +199,12 @@ export default function MAProfessorAuthGate({
   ] =
     useState(false)
 
+  const [
+    passwordNoticeConfirmed,
+    setPasswordNoticeConfirmed
+  ] =
+    useState(false)
+
   const normalizedEmail =
     useMemo(
       () =>
@@ -267,6 +273,7 @@ export default function MAProfessorAuthGate({
       setActivationPassword('')
       setPersonalPassword('')
       setPersonalPasswordConfirm('')
+      setPasswordNoticeConfirmed(false)
       setMode('login')
     }
 
@@ -275,6 +282,7 @@ export default function MAProfessorAuthGate({
       resetFeedback()
       setPersonalPassword('')
       setPersonalPasswordConfirm('')
+      setPasswordNoticeConfirmed(false)
       setMode('activate')
     }
 
@@ -321,6 +329,16 @@ export default function MAProfessorAuthGate({
         return
       }
 
+      if (
+        !passwordNoticeConfirmed
+      ) {
+        setError(
+          'Confirme que leu o aviso e guardou a sua password num local seguro.'
+        )
+
+        return
+      }
+
       setBusy(true)
 
       try {
@@ -332,6 +350,7 @@ export default function MAProfessorAuthGate({
 
         setPersonalPassword('')
         setPersonalPasswordConfirm('')
+        setPasswordNoticeConfirmed(false)
 
         if (
           response.canActivate
@@ -507,6 +526,7 @@ export default function MAProfessorAuthGate({
           setActivationPassword('')
           setPersonalPassword('')
           setPersonalPasswordConfirm('')
+          setPasswordNoticeConfirmed(false)
           setMode('request')
         }}
         onExistingAccess={
@@ -526,6 +546,7 @@ export default function MAProfessorAuthGate({
           setActivationPassword('')
           setPersonalPassword('')
           setPersonalPasswordConfirm('')
+          setPasswordNoticeConfirmed(false)
           setMode('intro')
         }}
         className="mb-6 text-xs font-black uppercase tracking-[0.14em] text-slate-400 transition hover:text-white"
@@ -628,12 +649,44 @@ export default function MAProfessorAuthGate({
               />
             </label>
 
-            <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-3 text-xs leading-6 text-cyan-100">
-              <strong>
-                Importante: guarde esta password num local seguro.
-              </strong>{' '}
-              Para proteger a sua privacidade, a MA-CODE não guarda a sua password de forma que possa ser lida ou recuperada. Os dados sensíveis são protegidos e cifrados no seu dispositivo antes de serem enviados para os nossos servidores. Por isso, <strong>não conseguimos recuperar a sua password se a esquecer</strong>. Será esta a password que utilizará para entrar no MA-Professor.
-            </p>
+            <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-3 text-xs leading-6 text-cyan-100">
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 text-lg leading-none text-amber-300"
+                >
+                  ⚠
+                </span>
+
+                <p>
+                  <strong>
+                    Importante: guarde esta password num local seguro.
+                  </strong>{' '}
+                  Para proteger a sua privacidade, a MA-CODE não guarda a sua password de forma que possa ser lida ou recuperada. Os dados sensíveis são protegidos e cifrados no seu dispositivo antes de serem enviados para os nossos servidores. Por isso, <strong>não conseguimos recuperar a sua password se a esquecer</strong>. Será esta a password que utilizará para entrar no MA-Professor.
+                </p>
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-cyan-300/25">
+              <input
+                type="checkbox"
+                checked={
+                  passwordNoticeConfirmed
+                }
+                onChange={
+                  event =>
+                    setPasswordNoticeConfirmed(
+                      event.target.checked
+                    )
+                }
+                required
+                className="mt-1 h-4 w-4 shrink-0 accent-cyan-300"
+              />
+
+              <span>
+                Confirmo que li este aviso e guardei a minha password num local seguro.
+              </span>
+            </label>
 
             {error ? (
               <p className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
@@ -643,7 +696,10 @@ export default function MAProfessorAuthGate({
 
             <button
               type="submit"
-              disabled={busy}
+              disabled={
+                busy ||
+                !passwordNoticeConfirmed
+              }
               className="w-full rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy
