@@ -92,13 +92,25 @@ async function postJson<T>(
 }
 
 export async function requestMAProfessorAccess(
-  email: string
+  email: string,
+  accountPassword?: string
 ) {
-  return postJson<MAProfessorAccessRequestResponse>(
-    '/request',
-    {
+  const body:
+    Record<string, unknown> = {
       email
     }
+
+  if (
+    typeof accountPassword ===
+    'string'
+  ) {
+    body.accountPassword =
+      accountPassword
+  }
+
+  return postJson<MAProfessorAccessRequestResponse>(
+    '/request',
+    body
   )
 }
 
@@ -120,7 +132,6 @@ export async function activateMAProfessorAccess(
 export async function activateMAProfessorAccessPeriod(
   email: string,
   activationPassword: string,
-  accountPassword: string,
   deviceId: string
 ) {
   return postJson<MAProfessorAccessResponse>(
@@ -128,7 +139,6 @@ export async function activateMAProfessorAccessPeriod(
     {
       email,
       activationPassword,
-      accountPassword,
       deviceId
     }
   )
