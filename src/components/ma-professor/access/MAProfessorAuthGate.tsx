@@ -630,9 +630,9 @@ export default function MAProfessorAuthGate({
 
             <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-3 text-xs leading-6 text-cyan-100">
               <strong>
-                Esta é a sua password pessoal.
+                Importante: guarde esta password num local seguro.
               </strong>{' '}
-              Guarde-a: será usada sempre que entrar no MA-Professor. A senha de ativação que começa por <strong>MP-</strong> é diferente e só será enviada após aprovação.
+              Para proteger a sua privacidade, a MA-CODE não guarda a sua password de forma que possa ser lida ou recuperada. Os dados sensíveis são protegidos e cifrados no seu dispositivo antes de serem enviados para os nossos servidores. Por isso, <strong>não conseguimos recuperar a sua password se a esquecer</strong>. Será esta a password que utilizará para entrar no MA-Professor.
             </p>
 
             {error ? (
