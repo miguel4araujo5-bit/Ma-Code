@@ -42,7 +42,7 @@ const accessSteps = [
         number: '1',
         title: 'Pedir acesso',
         description:
-            'Indique o seu email e submeta o pedido para participar na fase piloto.'
+            'Indique o seu email, defina a password pessoal que irá guardar e submeta o pedido para participar na fase piloto.'
     },
     {
         number: '2',
@@ -54,7 +54,7 @@ const accessSteps = [
         number: '3',
         title: 'Começar a utilizar',
         description:
-            'Se o acesso for aprovado, recebe as instruções necessárias para entrar no MA-Professor.'
+            'Se o acesso for aprovado, recebe por email a senha de ativação e abre diretamente o ecrã de ativação.'
     }
 ];
 
