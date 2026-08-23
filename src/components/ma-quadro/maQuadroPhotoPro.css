@@ -1,0 +1,141 @@
+.mq-photo-pro {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.72rem;
+  padding-top: 0.72rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mq-photo-pro__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.mq-photo-pro__heading > span:first-child {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.mq-photo-pro__heading strong {
+  color: #f8fafc;
+  font-size: 0.62rem;
+}
+
+.mq-photo-pro__heading small {
+  color: #64748b;
+  font-size: 0.47rem;
+  line-height: 1.4;
+}
+
+.mq-photo-pro__badge {
+  display: grid;
+  min-width: 2rem;
+  min-height: 1.35rem;
+  place-items: center;
+  padding: 0 0.34rem;
+  border: 1px solid rgba(196, 181, 253, 0.28);
+  border-radius: 999px;
+  color: #ede9fe;
+  background: rgba(124, 58, 237, 0.12);
+  font-size: 0.4rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.mq-photo-pro__controls {
+  display: grid;
+  gap: 0.52rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mq-photo-pro__scale-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: -0.38rem;
+  color: #475569;
+  font-size: 0.4rem;
+}
+
+.mq-photo-pro__divider {
+  height: 1px;
+  margin: 0.12rem 0;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.mq-photo-pro__switch {
+  margin-top: 0.04rem;
+}
+
+.mq-photo-pro__duotones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.34rem;
+}
+
+.mq-photo-pro__duotones button {
+  display: grid;
+  min-width: 0;
+  gap: 0.24rem;
+  padding: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0.48rem;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.5);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mq-photo-pro__duotones button:hover:not(:disabled) {
+  border-color: rgba(196, 181, 253, 0.36);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.mq-photo-pro__duotones button.is-active {
+  border-color: rgba(196, 181, 253, 0.52);
+  box-shadow: 0 0 0 1px rgba(196, 181, 253, 0.08);
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.mq-photo-pro__duotones button > span {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.7 / 1;
+  border-radius: 0.34rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.mq-photo-pro__duotones button small {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 0.42rem;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mq-photo-pro__colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.mq-photo-pro__controls:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 1180px) {
+  .mq-photo-pro__duotones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mq-photo-pro__colors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
