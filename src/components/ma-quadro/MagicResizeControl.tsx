@@ -8,11 +8,21 @@ import {
   createPortal
 } from 'react-dom'
 
+import type {
+  MAQuadroProjectCategory
+} from '../../types/maQuadro'
+
+import {
+  createMAQuadroResizedProject,
+  type MAQuadroSmartResizeMode
+} from '../../lib/maQuadro/smartResize'
+
 import {
   useMAQuadroEditorContext
 } from './editorContext'
 
 import './maQuadroMagicResize.css'
+import './maQuadroMagicResizeV2.css'
 
 type MagicResizeFormat = {
   id: string
@@ -20,30 +30,42 @@ type MagicResizeFormat = {
   description: string
   width: number
   height: number
+  category: MAQuadroProjectCategory
 }
 
-const EXTRA_FORMATS: MagicResizeFormat[] = [
-  {
-    id: 'linkedin-post',
-    name: 'Publicação LinkedIn',
-    description: 'Quadrado profissional',
-    width: 1200,
-    height: 1200
-  },
-  {
-    id: 'youtube-thumbnail',
-    name: 'Miniatura YouTube',
-    description: 'Horizontal 16:9',
-    width: 1280,
-    height: 720
-  }
-]
+const EXTRA_FORMATS:
+  MagicResizeFormat[] = [
+    {
+      id: 'linkedin-post',
+      name: 'Publicação LinkedIn',
+      description: 'Quadrado profissional',
+      width: 1200,
+      height: 1200,
+      category: 'social'
+    },
+    {
+      id: 'youtube-thumbnail',
+      name: 'Miniatura YouTube',
+      description: 'Horizontal 16:9',
+      width: 1280,
+      height: 720,
+      category: 'social'
+    }
+  ]
 
 function formatDimensions(
   width: number,
   height: number
 ) {
   return `${width} × ${height}`
+}
+
+function modeDescription(
+  mode: MAQuadroSmartResizeMode
+) {
+  return mode === 'smart'
+    ? 'Reorganiza blocos visuais quando a proporção muda muito.'
+    : 'Mantém exatamente a composição e altera apenas a escala proporcional.'
 }
 
 export default function MagicResizeControl() {
@@ -71,6 +93,13 @@ export default function MagicResizeControl() {
   ] = useState<string[]>([])
 
   const [
+    mode,
+    setMode
+  ] = useState<MAQuadroSmartResizeMode>(
+    'smart'
+  )
+
+  const [
     resultMessage,
     setResultMessage
   ] = useState('')
@@ -85,7 +114,9 @@ export default function MagicResizeControl() {
             description:
               preset.description,
             width: preset.width,
-            height: preset.height
+            height: preset.height,
+            category:
+              preset.category
           })
         ),
         ...EXTRA_FORMATS
@@ -168,14 +199,6 @@ export default function MagicResizeControl() {
     setResultMessage('')
 
     try {
-      /*
-       * O projeto é sempre guardado antes de abrir
-       * o fluxo para que as cópias incluam exatamente
-       * o estado visível no quadro.
-       *
-       * Se a origem for um modelo, saveProject()
-       * já cria uma cópia editável e preserva o modelo.
-       */
       const saved =
         await editor.saveProject(
           true
@@ -190,6 +213,7 @@ export default function MagicResizeControl() {
       }
 
       setSelectedIds([])
+      setMode('smart')
       setOpen(true)
     } finally {
       setPreparing(false)
@@ -240,8 +264,7 @@ export default function MagicResizeControl() {
 
       if (
         !sourceProject ||
-        selectedIds.length ===
-          0 ||
+        selectedIds.length === 0 ||
         generating
       ) {
         return
@@ -256,62 +279,114 @@ export default function MagicResizeControl() {
         )
 
       if (
-        targets.length ===
-        0
+        targets.length === 0
       ) {
         return
       }
-
-      const sourceProjectId =
-        sourceProject.id
-
-      const sourceProjectName =
-        sourceProject.name
 
       setGenerating(true)
       setResultMessage('')
 
       let processed = 0
+      let adjustedObjects = 0
+      let semanticObjects = 0
 
       try {
         for (
           const format
           of targets
         ) {
-          /*
-           * Cada formato parte sempre do projeto
-           * original já guardado.
-           *
-           * Assim, gerar cinco formatos não significa
-           * redimensionar sequencialmente uma cópia
-           * cinco vezes.
-           */
-          await editor.duplicateProject(
-            sourceProjectId
-          )
+          const {
+            project,
+            report
+          } =
+            await createMAQuadroResizedProject(
+              sourceProject,
+              `${sourceProject.name} — ${format.name}`,
+              format.width,
+              format.height,
+              mode,
+              format.category
+            )
 
-          editor.setProjectName(
-            `${sourceProjectName} — ${format.name}`
-          )
+          const serialized =
+            JSON.stringify(
+              project
+            )
 
-          /*
-           * O resize existente usa escala uniforme
-           * e centralização, evitando distorções.
-           * Todas as páginas da cópia são adaptadas.
-           */
-          await editor.resizeAllPages(
-            format.width,
-            format.height,
-            'scale'
+          if (
+            serialized.length >
+            90_000_000
+          ) {
+            throw new Error(
+              `A cópia para ${format.name} ficaria demasiado grande para ser criada com segurança.`
+            )
+          }
+
+          const file =
+            new File(
+              [
+                serialized
+              ],
+              `${project.name}.ma-quadro.json`,
+              {
+                type:
+                  'application/json'
+              }
+            )
+
+          const syntheticEvent = {
+            target: {
+              files: [
+                file
+              ],
+              value: ''
+            }
+          } as unknown as
+            Parameters<
+              typeof editor.importProject
+            >[0]
+
+          await editor.importProject(
+            syntheticEvent
           )
 
           processed += 1
+
+          adjustedObjects +=
+            report.adjustedObjects
+
+          semanticObjects +=
+            report.semanticObjects
         }
 
+        if (
+          mode === 'smart'
+        ) {
+          setResultMessage(
+            processed === 1
+              ? `Foi criada 1 cópia com adaptação inteligente. ${adjustedObjects} elemento${adjustedObjects === 1 ? '' : 's'} ajustado${adjustedObjects === 1 ? '' : 's'}; ${semanticObjects} reconhecido${semanticObjects === 1 ? '' : 's'} como bloco visual. O original ficou intacto.`
+              : `Foram criadas ${processed} cópias com adaptação inteligente. ${adjustedObjects} ajustes efetuados entre todos os formatos. O original ficou intacto.`
+          )
+        } else {
+          setResultMessage(
+            processed === 1
+              ? 'Foi criada 1 cópia com redimensionamento proporcional. O original ficou intacto.'
+              : `Foram criadas ${processed} cópias com redimensionamento proporcional. O original ficou intacto.`
+          )
+        }
+      } catch (
+        error
+      ) {
+        console.error(
+          error
+        )
+
         setResultMessage(
-          processed === 1
-            ? 'Foi criada 1 cópia redimensionada. O original ficou intacto.'
-            : `Foram criadas ${processed} cópias redimensionadas. O original ficou intacto.`
+          error instanceof
+            Error
+            ? error.message
+            : 'Não foi possível concluir o redimensionamento. O projeto original não foi alterado.'
         )
       } finally {
         setGenerating(false)
@@ -396,14 +471,113 @@ export default function MagicResizeControl() {
                 </b>
               </div>
 
+              <div className="mq-magic-resize-mode">
+                <div className="mq-magic-resize-mode__heading">
+                  <span>
+                    <strong>
+                      Método de adaptação
+                    </strong>
+
+                    <small>
+                      {modeDescription(
+                        mode
+                      )}
+                    </small>
+                  </span>
+
+                  {mode === 'smart' ? (
+                    <b>
+                      Recomendado
+                    </b>
+                  ) : null}
+                </div>
+
+                <div
+                  className="mq-magic-resize-mode__choices"
+                  role="group"
+                  aria-label="Método de adaptação"
+                >
+                  <button
+                    type="button"
+                    className={
+                      mode === 'smart'
+                        ? 'is-active'
+                        : ''
+                    }
+                    disabled={
+                      generating
+                    }
+                    aria-pressed={
+                      mode === 'smart'
+                    }
+                    onClick={() =>
+                      setMode(
+                        'smart'
+                      )
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                    >
+                      ✦
+                    </span>
+
+                    <span>
+                      <strong>
+                        Inteligente
+                      </strong>
+
+                      <small>
+                        Redistribui título, texto, imagem, CTA e elementos de apoio.
+                      </small>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      mode === 'proportional'
+                        ? 'is-active'
+                        : ''
+                    }
+                    disabled={
+                      generating
+                    }
+                    aria-pressed={
+                      mode === 'proportional'
+                    }
+                    onClick={() =>
+                      setMode(
+                        'proportional'
+                      )
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                    >
+                      ↔
+                    </span>
+
+                    <span>
+                      <strong>
+                        Proporcional
+                      </strong>
+
+                      <small>
+                        Mantém a composição original e apenas redimensiona.
+                      </small>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               <div className="mq-magic-resize-dialog__toolbar">
                 <span>
                   {
                     selectedIds.length
                   }{' '}
                   selecionado{
-                    selectedIds.length ===
-                    1
+                    selectedIds.length === 1
                       ? ''
                       : 's'
                   }
@@ -426,8 +600,7 @@ export default function MagicResizeControl() {
                     type="button"
                     disabled={
                       generating ||
-                      selectedIds.length ===
-                        0
+                      selectedIds.length === 0
                     }
                     onClick={
                       clearSelection
@@ -534,7 +707,9 @@ export default function MagicResizeControl() {
                 </span>
 
                 <p>
-                  O MA-Quadro adapta proporcionalmente os elementos e mantém cada formato numa cópia independente. Mudanças fortes de orientação podem beneficiar de um pequeno ajuste manual depois da criação.
+                  {mode === 'smart'
+                    ? 'A adaptação inteligente é determinística e processada localmente. Usa o tipo, o nome e a geometria das camadas para preservar hierarquia visual e redistribuir conteúdo quando a orientação muda. Não utiliza serviços externos nem IA generativa.'
+                    : 'O modo proporcional mantém a composição exatamente como está e aplica a mesma escala a todos os elementos. É útil quando pretende uma cópia fiel e fará os ajustes manualmente.'}
                 </p>
               </div>
 
@@ -567,8 +742,7 @@ export default function MagicResizeControl() {
                   className="is-primary"
                   disabled={
                     generating ||
-                    selectedIds.length ===
-                      0
+                    selectedIds.length === 0
                   }
                   aria-busy={
                     generating
@@ -579,8 +753,7 @@ export default function MagicResizeControl() {
                 >
                   {generating
                     ? 'A criar formatos…'
-                    : selectedIds.length ===
-                        1
+                    : selectedIds.length === 1
                       ? 'Criar 1 formato'
                       : `Criar ${selectedIds.length} formatos`}
                 </button>
@@ -602,7 +775,7 @@ export default function MagicResizeControl() {
         aria-busy={
           preparing
         }
-        title="Criar cópias do design noutros formatos"
+        title="Criar cópias inteligentes do design noutros formatos"
         onClick={() =>
           void openDialog()
         }
