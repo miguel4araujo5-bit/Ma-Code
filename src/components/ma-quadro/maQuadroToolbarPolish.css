@@ -1,31 +1,120 @@
 .mq-context-toolbar {
   justify-content: flex-start;
+  align-items: center;
   gap: 0.28rem;
+
+  min-width: 0;
+
   overflow-x: auto;
   overflow-y: hidden;
+
   overscroll-behavior-inline: contain;
   scrollbar-width: thin;
 }
 
 .mq-context-toolbar__group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
   gap: 0.12rem;
+}
+
+/*
+ * A toolbar principal do quadro já contém ações de histórico,
+ * seleção, alinhamento, imagem e visualização.
+ *
+ * Em vez de mostrar controlos indisponíveis, escondemos apenas
+ * as ações contextuais que não podem ser utilizadas no estado atual.
+ *
+ * Undo e redo permanecem sempre visíveis para manter uma posição
+ * previsível na interface.
+ */
+.mq-context-toolbar
+  > .mq-context-toolbar__group:first-child
+  > .mq-toolbar-button:nth-of-type(n + 3):disabled {
+  display: none;
+}
+
+/*
+ * O separador entre histórico e edição só é necessário quando
+ * existe pelo menos uma ação de seleção disponível.
+ */
+.mq-context-toolbar
+  > .mq-context-toolbar__group:first-child:not(
+    :has(
+      > .mq-toolbar-button:nth-of-type(n + 3):not(:disabled)
+    )
+  )
+  > .mq-toolbar-separator {
+  display: none;
+}
+
+/*
+ * Alinhamentos só interessam quando há uma seleção válida.
+ * Se todos estiverem indisponíveis, o grupo desaparece por completo.
+ */
+.mq-context-toolbar__group--center:not(
+  :has(.mq-toolbar-button:not(:disabled))
+) {
+  display: none;
 }
 
 .mq-context-toolbar__group--center {
   margin-inline: auto;
 }
 
+/*
+ * O último grupo corresponde às ferramentas globais do quadro,
+ * como grelha, margens e ajustar ao ecrã.
+ * Mantém-se visualmente separado das ações do objeto.
+ */
+.mq-context-toolbar
+  > .mq-context-toolbar__group:last-child {
+  margin-left: auto;
+}
+
+/*
+ * Quando o grupo de alinhamento está presente, ele ocupa o centro
+ * e as ferramentas globais continuam encostadas à direita.
+ */
+.mq-context-toolbar__group--center
+  + .mq-context-toolbar__group:last-child {
+  margin-left: 0;
+}
+
 .mq-toolbar-button {
   min-width: 2rem;
   height: 2rem;
+
   padding:
     0
     0.34rem;
+
   white-space: nowrap;
+
+  transition:
+    opacity 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.mq-toolbar-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.mq-toolbar-button:focus-visible {
+  outline: 2px solid var(--mq-cyan);
+  outline-offset: 2px;
+}
+
+.mq-toolbar-button:disabled {
+  opacity: 0.38;
 }
 
 .mq-toolbar-separator {
   height: 1.35rem;
+
   margin:
     0
     0.06rem;
@@ -38,7 +127,9 @@
 ) {
   .mq-context-toolbar {
     gap: 0.14rem;
+
     min-height: 3rem;
+
     padding:
       0.35rem
       0.38rem;
@@ -53,13 +144,21 @@
       0.08rem;
   }
 
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:last-child {
+    margin-left: auto;
+  }
+
   .mq-toolbar-button {
     min-width: 1.86rem;
     height: 1.95rem;
+
     padding:
       0
       0.28rem;
+
     border-radius: 0.48rem;
+
     font-size: 0.54rem;
   }
 
@@ -76,7 +175,9 @@
     > .mq-toolbar-button:nth-of-type(6) {
     width: 1.95rem;
     min-width: 1.95rem;
+
     padding: 0;
+
     font-size: 0;
   }
 
@@ -84,6 +185,7 @@
     > .mq-context-toolbar__group:first-child
     > .mq-toolbar-button:nth-of-type(5)::after {
     content: "▣";
+
     font-size: 0.72rem;
     line-height: 1;
   }
@@ -92,6 +194,7 @@
     > .mq-context-toolbar__group:first-child
     > .mq-toolbar-button:nth-of-type(6)::after {
     content: "▦";
+
     font-size: 0.72rem;
     line-height: 1;
   }
@@ -101,6 +204,7 @@
     > .mq-toolbar-button {
     padding-inline:
       0.22rem;
+
     font-size: 0.52rem;
   }
 }
@@ -117,6 +221,7 @@
 
   .mq-toolbar-button {
     min-width: 1.75rem;
+
     padding-inline:
       0.2rem;
   }
@@ -143,10 +248,16 @@
 ) {
   .mq-context-toolbar {
     justify-content: flex-start;
+
     gap: 0.2rem;
   }
 
   .mq-context-toolbar__group--center {
     margin-inline: 0;
+  }
+
+  .mq-context-toolbar
+    > .mq-context-toolbar__group:last-child {
+    margin-left: 0;
   }
 }
