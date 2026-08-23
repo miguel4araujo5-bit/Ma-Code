@@ -1,9 +1,3 @@
-/*
- * Conquistador visual theme.
- * Presentation only: does not change game rules, board topology, hit areas or
- * multiplayer behaviour.
- */
-
 :root {
   --conquistador-azulejo:
     url("/conquistador/theme/azulejo-portugues-repetivel.webp");
@@ -41,7 +35,6 @@ body::before {
   opacity: 0.025;
 }
 
-/* Readability only: give the main game title a compact azulejo-style plaque. */
 .game-brand {
   width: fit-content;
   max-width: 100%;
@@ -130,8 +123,7 @@ body::before {
   pointer-events: none;
 
   align-self: flex-start;
-  top: 88%;
-
+  top: 91%;
   width: fit-content;
   max-width: 100%;
 
@@ -181,7 +173,6 @@ body::before {
   overflow: hidden;
 }
 
-/* Keep the approved map size unchanged. */
 .board-svg {
   display: block;
 
