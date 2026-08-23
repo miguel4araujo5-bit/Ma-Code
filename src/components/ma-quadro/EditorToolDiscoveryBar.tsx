@@ -13,6 +13,7 @@ import {
 import BulkCreateControl from './BulkCreateControl'
 import ImageQuickActions from './ImageQuickActions'
 import MagicResizeControl from './MagicResizeControl'
+import SmartMockupControl from './SmartMockupControl'
 import TextDiscoveryPanel from './TextDiscoveryPanel'
 
 type ToolSide =
@@ -545,6 +546,8 @@ export default function EditorToolDiscoveryBar() {
           <MagicResizeControl />
 
           <BulkCreateControl />
+
+          <SmartMockupControl />
 
           <span
             className="mq-tool-discovery__divider"
