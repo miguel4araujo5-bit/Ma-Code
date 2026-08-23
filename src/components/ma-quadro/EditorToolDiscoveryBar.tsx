@@ -10,6 +10,7 @@ import {
   useMAQuadroEditorContext
 } from './editorContext'
 
+import ImageQuickActions from './ImageQuickActions'
 import TextDiscoveryPanel from './TextDiscoveryPanel'
 
 type ToolSide =
@@ -509,6 +510,8 @@ export default function EditorToolDiscoveryBar() {
 
   return (
     <>
+      <ImageQuickActions />
+
       <TextDiscoveryPanel />
 
       <div
