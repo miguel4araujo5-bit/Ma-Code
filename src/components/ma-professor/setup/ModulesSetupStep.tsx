@@ -1,5 +1,5 @@
 import {
-  type FormEvent,
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -8,84 +8,140 @@ import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
-
 import type {
-  EntityId
+  EntityId,
+  ModuleUnit,
+  TeachingAssignment
 } from '../types'
 
 type ModulesSetupStepProps = {
   snapshot: SetupSnapshot
-  onSnapshotChange: (
-    snapshot: SetupSnapshot
-  ) => void
-  onCompleted: (
-    snapshot: SetupSnapshot
-  ) => void
+  onSnapshotChange: (snapshot: SetupSnapshot) => void
+  onCompleted: (snapshot: SetupSnapshot) => void
 }
 
-type ModuleFormState = {
-  teachingAssignmentId: EntityId
+type ModuleDraft = {
   code: string
   name: string
-  plannedPeriods: string
-  order: string
-  plannedStartDate: string
-  plannedEndDate: string
+  plannedPeriods: number
 }
 
-const emptyForm: ModuleFormState = {
-  teachingAssignmentId: '',
-  code: '',
-  name: '',
-  plannedPeriods: '',
-  order: '',
-  plannedStartDate: '',
-  plannedEndDate: ''
-}
+type EntryMode =
+  | 'single'
+  | 'bulk'
 
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
 
-function getErrorMessage(
-  error: unknown
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : 'Ocorreu um erro inesperado.'
+}
+
+function normalizeForComparison(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-PT')
+}
+
+function parsePositiveInteger(
+  value: string,
+  label: string
 ) {
+  const number = Number(value)
+
   if (
-    error instanceof Error
+    !Number.isInteger(number) ||
+    number <= 0
   ) {
-    return error.message
+    throw new Error(
+      `${label} deve ser um número inteiro superior a zero.`
+    )
   }
 
-  return 'Ocorreu um erro inesperado.'
+  return number
 }
 
-function FieldLabel({
-  children,
-  optional = false
-}: {
-  children: string
-  optional?: boolean
-}) {
-  return (
-    <span className="mb-2 flex items-center justify-between gap-3 text-sm font-bold text-slate-200">
-      <span>
-        {children}
-      </span>
+function parseBulkLines(
+  value: string
+): ModuleDraft[] {
+  const lines = value
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
 
-      {optional ? (
-        <span className="text-xs font-medium text-slate-500">
-          Opcional
-        </span>
-      ) : null}
-    </span>
-  )
+  if (lines.length === 0) {
+    throw new Error(
+      'Cole pelo menos uma UFCD ou módulo.'
+    )
+  }
+
+  return lines.map((line, index) => {
+    const parts = line
+      .split('|')
+      .map(part => part.trim())
+
+    if (parts.length === 2) {
+      const [
+        name,
+        periods
+      ] = parts
+
+      if (!name) {
+        throw new Error(
+          `Linha ${index + 1}: indique o nome da UFCD ou módulo.`
+        )
+      }
+
+      return {
+        code: '',
+        name,
+        plannedPeriods:
+          parsePositiveInteger(
+            periods,
+            `Linha ${index + 1}: a carga horária`
+          )
+      }
+    }
+
+    if (parts.length === 3) {
+      const [
+        code,
+        name,
+        periods
+      ] = parts
+
+      if (!name) {
+        throw new Error(
+          `Linha ${index + 1}: indique o nome da UFCD ou módulo.`
+        )
+      }
+
+      return {
+        code,
+        name,
+        plannedPeriods:
+          parsePositiveInteger(
+            periods,
+            `Linha ${index + 1}: a carga horária`
+          )
+      }
+    }
+
+    throw new Error(
+      `Linha ${index + 1}: use “Código | Nome | Tempos” ou “Nome | Tempos”.`
+    )
+  })
 }
 
-function getPeriodLabel(
-  value: number
+function getModuleLabel(
+  module: ModuleUnit
 ) {
-  return value === 1
-    ? '1 tempo'
-    : `${value} tempos`
+  return module.code
+    ? `${module.code} — ${module.name}`
+    : module.name
 }
 
 export default function ModulesSetupStep({
@@ -93,13 +149,210 @@ export default function ModulesSetupStep({
   onSnapshotChange,
   onCompleted
 }: ModulesSetupStepProps) {
+  const activeSubjects = useMemo(
+    () =>
+      snapshot.subjects.filter(
+        subject => subject.active
+      ),
+    [snapshot.subjects]
+  )
+
+  const activeAssignments = useMemo(
+    () =>
+      snapshot.teachingAssignments.filter(
+        assignment => assignment.active
+      ),
+    [snapshot.teachingAssignments]
+  )
+
+  const activeModules = useMemo(
+    () =>
+      snapshot.modules.filter(
+        module => module.active
+      ),
+    [snapshot.modules]
+  )
+
+  const groupById = useMemo(
+    () =>
+      new Map(
+        snapshot.groups.map(group => [
+          group.id,
+          group
+        ])
+      ),
+    [snapshot.groups]
+  )
+
+  const subjectById = useMemo(
+    () =>
+      new Map(
+        snapshot.subjects.map(subject => [
+          subject.id,
+          subject
+        ])
+      ),
+    [snapshot.subjects]
+  )
+
+  const assignmentsBySubject = useMemo(() => {
+    const result =
+      new Map<
+        EntityId,
+        TeachingAssignment[]
+      >()
+
+    activeSubjects.forEach(subject => {
+      result.set(
+        subject.id,
+        []
+      )
+    })
+
+    activeAssignments.forEach(assignment => {
+      const assignments =
+        result.get(
+          assignment.subjectId
+        ) ??
+        []
+
+      assignments.push(
+        assignment
+      )
+
+      result.set(
+        assignment.subjectId,
+        assignments
+      )
+    })
+
+    result.forEach(assignments => {
+      assignments.sort(
+        (
+          left,
+          right
+        ) => {
+          const leftGroup =
+            groupById.get(left.groupId)?.name ??
+            left.displayName
+
+          const rightGroup =
+            groupById.get(right.groupId)?.name ??
+            right.displayName
+
+          return leftGroup.localeCompare(
+            rightGroup,
+            'pt-PT',
+            {
+              numeric: true,
+              sensitivity: 'base'
+            }
+          )
+        }
+      )
+    })
+
+    return result
+  }, [
+    activeAssignments,
+    activeSubjects,
+    groupById
+  ])
+
+  const modulesByAssignment = useMemo(() => {
+    const result =
+      new Map<
+        EntityId,
+        ModuleUnit[]
+      >()
+
+    activeAssignments.forEach(assignment => {
+      result.set(
+        assignment.id,
+        []
+      )
+    })
+
+    activeModules.forEach(module => {
+      const modules =
+        result.get(
+          module.teachingAssignmentId
+        ) ??
+        []
+
+      modules.push(
+        module
+      )
+
+      result.set(
+        module.teachingAssignmentId,
+        modules
+      )
+    })
+
+    result.forEach(modules => {
+      modules.sort(
+        (
+          left,
+          right
+        ) =>
+          left.order -
+          right.order
+      )
+    })
+
+    return result
+  }, [
+    activeAssignments,
+    activeModules
+  ])
+
   const [
-    form,
-    setForm
+    selectedSubjectId,
+    setSelectedSubjectId
   ] =
-    useState<ModuleFormState>(
-      emptyForm
+    useState<EntityId>(
+      activeSubjects[0]?.id ??
+      ''
     )
+
+  const [
+    selectedAssignmentIds,
+    setSelectedAssignmentIds
+  ] =
+    useState<EntityId[]>([])
+
+  const [
+    entryMode,
+    setEntryMode
+  ] =
+    useState<EntryMode>(
+      'single'
+    )
+
+  const [
+    code,
+    setCode
+  ] =
+    useState('')
+
+  const [
+    name,
+    setName
+  ] =
+    useState('')
+
+  const [
+    plannedPeriods,
+    setPlannedPeriods
+  ] =
+    useState('')
+
+  const [
+    bulkText,
+    setBulkText
+  ] =
+    useState('')
 
   const [
     busy,
@@ -119,170 +372,84 @@ export default function ModulesSetupStep({
   ] =
     useState('')
 
-  const groupById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.groups.map(
-            (
-              group
-            ) => [
-              group.id,
-              group
-            ]
-          )
-        ),
-      [
-        snapshot.groups
-      ]
-    )
-
-  const subjectById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.subjects.map(
-            (
-              subject
-            ) => [
-              subject.id,
-              subject
-            ]
-          )
-        ),
-      [
-        snapshot.subjects
-      ]
-    )
-
-  const assignments =
-    useMemo(
-      () =>
-        snapshot.teachingAssignments
-          .filter(
-            (
-              assignment
-            ) =>
-              assignment.active
-          )
-          .sort(
-            (
-              left,
-              right
-            ) =>
-              left.displayName.localeCompare(
-                right.displayName,
-                'pt-PT',
-                {
-                  numeric: true,
-                  sensitivity:
-                    'base'
-                }
-              )
-          ),
-      [
-        snapshot.teachingAssignments
-      ]
-    )
-
-  const modulesByAssignment =
-    useMemo(() => {
-      const result =
-        new Map<
-          EntityId,
-          typeof snapshot.modules
-        >()
-
-      assignments.forEach(
-        (
-          assignment
-        ) => {
-          result.set(
-            assignment.id,
-            []
-          )
-        }
-      )
-
-      snapshot.modules.forEach(
-        (
-          module
-        ) => {
-          const modules =
-            result.get(
-              module.teachingAssignmentId
-            ) ??
-            []
-
-          modules.push(
-            module
-          )
-
-          result.set(
-            module.teachingAssignmentId,
-            modules
-          )
-        }
-      )
-
-      result.forEach(
-        (
-          modules
-        ) => {
-          modules.sort(
-            (
-              left,
-              right
-            ) =>
-              left.order -
-              right.order
-          )
-        }
-      )
-
-      return result
-    }, [
-      assignments,
-      snapshot.modules
-    ])
-
-  const selectedAssignment =
-    useMemo(
-      () =>
-        assignments.find(
-          (
-            assignment
-          ) =>
-            assignment.id ===
-            form.teachingAssignmentId
+  const selectedSubject =
+    selectedSubjectId
+      ? subjectById.get(
+          selectedSubjectId
         ) ??
-        null,
-      [
-        assignments,
-        form.teachingAssignmentId
-      ]
-    )
+        null
+      : null
+
+  const selectedAssignments = useMemo(
+    () =>
+      assignmentsBySubject.get(
+        selectedSubjectId
+      ) ??
+      [],
+    [
+      assignmentsBySubject,
+      selectedSubjectId
+    ]
+  )
 
   const assignmentsWithoutModules =
     useMemo(
       () =>
-        assignments.filter(
-          (
-            assignment
-          ) =>
+        activeAssignments.filter(
+          assignment =>
             (
               modulesByAssignment.get(
                 assignment.id
               ) ??
               []
-            ).length ===
-            0
+            ).length === 0
         ),
       [
-        assignments,
+        activeAssignments,
         modulesByAssignment
       ]
     )
+
+  useEffect(() => {
+    if (
+      selectedSubjectId &&
+      activeSubjects.some(
+        subject =>
+          subject.id ===
+          selectedSubjectId
+      )
+    ) {
+      return
+    }
+
+    setSelectedSubjectId(
+      activeSubjects[0]?.id ??
+      ''
+    )
+  }, [
+    activeSubjects,
+    selectedSubjectId
+  ])
+
+  useEffect(() => {
+    setSelectedAssignmentIds(
+      (
+        assignmentsBySubject.get(
+          selectedSubjectId
+        ) ??
+        []
+      ).map(
+        assignment =>
+          assignment.id
+      )
+    )
+
+    setError('')
+    setSuccess('')
+  }, [
+    assignmentsBySubject,
+    selectedSubjectId
+  ])
 
   async function refreshSnapshot() {
     const nextSnapshot =
@@ -297,189 +464,173 @@ export default function ModulesSetupStep({
     return nextSnapshot
   }
 
-  function getNextOrder(
-    teachingAssignmentId:
-      EntityId
+  function toggleAssignment(
+    assignmentId: EntityId
   ) {
-    const modules =
-      modulesByAssignment.get(
-        teachingAssignmentId
-      ) ??
-      []
-
-    if (
-      modules.length ===
-      0
-    ) {
-      return 1
-    }
-
-    return (
-      Math.max(
-        ...modules.map(
-          (
-            module
-          ) =>
-            module.order
-        )
-      ) +
-      1
-    )
-  }
-
-  function selectAssignment(
-    teachingAssignmentId:
-      EntityId
-  ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
-        teachingAssignmentId,
-        order:
-          String(
-            getNextOrder(
-              teachingAssignmentId
-            )
+    setSelectedAssignmentIds(current =>
+      current.includes(assignmentId)
+        ? current.filter(
+            id =>
+              id !== assignmentId
           )
-      })
+        : [
+            ...current,
+            assignmentId
+          ]
     )
 
     setError('')
     setSuccess('')
   }
 
-  function resetForm(
-    preserveAssignment =
-      true
-  ) {
-    const teachingAssignmentId =
-      preserveAssignment
-        ? form.teachingAssignmentId
-        : ''
+  function getDrafts(): ModuleDraft[] {
+    if (
+      entryMode ===
+      'bulk'
+    ) {
+      return parseBulkLines(
+        bulkText
+      )
+    }
 
-    setForm({
-      ...emptyForm,
-      teachingAssignmentId,
-      order:
-        teachingAssignmentId
-          ? String(
-              getNextOrder(
-                teachingAssignmentId
+    if (
+      !name.trim()
+    ) {
+      throw new Error(
+        'Indique o nome da UFCD ou módulo.'
+      )
+    }
+
+    return [
+      {
+        code:
+          code.trim(),
+        name:
+          name.trim(),
+        plannedPeriods:
+          parsePositiveInteger(
+            plannedPeriods,
+            'A carga horária'
+          )
+      }
+    ]
+  }
+
+  function validateDuplicates(
+    assignmentIds:
+      EntityId[],
+    drafts:
+      ModuleDraft[]
+  ) {
+    for (
+      const assignmentId of
+      assignmentIds
+    ) {
+      const seenCodes =
+        new Set(
+          snapshot.modules
+            .filter(
+              module =>
+                module.teachingAssignmentId ===
+                assignmentId
+            )
+            .map(module =>
+              normalizeForComparison(
+                module.code
               )
             )
-          : ''
-    })
-  }
+            .filter(Boolean)
+        )
 
-  function validateForm() {
-    if (
-      !form.teachingAssignmentId
-    ) {
-      throw new Error(
-        'Selecione a turma e a disciplina da UFCD ou módulo.'
-      )
-    }
+      for (
+        const draft of
+        drafts
+      ) {
+        const normalizedCode =
+          normalizeForComparison(
+            draft.code
+          )
 
-    const plannedPeriods =
-      Number(
-        form.plannedPeriods
-      )
+        if (!normalizedCode) {
+          continue
+        }
 
-    if (
-      !Number.isInteger(
-        plannedPeriods
-      ) ||
-      plannedPeriods <=
-        0
-    ) {
-      throw new Error(
-        'A carga horária deve ser um número inteiro superior a zero.'
-      )
-    }
+        if (
+          seenCodes.has(
+            normalizedCode
+          )
+        ) {
+          const assignment =
+            activeAssignments.find(
+              item =>
+                item.id ===
+                assignmentId
+            )
 
-    const order =
-      Number(
-        form.order
-      )
+          const groupName =
+            assignment
+              ? groupById.get(
+                  assignment.groupId
+                )?.name ??
+                assignment.displayName
+              : 'uma das turmas'
 
-    if (
-      !Number.isInteger(
-        order
-      ) ||
-      order <=
-        0
-    ) {
-      throw new Error(
-        'A ordem deve ser um número inteiro superior a zero.'
-      )
-    }
+          throw new Error(
+            `A UFCD ou módulo com o código “${draft.code}” já existe em ${groupName}.`
+          )
+        }
 
-    const hasStartDate =
-      Boolean(
-        form.plannedStartDate
-      )
-
-    const hasEndDate =
-      Boolean(
-        form.plannedEndDate
-      )
-
-    if (
-      hasStartDate !==
-      hasEndDate
-    ) {
-      throw new Error(
-        'Indique as duas datas previstas ou deixe ambas vazias.'
-      )
-    }
-
-    if (
-      hasStartDate &&
-      hasEndDate &&
-      form.plannedStartDate >
-        form.plannedEndDate
-    ) {
-      throw new Error(
-        'A data prevista de início não pode ser posterior à data prevista de conclusão.'
-      )
-    }
-
-    if (
-      form.plannedStartDate &&
-      form.plannedStartDate <
-        snapshot.academicYear.startDate
-    ) {
-      throw new Error(
-        'A data prevista de início não pode ser anterior ao início do ano letivo.'
-      )
-    }
-
-    if (
-      form.plannedEndDate &&
-      form.plannedEndDate >
-        snapshot.academicYear.endDate
-    ) {
-      throw new Error(
-        'A data prevista de conclusão não pode ser posterior ao fim do ano letivo.'
-      )
-    }
-
-    return {
-      plannedPeriods,
-      order
+        seenCodes.add(
+          normalizedCode
+        )
+      }
     }
   }
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault()
+  async function handleAddModules() {
+    if (busy) {
+      return
+    }
+
+    if (!selectedSubject) {
+      setError(
+        'Selecione uma disciplina.'
+      )
+
+      return
+    }
 
     if (
-      busy
+      selectedAssignmentIds.length ===
+      0
     ) {
+      setError(
+        'Selecione pelo menos uma turma onde esta UFCD ou módulo se aplica.'
+      )
+
+      return
+    }
+
+    let drafts:
+      ModuleDraft[]
+
+    try {
+      drafts =
+        getDrafts()
+
+      validateDuplicates(
+        selectedAssignmentIds,
+        drafts
+      )
+    } catch (
+      validationError
+    ) {
+      setError(
+        getErrorMessage(
+          validationError
+        )
+      )
+
       return
     }
 
@@ -488,69 +639,111 @@ export default function ModulesSetupStep({
     setSuccess('')
 
     try {
-      const {
-        plannedPeriods,
-        order
-      } =
-        validateForm()
+      const nextOrderByAssignment =
+        new Map<
+          EntityId,
+          number
+        >()
 
-      await maProfessorRepository.createModule(
-        {
-          academicYearId:
-            snapshot.academicYear.id,
-          teachingAssignmentId:
-            form.teachingAssignmentId,
-          code:
-            form.code,
-          name:
-            form.name,
-          plannedPeriods,
-          order,
-          plannedStartDate:
-            form.plannedStartDate ||
-            null,
-          plannedEndDate:
-            form.plannedEndDate ||
-            null,
-          active: true
-        }
-      )
-
-      const nextSnapshot =
-        await refreshSnapshot()
-
-      const nextModules =
-        nextSnapshot.modules.filter(
-          (
-            module
-          ) =>
-            module.teachingAssignmentId ===
-            form.teachingAssignmentId
-        )
-
-      setForm({
-        ...emptyForm,
-        teachingAssignmentId:
-          form.teachingAssignmentId,
-        order:
-          String(
-            nextModules.length >
-              0
-              ? Math.max(
-                  ...nextModules.map(
-                    (
-                      module
-                    ) =>
-                      module.order
-                  )
-                ) +
-                1
-              : 1
+      for (
+        const assignmentId of
+        selectedAssignmentIds
+      ) {
+        const currentModules =
+          snapshot.modules.filter(
+            module =>
+              module.teachingAssignmentId ===
+              assignmentId
           )
-      })
+
+        const nextOrder =
+          currentModules.length >
+          0
+            ? Math.max(
+                ...currentModules.map(
+                  module =>
+                    module.order
+                )
+              ) +
+              1
+            : 1
+
+        nextOrderByAssignment.set(
+          assignmentId,
+          nextOrder
+        )
+      }
+
+      for (
+        const assignmentId of
+        selectedAssignmentIds
+      ) {
+        let nextOrder =
+          nextOrderByAssignment.get(
+            assignmentId
+          ) ??
+          1
+
+        for (
+          const draft of
+          drafts
+        ) {
+          await maProfessorRepository.createModule({
+            academicYearId:
+              snapshot.academicYear.id,
+
+            teachingAssignmentId:
+              assignmentId,
+
+            code:
+              draft.code,
+
+            name:
+              draft.name,
+
+            plannedPeriods:
+              draft.plannedPeriods,
+
+            order:
+              nextOrder,
+
+            plannedStartDate:
+              null,
+
+            plannedEndDate:
+              null,
+
+            active:
+              true
+          })
+
+          nextOrder +=
+            1
+        }
+      }
+
+      await refreshSnapshot()
+
+      setCode('')
+      setName('')
+      setPlannedPeriods('')
+      setBulkText('')
 
       setSuccess(
-        'UFCD ou módulo adicionado com sucesso.'
+        drafts.length ===
+        1
+          ? `UFCD ou módulo aplicado a ${selectedAssignmentIds.length} ${
+              selectedAssignmentIds.length ===
+              1
+                ? 'turma'
+                : 'turmas'
+            }.`
+          : `${drafts.length} UFCD/módulos aplicados a ${selectedAssignmentIds.length} ${
+              selectedAssignmentIds.length ===
+              1
+                ? 'turma'
+                : 'turmas'
+            }.`
       )
     } catch (
       submitError
@@ -566,14 +759,12 @@ export default function ModulesSetupStep({
   }
 
   async function handleContinue() {
-    if (
-      busy
-    ) {
+    if (busy) {
       return
     }
 
     if (
-      snapshot.modules.length ===
+      activeModules.length ===
       0
     ) {
       setError(
@@ -588,13 +779,26 @@ export default function ModulesSetupStep({
       0
     ) {
       setError(
-        `Ainda existem turmas e disciplinas sem UFCD ou módulos: ${assignmentsWithoutModules
-          .map(
-            (
-              assignment
-            ) =>
-              assignment.displayName
-          )
+        `Ainda existem disciplinas sem UFCD ou módulos em: ${assignmentsWithoutModules
+          .map(assignment => {
+            const group =
+              groupById.get(
+                assignment.groupId
+              )
+
+            const subject =
+              subjectById.get(
+                assignment.subjectId
+              )
+
+            return `${
+              subject?.name ??
+              'Disciplina'
+            } · ${
+              group?.name ??
+              'Turma'
+            }`
+          })
           .join(', ')}.`
       )
 
@@ -637,573 +841,477 @@ export default function ModulesSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_1.05fr]">
-      <form
-        onSubmit={
-          handleSubmit
-        }
-        className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6"
-      >
+    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
           Passo 4 de 9
         </p>
 
         <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-          UFCD ou módulos
+          UFCD / módulos
         </h2>
 
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-          Introduza as UFCD ou módulos pela ordem em que serão
-          lecionados. A carga horária será utilizada para calcular os
-          tempos dados, os tempos em falta e a previsão de conclusão.
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+          Escolha a disciplina, introduza a UFCD uma vez e deixe selecionadas todas as turmas onde ela se aplica. Só altera as turmas quando houver uma exceção.
         </p>
 
-        <div className="mt-7 space-y-5">
-          <label className="block">
-            <FieldLabel>
-              Turma e disciplina
-            </FieldLabel>
+        <div className="mt-7">
+          <p className="text-sm font-black text-slate-200">
+            1. Disciplina
+          </p>
 
-            <select
-              value={
-                form.teachingAssignmentId
-              }
-              onChange={(
-                event
-              ) =>
-                selectAssignment(
-                  event.target.value
-                )
-              }
-              required
-              className={
-                inputClassName
-              }
-            >
-              <option value="">
-                Selecione uma turma e disciplina
-              </option>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {activeSubjects.map(subject => (
+              <button
+                key={subject.id}
+                type="button"
+                onClick={() =>
+                  setSelectedSubjectId(
+                    subject.id
+                  )
+                }
+                className={`rounded-xl border px-3 py-2.5 text-sm font-black transition ${
+                  selectedSubjectId ===
+                  subject.id
+                    ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-50'
+                    : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-cyan-300/25'
+                }`}
+              >
+                {subject.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-              {assignments.map(
-                (
-                  assignment
-                ) => (
-                  <option
-                    key={
-                      assignment.id
-                    }
-                    value={
-                      assignment.id
-                    }
-                  >
-                    {
-                      assignment.displayName
-                    }
-                  </option>
-                )
+        {selectedSubject ? (
+          <>
+            <div className="mt-7">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-200">
+                    2. Turmas onde se aplica
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Por defeito ficam selecionadas todas as turmas onde leciona {selectedSubject.name}.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedAssignmentIds(
+                      selectedAssignments.map(
+                        assignment =>
+                          assignment.id
+                      )
+                    )
+                  }
+                  className="text-xs font-bold text-cyan-200 transition hover:text-cyan-100"
+                >
+                  Selecionar todas
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedAssignments.map(
+                  assignment => {
+                    const group =
+                      groupById.get(
+                        assignment.groupId
+                      )
+
+                    const selected =
+                      selectedAssignmentIds.includes(
+                        assignment.id
+                      )
+
+                    return (
+                      <button
+                        key={
+                          assignment.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          toggleAssignment(
+                            assignment.id
+                          )
+                        }
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-black transition ${
+                          selected
+                            ? 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100'
+                            : 'border-white/10 bg-slate-900/70 text-slate-500 hover:border-white/20'
+                        }`}
+                      >
+                        {selected
+                          ? '✓ '
+                          : ''}
+                        {group?.name ??
+                          assignment.displayName}
+                      </button>
+                    )
+                  }
+                )}
+              </div>
+            </div>
+
+            <div className="mt-7">
+              <p className="text-sm font-black text-slate-200">
+                3. Introduza as UFCD / módulos
+              </p>
+
+              <div className="mt-3 inline-flex rounded-xl border border-white/10 bg-slate-900/70 p-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEntryMode(
+                      'single'
+                    )
+                  }
+                  className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+                    entryMode ===
+                    'single'
+                      ? 'bg-cyan-300 text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Uma de cada vez
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEntryMode(
+                      'bulk'
+                    )
+                  }
+                  className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+                    entryMode ===
+                    'bulk'
+                      ? 'bg-cyan-300 text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Colar várias
+                </button>
+              </div>
+
+              {entryMode ===
+              'single' ? (
+                <div className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                  <div className="grid gap-4 sm:grid-cols-[0.65fr_1.35fr]">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-bold text-slate-300">
+                        Código · opcional
+                      </span>
+
+                      <input
+                        type="text"
+                        value={
+                          code
+                        }
+                        onChange={
+                          event =>
+                            setCode(
+                              event
+                                .target
+                                .value
+                            )
+                        }
+                        placeholder="10389"
+                        className={
+                          inputClassName
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-bold text-slate-300">
+                        Nome da UFCD ou módulo
+                      </span>
+
+                      <input
+                        type="text"
+                        value={
+                          name
+                        }
+                        onChange={
+                          event =>
+                            setName(
+                              event
+                                .target
+                                .value
+                            )
+                        }
+                        placeholder="Nome da UFCD ou módulo"
+                        className={
+                          inputClassName
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block max-w-xs">
+                    <span className="mb-2 block text-xs font-bold text-slate-300">
+                      Carga horária / tempos
+                    </span>
+
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={
+                        plannedPeriods
+                      }
+                      onChange={
+                        event =>
+                          setPlannedPeriods(
+                            event
+                              .target
+                              .value
+                          )
+                      }
+                      placeholder="25"
+                      className={
+                        inputClassName
+                      }
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-bold text-slate-300">
+                      Uma UFCD por linha
+                    </span>
+
+                    <textarea
+                      rows={8}
+                      value={
+                        bulkText
+                      }
+                      onChange={
+                        event =>
+                          setBulkText(
+                            event
+                              .target
+                              .value
+                          )
+                      }
+                      placeholder={
+                        '10389 | Expressão dramática | 25\n10390 | Expressão musical | 25\nExpressão plástica | 50'
+                      }
+                      className={`${inputClassName} resize-y font-mono text-xs leading-6`}
+                    />
+                  </label>
+
+                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                    Formatos aceites: “Código | Nome | Tempos” ou “Nome | Tempos”. Todas as linhas serão aplicadas às turmas selecionadas acima.
+                  </p>
+                </div>
               )}
-            </select>
-          </label>
-
-          {selectedAssignment ? (
-            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-200">
-                Seleção atual
-              </p>
-
-              <p className="mt-2 font-black text-white">
-                {
-                  selectedAssignment.displayName
-                }
-              </p>
-
-              <p className="mt-1 text-xs leading-6 text-slate-400">
-                Turma:{' '}
-                {groupById.get(
-                  selectedAssignment.groupId
-                )?.name ??
-                  '—'}
-
-                {' · '}
-
-                Disciplina:{' '}
-                {subjectById.get(
-                  selectedAssignment.subjectId
-                )?.name ??
-                  '—'}
-              </p>
             </div>
-          ) : null}
 
-          <div className="grid gap-5 sm:grid-cols-[0.65fr_1.35fr]">
-            <label className="block">
-              <FieldLabel optional>
-                Código
-              </FieldLabel>
+            {error ? (
+              <div
+                role="alert"
+                className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
+              >
+                {error}
+              </div>
+            ) : null}
 
-              <input
-                type="text"
-                value={
-                  form.code
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      code:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                placeholder="10389"
-                autoComplete="off"
-                className={
-                  inputClassName
-                }
-              />
-            </label>
+            {success ? (
+              <div
+                role="status"
+                className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-100"
+              >
+                {success}
+              </div>
+            ) : null}
 
-            <label className="block">
-              <FieldLabel>
-                Nome da UFCD ou módulo
-              </FieldLabel>
-
-              <input
-                type="text"
-                value={
-                  form.name
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      name:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                placeholder="Processos de envelhecimento"
-                autoComplete="off"
-                required
-                className={
-                  inputClassName
-                }
-              />
-            </label>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <FieldLabel>
-                Carga horária em tempos
-              </FieldLabel>
-
-              <input
-                type="number"
-                min="1"
-                step="1"
-                inputMode="numeric"
-                value={
-                  form.plannedPeriods
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      plannedPeriods:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                placeholder="25"
-                required
-                className={
-                  inputClassName
-                }
-              />
-            </label>
-
-            <label className="block">
-              <FieldLabel>
-                Ordem
-              </FieldLabel>
-
-              <input
-                type="number"
-                min="1"
-                step="1"
-                inputMode="numeric"
-                value={
-                  form.order
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      order:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                placeholder="1"
-                required
-                className={
-                  inputClassName
-                }
-              />
-            </label>
-          </div>
-
-          <fieldset className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-            <legend className="px-2 text-sm font-bold text-slate-200">
-              Datas previstas
-            </legend>
-
-            <p className="mt-1 text-xs leading-6 text-slate-500">
-              São opcionais e poderão ser reajustadas posteriormente
-              conforme o progresso real da turma.
-            </p>
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-2">
-              <label className="block">
-                <FieldLabel optional>
-                  Início
-                </FieldLabel>
-
-                <input
-                  type="date"
-                  min={
-                    snapshot.academicYear.startDate
-                  }
-                  max={
-                    snapshot.academicYear.endDate
-                  }
-                  value={
-                    form.plannedStartDate
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        plannedStartDate:
-                          event
-                            .target
-                            .value
-                      })
-                    )
-                  }
-                  className={
-                    inputClassName
-                  }
-                />
-              </label>
-
-              <label className="block">
-                <FieldLabel optional>
-                  Conclusão
-                </FieldLabel>
-
-                <input
-                  type="date"
-                  min={
-                    form.plannedStartDate ||
-                    snapshot.academicYear.startDate
-                  }
-                  max={
-                    snapshot.academicYear.endDate
-                  }
-                  value={
-                    form.plannedEndDate
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        plannedEndDate:
-                          event
-                            .target
-                            .value
-                      })
-                    )
-                  }
-                  className={
-                    inputClassName
-                  }
-                />
-              </label>
-            </div>
-          </fieldset>
-        </div>
-
-        {error ? (
-          <div
-            role="alert"
-            className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
-          >
-            {error}
-          </div>
-        ) : null}
-
-        {success ? (
-          <div
-            role="status"
-            className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-100"
-          >
-            {success}
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="submit"
-            disabled={
-              busy
-            }
-            className="inline-flex flex-1 items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-55"
-          >
-            {busy
-              ? 'A guardar...'
-              : 'Adicionar UFCD ou módulo'}
-          </button>
-
-          <button
-            type="button"
-            disabled={
-              busy
-            }
-            onClick={() =>
-              resetForm(
-                false
-              )
-            }
-            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
-          >
-            Limpar
-          </button>
-        </div>
-      </form>
+            <button
+              type="button"
+              disabled={
+                busy ||
+                selectedAssignmentIds.length ===
+                  0
+              }
+              onClick={() =>
+                void handleAddModules()
+              }
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {busy
+                ? 'A guardar...'
+                : selectedAssignmentIds.length >
+                    1
+                  ? `Adicionar às ${selectedAssignmentIds.length} turmas selecionadas`
+                  : 'Adicionar UFCD / módulo'}
+            </button>
+          </>
+        ) : (
+          <p className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm text-amber-100">
+            Não existem disciplinas disponíveis. Volte ao passo anterior e adicione pelo menos uma disciplina.
+          </p>
+        )}
+      </section>
 
       <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-xl shadow-black/15 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-              Ano letivo
+              Estrutura criada
             </p>
 
             <h3 className="mt-2 text-xl font-black text-white">
-              UFCD e módulos adicionados
+              UFCD / módulos por turma
             </h3>
           </div>
 
           <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100">
-            {
-              snapshot.modules.length
-            }
+            {activeModules.length}
           </span>
         </div>
 
-        <div className="mt-5 space-y-5">
-          {assignments.map(
-            (
-              assignment
-            ) => {
-              const modules =
-                modulesByAssignment.get(
-                  assignment.id
-                ) ??
-                []
+        {selectedSubject ? (
+          <div className="mt-5 space-y-3">
+            {selectedAssignments.map(
+              assignment => {
+                const group =
+                  groupById.get(
+                    assignment.groupId
+                  )
 
-              return (
-                <article
-                  key={
+                const modules =
+                  modulesByAssignment.get(
                     assignment.id
-                  }
-                  className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-black text-white">
-                        {
-                          assignment.displayName
-                        }
-                      </p>
+                  ) ??
+                  []
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        {
-                          modules.length
-                        }{' '}
-                        {modules.length ===
-                        1
-                          ? 'UFCD ou módulo'
-                          : 'UFCD ou módulos'}
-                      </p>
-                    </div>
+                return (
+                  <article
+                    key={
+                      assignment.id
+                    }
+                    className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-300">
+                          {group?.name ??
+                            assignment.displayName}
+                        </p>
 
-                    {modules.length ===
-                    0 ? (
-                      <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.08] px-3 py-1.5 text-xs font-bold text-amber-100">
-                        Em falta
-                      </span>
-                    ) : (
-                      <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-bold text-emerald-100">
-                        Configurado
-                      </span>
-                    )}
-                  </div>
+                        <p className="mt-1 font-black text-white">
+                          {selectedSubject.name}
+                        </p>
+                      </div>
 
-                  {modules.length ===
-                  0 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        selectAssignment(
-                          assignment.id
-                        )
-                      }
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-bold text-slate-400 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.05] hover:text-cyan-100"
-                    >
-                      Adicionar a primeira UFCD
-                    </button>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {modules.map(
-                        (
-                          module
-                        ) => (
-                          <div
-                            key={
-                              module.id
-                            }
-                            className="rounded-xl border border-white/10 bg-slate-950/55 p-4"
-                          >
-                            <div className="flex items-start gap-3">
-                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-xs font-black text-cyan-100">
-                                {
-                                  module.order
-                                }
-                              </span>
-
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {module.code ? (
-                                    <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-2 py-1 text-[0.65rem] font-bold text-violet-100">
-                                      {
-                                        module.code
-                                      }
-                                    </span>
-                                  ) : null}
-
-                                  <span className="text-xs font-bold text-slate-400">
-                                    {getPeriodLabel(
-                                      module.plannedPeriods
-                                    )}
-                                  </span>
-                                </div>
-
-                                <p className="mt-2 font-bold leading-6 text-white">
-                                  {
-                                    module.name
-                                  }
-                                </p>
-
-                                {module.plannedStartDate &&
-                                module.plannedEndDate ? (
-                                  <p className="mt-2 text-xs text-slate-500">
-                                    Prevista de{' '}
-                                    {
-                                      module.plannedStartDate
-                                    }{' '}
-                                    a{' '}
-                                    {
-                                      module.plannedEndDate
-                                    }
-                                  </p>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          selectAssignment(
-                            assignment.id
-                          )
-                        }
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100"
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[0.68rem] font-black ${
+                          modules.length >
+                          0
+                            ? 'bg-emerald-300/10 text-emerald-200'
+                            : 'bg-amber-300/10 text-amber-200'
+                        }`}
                       >
-                        Adicionar outra UFCD
-                      </button>
+                        {modules.length}
+                      </span>
                     </div>
-                  )}
-                </article>
-              )
-            }
-          )}
-        </div>
 
-        <div className="mt-6 rounded-2xl border border-violet-300/15 bg-violet-300/[0.055] p-4">
-          <p className="text-sm font-bold text-violet-100">
-            Cada turma e disciplina deve ter pelo menos uma UFCD ou
-            módulo.
-          </p>
+                    {modules.length >
+                    0 ? (
+                      <div className="mt-3 space-y-2">
+                        {modules.map(
+                          module => (
+                            <div
+                              key={
+                                module.id
+                              }
+                              className="rounded-xl border border-white/[0.07] bg-slate-950/55 px-3 py-2.5"
+                            >
+                              <p className="text-sm font-bold leading-5 text-slate-200">
+                                {getModuleLabel(
+                                  module
+                                )}
+                              </p>
 
-          <p className="mt-2 text-xs leading-6 text-violet-100/65">
-            A ordem indicada será utilizada para identificar
-            automaticamente a UFCD atual quando as aulas começarem a
-            ser registadas.
-          </p>
-        </div>
+                              <p className="mt-1 text-[0.68rem] text-slate-500">
+                                {
+                                  module.plannedPeriods
+                                }{' '}
+                                tempos
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs leading-5 text-amber-200/80">
+                        Ainda sem UFCD ou módulos.
+                      </p>
+                    )}
+                  </article>
+                )
+              }
+            )}
+          </div>
+        ) : null}
+
+        {assignmentsWithoutModules.length >
+        0 ? (
+          <div className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+              Ainda falta configurar
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {assignmentsWithoutModules.map(
+                assignment => {
+                  const group =
+                    groupById.get(
+                      assignment.groupId
+                    )
+
+                  const subject =
+                    subjectById.get(
+                      assignment.subjectId
+                    )
+
+                  return (
+                    <span
+                      key={
+                        assignment.id
+                      }
+                      className="rounded-full border border-amber-300/15 bg-slate-950/40 px-2.5 py-1 text-[0.68rem] font-bold text-amber-100"
+                    >
+                      {subject?.name ??
+                        'Disciplina'}{' '}
+                      ·{' '}
+                      {group?.name ??
+                        'Turma'}
+                    </span>
+                  )
+                }
+              )}
+            </div>
+          </div>
+        ) : null}
 
         <button
           type="button"
           disabled={
             busy ||
-            snapshot.modules.length ===
-              0 ||
-            assignmentsWithoutModules.length >
+            activeModules.length ===
               0
           }
           onClick={() =>
             void handleContinue()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-5 py-3.5 text-sm font-black text-white transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-300/10 px-5 py-3.5 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-45"
         >
-          Guardar UFCD e continuar
+          Continuar para critérios de avaliação
         </button>
       </section>
     </div>
