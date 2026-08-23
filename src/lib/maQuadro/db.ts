@@ -15,6 +15,14 @@ import {
   migrateLegacyMAQuadroDesign
 } from './project'
 
+import {
+  MA_QUADRO_EXTRA_STARTER_PROJECTS
+} from './templateLibraryExtra'
+
+import {
+  createMAQuadroProjectPreview
+} from './templatePreview'
+
 const DEFAULT_BRAND_KIT_ID =
   'ma-code'
 
@@ -23,22 +31,27 @@ type MAQuadroDatabase = Dexie & {
     MAQuadroProject,
     'id'
   >
+
   fonts: EntityTable<
     MAQuadroStoredFont,
     'id'
   >
+
   logos: EntityTable<
     MAQuadroStoredLogo,
     'id'
   >
+
   brandKits: EntityTable<
     MAQuadroStoredBrandKit,
     'id'
   >
+
   videos: EntityTable<
     MAQuadroStoredVideo,
     'id'
   >
+
   images: EntityTable<
     MAQuadroStoredImage,
     'id'
@@ -50,49 +63,66 @@ export const maQuadroDb =
     'ma-quadro-local'
   ) as MAQuadroDatabase
 
-maQuadroDb.version(1).stores({
-  designs:
-    'id, name, updatedAt, isStarter',
-  fonts:
-    'id, family, createdAt'
-})
+maQuadroDb
+  .version(1)
+  .stores({
+    designs:
+      'id, name, updatedAt, isStarter',
+
+    fonts:
+      'id, family, createdAt'
+  })
 
 maQuadroDb
   .version(2)
   .stores({
     designs:
       'id, name, updatedAt, isTemplate, category',
+
     fonts:
       'id, family, createdAt'
   })
-  .upgrade(async (transaction) => {
-    const table =
-      transaction.table('designs')
-
-    const records =
-      await table.toArray()
-
-    for (const record of records) {
-      const migrated =
-        migrateLegacyMAQuadroDesign(
-          record
+  .upgrade(
+    async (
+      transaction
+    ) => {
+      const table =
+        transaction.table(
+          'designs'
         )
 
-      if (migrated) {
-        await table.put(
+      const records =
+        await table.toArray()
+
+      for (
+        const record
+        of records
+      ) {
+        const migrated =
+          migrateLegacyMAQuadroDesign(
+            record
+          )
+
+        if (
           migrated
-        )
+        ) {
+          await table.put(
+            migrated
+          )
+        }
       }
     }
-  })
+  )
 
 maQuadroDb
   .version(3)
   .stores({
     designs:
       'id, name, updatedAt, isTemplate, category',
+
     fonts:
       'id, family, createdAt',
+
     logos:
       'id, name, createdAt'
   })
@@ -102,38 +132,57 @@ maQuadroDb
   .stores({
     designs:
       'id, name, updatedAt, isTemplate, category',
+
     fonts:
       'id, family, createdAt',
+
     logos:
       'id, brandKitId, name, createdAt',
+
     brandKits:
       'id, name, updatedAt'
   })
-  .upgrade(async (transaction) => {
-    const logos =
-      transaction.table('logos')
+  .upgrade(
+    async (
+      transaction
+    ) => {
+      const logos =
+        transaction.table(
+          'logos'
+        )
 
-    await logos
-      .toCollection()
-      .modify((logo) => {
-        if (!logo.brandKitId) {
-          logo.brandKitId =
-            DEFAULT_BRAND_KIT_ID
-        }
-      })
-  })
+      await logos
+        .toCollection()
+        .modify(
+          (
+            logo
+          ) => {
+            if (
+              !logo.brandKitId
+            ) {
+              logo.brandKitId =
+                DEFAULT_BRAND_KIT_ID
+            }
+          }
+        )
+    }
+  )
 
 maQuadroDb
   .version(5)
   .stores({
     designs:
       'id, name, updatedAt, isTemplate, category',
+
     fonts:
       'id, family, createdAt',
+
     logos:
       'id, brandKitId, name, createdAt',
+
     brandKits:
       'id, name, updatedAt',
+
     videos:
       'id, name, createdAt'
   })
@@ -143,24 +192,155 @@ maQuadroDb
   .stores({
     designs:
       'id, name, updatedAt, isTemplate, category',
+
     fonts:
       'id, family, createdAt',
+
     logos:
       'id, brandKitId, name, createdAt',
+
     brandKits:
       'id, name, updatedAt',
+
     videos:
       'id, name, createdAt',
+
     images:
       'id, name, createdAt'
   })
 
+let expandedTemplateSeedPromise:
+  Promise<void> |
+  null = null
+
+async function ensureExpandedTemplateLibrary() {
+  if (
+    !expandedTemplateSeedPromise
+  ) {
+    expandedTemplateSeedPromise =
+      maQuadroDb.designs
+        .bulkPut(
+          MA_QUADRO_EXTRA_STARTER_PROJECTS
+        )
+        .then(
+          () =>
+            undefined
+        )
+        .catch(
+          (
+            error
+          ) => {
+            expandedTemplateSeedPromise =
+              null
+
+            throw error
+          }
+        )
+  }
+
+  await expandedTemplateSeedPromise
+}
+
+async function ensureSystemTemplatePreviews(
+  projects:
+    MAQuadroProject[]
+) {
+  const changed:
+    MAQuadroProject[] =
+    []
+
+  const next =
+    projects.map(
+      (
+        project
+      ) => {
+        const firstPage =
+          project.pages[0]
+
+        if (
+          !project.isTemplate ||
+          !project.id.startsWith(
+            'template-'
+          ) ||
+          !firstPage ||
+          firstPage.thumbnail
+        ) {
+          return project
+        }
+
+        const thumbnail =
+          createMAQuadroProjectPreview(
+            project
+          )
+
+        if (
+          !thumbnail
+        ) {
+          return project
+        }
+
+        const updated:
+          MAQuadroProject = {
+          ...project,
+
+          pages: [
+            {
+              ...firstPage,
+              thumbnail
+            },
+
+            ...project.pages.slice(
+              1
+            )
+          ]
+        }
+
+        changed.push(
+          updated
+        )
+
+        return updated
+      }
+    )
+
+  if (
+    changed.length >
+    0
+  ) {
+    try {
+      await maQuadroDb.designs.bulkPut(
+        changed
+      )
+    } catch {
+      /*
+       * A pré-visualização continua
+       * disponível nesta sessão.
+       * Uma falha de persistência
+       * não deve impedir o editor
+       * de abrir.
+       */
+    }
+  }
+
+  return next
+}
+
 export async function listMAQuadroProjects() {
+  await ensureExpandedTemplateLibrary()
+
   const projects =
     await maQuadroDb.designs.toArray()
 
-  return projects.sort(
-    (first, second) => {
+  const withPreviews =
+    await ensureSystemTemplatePreviews(
+      projects
+    )
+
+  return withPreviews.sort(
+    (
+      first,
+      second
+    ) => {
       if (
         first.isTemplate !==
         second.isTemplate
@@ -186,7 +366,8 @@ export function getMAQuadroProject(
 }
 
 export function saveMAQuadroProject(
-  project: MAQuadroProject
+  project:
+    MAQuadroProject
 ) {
   return maQuadroDb.designs.put(
     project
@@ -206,7 +387,10 @@ export async function listMAQuadroFonts() {
     await maQuadroDb.fonts.toArray()
 
   return fonts.sort(
-    (first, second) =>
+    (
+      first,
+      second
+    ) =>
       first.family.localeCompare(
         second.family,
         'pt-PT'
@@ -215,7 +399,8 @@ export async function listMAQuadroFonts() {
 }
 
 export function saveMAQuadroFont(
-  font: MAQuadroStoredFont
+  font:
+    MAQuadroStoredFont
 ) {
   return maQuadroDb.fonts.put(
     font
@@ -233,15 +418,24 @@ export function deleteMAQuadroFont(
 export async function listMAQuadroLogos(
   brandKitId?: string
 ) {
-  const logos = brandKitId
-    ? await maQuadroDb.logos
-        .where('brandKitId')
-        .equals(brandKitId)
-        .toArray()
-    : await maQuadroDb.logos.toArray()
+  const logos =
+    brandKitId
+      ? await maQuadroDb.logos
+          .where(
+            'brandKitId'
+          )
+          .equals(
+            brandKitId
+          )
+          .toArray()
+      : await maQuadroDb.logos
+          .toArray()
 
   return logos.sort(
-    (first, second) =>
+    (
+      first,
+      second
+    ) =>
       second.createdAt.localeCompare(
         first.createdAt
       )
@@ -249,7 +443,8 @@ export async function listMAQuadroLogos(
 }
 
 export function saveMAQuadroLogo(
-  logo: MAQuadroStoredLogo
+  logo:
+    MAQuadroStoredLogo
 ) {
   return maQuadroDb.logos.put(
     logo
@@ -269,7 +464,10 @@ export async function listMAQuadroImages() {
     await maQuadroDb.images.toArray()
 
   return images.sort(
-    (first, second) =>
+    (
+      first,
+      second
+    ) =>
       second.createdAt.localeCompare(
         first.createdAt
       )
@@ -277,7 +475,8 @@ export async function listMAQuadroImages() {
 }
 
 export function saveMAQuadroImage(
-  image: MAQuadroStoredImage
+  image:
+    MAQuadroStoredImage
 ) {
   return maQuadroDb.images.put(
     image
@@ -297,7 +496,10 @@ export async function listMAQuadroVideos() {
     await maQuadroDb.videos.toArray()
 
   return videos.sort(
-    (first, second) =>
+    (
+      first,
+      second
+    ) =>
       second.createdAt.localeCompare(
         first.createdAt
       )
@@ -313,7 +515,8 @@ export function getMAQuadroVideo(
 }
 
 export function saveMAQuadroVideo(
-  video: MAQuadroStoredVideo
+  video:
+    MAQuadroStoredVideo
 ) {
   return maQuadroDb.videos.put(
     video
@@ -333,7 +536,10 @@ export async function listMAQuadroBrandKits() {
     await maQuadroDb.brandKits.toArray()
 
   return kits.sort(
-    (first, second) =>
+    (
+      first,
+      second
+    ) =>
       first.name.localeCompare(
         second.name,
         'pt-PT'
@@ -342,7 +548,8 @@ export async function listMAQuadroBrandKits() {
 }
 
 export function saveMAQuadroBrandKit(
-  kit: MAQuadroStoredBrandKit
+  kit:
+    MAQuadroStoredBrandKit
 ) {
   return maQuadroDb.brandKits.put(
     kit
@@ -356,14 +563,19 @@ export async function deleteMAQuadroBrandKit(
     'rw',
     maQuadroDb.brandKits,
     maQuadroDb.logos,
+
     async () => {
       await maQuadroDb.brandKits.delete(
         brandKitId
       )
 
       await maQuadroDb.logos
-        .where('brandKitId')
-        .equals(brandKitId)
+        .where(
+          'brandKitId'
+        )
+        .equals(
+          brandKitId
+        )
         .delete()
     }
   )
