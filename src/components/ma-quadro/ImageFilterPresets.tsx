@@ -58,7 +58,9 @@ const PRESETS: ImagePreset[] = [
       ...DEFAULT_IMAGE_FILTERS,
       brightness: 8,
       contrast: 10,
-      saturation: 14
+      saturation: 14,
+      shadows: 8,
+      highlights: -6
     }
   },
   {
@@ -69,7 +71,9 @@ const PRESETS: ImagePreset[] = [
       ...DEFAULT_IMAGE_FILTERS,
       brightness: 4,
       contrast: 16,
-      saturation: 30
+      saturation: 30,
+      shadows: -5,
+      vignette: 8
     }
   },
   {
@@ -81,7 +85,9 @@ const PRESETS: ImagePreset[] = [
       brightness: 12,
       contrast: -10,
       saturation: -8,
-      fade: 10
+      fade: 10,
+      shadows: 12,
+      highlights: -10
     }
   },
   {
@@ -92,7 +98,10 @@ const PRESETS: ImagePreset[] = [
       ...DEFAULT_IMAGE_FILTERS,
       brightness: -5,
       contrast: 32,
-      saturation: -8
+      saturation: -8,
+      shadows: -16,
+      highlights: -8,
+      vignette: 22
     }
   },
   {
@@ -104,7 +113,9 @@ const PRESETS: ImagePreset[] = [
       brightness: 7,
       contrast: 8,
       saturation: -52,
-      fade: 8
+      fade: 8,
+      highlights: -8,
+      vignette: 6
     }
   },
   {
@@ -115,7 +126,10 @@ const PRESETS: ImagePreset[] = [
       ...DEFAULT_IMAGE_FILTERS,
       brightness: 3,
       contrast: 20,
-      grayscale: true
+      grayscale: true,
+      shadows: 8,
+      highlights: -12,
+      vignette: 10
     }
   },
   {
@@ -127,7 +141,10 @@ const PRESETS: ImagePreset[] = [
       brightness: 10,
       contrast: 5,
       saturation: 9,
-      temperature: 8
+      temperature: 8,
+      shadows: 14,
+      highlights: -12,
+      vignette: 5
     }
   }
 ]
@@ -172,6 +189,9 @@ function filtersMatch(
     first.temperature === second.temperature &&
     first.hue === second.hue &&
     first.fade === second.fade &&
+    first.shadows === second.shadows &&
+    first.highlights === second.highlights &&
+    first.vignette === second.vignette &&
     first.duotoneEnabled === second.duotoneEnabled &&
     first.duotoneShadows === second.duotoneShadows &&
     first.duotoneHighlights === second.duotoneHighlights
@@ -205,7 +225,10 @@ export default function ImageFilterPresets() {
   const editor =
     useMAQuadroEditorContext()
 
-  const [host, setHost] =
+  const [
+    host,
+    setHost
+  ] =
     useState<HTMLElement | null>(
       null
     )
@@ -270,10 +293,15 @@ export default function ImageFilterPresets() {
               preset.filters
             )
         )?.id || null,
-      [currentFilters]
+      [
+        currentFilters
+      ]
     )
 
-  if (!host || !isImage) {
+  if (
+    !host ||
+    !isImage
+  ) {
     return null
   }
 
@@ -311,22 +339,30 @@ export default function ImageFilterPresets() {
 
       <div className="mq-image-presets__grid">
         {PRESETS.map(
-          (preset) => {
+          (
+            preset
+          ) => {
             const active =
               activePresetId ===
               preset.id
 
             return (
               <button
-                key={preset.id}
+                key={
+                  preset.id
+                }
                 type="button"
                 className={`mq-image-preset-card mq-image-preset-card--${preset.id}${
                   active
                     ? ' is-active'
                     : ''
                 }`}
-                disabled={locked}
-                aria-pressed={active}
+                disabled={
+                  locked
+                }
+                aria-pressed={
+                  active
+                }
                 title={
                   preset.description
                 }
@@ -345,11 +381,15 @@ export default function ImageFilterPresets() {
 
                 <span className="mq-image-preset-card__copy">
                   <strong>
-                    {preset.label}
+                    {
+                      preset.label
+                    }
                   </strong>
 
                   <small>
-                    {preset.description}
+                    {
+                      preset.description
+                    }
                   </small>
                 </span>
               </button>
@@ -366,7 +406,7 @@ export default function ImageFilterPresets() {
             </strong>
 
             <small>
-              Cor avançada, totalmente editável e guardada com o projeto
+              Cor e luz avançadas, totalmente editáveis e guardadas com o projeto
             </small>
           </span>
 
@@ -380,14 +420,18 @@ export default function ImageFilterPresets() {
 
         <fieldset
           className="mq-photo-pro__controls"
-          disabled={locked}
+          disabled={
+            locked
+          }
         >
           <RangeField
             label="Temperatura"
             value={
               currentFilters.temperature
             }
-            onCommit={(temperature) =>
+            onCommit={(
+              temperature
+            ) =>
               editor.setImageFilters({
                 temperature
               })
@@ -411,7 +455,9 @@ export default function ImageFilterPresets() {
             value={
               currentFilters.hue
             }
-            onCommit={(hue) =>
+            onCommit={(
+              hue
+            ) =>
               editor.setImageFilters({
                 hue
               })
@@ -422,13 +468,84 @@ export default function ImageFilterPresets() {
           />
 
           <RangeField
+            label="Sombras"
+            value={
+              currentFilters.shadows
+            }
+            onCommit={(
+              shadows
+            ) =>
+              editor.setImageFilters({
+                shadows
+              })
+            }
+            min={-100}
+            max={100}
+          />
+
+          <div className="mq-photo-pro__scale-labels">
+            <span>
+              Escurecer
+            </span>
+
+            <span>
+              Recuperar
+            </span>
+          </div>
+
+          <RangeField
+            label="Luzes"
+            value={
+              currentFilters.highlights
+            }
+            onCommit={(
+              highlights
+            ) =>
+              editor.setImageFilters({
+                highlights
+              })
+            }
+            min={-100}
+            max={100}
+          />
+
+          <div className="mq-photo-pro__scale-labels">
+            <span>
+              Recuperar
+            </span>
+
+            <span>
+              Iluminar
+            </span>
+          </div>
+
+          <RangeField
             label="Fade"
             value={
               currentFilters.fade
             }
-            onCommit={(fade) =>
+            onCommit={(
+              fade
+            ) =>
               editor.setImageFilters({
                 fade
+              })
+            }
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <RangeField
+            label="Vinheta"
+            value={
+              currentFilters.vignette
+            }
+            onCommit={(
+              vignette
+            ) =>
+              editor.setImageFilters({
+                vignette
               })
             }
             min={0}
@@ -454,11 +571,16 @@ export default function ImageFilterPresets() {
               checked={
                 currentFilters.duotoneEnabled
               }
-              disabled={locked}
-              onChange={(event) =>
+              disabled={
+                locked
+              }
+              onChange={(
+                event
+              ) =>
                 editor.setImageFilters({
                   duotoneEnabled:
-                    event.target.checked
+                    event.target
+                      .checked
                 })
               }
             />
@@ -468,30 +590,45 @@ export default function ImageFilterPresets() {
             <>
               <div className="mq-photo-pro__duotones">
                 {DUOTONE_PRESETS.map(
-                  (preset) => {
+                  (
+                    preset
+                  ) => {
                     const active =
-                      currentFilters.duotoneShadows ===
+                      currentFilters
+                        .duotoneShadows ===
                         preset.shadows &&
-                      currentFilters.duotoneHighlights ===
+                      currentFilters
+                        .duotoneHighlights ===
                         preset.highlights
 
                     return (
                       <button
-                        key={preset.id}
+                        key={
+                          preset.id
+                        }
                         type="button"
                         className={
                           active
                             ? 'is-active'
                             : ''
                         }
-                        disabled={locked}
-                        aria-pressed={active}
-                        title={preset.label}
+                        disabled={
+                          locked
+                        }
+                        aria-pressed={
+                          active
+                        }
+                        title={
+                          preset.label
+                        }
                         onClick={() =>
                           editor.setImageFilters({
-                            duotoneEnabled: true,
+                            duotoneEnabled:
+                              true,
+
                             duotoneShadows:
                               preset.shadows,
+
                             duotoneHighlights:
                               preset.highlights
                           })
@@ -506,7 +643,9 @@ export default function ImageFilterPresets() {
                         />
 
                         <small>
-                          {preset.label}
+                          {
+                            preset.label
+                          }
                         </small>
                       </button>
                     )
@@ -518,9 +657,12 @@ export default function ImageFilterPresets() {
                 <ColorField
                   label="Sombras"
                   value={
-                    currentFilters.duotoneShadows
+                    currentFilters
+                      .duotoneShadows
                   }
-                  onCommit={(duotoneShadows) =>
+                  onCommit={(
+                    duotoneShadows
+                  ) =>
                     editor.setImageFilters({
                       duotoneShadows
                     })
@@ -530,9 +672,12 @@ export default function ImageFilterPresets() {
                 <ColorField
                   label="Luzes"
                   value={
-                    currentFilters.duotoneHighlights
+                    currentFilters
+                      .duotoneHighlights
                   }
-                  onCommit={(duotoneHighlights) =>
+                  onCommit={(
+                    duotoneHighlights
+                  ) =>
                     editor.setImageFilters({
                       duotoneHighlights
                     })
@@ -545,7 +690,7 @@ export default function ImageFilterPresets() {
       </div>
 
       <p className="mq-image-presets__note">
-        Pode começar por uma predefinição, afinar os controlos Pro e continuar a ajustar brilho, contraste, saturação e desfoque logo abaixo.
+        Pode começar por uma predefinição, recuperar sombras e luzes, controlar a vinheta e continuar a ajustar brilho, contraste, saturação e desfoque logo abaixo.
       </p>
     </section>,
     host
