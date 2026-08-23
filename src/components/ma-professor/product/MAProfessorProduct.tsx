@@ -18,10 +18,6 @@ import {
   maProfessorRepository
 } from '../repository'
 
-import {
-  CryptoSetupGate
-} from '../sync/CryptoSetupGate'
-
 import type {
   AcademicYear,
   EntityId,
@@ -602,9 +598,7 @@ export function MAProfessorProduct() {
   return (
     <AccessGate>
       <AccountIsolationGate>
-        <CryptoSetupGate>
-          <ProductContent />
-        </CryptoSetupGate>
+        <ProductContent />
       </AccountIsolationGate>
     </AccessGate>
   )
