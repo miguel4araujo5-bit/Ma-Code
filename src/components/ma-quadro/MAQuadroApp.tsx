@@ -4,7 +4,6 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
-
 import AnimationPanel from './AnimationPanel'
 import BrandQuickStyles from './BrandQuickStyles'
 import CanvasContextMenu, {
@@ -17,14 +16,13 @@ import CurvedTextBuilder from './CurvedTextBuilder'
 import CurvedTextEditor from './CurvedTextEditor'
 import EditorDialogs from './EditorDialogs'
 import EditorHeader from './EditorHeader'
+import EditorToolDiscoveryBar from './EditorToolDiscoveryBar'
 import ElementEditor from './ElementEditor'
 import ElementLibrary from './ElementLibrary'
 import ElementToolsLayoutController from './ElementToolsLayoutController'
-
 import {
   MAQuadroEditorProvider
 } from './editorContext'
-
 import FormatPainterController from './FormatPainterController'
 import FrameBuilder from './FrameBuilder'
 import FrameDropController from './FrameDropController'
@@ -43,7 +41,6 @@ import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
 import VideoEditor from './VideoEditor'
 import VideoUploads from './VideoUploads'
-
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -58,7 +55,7 @@ import './maQuadroFrames.css'
 import './maQuadroElementLibrary.css'
 import './maQuadroImagePresets.css'
 import './maQuadroLayersManager.css'
-
+import './maQuadroToolDiscovery.css'
 function targetUsesNativeKeyboard(
   target:
     EventTarget |
@@ -88,7 +85,6 @@ function targetUsesNativeKeyboard(
     )
   )
 }
-
 export default function MAQuadroApp() {
   const editor =
     useMAQuadroEditor()
@@ -126,7 +122,6 @@ export default function MAQuadroApp() {
       },
       []
     )
-
   const enterEditor =
     useCallback(
       () => {
@@ -148,7 +143,6 @@ export default function MAQuadroApp() {
         ) {
           return
         }
-
         if (
           editor.project &&
           !editor.project.isTemplate
@@ -168,7 +162,6 @@ export default function MAQuadroApp() {
         setShortcutsOpen(
           false
         )
-
         setHomeOpen(
           true
         )
@@ -183,7 +176,6 @@ export default function MAQuadroApp() {
         editor.structureBusy
       ]
     )
-
   const openContextMenu =
     useCallback(
       (
@@ -200,7 +192,6 @@ export default function MAQuadroApp() {
         ) {
           return
         }
-
         setContextMenu(
           position
         )
@@ -222,7 +213,6 @@ export default function MAQuadroApp() {
     editor.activePage?.id,
     editor.project?.id
   ])
-
   useEffect(() => {
     const handleGlobalKeyDown = (
       event:
@@ -249,7 +239,6 @@ export default function MAQuadroApp() {
         event.stopPropagation()
 
         closeContextMenu()
-
         setShortcutsOpen(
           true
         )
@@ -280,7 +269,6 @@ export default function MAQuadroApp() {
       ) {
         return
       }
-
       event.preventDefault()
       event.stopPropagation()
 
@@ -300,7 +288,6 @@ export default function MAQuadroApp() {
                 bounds.width - 32
               )
             : window.innerWidth / 2,
-
         y:
           bounds
             ? bounds.top +
@@ -316,7 +303,6 @@ export default function MAQuadroApp() {
       'keydown',
       handleGlobalKeyDown
     )
-
     return () => {
       window.removeEventListener(
         'keydown',
@@ -342,7 +328,6 @@ export default function MAQuadroApp() {
     ) {
       return
     }
-
     const frame =
       window.requestAnimationFrame(
         () => {
@@ -373,7 +358,6 @@ export default function MAQuadroApp() {
     ) {
       return
     }
-
     const modifier =
       event.ctrlKey ||
       event.metaKey
@@ -396,7 +380,6 @@ export default function MAQuadroApp() {
 
     event.stopPropagation()
   }
-
   return (
     <MAQuadroEditorProvider
       editor={
@@ -428,7 +411,6 @@ export default function MAQuadroApp() {
         }
       >
         <FormatPainterController />
-
         <FrameDropController />
 
         <BrandQuickStyles />
@@ -464,7 +446,6 @@ export default function MAQuadroApp() {
         <ImageFilterPresets />
 
         <LayersManager />
-
         <AnimationPanel />
 
         <EditorHeader
@@ -480,11 +461,12 @@ export default function MAQuadroApp() {
           }}
         />
 
+        <EditorToolDiscoveryBar />
+
         <TextEffectsToolbar />
 
         <div className="mq-editor-layout">
           <LeftSidebar />
-
           <div className="mq-center-column">
             <CanvasStage
               onOpenContextMenu={
@@ -510,7 +492,6 @@ export default function MAQuadroApp() {
             )
           }
         />
-
         {contextMenu ? (
           <CanvasContextMenu
             position={
@@ -521,7 +502,6 @@ export default function MAQuadroApp() {
             }
           />
         ) : null}
-
         {!editor.ready ? (
           <div
             className="mq-loading-screen"
@@ -541,7 +521,6 @@ export default function MAQuadroApp() {
               A preparar o
               MA-Quadro…
             </strong>
-
             <span>
               O editor e os
               projetos locais
