@@ -8,13 +8,24 @@ import {
   createPortal
 } from 'react-dom'
 
+import {
+  DEFAULT_IMAGE_FILTERS
+} from '../../lib/maQuadro/imageFilters'
+
 import type {
   MAQuadroImageFilterState
 } from '../../types/maQuadro'
 
 import {
+  ColorField,
+  RangeField
+} from './PropertyControls'
+
+import {
   useMAQuadroEditorContext
 } from './editorContext'
+
+import './maQuadroPhotoPro.css'
 
 type ImagePreset = {
   id: string
@@ -23,17 +34,20 @@ type ImagePreset = {
   filters: MAQuadroImageFilterState
 }
 
+type DuotonePreset = {
+  id: string
+  label: string
+  shadows: string
+  highlights: string
+}
+
 const PRESETS: ImagePreset[] = [
   {
     id: 'original',
     label: 'Original',
     description: 'Sem ajustes',
     filters: {
-      brightness: 0,
-      contrast: 0,
-      saturation: 0,
-      blur: 0,
-      grayscale: false
+      ...DEFAULT_IMAGE_FILTERS
     }
   },
   {
@@ -41,11 +55,10 @@ const PRESETS: ImagePreset[] = [
     label: 'Realce',
     description: 'Mais equilíbrio e presença',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 8,
       contrast: 10,
-      saturation: 14,
-      blur: 0,
-      grayscale: false
+      saturation: 14
     }
   },
   {
@@ -53,11 +66,10 @@ const PRESETS: ImagePreset[] = [
     label: 'Vivo',
     description: 'Cor e contraste fortes',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 4,
       contrast: 16,
-      saturation: 30,
-      blur: 0,
-      grayscale: false
+      saturation: 30
     }
   },
   {
@@ -65,11 +77,11 @@ const PRESETS: ImagePreset[] = [
     label: 'Suave',
     description: 'Luz macia e tons leves',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 12,
       contrast: -10,
       saturation: -8,
-      blur: 0,
-      grayscale: false
+      fade: 10
     }
   },
   {
@@ -77,11 +89,10 @@ const PRESETS: ImagePreset[] = [
     label: 'Dramático',
     description: 'Contraste mais marcado',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: -5,
       contrast: 32,
-      saturation: -8,
-      blur: 0,
-      grayscale: false
+      saturation: -8
     }
   },
   {
@@ -89,11 +100,11 @@ const PRESETS: ImagePreset[] = [
     label: 'Desaturado',
     description: 'Cor discreta e editorial',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 7,
       contrast: 8,
       saturation: -52,
-      blur: 0,
-      grayscale: false
+      fade: 8
     }
   },
   {
@@ -101,10 +112,9 @@ const PRESETS: ImagePreset[] = [
     label: 'P&B',
     description: 'Preto e branco definido',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 3,
       contrast: 20,
-      saturation: 0,
-      blur: 0,
       grayscale: true
     }
   },
@@ -113,12 +123,39 @@ const PRESETS: ImagePreset[] = [
     label: 'Retrato',
     description: 'Luz suave para pessoas',
     filters: {
+      ...DEFAULT_IMAGE_FILTERS,
       brightness: 10,
       contrast: 5,
       saturation: 9,
-      blur: 0,
-      grayscale: false
+      temperature: 8
     }
+  }
+]
+
+const DUOTONE_PRESETS: DuotonePreset[] = [
+  {
+    id: 'midnight',
+    label: 'Noite',
+    shadows: '#0F172A',
+    highlights: '#67E8F9'
+  },
+  {
+    id: 'violet',
+    label: 'Violeta',
+    shadows: '#312E81',
+    highlights: '#F5D0FE'
+  },
+  {
+    id: 'sunset',
+    label: 'Pôr do sol',
+    shadows: '#7C2D12',
+    highlights: '#FDE68A'
+  },
+  {
+    id: 'forest',
+    label: 'Floresta',
+    shadows: '#052E16',
+    highlights: '#A7F3D0'
   }
 ]
 
@@ -131,7 +168,13 @@ function filtersMatch(
     first.contrast === second.contrast &&
     first.saturation === second.saturation &&
     first.blur === second.blur &&
-    first.grayscale === second.grayscale
+    first.grayscale === second.grayscale &&
+    first.temperature === second.temperature &&
+    first.hue === second.hue &&
+    first.fade === second.fade &&
+    first.duotoneEnabled === second.duotoneEnabled &&
+    first.duotoneShadows === second.duotoneShadows &&
+    first.duotoneHighlights === second.duotoneHighlights
   )
 }
 
@@ -242,7 +285,7 @@ export default function ImageFilterPresets() {
   return createPortal(
     <section
       className="mq-properties-section mq-image-presets"
-      aria-label="Predefinições de imagem"
+      aria-label="Filtros e edição fotográfica"
     >
       <div className="mq-image-presets__heading">
         <span>
@@ -315,8 +358,194 @@ export default function ImageFilterPresets() {
         )}
       </div>
 
+      <div className="mq-photo-pro">
+        <div className="mq-photo-pro__heading">
+          <span>
+            <strong>
+              Edição fotográfica Pro
+            </strong>
+
+            <small>
+              Cor avançada, totalmente editável e guardada com o projeto
+            </small>
+          </span>
+
+          <span
+            className="mq-photo-pro__badge"
+            aria-hidden="true"
+          >
+            PRO
+          </span>
+        </div>
+
+        <fieldset
+          className="mq-photo-pro__controls"
+          disabled={locked}
+        >
+          <RangeField
+            label="Temperatura"
+            value={
+              currentFilters.temperature
+            }
+            onCommit={(temperature) =>
+              editor.setImageFilters({
+                temperature
+              })
+            }
+            min={-100}
+            max={100}
+          />
+
+          <div className="mq-photo-pro__scale-labels">
+            <span>
+              Frio
+            </span>
+
+            <span>
+              Quente
+            </span>
+          </div>
+
+          <RangeField
+            label="Tonalidade"
+            value={
+              currentFilters.hue
+            }
+            onCommit={(hue) =>
+              editor.setImageFilters({
+                hue
+              })
+            }
+            min={-180}
+            max={180}
+            suffix="°"
+          />
+
+          <RangeField
+            label="Fade"
+            value={
+              currentFilters.fade
+            }
+            onCommit={(fade) =>
+              editor.setImageFilters({
+                fade
+              })
+            }
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <div className="mq-photo-pro__divider" />
+
+          <label className="mq-switch-row mq-photo-pro__switch">
+            <span>
+              <strong>
+                Duotone
+              </strong>
+
+              <small>
+                Mapeia sombras e luzes para duas cores
+              </small>
+            </span>
+
+            <input
+              type="checkbox"
+              checked={
+                currentFilters.duotoneEnabled
+              }
+              disabled={locked}
+              onChange={(event) =>
+                editor.setImageFilters({
+                  duotoneEnabled:
+                    event.target.checked
+                })
+              }
+            />
+          </label>
+
+          {currentFilters.duotoneEnabled ? (
+            <>
+              <div className="mq-photo-pro__duotones">
+                {DUOTONE_PRESETS.map(
+                  (preset) => {
+                    const active =
+                      currentFilters.duotoneShadows ===
+                        preset.shadows &&
+                      currentFilters.duotoneHighlights ===
+                        preset.highlights
+
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={
+                          active
+                            ? 'is-active'
+                            : ''
+                        }
+                        disabled={locked}
+                        aria-pressed={active}
+                        title={preset.label}
+                        onClick={() =>
+                          editor.setImageFilters({
+                            duotoneEnabled: true,
+                            duotoneShadows:
+                              preset.shadows,
+                            duotoneHighlights:
+                              preset.highlights
+                          })
+                        }
+                      >
+                        <span
+                          style={{
+                            background:
+                              `linear-gradient(135deg, ${preset.shadows}, ${preset.highlights})`
+                          }}
+                          aria-hidden="true"
+                        />
+
+                        <small>
+                          {preset.label}
+                        </small>
+                      </button>
+                    )
+                  }
+                )}
+              </div>
+
+              <div className="mq-photo-pro__colors">
+                <ColorField
+                  label="Sombras"
+                  value={
+                    currentFilters.duotoneShadows
+                  }
+                  onCommit={(duotoneShadows) =>
+                    editor.setImageFilters({
+                      duotoneShadows
+                    })
+                  }
+                />
+
+                <ColorField
+                  label="Luzes"
+                  value={
+                    currentFilters.duotoneHighlights
+                  }
+                  onCommit={(duotoneHighlights) =>
+                    editor.setImageFilters({
+                      duotoneHighlights
+                    })
+                  }
+                />
+              </div>
+            </>
+          ) : null}
+        </fieldset>
+      </div>
+
       <p className="mq-image-presets__note">
-        Pode começar por uma predefinição e afinar brilho, contraste, saturação e desfoque logo abaixo.
+        Pode começar por uma predefinição, afinar os controlos Pro e continuar a ajustar brilho, contraste, saturação e desfoque logo abaixo.
       </p>
     </section>,
     host
