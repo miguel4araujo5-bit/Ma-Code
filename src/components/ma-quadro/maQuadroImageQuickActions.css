@@ -1,0 +1,216 @@
+.mq-image-quick-actions-host {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+/*
+ * Enquanto a experiência rápida está ativa, o grupo antigo de
+ * imagem do CanvasStage fica escondido. A lógica continua montada
+ * e disponível como fallback caso este controller não seja criado.
+ */
+.mq-image-quick-actions-host
+  + .mq-context-toolbar__group {
+  display: none;
+}
+
+.mq-image-quick-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.mq-image-quick-actions > button,
+.mq-image-quick-actions__frame {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 0.46rem;
+  border: 1px solid var(--mq-border);
+  border-radius: 0.5rem;
+  color: var(--mq-text);
+  background: rgba(255, 255, 255, 0.025);
+  font: inherit;
+  font-size: 0.55rem;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.mq-image-quick-actions > button {
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.mq-image-quick-actions
+  > button:hover:not(:disabled) {
+  border-color: rgba(103, 232, 249, 0.34);
+  background: rgba(34, 211, 238, 0.055);
+  transform: translateY(-1px);
+}
+
+.mq-image-quick-actions
+  > button:focus-visible,
+.mq-image-quick-actions__frame
+  select:focus-visible,
+.mq-image-quick-actions__range:focus-visible {
+  outline: 2px solid var(--mq-cyan);
+  outline-offset: 2px;
+}
+
+.mq-image-quick-actions > button:disabled,
+.mq-image-quick-actions__frame:has(
+    select:disabled
+  ) {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.mq-image-quick-actions
+  > .mq-image-quick-actions__primary {
+  border-color: rgba(103, 232, 249, 0.42);
+  color: #ecfeff;
+  background: rgba(8, 145, 178, 0.17);
+}
+
+.mq-image-quick-actions
+  > .mq-image-quick-actions__primary:hover:not(
+    :disabled
+  ) {
+  border-color: rgba(103, 232, 249, 0.62);
+  background: rgba(8, 145, 178, 0.24);
+}
+
+.mq-image-quick-actions__frame {
+  gap: 0.28rem;
+  padding-right: 0.22rem;
+}
+
+.mq-image-quick-actions__frame > span {
+  color: var(--mq-muted);
+  font-size: 0.5rem;
+}
+
+.mq-image-quick-actions__frame select {
+  max-width: 7rem;
+  min-height: 1.55rem;
+  padding: 0 1.4rem 0 0.3rem;
+  border: 0;
+  outline: 0;
+  color: var(--mq-text);
+  background: transparent;
+  font: inherit;
+  font-size: 0.52rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.mq-image-quick-actions__separator {
+  width: 1px;
+  height: 1.3rem;
+  margin: 0 0.08rem;
+  background: var(--mq-border);
+}
+
+.mq-image-quick-actions__label {
+  color: var(--mq-muted);
+  font-size: 0.5rem;
+  font-weight: 700;
+}
+
+.mq-image-quick-actions
+  > .mq-image-quick-actions__square {
+  width: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.mq-image-quick-actions__range {
+  width: clamp(5.5rem, 9vw, 9rem);
+  accent-color: var(--mq-cyan);
+  cursor: pointer;
+}
+
+.mq-image-quick-actions__value {
+  min-width: 2.55rem;
+  color: #cffafe;
+  font-size: 0.5rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.mq-image-quick-actions__target {
+  border-radius: 0.7rem;
+  outline: 2px solid rgba(103, 232, 249, 0.68);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1500px) and (min-width: 1081px) {
+  .mq-image-quick-actions {
+    gap: 0.08rem;
+  }
+
+  .mq-image-quick-actions > button,
+  .mq-image-quick-actions__frame {
+    min-height: 1.95rem;
+    padding-inline: 0.34rem;
+    font-size: 0.5rem;
+  }
+
+  .mq-image-quick-actions__frame > span {
+    display: none;
+  }
+
+  .mq-image-quick-actions__frame select {
+    max-width: 6rem;
+    font-size: 0.49rem;
+  }
+
+  .mq-image-quick-actions__range {
+    width: 5.6rem;
+  }
+}
+
+@media (max-width: 1220px) and (min-width: 1081px) {
+  .mq-image-quick-actions > button,
+  .mq-image-quick-actions__frame {
+    padding-inline: 0.26rem;
+  }
+
+  .mq-image-quick-actions__frame select {
+    max-width: 5rem;
+  }
+
+  .mq-image-quick-actions__range {
+    width: 4.8rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .mq-image-quick-actions-host {
+    flex: 0 0 auto;
+  }
+
+  .mq-image-quick-actions {
+    gap: 0.14rem;
+  }
+
+  .mq-image-quick-actions > button,
+  .mq-image-quick-actions__frame {
+    min-height: 2rem;
+    padding-inline: 0.4rem;
+  }
+
+  .mq-image-quick-actions__range {
+    width: 5rem;
+  }
+}
