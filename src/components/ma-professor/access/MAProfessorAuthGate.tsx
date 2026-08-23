@@ -34,15 +34,13 @@ type Mode =
   | 'activate'
 
 interface MAProfessorAuthGateProps {
-  children:
-    ReactNode
+  children: ReactNode
 }
 
 function getErrorMessage(
   error: unknown
 ) {
-  return error instanceof
-      Error &&
+  return error instanceof Error &&
     error.message.trim()
     ? error.message
     : 'Não foi possível concluir a operação.'
@@ -51,8 +49,7 @@ function getErrorMessage(
 function Shell({
   children
 }: {
-  children:
-    ReactNode
+  children: ReactNode
 }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-white sm:px-6">
@@ -70,19 +67,15 @@ function Shell({
 function saveResponse(
   response: {
     token: string
-    license:
-      LicenseSummary
+    license: LicenseSummary
   },
   deviceId: string
 ) {
   saveMAProfessorStoredAccess({
-    token:
-      response.token,
-    email:
-      response.license.email,
+    token: response.token,
+    email: response.license.email,
     deviceId,
-    license:
-      response.license
+    license: response.license
   })
 }
 
@@ -100,58 +93,44 @@ export default function MAProfessorAuthGate({
   const [
     mode,
     setMode
-  ] =
-    useState<Mode>(
-      'intro'
-    )
+  ] = useState<Mode>(
+    'intro'
+  )
 
   const [
     email,
     setEmail
-  ] =
-    useState('')
+  ] = useState('')
 
   const [
     personalPassword,
     setPersonalPassword
-  ] =
-    useState('')
-
-  const [
-    personalPasswordConfirm,
-    setPersonalPasswordConfirm
-  ] =
-    useState('')
+  ] = useState('')
 
   const [
     activationPassword,
     setActivationPassword
-  ] =
-    useState('')
+  ] = useState('')
 
   const [
     message,
     setMessage
-  ] =
-    useState('')
+  ] = useState('')
 
   const [
     error,
     setError
-  ] =
-    useState('')
+  ] = useState('')
 
   const [
     busy,
     setBusy
-  ] =
-    useState(false)
+  ] = useState(false)
 
   const [
     copied,
     setCopied
-  ] =
-    useState(false)
+  ] = useState(false)
 
   const normalizedEmail =
     useMemo(
@@ -198,9 +177,7 @@ export default function MAProfessorAuthGate({
 
   useEffect(
     () => {
-      if (
-        storedAccess
-      ) {
+      if (storedAccess) {
         return
       }
 
@@ -230,9 +207,7 @@ export default function MAProfessorAuthGate({
 
       const hashParams =
         new URLSearchParams(
-          url.hash.startsWith(
-            '#'
-          )
+          url.hash.startsWith('#')
             ? url.hash.slice(1)
             : url.hash
         )
@@ -247,24 +222,19 @@ export default function MAProfessorAuthGate({
           .trim()
           .toUpperCase()
 
-      if (
-        linkedEmail
-      ) {
+      if (linkedEmail) {
         setEmail(
           linkedEmail
         )
       }
 
-      if (
-        linkedPassword
-      ) {
+      if (linkedPassword) {
         setActivationPassword(
           linkedPassword
         )
       }
 
       setPersonalPassword('')
-      setPersonalPasswordConfirm('')
       setMessage('')
       setError('')
       setCopied(false)
@@ -281,9 +251,7 @@ export default function MAProfessorAuthGate({
       url.hash = ''
 
       const cleanUrl =
-        `${url.pathname}${
-          url.search
-        }`
+        `${url.pathname}${url.search}`
 
       window.history.replaceState(
         window.history.state,
@@ -296,9 +264,7 @@ export default function MAProfessorAuthGate({
     ]
   )
 
-  if (
-    storedAccess
-  ) {
+  if (storedAccess) {
     return (
       <>
         {children}
@@ -317,7 +283,6 @@ export default function MAProfessorAuthGate({
     () => {
       resetFeedback()
       setActivationPassword('')
-      setPersonalPasswordConfirm('')
       setMode('login')
     }
 
@@ -325,7 +290,6 @@ export default function MAProfessorAuthGate({
     () => {
       resetFeedback()
       setPersonalPassword('')
-      setPersonalPasswordConfirm('')
       setMode('activate')
     }
 
@@ -341,11 +305,9 @@ export default function MAProfessorAuthGate({
       }
 
       try {
-        await navigator
-          .clipboard
-          .writeText(
-            password
-          )
+        await navigator.clipboard.writeText(
+          password
+        )
 
         setCopied(true)
       } catch {
@@ -366,9 +328,7 @@ export default function MAProfessorAuthGate({
 
       resetFeedback()
 
-      if (
-        !normalizedEmail
-      ) {
+      if (!normalizedEmail) {
         setError(
           'Introduza o seu email.'
         )
@@ -485,9 +445,7 @@ export default function MAProfessorAuthGate({
 
       resetFeedback()
 
-      if (
-        !normalizedEmail
-      ) {
+      if (!normalizedEmail) {
         setError(
           'Introduza o seu email.'
         )
@@ -506,28 +464,6 @@ export default function MAProfessorAuthGate({
         return
       }
 
-      if (
-        personalPassword.length <
-          6
-      ) {
-        setError(
-          'A password pessoal deve ter pelo menos 6 caracteres.'
-        )
-
-        return
-      }
-
-      if (
-        personalPassword !==
-        personalPasswordConfirm
-      ) {
-        setError(
-          'As duas passwords pessoais não coincidem.'
-        )
-
-        return
-      }
-
       setBusy(true)
 
       try {
@@ -538,7 +474,6 @@ export default function MAProfessorAuthGate({
           await activateMAProfessorAccessPeriod(
             normalizedEmail,
             activationPassword.trim(),
-            personalPassword,
             deviceId
           )
 
@@ -571,7 +506,9 @@ export default function MAProfessorAuthGate({
       <ProductIntroPanel
         onRequestAccess={() => {
           resetFeedback()
-          setMode('request')
+          setMode(
+            'request'
+          )
         }}
         onAlreadyHasAccess={
           goLogin
@@ -586,7 +523,9 @@ export default function MAProfessorAuthGate({
         type="button"
         onClick={() => {
           resetFeedback()
-          setMode('intro')
+          setMode(
+            'intro'
+          )
         }}
         className="mb-6 text-xs font-black uppercase tracking-[0.14em] text-slate-400 transition hover:text-white"
       >
@@ -625,9 +564,7 @@ export default function MAProfessorAuthGate({
                 onChange={
                   event =>
                     setEmail(
-                      event
-                        .target
-                        .value
+                      event.target.value
                     )
                 }
                 autoComplete="email"
@@ -698,7 +635,11 @@ export default function MAProfessorAuthGate({
           </p>
 
           <p className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs leading-6 text-cyan-100">
-            A senha que começa por <strong>MP-</strong> não é utilizada para entrar. Serve apenas para ativar um período de acesso.
+            A senha que começa por{' '}
+            <strong>
+              MP-
+            </strong>{' '}
+            não é utilizada para entrar. Serve apenas para ativar um período de acesso.
           </p>
 
           <form
@@ -718,9 +659,7 @@ export default function MAProfessorAuthGate({
                 onChange={
                   event =>
                     setEmail(
-                      event
-                        .target
-                        .value
+                      event.target.value
                     )
                 }
                 autoComplete="email"
@@ -742,9 +681,7 @@ export default function MAProfessorAuthGate({
                 onChange={
                   event =>
                     setPersonalPassword(
-                      event
-                        .target
-                        .value
+                      event.target.value
                     )
                 }
                 autoComplete="current-password"
@@ -794,7 +731,11 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Utilize aqui a senha de ativação <strong>MP-...</strong> recebida da MA-CODE.
+            Utilize aqui a senha de ativação{' '}
+            <strong>
+              MP-...
+            </strong>{' '}
+            recebida da MA-CODE.
           </p>
 
           {email &&
@@ -804,7 +745,7 @@ export default function MAProfessorAuthGate({
             </p>
           ) : (
             <p className="mt-3 rounded-xl border border-violet-300/15 bg-violet-300/[0.06] px-4 py-3 text-xs leading-6 text-violet-100">
-              A senha de ativação é usada apenas para ativar este período. Depois, entra normalmente com a sua password pessoal.
+              Esta senha serve apenas para ativar o período de acesso.
             </p>
           )}
 
@@ -825,9 +766,7 @@ export default function MAProfessorAuthGate({
                 onChange={
                   event =>
                     setEmail(
-                      event
-                        .target
-                        .value
+                      event.target.value
                     )
                 }
                 autoComplete="email"
@@ -856,7 +795,9 @@ export default function MAProfessorAuthGate({
                           .toUpperCase()
                       )
 
-                      setCopied(false)
+                      setCopied(
+                        false
+                      )
                     }
                   }
                   autoCapitalize="characters"
@@ -872,9 +813,8 @@ export default function MAProfessorAuthGate({
                     !activationPassword
                       .trim()
                   }
-                  onClick={
-                    () =>
-                      void handleCopyActivationPassword()
+                  onClick={() =>
+                    void handleCopyActivationPassword()
                   }
                   title="Copiar senha de ativação"
                   aria-label="Copiar senha de ativação"
@@ -891,60 +831,6 @@ export default function MAProfessorAuthGate({
                   ? 'Senha copiada.'
                   : 'O botão com os dois quadrados copia a senha.'}
               </span>
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-bold text-slate-300">
-                Password pessoal
-              </span>
-
-              <input
-                type="password"
-                value={
-                  personalPassword
-                }
-                onChange={
-                  event =>
-                    setPersonalPassword(
-                      event
-                        .target
-                        .value
-                    )
-                }
-                autoComplete="new-password"
-                minLength={6}
-                required
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
-              />
-
-              <span className="mt-2 block text-[0.7rem] leading-5 text-slate-500">
-                Na primeira ativação, esta passa a ser a sua password de entrada. Se a conta já foi ativada anteriormente, introduza a password pessoal que já utiliza.
-              </span>
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-bold text-slate-300">
-                Confirmar password pessoal
-              </span>
-
-              <input
-                type="password"
-                value={
-                  personalPasswordConfirm
-                }
-                onChange={
-                  event =>
-                    setPersonalPasswordConfirm(
-                      event
-                        .target
-                        .value
-                    )
-                }
-                autoComplete="new-password"
-                minLength={6}
-                required
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
-              />
             </label>
 
             {message ? (
