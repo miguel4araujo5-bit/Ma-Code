@@ -6,6 +6,7 @@ import type {
   MAQuadroProject,
   MAQuadroStoredBrandKit,
   MAQuadroStoredFont,
+  MAQuadroStoredImage,
   MAQuadroStoredLogo,
   MAQuadroStoredVideo
 } from '../../types/maQuadro'
@@ -16,6 +17,7 @@ import {
 
 const DEFAULT_BRAND_KIT_ID =
   'ma-code'
+
 type MAQuadroDatabase = Dexie & {
   designs: EntityTable<
     MAQuadroProject,
@@ -37,6 +39,10 @@ type MAQuadroDatabase = Dexie & {
     MAQuadroStoredVideo,
     'id'
   >
+  images: EntityTable<
+    MAQuadroStoredImage,
+    'id'
+  >
 }
 
 export const maQuadroDb =
@@ -50,6 +56,7 @@ maQuadroDb.version(1).stores({
   fonts:
     'id, family, createdAt'
 })
+
 maQuadroDb
   .version(2)
   .stores({
@@ -78,6 +85,7 @@ maQuadroDb
       }
     }
   })
+
 maQuadroDb
   .version(3)
   .stores({
@@ -88,6 +96,7 @@ maQuadroDb
     logos:
       'id, name, createdAt'
   })
+
 maQuadroDb
   .version(4)
   .stores({
@@ -103,6 +112,7 @@ maQuadroDb
   .upgrade(async (transaction) => {
     const logos =
       transaction.table('logos')
+
     await logos
       .toCollection()
       .modify((logo) => {
@@ -112,6 +122,7 @@ maQuadroDb
         }
       })
   })
+
 maQuadroDb
   .version(5)
   .stores({
@@ -124,6 +135,23 @@ maQuadroDb
     brandKits:
       'id, name, updatedAt',
     videos:
+      'id, name, createdAt'
+  })
+
+maQuadroDb
+  .version(6)
+  .stores({
+    designs:
+      'id, name, updatedAt, isTemplate, category',
+    fonts:
+      'id, family, createdAt',
+    logos:
+      'id, brandKitId, name, createdAt',
+    brandKits:
+      'id, name, updatedAt',
+    videos:
+      'id, name, createdAt',
+    images:
       'id, name, createdAt'
   })
 
@@ -141,6 +169,7 @@ export async function listMAQuadroProjects() {
           ? 1
           : -1
       }
+
       return second.updatedAt.localeCompare(
         first.updatedAt
       )
@@ -171,6 +200,7 @@ export function deleteMAQuadroProject(
     projectId
   )
 }
+
 export async function listMAQuadroFonts() {
   const fonts =
     await maQuadroDb.fonts.toArray()
@@ -199,6 +229,7 @@ export function deleteMAQuadroFont(
     fontId
   )
 }
+
 export async function listMAQuadroLogos(
   brandKitId?: string
 ) {
@@ -224,11 +255,40 @@ export function saveMAQuadroLogo(
     logo
   )
 }
+
 export function deleteMAQuadroLogo(
   logoId: string
 ) {
   return maQuadroDb.logos.delete(
     logoId
+  )
+}
+
+export async function listMAQuadroImages() {
+  const images =
+    await maQuadroDb.images.toArray()
+
+  return images.sort(
+    (first, second) =>
+      second.createdAt.localeCompare(
+        first.createdAt
+      )
+  )
+}
+
+export function saveMAQuadroImage(
+  image: MAQuadroStoredImage
+) {
+  return maQuadroDb.images.put(
+    image
+  )
+}
+
+export function deleteMAQuadroImage(
+  imageId: string
+) {
+  return maQuadroDb.images.delete(
+    imageId
   )
 }
 
@@ -288,6 +348,7 @@ export function saveMAQuadroBrandKit(
     kit
   )
 }
+
 export async function deleteMAQuadroBrandKit(
   brandKitId: string
 ) {
