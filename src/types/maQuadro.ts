@@ -98,6 +98,16 @@ export type MAQuadroStoredLogo = {
     createdAt: string;
 };
 
+export type MAQuadroStoredImage = {
+    id: string;
+    name: string;
+    fileName: string;
+    mimeType: string;
+    data: ArrayBuffer;
+    size: number;
+    createdAt: string;
+};
+
 export type MAQuadroStoredVideo = {
     id: string;
     name: string;
