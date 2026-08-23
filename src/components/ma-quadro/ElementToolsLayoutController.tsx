@@ -18,6 +18,18 @@ import './maQuadroElementTools.css'
 
 const TOOL_DEFINITIONS = [
   {
+    id: 'library',
+    icon: '◇',
+    label: 'Biblioteca',
+    selector: '.mq-element-library-host'
+  },
+  {
+    id: 'frame',
+    icon: '▣',
+    label: 'Molduras',
+    selector: '.mq-frame-builder-host'
+  },
+  {
     id: 'table',
     icon: '▤',
     label: 'Tabela',
@@ -40,23 +52,14 @@ const TOOL_DEFINITIONS = [
     icon: '⌒',
     label: 'Texto curvo',
     selector: '.mq-curved-text-builder-host'
-  },
-  {
-    id: 'frame',
-    icon: '▣',
-    label: 'Molduras',
-    selector: '.mq-frame-builder-host'
-  },
-  {
-    id: 'library',
-    icon: '◇',
-    label: 'Biblioteca',
-    selector: '.mq-element-library-host'
   }
 ] as const
 
 type ToolId =
   (typeof TOOL_DEFINITIONS)[number]['id']
+
+const DEFAULT_TOOL_ID: ToolId =
+  'library'
 
 function sameToolIds(
   first: ToolId[],
@@ -106,6 +109,9 @@ export default function ElementToolsLayoutController() {
       null
     )
 
+  const userSelectedToolRef =
+    useRef(false)
+
   useLayoutEffect(() => {
     if (
       !editor.ready ||
@@ -114,6 +120,14 @@ export default function ElementToolsLayoutController() {
       setNavigationHost(null)
       setStack(null)
       setAvailableTools([])
+      setActiveTool(null)
+
+      activeToolRef.current =
+        null
+
+      userSelectedToolRef.current =
+        false
+
       return
     }
 
@@ -134,6 +148,7 @@ export default function ElementToolsLayoutController() {
       setNavigationHost(null)
       setStack(null)
       setAvailableTools([])
+
       return
     }
 
@@ -152,7 +167,7 @@ export default function ElementToolsLayoutController() {
     toolsStack.appendChild(navHost)
 
     elementGrid.insertAdjacentElement(
-      'afterend',
+      'beforebegin',
       toolsStack
     )
 
@@ -200,6 +215,14 @@ export default function ElementToolsLayoutController() {
         activeToolRef.current
 
       if (
+        !userSelectedToolRef.current &&
+        nextAvailable.includes(
+          DEFAULT_TOOL_ID
+        )
+      ) {
+        selected =
+          DEFAULT_TOOL_ID
+      } else if (
         !selected ||
         !nextAvailable.includes(
           selected
@@ -207,7 +230,12 @@ export default function ElementToolsLayoutController() {
       ) {
         selected =
           nextAvailable[0] ?? null
+      }
 
+      if (
+        selected !==
+        activeToolRef.current
+      ) {
         activeToolRef.current =
           selected
 
@@ -353,16 +381,16 @@ export default function ElementToolsLayoutController() {
   return createPortal(
     <section
       className="mq-element-tools-navigation"
-      aria-label="Ferramentas avançadas"
+      aria-label="Explorar elementos"
     >
       <div className="mq-element-tools-navigation__heading">
         <span>
           <strong>
-            Ferramentas
+            Explorar elementos
           </strong>
 
           <small>
-            Escolha o que pretende adicionar.
+            Pesquise elementos ou escolha uma ferramenta.
           </small>
         </span>
 
@@ -403,6 +431,9 @@ export default function ElementToolsLayoutController() {
                     : `${tool.label} a carregar…`
                 }
                 onClick={() => {
+                  userSelectedToolRef.current =
+                    true
+
                   activeToolRef.current =
                     tool.id
 
