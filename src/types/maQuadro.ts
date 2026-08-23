@@ -149,9 +149,15 @@ export type MAQuadroImageFilterState = {
     saturation: number;
     blur: number;
     grayscale: boolean;
+
     temperature: number;
     hue: number;
     fade: number;
+
+    shadows: number;
+    highlights: number;
+    vignette: number;
+
     duotoneEnabled: boolean;
     duotoneShadows: string;
     duotoneHighlights: string;
