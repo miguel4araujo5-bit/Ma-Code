@@ -16,6 +16,13 @@ import {
   type MAQuadroObjectAnimation
 } from './objectAnimations'
 
+import {
+  applyMAQuadroMatchMoveProgress,
+  getMAQuadroMatchMoveSnapshot,
+  restoreMAQuadroMatchMoveSnapshot,
+  type MAQuadroMatchMoveSnapshot
+} from './matchMove'
+
 export type MAQuadroPageAnimationMode =
   | 'sequence'
   | 'together'
@@ -43,6 +50,10 @@ type PageAnimationEntry = {
 
   snapshot:
     MAQuadroAnimationSnapshot
+
+  matchMove:
+    MAQuadroMatchMoveSnapshot |
+    null
 
   layerIndex:
     number
@@ -402,6 +413,11 @@ getMAQuadroPageAnimatedObjects(
       }
 
       return (
+        Boolean(
+          getMAQuadroMatchMoveSnapshot(
+            object
+          )
+        ) ||
         getMAQuadroObjectAnimation(
           object
         ).kind !==
@@ -448,6 +464,11 @@ function createEntries(
             object
           ),
 
+        matchMove:
+          getMAQuadroMatchMoveSnapshot(
+            object
+          ),
+
         layerIndex
       })
     )
@@ -457,8 +478,13 @@ function createEntries(
       ) => (
         entry.object.visible !==
           false &&
-        entry.animation.kind !==
-          'none'
+        (
+          Boolean(
+            entry.matchMove
+          ) ||
+          entry.animation.kind !==
+            'none'
+        )
       )
     )
     .sort(
@@ -481,13 +507,24 @@ function prepareEntries(
       false
     )
 
-    applyMAQuadroObjectAnimationProgress(
-      canvas,
-      entry.object,
-      entry.animation,
-      entry.snapshot,
-      0
-    )
+    if (
+      entry.matchMove
+    ) {
+      applyMAQuadroMatchMoveProgress(
+        canvas,
+        entry.object,
+        entry.matchMove,
+        0
+      )
+    } else {
+      applyMAQuadroObjectAnimationProgress(
+        canvas,
+        entry.object,
+        entry.animation,
+        entry.snapshot,
+        0
+      )
+    }
   }
 
   canvas
@@ -509,10 +546,92 @@ function restoreEntries(
       entry.object,
       entry.snapshot
     )
+
+    if (
+      entry.matchMove
+    ) {
+      restoreMAQuadroMatchMoveSnapshot(
+        canvas,
+        entry.object,
+        entry.matchMove
+      )
+    }
   }
 
   canvas
     .requestRenderAll()
+}
+
+async function playMatchTogether(
+  canvas:
+    Canvas,
+  entries:
+    PageAnimationEntry[],
+  signal?:
+    AbortSignal
+) {
+  if (
+    entries.length ===
+    0
+  ) {
+    return
+  }
+
+  const maximumDuration =
+    Math.max(
+      ...entries.map(
+        (
+          entry
+        ) =>
+          entry.matchMove
+            ?.durationMs ||
+          0
+      )
+    )
+
+  await animate(
+    maximumDuration,
+
+    (
+      overallProgress
+    ) => {
+      const elapsed =
+        maximumDuration *
+        overallProgress
+
+      for (
+        const entry
+        of entries
+      ) {
+        if (
+          !entry.matchMove
+        ) {
+          continue
+        }
+
+        const progress =
+          clamp(
+            elapsed /
+            Math.max(
+              1,
+              entry.matchMove
+                .durationMs
+            ),
+            0,
+            1
+          )
+
+        applyMAQuadroMatchMoveProgress(
+          canvas,
+          entry.object,
+          entry.matchMove,
+          progress
+        )
+      }
+    },
+
+    signal
+  )
 }
 
 async function playSequential(
@@ -708,22 +827,56 @@ previewMAQuadroPageAnimations(
       options.signal
     )
 
+    const matchEntries =
+      entries.filter(
+        (
+          entry
+        ) =>
+          Boolean(
+            entry.matchMove
+          )
+      )
+
+    const standardEntries =
+      entries.filter(
+        (
+          entry
+        ) =>
+          !entry.matchMove
+      )
+
     if (
-      options.mode ===
-      'together'
+      matchEntries.length >
+      0
     ) {
-      await playTogether(
+      await playMatchTogether(
         canvas,
-        entries,
+        matchEntries,
         options.signal
       )
-    } else {
-      await playSequential(
-        canvas,
-        entries,
-        gapMs,
-        options.signal
-      )
+    }
+
+    if (
+      standardEntries.length >
+      0
+    ) {
+      if (
+        options.mode ===
+        'together'
+      ) {
+        await playTogether(
+          canvas,
+          standardEntries,
+          options.signal
+        )
+      } else {
+        await playSequential(
+          canvas,
+          standardEntries,
+          gapMs,
+          options.signal
+        )
+      }
     }
 
     if (
