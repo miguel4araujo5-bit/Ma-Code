@@ -121,10 +121,18 @@ body::before {
   z-index: 40;
 
   pointer-events: none;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  align-content: start;
+  gap: 2px;
+
   align-self: flex-start;
   top: 94%;
+
   width: fit-content;
-  max-width: 100%;
+  max-width: calc(100% - 26px);
 
   padding: 5px 13px 6px;
   border: 1px solid rgba(236, 216, 155, 0.72);
@@ -145,8 +153,21 @@ body::before {
     inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
+.board-title-row > div {
+  display: grid;
+  min-width: 0;
+}
+
 .board-title-row strong {
+  display: block;
+  min-width: 0;
+
   color: #fffdf7;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.42),
     0 2px 4px rgba(0, 0, 0, 0.22);
@@ -156,6 +177,23 @@ body::before {
 .board-title-row .board-seed {
   color: #ecd89b;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.board-title-row .board-kicker {
+  display: block;
+  line-height: 1;
+}
+
+.board-title-row .board-seed {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+
+  text-align: left;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .board-frame {
@@ -177,6 +215,7 @@ body::before {
 
   width: 94%;
   height: 94%;
+
   min-width: 0;
   min-height: 0;
 
@@ -215,5 +254,24 @@ body::before {
         0 5px 6px
         rgba(28, 20, 13, 0.16)
       );
+  }
+
+  .board-title-row {
+    max-width: calc(100% - 18px);
+    padding: 4px 10px 5px;
+  }
+}
+
+@media (max-width: 560px) {
+  .board-title-row > div {
+    display: none;
+  }
+
+  .board-title-row {
+    gap: 0;
+  }
+
+  .board-title-row .board-seed {
+    max-width: 100%;
   }
 }
