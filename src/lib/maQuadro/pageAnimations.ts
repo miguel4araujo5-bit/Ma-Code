@@ -19,8 +19,10 @@ import {
 import {
   applyMAQuadroMatchMoveProgress,
   getMAQuadroMatchMoveSnapshot,
+  prepareMAQuadroMatchMoveTransitionVisuals,
   restoreMAQuadroMatchMoveSnapshot,
-  type MAQuadroMatchMoveSnapshot
+  type MAQuadroMatchMoveSnapshot,
+  type MAQuadroMatchMoveTransitionVisuals
 } from './matchMove'
 
 export type MAQuadroPageAnimationMode =
@@ -52,8 +54,8 @@ type PageAnimationEntry = {
     MAQuadroAnimationSnapshot
 
   matchMove:
-    MAQuadroMatchMoveSnapshot |
-    null
+    | MAQuadroMatchMoveSnapshot
+    | null
 
   layerIndex:
     number
@@ -421,7 +423,7 @@ getMAQuadroPageAnimatedObjects(
         getMAQuadroObjectAnimation(
           object
         ).kind !==
-        'none'
+          'none'
       )
     }
   )
@@ -440,7 +442,8 @@ countMAQuadroPageAnimations(
 function createEntries(
   canvas:
     Canvas
-): PageAnimationEntry[] {
+):
+  PageAnimationEntry[] {
   return (
     canvas
       .getObjects() as
@@ -567,18 +570,26 @@ async function playMatchTogether(
     Canvas,
   entries:
     PageAnimationEntry[],
+  transitionVisuals:
+    | MAQuadroMatchMoveTransitionVisuals
+    | null,
   signal?:
     AbortSignal
 ) {
   if (
     entries.length ===
-    0
+      0 &&
+    !transitionVisuals
   ) {
     return
   }
 
   const maximumDuration =
     Math.max(
+      transitionVisuals
+        ?.durationMs ||
+        0,
+
       ...entries.map(
         (
           entry
@@ -588,6 +599,18 @@ async function playMatchTogether(
           0
       )
     )
+
+  if (
+    maximumDuration <=
+    0
+  ) {
+    transitionVisuals
+      ?.setProgress(
+        1
+      )
+
+    return
+  }
 
   await animate(
     maximumDuration,
@@ -614,7 +637,8 @@ async function playMatchTogether(
             elapsed /
             Math.max(
               1,
-              entry.matchMove
+              entry
+                .matchMove
                 .durationMs
             ),
             0,
@@ -628,6 +652,11 @@ async function playMatchTogether(
           progress
         )
       }
+
+      transitionVisuals
+        ?.setProgress(
+          overallProgress
+        )
     },
 
     signal
@@ -693,8 +722,8 @@ async function playSequential(
 
     if (
       index <
-      entries.length -
-        1 &&
+        entries.length -
+          1 &&
       gapMs >
         0
     ) {
@@ -719,10 +748,11 @@ async function playTogether(
       ...entries.map(
         (
           entry
-        ) => (
-          entry.animation.delayMs +
-          entry.animation.durationMs
-        )
+        ) =>
+          entry.animation
+            .delayMs +
+          entry.animation
+            .durationMs
       )
     )
 
@@ -742,7 +772,8 @@ async function playTogether(
       ) {
         const localElapsed =
           elapsed -
-          entry.animation.delayMs
+          entry.animation
+            .delayMs
 
         const progress =
           localElapsed <=
@@ -750,12 +781,12 @@ async function playTogether(
             ? 0
             : clamp(
                 localElapsed /
-                Math.max(
-                  1,
-                  entry
-                    .animation
-                    .durationMs
-                ),
+                  Math.max(
+                    1,
+                    entry
+                      .animation
+                      .durationMs
+                  ),
                 0,
                 1
               )
@@ -812,7 +843,21 @@ previewMAQuadroPageAnimations(
       )
     )
 
+  let transitionVisuals:
+    | MAQuadroMatchMoveTransitionVisuals
+    | null =
+    null
+
   try {
+    throwIfAborted(
+      options.signal
+    )
+
+    transitionVisuals =
+      await prepareMAQuadroMatchMoveTransitionVisuals(
+        canvas
+      )
+
     throwIfAborted(
       options.signal
     )
@@ -821,6 +866,11 @@ previewMAQuadroPageAnimations(
       canvas,
       entries
     )
+
+    transitionVisuals
+      ?.setProgress(
+        0
+      )
 
     await wait(
       60,
@@ -847,11 +897,13 @@ previewMAQuadroPageAnimations(
 
     if (
       matchEntries.length >
-      0
+        0 ||
+      transitionVisuals
     ) {
       await playMatchTogether(
         canvas,
         matchEntries,
+        transitionVisuals,
         options.signal
       )
     }
@@ -894,8 +946,7 @@ previewMAQuadroPageAnimations(
     error
   ) {
     if (
-      options
-        .signal
+      options.signal
         ?.aborted ||
       (
         error instanceof
@@ -913,5 +964,8 @@ previewMAQuadroPageAnimations(
       canvas,
       entries
     )
+
+    transitionVisuals
+      ?.dispose()
   }
 }
