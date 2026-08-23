@@ -12,12 +12,20 @@ import type {
     MAQuadroFabricObject
 } from './canvasObjects';
 
+import {
+    MAQuadroHighlightsShadowsFilter,
+    MAQuadroVignetteFilter
+} from './photoProFilters';
+
 type MAQuadroFilteredImage =
     FabricImage &
     MAQuadroFabricObject & {
         maFilterTemperature?: number;
         maFilterHue?: number;
         maFilterFade?: number;
+        maFilterShadows?: number;
+        maFilterHighlights?: number;
+        maFilterVignette?: number;
         maFilterDuotoneEnabled?: boolean;
         maFilterDuotoneShadows?: string;
         maFilterDuotoneHighlights?: string;
@@ -34,6 +42,9 @@ const EXTENDED_IMAGE_FILTER_PROPERTIES = [
     'maFilterTemperature',
     'maFilterHue',
     'maFilterFade',
+    'maFilterShadows',
+    'maFilterHighlights',
+    'maFilterVignette',
     'maFilterDuotoneEnabled',
     'maFilterDuotoneShadows',
     'maFilterDuotoneHighlights'
@@ -67,6 +78,9 @@ export const
             temperature: 0,
             hue: 0,
             fade: 0,
+            shadows: 0,
+            highlights: 0,
+            vignette: 0,
             duotoneEnabled: false,
             duotoneShadows: '#0F172A',
             duotoneHighlights: '#F8FAFC'
@@ -222,6 +236,36 @@ function normalizeFilterState(
                 100
             ),
 
+        shadows:
+            clamp(
+                Number(
+                    state.shadows ??
+                    0
+                ),
+                -100,
+                100
+            ),
+
+        highlights:
+            clamp(
+                Number(
+                    state.highlights ??
+                    0
+                ),
+                -100,
+                100
+            ),
+
+        vignette:
+            clamp(
+                Number(
+                    state.vignette ??
+                    0
+                ),
+                0,
+                100
+            ),
+
         duotoneEnabled:
             Boolean(
                 state.duotoneEnabled
@@ -370,6 +414,27 @@ getMAQuadroImageFilters(
                 0
             ),
 
+        shadows:
+            Number(
+                filteredImage
+                    .maFilterShadows ||
+                0
+            ),
+
+        highlights:
+            Number(
+                filteredImage
+                    .maFilterHighlights ||
+                0
+            ),
+
+        vignette:
+            Number(
+                filteredImage
+                    .maFilterVignette ||
+                0
+            ),
+
         duotoneEnabled:
             Boolean(
                 filteredImage
@@ -423,6 +488,15 @@ applyMAQuadroImageFilters(
 
     image.maFilterFade =
         normalized.fade;
+
+    image.maFilterShadows =
+        normalized.shadows;
+
+    image.maFilterHighlights =
+        normalized.highlights;
+
+    image.maFilterVignette =
+        normalized.vignette;
 
     image.maFilterDuotoneEnabled =
         normalized.duotoneEnabled;
@@ -490,7 +564,10 @@ applyMAQuadroImageFilters(
                     warm
                         ? '#FF8A3D'
                         : '#60A5FA',
-                mode: 'tint',
+
+                mode:
+                    'tint',
+
                 alpha:
                     Math.abs(
                         normalized.temperature
@@ -520,12 +597,35 @@ applyMAQuadroImageFilters(
     ) {
         nextFilters.push(
             new filters.BlendColor({
-                color: '#FFFFFF',
-                mode: 'tint',
+                color:
+                    '#FFFFFF',
+
+                mode:
+                    'tint',
+
                 alpha:
                     normalized.fade /
                     100 *
                     0.32
+            })
+        );
+    }
+
+    if (
+        normalized.shadows !==
+        0 ||
+        normalized.highlights !==
+        0
+    ) {
+        nextFilters.push(
+            new MAQuadroHighlightsShadowsFilter({
+                shadows:
+                    normalized.shadows /
+                    100,
+
+                highlights:
+                    normalized.highlights /
+                    100
             })
         );
     }
@@ -547,9 +647,23 @@ applyMAQuadroImageFilters(
                     createDuotoneMatrix(
                         normalized
                             .duotoneShadows,
+
                         normalized
                             .duotoneHighlights
                     )
+            })
+        );
+    }
+
+    if (
+        normalized.vignette !==
+        0
+    ) {
+        nextFilters.push(
+            new MAQuadroVignetteFilter({
+                vignette:
+                    normalized.vignette /
+                    100
             })
         );
     }
@@ -763,8 +877,11 @@ resetMAQuadroImageCrop(
         );
 
     image.set({
-        cropX: 0,
-        cropY: 0,
+        cropX:
+            0,
+
+        cropY:
+            0,
 
         width:
             sourceWidth,
@@ -883,7 +1000,8 @@ function calculateSafeScale(
             maxPixels /
             Math.max(
                 1,
-                width * height
+                width *
+                height
             )
         )
     );
@@ -920,7 +1038,8 @@ function getPixelColour(
     index: number
 ): RgbColour {
     const offset =
-        index * 4;
+        index *
+        4;
 
     return [
         pixels[offset],
@@ -940,6 +1059,7 @@ function getBackgroundSample(
         Uint8ClampedArray,
 
     width: number,
+
     height: number
 ): RgbColour {
     const sampleSize =
@@ -976,24 +1096,38 @@ function getBackgroundSample(
             red,
             green,
             blue
-        ] = getPixelColour(
-            pixels,
-            y * width + x
+        ] =
+            getPixelColour(
+                pixels,
+
+                y *
+                width +
+                x
+            );
+
+        reds.push(
+            red
         );
 
-        reds.push(red);
-        greens.push(green);
-        blues.push(blue);
+        greens.push(
+            green
+        );
+
+        blues.push(
+            blue
+        );
     };
 
     for (
         let offsetY = 0;
-        offsetY < sampleSize;
+        offsetY <
+        sampleSize;
         offsetY += 1
     ) {
         for (
             let offsetX = 0;
-            offsetX < sampleSize;
+            offsetX <
+            sampleSize;
             offsetX += 1
         ) {
             samplePixel(
@@ -1030,9 +1164,17 @@ function getBackgroundSample(
     }
 
     return [
-        median(reds),
-        median(greens),
-        median(blues)
+        median(
+            reds
+        ),
+
+        median(
+            greens
+        ),
+
+        median(
+            blues
+        )
     ];
 }
 
@@ -1056,9 +1198,12 @@ function colourDistanceSquared(
         second[2];
 
     return (
-        red * red +
-        green * green +
-        blue * blue
+        red *
+        red +
+        green *
+        green +
+        blue *
+        blue
     );
 }
 
@@ -1068,7 +1213,9 @@ applyBackgroundMask(
         ImageData,
 
     width: number,
+
     height: number,
+
     tolerance: number
 ) {
     const pixels =
@@ -1117,30 +1264,43 @@ applyBackgroundMask(
         index: number
     ) => {
         if (
-            index < 0 ||
+            index <
+            0 ||
             index >=
             visited.length ||
-            visited[index]
+            visited[
+                index
+            ]
         ) {
             return;
         }
 
-        visited[index] = 1;
-        queue[tail] = index;
+        visited[
+            index
+        ] = 1;
+
+        queue[
+            tail
+        ] =
+            index;
 
         tail += 1;
     };
 
     for (
         let x = 0;
-        x < width;
+        x <
+        width;
         x += 1
     ) {
-        enqueue(x);
+        enqueue(
+            x
+        );
 
         enqueue(
             (
-                height - 1
+                height -
+                1
             ) *
             width +
             x
@@ -1149,7 +1309,8 @@ applyBackgroundMask(
 
     for (
         let y = 0;
-        y < height;
+        y <
+        height;
         y += 1
     ) {
         enqueue(
@@ -1182,7 +1343,9 @@ applyBackgroundMask(
             chunkEnd
         ) {
             const index =
-                queue[head];
+                queue[
+                    head
+                ];
 
             head += 1;
 
@@ -1226,7 +1389,9 @@ applyBackgroundMask(
                 4 +
                 3;
 
-            pixels[alphaOffset] =
+            pixels[
+                alphaOffset
+            ] =
                 Math.min(
                     pixels[
                         alphaOffset
@@ -1245,22 +1410,31 @@ applyBackgroundMask(
                     width
                 );
 
-            if (x > 0) {
+            if (
+                x >
+                0
+            ) {
                 enqueue(
-                    index - 1
+                    index -
+                    1
                 );
             }
 
             if (
                 x <
-                width - 1
+                width -
+                1
             ) {
                 enqueue(
-                    index + 1
+                    index +
+                    1
                 );
             }
 
-            if (y > 0) {
+            if (
+                y >
+                0
+            ) {
                 enqueue(
                     index -
                     width
@@ -1269,7 +1443,8 @@ applyBackgroundMask(
 
             if (
                 y <
-                height - 1
+                height -
+                1
             ) {
                 enqueue(
                     index +
@@ -1291,15 +1466,24 @@ function canvasToPngBlob(
     canvas:
         HTMLCanvasElement
 ) {
-    return new Promise<Blob>(
+    return new Promise<
+        Blob
+    >(
         (
             resolve,
             reject
         ) => {
             canvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        resolve(blob);
+                (
+                    blob
+                ) => {
+                    if (
+                        blob
+                    ) {
+                        resolve(
+                            blob
+                        );
+
                         return;
                     }
 
@@ -1317,9 +1501,12 @@ function canvasToPngBlob(
 }
 
 function blobToDataUrl(
-    blob: Blob
+    blob:
+        Blob
 ) {
-    return new Promise<string>(
+    return new Promise<
+        string
+    >(
         (
             resolve,
             reject
@@ -1327,33 +1514,35 @@ function blobToDataUrl(
             const reader =
                 new FileReader();
 
-            reader.onload = () => {
-                if (
-                    typeof reader.result ===
-                    'string'
-                ) {
-                    resolve(
-                        reader.result
+            reader.onload =
+                () => {
+                    if (
+                        typeof reader.result ===
+                        'string'
+                    ) {
+                        resolve(
+                            reader.result
+                        );
+
+                        return;
+                    }
+
+                    reject(
+                        new Error(
+                            'Não foi possível converter a imagem processada.'
+                        )
                     );
+                };
 
-                    return;
-                }
-
-                reject(
-                    new Error(
-                        'Não foi possível converter a imagem processada.'
-                    )
-                );
-            };
-
-            reader.onerror = () => {
-                reject(
-                    reader.error ||
-                    new Error(
-                        'Não foi possível ler a imagem processada.'
-                    )
-                );
-            };
+            reader.onerror =
+                () => {
+                    reject(
+                        reader.error ||
+                        new Error(
+                            'Não foi possível ler a imagem processada.'
+                        )
+                    );
+                };
 
             reader.readAsDataURL(
                 blob
@@ -1364,8 +1553,11 @@ function blobToDataUrl(
 
 export async function
 removeSimpleImageBackground(
-    dataUrl: string,
-    tolerance = 58
+    dataUrl:
+        string,
+
+    tolerance =
+        58
 ) {
     const image =
         await loadHtmlImage(
@@ -1454,13 +1646,16 @@ removeSimpleImageBackground(
     const analysisContext =
         analysisCanvas.getContext(
             '2d',
+
             {
                 willReadFrequently:
                     true
             }
         );
 
-    if (!analysisContext) {
+    if (
+        !analysisContext
+    ) {
         throw new Error(
             'O navegador não permitiu analisar a imagem.'
         );
@@ -1513,7 +1708,9 @@ removeSimpleImageBackground(
             '2d'
         );
 
-    if (!outputContext) {
+    if (
+        !outputContext
+    ) {
         throw new Error(
             'O navegador não permitiu criar a imagem sem fundo.'
         );
@@ -1556,11 +1753,17 @@ removeSimpleImageBackground(
             outputCanvas
         );
 
-    analysisCanvas.width = 1;
-    analysisCanvas.height = 1;
+    analysisCanvas.width =
+        1;
 
-    outputCanvas.width = 1;
-    outputCanvas.height = 1;
+    analysisCanvas.height =
+        1;
+
+    outputCanvas.width =
+        1;
+
+    outputCanvas.height =
+        1;
 
     return blobToDataUrl(
         blob
