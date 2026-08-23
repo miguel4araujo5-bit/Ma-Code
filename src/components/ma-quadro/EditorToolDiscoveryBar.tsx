@@ -10,6 +10,7 @@ import {
   useMAQuadroEditorContext
 } from './editorContext'
 
+import BulkCreateControl from './BulkCreateControl'
 import ImageQuickActions from './ImageQuickActions'
 import MagicResizeControl from './MagicResizeControl'
 import TextDiscoveryPanel from './TextDiscoveryPanel'
@@ -533,7 +534,9 @@ export default function EditorToolDiscoveryBar() {
 
         <div className="mq-tool-discovery__scroller">
           {primaryTools.map(
-            (tool) =>
+            (
+              tool
+            ) =>
               renderTool(
                 tool
               )
@@ -541,13 +544,17 @@ export default function EditorToolDiscoveryBar() {
 
           <MagicResizeControl />
 
+          <BulkCreateControl />
+
           <span
             className="mq-tool-discovery__divider"
             aria-hidden="true"
           />
 
           {contextualTools.map(
-            (tool) =>
+            (
+              tool
+            ) =>
               renderTool(
                 tool,
                 true
