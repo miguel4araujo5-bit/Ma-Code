@@ -70,18 +70,15 @@ body::before {
 .board-panel {
   position: relative;
   isolation: isolate;
-
   aspect-ratio: 941 / 1672;
-
   display: flex;
   flex-direction: column;
-
   padding:
     21%
     4%
     28%
     3.8%;
-
+  margin-bottom: clamp(46px, 6vw, 84px);
   box-shadow:
     0 18px 42px
     rgba(28, 36, 38, 0.2);
@@ -92,21 +89,15 @@ body::before {
   position: absolute;
   inset: 0;
   z-index: 30;
-
   pointer-events: none;
-
   background-image:
     var(--conquistador-wood-frame);
-
   background-repeat:
     no-repeat;
-
   background-position:
     center;
-
   background-size:
     100% 100%;
-
   filter:
     drop-shadow(
       0 10px 10px
@@ -115,11 +106,10 @@ body::before {
 }
 
 .board-title-row {
-  flex: 0 0 auto;
-
-  position: relative;
+  position: absolute;
+  left: 3.8%;
+  bottom: calc(-1 * clamp(40px, 5.5vw, 72px));
   z-index: 40;
-
   pointer-events: none;
 
   display: grid;
@@ -128,11 +118,8 @@ body::before {
   align-content: start;
   gap: 2px;
 
-  align-self: flex-start;
-  top: 94%;
-
   width: fit-content;
-  max-width: calc(100% - 26px);
+  max-width: calc(100% - 7.6%);
 
   padding: 5px 13px 6px;
   border: 1px solid rgba(236, 216, 155, 0.72);
@@ -161,13 +148,11 @@ body::before {
 .board-title-row strong {
   display: block;
   min-width: 0;
-
   color: #fffdf7;
   line-height: 1.05;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.42),
     0 2px 4px rgba(0, 0, 0, 0.22);
@@ -188,7 +173,6 @@ body::before {
   display: block;
   max-width: 100%;
   min-width: 0;
-
   text-align: left;
   line-height: 1.1;
   white-space: nowrap;
@@ -199,26 +183,20 @@ body::before {
 .board-frame {
   flex: 1 1 auto;
   min-height: 0;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   border: 0;
   border-radius: 6px;
-
   overflow: hidden;
 }
 
 .board-svg {
   display: block;
-
   width: 94%;
   height: 94%;
-
   min-width: 0;
   min-height: 0;
-
   margin: auto;
 }
 
@@ -243,6 +221,7 @@ body::before {
   }
 
   .board-panel {
+    margin-bottom: clamp(40px, 10vw, 68px);
     box-shadow:
       0 10px 26px
       rgba(28, 36, 38, 0.16);
@@ -257,7 +236,8 @@ body::before {
   }
 
   .board-title-row {
-    max-width: calc(100% - 18px);
+    bottom: calc(-1 * clamp(34px, 8vw, 56px));
+    max-width: calc(100% - 20px);
     padding: 4px 10px 5px;
   }
 }
