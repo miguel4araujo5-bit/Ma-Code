@@ -10,7 +10,7 @@ import {
   useMAQuadroEditorContext
 } from './editorContext'
 
-import BulkCreateControl from './BulkCreateControl'
+import BulkCreateProControl from './BulkCreateProControl'
 import ImageQuickActions from './ImageQuickActions'
 import MagicResizeControl from './MagicResizeControl'
 import SmartMockupControl from './SmartMockupControl'
@@ -260,7 +260,8 @@ function revealTarget(
         if (
           !navigationButton
         ) {
-          attempts += 1
+          attempts +=
+            1
 
           if (
             attempts <
@@ -283,7 +284,8 @@ function revealTarget(
         ) {
           navigationButton.click()
 
-          attempts += 1
+          attempts +=
+            1
 
           window.requestAnimationFrame(
             findTarget
@@ -337,7 +339,8 @@ function revealTarget(
         return
       }
 
-      attempts += 1
+      attempts +=
+        1
 
       if (
         attempts <
@@ -545,7 +548,7 @@ export default function EditorToolDiscoveryBar() {
 
           <MagicResizeControl />
 
-          <BulkCreateControl />
+          <BulkCreateProControl />
 
           <SmartMockupControl />
 
