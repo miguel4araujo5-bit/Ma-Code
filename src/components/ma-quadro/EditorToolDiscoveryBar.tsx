@@ -11,6 +11,7 @@ import {
 } from './editorContext'
 
 import ImageQuickActions from './ImageQuickActions'
+import MagicResizeControl from './MagicResizeControl'
 import TextDiscoveryPanel from './TextDiscoveryPanel'
 
 type ToolSide =
@@ -38,14 +39,16 @@ const primaryTools:
       label: 'Modelos',
       icon: '▦',
       panel: 'templates',
-      title: 'Abrir modelos'
+      title:
+        'Abrir modelos'
     },
     {
       id: 'elements',
       label: 'Elementos',
       icon: '◇',
       panel: 'elements',
-      title: 'Abrir elementos'
+      title:
+        'Abrir elementos'
     },
     {
       id: 'text',
@@ -60,7 +63,8 @@ const primaryTools:
       label: 'Imagens',
       icon: '▧',
       panel: 'uploads',
-      title: 'Carregar imagens'
+      title:
+        'Carregar imagens'
     },
     {
       id: 'video',
@@ -83,7 +87,8 @@ const primaryTools:
       elementToolId:
         'table',
       side: 'left',
-      title: 'Criar tabela'
+      title:
+        'Criar tabela'
     },
     {
       id: 'charts',
@@ -95,7 +100,8 @@ const primaryTools:
       elementToolId:
         'chart',
       side: 'left',
-      title: 'Criar gráfico'
+      title:
+        'Criar gráfico'
     },
     {
       id: 'qr',
@@ -456,7 +462,9 @@ export default function EditorToolDiscoveryBar() {
 
     return (
       <button
-        key={tool.id}
+        key={
+          tool.id
+        }
         type="button"
         className={`mq-tool-discovery__button${
           active
@@ -530,6 +538,8 @@ export default function EditorToolDiscoveryBar() {
                 tool
               )
           )}
+
+          <MagicResizeControl />
 
           <span
             className="mq-tool-discovery__divider"
