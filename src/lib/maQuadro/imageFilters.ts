@@ -1,5 +1,6 @@
 import {
     FabricImage,
+    FabricObject,
     filters
 } from 'fabric';
 
@@ -11,19 +12,16 @@ import type {
     MAQuadroFabricObject
 } from './canvasObjects';
 
-export const
-    DEFAULT_IMAGE_FILTERS:
-        MAQuadroImageFilterState = {
-            brightness: 0,
-            contrast: 0,
-            saturation: 0,
-            blur: 0,
-            grayscale: false
-        };
-
 type MAQuadroFilteredImage =
     FabricImage &
-    MAQuadroFabricObject;
+    MAQuadroFabricObject & {
+        maFilterTemperature?: number;
+        maFilterHue?: number;
+        maFilterFade?: number;
+        maFilterDuotoneEnabled?: boolean;
+        maFilterDuotoneShadows?: string;
+        maFilterDuotoneHighlights?: string;
+    };
 
 type RgbColour =
     readonly [
@@ -31,6 +29,48 @@ type RgbColour =
         number,
         number
     ];
+
+const EXTENDED_IMAGE_FILTER_PROPERTIES = [
+    'maFilterTemperature',
+    'maFilterHue',
+    'maFilterFade',
+    'maFilterDuotoneEnabled',
+    'maFilterDuotoneShadows',
+    'maFilterDuotoneHighlights'
+];
+
+const fabricObjectClass =
+    FabricObject as unknown as {
+        customProperties: string[];
+    };
+
+fabricObjectClass.customProperties =
+    Array.from(
+        new Set([
+            ...(
+                fabricObjectClass
+                    .customProperties ||
+                []
+            ),
+            ...EXTENDED_IMAGE_FILTER_PROPERTIES
+        ])
+    );
+
+export const
+    DEFAULT_IMAGE_FILTERS:
+        MAQuadroImageFilterState = {
+            brightness: 0,
+            contrast: 0,
+            saturation: 0,
+            blur: 0,
+            grayscale: false,
+            temperature: 0,
+            hue: 0,
+            fade: 0,
+            duotoneEnabled: false,
+            duotoneShadows: '#0F172A',
+            duotoneHighlights: '#F8FAFC'
+        };
 
 const
     BACKGROUND_ANALYSIS_MAX_SIDE =
@@ -70,6 +110,50 @@ function clamp(
     );
 }
 
+function normalizeHexColour(
+    value: unknown,
+    fallback: string
+) {
+    const normalized =
+        typeof value ===
+        'string'
+            ? value
+                .trim()
+                .toUpperCase()
+            : fallback;
+
+    return /^#[0-9A-F]{6}$/.test(
+        normalized
+    )
+        ? normalized
+        : fallback;
+}
+
+function hexToRgb(
+    value: string
+): RgbColour {
+    const normalized =
+        normalizeHexColour(
+            value,
+            '#000000'
+        );
+
+    return [
+        Number.parseInt(
+            normalized.slice(1, 3),
+            16
+        ),
+        Number.parseInt(
+            normalized.slice(3, 5),
+            16
+        ),
+        Number.parseInt(
+            normalized.slice(5, 7),
+            16
+        )
+    ];
+}
+
 function normalizeFilterState(
     state:
         MAQuadroImageFilterState
@@ -106,8 +190,119 @@ function normalizeFilterState(
         grayscale:
             Boolean(
                 state.grayscale
+            ),
+
+        temperature:
+            clamp(
+                Number(
+                    state.temperature ??
+                    0
+                ),
+                -100,
+                100
+            ),
+
+        hue:
+            clamp(
+                Number(
+                    state.hue ??
+                    0
+                ),
+                -180,
+                180
+            ),
+
+        fade:
+            clamp(
+                Number(
+                    state.fade ??
+                    0
+                ),
+                0,
+                100
+            ),
+
+        duotoneEnabled:
+            Boolean(
+                state.duotoneEnabled
+            ),
+
+        duotoneShadows:
+            normalizeHexColour(
+                state.duotoneShadows,
+                '#0F172A'
+            ),
+
+        duotoneHighlights:
+            normalizeHexColour(
+                state.duotoneHighlights,
+                '#F8FAFC'
             )
     };
+}
+
+function createDuotoneMatrix(
+    shadowColour: string,
+    highlightColour: string
+) {
+    const [
+        shadowRed,
+        shadowGreen,
+        shadowBlue
+    ] = hexToRgb(
+        shadowColour
+    );
+
+    const [
+        highlightRed,
+        highlightGreen,
+        highlightBlue
+    ] = hexToRgb(
+        highlightColour
+    );
+
+    const redDifference =
+        highlightRed -
+        shadowRed;
+
+    const greenDifference =
+        highlightGreen -
+        shadowGreen;
+
+    const blueDifference =
+        highlightBlue -
+        shadowBlue;
+
+    return [
+        0.2126 * redDifference / 255,
+        0.7152 * redDifference / 255,
+        0.0722 * redDifference / 255,
+        0,
+        shadowRed / 255,
+
+        0.2126 * greenDifference / 255,
+        0.7152 * greenDifference / 255,
+        0.0722 * greenDifference / 255,
+        0,
+        shadowGreen / 255,
+
+        0.2126 * blueDifference / 255,
+        0.7152 * blueDifference / 255,
+        0.0722 * blueDifference / 255,
+        0,
+        shadowBlue / 255,
+
+        0,
+        0,
+        0,
+        1,
+        0
+    ] as [
+        number, number, number, number, number,
+        number, number, number, number, number,
+        number, number, number, number, number,
+        number, number, number, number, number
+    ];
 }
 
 export function
@@ -115,6 +310,10 @@ getMAQuadroImageFilters(
     image:
         MAQuadroFabricObject
 ): MAQuadroImageFilterState {
+    const filteredImage =
+        image as
+            MAQuadroFilteredImage;
+
     return normalizeFilterState({
         brightness:
             Number(
@@ -148,7 +347,44 @@ getMAQuadroImageFilters(
             Boolean(
                 image
                     .maFilterGrayscale
-            )
+            ),
+
+        temperature:
+            Number(
+                filteredImage
+                    .maFilterTemperature ||
+                0
+            ),
+
+        hue:
+            Number(
+                filteredImage
+                    .maFilterHue ||
+                0
+            ),
+
+        fade:
+            Number(
+                filteredImage
+                    .maFilterFade ||
+                0
+            ),
+
+        duotoneEnabled:
+            Boolean(
+                filteredImage
+                    .maFilterDuotoneEnabled
+            ),
+
+        duotoneShadows:
+            filteredImage
+                .maFilterDuotoneShadows ||
+            '#0F172A',
+
+        duotoneHighlights:
+            filteredImage
+                .maFilterDuotoneHighlights ||
+            '#F8FAFC'
     });
 }
 
@@ -156,7 +392,6 @@ export function
 applyMAQuadroImageFilters(
     image:
         MAQuadroFilteredImage,
-
     state:
         MAQuadroImageFilterState
 ) {
@@ -179,6 +414,24 @@ applyMAQuadroImageFilters(
 
     image.maFilterGrayscale =
         normalized.grayscale;
+
+    image.maFilterTemperature =
+        normalized.temperature;
+
+    image.maFilterHue =
+        normalized.hue;
+
+    image.maFilterFade =
+        normalized.fade;
+
+    image.maFilterDuotoneEnabled =
+        normalized.duotoneEnabled;
+
+    image.maFilterDuotoneShadows =
+        normalized.duotoneShadows;
+
+    image.maFilterDuotoneHighlights =
+        normalized.duotoneHighlights;
 
     const nextFilters:
         FabricImage['filters'] =
@@ -224,14 +477,55 @@ applyMAQuadroImageFilters(
     }
 
     if (
-        normalized.blur !==
+        normalized.temperature !==
+        0
+    ) {
+        const warm =
+            normalized.temperature >
+            0;
+
+        nextFilters.push(
+            new filters.BlendColor({
+                color:
+                    warm
+                        ? '#FF8A3D'
+                        : '#60A5FA',
+                mode: 'tint',
+                alpha:
+                    Math.abs(
+                        normalized.temperature
+                    ) /
+                    100 *
+                    0.28
+            })
+        );
+    }
+
+    if (
+        normalized.hue !==
         0
     ) {
         nextFilters.push(
-            new filters.Blur({
-                blur:
-                    normalized.blur /
-                    100
+            new filters.HueRotation({
+                rotation:
+                    normalized.hue /
+                    360
+            })
+        );
+    }
+
+    if (
+        normalized.fade !==
+        0
+    ) {
+        nextFilters.push(
+            new filters.BlendColor({
+                color: '#FFFFFF',
+                mode: 'tint',
+                alpha:
+                    normalized.fade /
+                    100 *
+                    0.32
             })
         );
     }
@@ -241,6 +535,35 @@ applyMAQuadroImageFilters(
     ) {
         nextFilters.push(
             new filters.Grayscale()
+        );
+    }
+
+    if (
+        normalized.duotoneEnabled
+    ) {
+        nextFilters.push(
+            new filters.ColorMatrix({
+                matrix:
+                    createDuotoneMatrix(
+                        normalized
+                            .duotoneShadows,
+                        normalized
+                            .duotoneHighlights
+                    )
+            })
+        );
+    }
+
+    if (
+        normalized.blur !==
+        0
+    ) {
+        nextFilters.push(
+            new filters.Blur({
+                blur:
+                    normalized.blur /
+                    100
+            })
         );
     }
 
