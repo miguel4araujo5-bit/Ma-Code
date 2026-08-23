@@ -20,7 +20,7 @@ function Section({
   title,
   description,
   children,
-  defaultOpen = true
+  defaultOpen = false
 }: {
   title: string
   description?: string
@@ -31,6 +31,12 @@ function Section({
     open,
     setOpen
   ] = useState(defaultOpen)
+
+  useEffect(() => {
+    setOpen(defaultOpen)
+  }, [
+    defaultOpen
+  ])
 
   return (
     <section className="mq-properties-section">
@@ -286,6 +292,7 @@ function BackgroundProperties() {
       <Section
         title="Fundo da página"
         description="Cor sólida, transparência ou gradiente"
+        defaultOpen
       >
         <div className="mq-segmented">
           {([
@@ -661,6 +668,12 @@ function AppearanceProperties() {
     <Section
       title="Aspeto"
       description="Cores, contorno, opacidade e efeitos"
+      defaultOpen={
+        selection.count === 1 &&
+        selection.role !== 'text' &&
+        selection.role !== 'image' &&
+        selection.role !== 'group'
+      }
     >
       {supportsFill ? (
         <ColorField
@@ -822,6 +835,7 @@ function TextProperties() {
     <Section
       title="Tipografia"
       description="Fonte, hierarquia e espaçamento"
+      defaultOpen
     >
       <label className="mq-field">
         <span>
@@ -1300,6 +1314,7 @@ function ImageProperties() {
       <Section
         title="Imagem"
         description="Substituir, usar como fundo ou copiar o estilo"
+        defaultOpen
       >
         <input
           ref={
@@ -1358,6 +1373,7 @@ function ImageProperties() {
       <Section
         title="Ajustar imagem"
         description="Filtros não destrutivos"
+        defaultOpen={false}
       >
         <fieldset
           disabled={
