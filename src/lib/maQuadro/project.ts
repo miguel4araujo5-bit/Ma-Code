@@ -8,6 +8,11 @@ import type {
 
 export const MA_QUADRO_SCHEMA_VERSION = 2 as const
 
+const PAGE_REFERENCE_KEYS = [
+  'maMatchMoveSourcePageId',
+  'maMatchMoveTargetPageId'
+] as const
+
 export function createMAQuadroId(prefix: string) {
   if (
     typeof crypto !== 'undefined' &&
@@ -27,6 +32,50 @@ export function cloneMAQuadroValue<T>(value: T): T {
   }
 
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+function remapPageReferences(
+  value: unknown,
+  pageIdMap: Map<string, string>
+) {
+  if (
+    !value ||
+    typeof value !== 'object'
+  ) {
+    return
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => remapPageReferences(item, pageIdMap))
+    return
+  }
+
+  const node = value as Record<string, unknown>
+
+  for (const key of PAGE_REFERENCE_KEYS) {
+    const current = node[key]
+
+    if (typeof current !== 'string') {
+      continue
+    }
+
+    const mapped = pageIdMap.get(current)
+
+    if (mapped) {
+      node[key] = mapped
+    }
+  }
+
+  Object.values(node).forEach((child) => remapPageReferences(child, pageIdMap))
+}
+
+function cloneCanvasWithPageReferences(
+  canvasJson: MAQuadroCanvasJson,
+  pageIdMap: Map<string, string>
+) {
+  const cloned = cloneMAQuadroValue(canvasJson)
+  remapPageReferences(cloned, pageIdMap)
+  return cloned
 }
 
 export function createDefaultBackground(
@@ -90,10 +139,16 @@ export function duplicatePage(
   page: MAQuadroPage,
   name = `${page.name} — cópia`
 ): MAQuadroPage {
+  const nextId = createMAQuadroId('page')
+  const pageIdMap = new Map<string, string>([
+    [page.id, nextId]
+  ])
+
   return {
     ...cloneMAQuadroValue(page),
-    id: createMAQuadroId('page'),
+    id: nextId,
     name,
+    canvasJson: cloneCanvasWithPageReferences(page.canvasJson, pageIdMap),
     thumbnail: page.thumbnail
   }
 }
@@ -103,10 +158,18 @@ export function duplicateProject(
   name = `${project.name} — cópia`
 ): MAQuadroProject {
   const now = new Date().toISOString()
+  const pageIdMap = new Map<string, string>()
+
+  project.pages.forEach((page) => {
+    pageIdMap.set(page.id, createMAQuadroId('page'))
+  })
+
   const pages = project.pages.map((page) => ({
     ...cloneMAQuadroValue(page),
-    id: createMAQuadroId('page')
+    id: pageIdMap.get(page.id) || createMAQuadroId('page'),
+    canvasJson: cloneCanvasWithPageReferences(page.canvasJson, pageIdMap)
   }))
+
   const activeIndex = Math.max(
     0,
     project.pages.findIndex(
@@ -244,6 +307,7 @@ export function migrateLegacyMAQuadroDesign(
   }
 
   const now = new Date().toISOString()
+
   const page: MAQuadroPage = {
     id: createMAQuadroId('page'),
     name: 'Página 1',
