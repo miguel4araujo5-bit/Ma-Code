@@ -426,89 +426,109 @@ function buildApprovalEmail(
   const safePassword =
     escapeHtml(password)
 
+  const safePasswordGroups =
+    safePassword
+      .split('-')
+      .map(
+        group =>
+          `<span style="display:inline-block;margin:3px 2px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:17px;font-weight:800;line-height:1;color:#0f172a;letter-spacing:.04em;">${group}</span>`
+      )
+      .join(
+        '<span style="display:inline-block;margin:0 2px;color:#94a3b8;font-weight:700;">-</span>'
+      )
+
   return {
     to:
       email,
+
     subject:
-      'O seu acesso ao MA-Professor foi aprovado',
+      'O seu acesso ao MA-Professor está pronto',
+
     text: [
       'Olá,',
       '',
-      'O seu pedido de acesso gratuito à fase piloto do MA-Professor foi aprovado.',
+      'O seu acesso gratuito à fase piloto do MA-Professor foi aprovado. Falta apenas ativá-lo.',
       '',
-      `Ativar acesso: ${MA_PROFESSOR_ACTIVATION_URL}`,
       `Email: ${email}`,
       `Senha de ativação: ${password}`,
       '',
-      'O botão ou link de ativação abre diretamente o ecrã “Ativar acesso”. Nesse ecrã só precisa do seu email e desta senha de ativação.',
+      `Ativar acesso: ${MA_PROFESSOR_ACTIVATION_URL}`,
       '',
-      'A sua password pessoal foi definida quando submeteu o pedido de acesso. Não é pedida novamente durante a ativação e será a password que deverá guardar para os acessos seguintes.',
+      'A senha que começa por MP- serve apenas para esta ativação.',
       '',
-      'Esta senha de ativação serve apenas para ativar o período de acesso autorizado. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.',
-      '',
-      'Depois da ativação, entra normalmente com o seu email e a password pessoal. A senha de ativação deixa de ser necessária para os logins.',
-      '',
-      'A confirmação mensal para manutenção da vaga é um processo separado. Não utiliza esta senha de ativação e não altera a sua password pessoal.',
+      'Depois da ativação, entre normalmente com o seu email e a password pessoal que definiu quando pediu acesso.',
       '',
       'MA-Professor | MA-CODE'
     ].join('\n'),
+
     html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:620px;margin:0 auto;padding:24px;">
-        <p style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;margin:0 0 12px;">MA-Professor · Fase piloto</p>
+      <div style="margin:0;background:#f8fafc;padding:32px 16px;">
+        <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#0f172a;max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:32px;box-sizing:border-box;">
 
-        <h1 style="font-size:24px;line-height:1.25;margin:0 0 18px;color:#0f172a;">
-          O seu pedido foi aprovado
-        </h1>
-
-        <p>Olá,</p>
-
-        <p>
-          O seu pedido de <strong>acesso gratuito à fase piloto do MA-Professor</strong> foi aprovado.
-        </p>
-
-        <div style="margin:24px 0;padding:18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
-          <p style="margin:0 0 8px;">
-            <strong>Email:</strong> ${safeEmail}
+          <p style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0891b2;margin:0 0 14px;">
+            MA-Professor · Fase piloto
           </p>
 
-          <p style="margin:0;">
-            <strong>Senha de ativação:</strong>
-            <span style="font-family:monospace;">${safePassword}</span>
+          <h1 style="font-size:27px;line-height:1.2;margin:0 0 18px;color:#0f172a;">
+            O seu acesso está pronto
+          </h1>
+
+          <p style="margin:0 0 8px;font-size:16px;color:#334155;">
+            Olá,
           </p>
+
+          <p style="margin:0;font-size:16px;line-height:1.65;color:#334155;">
+            O seu acesso gratuito à fase piloto do MA-Professor foi aprovado.
+            Falta apenas ativá-lo.
+          </p>
+
+          <div style="margin:26px 0 0;padding:20px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;">
+
+            <p style="margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;">
+              Email
+            </p>
+
+            <p style="margin:5px 0 20px;font-size:15px;font-weight:700;color:#0f172a;word-break:break-word;">
+              ${safeEmail}
+            </p>
+
+            <p style="margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;">
+              Senha de ativação
+            </p>
+
+            <div
+              style="-webkit-user-select:all;user-select:all;margin:0;padding:5px 0;font-size:0;line-height:1.5;"
+              title="Selecione para copiar"
+            >${safePasswordGroups}</div>
+
+            <p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#64748b;">
+              Selecione a senha acima para a copiar.
+            </p>
+
+          </div>
+
+          <div style="margin:26px 0;text-align:center;">
+            <a
+              href="${MA_PROFESSOR_ACTIVATION_URL}"
+              style="display:inline-block;width:100%;box-sizing:border-box;background:#22d3ee;color:#082f49;text-decoration:none;text-align:center;font-size:15px;font-weight:800;padding:14px 20px;border-radius:11px;"
+            >
+              Ativar acesso
+            </a>
+          </div>
+
+          <div style="margin:0;padding:16px 18px;border-left:4px solid #22d3ee;background:#ecfeff;border-radius:0 10px 10px 0;">
+            <p style="margin:0;font-size:14px;line-height:1.6;color:#164e63;">
+              A senha <strong>MP-</strong> serve apenas para esta ativação.
+              Depois, entra normalmente com o seu email e a
+              <strong>password pessoal que definiu quando pediu acesso</strong>.
+            </p>
+          </div>
+
+          <p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
+            MA-Professor | MA-CODE
+          </p>
+
         </div>
-
-        <p style="margin:24px 0;">
-          <a
-            href="${MA_PROFESSOR_ACTIVATION_URL}"
-            style="display:inline-block;background:#22d3ee;color:#082f49;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;"
-          >
-            Ativar acesso
-          </a>
-        </p>
-
-        <p>
-          O botão abre diretamente o ecrã <strong>“Ativar acesso”</strong>. Nesse ecrã só precisa do seu email e desta senha de ativação.
-        </p>
-
-        <p style="color:#475569;font-size:14px;">
-          A sua <strong>password pessoal</strong> foi definida quando submeteu o pedido de acesso. Não é pedida novamente durante a ativação e será a password que deverá guardar para os acessos seguintes.
-        </p>
-
-        <p style="color:#475569;font-size:14px;">
-          Esta senha serve <strong>apenas para ativar o período de acesso autorizado</strong>. Não é a sua password normal de entrada no MA-Professor e não deve ser partilhada.
-        </p>
-
-        <p style="color:#475569;font-size:14px;">
-          Depois da ativação, entra normalmente com o seu email e a <strong>password pessoal</strong>. A senha de ativação deixa de ser necessária para os logins.
-        </p>
-
-        <p style="color:#475569;font-size:14px;">
-          A confirmação mensal para manutenção da vaga é um processo separado. Não utiliza esta senha de ativação e não altera a sua password pessoal.
-        </p>
-
-        <p style="margin-top:28px;">
-          MA-Professor | MA-CODE
-        </p>
       </div>
     `
   }
