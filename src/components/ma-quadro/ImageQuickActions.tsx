@@ -7,6 +7,8 @@ import {
   createPortal
 } from 'react-dom'
 
+import BackgroundRemovalEditor from './BackgroundRemovalEditor'
+
 import {
   useMAQuadroEditorContext
 } from './editorContext'
@@ -63,16 +65,36 @@ export default function ImageQuickActions() {
       null
     )
 
+  const [
+    backgroundOpen,
+    setBackgroundOpen
+  ] =
+    useState(false)
+
+  const [
+    backgroundPreparing,
+    setBackgroundPreparing
+  ] =
+    useState(false)
+
   const isImage =
-    editor.selection.count === 1 &&
-    editor.selection.role === 'image'
+    editor.selection.count ===
+      1 &&
+    editor.selection.role ===
+      'image'
 
   useLayoutEffect(() => {
     if (
       !editor.ready ||
       !isImage
     ) {
-      setHost(null)
+      setHost(
+        null
+      )
+
+      setBackgroundOpen(
+        false
+      )
 
       return
     }
@@ -83,7 +105,9 @@ export default function ImageQuickActions() {
       )
 
     if (!toolbar) {
-      setHost(null)
+      setHost(
+        null
+      )
 
       return
     }
@@ -94,9 +118,10 @@ export default function ImageQuickActions() {
         | null
 
     const originalImageGroup =
-      globalGroup?.previousElementSibling as
-        | HTMLElement
-        | null
+      globalGroup
+        ?.previousElementSibling as
+          | HTMLElement
+          | null
 
     if (
       !globalGroup ||
@@ -105,7 +130,9 @@ export default function ImageQuickActions() {
         'mq-context-toolbar__group'
       )
     ) {
-      setHost(null)
+      setHost(
+        null
+      )
 
       return
     }
@@ -144,14 +171,53 @@ export default function ImageQuickActions() {
 
   const locked =
     editor.busy ||
-    editor.structureBusy
+    editor.structureBusy ||
+    backgroundPreparing
 
   const cropZoom =
-    editor.selection.cropZoom
+    editor.selection
+      .cropZoom
 
   const frame =
-    editor.selection.imageFrame as
-      ImageFrameKind
+    editor.selection
+      .imageFrame as
+        ImageFrameKind
+
+  const openBackgroundRemoval =
+    async () => {
+      if (
+        locked ||
+        editor.imageCropEditing
+      ) {
+        return
+      }
+
+      setBackgroundPreparing(
+        true
+      )
+
+      try {
+        /*
+         * Garante que activePage.canvasJson contém
+         * a versão atual da imagem antes de o
+         * editor manual ler a origem serializada.
+         */
+        const saved =
+          await editor.saveProject(
+            true
+          )
+
+        if (saved) {
+          setBackgroundOpen(
+            true
+          )
+        }
+      } finally {
+        setBackgroundPreparing(
+          false
+        )
+      }
+    }
 
   if (
     editor.imageCropEditing
@@ -164,7 +230,9 @@ export default function ImageQuickActions() {
         <button
           type="button"
           className="mq-image-quick-actions__primary"
-          disabled={locked}
+          disabled={
+            locked
+          }
           onClick={
             editor.finishImageCrop
           }
@@ -174,7 +242,9 @@ export default function ImageQuickActions() {
 
         <button
           type="button"
-          disabled={locked}
+          disabled={
+            locked
+          }
           onClick={
             editor.cancelImageCrop
           }
@@ -202,7 +272,8 @@ export default function ImageQuickActions() {
           aria-label="Reduzir zoom"
           onClick={() =>
             editor.setImageCropZoom(
-              cropZoom - 10
+              cropZoom -
+                10
             )
           }
         >
@@ -215,13 +286,20 @@ export default function ImageQuickActions() {
           min={100}
           max={400}
           step={5}
-          value={cropZoom}
-          disabled={locked}
+          value={
+            cropZoom
+          }
+          disabled={
+            locked
+          }
           aria-label="Zoom da imagem"
-          onChange={(event) =>
+          onChange={(
+            event
+          ) =>
             editor.setImageCropZoom(
               Number(
-                event.currentTarget
+                event
+                  .currentTarget
                   .value
               )
             )
@@ -245,7 +323,8 @@ export default function ImageQuickActions() {
           aria-label="Aumentar zoom"
           onClick={() =>
             editor.setImageCropZoom(
-              cropZoom + 10
+              cropZoom +
+                10
             )
           }
         >
@@ -254,7 +333,9 @@ export default function ImageQuickActions() {
 
         <button
           type="button"
-          disabled={locked}
+          disabled={
+            locked
+          }
           onClick={() =>
             editor.setImageCropPosition(
               50,
@@ -267,7 +348,9 @@ export default function ImageQuickActions() {
 
         <button
           type="button"
-          disabled={locked}
+          disabled={
+            locked
+          }
           onClick={
             editor.resetImageCrop
           }
@@ -279,100 +362,148 @@ export default function ImageQuickActions() {
     )
   }
 
-  return createPortal(
-    <div
-      className="mq-image-quick-actions"
-      aria-label="Ações rápidas da imagem"
-    >
-      <button
-        type="button"
-        className="mq-image-quick-actions__primary"
-        disabled={locked}
-        onClick={
-          editor.beginImageCrop
-        }
-      >
-        Recortar
-      </button>
-
-      <button
-        type="button"
-        disabled={locked}
-        onClick={() =>
-          editor.replacementImageInputRef
-            .current
-            ?.click()
-        }
-      >
-        Substituir
-      </button>
-
-      <label
-        className="mq-image-quick-actions__frame"
-        title="Moldura da imagem"
-      >
-        <span>
-          Moldura
-        </span>
-
-        <select
-          value={frame}
-          disabled={locked}
-          aria-label="Moldura da imagem"
-          onChange={(event) =>
-            editor.setImageFrame(
-              event.currentTarget
-                .value as
-                ImageFrameKind
-            )
-          }
+  return (
+    <>
+      {createPortal(
+        <div
+          className="mq-image-quick-actions"
+          aria-label="Ações rápidas da imagem"
         >
-          <option value="none">
-            Sem moldura
-          </option>
+          <button
+            type="button"
+            className="mq-image-quick-actions__primary"
+            disabled={
+              locked
+            }
+            onClick={
+              editor.beginImageCrop
+            }
+          >
+            Recortar
+          </button>
 
-          <option value="rounded">
-            Arredondada
-          </option>
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            onClick={() =>
+              editor
+                .replacementImageInputRef
+                .current
+                ?.click()
+            }
+          >
+            Substituir
+          </button>
 
-          <option value="circle">
-            Círculo
-          </option>
+          <label
+            className="mq-image-quick-actions__frame"
+            title="Moldura da imagem"
+          >
+            <span>
+              Moldura
+            </span>
 
-          <option value="ellipse">
-            Elipse
-          </option>
+            <select
+              value={
+                frame
+              }
+              disabled={
+                locked
+              }
+              aria-label="Moldura da imagem"
+              onChange={(
+                event
+              ) =>
+                editor.setImageFrame(
+                  event
+                    .currentTarget
+                    .value as
+                      ImageFrameKind
+                )
+              }
+            >
+              <option value="none">
+                Sem moldura
+              </option>
 
-          <option value="triangle">
-            Triângulo
-          </option>
+              <option value="rounded">
+                Arredondada
+              </option>
 
-          <option value="star">
-            Estrela
-          </option>
-        </select>
-      </label>
+              <option value="circle">
+                Círculo
+              </option>
 
-      <button
-        type="button"
-        disabled={locked}
-        onClick={
-          revealImageFilters
+              <option value="ellipse">
+                Elipse
+              </option>
+
+              <option value="triangle">
+                Triângulo
+              </option>
+
+              <option value="star">
+                Estrela
+              </option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            onClick={
+              revealImageFilters
+            }
+          >
+            Filtros
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            aria-busy={
+              backgroundPreparing
+            }
+            onClick={() =>
+              void openBackgroundRemoval()
+            }
+          >
+            {backgroundPreparing
+              ? 'A preparar…'
+              : 'Remover fundo'}
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            onClick={
+              editor.setImageAsBackground
+            }
+          >
+            Usar como fundo
+          </button>
+        </div>,
+        host
+      )}
+
+      <BackgroundRemovalEditor
+        open={
+          backgroundOpen
         }
-      >
-        Filtros
-      </button>
-
-      <button
-        type="button"
-        disabled={locked}
-        onClick={
-          editor.setImageAsBackground
+        onClose={() =>
+          setBackgroundOpen(
+            false
+          )
         }
-      >
-        Usar como fundo
-      </button>
-    </div>,
-    host
+      />
+    </>
   )
 }
