@@ -8,6 +8,7 @@ import {
 } from 'react-dom'
 
 import AnimationControls from './AnimationControls'
+import MatchMoveControl from './MatchMoveControl'
 import PageAnimationToolbar from './PageAnimationToolbar'
 
 import {
@@ -86,6 +87,7 @@ AnimationPanel() {
   return (
     <>
       <PageAnimationToolbar />
+      <MatchMoveControl />
 
       {host &&
       animations.available
