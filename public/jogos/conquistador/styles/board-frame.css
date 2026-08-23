@@ -16,7 +16,6 @@
 
 .game-screen {
   background-color: #f6f1e5;
-
   background-image:
     linear-gradient(
       rgba(255, 253, 247, 0.08),
@@ -97,7 +96,6 @@ body::before {
 
 .board-panel::after {
   content: "";
-
   position: absolute;
   inset: 0;
   z-index: 30;
@@ -129,14 +127,15 @@ body::before {
   position: relative;
   z-index: 40;
 
+  pointer-events: none;
+
   align-self: flex-start;
-  top: 82%;
+  top: 88%;
 
   width: fit-content;
   max-width: 100%;
 
   padding: 5px 13px 6px;
-
   border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 10px;
 
