@@ -34,9 +34,6 @@ const RESEND_EMAIL_API_URL =
 const MA_PROFESSOR_ACCESS_URL =
   'https://ma-code.pt/produtos/ma-professor'
 
-const MA_PROFESSOR_ACTIVATION_URL =
-  `${MA_PROFESSOR_ACCESS_URL}?acesso=ativar`
-
 const MA_PROFESSOR_EMAIL_ADDRESS =
   'acesso@professor.ma-code.pt'
 
@@ -107,6 +104,26 @@ function escapeHtml(
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+function buildActivationUrl(
+  email: string,
+  password: string
+) {
+  const query =
+    new URLSearchParams({
+      acesso:
+        'ativar',
+      email
+    })
+
+  const fragment =
+    new URLSearchParams({
+      senha:
+        password
+    })
+
+  return `${MA_PROFESSOR_ACCESS_URL}?${query.toString()}#${fragment.toString()}`
 }
 
 function getGeneratedCredential(
@@ -420,21 +437,29 @@ function buildApprovalEmail(
   email: string,
   password: string
 ): MAProfessorEmailMessage {
+  const activationUrl =
+    buildActivationUrl(
+      email,
+      password
+    )
+
   const safeEmail =
     escapeHtml(email)
 
-  const safePassword =
-    escapeHtml(password)
+  const safeActivationUrl =
+    escapeHtml(
+      activationUrl
+    )
 
   const safePasswordGroups =
-    safePassword
+    password
       .split('-')
       .map(
         group =>
-          `<span style="display:inline-block;margin:3px 2px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:17px;font-weight:800;line-height:1;color:#0f172a;letter-spacing:.04em;">${group}</span>`
+          `<span style="display:inline-block;margin:3px 2px;padding:10px 11px;border:1px solid #a5b4fc;border-radius:9px;background:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:17px;font-weight:800;line-height:1;color:#0f172a;letter-spacing:.04em;">${escapeHtml(group)}</span>`
       )
       .join(
-        '<span style="display:inline-block;margin:0 2px;color:#94a3b8;font-weight:700;">-</span>'
+        '<span style="display:inline-block;margin:0 1px;color:#94a3b8;font-weight:800;">-</span>'
       )
 
   return {
@@ -442,53 +467,47 @@ function buildApprovalEmail(
       email,
 
     subject:
-      'O seu acesso ao MA-Professor está pronto',
+      'Ative o seu acesso ao MA-Professor',
 
     text: [
       'Olá,',
       '',
-      'O seu acesso gratuito à fase piloto do MA-Professor foi aprovado. Falta apenas ativá-lo.',
+      'O seu acesso gratuito ao MA-Professor foi aprovado.',
       '',
       `Email: ${email}`,
       `Senha de ativação: ${password}`,
       '',
-      `Ativar acesso: ${MA_PROFESSOR_ACTIVATION_URL}`,
+      'Abra o link abaixo. O email e a senha de ativação serão preenchidos automaticamente:',
+      activationUrl,
       '',
-      'A senha que começa por MP- serve apenas para esta ativação.',
-      '',
-      'Depois da ativação, entre normalmente com o seu email e a password pessoal que definiu quando pediu acesso.',
+      'A senha MP- serve apenas para ativar este período de acesso.',
       '',
       'MA-Professor | MA-CODE'
     ].join('\n'),
 
     html: `
-      <div style="margin:0;background:#f8fafc;padding:32px 16px;">
-        <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#0f172a;max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:32px;box-sizing:border-box;">
+      <div style="margin:0;background:#f8fafc;padding:28px 14px;">
+        <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#0f172a;max-width:580px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:30px;box-sizing:border-box;">
 
-          <p style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0891b2;margin:0 0 14px;">
+          <p style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0891b2;margin:0 0 12px;">
             MA-Professor · Fase piloto
           </p>
 
-          <h1 style="font-size:27px;line-height:1.2;margin:0 0 18px;color:#0f172a;">
+          <h1 style="font-size:27px;line-height:1.2;margin:0 0 14px;color:#0f172a;">
             O seu acesso está pronto
           </h1>
 
-          <p style="margin:0 0 8px;font-size:16px;color:#334155;">
-            Olá,
+          <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">
+            Falta apenas ativar o seu período de acesso.
           </p>
 
-          <p style="margin:0;font-size:16px;line-height:1.65;color:#334155;">
-            O seu acesso gratuito à fase piloto do MA-Professor foi aprovado.
-            Falta apenas ativá-lo.
-          </p>
-
-          <div style="margin:26px 0 0;padding:20px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;">
+          <div style="margin:24px 0 0;padding:19px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;">
 
             <p style="margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;">
               Email
             </p>
 
-            <p style="margin:5px 0 20px;font-size:15px;font-weight:700;color:#0f172a;word-break:break-word;">
+            <p style="margin:5px 0 18px;font-size:15px;font-weight:700;color:#0f172a;word-break:break-word;">
               ${safeEmail}
             </p>
 
@@ -496,35 +515,41 @@ function buildApprovalEmail(
               Senha de ativação
             </p>
 
-            <div
-              style="-webkit-user-select:all;user-select:all;margin:0;padding:5px 0;font-size:0;line-height:1.5;"
-              title="Selecione para copiar"
-            >${safePasswordGroups}</div>
+            <a
+              href="${safeActivationUrl}"
+              style="display:inline-block;text-decoration:none;cursor:pointer;"
+              title="Abrir ativação"
+            >
+              ${safePasswordGroups}
+            </a>
 
             <p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#64748b;">
-              Selecione a senha acima para a copiar.
+              Pode tocar na senha acima ou utilizar o botão abaixo.
             </p>
 
           </div>
 
-          <div style="margin:26px 0;text-align:center;">
+          <div style="margin:24px 0;">
             <a
-              href="${MA_PROFESSOR_ACTIVATION_URL}"
-              style="display:inline-block;width:100%;box-sizing:border-box;background:#22d3ee;color:#082f49;text-decoration:none;text-align:center;font-size:15px;font-weight:800;padding:14px 20px;border-radius:11px;"
+              href="${safeActivationUrl}"
+              style="display:block;box-sizing:border-box;background:#22d3ee;color:#082f49;text-decoration:none;text-align:center;font-size:15px;font-weight:800;padding:14px 20px;border-radius:11px;"
             >
               Ativar acesso
             </a>
           </div>
 
-          <div style="margin:0;padding:16px 18px;border-left:4px solid #22d3ee;background:#ecfeff;border-radius:0 10px 10px 0;">
-            <p style="margin:0;font-size:14px;line-height:1.6;color:#164e63;">
-              A senha <strong>MP-</strong> serve apenas para esta ativação.
-              Depois, entra normalmente com o seu email e a
-              <strong>password pessoal que definiu quando pediu acesso</strong>.
+          <div style="margin:0;padding:14px 16px;border-left:4px solid #8b5cf6;background:#f5f3ff;border-radius:0 10px 10px 0;">
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#5b21b6;">
+              O botão abre diretamente a ativação com o
+              <strong>email e a senha MP- já preenchidos</strong>.
             </p>
           </div>
 
-          <p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
+          <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#64748b;">
+            A senha <strong>MP-</strong> serve apenas para ativar este período de acesso.
+          </p>
+
+          <p style="margin:25px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
             MA-Professor | MA-CODE
           </p>
 
@@ -540,8 +565,10 @@ function buildRejectionEmail(
   return {
     to:
       email,
+
     subject:
       'Decisão sobre o seu pedido ao MA-Professor',
+
     text: [
       'Olá,',
       '',
@@ -555,6 +582,7 @@ function buildRejectionEmail(
       '',
       'MA-Professor | MA-CODE'
     ].join('\n'),
+
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:620px;margin:0 auto;padding:24px;">
         <p style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;margin:0 0 12px;">
@@ -637,6 +665,7 @@ async function sendMAProfessorEmail(
       {
         method:
           'POST',
+
         headers: {
           Authorization:
             `Bearer ${apiKey}`,
@@ -645,6 +674,7 @@ async function sendMAProfessorEmail(
           Accept:
             'application/json'
         },
+
         body:
           JSON.stringify({
             from:
@@ -750,15 +780,19 @@ export async function processMAProfessorAccessDecision(
       ) {
         return json({
           success: true,
+
           message:
             buildRetryMessage(
               decision,
               mode,
               emailDispatchStatus
             ),
+
           request,
+
           emailDelivery:
             emailDispatchStatus,
+
           credentialIssued:
             decision ===
               'approve' &&
@@ -789,15 +823,19 @@ export async function processMAProfessorAccessDecision(
   if (!mode) {
     return json({
       success: true,
+
       message:
         decision ===
           'approve'
           ? 'Pedido aprovado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhuma senha de ativação foi gerada automaticamente.'
           : 'Pedido rejeitado, mas o modo do acesso não ficou disponível na resposta persistida. Nenhum email foi enviado automaticamente.',
+
       request,
+
       emailDelivery:
         initialDispatchStatus ??
         'pending',
+
       credentialIssued:
         false
     })
@@ -809,13 +847,18 @@ export async function processMAProfessorAccessDecision(
   ) {
     return json({
       success: true,
+
       message:
-        decision === 'approve'
+        decision ===
+          'approve'
           ? 'Pedido comercial aprovado. Mantém-se o fluxo comercial existente para validação de pagamento e emissão da senha de ativação.'
           : 'Pedido comercial rejeitado.',
+
       request,
+
       emailDelivery:
         'not_applicable',
+
       credentialIssued:
         false
     })
@@ -831,21 +874,29 @@ export async function processMAProfessorAccessDecision(
 
     return json({
       success: true,
+
       message:
-        decision === 'approve'
+        decision ===
+          'approve'
           ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha de ativação manualmente através da ficha da conta.'
           : 'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
+
       request:
         persisted.request ??
         request,
+
       emailDelivery:
         'not_configured',
+
       credentialIssued:
         false
     })
   }
 
-  if (decision === 'reject') {
+  if (
+    decision ===
+    'reject'
+  ) {
     try {
       await sendMAProfessorEmail(
         env,
@@ -863,13 +914,17 @@ export async function processMAProfessorAccessDecision(
 
       return json({
         success: true,
+
         message:
           'Pedido piloto rejeitado e email de decisão enviado ao professor através do Resend.',
+
         request:
           persisted.request ??
           request,
+
         emailDelivery:
           'sent',
+
         credentialIssued:
           false
       })
@@ -879,10 +934,13 @@ export async function processMAProfessorAccessDecision(
         {
           provider:
             'resend',
+
           message:
             emailError instanceof Error
               ? emailError.message
-              : String(emailError)
+              : String(
+                  emailError
+                )
         }
       )
 
@@ -895,20 +953,25 @@ export async function processMAProfessorAccessDecision(
 
       return json({
         success: true,
+
         message:
           'Pedido piloto rejeitado, mas não foi possível enviar o email de decisão. A decisão ficou guardada no sistema.',
+
         request:
           persisted.request ??
           request,
+
         emailDelivery:
           'failed',
+
         credentialIssued:
           false
       })
     }
   }
 
-  let credentialResponse: Response
+  let credentialResponse:
+    Response
 
   try {
     credentialResponse =
@@ -923,7 +986,9 @@ export async function processMAProfessorAccessDecision(
         message:
           credentialError instanceof Error
             ? credentialError.message
-            : String(credentialError)
+            : String(
+                credentialError
+              )
       }
     )
 
@@ -936,13 +1001,17 @@ export async function processMAProfessorAccessDecision(
 
     return json({
       success: true,
+
       message:
         'Pedido piloto aprovado, mas não foi possível gerar automaticamente a senha de ativação. Pode tentar gerar uma nova senha de ativação manualmente na ficha da conta.',
+
       request:
         persisted.request ??
         request,
+
       emailDelivery:
         'failed',
+
       credentialIssued:
         false
     })
@@ -970,13 +1039,17 @@ export async function processMAProfessorAccessDecision(
 
     return json({
       success: true,
+
       message:
         'Pedido piloto aprovado, mas não foi possível obter a nova senha de ativação para envio automático. Pode gerar uma nova senha de ativação manualmente na ficha da conta.',
+
       request:
         persisted.request ??
         request,
+
       emailDelivery:
         'failed',
+
       credentialIssued:
         false
     })
@@ -1000,13 +1073,17 @@ export async function processMAProfessorAccessDecision(
 
     return json({
       success: true,
+
       message:
         'Pedido piloto aprovado, senha de ativação criada e email de ativação enviado ao professor através do Resend.',
+
       request:
         persisted.request ??
         request,
+
       emailDelivery:
         'sent',
+
       credentialIssued:
         true
     })
@@ -1016,10 +1093,13 @@ export async function processMAProfessorAccessDecision(
       {
         provider:
           'resend',
+
         message:
           emailError instanceof Error
             ? emailError.message
-            : String(emailError)
+            : String(
+                emailError
+              )
       }
     )
 
@@ -1032,15 +1112,20 @@ export async function processMAProfessorAccessDecision(
 
     return json({
       success: true,
+
       message:
         'Pedido piloto aprovado e senha de ativação criada, mas o email não foi enviado. Copie a senha de ativação apresentada agora e envie-a manualmente ao professor.',
+
       request:
         persisted.request ??
         request,
+
       emailDelivery:
         'failed',
+
       credentialIssued:
         true,
+
       fallbackCredential:
         credential
     })
