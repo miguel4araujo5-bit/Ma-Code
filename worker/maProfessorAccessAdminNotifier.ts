@@ -4,7 +4,7 @@ const PUBLIC_REQUEST_PATH =
 const RESEND_EMAIL_API_URL =
   'https://api.resend.com/emails'
 
-const DEFAULT_ADMIN_EMAIL =
+const ADMIN_NOTIFICATION_EMAIL =
   'acesso@ma-code.pt'
 
 const MAX_NEW_REQUEST_AGE_MS =
@@ -15,7 +15,6 @@ type JsonObject =
 
 export interface MAProfessorAccessAdminNotifierEnv {
   RESEND_API_KEY_MA_PROFESSOR?: string
-  MA_PROFESSOR_ADMIN_EMAIL?: string
 }
 
 function normalizeEmail(
@@ -163,16 +162,6 @@ export async function notifyMAProfessorNewAccessRequest(
     return
   }
 
-  const configuredAdminEmail =
-    normalizeEmail(
-      env.MA_PROFESSOR_ADMIN_EMAIL
-    )
-
-  const adminEmail =
-    isValidEmail(configuredAdminEmail)
-      ? configuredAdminEmail
-      : DEFAULT_ADMIN_EMAIL
-
   const safeRequesterEmail =
     escapeHtml(requesterEmail)
 
@@ -237,7 +226,9 @@ export async function notifyMAProfessorNewAccessRequest(
             JSON.stringify({
               from:
                 'MA-Professor | MA-CODE <acesso@professor.ma-code.pt>',
-              to: [adminEmail],
+              to: [
+                ADMIN_NOTIFICATION_EMAIL
+              ],
               subject:
                 'Novo pedido de acesso ao MA-Professor',
               text,
@@ -263,7 +254,8 @@ export async function notifyMAProfessorNewAccessRequest(
         {
           status:
             emailResponse.status,
-          adminEmail,
+          adminEmail:
+            ADMIN_NOTIFICATION_EMAIL,
           requesterEmail,
           response:
             responseText
@@ -292,7 +284,8 @@ export async function notifyMAProfessorNewAccessRequest(
     console.info(
       'MA-Professor admin access notification sent',
       {
-        adminEmail,
+        adminEmail:
+          ADMIN_NOTIFICATION_EMAIL,
         requesterEmail,
         responseId
       }
@@ -301,7 +294,8 @@ export async function notifyMAProfessorNewAccessRequest(
     console.error(
       'MA-Professor admin access notification failed',
       {
-        adminEmail,
+        adminEmail:
+          ADMIN_NOTIFICATION_EMAIL,
         requesterEmail,
         message:
           error instanceof Error
