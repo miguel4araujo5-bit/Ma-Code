@@ -318,10 +318,11 @@ export function constrainMAQuadroPerspectivePoint(
   index: number,
   point: MAQuadroPerspectivePoint
 ) {
-  const candidate =
-    cloneMAQuadroPerspectiveQuad(
+  const candidate = [
+    ...cloneMAQuadroPerspectiveQuad(
       quad
-    ) as MAQuadroPerspectivePoint[]
+    )
+  ]
 
   candidate[index] = {
     x: clamp(
@@ -1448,7 +1449,7 @@ export function loadMAQuadroPerspectiveSourceImage(
             new Error(
               'Não foi possível abrir a origem desta imagem para aplicar perspetiva.'
             )
-          )
+          }
         }
 
       image.src =
