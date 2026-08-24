@@ -5,7 +5,7 @@ const RESEND_EMAIL_API_URL =
   'https://api.resend.com/emails'
 
 const DEFAULT_ADMIN_EMAIL =
-  'acesso@ma-code.pt'
+  'miguel4araujo5@gmail.com'
 
 const MAX_NEW_REQUEST_AGE_MS =
   60 * 1000
@@ -265,16 +265,45 @@ export async function notifyMAProfessorNewAccessRequest(
         {
           status:
             emailResponse.status,
+          adminEmail,
           teacherEmail,
           response:
             responseText
         }
       )
+
+      return
     }
+
+    let responseId = ''
+
+    try {
+      const responseBody =
+        await emailResponse.json() as {
+          id?: unknown
+        }
+
+      responseId =
+        typeof responseBody.id === 'string'
+          ? responseBody.id
+          : ''
+    } catch {
+      responseId = ''
+    }
+
+    console.info(
+      'MA-Professor admin access notification sent',
+      {
+        adminEmail,
+        teacherEmail,
+        responseId
+      }
+    )
   } catch (error) {
     console.error(
       'MA-Professor admin access notification failed',
       {
+        adminEmail,
         teacherEmail,
         message:
           error instanceof Error
