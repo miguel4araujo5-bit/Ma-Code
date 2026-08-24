@@ -183,12 +183,25 @@ export default function OptionDragDuplicateController() {
         return
       }
 
-      const target =
+      const targetResult =
         canvas.findTarget(
           event
-        ) as
-          | MAQuadroFabricObject
-          | undefined
+        ) as unknown
+
+      const target =
+        targetResult &&
+        typeof targetResult ===
+          'object' &&
+        'target' in targetResult
+          ? (
+              targetResult as {
+                target?:
+                  MAQuadroFabricObject
+              }
+            ).target
+          : targetResult as
+              | MAQuadroFabricObject
+              | undefined
 
       if (
         !target ||
@@ -210,7 +223,7 @@ export default function OptionDragDuplicateController() {
         canvas.getActiveObject() ===
           target &&
         target.findControl(
-          canvas.getScenePoint(
+          canvas.getViewportPoint(
             event
           )
         )
