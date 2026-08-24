@@ -1,5 +1,8 @@
 import {
-  useCallback
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef
 } from 'react'
 
 import type {
@@ -34,7 +37,7 @@ type DiscoveryTool = {
   title: string
 }
 
-const primaryTools:
+const coreTools:
   DiscoveryTool[] = [
     {
       id: 'templates',
@@ -68,6 +71,18 @@ const primaryTools:
       title:
         'Carregar imagens'
     },
+    {
+      id: 'brand',
+      label: 'Marca',
+      icon: '◉',
+      panel: 'brand',
+      title:
+        'Abrir ferramentas de marca'
+    }
+  ]
+
+const moreTools:
+  DiscoveryTool[] = [
     {
       id: 'video',
       label: 'Vídeo',
@@ -156,14 +171,6 @@ const primaryTools:
       side: 'left',
       title:
         'Abrir biblioteca de elementos'
-    },
-    {
-      id: 'brand',
-      label: 'Marca',
-      icon: '◉',
-      panel: 'brand',
-      title:
-        'Abrir ferramentas de marca'
     },
     {
       id: 'projects',
@@ -260,8 +267,7 @@ function revealTarget(
         if (
           !navigationButton
         ) {
-          attempts +=
-            1
+          attempts += 1
 
           if (
             attempts <
@@ -284,8 +290,7 @@ function revealTarget(
         ) {
           navigationButton.click()
 
-          attempts +=
-            1
+          attempts += 1
 
           window.requestAnimationFrame(
             findTarget
@@ -339,8 +344,7 @@ function revealTarget(
         return
       }
 
-      attempts +=
-        1
+      attempts += 1
 
       if (
         attempts <
@@ -361,31 +365,30 @@ export default function EditorToolDiscoveryBar() {
   const editor =
     useMAQuadroEditorContext()
 
+  const moreRef =
+    useRef<HTMLDetailsElement | null>(
+      null
+    )
+
   const locked =
     !editor.ready ||
     editor.busy ||
     editor.structureBusy ||
     editor.imageCropEditing
 
-  const isDisabled =
+  const isContextAvailable =
     useCallback(
       (
         tool:
           DiscoveryTool
       ) => {
         if (
-          locked
-        ) {
-          return true
-        }
-
-        if (
           tool.contextual ===
           'selection'
         ) {
           return (
             editor.selection
-              .count ===
+              .count >
             0
           )
         }
@@ -396,24 +399,133 @@ export default function EditorToolDiscoveryBar() {
         ) {
           return (
             editor.selection
-              .count !==
-              1 ||
+              .count ===
+              1 &&
             editor.selection
-              .role !==
+              .role ===
               'image'
           )
         }
 
-        return false
+        return true
       },
       [
         editor.selection
           .count,
         editor.selection
-          .role,
+          .role
+      ]
+    )
+
+  const isDisabled =
+    useCallback(
+      (
+        tool:
+          DiscoveryTool
+      ) =>
+        locked ||
+        !isContextAvailable(
+          tool
+        ),
+      [
+        isContextAvailable,
         locked
       ]
     )
+
+  const visibleContextualTools =
+    useMemo(
+      () =>
+        contextualTools.filter(
+          isContextAvailable
+        ),
+      [
+        isContextAvailable
+      ]
+    )
+
+  const closeMoreMenu =
+    useCallback(
+      () => {
+        if (
+          moreRef.current
+        ) {
+          moreRef.current.open =
+            false
+        }
+      },
+      []
+    )
+
+  useEffect(() => {
+    const handlePointerDown =
+      (
+        event:
+          PointerEvent
+      ) => {
+        const details =
+          moreRef.current
+
+        if (
+          !details?.open ||
+          details.contains(
+            event.target as
+              Node
+          )
+        ) {
+          return
+        }
+
+        details.open =
+          false
+      }
+
+    const handleKeyDown =
+      (
+        event:
+          KeyboardEvent
+      ) => {
+        if (
+          event.key ===
+          'Escape'
+        ) {
+          closeMoreMenu()
+        }
+      }
+
+    document.addEventListener(
+      'pointerdown',
+      handlePointerDown
+    )
+
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    )
+
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        handlePointerDown
+      )
+
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      )
+    }
+  }, [
+    closeMoreMenu
+  ])
+
+  useEffect(() => {
+    closeMoreMenu()
+  }, [
+    closeMoreMenu,
+    editor.activePanel,
+    editor.activePage?.id,
+    editor.project?.id
+  ])
 
   const openTool =
     useCallback(
@@ -429,6 +541,8 @@ export default function EditorToolDiscoveryBar() {
           return
         }
 
+        closeMoreMenu()
+
         if (
           tool.panel
         ) {
@@ -442,6 +556,7 @@ export default function EditorToolDiscoveryBar() {
         )
       },
       [
+        closeMoreMenu,
         editor,
         isDisabled
       ]
@@ -450,7 +565,8 @@ export default function EditorToolDiscoveryBar() {
   const renderTool = (
     tool:
       DiscoveryTool,
-    contextual = false
+    contextual =
+      false
   ) => {
     const disabled =
       isDisabled(
@@ -521,6 +637,69 @@ export default function EditorToolDiscoveryBar() {
     )
   }
 
+  const renderMoreTool = (
+    tool:
+      DiscoveryTool
+  ) => {
+    const disabled =
+      isDisabled(
+        tool
+      )
+
+    const active =
+      Boolean(
+        tool.panel &&
+        editor.activePanel ===
+          tool.panel
+      )
+
+    return (
+      <button
+        key={
+          tool.id
+        }
+        type="button"
+        className={`mq-tool-discovery-more__item${
+          active
+            ? ' is-active'
+            : ''
+        }`}
+        disabled={
+          disabled
+        }
+        role="menuitem"
+        onClick={() =>
+          openTool(
+            tool
+          )
+        }
+      >
+        <span
+          className="mq-tool-discovery-more__icon"
+          aria-hidden="true"
+        >
+          {
+            tool.icon
+          }
+        </span>
+
+        <span className="mq-tool-discovery-more__copy">
+          <strong>
+            {
+              tool.label
+            }
+          </strong>
+
+          <small>
+            {
+              tool.title
+            }
+          </small>
+        </span>
+      </button>
+    )
+  }
+
   return (
     <>
       <ImageQuickActions />
@@ -537,7 +716,7 @@ export default function EditorToolDiscoveryBar() {
         </span>
 
         <div className="mq-tool-discovery__scroller">
-          {primaryTools.map(
+          {coreTools.map(
             (
               tool
             ) =>
@@ -546,27 +725,98 @@ export default function EditorToolDiscoveryBar() {
               )
           )}
 
+          <span
+            className="mq-tool-discovery__divider"
+            aria-hidden="true"
+          />
+
+          <span className="mq-tool-discovery__section-label">
+            Pro
+          </span>
+
           <MagicResizeControl />
 
           <BulkCreateProControl />
 
           <SmartMockupControl />
 
-          <span
-            className="mq-tool-discovery__divider"
-            aria-hidden="true"
-          />
+          {visibleContextualTools.length >
+          0 ? (
+            <>
+              <span
+                className="mq-tool-discovery__divider"
+                aria-hidden="true"
+              />
 
-          {contextualTools.map(
-            (
-              tool
-            ) =>
-              renderTool(
-                tool,
-                true
-              )
-          )}
+              {visibleContextualTools.map(
+                (
+                  tool
+                ) =>
+                  renderTool(
+                    tool,
+                    true
+                  )
+              )}
+            </>
+          ) : null}
         </div>
+
+        <details
+          ref={
+            moreRef
+          }
+          className="mq-tool-discovery-more"
+        >
+          <summary
+            className="mq-tool-discovery__button mq-tool-discovery-more__summary"
+            aria-label="Mais ferramentas"
+            title="Mais ferramentas"
+          >
+            <span
+              className="mq-tool-discovery__icon"
+              aria-hidden="true"
+            >
+              ⋯
+            </span>
+
+            <span>
+              Mais
+            </span>
+
+            <span
+              className="mq-tool-discovery-more__count"
+              aria-hidden="true"
+            >
+              {
+                moreTools.length
+              }
+            </span>
+          </summary>
+
+          <div
+            className="mq-tool-discovery-more__panel"
+            role="menu"
+            aria-label="Mais ferramentas"
+          >
+            <div className="mq-tool-discovery-more__heading">
+              <span>
+                <strong>
+                  Mais ferramentas
+                </strong>
+
+                <small>
+                  Conteúdo e utilitários menos frequentes
+                </small>
+              </span>
+            </div>
+
+            <div className="mq-tool-discovery-more__grid">
+              {moreTools.map(
+                renderMoreTool
+              )}
+            </div>
+          </div>
+        </details>
       </div>
     </>
   )
