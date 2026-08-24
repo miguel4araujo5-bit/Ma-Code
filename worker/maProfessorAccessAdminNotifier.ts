@@ -7,8 +7,8 @@ const RESEND_EMAIL_API_URL =
 const ADMIN_NOTIFICATION_EMAIL =
   'acesso@ma-code.pt'
 
-const MAX_NEW_REQUEST_AGE_MS =
-  60 * 1000
+const NEW_REQUEST_WINDOW_MS =
+  2 * 60 * 1000
 
 type JsonObject =
   Record<string, unknown>
@@ -36,7 +36,7 @@ function isValidEmail(
   )
 }
 
-function readRequestedAt(
+function readIsoDate(
   value: unknown
 ) {
   if (
@@ -140,44 +140,80 @@ export async function notifyMAProfessorNewAccessRequest(
   const requesterEmail =
     normalizeEmail(summary.email)
 
-  const requestedAt =
-    readRequestedAt(
+  if (!isValidEmail(requesterEmail)) {
+    return
+  }
+
+  const now =
+    Date.now()
+
+  const submittedAt =
+    new Date(now).toISOString()
+
+  const originalRequestedAt =
+    readIsoDate(
       summary.requestedAt
     )
 
-  if (
-    !isValidEmail(requesterEmail) ||
-    !requestedAt
-  ) {
-    return
-  }
+  const isNewRequest =
+    Boolean(
+      originalRequestedAt &&
+      Math.abs(
+        now - originalRequestedAt.timestamp
+      ) <= NEW_REQUEST_WINDOW_MS
+    )
 
-  const age =
-    Date.now() - requestedAt.timestamp
+  const notificationTitle =
+    isNewRequest
+      ? 'Novo pedido de acesso'
+      : 'Nova tentativa de pedido de acesso'
 
-  if (
-    age < -30_000 ||
-    age > MAX_NEW_REQUEST_AGE_MS
-  ) {
-    return
-  }
+  const subject =
+    isNewRequest
+      ? 'Novo pedido de acesso ao MA-Professor'
+      : 'Nova tentativa de acesso ao MA-Professor'
 
   const safeRequesterEmail =
     escapeHtml(requesterEmail)
 
-  const safeRequestedAt =
-    escapeHtml(requestedAt.iso)
+  const safeSubmittedAt =
+    escapeHtml(submittedAt)
+
+  const safeOriginalRequestedAt =
+    originalRequestedAt
+      ? escapeHtml(
+          originalRequestedAt.iso
+        )
+      : ''
 
   const text = [
-    'Novo pedido de acesso ao MA-Professor.',
+    `${notificationTitle} ao MA-Professor.`,
     '',
     `Email do requerente: ${requesterEmail}`,
-    `Data: ${requestedAt.iso}`,
+    `Tentativa recebida em: ${submittedAt}`,
+    ...(
+      !isNewRequest &&
+      originalRequestedAt
+        ? [
+            `Pedido original: ${originalRequestedAt.iso}`
+          ]
+        : []
+    ),
     '',
-    'O pedido ficou pendente e aguarda decisão no painel administrativo.',
+    'O pedido encontra-se pendente e aguarda decisão no painel administrativo.',
     '',
     'MA-Professor | MA-CODE'
   ].join('\n')
+
+  const originalRequestHtml =
+    !isNewRequest &&
+    safeOriginalRequestedAt
+      ? `
+        <p style="margin:8px 0 0;">
+          <strong>Pedido original:</strong> ${safeOriginalRequestedAt}
+        </p>
+      `
+      : ''
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#0f172a;max-width:620px;margin:0 auto;padding:24px;">
@@ -186,22 +222,25 @@ export async function notifyMAProfessorNewAccessRequest(
       </p>
 
       <h1 style="font-size:24px;line-height:1.25;margin:0 0 18px;color:#0f172a;">
-        Novo pedido de acesso
+        ${notificationTitle}
       </h1>
 
-      <p>Foi registado um novo pedido de acesso ao MA-Professor.</p>
+      <p>
+        Foi submetido um pedido de acesso ao MA-Professor.
+      </p>
 
       <div style="margin:22px 0;padding:18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
         <p style="margin:0 0 8px;">
           <strong>Email do requerente:</strong> ${safeRequesterEmail}
         </p>
         <p style="margin:0;">
-          <strong>Data:</strong> ${safeRequestedAt}
+          <strong>Tentativa recebida em:</strong> ${safeSubmittedAt}
         </p>
+        ${originalRequestHtml}
       </div>
 
       <p>
-        O pedido ficou <strong>pendente</strong> e aguarda decisão no painel administrativo.
+        O pedido encontra-se <strong>pendente</strong> e aguarda decisão no painel administrativo.
       </p>
 
       <p style="margin-top:28px;color:#64748b;font-size:13px;">
@@ -229,8 +268,7 @@ export async function notifyMAProfessorNewAccessRequest(
               to: [
                 ADMIN_NOTIFICATION_EMAIL
               ],
-              subject:
-                'Novo pedido de acesso ao MA-Professor',
+              subject,
               text,
               html
             })
@@ -287,6 +325,7 @@ export async function notifyMAProfessorNewAccessRequest(
         adminEmail:
           ADMIN_NOTIFICATION_EMAIL,
         requesterEmail,
+        isNewRequest,
         responseId
       }
     )
