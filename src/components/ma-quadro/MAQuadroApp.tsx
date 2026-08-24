@@ -33,6 +33,7 @@ import KeyboardShortcutsDialog from './KeyboardShortcutsDialog'
 import LayersManager from './LayersManager'
 import LeftSidebar from './LeftSidebar'
 import MAQuadroHome from './MAQuadroHome'
+import OptionDragDuplicateController from './OptionDragDuplicateController'
 import PagesStrip from './PagesStrip'
 import PropertiesPanel from './PropertiesPanel'
 import QRCodeBuilder from './QRCodeBuilder'
@@ -43,7 +44,6 @@ import TableEditor from './TableEditor'
 import TextEffectsToolbar from './TextEffectsToolbar'
 import VideoEditor from './VideoEditor'
 import VideoUploads from './VideoUploads'
-
 import {
   useMAQuadroEditor
 } from './useMAQuadroEditor'
@@ -274,7 +274,8 @@ export default function MAQuadroApp() {
       }
 
       if (
-        editor.selection.count === 0 ||
+        editor.selection.count ===
+          0 ||
         editor.busy ||
         editor.structureBusy ||
         editor.imageCropEditing
@@ -297,18 +298,25 @@ export default function MAQuadroApp() {
           bounds
             ? bounds.left +
               Math.min(
-                bounds.width * 0.55,
-                bounds.width - 32
+                bounds.width *
+                  0.55,
+                bounds.width -
+                  32
               )
-            : window.innerWidth / 2,
+            : window.innerWidth /
+              2,
+
         y:
           bounds
             ? bounds.top +
               Math.min(
-                bounds.height * 0.4,
-                bounds.height - 32
+                bounds.height *
+                  0.4,
+                bounds.height -
+                  32
               )
-            : window.innerHeight / 2
+            : window.innerHeight /
+              2
       })
     }
 
@@ -382,7 +390,8 @@ export default function MAQuadroApp() {
       modifier &&
       event.key.toLocaleLowerCase(
         'pt-PT'
-      ) === 's'
+      ) ===
+        's'
     ) {
       event.preventDefault()
       event.stopPropagation()
@@ -428,6 +437,8 @@ export default function MAQuadroApp() {
         }
       >
         <FormatPainterController />
+
+        <OptionDragDuplicateController />
 
         <FrameDropController />
 
@@ -542,15 +553,11 @@ export default function MAQuadroApp() {
             />
 
             <strong>
-              A preparar o
-              MA-Quadro…
+              A preparar o MA-Quadro…
             </strong>
 
             <span>
-              O editor e os
-              projetos locais
-              estão a ser
-              carregados.
+              O editor e os projetos locais estão a ser carregados.
             </span>
           </div>
         ) : null}
