@@ -8,6 +8,7 @@ import {
 } from 'react-dom'
 
 import BackgroundRemovalEditor from './BackgroundRemovalEditor'
+import PerspectiveEditor from './PerspectiveEditor'
 
 import {
   useMAQuadroEditorContext
@@ -77,6 +78,12 @@ export default function ImageQuickActions() {
   ] =
     useState(false)
 
+  const [
+    perspectiveOpen,
+    setPerspectiveOpen
+  ] =
+    useState(false)
+
   const isImage =
     editor.selection.count ===
       1 &&
@@ -93,6 +100,10 @@ export default function ImageQuickActions() {
       )
 
       setBackgroundOpen(
+        false
+      )
+
+      setPerspectiveOpen(
         false
       )
 
@@ -114,14 +125,12 @@ export default function ImageQuickActions() {
 
     const globalGroup =
       toolbar.lastElementChild as
-        | HTMLElement
-        | null
+        HTMLElement | null
 
     const originalImageGroup =
       globalGroup
         ?.previousElementSibling as
-          | HTMLElement
-          | null
+          HTMLElement | null
 
     if (
       !globalGroup ||
@@ -175,13 +184,11 @@ export default function ImageQuickActions() {
     backgroundPreparing
 
   const cropZoom =
-    editor.selection
-      .cropZoom
+    editor.selection.cropZoom
 
   const frame =
     editor.selection
-      .imageFrame as
-        ImageFrameKind
+      .imageFrame as ImageFrameKind
 
   const openBackgroundRemoval =
     async () => {
@@ -197,11 +204,6 @@ export default function ImageQuickActions() {
       )
 
       try {
-        /*
-         * Garante que activePage.canvasJson contém
-         * a versão atual da imagem antes de o
-         * editor manual ler a origem serializada.
-         */
         const saved =
           await editor.saveProject(
             true
@@ -272,8 +274,7 @@ export default function ImageQuickActions() {
           aria-label="Reduzir zoom"
           onClick={() =>
             editor.setImageCropZoom(
-              cropZoom -
-                10
+              cropZoom - 10
             )
           }
         >
@@ -298,9 +299,7 @@ export default function ImageQuickActions() {
           ) =>
             editor.setImageCropZoom(
               Number(
-                event
-                  .currentTarget
-                  .value
+                event.currentTarget.value
               )
             )
           }
@@ -323,8 +322,7 @@ export default function ImageQuickActions() {
           aria-label="Aumentar zoom"
           onClick={() =>
             editor.setImageCropZoom(
-              cropZoom +
-                10
+              cropZoom + 10
             )
           }
         >
@@ -388,13 +386,25 @@ export default function ImageQuickActions() {
               locked
             }
             onClick={() =>
-              editor
-                .replacementImageInputRef
-                .current
-                ?.click()
+              editor.replacementImageInputRef.current?.click()
             }
           >
             Substituir
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            title="Transformar a imagem arrastando os quatro cantos"
+            onClick={() =>
+              setPerspectiveOpen(
+                true
+              )
+            }
+          >
+            Perspetiva
           </button>
 
           <label
@@ -417,10 +427,8 @@ export default function ImageQuickActions() {
                 event
               ) =>
                 editor.setImageFrame(
-                  event
-                    .currentTarget
-                    .value as
-                      ImageFrameKind
+                  event.currentTarget
+                    .value as ImageFrameKind
                 )
               }
             >
@@ -500,6 +508,17 @@ export default function ImageQuickActions() {
         }
         onClose={() =>
           setBackgroundOpen(
+            false
+          )
+        }
+      />
+
+      <PerspectiveEditor
+        open={
+          perspectiveOpen
+        }
+        onClose={() =>
+          setPerspectiveOpen(
             false
           )
         }
