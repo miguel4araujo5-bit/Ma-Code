@@ -32,6 +32,10 @@ import {
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
 } from './maProfessorAdminFixed'
+import {
+  notifyMAProfessorNewAccessRequest,
+  type MAProfessorAccessAdminNotifierEnv
+} from './maProfessorAccessAdminNotifier'
 
 import {
   handleMAProfessorRecoveryApiRequest,
@@ -77,6 +81,7 @@ export type Env =
   BtcAlertsEnv &
   MaCodeAdminEnv &
   MaProfessorAdminEnv &
+  MAProfessorAccessAdminNotifierEnv &
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
   MaProfessorRecoveryEnv &
@@ -312,7 +317,7 @@ const prepareMatchedGameSession =
 
     headers.set(
       'Content-Type',
-      'application/json; charset=utf-8'
+        'application/json; charset=utf-8'
     )
     const {
       gameSessionCredentials:
@@ -338,7 +343,8 @@ const prepareMatchedGameSession =
 export default {
   async fetch(
     request: Request,
-    env: Env
+    env: Env,
+    context?: ExecutionContextLike
   ) {
     const url =
       new URL(
@@ -449,10 +455,28 @@ export default {
         url.pathname
       )
     ) {
-      return handleMAProfessorAccessApiRequest(
-        request,
-        env
-      )
+      const response =
+        await handleMAProfessorAccessApiRequest(
+          request,
+          env
+        )
+
+      const notification =
+        notifyMAProfessorNewAccessRequest(
+          request,
+          response,
+          env
+        )
+
+      if (context) {
+        context.waitUntil(
+          notification
+        )
+      } else {
+        await notification
+      }
+
+      return response
     }
 
     if (
