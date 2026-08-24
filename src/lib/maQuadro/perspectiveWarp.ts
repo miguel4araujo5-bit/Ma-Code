@@ -318,11 +318,10 @@ export function constrainMAQuadroPerspectivePoint(
   index: number,
   point: MAQuadroPerspectivePoint
 ) {
-  const candidate = [
-    ...cloneMAQuadroPerspectiveQuad(
+  const candidate =
+    cloneMAQuadroPerspectiveQuad(
       quad
-    )
-  ]
+    ) as unknown as MAQuadroPerspectivePoint[]
 
   candidate[index] = {
     x: clamp(
