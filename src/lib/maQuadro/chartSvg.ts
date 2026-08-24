@@ -1,4 +1,28 @@
-export type MAQuadroChartType = 'bar' | 'line' | 'pie'
+export type MAQuadroChartType =
+  | 'bar'
+  | 'line'
+  | 'area'
+  | 'pie'
+  | 'donut'
+
+export type MAQuadroChartBarDirection =
+  | 'vertical'
+  | 'horizontal'
+
+export type MAQuadroChartLegendPosition =
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+
+export type MAQuadroChartPieValueMode =
+  | 'percent'
+  | 'value'
+
+export type MAQuadroChartValuePosition =
+  | 'auto'
+  | 'inside'
+  | 'outside'
 
 export type MAQuadroChartDatum = {
   label: string
@@ -9,11 +33,40 @@ export type MAQuadroChartDatum = {
 export type MAQuadroChartSpec = {
   type: MAQuadroChartType
   title: string
+
   showLegend: boolean
+  legendPosition: MAQuadroChartLegendPosition
+
   showValues: boolean
+  valuePosition: MAQuadroChartValuePosition
+
+  showAxes: boolean
+  showGrid: boolean
+
   background: string
   textColor: string
   axisColor: string
+  seriesColor: string
+
+  barDirection: MAQuadroChartBarDirection
+  barRadius: number
+
+  lineWidth: number
+  pointSize: number
+  areaOpacity: number
+
+  donutHole: number
+
+  axisAuto: boolean
+  axisMin: number
+  axisMax: number
+  axisStep: number
+
+  valuePrefix: string
+  valueSuffix: string
+  decimalPlaces: number
+
+  pieValueMode: MAQuadroChartPieValueMode
 }
 
 export type MAQuadroChartDocument = {
@@ -22,77 +75,444 @@ export type MAQuadroChartDocument = {
   data: MAQuadroChartDatum[]
 }
 
-export const MA_QUADRO_CHART_MIN_ITEMS = 2
-export const MA_QUADRO_CHART_MAX_ITEMS = 8
+export type MAQuadroChartStylePreset = {
+  id:
+    | 'minimal'
+    | 'business'
+    | 'editorial'
+    | 'dark'
 
-export const MA_QUADRO_CHART_COLORS = [
-  '#22D3EE',
-  '#8B5CF6',
-  '#F472B6',
-  '#F59E0B',
-  '#10B981',
-  '#38BDF8',
-  '#FB7185',
-  '#A3E635'
-] as const
+  name: string
+  description: string
 
-export const DEFAULT_MA_QUADRO_CHART_SPEC: MAQuadroChartSpec = {
-  type: 'bar',
-  title: 'Resultados',
-  showLegend: true,
-  showValues: true,
-  background: '#FFFFFF',
-  textColor: '#0F172A',
-  axisColor: '#94A3B8'
+  values:
+    Partial<MAQuadroChartSpec>
 }
 
-export const DEFAULT_MA_QUADRO_CHART_CONTENT =
-  'Website;45\nAutomação;32\nAplicação;24\nOutros;16'
+export const
+  MA_QUADRO_CHART_MIN_ITEMS =
+    2
 
-const CHART_WIDTH = 960
-const CHART_HEIGHT = 600
-const CHART_METADATA_START = '\u{E0001}'
-const CHART_METADATA_END = '\u{E007F}'
-const CHART_TAG_BASE = 0xE0000
-const MAX_LABEL_LENGTH = 48
-const MAX_TITLE_LENGTH = 80
-const MAX_VALUE = 1_000_000
+export const
+  MA_QUADRO_CHART_MAX_ITEMS =
+    8
 
-function escapeXml(value: string) {
+export const
+  MA_QUADRO_CHART_COLORS = [
+    '#22D3EE',
+    '#8B5CF6',
+    '#F472B6',
+    '#F59E0B',
+    '#10B981',
+    '#38BDF8',
+    '#FB7185',
+    '#A3E635'
+  ] as const
+
+export const
+  MA_QUADRO_CHART_STYLE_PRESETS:
+    MAQuadroChartStylePreset[] = [
+      {
+        id:
+          'minimal',
+
+        name:
+          'Minimal',
+
+        description:
+          'Limpo e discreto',
+
+        values: {
+          background:
+            '#FFFFFF',
+
+          textColor:
+            '#0F172A',
+
+          axisColor:
+            '#CBD5E1',
+
+          seriesColor:
+            '#0F172A',
+
+          showGrid:
+            false,
+
+          showAxes:
+            true,
+
+          showLegend:
+            false,
+
+          barRadius:
+            4,
+
+          lineWidth:
+            4,
+
+          pointSize:
+            5,
+
+          areaOpacity:
+            0.14
+        }
+      },
+
+      {
+        id:
+          'business',
+
+        name:
+          'Business',
+
+        description:
+          'Claro e analítico',
+
+        values: {
+          background:
+            '#FFFFFF',
+
+          textColor:
+            '#0F172A',
+
+          axisColor:
+            '#94A3B8',
+
+          seriesColor:
+            '#2563EB',
+
+          showGrid:
+            true,
+
+          showAxes:
+            true,
+
+          showLegend:
+            true,
+
+          legendPosition:
+            'right',
+
+          barRadius:
+            8,
+
+          lineWidth:
+            6,
+
+          pointSize:
+            7,
+
+          areaOpacity:
+            0.18
+        }
+      },
+
+      {
+        id:
+          'editorial',
+
+        name:
+          'Editorial',
+
+        description:
+          'Quente e expressivo',
+
+        values: {
+          background:
+            '#FFF7ED',
+
+          textColor:
+            '#431407',
+
+          axisColor:
+            '#FDBA74',
+
+          seriesColor:
+            '#EA580C',
+
+          showGrid:
+            false,
+
+          showAxes:
+            true,
+
+          showLegend:
+            true,
+
+          legendPosition:
+            'bottom',
+
+          barRadius:
+            14,
+
+          lineWidth:
+            7,
+
+          pointSize:
+            8,
+
+          areaOpacity:
+            0.22
+        }
+      },
+
+      {
+        id:
+          'dark',
+
+        name:
+          'Dark',
+
+        description:
+          'Contraste para ecrã',
+
+        values: {
+          background:
+            '#0B1020',
+
+          textColor:
+            '#F8FAFC',
+
+          axisColor:
+            '#475569',
+
+          seriesColor:
+            '#22D3EE',
+
+          showGrid:
+            true,
+
+          showAxes:
+            true,
+
+          showLegend:
+            true,
+
+          legendPosition:
+            'right',
+
+          barRadius:
+            10,
+
+          lineWidth:
+            6,
+
+          pointSize:
+            7,
+
+          areaOpacity:
+            0.24
+        }
+      }
+    ]
+
+export const
+  DEFAULT_MA_QUADRO_CHART_SPEC:
+    MAQuadroChartSpec = {
+      type:
+        'bar',
+
+      title:
+        'Resultados',
+
+      showLegend:
+        true,
+
+      legendPosition:
+        'right',
+
+      showValues:
+        true,
+
+      valuePosition:
+        'auto',
+
+      showAxes:
+        true,
+
+      showGrid:
+        true,
+
+      background:
+        '#FFFFFF',
+
+      textColor:
+        '#0F172A',
+
+      axisColor:
+        '#94A3B8',
+
+      seriesColor:
+        '#22D3EE',
+
+      barDirection:
+        'vertical',
+
+      barRadius:
+        8,
+
+      lineWidth:
+        6,
+
+      pointSize:
+        8,
+
+      areaOpacity:
+        0.2,
+
+      donutHole:
+        0.54,
+
+      axisAuto:
+        true,
+
+      axisMin:
+        0,
+
+      axisMax:
+        100,
+
+      axisStep:
+        0,
+
+      valuePrefix:
+        '',
+
+      valueSuffix:
+        '',
+
+      decimalPlaces:
+        0,
+
+      pieValueMode:
+        'percent'
+    }
+
+export const
+  DEFAULT_MA_QUADRO_CHART_CONTENT =
+    'Website;45\nAutomação;32\nAplicação;24\nOutros;16'
+
+const CHART_WIDTH =
+  960
+
+const CHART_HEIGHT =
+  600
+
+const CHART_METADATA_START =
+  '\u{E0001}'
+
+const CHART_METADATA_END =
+  '\u{E007F}'
+
+const CHART_TAG_BASE =
+  0xE0000
+
+const MAX_LABEL_LENGTH =
+  48
+
+const MAX_TITLE_LENGTH =
+  80
+
+const MAX_VALUE =
+  1_000_000
+
+const MAX_AFFIX_LENGTH =
+  12
+
+function clamp(
+  value:
+    number,
+  minimum:
+    number,
+  maximum:
+    number
+) {
+  return Math.min(
+    maximum,
+    Math.max(
+      minimum,
+      Number.isFinite(
+        value
+      )
+        ? value
+        : minimum
+    )
+  )
+}
+
+function escapeXml(
+  value:
+    string
+) {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+    .replace(
+      /&/g,
+      '&amp;'
+    )
+    .replace(
+      /</g,
+      '&lt;'
+    )
+    .replace(
+      />/g,
+      '&gt;'
+    )
+    .replace(
+      /"/g,
+      '&quot;'
+    )
+    .replace(
+      /'/g,
+      '&apos;'
+    )
 }
 
-function normalizeLabel(value: string) {
+function normalizeLabel(
+  value:
+    string
+) {
   return value
     .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, MAX_LABEL_LENGTH)
+    .replace(
+      /\s+/g,
+      ' '
+    )
+    .slice(
+      0,
+      MAX_LABEL_LENGTH
+    )
 }
 
 function shortenLabel(
-  value: string,
-  maximum = 13
+  value:
+    string,
+  maximum =
+    13
 ) {
   const normalized =
-    normalizeLabel(value)
+    normalizeLabel(
+      value
+    )
 
-  return normalized.length <= maximum
+  return normalized.length <=
+    maximum
     ? normalized
     : `${normalized.slice(
         0,
-        maximum - 1
+        maximum -
+          1
       )}…`
 }
 
 function normalizeValue(
-  value: number
+  value:
+    number
 ) {
-  if (!Number.isFinite(value)) {
+  if (
+    !Number.isFinite(
+      value
+    )
+  ) {
     return 0
   }
 
@@ -106,48 +526,122 @@ function normalizeValue(
 }
 
 function parseNumericValue(
-  value: string
+  value:
+    string
 ) {
-  return normalizeValue(
+  const normalized =
+    value
+      .trim()
+      .replace(
+        /\s/g,
+        ''
+      )
+      .replace(
+        ',',
+        '.'
+      )
+
+  const parsed =
     Number.parseFloat(
-      value
-        .trim()
-        .replace(/\s/g, '')
-        .replace(',', '.')
+      normalized
+    )
+
+  return Number.isFinite(
+    parsed
+  )
+    ? normalizeValue(
+        parsed
+      )
+    : null
+}
+
+function normalizeColor(
+  value:
+    unknown,
+  fallback:
+    string
+) {
+  return (
+    typeof value ===
+      'string' &&
+    /^#[0-9a-f]{6}$/i.test(
+      value.trim()
     )
   )
+    ? value.trim()
+    : fallback
+}
+
+function normalizeAffix(
+  value:
+    unknown
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .replace(
+          /[\r\n]/g,
+          ' '
+        )
+        .slice(
+          0,
+          MAX_AFFIX_LENGTH
+        )
+    : ''
 }
 
 function formatValue(
-  value: number
+  value:
+    number,
+  spec:
+    MAQuadroChartSpec
 ) {
-  const normalized =
-    normalizeValue(value)
+  const decimals =
+    Math.round(
+      clamp(
+        spec.decimalPlaces,
+        0,
+        4
+      )
+    )
 
-  return Number.isInteger(
-    normalized
+  const formatted =
+    normalizeValue(
+      value
+    ).toLocaleString(
+      'pt-PT',
+      {
+        minimumFractionDigits:
+          decimals,
+
+        maximumFractionDigits:
+          decimals
+      }
+    )
+
+  return (
+    `${spec.valuePrefix}` +
+    `${formatted}` +
+    `${spec.valueSuffix}`
   )
-    ? String(normalized)
-    : normalized
-        .toFixed(2)
-        .replace(
-          /\.?0+$/,
-          ''
-        )
 }
 
 function utf8ToBase64(
-  value: string
+  value:
+    string
 ) {
   const bytes =
     new TextEncoder()
-      .encode(value)
+      .encode(
+        value
+      )
 
-  let binary = ''
+  let binary =
+    ''
 
   for (
-    const byte of
-    bytes
+    const byte
+    of bytes
   ) {
     binary +=
       String.fromCharCode(
@@ -161,21 +655,29 @@ function utf8ToBase64(
 }
 
 function base64ToUtf8(
-  value: string
+  value:
+    string
 ) {
   const binary =
-    atob(value)
+    atob(
+      value
+    )
 
   const bytes =
     Uint8Array.from(
       binary,
-      (character) =>
+      (
         character
-          .charCodeAt(0)
+      ) =>
+        character.charCodeAt(
+          0
+        )
     )
 
   return new TextDecoder()
-    .decode(bytes)
+    .decode(
+      bytes
+    )
 }
 
 function encodeMetadata(
@@ -193,14 +695,16 @@ function encodeMetadata(
     CHART_METADATA_START
 
   for (
-    const character of
-    base64
+    const character
+    of base64
   ) {
     encoded +=
       String.fromCodePoint(
         CHART_TAG_BASE +
           character
-            .charCodeAt(0)
+            .charCodeAt(
+              0
+            )
       )
   }
 
@@ -211,17 +715,21 @@ function encodeMetadata(
 }
 
 function decodeMetadata(
-  value: string
+  value:
+    string
 ) {
-  let base64 = ''
+  let base64 =
+    ''
 
   for (
-    const character of
-    value
+    const character
+    of value
   ) {
     const codePoint =
       character
-        .codePointAt(0)
+        .codePointAt(
+          0
+        )
 
     if (
       codePoint ===
@@ -235,8 +743,10 @@ function decodeMetadata(
       CHART_TAG_BASE
 
     if (
-      ascii < 0 ||
-      ascii > 127
+      ascii <
+        0 ||
+      ascii >
+        127
     ) {
       throw new Error(
         'Metadados de gráfico inválidos.'
@@ -256,17 +766,38 @@ function decodeMetadata(
 
 function normalizeType(
   value:
-    MAQuadroChartType
+    unknown
 ):
   MAQuadroChartType {
   return (
     value ===
       'line' ||
     value ===
-      'pie'
+      'area' ||
+    value ===
+      'pie' ||
+    value ===
+      'donut'
   )
     ? value
     : 'bar'
+}
+
+function normalizeLegendPosition(
+  value:
+    unknown
+):
+  MAQuadroChartLegendPosition {
+  return (
+    value ===
+      'top' ||
+    value ===
+      'bottom' ||
+    value ===
+      'left'
+  )
+    ? value
+    : 'right'
 }
 
 function normalizeDatum(
@@ -282,7 +813,8 @@ function normalizeDatum(
         datum.label
       ) ||
       `Item ${
-        index + 1
+        index +
+        1
       }`,
 
     value:
@@ -291,11 +823,13 @@ function normalizeDatum(
       ),
 
     color:
-      datum.color ||
-      MA_QUADRO_CHART_COLORS[
-        index %
+      normalizeColor(
+        datum.color,
+        MA_QUADRO_CHART_COLORS[
+          index %
           MA_QUADRO_CHART_COLORS.length
-      ]
+        ]
+      )
   }
 }
 
@@ -306,14 +840,17 @@ function createFallbackData():
       'Website',
       45
     ],
+
     [
       'Automação',
       32
     ],
+
     [
       'Aplicação',
       24
     ],
+
     [
       'Outros',
       16
@@ -346,9 +883,38 @@ function createFallbackData():
 
 export function normalizeMAQuadroChartSpec(
   spec:
-    MAQuadroChartSpec
+    | Partial<MAQuadroChartSpec>
+    | MAQuadroChartSpec
 ):
   MAQuadroChartSpec {
+  const minimum =
+    normalizeValue(
+      Number(
+        spec.axisMin ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .axisMin
+      )
+    )
+
+  const requestedMaximum =
+    normalizeValue(
+      Number(
+        spec.axisMax ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .axisMax
+      )
+    )
+
+  const maximum =
+    requestedMaximum >
+    minimum
+      ? requestedMaximum
+      : Math.min(
+          MAX_VALUE,
+          minimum +
+            100
+        )
+
   return {
     type:
       normalizeType(
@@ -356,7 +922,10 @@ export function normalizeMAQuadroChartSpec(
       ),
 
     title:
-      spec.title
+      String(
+        spec.title ??
+        ''
+      )
         .trim()
         .replace(
           /\s+/g,
@@ -369,33 +938,215 @@ export function normalizeMAQuadroChartSpec(
 
     showLegend:
       Boolean(
-        spec.showLegend
+        spec.showLegend ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .showLegend
+      ),
+
+    legendPosition:
+      normalizeLegendPosition(
+        spec.legendPosition
       ),
 
     showValues:
       Boolean(
-        spec.showValues
+        spec.showValues ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .showValues
+      ),
+
+    valuePosition:
+      spec.valuePosition ===
+        'inside' ||
+      spec.valuePosition ===
+        'outside'
+        ? spec.valuePosition
+        : 'auto',
+
+    showAxes:
+      Boolean(
+        spec.showAxes ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .showAxes
+      ),
+
+    showGrid:
+      Boolean(
+        spec.showGrid ??
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .showGrid
       ),
 
     background:
-      spec.background ||
-      '#FFFFFF',
+      normalizeColor(
+        spec.background,
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .background
+      ),
 
     textColor:
-      spec.textColor ||
-      '#0F172A',
+      normalizeColor(
+        spec.textColor,
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .textColor
+      ),
 
     axisColor:
-      spec.axisColor ||
-      '#94A3B8'
+      normalizeColor(
+        spec.axisColor,
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .axisColor
+      ),
+
+    seriesColor:
+      normalizeColor(
+        spec.seriesColor,
+        DEFAULT_MA_QUADRO_CHART_SPEC
+          .seriesColor
+      ),
+
+    barDirection:
+      spec.barDirection ===
+      'horizontal'
+        ? 'horizontal'
+        : 'vertical',
+
+    barRadius:
+      Math.round(
+        clamp(
+          Number(
+            spec.barRadius ??
+            8
+          ),
+          0,
+          24
+        )
+      ),
+
+    lineWidth:
+      Math.round(
+        clamp(
+          Number(
+            spec.lineWidth ??
+            6
+          ),
+          2,
+          12
+        )
+      ),
+
+    pointSize:
+      Math.round(
+        clamp(
+          Number(
+            spec.pointSize ??
+            8
+          ),
+          0,
+          14
+        )
+      ),
+
+    areaOpacity:
+      clamp(
+        Number(
+          spec.areaOpacity ??
+          0.2
+        ),
+        0.05,
+        0.8
+      ),
+
+    donutHole:
+      clamp(
+        Number(
+          spec.donutHole ??
+          0.54
+        ),
+        0.3,
+        0.75
+      ),
+
+    axisAuto:
+      Boolean(
+        spec.axisAuto ??
+        true
+      ),
+
+    axisMin:
+      minimum,
+
+    axisMax:
+      maximum,
+
+    axisStep:
+      clamp(
+        Number(
+          spec.axisStep ??
+          0
+        ),
+        0,
+        MAX_VALUE
+      ),
+
+    valuePrefix:
+      normalizeAffix(
+        spec.valuePrefix
+      ),
+
+    valueSuffix:
+      normalizeAffix(
+        spec.valueSuffix
+      ),
+
+    decimalPlaces:
+      Math.round(
+        clamp(
+          Number(
+            spec.decimalPlaces ??
+            0
+          ),
+          0,
+          4
+        )
+      ),
+
+    pieValueMode:
+      spec.pieValueMode ===
+      'value'
+        ? 'value'
+        : 'percent'
   }
+}
+
+function detectSeparator(
+  line:
+    string
+) {
+  if (
+    line.includes(
+      '\t'
+    )
+  ) {
+    return '\t'
+  }
+
+  if (
+    line.includes(
+      ';'
+    )
+  ) {
+    return ';'
+  }
+
+  return ','
 }
 
 export function parseMAQuadroChartText(
   value:
     string
 ) {
-  const parsed =
+  const lines =
     value
       .replace(
         /\r/g,
@@ -405,65 +1156,94 @@ export function parseMAQuadroChartText(
         '\n'
       )
       .map(
-        (line) =>
+        (
+          line
+        ) =>
           line.trim()
       )
       .filter(
         Boolean
       )
-      .slice(
-        0,
-        MA_QUADRO_CHART_MAX_ITEMS
-      )
-      .map(
-        (
-          line,
-          index
-        ) => {
-          const separator =
-            line.includes(
-              '\t'
-            )
-              ? '\t'
-              : ';'
 
-          const [
-            rawLabel,
-            rawValue
-          ] =
-            line.split(
-              separator
-            )
+  const parsed:
+    MAQuadroChartDatum[] =
+    []
 
-          return {
-            label:
-              normalizeLabel(
-                rawLabel ||
-                ''
-              ) ||
-              `Item ${
-                index + 1
-              }`,
+  for (
+    const line
+    of lines
+  ) {
+    if (
+      parsed.length >=
+      MA_QUADRO_CHART_MAX_ITEMS
+    ) {
+      break
+    }
 
-            value:
-              parseNumericValue(
-                rawValue ||
-                '0'
-              ),
-
-            color:
-              MA_QUADRO_CHART_COLORS[
-                index %
-                  MA_QUADRO_CHART_COLORS.length
-              ]
-          }
-        }
+    const separator =
+      detectSeparator(
+        line
       )
 
-  return (
-    parsed.length >=
+    const parts =
+      line.split(
+        separator
+      )
+
+    if (
+      parts.length <
+      2
+    ) {
+      continue
+    }
+
+    const rawValue =
+      parts.pop() ||
+      ''
+
+    const numeric =
+      parseNumericValue(
+        rawValue
+      )
+
+    if (
+      numeric ===
+      null
+    ) {
+      continue
+    }
+
+    const rawLabel =
+      parts.join(
+        separator
+      )
+
+    const index =
+      parsed.length
+
+    parsed.push({
+      label:
+        normalizeLabel(
+          rawLabel
+        ) ||
+        `Item ${
+          index +
+          1
+        }`,
+
+      value:
+        numeric,
+
+      color:
+        MA_QUADRO_CHART_COLORS[
+          index %
+          MA_QUADRO_CHART_COLORS.length
+        ]
+    })
+  }
+
+  return parsed.length >=
     MA_QUADRO_CHART_MIN_ITEMS
-  )
     ? parsed
     : createFallbackData()
 }
@@ -476,7 +1256,8 @@ export function createMAQuadroChartDocument(
 ):
   MAQuadroChartDocument {
   return normalizeMAQuadroChartDocument({
-    version: 1,
+    version:
+      1,
 
     spec,
 
@@ -519,24 +1300,27 @@ export function normalizeMAQuadroChartDocument(
     data.push({
       label:
         `Item ${
-          index + 1
+          index +
+          1
         }`,
 
       value:
-        index === 0
+        index ===
+        0
           ? 10
           : 5,
 
       color:
         MA_QUADRO_CHART_COLORS[
           index %
-            MA_QUADRO_CHART_COLORS.length
+          MA_QUADRO_CHART_COLORS.length
         ]
     })
   }
 
   return {
-    version: 1,
+    version:
+      1,
 
     spec:
       normalizeMAQuadroChartSpec(
@@ -551,9 +1335,7 @@ export function updateMAQuadroChartSpec(
   document:
     MAQuadroChartDocument,
   values:
-    Partial<
-      MAQuadroChartSpec
-    >
+    Partial<MAQuadroChartSpec>
 ) {
   const current =
     normalizeMAQuadroChartDocument(
@@ -576,9 +1358,7 @@ export function setMAQuadroChartDatum(
   index:
     number,
   values:
-    Partial<
-      MAQuadroChartDatum
-    >
+    Partial<MAQuadroChartDatum>
 ) {
   const current =
     normalizeMAQuadroChartDocument(
@@ -586,7 +1366,8 @@ export function setMAQuadroChartDatum(
     )
 
   if (
-    index < 0 ||
+    index <
+      0 ||
     index >=
       current.data.length
   ) {
@@ -641,7 +1422,8 @@ export function addMAQuadroChartDatum(
       {
         label:
           `Item ${
-            index + 1
+            index +
+            1
           }`,
 
         value:
@@ -650,7 +1432,7 @@ export function addMAQuadroChartDatum(
         color:
           MA_QUADRO_CHART_COLORS[
             index %
-              MA_QUADRO_CHART_COLORS.length
+            MA_QUADRO_CHART_COLORS.length
           ]
       }
     ]
@@ -690,6 +1472,62 @@ export function removeMAQuadroChartDatum(
   })
 }
 
+export function replaceMAQuadroChartDataFromText(
+  document:
+    MAQuadroChartDocument,
+  content:
+    string
+) {
+  const current =
+    normalizeMAQuadroChartDocument(
+      document
+    )
+
+  const parsed =
+    parseMAQuadroChartText(
+      content
+    )
+
+  return normalizeMAQuadroChartDocument({
+    ...current,
+
+    data:
+      parsed.map(
+        (
+          datum,
+          index
+        ) => ({
+          ...datum,
+
+          color:
+            current.data[
+              index
+            ]?.color ||
+            datum.color
+        })
+      )
+  })
+}
+
+export function chartDataToText(
+  document:
+    MAQuadroChartDocument
+) {
+  return normalizeMAQuadroChartDocument(
+    document
+  )
+    .data
+    .map(
+      (
+        datum
+      ) =>
+        `${datum.label};${datum.value}`
+    )
+    .join(
+      '\n'
+    )
+}
+
 function renderTitle(
   document:
     MAQuadroChartDocument
@@ -717,33 +1555,215 @@ function renderTitle(
   `
 }
 
-function renderLegend(
+type PlotLayout = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function getPlotLayout(
   document:
     MAQuadroChartDocument,
-  x:
-    number,
-  y:
-    number
-) {
+  horizontalBar =
+    false
+):
+  PlotLayout {
+  const {
+    spec
+  } =
+    document
+
+  let left =
+    horizontalBar
+      ? 170
+      : 84
+
+  let right =
+    42
+
+  let top =
+    spec.title
+      ? 92
+      : 56
+
+  let bottom =
+    92
+
   if (
-    !document
-      .spec
-      .showLegend
+    spec.showLegend
+  ) {
+    if (
+      spec.legendPosition ===
+      'left'
+    ) {
+      left +=
+        180
+    }
+
+    if (
+      spec.legendPosition ===
+      'right'
+    ) {
+      right +=
+        190
+    }
+
+    if (
+      spec.legendPosition ===
+      'top'
+    ) {
+      top +=
+        66
+    }
+
+    if (
+      spec.legendPosition ===
+      'bottom'
+    ) {
+      bottom +=
+        64
+    }
+  }
+
+  return {
+    x:
+      left,
+
+    y:
+      top,
+
+    width:
+      Math.max(
+        220,
+        CHART_WIDTH -
+        left -
+        right
+      ),
+
+    height:
+      Math.max(
+        180,
+        CHART_HEIGHT -
+        top -
+        bottom
+      )
+  }
+}
+
+function renderLegend(
+  document:
+    MAQuadroChartDocument
+) {
+  const {
+    spec,
+    data
+  } =
+    document
+
+  if (
+    !spec.showLegend
   ) {
     return ''
   }
 
-  return document.data
+  if (
+    spec.legendPosition ===
+      'top' ||
+    spec.legendPosition ===
+      'bottom'
+  ) {
+    const y =
+      spec.legendPosition ===
+      'top'
+        ? spec.title
+          ? 78
+          : 28
+        : CHART_HEIGHT -
+          44
+
+    return data
+      .map(
+        (
+          datum,
+          index
+        ) => {
+          const row =
+            Math.floor(
+              index /
+              4
+            )
+
+          const column =
+            index %
+            4
+
+          const x =
+            58 +
+            column *
+              220
+
+          const rowY =
+            y +
+            row *
+              26
+
+          return `
+            <g transform="translate(${x}, ${rowY})">
+              <rect
+                x="0"
+                y="-12"
+                width="14"
+                height="14"
+                rx="4"
+                fill="${escapeXml(
+                  datum.color
+                )}"
+              />
+
+              <text
+                x="22"
+                y="0"
+                fill="${escapeXml(
+                  spec.textColor
+                )}"
+                font-family="Arial, Helvetica, sans-serif"
+                font-size="14"
+                font-weight="600"
+              >${escapeXml(
+                shortenLabel(
+                  datum.label,
+                  18
+                )
+              )}</text>
+            </g>
+          `
+        }
+      )
+      .join(
+        ''
+      )
+  }
+
+  const x =
+    spec.legendPosition ===
+    'left'
+      ? 26
+      : CHART_WIDTH -
+        172
+
+  const startY =
+    spec.title
+      ? 120
+      : 84
+
+  return data
     .map(
       (
         datum,
         index
       ) => `
-        <g transform="translate(${x}, ${
-          y +
-          index *
-            42
-        })">
+        <g transform="translate(${x}, ${startY + index * 42})">
           <rect
             x="0"
             y="-14"
@@ -759,9 +1779,7 @@ function renderLegend(
             x="28"
             y="0"
             fill="${escapeXml(
-              document
-                .spec
-                .textColor
+              spec.textColor
             )}"
             font-family="Arial, Helvetica, sans-serif"
             font-size="17"
@@ -780,7 +1798,59 @@ function renderLegend(
     )
 }
 
-function renderCartesianChart(
+function niceStep(
+  range:
+    number,
+  targetTicks =
+    5
+) {
+  if (
+    !Number.isFinite(
+      range
+    ) ||
+    range <=
+      0
+  ) {
+    return 1
+  }
+
+  const rough =
+    range /
+    targetTicks
+
+  const magnitude =
+    Math.pow(
+      10,
+      Math.floor(
+        Math.log10(
+          rough
+        )
+      )
+    )
+
+  const normalized =
+    rough /
+    magnitude
+
+  const nice =
+    normalized <=
+      1
+      ? 1
+      : normalized <=
+          2
+        ? 2
+        : normalized <=
+            5
+          ? 5
+          : 10
+
+  return (
+    nice *
+    magnitude
+  )
+}
+
+function createAxisScale(
   document:
     MAQuadroChartDocument
 ) {
@@ -790,103 +1860,291 @@ function renderCartesianChart(
   } =
     document
 
-  const plotX =
-    84
-
-  const plotY =
-    spec.title
-      ? 92
-      : 58
-
-  const legendWidth =
-    spec.showLegend
-      ? 220
-      : 40
-
-  const plotWidth =
-    CHART_WIDTH -
-    plotX -
-    legendWidth -
-    42
-
-  const plotHeight =
-    CHART_HEIGHT -
-    plotY -
-    105
-
-  const maximum =
+  const dataMaximum =
     Math.max(
       1,
       ...data.map(
-        (datum) =>
+        (
+          datum
+        ) =>
           datum.value
       )
     )
 
-  const gridLines:
-    string[] = []
+  let minimum =
+    spec.axisAuto
+      ? 0
+      : spec.axisMin
 
-  for (
-    let index = 0;
-    index <= 5;
-    index += 1
+  let maximum =
+    spec.axisAuto
+      ? dataMaximum
+      : spec.axisMax
+
+  if (
+    spec.axisAuto
   ) {
-    const ratio =
-      index /
-      5
+    const step =
+      niceStep(
+        maximum -
+        minimum,
+        5
+      )
 
-    const y =
-      plotY +
-      plotHeight -
-      plotHeight *
-        ratio
-
-    const value =
-      maximum *
-      ratio
-
-    gridLines.push(`
-      <line
-        x1="${plotX}"
-        y1="${y}"
-        x2="${plotX + plotWidth}"
-        y2="${y}"
-        stroke="${escapeXml(
-          spec.axisColor
-        )}"
-        stroke-opacity="${
-          index === 0
-            ? 0.85
-            : 0.24
-        }"
-        stroke-width="${
-          index === 0
-            ? 2
-            : 1
-        }"
-      />
-
-      <text
-        x="${plotX - 12}"
-        y="${y + 6}"
-        text-anchor="end"
-        fill="${escapeXml(
-          spec.textColor
-        )}"
-        fill-opacity="0.72"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="14"
-      >${escapeXml(
-        formatValue(
-          value
-        )
-      )}</text>
-    `)
+    maximum =
+      Math.max(
+        step,
+        Math.ceil(
+          maximum /
+          step
+        ) *
+          step
+      )
   }
 
+  if (
+    maximum <=
+    minimum
+  ) {
+    maximum =
+      minimum +
+      1
+  }
+
+  let step =
+    spec.axisStep >
+    0
+      ? spec.axisStep
+      : niceStep(
+          maximum -
+          minimum,
+          5
+        )
+
+  if (
+    !Number.isFinite(
+      step
+    ) ||
+    step <=
+      0
+  ) {
+    step =
+      1
+  }
+
+  if (
+    (
+      maximum -
+      minimum
+    ) /
+    step >
+    10
+  ) {
+    step =
+      niceStep(
+        maximum -
+        minimum,
+        8
+      )
+  }
+
+  const ticks:
+    number[] =
+    []
+
+  let value =
+    minimum
+
+  let guard =
+    0
+
+  while (
+    value <=
+      maximum +
+        step *
+          0.001 &&
+    guard <
+      12
+  ) {
+    ticks.push(
+      value
+    )
+
+    value +=
+      step
+
+    guard +=
+      1
+  }
+
+  if (
+    ticks[
+      ticks.length -
+      1
+    ] <
+    maximum *
+      0.999
+  ) {
+    ticks.push(
+      maximum
+    )
+  }
+
+  return {
+    minimum,
+    maximum,
+    ticks
+  }
+}
+
+function axisRatio(
+  value:
+    number,
+  minimum:
+    number,
+  maximum:
+    number
+) {
+  return clamp(
+    (
+      value -
+      minimum
+    ) /
+      Math.max(
+        0.000001,
+        maximum -
+        minimum
+      ),
+    0,
+    1
+  )
+}
+
+function renderVerticalCartesian(
+  document:
+    MAQuadroChartDocument
+) {
+  const {
+    spec,
+    data
+  } =
+    document
+
+  const plot =
+    getPlotLayout(
+      document,
+      false
+    )
+
+  const scale =
+    createAxisScale(
+      document
+    )
+
   const slot =
-    plotWidth /
+    plot.width /
     data.length
+
+  const gridAndAxis =
+    scale.ticks
+      .map(
+        (
+          tick,
+          index
+        ) => {
+          const ratio =
+            axisRatio(
+              tick,
+              scale.minimum,
+              scale.maximum
+            )
+
+          const y =
+            plot.y +
+            plot.height -
+            plot.height *
+              ratio
+
+          const line =
+            spec.showGrid
+              ? `
+                <line
+                  x1="${plot.x}"
+                  y1="${y}"
+                  x2="${plot.x + plot.width}"
+                  y2="${y}"
+                  stroke="${escapeXml(
+                    spec.axisColor
+                  )}"
+                  stroke-opacity="${
+                    index ===
+                    0
+                      ? 0.48
+                      : 0.2
+                  }"
+                  stroke-width="1"
+                />
+              `
+              : ''
+
+          const label =
+            spec.showAxes
+              ? `
+                <text
+                  x="${plot.x - 12}"
+                  y="${y + 5}"
+                  text-anchor="end"
+                  fill="${escapeXml(
+                    spec.textColor
+                  )}"
+                  fill-opacity="0.7"
+                  font-family="Arial, Helvetica, sans-serif"
+                  font-size="13"
+                >${escapeXml(
+                  formatValue(
+                    tick,
+                    spec
+                  )
+                )}</text>
+              `
+              : ''
+
+          return (
+            line +
+            label
+          )
+        }
+      )
+      .join(
+        ''
+      )
+
+  const axes =
+    spec.showAxes
+      ? `
+        <line
+          x1="${plot.x}"
+          y1="${plot.y}"
+          x2="${plot.x}"
+          y2="${plot.y + plot.height}"
+          stroke="${escapeXml(
+            spec.axisColor
+          )}"
+          stroke-width="2"
+        />
+
+        <line
+          x1="${plot.x}"
+          y1="${plot.y + plot.height}"
+          x2="${plot.x + plot.width}"
+          y2="${plot.y + plot.height}"
+          stroke="${escapeXml(
+            spec.axisColor
+          )}"
+          stroke-width="2"
+        />
+      `
+      : ''
 
   const labels =
     data
@@ -896,29 +2154,19 @@ function renderCartesianChart(
           index
         ) => `
           <text
-            x="${
-              plotX +
-              slot *
-                (
-                  index +
-                  0.5
-                )
-            }"
-            y="${
-              plotY +
-              plotHeight +
-              32
-            }"
+            x="${plot.x + slot * (index + 0.5)}"
+            y="${plot.y + plot.height + 30}"
             text-anchor="middle"
             fill="${escapeXml(
               spec.textColor
             )}"
             font-family="Arial, Helvetica, sans-serif"
-            font-size="15"
+            font-size="14"
             font-weight="600"
           >${escapeXml(
             shortenLabel(
-              datum.label
+              datum.label,
+              12
             )
           )}</text>
         `
@@ -936,11 +2184,11 @@ function renderCartesianChart(
   ) {
     const barWidth =
       Math.max(
-        18,
+        16,
         Math.min(
-          72,
+          74,
           slot *
-            0.6
+            0.62
         )
       )
 
@@ -951,15 +2199,19 @@ function renderCartesianChart(
             datum,
             index
           ) => {
-            const height =
-              plotHeight *
-              (
-                datum.value /
-                maximum
+            const ratio =
+              axisRatio(
+                datum.value,
+                scale.minimum,
+                scale.maximum
               )
 
+            const height =
+              plot.height *
+              ratio
+
             const x =
-              plotX +
+              plot.x +
               slot *
                 (
                   index +
@@ -969,9 +2221,13 @@ function renderCartesianChart(
                 2
 
             const y =
-              plotY +
-              plotHeight -
+              plot.y +
+              plot.height -
               height
+
+            const inside =
+              spec.valuePosition ===
+              'inside'
 
             return `
               <rect
@@ -982,7 +2238,7 @@ function renderCartesianChart(
                   0,
                   height
                 )}"
-                rx="8"
+                rx="${spec.barRadius}"
                 fill="${escapeXml(
                   datum.color
                 )}"
@@ -992,27 +2248,41 @@ function renderCartesianChart(
                 spec.showValues
                   ? `
                     <text
-                      x="${
-                        x +
-                        barWidth /
-                          2
+                      x="${x + barWidth / 2}"
+                      y="${
+                        inside
+                          ? Math.min(
+                              plot.y +
+                                plot.height -
+                                8,
+                              y +
+                                22
+                            )
+                          : Math.max(
+                              plot.y +
+                                17,
+                              y -
+                                9
+                            )
                       }"
-                      y="${Math.max(
-                        plotY +
-                          18,
-                        y -
-                          10
-                      )}"
                       text-anchor="middle"
                       fill="${escapeXml(
-                        spec.textColor
+                        inside
+                          ? '#FFFFFF'
+                          : spec.textColor
                       )}"
                       font-family="Arial, Helvetica, sans-serif"
-                      font-size="15"
+                      font-size="14"
                       font-weight="700"
+                      ${
+                        inside
+                          ? 'paint-order="stroke" stroke="#0F172A" stroke-opacity="0.25" stroke-width="3"'
+                          : ''
+                      }
                     >${escapeXml(
                       formatValue(
-                        datum.value
+                        datum.value,
+                        spec
                       )
                     )}</text>
                   `
@@ -1034,7 +2304,7 @@ function renderCartesianChart(
           datum,
 
           x:
-            plotX +
+            plot.x +
             slot *
               (
                 index +
@@ -1042,58 +2312,85 @@ function renderCartesianChart(
               ),
 
           y:
-            plotY +
-            plotHeight -
-            plotHeight *
-              (
-                datum.value /
-                maximum
+            plot.y +
+            plot.height -
+            plot.height *
+              axisRatio(
+                datum.value,
+                scale.minimum,
+                scale.maximum
               )
         })
       )
 
-    marks = `
+    const pointString =
+      points
+        .map(
+          (
+            point
+          ) =>
+            `${point.x},${point.y}`
+        )
+        .join(
+          ' '
+        )
+
+    const area =
+      spec.type ===
+      'area'
+        ? `
+          <polygon
+            points="
+              ${plot.x + slot * 0.5},${plot.y + plot.height}
+              ${pointString}
+              ${plot.x + slot * (data.length - 0.5)},${plot.y + plot.height}
+            "
+            fill="${escapeXml(
+              spec.seriesColor
+            )}"
+            fill-opacity="${spec.areaOpacity}"
+          />
+        `
+        : ''
+
+    const line = `
       <polyline
-        points="${points
-          .map(
-            (point) =>
-              `${point.x},${point.y}`
-          )
-          .join(
-            ' '
-          )}"
+        points="${pointString}"
         fill="none"
         stroke="${escapeXml(
-          data[0]
-            ?.color ||
-          MA_QUADRO_CHART_COLORS[
-            0
-          ]
+          spec.seriesColor
         )}"
-        stroke-width="6"
+        stroke-width="${spec.lineWidth}"
         stroke-linecap="round"
         stroke-linejoin="round"
       />
+    `
 
-      ${points
+    const pointsSvg =
+      points
         .map(
           (
             point
           ) => `
-            <circle
-              cx="${point.x}"
-              cy="${point.y}"
-              r="8"
-              fill="${escapeXml(
-                point
-                  .datum
-                  .color
-              )}"
-              stroke="${escapeXml(
-                spec.background
-              )}"
-              stroke-width="4"
-            />
+            ${
+              spec.pointSize >
+              0
+                ? `
+                  <circle
+                    cx="${point.x}"
+                    cy="${point.y}"
+                    r="${spec.pointSize}"
+                    fill="${escapeXml(
+                      point.datum.color
+                    )}"
+                    stroke="${escapeXml(
+                      spec.background
+                    )}"
+                    stroke-width="3"
+                  />
+                `
+                : ''
+            }
 
             ${
               spec.showValues
@@ -1101,23 +2398,23 @@ function renderCartesianChart(
                   <text
                     x="${point.x}"
                     y="${Math.max(
-                      plotY +
-                        18,
+                      plot.y +
+                        17,
                       point.y -
-                        14
+                        spec.pointSize -
+                        9
                     )}"
                     text-anchor="middle"
                     fill="${escapeXml(
                       spec.textColor
                     )}"
                     font-family="Arial, Helvetica, sans-serif"
-                    font-size="15"
+                    font-size="14"
                     font-weight="700"
                   >${escapeXml(
                     formatValue(
-                      point
-                        .datum
-                        .value
+                      point.datum.value,
+                      spec
                     )
                   )}</text>
                 `
@@ -1127,22 +2424,309 @@ function renderCartesianChart(
         )
         .join(
           ''
-        )}
-    `
+        )
+
+    marks =
+      area +
+      line +
+      pointsSvg
   }
 
   return `
-    ${gridLines.join('')}
+    ${gridAndAxis}
+    ${axes}
     ${marks}
     ${labels}
     ${renderLegend(
-      document,
-      CHART_WIDTH -
-        202,
-      plotY +
-        18
+      document
     )}
   `
+}
+
+function renderHorizontalBars(
+  document:
+    MAQuadroChartDocument
+) {
+  const {
+    spec,
+    data
+  } =
+    document
+
+  const plot =
+    getPlotLayout(
+      document,
+      true
+    )
+
+  const scale =
+    createAxisScale(
+      document
+    )
+
+  const slot =
+    plot.height /
+    data.length
+
+  const barHeight =
+    Math.max(
+      16,
+      Math.min(
+        52,
+        slot *
+          0.62
+      )
+    )
+
+  const gridAndAxis =
+    scale.ticks
+      .map(
+        (
+          tick,
+          index
+        ) => {
+          const ratio =
+            axisRatio(
+              tick,
+              scale.minimum,
+              scale.maximum
+            )
+
+          const x =
+            plot.x +
+            plot.width *
+              ratio
+
+          const line =
+            spec.showGrid
+              ? `
+                <line
+                  x1="${x}"
+                  y1="${plot.y}"
+                  x2="${x}"
+                  y2="${plot.y + plot.height}"
+                  stroke="${escapeXml(
+                    spec.axisColor
+                  )}"
+                  stroke-opacity="${
+                    index ===
+                    0
+                      ? 0.48
+                      : 0.2
+                  }"
+                  stroke-width="1"
+                />
+              `
+              : ''
+
+          const label =
+            spec.showAxes
+              ? `
+                <text
+                  x="${x}"
+                  y="${plot.y + plot.height + 28}"
+                  text-anchor="middle"
+                  fill="${escapeXml(
+                    spec.textColor
+                  )}"
+                  fill-opacity="0.72"
+                  font-family="Arial, Helvetica, sans-serif"
+                  font-size="13"
+                >${escapeXml(
+                  formatValue(
+                    tick,
+                    spec
+                  )
+                )}</text>
+              `
+              : ''
+
+          return (
+            line +
+            label
+          )
+        }
+      )
+      .join(
+        ''
+      )
+
+  const axes =
+    spec.showAxes
+      ? `
+        <line
+          x1="${plot.x}"
+          y1="${plot.y}"
+          x2="${plot.x}"
+          y2="${plot.y + plot.height}"
+          stroke="${escapeXml(
+            spec.axisColor
+          )}"
+          stroke-width="2"
+        />
+
+        <line
+          x1="${plot.x}"
+          y1="${plot.y + plot.height}"
+          x2="${plot.x + plot.width}"
+          y2="${plot.y + plot.height}"
+          stroke="${escapeXml(
+            spec.axisColor
+          )}"
+          stroke-width="2"
+        />
+      `
+      : ''
+
+  const marks =
+    data
+      .map(
+        (
+          datum,
+          index
+        ) => {
+          const ratio =
+            axisRatio(
+              datum.value,
+              scale.minimum,
+              scale.maximum
+            )
+
+          const width =
+            plot.width *
+            ratio
+
+          const y =
+            plot.y +
+            slot *
+              (
+                index +
+                0.5
+              ) -
+            barHeight /
+              2
+
+          const inside =
+            spec.valuePosition ===
+            'inside'
+
+          const valueX =
+            inside
+              ? Math.max(
+                  plot.x +
+                    8,
+                  plot.x +
+                    width -
+                    10
+                )
+              : Math.min(
+                  plot.x +
+                    plot.width -
+                    5,
+                  plot.x +
+                    width +
+                    10
+                )
+
+          return `
+            <text
+              x="${plot.x - 12}"
+              y="${y + barHeight / 2 + 5}"
+              text-anchor="end"
+              fill="${escapeXml(
+                spec.textColor
+              )}"
+              font-family="Arial, Helvetica, sans-serif"
+              font-size="14"
+              font-weight="600"
+            >${escapeXml(
+              shortenLabel(
+                datum.label,
+                16
+              )
+            )}</text>
+
+            <rect
+              x="${plot.x}"
+              y="${y}"
+              width="${Math.max(
+                0,
+                width
+              )}"
+              height="${barHeight}"
+              rx="${spec.barRadius}"
+              fill="${escapeXml(
+                datum.color
+              )}"
+            />
+
+            ${
+              spec.showValues
+                ? `
+                  <text
+                    x="${valueX}"
+                    y="${y + barHeight / 2 + 5}"
+                    text-anchor="${
+                      inside
+                        ? 'end'
+                        : 'start'
+                    }"
+                    fill="${escapeXml(
+                      inside
+                        ? '#FFFFFF'
+                        : spec.textColor
+                    )}"
+                    font-family="Arial, Helvetica, sans-serif"
+                    font-size="14"
+                    font-weight="700"
+                    ${
+                      inside
+                        ? 'paint-order="stroke" stroke="#0F172A" stroke-opacity="0.25" stroke-width="3"'
+                        : ''
+                    }
+                  >${escapeXml(
+                    formatValue(
+                      datum.value,
+                      spec
+                    )
+                  )}</text>
+                `
+                : ''
+            }
+          `
+        }
+      )
+      .join(
+        ''
+      )
+
+  return `
+    ${gridAndAxis}
+    ${axes}
+    ${marks}
+    ${renderLegend(
+      document
+    )}
+  `
+}
+
+function renderCartesianChart(
+  document:
+    MAQuadroChartDocument
+) {
+  return (
+    document.spec.type ===
+      'bar' &&
+    document.spec
+      .barDirection ===
+      'horizontal'
+  )
+    ? renderHorizontalBars(
+        document
+      )
+    : renderVerticalCartesian(
+        document
+      )
 }
 
 function polarPoint(
@@ -1211,10 +2795,8 @@ function pieArcPath(
     )
 
   const largeArc =
-    (
-      endAngle -
-      startAngle
-    ) >
+    endAngle -
+    startAngle >
     180
       ? 1
       : 0
@@ -1239,6 +2821,12 @@ function renderPieChart(
   } =
     document
 
+  const layout =
+    getPlotLayout(
+      document,
+      false
+    )
+
   const total =
     data.reduce(
       (
@@ -1251,21 +2839,35 @@ function renderPieChart(
     )
 
   const centerX =
-    spec.showLegend
-      ? 340
-      : CHART_WIDTH /
-        2
+    layout.x +
+    layout.width /
+      2
 
   const centerY =
-    spec.title
-      ? 325
-      : 300
+    layout.y +
+    layout.height /
+      2
 
   const radius =
-    190
+    Math.max(
+      95,
+      Math.min(
+        layout.width,
+        layout.height
+      ) *
+        0.43
+    )
+
+  const innerRadius =
+    spec.type ===
+    'donut'
+      ? radius *
+        spec.donutHole
+      : 0
 
   if (
-    total <= 0
+    total <=
+    0
   ) {
     return `
       <circle
@@ -1293,10 +2895,7 @@ function renderPieChart(
       >Sem valores</text>
 
       ${renderLegend(
-        document,
-        CHART_WIDTH -
-          260,
-        155
+        document
       )}
     `
   }
@@ -1305,7 +2904,8 @@ function renderPieChart(
     0
 
   const segments:
-    string[] = []
+    string[] =
+    []
 
   data.forEach(
     (
@@ -1316,7 +2916,8 @@ function renderPieChart(
         total
 
       if (
-        ratio <= 0
+        ratio <=
+        0
       ) {
         return
       }
@@ -1371,16 +2972,36 @@ function renderPieChart(
       if (
         spec.showValues &&
         ratio >=
-          0.055
+          0.045
       ) {
         const labelPoint =
           polarPoint(
             centerX,
             centerY,
-            radius *
-              0.67,
+            innerRadius >
+              0
+              ? innerRadius +
+                (
+                  radius -
+                  innerRadius
+                ) *
+                  0.56
+              : radius *
+                0.67,
             middle
           )
+
+        const label =
+          spec.pieValueMode ===
+          'value'
+            ? formatValue(
+                datum.value,
+                spec
+              )
+            : `${Math.round(
+                ratio *
+                100
+              )}%`
 
         segments.push(`
           <text
@@ -1389,16 +3010,15 @@ function renderPieChart(
             text-anchor="middle"
             fill="#FFFFFF"
             font-family="Arial, Helvetica, sans-serif"
-            font-size="17"
+            font-size="16"
             font-weight="800"
             paint-order="stroke"
             stroke="#0F172A"
             stroke-opacity="0.45"
             stroke-width="4"
-          >${Math.round(
-            ratio *
-              100
-          )}%</text>
+          >${escapeXml(
+            label
+          )}</text>
         `)
       }
 
@@ -1407,14 +3027,26 @@ function renderPieChart(
     }
   )
 
+  const hole =
+    innerRadius >
+    0
+      ? `
+        <circle
+          cx="${centerX}"
+          cy="${centerY}"
+          r="${innerRadius}"
+          fill="${escapeXml(
+            spec.background
+          )}"
+        />
+      `
+      : ''
+
   return `
     ${segments.join('')}
-
+    ${hole}
     ${renderLegend(
-      document,
-      CHART_WIDTH -
-        260,
-      155
+      document
     )}
   `
 }
@@ -1429,10 +3061,12 @@ export function createMAQuadroChartSvgFromDocument(
     )
 
   const chart =
-    normalized
-      .spec
-      .type ===
-    'pie'
+    (
+      normalized.spec.type ===
+        'pie' ||
+      normalized.spec.type ===
+        'donut'
+    )
       ? renderPieChart(
           normalized
         )
@@ -1456,9 +3090,7 @@ export function createMAQuadroChartSvgFromDocument(
     height="${CHART_HEIGHT}"
     rx="24"
     fill="${escapeXml(
-      normalized
-        .spec
-        .background
+      normalized.spec.background
     )}"
   />
 
@@ -1492,9 +3124,23 @@ function chartTypeLabel(
 
   if (
     type ===
+    'area'
+  ) {
+    return 'Área'
+  }
+
+  if (
+    type ===
     'pie'
   ) {
     return 'Circular'
+  }
+
+  if (
+    type ===
+    'donut'
+  ) {
+    return 'Donut'
   }
 
   return 'Barras'
@@ -1511,9 +3157,7 @@ export function createMAQuadroChartObjectName(
 
   return (
     `Gráfico ${chartTypeLabel(
-      normalized
-        .spec
-        .type
+      normalized.spec.type
     )}` +
     encodeMetadata(
       normalized
@@ -1525,15 +3169,16 @@ export function readMAQuadroChartDocumentFromName(
   name:
     string
 ):
-  MAQuadroChartDocument |
-  null {
+  | MAQuadroChartDocument
+  | null {
   const start =
     name.indexOf(
       CHART_METADATA_START
     )
 
   if (
-    start < 0
+    start <
+    0
   ) {
     return null
   }
@@ -1549,7 +3194,8 @@ export function readMAQuadroChartDocumentFromName(
     )
 
   if (
-    end < 0
+    end <
+    0
   ) {
     return null
   }
@@ -1564,9 +3210,7 @@ export function readMAQuadroChartDocumentFromName(
           )
         )
       ) as
-        Partial<
-          MAQuadroChartDocument
-        >
+        Partial<MAQuadroChartDocument>
 
     if (
       parsed.version !==
@@ -1575,20 +3219,6 @@ export function readMAQuadroChartDocumentFromName(
       !Array.isArray(
         parsed.data
       )
-    ) {
-      return null
-    }
-
-    const type =
-      (
-        parsed.spec as
-          MAQuadroChartSpec
-      ).type
-
-    if (
-      type !== 'bar' &&
-      type !== 'line' &&
-      type !== 'pie'
     ) {
       return null
     }
@@ -1617,9 +3247,11 @@ export function createMAQuadroChartFileFromDocument(
         normalized
       )
     ],
+
     createMAQuadroChartObjectName(
       normalized
     ),
+
     {
       type:
         'image/svg+xml',
