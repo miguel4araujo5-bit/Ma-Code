@@ -14,8 +14,7 @@ import {
   createMAQuadroChartSvgFromDocument,
   DEFAULT_MA_QUADRO_CHART_CONTENT,
   DEFAULT_MA_QUADRO_CHART_SPEC,
-  type MAQuadroChartSpec,
-  type MAQuadroChartType
+  type MAQuadroChartSpec
 } from '../../lib/maQuadro/chartSvg'
 
 import {
@@ -23,29 +22,10 @@ import {
 } from './editorContext'
 
 import ChartPreview from './ChartPreview'
+import ChartProControls from './ChartProControls'
 
 import './maQuadroChart.css'
-
-const CHART_TYPES:
-  Array<{
-    type:
-      MAQuadroChartType
-    label:
-      string
-  }> = [
-    {
-      type: 'bar',
-      label: 'Barras'
-    },
-    {
-      type: 'line',
-      label: 'Linhas'
-    },
-    {
-      type: 'pie',
-      label: 'Circular'
-    }
-  ]
+import './maQuadroChartPro.css'
 
 export default function ChartBuilder() {
   const editor =
@@ -54,42 +34,45 @@ export default function ChartBuilder() {
   const [
     host,
     setHost
-  ] = useState<
-    HTMLElement |
-    null
-  >(
-    null
-  )
+  ] =
+    useState<
+      HTMLElement |
+      null
+    >(
+      null
+    )
 
   const [
     spec,
     setSpec
-  ] = useState<
-    MAQuadroChartSpec
-  >(
-    DEFAULT_MA_QUADRO_CHART_SPEC
-  )
+  ] =
+    useState<MAQuadroChartSpec>(
+      DEFAULT_MA_QUADRO_CHART_SPEC
+    )
 
   const [
     content,
     setContent
-  ] = useState(
-    DEFAULT_MA_QUADRO_CHART_CONTENT
-  )
+  ] =
+    useState(
+      DEFAULT_MA_QUADRO_CHART_CONTENT
+    )
 
   const [
     inserting,
     setInserting
-  ] = useState(
-    false
-  )
+  ] =
+    useState(
+      false
+    )
 
   const [
     message,
     setMessage
-  ] = useState(
-    ''
-  )
+  ] =
+    useState(
+      ''
+    )
 
   useLayoutEffect(() => {
     if (
@@ -105,9 +88,7 @@ export default function ChartBuilder() {
     }
 
     const elementGrid =
-      document.querySelector<
-        HTMLElement
-      >(
+      document.querySelector<HTMLElement>(
         '.mq-left-panel .mq-element-grid'
       )
 
@@ -122,9 +103,7 @@ export default function ChartBuilder() {
     }
 
     const anchor =
-      document.querySelector<
-        HTMLElement
-      >(
+      document.querySelector<HTMLElement>(
         '.mq-table-builder-host'
       ) ||
       elementGrid
@@ -197,6 +176,7 @@ export default function ChartBuilder() {
   >(
     key:
       Key,
+
     value:
       MAQuadroChartSpec[
         Key
@@ -207,6 +187,7 @@ export default function ChartBuilder() {
         current
       ) => ({
         ...current,
+
         [key]:
           value
       })
@@ -216,6 +197,25 @@ export default function ChartBuilder() {
       ''
     )
   }
+
+  const applyPreset =
+    (
+      values:
+        Partial<MAQuadroChartSpec>
+    ) => {
+      setSpec(
+        (
+          current
+        ) => ({
+          ...current,
+          ...values
+        })
+      )
+
+      setMessage(
+        ''
+      )
+    }
 
   const insertChart =
     async () => {
@@ -257,13 +257,19 @@ export default function ChartBuilder() {
 
   return createPortal(
     <section
-      className="mq-chart-builder"
+      className="mq-chart-builder mq-chart-builder--pro"
       aria-label="Gráfico"
     >
       <div className="mq-section-title mq-chart-builder__title">
-        <h3>
-          Gráfico
-        </h3>
+        <span>
+          <h3>
+            Gráfico
+          </h3>
+
+          <small>
+            Editor Pro local
+          </small>
+        </span>
 
         <span>
           {
@@ -274,206 +280,24 @@ export default function ChartBuilder() {
         </span>
       </div>
 
-      <div className="mq-chart-type-grid">
-        {CHART_TYPES.map(
-          (
-            item
-          ) => (
-            <button
-              key={
-                item.type
-              }
-              type="button"
-              disabled={
-                locked
-              }
-              className={
-                spec.type ===
-                item.type
-                  ? 'is-active'
-                  : ''
-              }
-              onClick={() =>
-                updateSpec(
-                  'type',
-                  item.type
-                )
-              }
-            >
-              {
-                item.label
-              }
-            </button>
-          )
-        )}
-      </div>
+      <ChartProControls
+        spec={
+          spec
+        }
+        disabled={
+          locked
+        }
+        onChange={
+          updateSpec
+        }
+        onApplyPreset={
+          applyPreset
+        }
+      />
 
       <label className="mq-chart-field">
         <span>
-          Título
-        </span>
-
-        <input
-          type="text"
-          maxLength={
-            80
-          }
-          value={
-            spec.title
-          }
-          disabled={
-            locked
-          }
-          onChange={(
-            event
-          ) =>
-            updateSpec(
-              'title',
-              event
-                .target
-                .value
-            )
-          }
-        />
-      </label>
-
-      <div className="mq-chart-toggle-row">
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              spec.showValues
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'showValues',
-                event
-                  .target
-                  .checked
-              )
-            }
-          />
-
-          <span>
-            Mostrar valores
-          </span>
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              spec.showLegend
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'showLegend',
-                event
-                  .target
-                  .checked
-              )
-            }
-          />
-
-          <span>
-            Mostrar legenda
-          </span>
-        </label>
-      </div>
-
-      <div className="mq-chart-color-grid">
-        <label>
-          <span>
-            Fundo
-          </span>
-
-          <input
-            type="color"
-            value={
-              spec.background
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'background',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>
-            Texto
-          </span>
-
-          <input
-            type="color"
-            value={
-              spec.textColor
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'textColor',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>
-            Eixos
-          </span>
-
-          <input
-            type="color"
-            value={
-              spec.axisColor
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'axisColor',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-      </div>
-
-      <label className="mq-chart-field">
-        <span>
-          Dados
+          Dados rápidos
         </span>
 
         <textarea
@@ -484,17 +308,16 @@ export default function ChartBuilder() {
             locked
           }
           rows={
-            5
+            6
           }
           placeholder={
-            'Website;45\nAutomação;32\nAplicação;24'
+            'Produto;120\nServiço;95\nAutomação;60'
           }
           onChange={(
             event
           ) => {
             setContent(
-              event
-                .target
+              event.target
                 .value
             )
 
@@ -505,11 +328,21 @@ export default function ChartBuilder() {
         />
 
         <small>
-          Uma linha por valor.
-          Separe o nome e o
-          valor com Tab ou ;
+          Cole CSV simples ou dados por linha. Use Tab, ponto e vírgula ou vírgula como separador. A primeira linha de cabeçalho é ignorada automaticamente.
         </small>
       </label>
+
+      <div className="mq-chart-pro-note">
+        <span
+          aria-hidden="true"
+        >
+          i
+        </span>
+
+        <p>
+          O gráfico é criado como SVG local e mantém metadata editável. Não existe upload, API ou processamento no servidor.
+        </p>
+      </div>
 
       <ChartPreview
         svg={
@@ -537,7 +370,9 @@ export default function ChartBuilder() {
           className="mq-chart-message"
           role="status"
         >
-          {message}
+          {
+            message
+          }
         </p>
       ) : null}
     </section>,
