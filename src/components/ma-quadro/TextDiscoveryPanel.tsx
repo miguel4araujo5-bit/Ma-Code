@@ -1,7 +1,9 @@
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
-  useState
+  useState,
+  type MouseEvent
 } from 'react'
 
 import {
@@ -13,10 +15,24 @@ import type {
 } from '../../types/maQuadro'
 
 import {
+  getMAQuadroAnimationCanvas
+} from '../../lib/maQuadro/objectAnimations'
+
+import {
+  applyMAQuadroSelectedTextScript,
+  removeMAQuadroPageNumber,
+  upsertMAQuadroPageNumber,
+  type MAQuadroPageNumberFormat,
+  type MAQuadroPageNumberPosition,
+  type MAQuadroTextScriptAction
+} from '../../lib/maQuadro/typographyPro'
+
+import {
   useMAQuadroEditorContext
 } from './editorContext'
 
 import './maQuadroTextDiscovery.css'
+import './maQuadroTypographyPro.css'
 
 type TextStarter = {
   preset: MAQuadroTextPreset
@@ -25,33 +41,82 @@ type TextStarter = {
   description: string
 }
 
-const TEXT_STARTERS: TextStarter[] = [
+type FontFilter =
+  | 'all'
+  | 'system'
+  | 'local'
+
+const TEXT_STARTERS:
+  TextStarter[] = [
+    {
+      preset: 'heading',
+      label: 'Título',
+      sample: 'O seu título',
+      description:
+        'Destaque principal'
+    },
+    {
+      preset: 'subheading',
+      label: 'Subtítulo',
+      sample:
+        'Um subtítulo claro',
+      description:
+        'Segundo nível'
+    },
+    {
+      preset: 'body',
+      label:
+        'Corpo de texto',
+      sample:
+        'Adicione informação de forma clara e legível.',
+      description:
+        'Parágrafos e informação'
+    },
+    {
+      preset: 'caption',
+      label: 'Legenda',
+      sample:
+        'Legenda ou detalhe',
+      description:
+        'Notas e pequenos destaques'
+    }
+  ]
+
+const TRACKING_PRESETS = [
   {
-    preset: 'heading',
-    label: 'Título',
-    sample: 'O seu título',
-    description: 'Destaque principal'
+    value: -40,
+    label: 'Compacto'
   },
   {
-    preset: 'subheading',
-    label: 'Subtítulo',
-    sample: 'Um subtítulo claro',
-    description: 'Segundo nível'
+    value: 0,
+    label: 'Normal'
   },
   {
-    preset: 'body',
-    label: 'Corpo de texto',
-    sample:
-      'Adicione informação de forma clara e legível.',
-    description: 'Parágrafos e informação'
+    value: 120,
+    label: 'Aberto'
   },
   {
-    preset: 'caption',
-    label: 'Legenda',
-    sample: 'Legenda ou detalhe',
-    description: 'Notas e pequenos destaques'
+    value: 240,
+    label: 'Display'
   }
 ]
+
+function normalizeSearch(
+  value: string
+) {
+  return value
+    .trim()
+    .normalize(
+      'NFD'
+    )
+    .replace(
+      /[\u0300-\u036f]/g,
+      ''
+    )
+    .toLocaleLowerCase(
+      'pt-PT'
+    )
+}
 
 function openCurvedTextTool(
   setActivePanel: (
@@ -77,7 +142,8 @@ function openCurvedTextTool(
       if (
         button.getAttribute(
           'aria-pressed'
-        ) !== 'true'
+        ) !==
+        'true'
       ) {
         button.click()
       }
@@ -90,9 +156,12 @@ function openCurvedTextTool(
             )
 
           target?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-            inline: 'nearest'
+            behavior:
+              'smooth',
+            block:
+              'start',
+            inline:
+              'nearest'
           })
         }
       )
@@ -124,9 +193,78 @@ export default function TextDiscoveryPanel() {
   const [
     host,
     setHost
-  ] = useState<HTMLElement | null>(
-    null
-  )
+  ] =
+    useState<HTMLElement | null>(
+      null
+    )
+
+  const [
+    fontSearch,
+    setFontSearch
+  ] =
+    useState('')
+
+  const [
+    fontFilter,
+    setFontFilter
+  ] =
+    useState<FontFilter>(
+      'all'
+    )
+
+  const [
+    scriptMessage,
+    setScriptMessage
+  ] =
+    useState('')
+
+  const [
+    pageNumberWorking,
+    setPageNumberWorking
+  ] =
+    useState(false)
+
+  const [
+    pageNumberMessage,
+    setPageNumberMessage
+  ] =
+    useState('')
+
+  const [
+    pageNumberPosition,
+    setPageNumberPosition
+  ] =
+    useState<MAQuadroPageNumberPosition>(
+      'bottom-center'
+    )
+
+  const [
+    pageNumberFormat,
+    setPageNumberFormat
+  ] =
+    useState<MAQuadroPageNumberFormat>(
+      'number'
+    )
+
+  const [
+    pageNumberStart,
+    setPageNumberStart
+  ] =
+    useState(1)
+
+  const [
+    pageNumberFont,
+    setPageNumberFont
+  ] =
+    useState('')
+
+  const [
+    pageNumberColor,
+    setPageNumberColor
+  ] =
+    useState(
+      '#64748B'
+    )
 
   useLayoutEffect(() => {
     if (
@@ -149,7 +287,8 @@ export default function TextDiscoveryPanel() {
     const originalPresets =
       panel?.querySelector<HTMLElement>(
         '.mq-text-presets'
-      ) ?? null
+      ) ??
+      null
 
     if (
       !panel ||
@@ -187,15 +326,104 @@ export default function TextDiscoveryPanel() {
     editor.ready
   ])
 
-  const fonts =
+  useEffect(() => {
+    if (
+      pageNumberFont ||
+      editor.availableFonts
+        .length ===
+        0
+    ) {
+      return
+    }
+
+    setPageNumberFont(
+      editor.availableFonts[0]
+        .family
+    )
+  }, [
+    editor.availableFonts,
+    pageNumberFont
+  ])
+
+  const localFamilies =
     useMemo(
       () =>
-        editor.availableFonts.slice(
-          0,
-          8
+        new Set(
+          editor.localFonts.map(
+            (
+              font
+            ) =>
+              normalizeSearch(
+                font.family
+              )
+          )
         ),
       [
-        editor.availableFonts
+        editor.localFonts
+      ]
+    )
+
+  const fonts =
+    useMemo(
+      () => {
+        const query =
+          normalizeSearch(
+            fontSearch
+          )
+
+        return editor
+          .availableFonts
+          .filter(
+            (
+              font
+            ) => {
+              const local =
+                localFamilies.has(
+                  normalizeSearch(
+                    font.family
+                  )
+                )
+
+              if (
+                fontFilter ===
+                  'local' &&
+                !local
+              ) {
+                return false
+              }
+
+              if (
+                fontFilter ===
+                  'system' &&
+                local
+              ) {
+                return false
+              }
+
+              if (!query) {
+                return true
+              }
+
+              return (
+                normalizeSearch(
+                  font.name
+                ).includes(
+                  query
+                ) ||
+                normalizeSearch(
+                  font.family
+                ).includes(
+                  query
+                )
+              )
+            }
+          )
+      },
+      [
+        editor.availableFonts,
+        fontFilter,
+        fontSearch,
+        localFamilies
       ]
     )
 
@@ -206,13 +434,324 @@ export default function TextDiscoveryPanel() {
   const locked =
     editor.busy ||
     editor.structureBusy ||
-    editor.imageCropEditing
+    editor.imageCropEditing ||
+    pageNumberWorking
 
   const textSelected =
     editor.selection.count ===
       1 &&
     editor.selection.role ===
       'text'
+
+  const preserveTextSelection = (
+    event:
+      MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault()
+  }
+
+  const runScriptAction =
+    async (
+      action:
+        MAQuadroTextScriptAction
+    ) => {
+      if (locked) {
+        return
+      }
+
+      const result =
+        applyMAQuadroSelectedTextScript(
+          action
+        )
+
+      setScriptMessage(
+        result.message
+      )
+
+      if (
+        result.changed
+      ) {
+        await editor.saveProject(
+          true
+        )
+      }
+    }
+
+  const applyPageNumbers =
+    async () => {
+      const project =
+        editor.project
+
+      const activePage =
+        editor.activePage
+
+      if (
+        !project ||
+        !activePage ||
+        pageNumberWorking
+      ) {
+        return
+      }
+
+      const pageIds =
+        project.pages.map(
+          (
+            page
+          ) =>
+            page.id
+        )
+
+      const originalPageId =
+        activePage.id
+
+      const safeStart =
+        Math.max(
+          0,
+          Math.round(
+            Number.isFinite(
+              pageNumberStart
+            )
+              ? pageNumberStart
+              : 1
+          )
+        )
+
+      const finalNumber =
+        safeStart +
+        pageIds.length -
+        1
+
+      setPageNumberWorking(
+        true
+      )
+
+      setPageNumberMessage(
+        'A numerar as páginas…'
+      )
+
+      try {
+        const saved =
+          await editor.saveProject(
+            true
+          )
+
+        if (!saved) {
+          throw new Error(
+            'Não foi possível guardar o projeto antes de numerar as páginas.'
+          )
+        }
+
+        for (
+          let index = 0;
+          index <
+          pageIds.length;
+          index += 1
+        ) {
+          const pageId =
+            pageIds[index]
+
+          await editor.setActivePage(
+            pageId
+          )
+
+          const canvas =
+            getMAQuadroAnimationCanvas()
+
+          if (!canvas) {
+            throw new Error(
+              'Não foi possível aceder ao quadro para numerar uma das páginas.'
+            )
+          }
+
+          upsertMAQuadroPageNumber(
+            canvas,
+            safeStart +
+              index,
+            finalNumber,
+            {
+              position:
+                pageNumberPosition,
+
+              format:
+                pageNumberFormat,
+
+              fontFamily:
+                pageNumberFont ||
+                editor.availableFonts[0]
+                  ?.family ||
+                'Arial',
+
+              color:
+                pageNumberColor
+            }
+          )
+
+          const pageSaved =
+            await editor.saveProject(
+              true
+            )
+
+          if (!pageSaved) {
+            throw new Error(
+              'Não foi possível guardar uma das páginas numeradas.'
+            )
+          }
+        }
+
+        await editor.setActivePage(
+          originalPageId
+        )
+
+        setPageNumberMessage(
+          `${pageIds.length} página${
+            pageIds.length === 1
+              ? ''
+              : 's'
+          } numerada${
+            pageIds.length === 1
+              ? ''
+              : 's'
+          } automaticamente.`
+        )
+      } catch (
+        error
+      ) {
+        console.error(
+          error
+        )
+
+        try {
+          await editor.setActivePage(
+            originalPageId
+          )
+        } catch {}
+
+        setPageNumberMessage(
+          error instanceof
+            Error
+            ? error.message
+            : 'Não foi possível concluir a numeração das páginas.'
+        )
+      } finally {
+        setPageNumberWorking(
+          false
+        )
+      }
+    }
+
+  const removePageNumbers =
+    async () => {
+      const project =
+        editor.project
+
+      const activePage =
+        editor.activePage
+
+      if (
+        !project ||
+        !activePage ||
+        pageNumberWorking
+      ) {
+        return
+      }
+
+      const pageIds =
+        project.pages.map(
+          (
+            page
+          ) =>
+            page.id
+        )
+
+      const originalPageId =
+        activePage.id
+
+      let removed = 0
+
+      setPageNumberWorking(
+        true
+      )
+
+      setPageNumberMessage(
+        'A remover a numeração…'
+      )
+
+      try {
+        const saved =
+          await editor.saveProject(
+            true
+          )
+
+        if (!saved) {
+          throw new Error(
+            'Não foi possível guardar o projeto antes de remover a numeração.'
+          )
+        }
+
+        for (
+          const pageId
+          of pageIds
+        ) {
+          await editor.setActivePage(
+            pageId
+          )
+
+          const canvas =
+            getMAQuadroAnimationCanvas()
+
+          if (!canvas) {
+            continue
+          }
+
+          const pageRemoved =
+            removeMAQuadroPageNumber(
+              canvas
+            )
+
+          if (
+            pageRemoved >
+            0
+          ) {
+            removed +=
+              pageRemoved
+
+            await editor.saveProject(
+              true
+            )
+          }
+        }
+
+        await editor.setActivePage(
+          originalPageId
+        )
+
+        setPageNumberMessage(
+          removed > 0
+            ? 'Numeração automática removida do projeto.'
+            : 'Este projeto não tem numeração automática.'
+        )
+      } catch (
+        error
+      ) {
+        console.error(
+          error
+        )
+
+        try {
+          await editor.setActivePage(
+            originalPageId
+          )
+        } catch {}
+
+        setPageNumberMessage(
+          'Não foi possível remover toda a numeração automática.'
+        )
+      } finally {
+        setPageNumberWorking(
+          false
+        )
+      }
+    }
 
   return createPortal(
     <div className="mq-text-discovery">
@@ -231,14 +770,18 @@ export default function TextDiscoveryPanel() {
 
         <div className="mq-text-starter-list">
           {TEXT_STARTERS.map(
-            (starter) => (
+            (
+              starter
+            ) => (
               <button
                 key={
                   starter.preset
                 }
                 type="button"
                 className={`mq-text-starter mq-text-starter--${starter.preset}`}
-                disabled={locked}
+                disabled={
+                  locked
+                }
                 onClick={() =>
                   editor.addText(
                     starter.preset
@@ -277,7 +820,7 @@ export default function TextDiscoveryPanel() {
         </div>
       </section>
 
-      <section className="mq-text-discovery__section">
+      <section className="mq-text-discovery__section mq-typography-fonts">
         <div className="mq-text-discovery__section-heading">
           <span>
             <strong>
@@ -285,25 +828,138 @@ export default function TextDiscoveryPanel() {
             </strong>
 
             <small>
-              Fontes disponíveis neste projeto.
+              Pesquise e filtre todas as fontes disponíveis.
             </small>
           </span>
 
           <span className="mq-text-discovery__count">
-            {editor.availableFonts.length}
+            {
+              fonts.length
+            }
           </span>
+        </div>
+
+        <label className="mq-typography-font-search">
+          <span
+            aria-hidden="true"
+          >
+            ⌕
+          </span>
+
+          <input
+            type="search"
+            value={
+              fontSearch
+            }
+            disabled={
+              locked
+            }
+            placeholder="Pesquisar fontes"
+            aria-label="Pesquisar fontes"
+            onChange={(
+              event
+            ) =>
+              setFontSearch(
+                event.target.value
+              )
+            }
+          />
+
+          {fontSearch ? (
+            <button
+              type="button"
+              disabled={
+                locked
+              }
+              aria-label="Limpar pesquisa"
+              title="Limpar pesquisa"
+              onClick={() =>
+                setFontSearch(
+                  ''
+                )
+              }
+            >
+              ×
+            </button>
+          ) : null}
+        </label>
+
+        <div
+          className="mq-typography-font-filter"
+          role="group"
+          aria-label="Filtrar fontes"
+        >
+          {([
+            [
+              'all',
+              'Todas'
+            ],
+            [
+              'system',
+              'Incluídas'
+            ],
+            [
+              'local',
+              'Minhas'
+            ]
+          ] as const).map(
+            (
+              [
+                value,
+                label
+              ]
+            ) => (
+              <button
+                key={
+                  value
+                }
+                type="button"
+                className={
+                  fontFilter ===
+                  value
+                    ? 'is-active'
+                    : ''
+                }
+                disabled={
+                  locked
+                }
+                aria-pressed={
+                  fontFilter ===
+                  value
+                }
+                onClick={() =>
+                  setFontFilter(
+                    value
+                  )
+                }
+              >
+                {
+                  label
+                }
+              </button>
+            )
+          )}
         </div>
 
         {fonts.length >
         0 ? (
-          <div className="mq-text-font-list">
+          <div className="mq-text-font-list mq-typography-font-list">
             {fonts.map(
-              (font) => {
+              (
+                font
+              ) => {
                 const active =
                   textSelected &&
                   editor.selection
                     .fontFamily ===
                     font.family
+
+                const local =
+                  localFamilies.has(
+                    normalizeSearch(
+                      font.family
+                    )
+                  )
 
                 return (
                   <button
@@ -361,6 +1017,12 @@ export default function TextDiscoveryPanel() {
                           font.family
                         }
                       </small>
+
+                      {local ? (
+                        <small className="mq-typography-font-local">
+                          Fonte local
+                        </small>
+                      ) : null}
                     </span>
                   </button>
                 )
@@ -369,7 +1031,7 @@ export default function TextDiscoveryPanel() {
           </div>
         ) : (
           <p className="mq-text-discovery__note">
-            Ainda não existem fontes disponíveis.
+            Nenhuma fonte corresponde ao filtro atual.
           </p>
         )}
 
@@ -381,23 +1043,192 @@ export default function TextDiscoveryPanel() {
       </section>
 
       {textSelected ? (
-        <section className="mq-text-discovery__section">
+        <section className="mq-text-discovery__section mq-typography-pro">
           <div className="mq-text-discovery__section-heading">
             <span>
               <strong>
-                Texto selecionado
+                Tipografia Pro
               </strong>
 
               <small>
-                Alterações rápidas.
+                Tracking e formatação avançada da seleção.
               </small>
             </span>
+
+            <span className="mq-typography-pro__badge">
+              PRO
+            </span>
+          </div>
+
+          <div className="mq-typography-pro__group">
+            <span className="mq-typography-pro__label">
+              Tracking
+            </span>
+
+            <div className="mq-typography-tracking">
+              {TRACKING_PRESETS.map(
+                (
+                  preset
+                ) => (
+                  <button
+                    key={
+                      preset.value
+                    }
+                    type="button"
+                    className={
+                      editor.selection
+                        .charSpacing ===
+                      preset.value
+                        ? 'is-active'
+                        : ''
+                    }
+                    disabled={
+                      locked
+                    }
+                    aria-pressed={
+                      editor.selection
+                        .charSpacing ===
+                      preset.value
+                    }
+                    onClick={() =>
+                      editor.setTextProperty(
+                        'charSpacing',
+                        preset.value
+                      )
+                    }
+                  >
+                    <strong>
+                      {
+                        preset.label
+                      }
+                    </strong>
+
+                    <small>
+                      {
+                        preset.value >
+                        0
+                          ? `+${preset.value}`
+                          : preset.value
+                      }
+                    </small>
+                  </button>
+                )
+              )}
+            </div>
+
+            <p className="mq-typography-pro__note">
+              O ajuste fino continua disponível no controlo “Espaçamento das letras” do painel de propriedades.
+            </p>
+          </div>
+
+          <div className="mq-typography-pro__group">
+            <span className="mq-typography-pro__label">
+              Sobrescrito e subscrito
+            </span>
+
+            <div className="mq-typography-script-actions">
+              <button
+                type="button"
+                disabled={
+                  locked
+                }
+                onMouseDown={
+                  preserveTextSelection
+                }
+                onClick={() =>
+                  void runScriptAction(
+                    'superscript'
+                  )
+                }
+                title="Aplicar sobrescrito aos caracteres selecionados"
+              >
+                <span>
+                  x
+                  <sup>
+                    2
+                  </sup>
+                </span>
+
+                <small>
+                  Sobrescrito
+                </small>
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  locked
+                }
+                onMouseDown={
+                  preserveTextSelection
+                }
+                onClick={() =>
+                  void runScriptAction(
+                    'subscript'
+                  )
+                }
+                title="Aplicar subscrito aos caracteres selecionados"
+              >
+                <span>
+                  H
+                  <sub>
+                    2
+                  </sub>
+                  O
+                </span>
+
+                <small>
+                  Subscrito
+                </small>
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  locked
+                }
+                onMouseDown={
+                  preserveTextSelection
+                }
+                onClick={() =>
+                  void runScriptAction(
+                    'clear'
+                  )
+                }
+                title="Remover sobrescrito ou subscrito da seleção"
+              >
+                <span>
+                  Aa
+                </span>
+
+                <small>
+                  Repor
+                </small>
+              </button>
+            </div>
+
+            <p className="mq-typography-pro__note">
+              Entre em edição do texto, selecione os caracteres desejados e use um destes controlos.
+            </p>
+
+            {scriptMessage ? (
+              <p
+                className="mq-typography-pro__status"
+                role="status"
+              >
+                {
+                  scriptMessage
+                }
+              </p>
+            ) : null}
           </div>
 
           <div className="mq-text-case-actions">
             <button
               type="button"
-              disabled={locked}
+              disabled={
+                locked
+              }
               onClick={() =>
                 editor.transformTextCase(
                   'upper'
@@ -409,7 +1240,9 @@ export default function TextDiscoveryPanel() {
 
             <button
               type="button"
-              disabled={locked}
+              disabled={
+                locked
+              }
               onClick={() =>
                 editor.transformTextCase(
                   'lower'
@@ -421,7 +1254,9 @@ export default function TextDiscoveryPanel() {
 
             <button
               type="button"
-              disabled={locked}
+              disabled={
+                locked
+              }
               onClick={() =>
                 editor.transformTextCase(
                   'title'
@@ -445,12 +1280,247 @@ export default function TextDiscoveryPanel() {
               </strong>
 
               <small>
-                Com um texto selecionado, os estilos tipográficos e efeitos rápidos aparecem automaticamente por cima do quadro.
+                Os restantes estilos tipográficos e efeitos rápidos continuam disponíveis por cima do quadro e no painel de propriedades.
               </small>
             </span>
           </div>
         </section>
       ) : null}
+
+      <section className="mq-text-discovery__section mq-page-numbering">
+        <div className="mq-text-discovery__section-heading">
+          <span>
+            <strong>
+              Numeração de páginas
+            </strong>
+
+            <small>
+              Adicione números consistentes a todas as páginas do projeto.
+            </small>
+          </span>
+        </div>
+
+        <div className="mq-page-numbering__grid">
+          <label>
+            <span>
+              Formato
+            </span>
+
+            <select
+              value={
+                pageNumberFormat
+              }
+              disabled={
+                locked
+              }
+              onChange={(
+                event
+              ) =>
+                setPageNumberFormat(
+                  event.target
+                    .value as
+                    MAQuadroPageNumberFormat
+                )
+              }
+            >
+              <option value="number">
+                1
+              </option>
+
+              <option value="page">
+                Página 1
+              </option>
+
+              <option value="total">
+                1 / 10
+              </option>
+            </select>
+          </label>
+
+          <label>
+            <span>
+              Posição
+            </span>
+
+            <select
+              value={
+                pageNumberPosition
+              }
+              disabled={
+                locked
+              }
+              onChange={(
+                event
+              ) =>
+                setPageNumberPosition(
+                  event.target
+                    .value as
+                    MAQuadroPageNumberPosition
+                )
+              }
+            >
+              <option value="bottom-left">
+                Inferior esquerda
+              </option>
+
+              <option value="bottom-center">
+                Inferior centro
+              </option>
+
+              <option value="bottom-right">
+                Inferior direita
+              </option>
+            </select>
+          </label>
+
+          <label>
+            <span>
+              Começar em
+            </span>
+
+            <input
+              type="number"
+              value={
+                pageNumberStart
+              }
+              min={0}
+              max={9999}
+              step={1}
+              disabled={
+                locked
+              }
+              onChange={(
+                event
+              ) =>
+                setPageNumberStart(
+                  Number(
+                    event.target
+                      .value
+                  )
+                )
+              }
+            />
+          </label>
+
+          <label>
+            <span>
+              Cor
+            </span>
+
+            <input
+              type="color"
+              value={
+                pageNumberColor
+              }
+              disabled={
+                locked
+              }
+              aria-label="Cor da numeração"
+              onChange={(
+                event
+              ) =>
+                setPageNumberColor(
+                  event.target
+                    .value
+                )
+              }
+            />
+          </label>
+        </div>
+
+        <label className="mq-page-numbering__font">
+          <span>
+            Fonte
+          </span>
+
+          <select
+            value={
+              pageNumberFont
+            }
+            disabled={
+              locked
+            }
+            onChange={(
+              event
+            ) =>
+              setPageNumberFont(
+                event.target
+                  .value
+              )
+            }
+          >
+            {editor.availableFonts.map(
+              (
+                font
+              ) => (
+                <option
+                  key={
+                    font.family
+                  }
+                  value={
+                    font.family
+                  }
+                >
+                  {
+                    font.name
+                  }
+                </option>
+              )
+            )}
+          </select>
+        </label>
+
+        <div className="mq-page-numbering__actions">
+          <button
+            type="button"
+            className="is-primary"
+            disabled={
+              locked ||
+              !editor.project ||
+              !editor.activePage
+            }
+            aria-busy={
+              pageNumberWorking
+            }
+            onClick={() =>
+              void applyPageNumbers()
+            }
+          >
+            {pageNumberWorking
+              ? 'A processar…'
+              : 'Aplicar a todas'}
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              locked ||
+              !editor.project ||
+              !editor.activePage
+            }
+            onClick={() =>
+              void removePageNumbers()
+            }
+          >
+            Remover
+          </button>
+        </div>
+
+        <p className="mq-typography-pro__note">
+          A numeração é um texto normal do MA-Quadro, por isso pode ser selecionada e ajustada manualmente depois de aplicada.
+        </p>
+
+        {pageNumberMessage ? (
+          <p
+            className="mq-typography-pro__status"
+            role="status"
+          >
+            {
+              pageNumberMessage
+            }
+          </p>
+        ) : null}
+      </section>
 
       <section className="mq-text-discovery__section">
         <div className="mq-text-discovery__section-heading">
@@ -468,7 +1538,9 @@ export default function TextDiscoveryPanel() {
         <button
           type="button"
           className="mq-text-special-action"
-          disabled={locked}
+          disabled={
+            locked
+          }
           onClick={() =>
             openCurvedTextTool(
               () =>
