@@ -16,13 +16,16 @@ type ShortcutGroup = {
 const shortcutGroups:
   ShortcutGroup[] = [
     {
-      title: 'Edição',
+      title:
+        'Edição',
+
       items: [
         {
           keys: [
             'Ctrl/Cmd',
             'Z'
           ],
+
           description:
             'Desfazer'
         },
@@ -32,6 +35,7 @@ const shortcutGroups:
             'Shift',
             'Z'
           ],
+
           description:
             'Refazer'
         },
@@ -40,6 +44,7 @@ const shortcutGroups:
             'Ctrl/Cmd',
             'Y'
           ],
+
           description:
             'Refazer'
         },
@@ -48,6 +53,7 @@ const shortcutGroups:
             'Ctrl/Cmd',
             'C'
           ],
+
           description:
             'Copiar seleção'
         },
@@ -56,6 +62,7 @@ const shortcutGroups:
             'Ctrl/Cmd',
             'V'
           ],
+
           description:
             'Colar seleção'
         },
@@ -64,13 +71,35 @@ const shortcutGroups:
             'Ctrl/Cmd',
             'D'
           ],
+
           description:
             'Duplicar seleção'
         },
         {
           keys: [
+            'Ctrl/Cmd',
+            'Alt',
+            'C'
+          ],
+
+          description:
+            'Copiar estilo da seleção'
+        },
+        {
+          keys: [
+            'Ctrl/Cmd',
+            'Alt',
+            'V'
+          ],
+
+          description:
+            'Colar estilo na seleção'
+        },
+        {
+          keys: [
             'Delete'
           ],
+
           description:
             'Eliminar seleção'
         }
@@ -79,14 +108,25 @@ const shortcutGroups:
     {
       title:
         'Seleção e movimento',
+
       items: [
         {
           keys: [
             'Ctrl/Cmd',
             'A'
           ],
+
           description:
             'Selecionar todos os elementos'
+        },
+        {
+          keys: [
+            'Alt/Option',
+            'Arrastar'
+          ],
+
+          description:
+            'Duplicar um elemento enquanto o arrasta'
         },
         {
           keys: [
@@ -95,6 +135,7 @@ const shortcutGroups:
             '→',
             '↓'
           ],
+
           description:
             'Mover 1 píxel'
         },
@@ -103,6 +144,7 @@ const shortcutGroups:
             'Shift',
             'Seta'
           ],
+
           description:
             'Mover 10 píxeis'
         },
@@ -111,6 +153,7 @@ const shortcutGroups:
             'Shift',
             'F10'
           ],
+
           description:
             'Abrir o menu contextual da seleção'
         },
@@ -118,6 +161,7 @@ const shortcutGroups:
           keys: [
             'Menu'
           ],
+
           description:
             'Abrir o menu contextual em teclados compatíveis'
         },
@@ -125,19 +169,23 @@ const shortcutGroups:
           keys: [
             'Esc'
           ],
+
           description:
             'Desselecionar ou sair da ferramenta atual'
         }
       ]
     },
     {
-      title: 'Navegação',
+      title:
+        'Navegação',
+
       items: [
         {
           keys: [
             'Espaço',
             'Arrastar'
           ],
+
           description:
             'Mover a área de trabalho'
         },
@@ -146,6 +194,7 @@ const shortcutGroups:
             'Roda central',
             'Arrastar'
           ],
+
           description:
             'Mover a área de trabalho'
         },
@@ -154,6 +203,7 @@ const shortcutGroups:
             'Ctrl/Cmd',
             'Roda'
           ],
+
           description:
             'Aumentar ou diminuir o zoom'
         },
@@ -161,6 +211,7 @@ const shortcutGroups:
           keys: [
             '?'
           ],
+
           description:
             'Abrir esta lista de atalhos'
         }
@@ -169,12 +220,14 @@ const shortcutGroups:
     {
       title:
         'Projeto e imagens',
+
       items: [
         {
           keys: [
             'Ctrl/Cmd',
             'S'
           ],
+
           description:
             'Guardar projeto'
         },
@@ -182,6 +235,7 @@ const shortcutGroups:
           keys: [
             'Enter'
           ],
+
           description:
             'Concluir recorte de imagem'
         },
@@ -189,6 +243,7 @@ const shortcutGroups:
           keys: [
             'Esc'
           ],
+
           description:
             'Cancelar recorte de imagem'
         }
@@ -214,8 +269,11 @@ export default function KeyboardShortcutsDialog({
 }) {
   const dialogRef =
     useRef<
-      HTMLElement | null
-    >(null)
+      HTMLElement |
+      null
+    >(
+      null
+    )
 
   const onCloseRef =
     useRef(
@@ -236,7 +294,8 @@ export default function KeyboardShortcutsDialog({
 
     const previousFocus =
       document.activeElement as
-        HTMLElement | null
+        HTMLElement |
+        null
 
     const previousOverflow =
       document.body.style
@@ -306,7 +365,9 @@ export default function KeyboardShortcutsDialog({
               focusableSelector
             )
         ).filter(
-          (element) =>
+          (
+            element
+          ) =>
             !element.hidden &&
             element.getAttribute(
               'aria-hidden'
@@ -319,6 +380,7 @@ export default function KeyboardShortcutsDialog({
         0
       ) {
         event.preventDefault()
+
         dialog.focus()
 
         return
@@ -339,13 +401,15 @@ export default function KeyboardShortcutsDialog({
       if (
         event.shiftKey &&
         (
-          active === first ||
+          active ===
+            first ||
           !dialog.contains(
             active
           )
         )
       ) {
         event.preventDefault()
+
         last.focus()
 
         return
@@ -353,9 +417,11 @@ export default function KeyboardShortcutsDialog({
 
       if (
         !event.shiftKey &&
-        active === last
+        active ===
+          last
       ) {
         event.preventDefault()
+
         first.focus()
       }
     }
@@ -405,7 +471,9 @@ export default function KeyboardShortcutsDialog({
     <div
       className="mq-shortcuts-backdrop"
       role="presentation"
-      onMouseDown={(event) => {
+      onMouseDown={(
+        event
+      ) => {
         if (
           event.target ===
           event.currentTarget
@@ -415,29 +483,26 @@ export default function KeyboardShortcutsDialog({
       }}
     >
       <section
-        ref={dialogRef}
+        ref={
+          dialogRef
+        }
         className="mq-shortcuts-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="mq-shortcuts-title"
         aria-describedby="mq-shortcuts-description"
-        tabIndex={-1}
+        tabIndex={
+          -1
+        }
       >
         <header className="mq-shortcuts-dialog__header">
           <span>
-            <strong
-              id="mq-shortcuts-title"
-            >
+            <strong id="mq-shortcuts-title">
               Atalhos de teclado
             </strong>
 
-            <small
-              id="mq-shortcuts-description"
-            >
-              Trabalhe mais depressa
-              no MA-Quadro sem ter
-              de procurar cada
-              ferramenta.
+            <small id="mq-shortcuts-description">
+              Trabalhe mais depressa no MA-Quadro sem ter de procurar cada ferramenta.
             </small>
           </span>
 
@@ -455,7 +520,9 @@ export default function KeyboardShortcutsDialog({
 
         <div className="mq-shortcuts-dialog__body">
           {shortcutGroups.map(
-            (group) => (
+            (
+              group
+            ) => (
               <section
                 key={
                   group.title
@@ -463,7 +530,9 @@ export default function KeyboardShortcutsDialog({
                 className="mq-shortcut-group"
               >
                 <h3>
-                  {group.title}
+                  {
+                    group.title
+                  }
                 </h3>
 
                 <div className="mq-shortcut-list">
@@ -485,7 +554,9 @@ export default function KeyboardShortcutsDialog({
                               <kbd
                                 key={`${key}-${keyIndex}`}
                               >
-                                {key}
+                                {
+                                  key
+                                }
                               </kbd>
                             )
                           )}
@@ -508,10 +579,10 @@ export default function KeyboardShortcutsDialog({
         <footer className="mq-shortcuts-dialog__footer">
           <span>
             Dica: prima{' '}
-            <kbd>?</kbd>{' '}
-            em qualquer momento
-            para voltar a abrir
-            esta janela.
+            <kbd>
+              ?
+            </kbd>{' '}
+            em qualquer momento para voltar a abrir esta janela.
           </span>
 
           <button
