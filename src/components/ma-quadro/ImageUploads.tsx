@@ -5,7 +5,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent
+  type ChangeEvent,
+  type FormEvent
 } from 'react'
 
 import {
@@ -17,6 +18,14 @@ import {
   listMAQuadroImages,
   saveMAQuadroImage
 } from '../../lib/maQuadro/db'
+
+import {
+  createMAQuadroImageCollection,
+  deleteMAQuadroImageCollection,
+  listMAQuadroImageCollections,
+  renameMAQuadroImageCollection,
+  type MAQuadroImageCollection
+} from '../../lib/maQuadro/imageCollections'
 
 import {
   createMAQuadroId
@@ -31,6 +40,7 @@ import {
 } from './editorContext'
 
 import './maQuadroImageUploads.css'
+import './maQuadroImageCollections.css'
 
 const IMAGE_MAX_BYTES =
   25 * 1024 * 1024
@@ -42,6 +52,12 @@ const ACCEPTED_IMAGE_TYPES =
     'image/webp',
     'image/gif'
   ])
+
+const ALL_COLLECTIONS =
+  'all'
+
+const UNASSIGNED_COLLECTION =
+  'unassigned'
 
 function formatFileSize(
   bytes: number
@@ -106,7 +122,8 @@ function getErrorMessage(
 }
 
 async function prepareStoredImage(
-  file: File
+  file: File,
+  collectionId?: string
 ): Promise<MAQuadroStoredImage> {
   if (
     !ACCEPTED_IMAGE_TYPES.has(
@@ -137,6 +154,7 @@ async function prepareStoredImage(
     data:
       await file.arrayBuffer(),
     size: file.size,
+    collectionId,
     createdAt:
       new Date().toISOString()
   }
@@ -218,6 +236,11 @@ export default function ImageUploads() {
       null
     )
 
+  const newCollectionInputRef =
+    useRef<HTMLInputElement | null>(
+      null
+    )
+
   const [
     host,
     setHost
@@ -233,6 +256,44 @@ export default function ImageUploads() {
   )
 
   const [
+    collections,
+    setCollections
+  ] = useState<MAQuadroImageCollection[]>(
+    []
+  )
+
+  const [
+    activeCollection,
+    setActiveCollection
+  ] = useState<string>(
+    ALL_COLLECTIONS
+  )
+
+  const [
+    creatingCollection,
+    setCreatingCollection
+  ] = useState(false)
+
+  const [
+    newCollectionName,
+    setNewCollectionName
+  ] = useState('')
+
+  const [
+    selectedIds,
+    setSelectedIds
+  ] = useState<string[]>(
+    []
+  )
+
+  const [
+    moveTarget,
+    setMoveTarget
+  ] = useState<string>(
+    UNASSIGNED_COLLECTION
+  )
+
+  const [
     search,
     setSearch
   ] = useState('')
@@ -240,6 +301,11 @@ export default function ImageUploads() {
   const [
     processing,
     setProcessing
+  ] = useState(false)
+
+  const [
+    organizing,
+    setOrganizing
   ] = useState(false)
 
   const [
@@ -269,6 +335,16 @@ export default function ImageUploads() {
 
         setImages(
           nextImages
+        )
+      },
+      []
+    )
+
+  const refreshCollections =
+    useCallback(
+      () => {
+        setCollections(
+          listMAQuadroImageCollections()
         )
       },
       []
@@ -336,6 +412,8 @@ export default function ImageUploads() {
       return
     }
 
+    refreshCollections()
+
     void refreshImages()
       .catch(() => {
         setMessage(
@@ -345,8 +423,106 @@ export default function ImageUploads() {
   }, [
     editor.activePanel,
     editor.ready,
+    refreshCollections,
     refreshImages
   ])
+
+  useEffect(() => {
+    if (!creatingCollection) {
+      return
+    }
+
+    window.requestAnimationFrame(
+      () => {
+        newCollectionInputRef.current
+          ?.focus()
+      }
+    )
+  }, [
+    creatingCollection
+  ])
+
+  const knownCollectionIds =
+    useMemo(
+      () =>
+        new Set(
+          collections.map(
+            (collection) =>
+              collection.id
+          )
+        ),
+      [collections]
+    )
+
+  const collectionById =
+    useMemo(
+      () =>
+        new Map(
+          collections.map(
+            (collection) => [
+              collection.id,
+              collection
+            ] as const)
+        ),
+      [collections]
+    )
+
+  const activeCollectionObject =
+    activeCollection !==
+      ALL_COLLECTIONS &&
+    activeCollection !==
+      UNASSIGNED_COLLECTION
+      ? collectionById.get(
+          activeCollection
+        ) || null
+      : null
+
+  const imageIsUnassigned =
+    useCallback(
+      (
+        image:
+          MAQuadroStoredImage
+      ) =>
+        !image.collectionId ||
+        !knownCollectionIds.has(
+          image.collectionId
+        ),
+      [knownCollectionIds]
+    )
+
+  const collectionCount =
+    useCallback(
+      (
+        collectionId:
+          string
+      ) => {
+        if (
+          collectionId ===
+          ALL_COLLECTIONS
+        ) {
+          return images.length
+        }
+
+        if (
+          collectionId ===
+          UNASSIGNED_COLLECTION
+        ) {
+          return images.filter(
+            imageIsUnassigned
+          ).length
+        }
+
+        return images.filter(
+          (image) =>
+            image.collectionId ===
+            collectionId
+        ).length
+      },
+      [
+        imageIsUnassigned,
+        images
+      ]
+    )
 
   const query =
     normalizeSearch(search)
@@ -355,17 +531,70 @@ export default function ImageUploads() {
     useMemo(
       () =>
         images.filter(
-          (image) =>
-            !query ||
-            normalizeSearch(
-              image.name
-            ).includes(
-              query
+          (image) => {
+            const collectionMatches =
+              activeCollection ===
+              ALL_COLLECTIONS
+                ? true
+                : activeCollection ===
+                    UNASSIGNED_COLLECTION
+                  ? imageIsUnassigned(
+                      image
+                    )
+                  : image.collectionId ===
+                    activeCollection
+
+            if (!collectionMatches) {
+              return false
+            }
+
+            if (!query) {
+              return true
+            }
+
+            return (
+              normalizeSearch(
+                image.name
+              ).includes(
+                query
+              ) ||
+              normalizeSearch(
+                image.fileName
+              ).includes(
+                query
+              )
             )
+          }
         ),
       [
+        activeCollection,
+        imageIsUnassigned,
         images,
         query
+      ]
+    )
+
+  const selectedSet =
+    useMemo(
+      () =>
+        new Set(
+          selectedIds
+        ),
+      [selectedIds]
+    )
+
+  const visibleSelectedCount =
+    useMemo(
+      () =>
+        visibleImages.filter(
+          (image) =>
+            selectedSet.has(
+              image.id
+            )
+        ).length,
+      [
+        selectedSet,
+        visibleImages
       ]
     )
 
@@ -378,8 +607,34 @@ export default function ImageUploads() {
     editor.structureBusy ||
     editor.imageCropEditing ||
     processing ||
+    organizing ||
     addingId !== null ||
     deletingId !== null
+
+  const uploadCollectionId =
+    activeCollectionObject
+      ?.id
+
+  const uploadCollectionName =
+    activeCollectionObject
+      ?.name ||
+    'Sem coleção'
+
+  const changeActiveCollection =
+    (
+      nextCollection:
+        string
+    ) => {
+      setActiveCollection(
+        nextCollection
+      )
+
+      setSelectedIds([])
+      setMoveTarget(
+        UNASSIGNED_COLLECTION
+      )
+      setMessage('')
+    }
 
   const addStoredImage =
     async (
@@ -460,7 +715,8 @@ export default function ImageUploads() {
           try {
             const stored =
               await prepareStoredImage(
-                file
+                file,
+                uploadCollectionId
               )
 
             await saveMAQuadroImage(
@@ -537,8 +793,8 @@ export default function ImageUploads() {
         } else {
           setMessage(
             savedImages.length === 1
-              ? 'Imagem guardada localmente e adicionada ao design.'
-              : `${savedImages.length} imagens guardadas localmente e adicionadas ao design.`
+              ? `Imagem guardada localmente em “${uploadCollectionName}” e adicionada ao design.`
+              : `${savedImages.length} imagens guardadas localmente em “${uploadCollectionName}” e adicionadas ao design.`
           )
         }
       } finally {
@@ -584,6 +840,15 @@ export default function ImageUploads() {
             )
         )
 
+        setSelectedIds(
+          (current) =>
+            current.filter(
+              (imageId) =>
+                imageId !==
+                image.id
+            )
+        )
+
         setMessage(
           'Imagem removida da biblioteca local.'
         )
@@ -599,6 +864,374 @@ export default function ImageUploads() {
         )
       }
     }
+
+  const toggleSelected =
+    (
+      imageId:
+        string
+    ) => {
+      if (locked) {
+        return
+      }
+
+      setSelectedIds(
+        (current) =>
+          current.includes(
+            imageId
+          )
+            ? current.filter(
+                (id) =>
+                  id !==
+                  imageId
+              )
+            : [
+                ...current,
+                imageId
+              ]
+      )
+    }
+
+  const selectVisible =
+    () => {
+      if (locked) {
+        return
+      }
+
+      setSelectedIds(
+        visibleImages.map(
+          (image) =>
+            image.id
+        )
+      )
+    }
+
+  const createCollection =
+    (
+      event:
+        FormEvent<HTMLFormElement>
+    ) => {
+      event.preventDefault()
+
+      if (locked) {
+        return
+      }
+
+      setMessage('')
+
+      try {
+        const created =
+          createMAQuadroImageCollection(
+            newCollectionName
+          )
+
+        refreshCollections()
+        setNewCollectionName('')
+        setCreatingCollection(false)
+        setActiveCollection(
+          created.id
+        )
+        setMoveTarget(
+          created.id
+        )
+        setSelectedIds([])
+
+        setMessage(
+          `Coleção “${created.name}” criada localmente.`
+        )
+      } catch (error) {
+        setMessage(
+          getErrorMessage(
+            error
+          )
+        )
+      }
+    }
+
+  const renameActiveCollection =
+    () => {
+      if (
+        locked ||
+        !activeCollectionObject
+      ) {
+        return
+      }
+
+      const requested =
+        window.prompt(
+          'Novo nome da coleção:',
+          activeCollectionObject.name
+        )
+
+      if (
+        requested ===
+        null
+      ) {
+        return
+      }
+
+      setMessage('')
+
+      try {
+        const renamed =
+          renameMAQuadroImageCollection(
+            activeCollectionObject.id,
+            requested
+          )
+
+        refreshCollections()
+
+        setMessage(
+          `Coleção renomeada para “${renamed.name}”.`
+        )
+      } catch (error) {
+        setMessage(
+          getErrorMessage(
+            error
+          )
+        )
+      }
+    }
+
+  const deleteActiveCollection =
+    async () => {
+      if (
+        locked ||
+        !activeCollectionObject
+      ) {
+        return
+      }
+
+      const imagesInCollection =
+        images.filter(
+          (image) =>
+            image.collectionId ===
+            activeCollectionObject.id
+        )
+
+      const confirmed =
+        window.confirm(
+          `Eliminar a coleção “${activeCollectionObject.name}”? ${
+            imagesInCollection.length > 0
+              ? `As ${imagesInCollection.length} imagem${imagesInCollection.length === 1 ? '' : 'ns'} passam para “Sem coleção” e não serão apagadas.`
+              : 'Nenhuma imagem será apagada.'
+          }`
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setOrganizing(true)
+      setMessage('')
+
+      try {
+        const updatedImages =
+          images.map(
+            (image) =>
+              image.collectionId ===
+              activeCollectionObject.id
+                ? {
+                    ...image,
+                    collectionId:
+                      undefined
+                  }
+                : image
+          )
+
+        for (
+          const image of updatedImages
+        ) {
+          if (
+            image.collectionId ===
+              undefined &&
+            images.find(
+              (current) =>
+                current.id === image.id
+            )?.collectionId ===
+              activeCollectionObject.id
+          ) {
+            await saveMAQuadroImage(
+              image
+            )
+          }
+        }
+
+        deleteMAQuadroImageCollection(
+          activeCollectionObject.id
+        )
+
+        setImages(
+          updatedImages
+        )
+
+        refreshCollections()
+        setActiveCollection(
+          UNASSIGNED_COLLECTION
+        )
+        setMoveTarget(
+          UNASSIGNED_COLLECTION
+        )
+        setSelectedIds([])
+
+        setMessage(
+          `Coleção “${activeCollectionObject.name}” eliminada. As imagens ficaram em “Sem coleção”.`
+        )
+      } catch (error) {
+        setMessage(
+          getErrorMessage(
+            error
+          )
+        )
+      } finally {
+        setOrganizing(false)
+      }
+    }
+
+  const moveSelectedImages =
+    async () => {
+      if (
+        locked ||
+        selectedIds.length ===
+        0
+      ) {
+        return
+      }
+
+      const nextCollectionId =
+        moveTarget ===
+        UNASSIGNED_COLLECTION
+          ? undefined
+          : moveTarget
+
+      if (
+        nextCollectionId &&
+        !collectionById.has(
+          nextCollectionId
+        )
+      ) {
+        setMessage(
+          'A coleção de destino já não existe neste dispositivo.'
+        )
+
+        return
+      }
+
+      setOrganizing(true)
+      setMessage('')
+
+      try {
+        const selected =
+          new Set(
+            selectedIds
+          )
+
+        const changed =
+          images
+            .filter(
+              (image) =>
+                selected.has(
+                  image.id
+                ) &&
+                image.collectionId !==
+                  nextCollectionId
+            )
+            .map(
+              (image) => ({
+                ...image,
+                collectionId:
+                  nextCollectionId
+              })
+            )
+
+        for (
+          const image of changed
+        ) {
+          await saveMAQuadroImage(
+            image
+          )
+        }
+
+        if (
+          changed.length ===
+          0
+        ) {
+          setMessage(
+            'As imagens selecionadas já estão nessa coleção.'
+          )
+
+          return
+        }
+
+        const changedById =
+          new Map(
+            changed.map(
+              (image) => [
+                image.id,
+                image
+              ] as const)
+          )
+
+        setImages(
+          (current) =>
+            current.map(
+              (image) =>
+                changedById.get(
+                  image.id
+                ) ||
+                image
+            )
+        )
+
+        const destinationName =
+          nextCollectionId
+            ? collectionById.get(
+                nextCollectionId
+              )?.name ||
+              'coleção'
+            : 'Sem coleção'
+
+        setSelectedIds([])
+
+        setMessage(
+          `${changed.length} imagem${changed.length === 1 ? '' : 'ns'} movida${changed.length === 1 ? '' : 's'} para “${destinationName}”.`
+        )
+      } catch (error) {
+        setMessage(
+          getErrorMessage(
+            error
+          )
+        )
+      } finally {
+        setOrganizing(false)
+      }
+    }
+
+  const collectionNameForImage =
+    (
+      image:
+        MAQuadroStoredImage
+    ) => {
+      if (
+        !image.collectionId
+      ) {
+        return 'Sem coleção'
+      }
+
+      return collectionById.get(
+        image.collectionId
+      )?.name ||
+      'Sem coleção'
+    }
+
+  const emptyTitle =
+    search
+      ? 'Nenhuma imagem corresponde à pesquisa.'
+      : activeCollectionObject
+        ? 'Esta coleção ainda está vazia.'
+        : activeCollection ===
+            UNASSIGNED_COLLECTION
+          ? 'Não existem imagens sem coleção.'
+          : 'A biblioteca ainda está vazia.'
 
   return createPortal(
     <section
@@ -664,6 +1297,166 @@ export default function ImageUploads() {
         hidden
       />
 
+      <p className="mq-image-upload-target">
+        Novos uploads ficam em{' '}
+        <strong>
+          {uploadCollectionName}
+        </strong>
+        .
+      </p>
+
+      <div
+        className="mq-image-collections"
+        aria-label="Coleções locais"
+      >
+        <div className="mq-image-collections__header">
+          <span>
+            <strong>
+              Coleções
+            </strong>
+
+            <small>
+              Organização guardada apenas neste browser
+            </small>
+          </span>
+
+          <button
+            type="button"
+            className="mq-image-collections__new"
+            disabled={locked}
+            onClick={() => {
+              setCreatingCollection(
+                true
+              )
+              setNewCollectionName(
+                ''
+              )
+            }}
+          >
+            + Nova
+          </button>
+        </div>
+
+        {creatingCollection ? (
+          <form
+            className="mq-image-collection-create"
+            onSubmit={
+              createCollection
+            }
+          >
+            <input
+              ref={newCollectionInputRef}
+              type="text"
+              value={newCollectionName}
+              maxLength={60}
+              disabled={locked}
+              placeholder="Nome da coleção"
+              aria-label="Nome da nova coleção"
+              onChange={(event) =>
+                setNewCollectionName(
+                  event.target.value
+                )
+              }
+            />
+
+            <button
+              type="submit"
+              className="is-primary"
+              disabled={
+                locked ||
+                !newCollectionName.trim()
+              }
+            >
+              Criar
+            </button>
+
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => {
+                setCreatingCollection(
+                  false
+                )
+                setNewCollectionName(
+                  ''
+                )
+              }}
+            >
+              Cancelar
+            </button>
+          </form>
+        ) : null}
+
+        <div className="mq-image-collections__filter">
+          <select
+            value={activeCollection}
+            disabled={locked}
+            aria-label="Filtrar por coleção"
+            onChange={(event) =>
+              changeActiveCollection(
+                event.target.value
+              )
+            }
+          >
+            <option
+              value={ALL_COLLECTIONS}
+            >
+              Todas as imagens ({images.length})
+            </option>
+
+            <option
+              value={UNASSIGNED_COLLECTION}
+            >
+              Sem coleção ({collectionCount(UNASSIGNED_COLLECTION)})
+            </option>
+
+            {collections.map(
+              (collection) => (
+                <option
+                  key={collection.id}
+                  value={collection.id}
+                >
+                  {collection.name} ({collectionCount(collection.id)})
+                </option>
+              )
+            )}
+          </select>
+
+          <div className="mq-image-collections__actions">
+            <button
+              type="button"
+              disabled={
+                locked ||
+                !activeCollectionObject
+              }
+              aria-label="Renomear coleção"
+              title="Renomear coleção"
+              onClick={
+                renameActiveCollection
+              }
+            >
+              ✎
+            </button>
+
+            <button
+              type="button"
+              className="is-delete"
+              disabled={
+                locked ||
+                !activeCollectionObject
+              }
+              aria-label="Eliminar coleção"
+              title="Eliminar coleção sem eliminar imagens"
+              onClick={() =>
+                void deleteActiveCollection()
+              }
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      </div>
+
       {images.length > 0 ? (
         <label className="mq-image-library-search">
           <span aria-hidden="true">
@@ -674,7 +1467,7 @@ export default function ImageUploads() {
             type="search"
             value={search}
             disabled={locked}
-            placeholder="Pesquisar imagens"
+            placeholder="Pesquisar nesta coleção"
             aria-label="Pesquisar imagens"
             onChange={(event) =>
               setSearch(
@@ -700,86 +1493,237 @@ export default function ImageUploads() {
       ) : null}
 
       {visibleImages.length > 0 ? (
+        <div className="mq-image-selection-tools">
+          <span>
+            {visibleImages.length}{' '}
+            {visibleImages.length === 1
+              ? 'visível'
+              : 'visíveis'}
+            {visibleSelectedCount > 0
+              ? ` · ${visibleSelectedCount} selecionada${visibleSelectedCount === 1 ? '' : 's'}`
+              : ''}
+          </span>
+
+          <button
+            type="button"
+            disabled={
+              locked ||
+              visibleSelectedCount ===
+                visibleImages.length
+            }
+            onClick={
+              selectVisible
+            }
+          >
+            Selecionar visíveis
+          </button>
+        </div>
+      ) : null}
+
+      {selectedIds.length > 0 ? (
+        <div
+          className="mq-image-selection-bar"
+          aria-label="Organizar imagens selecionadas"
+        >
+          <div className="mq-image-selection-bar__heading">
+            <strong>
+              {selectedIds.length} imagem{selectedIds.length === 1 ? '' : 'ns'} selecionada{selectedIds.length === 1 ? '' : 's'}
+            </strong>
+
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() =>
+                setSelectedIds([])
+              }
+            >
+              Limpar
+            </button>
+          </div>
+
+          <div className="mq-image-selection-bar__move">
+            <select
+              value={moveTarget}
+              disabled={locked}
+              aria-label="Mover imagens para coleção"
+              onChange={(event) =>
+                setMoveTarget(
+                  event.target.value
+                )
+              }
+            >
+              <option
+                value={UNASSIGNED_COLLECTION}
+              >
+                Sem coleção
+              </option>
+
+              {collections.map(
+                (collection) => (
+                  <option
+                    key={collection.id}
+                    value={collection.id}
+                  >
+                    {collection.name}
+                  </option>
+                )
+              )}
+            </select>
+
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() =>
+                void moveSelectedImages()
+              }
+            >
+              Mover
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {visibleImages.length > 0 ? (
         <div className="mq-image-library">
           {visibleImages.map(
-            (image) => (
-              <article
-                key={image.id}
-                className="mq-image-library-card"
-              >
-                <button
-                  type="button"
-                  className="mq-image-library-card__preview"
-                  disabled={locked}
-                  aria-label={`Adicionar ${image.name} ao design`}
-                  title={`Adicionar ${image.name}`}
-                  onClick={() =>
-                    void addStoredImage(
-                      image
-                    )
-                  }
+            (image) => {
+              const selected =
+                selectedSet.has(
+                  image.id
+                )
+
+              return (
+                <article
+                  key={image.id}
+                  className={`mq-image-library-card${selected ? ' is-selected' : ''}`}
                 >
-                  <ImagePreview
-                    image={image}
-                  />
-
-                  <span className="mq-image-library-card__add-overlay">
-                    + Adicionar
-                  </span>
-                </button>
-
-                <div className="mq-image-library-card__meta">
-                  <span>
-                    <strong
-                      title={image.name}
-                    >
-                      {image.name}
-                    </strong>
-
-                    <small>
-                      {formatFileSize(
-                        image.size
-                      )}
-                    </small>
-                  </span>
+                  <label
+                    className="mq-image-library-card__selector"
+                    title={
+                      selected
+                        ? `Desmarcar ${image.name}`
+                        : `Selecionar ${image.name}`
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      disabled={locked}
+                      aria-label={
+                        selected
+                          ? `Desmarcar ${image.name}`
+                          : `Selecionar ${image.name}`
+                      }
+                      onChange={() =>
+                        toggleSelected(
+                          image.id
+                        )
+                      }
+                    />
+                  </label>
 
                   <button
                     type="button"
-                    className="mq-image-library-card__delete"
+                    className="mq-image-library-card__preview"
                     disabled={locked}
-                    aria-label={`Eliminar ${image.name} da biblioteca`}
-                    title="Eliminar da biblioteca"
+                    aria-label={`Adicionar ${image.name} ao design`}
+                    title={`Adicionar ${image.name}`}
                     onClick={() =>
-                      void deleteStoredImage(
+                      void addStoredImage(
                         image
                       )
                     }
                   >
-                    {deletingId ===
-                    image.id
-                      ? '…'
-                      : '×'}
+                    <ImagePreview
+                      image={image}
+                    />
+
+                    <span className="mq-image-library-card__add-overlay">
+                      + Adicionar
+                    </span>
                   </button>
-                </div>
-              </article>
-            )
+
+                  <div className="mq-image-library-card__meta">
+                    <span>
+                      <strong
+                        title={image.name}
+                      >
+                        {image.name}
+                      </strong>
+
+                      <small>
+                        {formatFileSize(
+                          image.size
+                        )}
+                      </small>
+
+                      <small
+                        className="mq-image-library-card__collection"
+                        title={
+                          collectionNameForImage(
+                            image
+                          )
+                        }
+                      >
+                        {collectionNameForImage(
+                          image
+                        )}
+                      </small>
+                    </span>
+
+                    <button
+                      type="button"
+                      className="mq-image-library-card__delete"
+                      disabled={locked}
+                      aria-label={`Eliminar ${image.name} da biblioteca`}
+                      title="Eliminar da biblioteca"
+                      onClick={() =>
+                        void deleteStoredImage(
+                          image
+                        )
+                      }
+                    >
+                      {deletingId ===
+                      image.id
+                        ? '…'
+                        : '×'}
+                    </button>
+                  </div>
+                </article>
+              )
+            }
           )}
         </div>
       ) : images.length > 0 ? (
         <div className="mq-image-library-empty">
           <strong>
-            Nenhuma imagem corresponde à pesquisa.
+            {emptyTitle}
           </strong>
 
-          <button
-            type="button"
-            disabled={locked}
-            onClick={() =>
-              setSearch('')
-            }
-          >
-            Limpar pesquisa
-          </button>
+          {search ? (
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() =>
+                setSearch('')
+              }
+            >
+              Limpar pesquisa
+            </button>
+          ) : activeCollection !==
+            ALL_COLLECTIONS ? (
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() =>
+                changeActiveCollection(
+                  ALL_COLLECTIONS
+                )
+              }
+            >
+              Ver todas as imagens
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="mq-image-library-empty">
@@ -799,7 +1743,7 @@ export default function ImageUploads() {
         </strong>
 
         <span>
-          Os ficheiros não são enviados para a MA-Code. Eliminar uma imagem desta biblioteca não remove cópias já incorporadas nos seus designs.
+          As imagens ficam no IndexedDB deste browser. As coleções guardam apenas organização local. Nenhum ficheiro é enviado para a MA-CODE, para Cloudflare ou para qualquer servidor.
         </span>
       </div>
 
