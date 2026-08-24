@@ -4,8 +4,8 @@ const PUBLIC_REQUEST_PATH =
 const RESEND_EMAIL_API_URL =
   'https://api.resend.com/emails'
 
-const ADMIN_NOTIFICATION_EMAIL =
-  'acesso@ma-code.pt'
+const DEFAULT_ADMIN_EMAIL =
+  'miguel4araujo5@gmail.com'
 
 const NEW_REQUEST_WINDOW_MS =
   2 * 60 * 1000
@@ -15,6 +15,7 @@ type JsonObject =
 
 export interface MAProfessorAccessAdminNotifierEnv {
   RESEND_API_KEY_MA_PROFESSOR?: string
+  MA_PROFESSOR_ADMIN_EMAIL?: string
 }
 
 function normalizeEmail(
@@ -144,6 +145,16 @@ export async function notifyMAProfessorNewAccessRequest(
     return
   }
 
+  const configuredAdminEmail =
+    normalizeEmail(
+      env.MA_PROFESSOR_ADMIN_EMAIL
+    )
+
+  const adminEmail =
+    isValidEmail(configuredAdminEmail)
+      ? configuredAdminEmail
+      : DEFAULT_ADMIN_EMAIL
+
   const now =
     Date.now()
 
@@ -266,7 +277,7 @@ export async function notifyMAProfessorNewAccessRequest(
               from:
                 'MA-Professor | MA-CODE <acesso@professor.ma-code.pt>',
               to: [
-                ADMIN_NOTIFICATION_EMAIL
+                adminEmail
               ],
               subject,
               text,
@@ -292,8 +303,7 @@ export async function notifyMAProfessorNewAccessRequest(
         {
           status:
             emailResponse.status,
-          adminEmail:
-            ADMIN_NOTIFICATION_EMAIL,
+          adminEmail,
           requesterEmail,
           response:
             responseText
@@ -322,8 +332,7 @@ export async function notifyMAProfessorNewAccessRequest(
     console.info(
       'MA-Professor admin access notification sent',
       {
-        adminEmail:
-          ADMIN_NOTIFICATION_EMAIL,
+        adminEmail,
         requesterEmail,
         isNewRequest,
         responseId
@@ -333,8 +342,7 @@ export async function notifyMAProfessorNewAccessRequest(
     console.error(
       'MA-Professor admin access notification failed',
       {
-        adminEmail:
-          ADMIN_NOTIFICATION_EMAIL,
+        adminEmail,
         requesterEmail,
         message:
           error instanceof Error
