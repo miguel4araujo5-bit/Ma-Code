@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/generate-route-html.mjs",
     "test": "npm run test:conquistador && npm run test:ma-quadro",
     "test:conquistador": "node --test tests/conquistador/phase1a.test.mjs",
     "test:ma-quadro": "node --test tests/ma-quadro/*.test.mjs",
