@@ -1,0 +1,352 @@
+.mq-chart-builder--pro,
+.mq-chart-editor--pro {
+  gap: 0.72rem;
+}
+
+.mq-chart-builder--pro
+  .mq-chart-builder__title
+  > span:first-child {
+  display: grid;
+  gap: 0.08rem;
+  place-items: initial;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.mq-chart-builder--pro
+  .mq-chart-builder__title
+  > span:first-child
+  small {
+  color: var(--mq-muted);
+  font-size: 0.43rem;
+  font-weight: 600;
+}
+
+.mq-chart-type-grid--pro {
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(0, 1fr)
+    );
+}
+
+.mq-chart-pro-section {
+  display: grid;
+  gap: 0.44rem;
+  padding: 0.54rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 0.6rem;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.mq-chart-pro-section__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mq-chart-pro-section__heading > span {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.mq-chart-pro-section__heading strong {
+  color: #e2e8f0;
+  font-size: 0.51rem;
+}
+
+.mq-chart-pro-section__heading small {
+  color: var(--mq-muted);
+  font-size: 0.42rem;
+  line-height: 1.4;
+}
+
+.mq-chart-style-presets {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  gap: 0.3rem;
+}
+
+.mq-chart-style-presets button {
+  display: grid;
+  grid-template-columns:
+    1.65rem
+    minmax(0, 1fr);
+  align-items: center;
+  gap: 0.36rem;
+  min-width: 0;
+  min-height: 2.4rem;
+  padding: 0.34rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.5rem;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.02);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mq-chart-style-presets
+  button:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.34);
+  background: rgba(8, 145, 178, 0.07);
+}
+
+.mq-chart-style-presets
+  button
+  > span:first-child {
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.mq-chart-style-presets
+  button
+  > span:last-child {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.mq-chart-style-presets strong {
+  color: #f1f5f9;
+  font-size: 0.46rem;
+}
+
+.mq-chart-style-presets small {
+  overflow: hidden;
+  color: var(--mq-muted);
+  font-size: 0.38rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mq-chart-toggle-row--pro {
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+}
+
+.mq-chart-pro-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  gap: 0.34rem;
+}
+
+.mq-chart-pro-grid--three {
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+}
+
+.mq-chart-pro-grid label,
+.mq-chart-pro-select {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  color: #94a3b8;
+  font-size: 0.43rem;
+  font-weight: 700;
+}
+
+.mq-chart-pro-grid
+  input[type='number'],
+.mq-chart-pro-grid
+  input[type='text'],
+.mq-chart-pro-grid select,
+.mq-chart-pro-select select {
+  width: 100%;
+  min-width: 0;
+  min-height: 1.9rem;
+  padding: 0 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.46rem;
+  outline: 0;
+  color: #e2e8f0;
+  background: #0f172a;
+  font: inherit;
+  font-size: 0.48rem;
+}
+
+.mq-chart-pro-grid
+  input[type='color'] {
+  width: 100%;
+  height: 1.9rem;
+  padding: 0.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.46rem;
+  background: #0f172a;
+  cursor: pointer;
+}
+
+.mq-chart-pro-switch {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.55rem;
+  padding: 0.18rem 0.36rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  color: #bae6fd;
+  background: rgba(8, 145, 178, 0.06);
+  font-size: 0.4rem;
+  font-weight: 750;
+}
+
+.mq-chart-pro-switch input {
+  margin: 0;
+}
+
+.mq-chart-pro-range {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.mq-chart-pro-range > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.mq-chart-pro-range strong {
+  color: #cbd5e1;
+  font-size: 0.44rem;
+}
+
+.mq-chart-pro-range small {
+  color: #67e8f9;
+  font-size: 0.4rem;
+}
+
+.mq-chart-pro-range
+  input[type='range'] {
+  width: 100%;
+  accent-color: var(--mq-cyan);
+}
+
+.mq-chart-color-grid--pro {
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+}
+
+.mq-chart-data-heading__actions {
+  display: flex;
+  gap: 0.28rem;
+}
+
+.mq-chart-bulk-editor {
+  display: grid;
+  gap: 0.38rem;
+  padding: 0.48rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.56rem;
+  background: rgba(8, 145, 178, 0.035);
+}
+
+.mq-chart-pro-note {
+  display: grid;
+  grid-template-columns:
+    1.45rem
+    minmax(0, 1fr);
+  align-items: start;
+  gap: 0.42rem;
+  padding: 0.48rem;
+  border: 1px solid rgba(52, 211, 153, 0.14);
+  border-radius: 0.56rem;
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.mq-chart-pro-note > span {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border-radius: 999px;
+  color: #d1fae5;
+  background: rgba(16, 185, 129, 0.09);
+  font-size: 0.45rem;
+  font-weight: 850;
+}
+
+.mq-chart-pro-note p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.43rem;
+  line-height: 1.45;
+}
+
+.mq-chart-style-presets button:disabled,
+.mq-chart-pro-grid input:disabled,
+.mq-chart-pro-grid select:disabled,
+.mq-chart-pro-select select:disabled,
+.mq-chart-pro-switch input:disabled,
+.mq-chart-pro-range input:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 1100px) {
+  .mq-chart-type-grid--pro {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+
+  .mq-chart-pro-grid--three {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (max-width: 520px) {
+  .mq-chart-style-presets,
+  .mq-chart-toggle-row--pro,
+  .mq-chart-pro-grid,
+  .mq-chart-pro-grid--three,
+  .mq-chart-color-grid--pro {
+    grid-template-columns:
+      minmax(0, 1fr);
+  }
+
+  .mq-chart-data-heading {
+    align-items: flex-start;
+  }
+
+  .mq-chart-data-heading__actions {
+    flex-direction: column;
+  }
+}
