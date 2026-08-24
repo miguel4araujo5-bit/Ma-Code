@@ -36,5 +36,8 @@ jobs:
       - name: Run Conquistador tests
         run: npm run test:conquistador
 
+      - name: Run MA-Professor notification guard
+        run: node --test tests/ma-professor/*.test.mjs
+
       - name: Build project
         run: npm run build
