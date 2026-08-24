@@ -16,7 +16,6 @@ import type {
   MAQuadroProjectFolder,
   MAQuadroProjectFolderCollection
 } from '../../lib/maQuadro/projectFolders'
-
 import {
   MA_QUADRO_PROJECT_FOLDERS_STORAGE_KEY,
   MA_QUADRO_UNFILED_FOLDER_ID,
@@ -34,7 +33,6 @@ import {
 import ProjectFoldersPanel, {
   type MAQuadroProjectFolderActionResult
 } from './ProjectFoldersPanel'
-
 import './maQuadroHome.css'
 import './maQuadroHomeProjects.css'
 import './maQuadroHomeFilters.css'
@@ -159,7 +157,6 @@ function readFavouriteCollection():
                 'string'
             )
           : [],
-
       projects:
         Array.isArray(
           parsed.projects
@@ -2192,8 +2189,10 @@ export default function MAQuadroHome({
             <button
               type="button"
               disabled={locked}
-              onClick={
-                enterEditor
+              onClick={() =>
+                void openProject(
+                  continueProject.id
+                )
               }
             >
               <span className="mq-home-continue__preview">
@@ -2401,139 +2400,139 @@ export default function MAQuadroHome({
                     ) || null
 
                   return (
-                  <article
-                    key={
-                      project.id
-                    }
-                    className="mq-home-project-shell"
-                  >
-                    <button
-                      type="button"
-                      className="mq-home-project"
-                      disabled={locked}
-                      onClick={() =>
-                        void openProject(
-                          project.id
-                        )
+                    <article
+                      key={
+                        project.id
                       }
+                      className="mq-home-project-shell"
                     >
-                      <span className="mq-home-project__preview">
-                        <ProjectPreview
-                          project={
-                            project
-                          }
-                        />
-                      </span>
-
-                      <span className="mq-home-project__copy">
-                        <strong>
-                          {
-                            project.name
-                          }
-                        </strong>
-
-                        <small>
-                          {
-                            categoryLabels[
+                      <button
+                        type="button"
+                        className="mq-home-project"
+                        disabled={locked}
+                        onClick={() =>
+                          void openProject(
+                            project.id
+                          )
+                        }
+                      >
+                        <span className="mq-home-project__preview">
+                          <ProjectPreview
+                            project={
                               project
-                                .category
-                            ]
-                          }
-                          {' · '}
-                          {
-                            project
-                              .pages
-                              .length
-                          }{' '}
-                          {project
-                            .pages
-                            .length ===
-                          1
-                            ? 'página'
-                            : 'páginas'}
-                        </small>
-
-                        <span>
-                          {formatUpdatedAt(
-                            project.updatedAt
-                          )}
+                            }
+                          />
                         </span>
 
-                        {folder ? (
-                          <span className="mq-home-project__folder-label">
-                            ▰ {folder.name}
+                        <span className="mq-home-project__copy">
+                          <strong>
+                            {
+                              project.name
+                            }
+                          </strong>
+
+                          <small>
+                            {
+                              categoryLabels[
+                                project
+                                  .category
+                              ]
+                            }
+                            {' · '}
+                            {
+                              project
+                                .pages
+                                .length
+                            }{' '}
+                            {project
+                              .pages
+                              .length ===
+                            1
+                              ? 'página'
+                              : 'páginas'}
+                          </small>
+
+                          <span>
+                            {formatUpdatedAt(
+                              project.updatedAt
+                            )}
                           </span>
-                        ) : null}
-                      </span>
-                    </button>
 
-                    <HomeFavouriteButton
-                      active={
-                        favouriteProjectIds.has(
-                          project.id
-                        )
-                      }
-                      disabled={locked}
-                      label={
-                        project.name
-                      }
-                      onClick={() =>
-                        toggleFavourite(
-                          'projects',
-                          project.id
-                        )
-                      }
-                    />
+                          {folder ? (
+                            <span className="mq-home-project__folder-label">
+                              ▰ {folder.name}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
 
-                    <ProjectActionsMenu
-                      project={
-                        project
-                      }
-                      folders={
-                        folders
-                      }
-                      folderId={
-                        folder?.id ||
-                        null
-                      }
-                      locked={
-                        locked
-                      }
-                      onOpen={() =>
-                        void openProject(
-                          project.id
-                        )
-                      }
-                      onDuplicate={() =>
-                        void duplicateProject(
+                      <HomeFavouriteButton
+                        active={
+                          favouriteProjectIds.has(
+                            project.id
+                          )
+                        }
+                        disabled={locked}
+                        label={
+                          project.name
+                        }
+                        onClick={() =>
+                          toggleFavourite(
+                            'projects',
+                            project.id
+                          )
+                        }
+                      />
+
+                      <ProjectActionsMenu
+                        project={
                           project
-                        )
-                      }
-                      onRename={() =>
-                        beginRename(
-                          project
-                        )
-                      }
-                      onSaveAsTemplate={() =>
-                        void saveAsTemplate(
-                          project
-                        )
-                      }
-                      onMove={(
-                        folderId
-                      ) =>
-                        moveProjectToFolder(
-                          project.id,
+                        }
+                        folders={
+                          folders
+                        }
+                        folderId={
+                          folder?.id ||
+                          null
+                        }
+                        locked={
+                          locked
+                        }
+                        onOpen={() =>
+                          void openProject(
+                            project.id
+                          )
+                        }
+                        onDuplicate={() =>
+                          void duplicateProject(
+                            project
+                          )
+                        }
+                        onRename={() =>
+                          beginRename(
+                            project
+                          )
+                        }
+                        onSaveAsTemplate={() =>
+                          void saveAsTemplate(
+                            project
+                          )
+                        }
+                        onMove={(
                           folderId
-                        )
-                      }
-                      onDelete={() =>
-                        void deleteProject(
-                          project
-                        )
-                      }
-                    />
-                  </article>
+                        ) =>
+                          moveProjectToFolder(
+                            project.id,
+                            folderId
+                          )
+                        }
+                        onDelete={() =>
+                          void deleteProject(
+                            project
+                          )
+                        }
+                      />
+                    </article>
                   )
                 }
               )}
