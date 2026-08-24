@@ -105,6 +105,7 @@ export type MAQuadroStoredImage = {
     mimeType: string;
     data: ArrayBuffer;
     size: number;
+    collectionId?: string;
     createdAt: string;
 };
 
@@ -157,7 +158,6 @@ export type MAQuadroImageFilterState = {
     shadows: number;
     highlights: number;
     vignette: number;
-
     duotoneEnabled: boolean;
     duotoneShadows: string;
     duotoneHighlights: string;
