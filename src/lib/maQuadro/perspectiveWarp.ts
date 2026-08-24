@@ -1449,7 +1449,7 @@ export function loadMAQuadroPerspectiveSourceImage(
             new Error(
               'Não foi possível abrir a origem desta imagem para aplicar perspetiva.'
             )
-          }
+          )
         }
 
       image.src =
