@@ -12,17 +12,18 @@ import {
 
 import {
   addMAQuadroChartDatum,
+  chartDataToText,
   createMAQuadroChartFileFromDocument,
   createMAQuadroChartSvgFromDocument,
   MA_QUADRO_CHART_MAX_ITEMS,
   MA_QUADRO_CHART_MIN_ITEMS,
   readMAQuadroChartDocumentFromName,
   removeMAQuadroChartDatum,
+  replaceMAQuadroChartDataFromText,
   setMAQuadroChartDatum,
   updateMAQuadroChartSpec,
   type MAQuadroChartDocument,
-  type MAQuadroChartSpec,
-  type MAQuadroChartType
+  type MAQuadroChartSpec
 } from '../../lib/maQuadro/chartSvg'
 
 import {
@@ -30,29 +31,10 @@ import {
 } from './editorContext'
 
 import ChartPreview from './ChartPreview'
+import ChartProControls from './ChartProControls'
 
 import './maQuadroChart.css'
-
-const CHART_TYPES:
-  Array<{
-    type:
-      MAQuadroChartType
-    label:
-      string
-  }> = [
-    {
-      type: 'bar',
-      label: 'Barras'
-    },
-    {
-      type: 'line',
-      label: 'Linhas'
-    },
-    {
-      type: 'pie',
-      label: 'Circular'
-    }
-  ]
+import './maQuadroChartPro.css'
 
 function createFileChangeEvent(
   file:
@@ -90,9 +72,7 @@ function createFileChangeEvent(
     target:
       input
   } as unknown as
-    ChangeEvent<
-      HTMLInputElement
-    >
+    ChangeEvent<HTMLInputElement>
 }
 
 export default function ChartEditor() {
@@ -103,12 +83,10 @@ export default function ChartEditor() {
     useMemo(
       () => {
         if (
-          editor
-            .selection
+          editor.selection
             .count !==
               1 ||
-          editor
-            .selection
+          editor.selection
             .role !==
               'image'
         ) {
@@ -116,8 +94,7 @@ export default function ChartEditor() {
         }
 
         return readMAQuadroChartDocumentFromName(
-          editor
-            .selection
+          editor.selection
             .name
         )
       },
@@ -131,40 +108,72 @@ export default function ChartEditor() {
   const [
     host,
     setHost
-  ] = useState<
-    HTMLElement |
-    null
-  >(
-    null
-  )
+  ] =
+    useState<
+      HTMLElement |
+      null
+    >(
+      null
+    )
 
   const [
     draft,
     setDraft
-  ] = useState<
-    MAQuadroChartDocument |
-    null
-  >(
-    null
-  )
+  ] =
+    useState<
+      | MAQuadroChartDocument
+      | null
+    >(
+      null
+    )
+
+  const [
+    bulkData,
+    setBulkData
+  ] =
+    useState(
+      ''
+    )
+
+  const [
+    showBulkData,
+    setShowBulkData
+  ] =
+    useState(
+      false
+    )
 
   const [
     saving,
     setSaving
-  ] = useState(
-    false
-  )
+  ] =
+    useState(
+      false
+    )
 
   const [
     message,
     setMessage
-  ] = useState(
-    ''
-  )
+  ] =
+    useState(
+      ''
+    )
 
   useEffect(() => {
     setDraft(
       sourceDocument
+    )
+
+    setBulkData(
+      sourceDocument
+        ? chartDataToText(
+            sourceDocument
+          )
+        : ''
+    )
+
+    setShowBulkData(
+      false
     )
 
     setMessage(
@@ -190,9 +199,7 @@ export default function ChartEditor() {
     }
 
     const scroll =
-      document.querySelector<
-        HTMLElement
-      >(
+      document.querySelector<HTMLElement>(
         '.mq-properties-panel .mq-properties-panel__scroll'
       )
 
@@ -264,6 +271,7 @@ export default function ChartEditor() {
   >(
     key:
       Key,
+
     value:
       MAQuadroChartSpec[
         Key
@@ -289,31 +297,55 @@ export default function ChartEditor() {
     )
   }
 
-  const updateDatum = (
-    index:
-      number,
-    values:
-      Parameters<
-        typeof setMAQuadroChartDatum
-      >[2]
-  ) => {
-    setDraft(
-      (
-        current
-      ) =>
-        current
-          ? setMAQuadroChartDatum(
-              current,
-              index,
-              values
-            )
-          : current
-    )
+  const applyPreset =
+    (
+      values:
+        Partial<MAQuadroChartSpec>
+    ) => {
+      setDraft(
+        (
+          current
+        ) =>
+          current
+            ? updateMAQuadroChartSpec(
+                current,
+                values
+              )
+            : current
+      )
 
-    setMessage(
-      ''
-    )
-  }
+      setMessage(
+        ''
+      )
+    }
+
+  const updateDatum =
+    (
+      index:
+        number,
+
+      values:
+        Parameters<
+          typeof setMAQuadroChartDatum
+        >[2]
+    ) => {
+      setDraft(
+        (
+          current
+        ) =>
+          current
+            ? setMAQuadroChartDatum(
+                current,
+                index,
+                values
+              )
+            : current
+      )
+
+      setMessage(
+        ''
+      )
+    }
 
   const addDatum =
     () => {
@@ -333,31 +365,57 @@ export default function ChartEditor() {
       )
     }
 
-  const removeDatum = (
-    index:
-      number
-  ) => {
-    setDraft(
-      (
-        current
-      ) =>
-        current
-          ? removeMAQuadroChartDatum(
-              current,
-              index
-            )
-          : current
-    )
+  const removeDatum =
+    (
+      index:
+        number
+    ) => {
+      setDraft(
+        (
+          current
+        ) =>
+          current
+            ? removeMAQuadroChartDatum(
+                current,
+                index
+              )
+            : current
+      )
 
-    setMessage(
-      ''
-    )
-  }
+      setMessage(
+        ''
+      )
+    }
+
+  const applyBulkData =
+    () => {
+      setDraft(
+        (
+          current
+        ) =>
+          current
+            ? replaceMAQuadroChartDataFromText(
+                current,
+                bulkData
+              )
+            : current
+      )
+
+      setMessage(
+        'Dados atualizados no gráfico. Confirme em “Aplicar alterações”.'
+      )
+    }
 
   const reset =
     () => {
       setDraft(
         sourceDocument
+      )
+
+      setBulkData(
+        chartDataToText(
+          sourceDocument
+        )
       )
 
       setMessage(
@@ -411,22 +469,21 @@ export default function ChartEditor() {
 
   return createPortal(
     <section
-      className="mq-chart-editor"
+      className="mq-chart-editor mq-chart-editor--pro"
       aria-label="Editar gráfico"
     >
       <div className="mq-chart-editor__heading">
         <span>
           <strong>
-            Gráfico
+            Gráfico Pro
           </strong>
 
           <small>
             {
-              draft
-                .data
+              draft.data
                 .length
             }{' '}
-            valores
+            valores · SVG editável
           </small>
         </span>
 
@@ -437,216 +494,20 @@ export default function ChartEditor() {
         ) : null}
       </div>
 
-      <div className="mq-chart-type-grid">
-        {CHART_TYPES.map(
-          (
-            item
-          ) => (
-            <button
-              key={
-                item.type
-              }
-              type="button"
-              disabled={
-                locked
-              }
-              className={
-                draft
-                  .spec
-                  .type ===
-                item.type
-                  ? 'is-active'
-                  : ''
-              }
-              onClick={() =>
-                updateSpec(
-                  'type',
-                  item.type
-                )
-              }
-            >
-              {
-                item.label
-              }
-            </button>
-          )
-        )}
-      </div>
-
-      <label className="mq-chart-field">
-        <span>
-          Título
-        </span>
-
-        <input
-          type="text"
-          maxLength={
-            80
-          }
-          value={
-            draft
-              .spec
-              .title
-          }
-          disabled={
-            locked
-          }
-          onChange={(
-            event
-          ) =>
-            updateSpec(
-              'title',
-              event
-                .target
-                .value
-            )
-          }
-        />
-      </label>
-
-      <div className="mq-chart-toggle-row">
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              draft
-                .spec
-                .showValues
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'showValues',
-                event
-                  .target
-                  .checked
-              )
-            }
-          />
-
-          <span>
-            Mostrar valores
-          </span>
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              draft
-                .spec
-                .showLegend
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'showLegend',
-                event
-                  .target
-                  .checked
-              )
-            }
-          />
-
-          <span>
-            Mostrar legenda
-          </span>
-        </label>
-      </div>
-
-      <div className="mq-chart-color-grid">
-        <label>
-          <span>
-            Fundo
-          </span>
-
-          <input
-            type="color"
-            value={
-              draft
-                .spec
-                .background
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'background',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>
-            Texto
-          </span>
-
-          <input
-            type="color"
-            value={
-              draft
-                .spec
-                .textColor
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'textColor',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>
-            Eixos
-          </span>
-
-          <input
-            type="color"
-            value={
-              draft
-                .spec
-                .axisColor
-            }
-            disabled={
-              locked
-            }
-            onChange={(
-              event
-            ) =>
-              updateSpec(
-                'axisColor',
-                event
-                  .target
-                  .value
-              )
-            }
-          />
-        </label>
-      </div>
+      <ChartProControls
+        spec={
+          draft.spec
+        }
+        disabled={
+          locked
+        }
+        onChange={
+          updateSpec
+        }
+        onApplyPreset={
+          applyPreset
+        }
+      />
 
       <div className="mq-chart-data-heading">
         <span>
@@ -656,8 +517,7 @@ export default function ChartEditor() {
 
           <small>
             {
-              draft
-                .data
+              draft.data
                 .length
             }
             {' / '}
@@ -667,22 +527,98 @@ export default function ChartEditor() {
           </small>
         </span>
 
-        <button
-          type="button"
-          disabled={
-            locked ||
-            draft
-              .data
-              .length >=
-              MA_QUADRO_CHART_MAX_ITEMS
-          }
-          onClick={
-            addDatum
-          }
-        >
-          + Valor
-        </button>
+        <div className="mq-chart-data-heading__actions">
+          <button
+            type="button"
+            disabled={
+              locked
+            }
+            onClick={() => {
+              setBulkData(
+                chartDataToText(
+                  draft
+                )
+              )
+
+              setShowBulkData(
+                (
+                  current
+                ) =>
+                  !current
+              )
+            }}
+          >
+            {showBulkData
+              ? 'Fechar dados rápidos'
+              : 'Dados rápidos'}
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              locked ||
+              draft.data
+                .length >=
+                MA_QUADRO_CHART_MAX_ITEMS
+            }
+            onClick={
+              addDatum
+            }
+          >
+            + Valor
+          </button>
+        </div>
       </div>
+
+      {showBulkData ? (
+        <div className="mq-chart-bulk-editor">
+          <label className="mq-chart-field">
+            <span>
+              Colar CSV/dados
+            </span>
+
+            <textarea
+              value={
+                bulkData
+              }
+              rows={
+                6
+              }
+              disabled={
+                locked
+              }
+              placeholder={
+                'Produto;120\nServiço;95\nAutomação;60'
+              }
+              onChange={(
+                event
+              ) =>
+                setBulkData(
+                  event.target
+                    .value
+                )
+              }
+            />
+
+            <small>
+              Use Tab, ponto e vírgula ou vírgula. Os dados substituem os valores atuais, mantendo as cores existentes por posição quando possível.
+            </small>
+          </label>
+
+          <button
+            type="button"
+            className="mq-wide-action"
+            disabled={
+              locked
+            }
+            onClick={
+              applyBulkData
+            }
+          >
+            Aplicar dados ao gráfico
+          </button>
+        </div>
+      ) : null}
 
       <div className="mq-chart-data-list">
         {draft.data.map(
@@ -712,8 +648,7 @@ export default function ChartEditor() {
                     index,
                     {
                       color:
-                        event
-                          .target
+                        event.target
                           .value
                     }
                   )
@@ -739,8 +674,7 @@ export default function ChartEditor() {
                     index,
                     {
                       label:
-                        event
-                          .target
+                        event.target
                           .value
                     }
                   )
@@ -753,7 +687,7 @@ export default function ChartEditor() {
                   0
                 }
                 max={
-                  1000000
+                  1_000_000
                 }
                 step="any"
                 value={
@@ -771,8 +705,7 @@ export default function ChartEditor() {
                     {
                       value:
                         Number(
-                          event
-                            .target
+                          event.target
                             .value
                         )
                     }
@@ -784,8 +717,7 @@ export default function ChartEditor() {
                 type="button"
                 disabled={
                   locked ||
-                  draft
-                    .data
+                  draft.data
                     .length <=
                     MA_QUADRO_CHART_MIN_ITEMS
                 }
@@ -809,6 +741,18 @@ export default function ChartEditor() {
           svg
         }
       />
+
+      <div className="mq-chart-pro-note">
+        <span
+          aria-hidden="true"
+        >
+          i
+        </span>
+
+        <p>
+          As alterações continuam incorporadas no SVG do próprio gráfico. Não existe sincronização, upload ou processamento remoto.
+        </p>
+      </div>
 
       <div className="mq-chart-editor__actions">
         <button
@@ -846,10 +790,13 @@ export default function ChartEditor() {
           className="mq-chart-message"
           role="status"
         >
-          {message}
+          {
+            message
+          }
         </p>
       ) : null}
     </section>,
     host
   )
 }
+          
