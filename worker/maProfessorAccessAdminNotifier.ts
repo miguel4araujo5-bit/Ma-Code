@@ -5,7 +5,7 @@ const RESEND_EMAIL_API_URL =
   'https://api.resend.com/emails'
 
 const DEFAULT_ADMIN_EMAIL =
-  'miguel4araujo5@gmail.com'
+  'acesso@ma-code.pt'
 
 const MAX_NEW_REQUEST_AGE_MS =
   60 * 1000
@@ -138,7 +138,7 @@ export async function notifyMAProfessorNewAccessRequest(
     return
   }
 
-  const teacherEmail =
+  const requesterEmail =
     normalizeEmail(summary.email)
 
   const requestedAt =
@@ -147,7 +147,7 @@ export async function notifyMAProfessorNewAccessRequest(
     )
 
   if (
-    !isValidEmail(teacherEmail) ||
+    !isValidEmail(requesterEmail) ||
     !requestedAt
   ) {
     return
@@ -173,8 +173,8 @@ export async function notifyMAProfessorNewAccessRequest(
       ? configuredAdminEmail
       : DEFAULT_ADMIN_EMAIL
 
-  const safeTeacherEmail =
-    escapeHtml(teacherEmail)
+  const safeRequesterEmail =
+    escapeHtml(requesterEmail)
 
   const safeRequestedAt =
     escapeHtml(requestedAt.iso)
@@ -182,7 +182,7 @@ export async function notifyMAProfessorNewAccessRequest(
   const text = [
     'Novo pedido de acesso ao MA-Professor.',
     '',
-    `Professor: ${teacherEmail}`,
+    `Email do requerente: ${requesterEmail}`,
     `Data: ${requestedAt.iso}`,
     '',
     'O pedido ficou pendente e aguarda decisão no painel administrativo.',
@@ -204,7 +204,7 @@ export async function notifyMAProfessorNewAccessRequest(
 
       <div style="margin:22px 0;padding:18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
         <p style="margin:0 0 8px;">
-          <strong>Professor:</strong> ${safeTeacherEmail}
+          <strong>Email do requerente:</strong> ${safeRequesterEmail}
         </p>
         <p style="margin:0;">
           <strong>Data:</strong> ${safeRequestedAt}
@@ -238,8 +238,6 @@ export async function notifyMAProfessorNewAccessRequest(
               from:
                 'MA-Professor | MA-CODE <acesso@professor.ma-code.pt>',
               to: [adminEmail],
-              reply_to:
-                teacherEmail,
               subject:
                 'Novo pedido de acesso ao MA-Professor',
               text,
@@ -266,7 +264,7 @@ export async function notifyMAProfessorNewAccessRequest(
           status:
             emailResponse.status,
           adminEmail,
-          teacherEmail,
+          requesterEmail,
           response:
             responseText
         }
@@ -295,7 +293,7 @@ export async function notifyMAProfessorNewAccessRequest(
       'MA-Professor admin access notification sent',
       {
         adminEmail,
-        teacherEmail,
+        requesterEmail,
         responseId
       }
     )
@@ -304,7 +302,7 @@ export async function notifyMAProfessorNewAccessRequest(
       'MA-Professor admin access notification failed',
       {
         adminEmail,
-        teacherEmail,
+        requesterEmail,
         message:
           error instanceof Error
             ? error.message
