@@ -191,7 +191,6 @@ body::before {
   padding: 5px 13px 6px;
   border: 1px solid rgba(236, 216, 155, 0.72);
   border-radius: 10px;
-
   background:
     linear-gradient(
       rgba(8, 47, 66, 0.9),
@@ -269,7 +268,7 @@ body::before {
 }
 
 .board-svg .map-decoration > g:last-child {
-  translate: 0 12px;
+  translate: 0 15px;
 }
 
 @media (max-width: 980px) {
