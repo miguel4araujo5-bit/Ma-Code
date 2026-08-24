@@ -270,11 +270,7 @@ body::before {
 }
 
 .board-svg .map-decoration > g:last-child {
-  transform: translateY(10px);
-}
-
-.board-svg .map-decoration > g:last-child .north-label {
-  transform: translateY(1px);
+  translate: 0 8px;
 }
 
 @media (max-width: 980px) {
@@ -320,14 +316,6 @@ body::before {
 
   .board-svg {
     transform: translateY(2%);
-  }
-
-  .board-svg .map-decoration > g:last-child {
-    transform: translateY(8px);
-  }
-
-  .board-svg .map-decoration > g:last-child .north-label {
-    transform: translateY(1px);
   }
 }
 
