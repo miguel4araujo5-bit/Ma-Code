@@ -268,7 +268,7 @@ body::before {
 }
 
 .board-svg .map-decoration > g:last-child {
-  translate: 0 15px;
+  translate: -10px 16px;
 }
 
 @media (max-width: 980px) {
