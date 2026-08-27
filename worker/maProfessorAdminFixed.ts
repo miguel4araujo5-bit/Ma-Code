@@ -5,14 +5,13 @@ import {
 } from './maProfessorAdmin'
 
 import {
-  handleMaCodeAdminApiRequest
-} from './maCodeAdmin'
+  generateMAProfessorAdminCredential
+} from './maProfessorAccessAdminBridge'
 
 import {
-  decideMAProfessorAccessRequest,
-  generateMAProfessorAdminCredential,
-  updateMAProfessorAdminEmailDispatchStatus
-} from './maProfessorAccessAdminBridge'
+  hasMAProfessorEmailTransport,
+  sendMAProfessorCommercialActivationEmail
+} from './maProfessorEmailService'
 
 export {
   isMAProfessorAdminApiPath
@@ -22,19 +21,14 @@ export type {
   MaProfessorAdminEnv
 }
 
-const APPROVE_PATH =
-  '/api/admin/ma-professor/requests/approve'
+const CONFIRM_PAYMENT_PATH =
+  '/api/admin/ma-professor/commerce/confirm-payment'
 
-const MA_PROFESSOR_ACCESS_URL =
-  'https://ma-code.pt/produtos/ma-professor?acesso=ativar'
+const DISPENSE_PAYMENT_PATH =
+  '/api/admin/ma-professor/commerce/dispense-payment'
 
 type JsonObject =
   Record<string, unknown>
-
-type EmailDispatchStatus =
-  | 'sent'
-  | 'failed'
-  | 'not_configured'
 
 function json(
   body: unknown,
@@ -60,35 +54,58 @@ function json(
   )
 }
 
-async function readJson(
-  request: Request
-): Promise<JsonObject> {
-  const parsed =
-    await request.json()
-
-  if (
-    !parsed ||
-    typeof parsed !==
-      'object' ||
-    Array.isArray(
-      parsed
-    )
-  ) {
-    throw new Error(
-      'Pedido inválido.'
-    )
-  }
-
-  return parsed as JsonObject
+function isCommercialPaymentResolutionPath(
+  pathname: string
+) {
+  return pathname ===
+      CONFIRM_PAYMENT_PATH ||
+    pathname ===
+      DISPENSE_PAYMENT_PATH
 }
 
-async function readResponseJson(
+async function readJsonObject(
   response: Response
-) {
+): Promise<JsonObject | null> {
   try {
-    return await response
-      .clone()
-      .json() as JsonObject
+    const value =
+      await response
+        .clone()
+        .json()
+
+    if (
+      !value ||
+      typeof value !==
+        'object' ||
+      Array.isArray(value)
+    ) {
+      return null
+    }
+
+    return value as JsonObject
+  } catch {
+    return null
+  }
+}
+
+async function readRequestBody(
+  request: Request
+): Promise<JsonObject | null> {
+  try {
+    const value =
+      await request
+        .clone()
+        .json()
+
+    if (
+      !value ||
+      typeof value !==
+        'object' ||
+      Array.isArray(value)
+    ) {
+      return null
+    }
+
+    return value as JsonObject
   } catch {
     return null
   }
@@ -97,8 +114,7 @@ async function readResponseJson(
 function normalizeEmail(
   value: unknown
 ) {
-  return typeof value ===
-    'string'
+  return typeof value === 'string'
     ? value
         .trim()
         .toLowerCase()
@@ -114,225 +130,237 @@ function isValidEmail(
   )
 }
 
-function escapeHtml(
-  value: string
+function readCredential(
+  body: JsonObject | null
 ) {
-  return value
-    .replaceAll(
-      '&',
-      '&amp;'
-    )
-    .replaceAll(
-      '<',
-      '&lt;'
-    )
-    .replaceAll(
-      '>',
-      '&gt;'
-    )
-    .replaceAll(
-      '"',
-      '&quot;'
-    )
-    .replaceAll(
-      "'",
-      '&#039;'
-    )
+  const credential =
+    body?.credential
+
+  if (
+    !credential ||
+    typeof credential !== 'object' ||
+    Array.isArray(credential)
+  ) {
+    return null
+  }
+
+  const value =
+    credential as JsonObject
+
+  if (
+    typeof value.email !== 'string' ||
+    typeof value.password !== 'string' ||
+    !value.password
+  ) {
+    return null
+  }
+
+  return {
+    ...value,
+    email: value.email,
+    password: value.password
+  }
 }
 
-async function validateAdminSession(
+function getResolvedPaymentLabel(
+  pathname: string
+) {
+  return pathname ===
+    DISPENSE_PAYMENT_PATH
+    ? 'Pagamento dispensado'
+    : 'Pagamento confirmado'
+}
+
+async function completeCommercialActivation(
   request: Request,
+  response: Response,
   env: MaProfessorAdminEnv
 ) {
-  const sessionRequest =
-    new Request(
-      new URL(
-        '/api/admin/session',
-        request.url
-      ),
+  if (!response.ok) {
+    return response
+  }
+
+  const responseBody =
+    await readJsonObject(response)
+
+  if (
+    !responseBody ||
+    responseBody.success !== true
+  ) {
+    return response
+  }
+
+  const requestBody =
+    await readRequestBody(request)
+
+  const email =
+    normalizeEmail(
+      requestBody?.email
+    )
+
+  if (!isValidEmail(email)) {
+    return response
+  }
+
+  const pathname =
+    new URL(request.url).pathname
+
+  const paymentLabel =
+    getResolvedPaymentLabel(pathname)
+
+  if (!hasMAProfessorEmailTransport(env)) {
+    return json({
+      ...responseBody,
+      message:
+        `${paymentLabel}. O envio automático de email não está configurado; a senha continua disponível para geração manual no painel.`,
+      emailDelivery:
+        'not_configured',
+      credentialIssued:
+        false
+    })
+  }
+
+  let credentialResponse:
+    Response
+
+  try {
+    credentialResponse =
+      await generateMAProfessorAdminCredential(
+        env,
+        email
+      )
+  } catch (error) {
+    console.error(
+      'MA-Professor commercial credential generation failed',
       {
-        method:
-          'GET',
-        headers:
-          request.headers
+        email,
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error)
       }
     )
 
-  const response =
-    await handleMaCodeAdminApiRequest(
-      sessionRequest,
-      env
-    )
-
-  return response?.ok ===
-    true
-}
-
-async function sendApprovalEmail(
-  env: MaProfessorAdminEnv,
-  email: string,
-  activationPassword: string
-): Promise<EmailDispatchStatus> {
-  const apiKey =
-    typeof env
-      .RESEND_API_KEY_MA_PROFESSOR ===
-      'string'
-      ? env
-          .RESEND_API_KEY_MA_PROFESSOR
-          .trim()
-      : ''
-
-  if (
-    !apiKey
-  ) {
-    return 'not_configured'
+    return json({
+      ...responseBody,
+      message:
+        `${paymentLabel}, mas não foi possível gerar automaticamente a senha de ativação. Pode voltar a tentar através da ficha da conta.`,
+      emailDelivery:
+        'failed',
+      credentialIssued:
+        false
+    })
   }
 
-  const safeEmail =
-    escapeHtml(
-      email
+  const credentialBody =
+    await readJsonObject(
+      credentialResponse
     )
 
-  const safePassword =
-    escapeHtml(
-      activationPassword
+  const credential =
+    credentialResponse.ok
+      ? readCredential(
+          credentialBody
+        )
+      : null
+
+  if (!credential) {
+    console.error(
+      'MA-Professor commercial credential generation returned no credential',
+      {
+        email,
+        responseStatus:
+          credentialResponse.status
+      }
     )
 
-  const text = [
-    'Olá,',
-    '',
-    'O seu pedido de acesso gratuito à fase piloto do MA-Professor foi aprovado.',
-    '',
-    `Email: ${email}`,
-    `Senha de ativação: ${activationPassword}`,
-    '',
-    'Esta senha serve apenas para ativar o seu acesso ao MA-Professor.',
-    '',
-    `Ativar o meu acesso: ${MA_PROFESSOR_ACCESS_URL}`,
-    '',
-    'Ao abrir a página, introduza o seu email e a senha de ativação indicada acima.',
-    '',
-    'Depois de concluir a ativação, poderá utilizar normalmente o MA-Professor.',
-    '',
-    'Nota: a senha de ativação não é a sua password pessoal. A sua password pessoal é aquela que definiu quando criou a sua conta.',
-    '',
-    'A senha de ativação deixa de ser necessária depois de o acesso estar ativado.',
-    '',
-    'MA-Professor | MA-CODE'
-  ].join('\n')
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:620px;margin:0 auto;padding:24px;">
-      <p style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;margin:0 0 12px;">
-        MA-Professor · Fase piloto
-      </p>
-
-      <h1 style="font-size:24px;line-height:1.25;margin:0 0 18px;color:#0f172a;">
-        O seu acesso foi aprovado
-      </h1>
-
-      <p>Olá,</p>
-      <p>
-        O seu pedido de <strong>acesso gratuito à fase piloto do MA-Professor</strong> foi aprovado.
-      </p>
-
-      <p>
-        Para ativar o seu acesso, utilize a senha abaixo:
-      </p>
-
-      <div style="margin:24px 0;padding:18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
-        <p style="margin:0 0 8px;">
-          <strong>Email:</strong> ${safeEmail}
-        </p>
-        <p style="margin:0;">
-          <strong>Senha de ativação:</strong>
-          <span style="font-family:monospace;font-weight:700;">${safePassword}</span>
-        </p>
-      </div>
-
-      <p>
-        <strong>Esta senha serve apenas para ativar o seu acesso ao MA-Professor.</strong>
-      </p>
-
-      <p style="margin:24px 0;">
-        <a
-          href="${MA_PROFESSOR_ACCESS_URL}"
-          style="display:inline-block;background:#22d3ee;color:#082f49;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;"
-        >
-          Ativar o meu acesso
-        </a>
-      </p>
-
-      <p>
-        Ao abrir a página, introduza o seu email e a <strong>senha de ativação</strong> indicada acima.
-      </p>
-
-      <p>
-        Depois de concluir a ativação, poderá utilizar normalmente o MA-Professor.
-      </p>
-
-      <p style="color:#475569;">
-        <strong>Nota:</strong> a senha de ativação não é a sua password pessoal. A sua password pessoal é aquela que definiu quando criou a sua conta.
-      </p>
-
-      <p>
-        A senha de ativação deixa de ser necessária depois de o acesso estar ativado.
-      </p>
-
-      <p style="margin-top:28px;color:#64748b;font-size:13px;">
-        MA-Professor | MA-CODE
-      </p>
-    </div>
-  `
-
-  try {
-    const response =
-      await fetch(
-        'https://api.resend.com/emails',
-        {
-          method:
-            'POST',
-          headers: {
-            Authorization:
-              `Bearer ${apiKey}`,
-            'Content-Type':
-              'application/json'
-          },
-          body:
-            JSON.stringify({
-              from:
-                'MA-Professor | MA-CODE <acesso@professor.ma-code.pt>',
-              to: [
-                email
-              ],
-              subject:
-                'O seu acesso ao MA-Professor foi aprovado',
-              text,
-              html
-            })
-        }
-      )
-
-    return response.ok
-      ? 'sent'
-      : 'failed'
-  } catch {
-    return 'failed'
+    return json({
+      ...responseBody,
+      message:
+        `${paymentLabel}, mas não foi possível obter a senha de ativação para envio automático. Consulte a ficha da conta.`,
+      commerce:
+        credentialBody?.commerce ??
+        responseBody.commerce,
+      emailDelivery:
+        'failed',
+      credentialIssued:
+        false
+    })
   }
+
+  const emailResult =
+    await sendMAProfessorCommercialActivationEmail(
+      env,
+      email,
+      credential.password
+    )
+
+  const commerce =
+    credentialBody?.commerce ??
+    responseBody.commerce
+
+  if (emailResult.status === 'sent') {
+    console.info(
+      'MA-Professor commercial activation email sent',
+      {
+        email,
+        responseId:
+          emailResult.id || ''
+      }
+    )
+
+    return json({
+      ...responseBody,
+      message:
+        `${paymentLabel}. A senha de ativação foi criada e enviada automaticamente ao professor.`,
+      commerce,
+      emailDelivery:
+        'sent',
+      credentialIssued:
+        true
+    })
+  }
+
+  console.error(
+    'MA-Professor commercial activation email failed',
+    {
+      email,
+      status:
+        emailResult.status,
+      message:
+        emailResult.error ||
+        'Falha desconhecida.'
+    }
+  )
+
+  return json({
+    ...responseBody,
+    message:
+      `${paymentLabel} e senha de ativação criada, mas o email não foi enviado. Copie a senha apresentada e envie-a manualmente ao professor.`,
+    commerce,
+    emailDelivery:
+      emailResult.status ===
+        'not_configured'
+        ? 'not_configured'
+        : 'failed',
+    credentialIssued:
+      true,
+    fallbackCredential:
+      credential
+  })
 }
 
 export async function handleMAProfessorAdminApiRequest(
   request: Request,
   env: MaProfessorAdminEnv
 ): Promise<Response | null> {
-  const url =
-    new URL(
-      request.url
-    )
+  const pathname =
+    new URL(request.url).pathname
 
   if (
-    url.pathname !==
-    APPROVE_PATH
+    !isCommercialPaymentResolutionPath(
+      pathname
+    )
   ) {
     return handleExistingMAProfessorAdminApiRequest(
       request,
@@ -340,258 +368,18 @@ export async function handleMAProfessorAdminApiRequest(
     )
   }
 
-  if (
-    request.method !==
-    'POST'
-  ) {
-    return json(
-      {
-        success:
-          false,
-        message:
-          'Método não permitido.'
-      },
-      405
-    )
-  }
+  const requestForCompletion =
+    request.clone()
 
-  const authenticated =
-    await validateAdminSession(
+  const response =
+    await handleExistingMAProfessorAdminApiRequest(
       request,
       env
     )
 
-  if (
-    !authenticated
-  ) {
-    return json(
-      {
-        success:
-          false,
-        message:
-          'Sessão administrativa inválida ou expirada.'
-      },
-      401
-    )
-  }
-
-  let body:
-    JsonObject
-
-  try {
-    body =
-      await readJson(
-        request
-      )
-  } catch {
-    return json(
-      {
-        success:
-          false,
-        message:
-          'Pedido inválido.'
-      },
-      400
-    )
-  }
-
-  const email =
-    normalizeEmail(
-      body.email
-    )
-
-  if (
-    !isValidEmail(
-      email
-    )
-  ) {
-    return json(
-      {
-        success:
-          false,
-        message:
-          'Email inválido.'
-      },
-      400
-    )
-  }
-
-  const decisionResponse =
-    await decideMAProfessorAccessRequest(
-      env,
-      email,
-      'approve'
-    )
-
-  const decisionBody =
-    await readResponseJson(
-      decisionResponse
-    )
-
-  if (
-    !decisionResponse.ok
-  ) {
-    return decisionResponse
-  }
-
-  const requestSummary =
-    decisionBody
-      ?.request
-
-  const commercialStatusResponse =
-    await env
-      .MA_PROFESSOR_ACCESS
-      .get(
-        env
-          .MA_PROFESSOR_ACCESS
-          .idFromName(
-            'ma-professor-access-global'
-          )
-      )
-      .fetch(
-        new Request(
-          new URL(
-            '/__internal/ma-professor/admin/commerce/status',
-            request.url
-          ),
-          {
-            method:
-              'POST',
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-            body:
-              JSON.stringify({
-                email
-              })
-          }
-        )
-      )
-
-  const commercialBody =
-    await readResponseJson(
-      commercialStatusResponse
-    )
-
-  const commerce =
-    commercialBody
-      ?.commerce
-
-  const hasCommercialAuthorization =
-    Boolean(
-      commerce &&
-      typeof commerce ===
-        'object' &&
-      !Array.isArray(
-        commerce
-      ) &&
-      typeof (
-        commerce as JsonObject
-      ).authorizationId ===
-        'string'
-    )
-
-  if (
-    hasCommercialAuthorization
-  ) {
-    return json({
-      success:
-        true,
-      message:
-        'Pedido aprovado. A senha de ativação será emitida depois de o pagamento estar confirmado ou dispensado.',
-      request:
-        requestSummary,
-      emailDelivery:
-        'not_applicable',
-      credentialIssued:
-        false
-    })
-  }
-
-  const credentialResponse =
-    await generateMAProfessorAdminCredential(
-      env,
-      email
-    )
-
-  const credentialBody =
-    await readResponseJson(
-      credentialResponse
-    )
-
-  if (
-    !credentialResponse.ok ||
-    !credentialBody
-  ) {
-    return credentialResponse
-  }
-
-  const credential =
-    credentialBody
-      .credential
-
-  if (
-    !credential ||
-    typeof credential !==
-      'object' ||
-    Array.isArray(
-      credential
-    ) ||
-    typeof (
-      credential as JsonObject
-    ).password !==
-      'string'
-  ) {
-    return json(
-      {
-        success:
-          false,
-        message:
-          'O pedido foi aprovado, mas não foi possível obter a senha de ativação.'
-      },
-      500
-    )
-  }
-
-  const activationPassword =
-    (
-      credential as JsonObject
-    ).password as string
-
-  const emailDelivery =
-    await sendApprovalEmail(
-      env,
-      email,
-      activationPassword
-    )
-
-  await updateMAProfessorAdminEmailDispatchStatus(
-    env,
-    email,
-    emailDelivery
+  return completeCommercialActivation(
+    requestForCompletion,
+    response,
+    env
   )
-
-  return json({
-    success:
-      true,
-    message:
-      emailDelivery ===
-        'sent'
-        ? 'Pedido aprovado. A senha de ativação foi enviada por email.'
-        : emailDelivery ===
-            'not_configured'
-          ? 'Pedido aprovado. O envio automático não está configurado; copie a senha de ativação e envie-a manualmente.'
-          : 'Pedido aprovado e senha de ativação criada, mas o email não foi enviado. Copie-a e envie-a manualmente.',
-    request:
-      requestSummary,
-    emailDelivery,
-    credentialIssued:
-      true,
-    fallbackCredential:
-      emailDelivery ===
-        'sent'
-        ? undefined
-        : credential
-  })
 }
