@@ -2,8 +2,13 @@ import {
   createMAProfessorDatabaseSnapshot,
   downloadEncryptedMAProfessorDatabaseSnapshot,
   uploadEncryptedMAProfessorDatabaseSnapshot,
-  type MAProfessorDatabaseSnapshot
+  type MAProfessorDatabaseSnapshot,
+  type MAProfessorUploadSnapshotResult
 } from './databaseSnapshotService'
+
+import {
+  MAProfessorSnapshotConflictError
+} from './snapshotApi'
 
 import {
   countMAProfessorSnapshotRecords,
@@ -281,20 +286,41 @@ export async function uploadAndVerifyMAProfessorManualSync(
    * não sobre uma leitura anterior da base, porque os dados podem
    * mudar enquanto o envio está em curso.
    */
-  const upload =
-    await uploadEncryptedMAProfessorDatabaseSnapshot({
-      token:
-        options.token,
+  let upload:
+    MAProfessorUploadSnapshotResult
 
-      email:
-        options.email,
+  try {
+    upload =
+      await uploadEncryptedMAProfessorDatabaseSnapshot({
+        token:
+          options.token,
 
-      deviceId:
-        options.deviceId,
+        email:
+          options.email,
 
-      expectedServerRevision:
-        options.serverRevision
-    })
+        deviceId:
+          options.deviceId,
+
+        expectedServerRevision:
+          options.serverRevision
+      })
+  } catch (
+    error
+  ) {
+    if (
+      error instanceof
+        MAProfessorSnapshotConflictError
+    ) {
+      const currentServerRevision =
+        error.currentServerRevision
+
+      throw new MAProfessorManualSyncSafetyError(
+        `A cópia online foi atualizada entretanto (revisão ${currentServerRevision}). Atualize o estado e verifique essa cópia antes de tentar guardar novamente.`
+      )
+    }
+
+    throw error
+  }
 
   const uploadedFingerprint =
     await createMAProfessorSnapshotFingerprint(
