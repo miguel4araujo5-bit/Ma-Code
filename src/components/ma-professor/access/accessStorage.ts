@@ -160,6 +160,18 @@ function removeStoredValue(
   }
 }
 
+function hasValidStoredLicense(
+  value: unknown
+) {
+  return (
+    value === null ||
+    (
+      typeof value === 'object' &&
+      value !== null
+    )
+  )
+}
+
 export function getOrCreateMAProfessorDeviceId() {
   const stored =
     readStoredValue(
@@ -220,7 +232,9 @@ export function readMAProfessorStoredAccess():
         'string' ||
       typeof parsed.deviceId !==
         'string' ||
-      !parsed.license
+      !hasValidStoredLicense(
+        parsed.license
+      )
     ) {
       return memoryAccess
     }
