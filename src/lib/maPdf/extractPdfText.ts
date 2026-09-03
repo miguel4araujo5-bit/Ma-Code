@@ -353,6 +353,17 @@ function getCellColumnProbeX(
   )
 }
 
+function normalizeScheduleActivityText(
+  value: string
+) {
+  return value
+    .replace(/^[^0-9A-Za-zÀ-ÿ]+/u, '')
+    .replace(/^(?:TE|Cre)\s+/i, '')
+    .replace(/\s+(?:SP|TE|Cre)$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function mergeScheduleDayCells(
   cells: ExtractedPdfCell[]
 ) {
@@ -363,12 +374,15 @@ function mergeScheduleDayCells(
   const sorted = [...cells].sort(
     (left, right) => left.x - right.x
   )
-  const text = sorted
+  const rawText = sorted
     .map(cell => cell.text.trim())
     .filter(Boolean)
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()
+  const text = normalizeScheduleActivityText(
+    rawText
+  )
 
   if (!text) {
     return null
@@ -530,14 +544,6 @@ function prepareSchedulePositionedCells(
     return []
   }
 
-  /*
-   * Mantemos as colunas do cabeçalho separadas (Dia | Sala | Dia | Sala).
-   * O importador usa a posição real de cada dia; fundir "Dia + Sala" deslocava
-   * o centro geométrico da coluna e podia perder atividades junto ao limite.
-   *
-   * Nas linhas letivas reduzimos apenas o conteúdo codificado a
-   * "Turma + Disciplina". Tudo o resto, incluindo cargos, permanece intacto.
-   */
   return [...cells]
     .sort((a, b) => a.x - b.x)
     .map(cell => {
@@ -642,12 +648,6 @@ async function readPdfTextItems(
     streamTextContent: () => ReadableStream<unknown>
   }
 ) {
-  /*
-   * PDF.js 6.1.200 usa iteração assíncrona sobre ReadableStream dentro de
-   * getTextContent(). O Safari 26.x não expõe esse stream como async iterable
-   * e lança "undefined is not a function". Ler o mesmo stream através do
-   * reader padrão evita essa incompatibilidade sem alterar o conteúdo extraído.
-   */
   const reader = page.streamTextContent().getReader()
   const items: unknown[] = []
 
