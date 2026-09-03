@@ -338,25 +338,58 @@ function isRoomHeader(value: string) {
   return normalizeComparableText(value) === 'sala'
 }
 
-function isLikelyDutyCell(value: string) {
-  const candidate = normalizeComparableText(value)
-    .replace(/^(?:te|cre|sp)\s+/, '')
-    .replace(/\s+(?:te|cre|sp)$/, '')
-    .trim()
-
-  return (
-    /^(?:eq|equipa)\s+/.test(candidate) ||
-    /^clube\s+/.test(candidate) ||
-    /^reuniao\b/.test(candidate) ||
-    /^artigo\s+79\b/.test(candidate) ||
-    /^trabalho\s+(?:individual|de escola)\b/.test(candidate)
-  )
-}
-
 function getCellCenter(
   cell: ExtractedPdfCell
 ) {
   return cell.x + cell.width / 2
+}
+
+function getCellColumnProbeX(
+  cell: ExtractedPdfCell
+) {
+  return cell.x + Math.min(
+    5,
+    Math.max(1, cell.width * 0.12)
+  )
+}
+
+function mergeScheduleDayCells(
+  cells: ExtractedPdfCell[]
+) {
+  if (cells.length === 0) {
+    return null
+  }
+
+  const sorted = [...cells].sort(
+    (left, right) => left.x - right.x
+  )
+  const text = sorted
+    .map(cell => cell.text.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!text) {
+    return null
+  }
+
+  const left = Math.min(
+    ...sorted.map(cell => cell.x)
+  )
+  const right = Math.max(
+    ...sorted.map(
+      cell => cell.x + cell.width
+    )
+  )
+  const compactLesson =
+    extractCompactTimetableLesson(text)
+
+  return {
+    text: compactLesson ?? text,
+    x: left,
+    width: Math.max(0, right - left)
+  }
 }
 
 function discardTimetableRoomColumns(
@@ -409,6 +442,10 @@ function discardTimetableRoomColumns(
     return lines
   }
 
+  const dayAnchors = anchors.filter(
+    anchor => anchor.kind === 'day'
+  )
+
   return lines.map(line => {
     const positionedCells = line.positionedCells ?? []
 
@@ -420,31 +457,68 @@ function discardTimetableRoomColumns(
       return line
     }
 
-    const filteredCells = positionedCells.filter(cell => {
-      if (
-        hasTimeRange(cell.text) ||
-        extractCompactTimetableLesson(cell.text) ||
-        isLikelyDutyCell(cell.text)
-      ) {
-        return true
+    const timeCells = positionedCells.filter(
+      cell => hasTimeRange(cell.text)
+    )
+    const cellsByDay = new Map<
+      number,
+      ExtractedPdfCell[]
+    >()
+
+    for (const cell of positionedCells) {
+      if (hasTimeRange(cell.text)) {
+        continue
       }
 
-      const centerX = getCellCenter(cell)
+      const probeX = getCellColumnProbeX(cell)
       const nearestAnchor = anchors.reduce(
         (nearest, anchor) =>
-          Math.abs(anchor.centerX - centerX) <
-          Math.abs(nearest.centerX - centerX)
+          Math.abs(anchor.centerX - probeX) <
+          Math.abs(nearest.centerX - probeX)
             ? anchor
             : nearest,
         anchors[0]
       )
 
-      return nearestAnchor.kind !== 'room'
-    })
+      if (nearestAnchor.kind === 'room') {
+        continue
+      }
+
+      const dayIndex = dayAnchors.findIndex(
+        anchor => anchor === nearestAnchor
+      )
+
+      if (dayIndex < 0) {
+        continue
+      }
+
+      const dayCells = cellsByDay.get(dayIndex) ?? []
+      dayCells.push(cell)
+      cellsByDay.set(dayIndex, dayCells)
+    }
+
+    const mergedDayCells = Array.from(
+      cellsByDay.entries()
+    )
+      .sort(
+        ([left], [right]) => left - right
+      )
+      .map(([, cells]) =>
+        mergeScheduleDayCells(cells)
+      )
+      .filter(
+        (cell): cell is ExtractedPdfCell =>
+          cell !== null
+      )
 
     return {
       ...line,
-      positionedCells: filteredCells
+      positionedCells: [
+        ...timeCells,
+        ...mergedDayCells
+      ].sort(
+        (left, right) => left.x - right.x
+      )
     }
   })
 }
