@@ -65,15 +65,6 @@ function normalizeText(value: unknown) {
     : ''
 }
 
-function normalizeComparableText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-PT')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 function toPositionedItem(
   value: unknown
 ): PositionedTextItem | null {
@@ -293,19 +284,9 @@ function splitItemsIntoPositionedCells(
   return cells
 }
 
-function containsWeekdayHeader(value: string) {
-  return /\b(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?\b/i.test(
-    value
-  )
-}
-
-function isStandaloneRoomHeader(value: string) {
-  return normalizeComparableText(value) === 'sala'
-}
-
 function extractCompactTimetableLesson(value: string) {
   const match = value.match(
-    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*([A-Za-z])_([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9_-]*)/i
+    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*([A-Za-z])(?:\s*[_-]\s*|\s*\.\s*|\s+)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_-]*)/i
   )
 
   if (!match) {
@@ -324,18 +305,6 @@ function extractCompactTimetableLesson(value: string) {
   return `${match[1]}.º ${match[2].toLocaleUpperCase('pt-PT')} ${subjectCode.toLocaleUpperCase('pt-PT')}`
 }
 
-function isNonTeachingTimetableCell(value: string) {
-  const candidate = normalizeComparableText(value)
-
-  return (
-    /^(?:eq|equipa)\s+/.test(candidate) ||
-    /^clube\s+/.test(candidate) ||
-    /^reuniao\b/.test(candidate) ||
-    /^artigo\s+79\b/.test(candidate) ||
-    /^trabalho\s+(?:individual|de escola)\b/.test(candidate)
-  )
-}
-
 function prepareSchedulePositionedCells(
   cells: ExtractedPdfCell[]
 ) {
@@ -344,54 +313,32 @@ function prepareSchedulePositionedCells(
   }
 
   /*
-   * A maioria dos horários do MA-Professor chega em tabelas do tipo
-   * "Segunda | Sala | Terça | Sala ...". Mantemos `text` e `cells` originais
-   * para os restantes conversores PDF; apenas `positionedCells`, que é
-   * consumido pelo importador de horários, recebe estas pistas estruturais.
+   * Mantemos as colunas do cabeçalho separadas (Dia | Sala | Dia | Sala).
+   * O importador usa a posição real de cada dia; fundir "Dia + Sala" deslocava
+   * o centro geométrico da coluna e podia perder atividades junto ao limite.
+   *
+   * Nas linhas letivas reduzimos apenas o conteúdo codificado a
+   * "Turma + Disciplina". Tudo o resto, incluindo cargos, permanece intacto.
+   * Assim a coluna Sala pode ser ignorada pelo importador sem contaminar a
+   * disciplina com códigos como B2.11, Aud2, A1.LB, REO ou Pav_D.
    */
-  const mergedHeaders: ExtractedPdfCell[] = []
+  return [...cells]
+    .sort((a, b) => a.x - b.x)
+    .map(cell => {
+      const compactLesson =
+        extractCompactTimetableLesson(
+          cell.text
+        )
 
-  for (const sourceCell of [...cells].sort((a, b) => a.x - b.x)) {
-    const cell = { ...sourceCell }
-    const previous = mergedHeaders[mergedHeaders.length - 1]
-
-    if (
-      previous &&
-      isStandaloneRoomHeader(cell.text) &&
-      containsWeekdayHeader(previous.text)
-    ) {
-      const right = Math.max(
-        previous.x + previous.width,
-        cell.x + cell.width
-      )
-
-      previous.text = `${previous.text} Sala`
-      previous.width = Math.max(0, right - previous.x)
-      continue
-    }
-
-    mergedHeaders.push(cell)
-  }
-
-  return mergedHeaders.map(cell => {
-    const compactLesson = extractCompactTimetableLesson(cell.text)
-
-    if (compactLesson) {
-      return {
-        ...cell,
-        text: compactLesson
-      }
-    }
-
-    if (isNonTeachingTimetableCell(cell.text)) {
-      return {
-        ...cell,
-        text: ''
-      }
-    }
-
-    return cell
-  })
+      return compactLesson
+        ? {
+            ...cell,
+            text: compactLesson
+          }
+        : {
+            ...cell
+          }
+    })
 }
 
 function groupItemsIntoLines(
