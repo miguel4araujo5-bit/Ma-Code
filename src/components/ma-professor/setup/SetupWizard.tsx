@@ -4,8 +4,9 @@ import {
   useState
 } from 'react'
 
-import type {
-  SetupSnapshot
+import {
+  maProfessorRepository,
+  type SetupSnapshot
 } from '../repository'
 import type {
   SetupStepId
@@ -64,12 +65,22 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day))
 }
 
-function normalizeProgressStep(step: SetupStepId | null | undefined): SetupStepId {
-  return step === 'academic_year' || !step ? 'groups' : step
+function getFirstIncompleteStep(
+  snapshot: SetupSnapshot
+): SetupStepId {
+  const completedSteps = new Set<SetupStepId>(
+    snapshot.progress?.completedSteps ?? []
+  )
+
+  return (
+    setupSteps.find(
+      step => !completedSteps.has(step.id)
+    )?.id ?? 'confirmation'
+  )
 }
 
 function getInitialStep(snapshot: SetupSnapshot): SetupStepId {
-  return normalizeProgressStep(snapshot.progress?.currentStep)
+  return getFirstIncompleteStep(snapshot)
 }
 
 function shouldOfferScheduleImport(snapshot: SetupSnapshot) {
@@ -154,7 +165,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
     () => new Set<SetupStepId>(snapshot.progress?.completedSteps ?? []),
     [snapshot.progress?.completedSteps]
   )
-  const currentProgressStep = normalizeProgressStep(snapshot.progress?.currentStep)
+  const currentProgressStep = getFirstIncompleteStep(snapshot)
   const activeStepDefinition = setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
   const completedSetupSteps = setupSteps.filter(step => completedSteps.has(step.id)).length
   const totalVisibleSteps = 9
@@ -181,15 +192,47 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       onCompleted(nextSnapshot)
       return
     }
-    setActiveStep(normalizeProgressStep(nextSnapshot.progress?.currentStep))
+    setActiveStep(getFirstIncompleteStep(nextSnapshot))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleScheduleImported(nextSnapshot: SetupSnapshot) {
-    onSnapshotChange(nextSnapshot)
+  async function handleScheduleImported(nextSnapshot: SetupSnapshot) {
+    const importedLessonSetupComplete =
+      nextSnapshot.groups.length > 0 &&
+      nextSnapshot.subjects.length > 0 &&
+      nextSnapshot.teachingAssignments.length > 0 &&
+      nextSnapshot.weeklyScheduleSlots.length > 0
+
+    let preparedSnapshot = nextSnapshot
+
+    if (importedLessonSetupComplete) {
+      const completed = new Set<SetupStepId>(
+        nextSnapshot.progress?.completedSteps ?? []
+      )
+
+      for (const step of [
+        'groups',
+        'subjects',
+        'weekly_schedule'
+      ] as SetupStepId[]) {
+        if (!completed.has(step)) {
+          await maProfessorRepository.completeSetupStep(
+            nextSnapshot.academicYear.id,
+            step
+          )
+        }
+      }
+
+      preparedSnapshot =
+        await maProfessorRepository.getSetupSnapshot(
+          nextSnapshot.academicYear.id
+        )
+    }
+
+    onSnapshotChange(preparedSnapshot)
     setShowScheduleImport(false)
     setEducationMode('professional')
-    setActiveStep('groups')
+    setActiveStep(getFirstIncompleteStep(preparedSnapshot))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
