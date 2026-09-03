@@ -378,29 +378,29 @@ function discardTimetableRoomColumns(
     return lines
   }
 
-  const anchors: ScheduleColumnAnchor[] =
-    header.positionedCells
-      .flatMap(cell => {
-        if (isWeekdayHeader(cell.text)) {
-          return [{
-            kind: 'day' as const,
-            centerX: getCellCenter(cell)
-          }]
-        }
+  const anchors: ScheduleColumnAnchor[] = []
 
-        if (isRoomHeader(cell.text)) {
-          return [{
-            kind: 'room' as const,
-            centerX: getCellCenter(cell)
-          }]
-        }
-
-        return []
+  for (const cell of header.positionedCells) {
+    if (isWeekdayHeader(cell.text)) {
+      anchors.push({
+        kind: 'day',
+        centerX: getCellCenter(cell)
       })
-      .sort(
-        (left, right) =>
-          left.centerX - right.centerX
-      )
+      continue
+    }
+
+    if (isRoomHeader(cell.text)) {
+      anchors.push({
+        kind: 'room',
+        centerX: getCellCenter(cell)
+      })
+    }
+  }
+
+  anchors.sort(
+    (left, right) =>
+      left.centerX - right.centerX
+  )
 
   if (
     anchors.filter(anchor => anchor.kind === 'day').length < 2 ||
