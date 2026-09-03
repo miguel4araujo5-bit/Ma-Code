@@ -7,6 +7,7 @@ import {
 } from '../components/ma-professor/product/MAProfessorProduct'
 
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
+import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
 
 const siteUrl =
   'https://ma-code.pt'
@@ -181,7 +182,9 @@ export default function MAProfessorPage() {
 
   return (
     <MAProfessorAuthGate>
-      <MAProfessorProduct />
+      <InitialSchoolCalendarBootstrap>
+        <MAProfessorProduct />
+      </InitialSchoolCalendarBootstrap>
     </MAProfessorAuthGate>
   )
 }
