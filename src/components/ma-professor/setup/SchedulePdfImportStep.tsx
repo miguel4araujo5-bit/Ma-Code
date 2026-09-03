@@ -7,13 +7,21 @@ import {
 import {
   extractTextFromPdf,
   type ExtractedPdfCell,
+  type ExtractedPdfLine,
   type ExtractedPdfPage
 } from '../../../lib/maPdf/extractPdfText'
+import {
+  calendarRepository
+} from '../calendar/calendarRepository'
 import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
-import type { Weekday } from '../types'
+import type {
+  AcademicYear,
+  ISODate,
+  Weekday
+} from '../types'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -32,9 +40,23 @@ type Draft = {
   subjectName: string
 }
 
+type DutyDraft = {
+  id: string
+  included: boolean
+  weekday: Weekday
+  startTime: string
+  endTime: string
+  name: string
+}
+
 type DayColumn = {
   weekday: Weekday
   centerX: number
+}
+
+type ParsedProposal = {
+  lessons: Draft[]
+  duties: DutyDraft[]
 }
 
 const weekdays: Array<{
@@ -105,6 +127,39 @@ const weekdayPatterns: Array<{
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
+
+const S_BENTO_2026_2027_DUTY_RANGES: Array<{
+  startDate: ISODate
+  endDate: ISODate
+}> = [
+  {
+    startDate: '2026-09-21',
+    endDate: '2026-12-15'
+  },
+  {
+    startDate: '2027-01-04',
+    endDate: '2027-03-19'
+  },
+  {
+    startDate: '2027-04-05',
+    endDate: '2027-06-11'
+  }
+]
+
+const S_BENTO_2026_2027_CLOSED_DATES =
+  new Set<ISODate>([
+    '2026-10-05',
+    '2026-12-01',
+    '2026-12-08',
+    '2027-02-08',
+    '2027-02-09',
+    '2027-02-10',
+    '2027-03-19',
+    '2027-04-25',
+    '2027-05-01',
+    '2027-05-27',
+    '2027-06-10'
+  ])
 
 function normalize(value: string) {
   return value
@@ -214,6 +269,21 @@ function stripLessonNoise(
     .trim()
 }
 
+function extractDutyName(value: string) {
+  const candidate = clean(value)
+    .replace(/\s+(?:SP|TE|Cre)$/i, '')
+    .trim()
+
+  if (
+    /^(?:Eq(?:uipa)?\s+|Clube\s+)/i.test(candidate) ||
+    /^(?:Trabalho de Escola|Artigo 79|Trabalho Individual|Reunião)$/i.test(candidate)
+  ) {
+    return candidate
+  }
+
+  return ''
+}
+
 function suggestedPeriods(
   startTime: string,
   endTime: string,
@@ -262,22 +332,15 @@ function detectDayColumns(
   cells: ExtractedPdfCell[]
 ) {
   const detected =
-    new Map<
-      Weekday,
-      DayColumn
-    >()
+    new Map<Weekday, DayColumn>()
 
   for (const cell of cells) {
     const weekday =
-      detectWeekday(
-        cell.text
-      )
+      detectWeekday(cell.text)
 
     if (
       !weekday ||
-      detected.has(
-        weekday
-      )
+      detected.has(weekday)
     ) {
       continue
     }
@@ -287,9 +350,7 @@ function detectDayColumns(
       {
         weekday,
         centerX:
-          getCellCenter(
-            cell
-          )
+          getCellCenter(cell)
       }
     )
   }
@@ -297,10 +358,7 @@ function detectDayColumns(
   return Array.from(
     detected.values()
   ).sort(
-    (
-      left,
-      right
-    ) =>
+    (left, right) =>
       left.centerX -
       right.centerX
   )
@@ -310,16 +368,12 @@ function resolveColumnWeekday(
   cell: ExtractedPdfCell,
   columns: DayColumn[]
 ): Weekday | null {
-  if (
-    columns.length < 2
-  ) {
+  if (columns.length < 2) {
     return null
   }
 
   const centerX =
-    getCellCenter(
-      cell
-    )
+    getCellCenter(cell)
 
   for (
     let index = 0;
@@ -328,10 +382,8 @@ function resolveColumnWeekday(
   ) {
     const current =
       columns[index]
-
     const previous =
       columns[index - 1]
-
     const next =
       columns[index + 1]
 
@@ -370,15 +422,33 @@ function resolveColumnWeekday(
   return null
 }
 
+function rawCellText(
+  line: ExtractedPdfLine,
+  index: number,
+  fallback: string
+) {
+  if (
+    line.cells.length ===
+      (line.positionedCells?.length ?? 0)
+  ) {
+    return line.cells[index] ?? fallback
+  }
+
+  return fallback
+}
+
 function parsePages(
   pages: ExtractedPdfPage[],
   defaultMinutes: number
-) {
-  const drafts: Draft[] = []
-  const seen = new Set<string>()
-  let sequence = 0
+): ParsedProposal {
+  const lessons: Draft[] = []
+  const duties: DutyDraft[] = []
+  const seenLessons = new Set<string>()
+  const seenDuties = new Set<string>()
+  let lessonSequence = 0
+  let dutySequence = 0
 
-  function addDraft(
+  function addLesson(
     weekday: Weekday,
     startTime: string,
     endTime: string,
@@ -386,15 +456,12 @@ function parsePages(
   ) {
     const cleanedRaw =
       clean(raw)
-
-    if (!cleanedRaw) {
-      return
-    }
-
     const groupName =
-      extractGroupName(
-        cleanedRaw
-      )
+      extractGroupName(cleanedRaw)
+
+    if (!groupName) {
+      return false
+    }
 
     const subjectName =
       stripLessonNoise(
@@ -402,11 +469,8 @@ function parsePages(
         groupName
       )
 
-    if (
-      !groupName &&
-      !subjectName
-    ) {
-      return
+    if (!subjectName) {
+      return false
     }
 
     const key = [
@@ -417,17 +481,15 @@ function parsePages(
       normalize(subjectName)
     ].join('|')
 
-    if (seen.has(key)) {
-      return
+    if (seenLessons.has(key)) {
+      return false
     }
 
-    seen.add(key)
-
-    drafts.push({
+    seenLessons.add(key)
+    lessons.push({
       id:
-        `pdf-slot-${sequence += 1}`,
-      included:
-        true,
+        `pdf-slot-${lessonSequence += 1}`,
+      included: true,
       weekday,
       startTime,
       endTime,
@@ -440,6 +502,46 @@ function parsePages(
       groupName,
       subjectName
     })
+
+    return true
+  }
+
+  function addDuty(
+    weekday: Weekday,
+    startTime: string,
+    endTime: string,
+    raw: string
+  ) {
+    const name =
+      extractDutyName(raw)
+
+    if (!name) {
+      return false
+    }
+
+    const key = [
+      weekday,
+      startTime,
+      endTime,
+      normalize(name)
+    ].join('|')
+
+    if (seenDuties.has(key)) {
+      return false
+    }
+
+    seenDuties.add(key)
+    duties.push({
+      id:
+        `pdf-duty-${dutySequence += 1}`,
+      included: true,
+      weekday,
+      startTime,
+      endTime,
+      name
+    })
+
+    return true
   }
 
   for (const page of pages) {
@@ -448,23 +550,16 @@ function parsePages(
     for (const line of page.lines) {
       const positionedCells =
         line.positionedCells ?? []
-
       const detectedColumns =
-        detectDayColumns(
-          positionedCells
-        )
+        detectDayColumns(positionedCells)
 
-      if (
-        detectedColumns.length >= 2
-      ) {
+      if (detectedColumns.length >= 2) {
         dayColumns = detectedColumns
         continue
       }
 
       const time =
-        extractTimeRange(
-          line.text
-        )
+        extractTimeRange(line.text)
 
       if (!time) {
         continue
@@ -476,17 +571,16 @@ function parsePages(
         dayColumns.length >= 2 &&
         positionedCells.length > 0
       ) {
-        const contentByDay =
-          new Map<
-            Weekday,
-            string[]
-          >()
+        for (
+          let index = 0;
+          index < positionedCells.length;
+          index += 1
+        ) {
+          const cell =
+            positionedCells[index]
 
-        for (const cell of positionedCells) {
           if (
-            extractTimeRange(
-              cell.text
-            )
+            extractTimeRange(cell.text)
           ) {
             continue
           }
@@ -498,6 +592,25 @@ function parsePages(
             )
 
           if (!weekday) {
+            continue
+          }
+
+          const originalText =
+            rawCellText(
+              line,
+              index,
+              cell.text
+            )
+
+          if (
+            addDuty(
+              weekday,
+              time.startTime,
+              time.endTime,
+              originalText
+            )
+          ) {
+            addedFromColumns = true
             continue
           }
 
@@ -516,70 +629,56 @@ function parsePages(
             continue
           }
 
-          const current =
-            contentByDay.get(
-              weekday
-            ) ?? []
-
-          current.push(content)
-
-          contentByDay.set(
-            weekday,
-            current
-          )
-        }
-
-        for (
-          const [weekday, parts] of
-          contentByDay
-        ) {
-          const raw =
-            clean(
-              parts.join(' ')
+          if (
+            addLesson(
+              weekday,
+              time.startTime,
+              time.endTime,
+              content
             )
-
-          if (!raw) {
-            continue
+          ) {
+            addedFromColumns = true
           }
-
-          const beforeCount =
-            drafts.length
-
-          addDraft(
-            weekday,
-            time.startTime,
-            time.endTime,
-            raw
-          )
-
-          addedFromColumns =
-            addedFromColumns ||
-            drafts.length > beforeCount
         }
       }
 
       if (!addedFromColumns) {
         const explicitDay =
-          detectWeekday(
-            line.text
+          detectWeekday(line.text)
+
+        if (!explicitDay) {
+          continue
+        }
+
+        const raw =
+          line.text.replace(
+            time.matchedText,
+            ' '
           )
 
-        if (explicitDay) {
-          addDraft(
+        if (
+          !addDuty(
             explicitDay,
             time.startTime,
             time.endTime,
-            line.text.replace(
-              time.matchedText,
-              ' '
-            )
+            raw
+          )
+        ) {
+          addLesson(
+            explicitDay,
+            time.startTime,
+            time.endTime,
+            raw
           )
         }
       }
     }
   }
 
-  return drafts
+  return {
+    lessons,
+    duties
+  }
 }
 
 function shortName(name: string) {
@@ -638,21 +737,40 @@ function draftLabel(draft: Draft) {
 }
 
 function validateDraftConflicts(
-  drafts: Draft[]
+  lessons: Draft[],
+  duties: DutyDraft[]
 ) {
+  const rows = [
+    ...lessons.map(
+      lesson => ({
+        weekday: lesson.weekday,
+        startTime: lesson.startTime,
+        endTime: lesson.endTime,
+        label: draftLabel(lesson)
+      })
+    ),
+    ...duties.map(
+      duty => ({
+        weekday: duty.weekday,
+        startTime: duty.startTime,
+        endTime: duty.endTime,
+        label: duty.name
+      })
+    )
+  ]
+
   for (
     let firstIndex = 0;
-    firstIndex < drafts.length;
+    firstIndex < rows.length;
     firstIndex += 1
   ) {
-    const first = drafts[firstIndex]
-
     for (
       let secondIndex = firstIndex + 1;
-      secondIndex < drafts.length;
+      secondIndex < rows.length;
       secondIndex += 1
     ) {
-      const second = drafts[secondIndex]
+      const first = rows[firstIndex]
+      const second = rows[secondIndex]
 
       if (
         first.weekday === second.weekday &&
@@ -664,7 +782,7 @@ function validateDraftConflicts(
         )
       ) {
         throw new Error(
-          `Há dois blocos sobrepostos na proposta: ${draftLabel(first)} e ${draftLabel(second)}, à ${weekdayLabel(first.weekday)}, entre ${first.startTime} e ${first.endTime}. Corrija ou desmarque um deles antes de importar.`
+          `Há dois blocos sobrepostos na proposta: ${first.label} e ${second.label}, à ${weekdayLabel(first.weekday)}, entre ${first.startTime} e ${first.endTime}. Corrija ou desmarque um deles antes de importar.`
         )
       }
     }
@@ -688,20 +806,18 @@ function isSameExistingLesson(
     snapshot.teachingAssignments.find(
       item => item.id === slot.teachingAssignmentId
     )
-
-  if (!assignment) {
-    return false
-  }
-
   const group =
-    snapshot.groups.find(
-      item => item.id === assignment.groupId
-    )
-
+    assignment
+      ? snapshot.groups.find(
+          item => item.id === assignment.groupId
+        )
+      : null
   const subject =
-    snapshot.subjects.find(
-      item => item.id === assignment.subjectId
-    )
+    assignment
+      ? snapshot.subjects.find(
+          item => item.id === assignment.subjectId
+        )
+      : null
 
   return Boolean(
     group &&
@@ -712,7 +828,8 @@ function isSameExistingLesson(
 }
 
 function validateExistingScheduleConflicts(
-  drafts: Draft[],
+  lessons: Draft[],
+  duties: DutyDraft[],
   snapshot: SetupSnapshot
 ) {
   const activeSlots =
@@ -720,7 +837,7 @@ function validateExistingScheduleConflicts(
       slot => slot.active
     )
 
-  for (const draft of drafts) {
+  for (const draft of lessons) {
     for (const slot of activeSlots) {
       if (
         slot.weekday !== draft.weekday ||
@@ -754,6 +871,199 @@ function validateExistingScheduleConflicts(
       )
     }
   }
+
+  for (const duty of duties) {
+    const conflict =
+      activeSlots.find(
+        slot =>
+          slot.weekday === duty.weekday &&
+          timeRangesOverlap(
+            slot.startTime,
+            slot.endTime,
+            duty.startTime,
+            duty.endTime
+          )
+      )
+
+    if (conflict) {
+      throw new Error(
+        `O cargo ${duty.name} sobrepõe-se a uma aula já existente, à ${weekdayLabel(duty.weekday)}, das ${duty.startTime} às ${duty.endTime}. Corrija o horário antes de importar.`
+      )
+    }
+  }
+}
+
+function parseISODate(value: ISODate) {
+  const [year, month, day] =
+    value.split('-').map(Number)
+
+  return new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
+  )
+}
+
+function toISODate(value: Date): ISODate {
+  return [
+    value.getUTCFullYear(),
+    String(value.getUTCMonth() + 1).padStart(2, '0'),
+    String(value.getUTCDate()).padStart(2, '0')
+  ].join('-')
+}
+
+function getWeekday(value: Date): Weekday {
+  const day = value.getUTCDay()
+  return (
+    day === 0
+      ? 7
+      : day
+  ) as Weekday
+}
+
+function getDutyRanges(
+  academicYear: AcademicYear
+) {
+  if (
+    normalize(academicYear.name) ===
+      '2026/2027'
+  ) {
+    return S_BENTO_2026_2027_DUTY_RANGES
+  }
+
+  return [
+    {
+      startDate: academicYear.startDate,
+      endDate: academicYear.endDate
+    }
+  ]
+}
+
+function getDutyDates(
+  academicYear: AcademicYear,
+  weekday: Weekday
+) {
+  const result: ISODate[] = []
+
+  for (
+    const range of getDutyRanges(
+      academicYear
+    )
+  ) {
+    const current =
+      parseISODate(range.startDate)
+    const end =
+      parseISODate(range.endDate)
+
+    while (current <= end) {
+      const isoDate =
+        toISODate(current)
+
+      if (
+        getWeekday(current) === weekday &&
+        !(
+          normalize(academicYear.name) ===
+            '2026/2027' &&
+          S_BENTO_2026_2027_CLOSED_DATES.has(
+            isoDate
+          )
+        )
+      ) {
+        result.push(isoDate)
+      }
+
+      current.setUTCDate(
+        current.getUTCDate() + 1
+      )
+    }
+  }
+
+  return result
+}
+
+function dutyEventTitle(
+  duty: DutyDraft
+) {
+  return `Cargo · ${clean(duty.name)} · ${duty.startTime}–${duty.endTime}`
+}
+
+function dutyEventKey(
+  title: string,
+  date: ISODate
+) {
+  return `${normalize(title)}|${date}`
+}
+
+async function importDutyEvents(
+  academicYear: AcademicYear,
+  duties: DutyDraft[]
+) {
+  if (duties.length === 0) {
+    return 0
+  }
+
+  const existingEvents =
+    await calendarRepository.listEvents({
+      academicYearId: academicYear.id
+    })
+  const existingKeys =
+    new Set(
+      existingEvents
+        .filter(
+          event =>
+            event.type === 'school_activity' &&
+            event.scope === 'all'
+        )
+        .map(
+          event =>
+            dutyEventKey(
+              event.title,
+              event.startDate
+            )
+        )
+    )
+
+  let created = 0
+
+  for (const duty of duties) {
+    const title =
+      dutyEventTitle(duty)
+
+    for (
+      const date of getDutyDates(
+        academicYear,
+        duty.weekday
+      )
+    ) {
+      const key =
+        dutyEventKey(
+          title,
+          date
+        )
+
+      if (existingKeys.has(key)) {
+        continue
+      }
+
+      await calendarRepository.createEvent({
+        academicYearId: academicYear.id,
+        type: 'school_activity',
+        scope: 'all',
+        title,
+        description: '',
+        startDate: date,
+        endDate: date,
+        blocksLessons: false
+      })
+
+      existingKeys.add(key)
+      created += 1
+    }
+  }
+
+  return created
 }
 
 export default function SchedulePdfImportStep({
@@ -763,6 +1073,7 @@ export default function SchedulePdfImportStep({
 }: Props) {
   const [fileName, setFileName] = useState('')
   const [drafts, setDrafts] = useState<Draft[]>([])
+  const [duties, setDuties] = useState<DutyDraft[]>([])
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -772,6 +1083,13 @@ export default function SchedulePdfImportStep({
       draft => draft.included
     ),
     [drafts]
+  )
+
+  const includedDuties = useMemo(
+    () => duties.filter(
+      duty => duty.included
+    ),
+    [duties]
   )
 
   async function handleFileChange(
@@ -795,6 +1113,7 @@ export default function SchedulePdfImportStep({
     setBusy(true)
     setError('')
     setDrafts([])
+    setDuties([])
     setFileName(file.name)
 
     try {
@@ -806,25 +1125,27 @@ export default function SchedulePdfImportStep({
           },
           setProgress
         )
-
       const settings =
         await maProfessorRepository.getSettings()
-
-      const next =
+      const proposal =
         parsePages(
           extracted.pages,
           settings.defaultPeriodMinutes
         )
 
-      if (next.length === 0) {
+      if (
+        proposal.lessons.length === 0 &&
+        proposal.duties.length === 0
+      ) {
         throw new Error(
           'Foi possível ler o PDF, mas não reconhecer automaticamente blocos do horário com segurança. Pode continuar com a configuração manual sem perder nada.'
         )
       }
 
-      setDrafts(next)
+      setDrafts(proposal.lessons)
+      setDuties(proposal.duties)
       setProgress(
-        `${next.length} bloco${next.length === 1 ? '' : 's'} encontrado${next.length === 1 ? '' : 's'}. Reveja antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. Reveja antes de confirmar.`
       )
     } catch (readError) {
       setError(errorMessage(readError))
@@ -849,7 +1170,24 @@ export default function SchedulePdfImportStep({
             : draft
       )
     )
+    setError('')
+  }
 
+  function updateDuty(
+    id: string,
+    changes: Partial<DutyDraft>
+  ) {
+    setDuties(
+      current => current.map(
+        duty =>
+          duty.id === id
+            ? {
+                ...duty,
+                ...changes
+              }
+            : duty
+      )
+    )
     setError('')
   }
 
@@ -858,7 +1196,10 @@ export default function SchedulePdfImportStep({
       return
     }
 
-    if (included.length === 0) {
+    if (
+      included.length === 0 &&
+      includedDuties.length === 0
+    ) {
       setError(
         'Mantenha pelo menos um bloco para importar.'
       )
@@ -875,10 +1216,17 @@ export default function SchedulePdfImportStep({
           draft.startTime >= draft.endTime ||
           !Number.isInteger(draft.periodCount) ||
           draft.periodCount <= 0
+      ) ||
+      includedDuties.some(
+        duty =>
+          !duty.name.trim() ||
+          !duty.startTime ||
+          !duty.endTime ||
+          duty.startTime >= duty.endTime
       )
     ) {
       setError(
-        'Reveja os blocos: cada um precisa de turma, disciplina, horas e número de tempos válidos.'
+        'Reveja os blocos: existem dados em falta ou horas inválidas.'
       )
       return
     }
@@ -888,16 +1236,20 @@ export default function SchedulePdfImportStep({
     setProgress('A validar a proposta...')
 
     try {
-      const academicYearId = snapshot.academicYear.id
-
+      const academicYearId =
+        snapshot.academicYear.id
       let current =
         await maProfessorRepository.getSetupSnapshot(
           academicYearId
         )
 
-      validateDraftConflicts(included)
+      validateDraftConflicts(
+        included,
+        includedDuties
+      )
       validateExistingScheduleConflicts(
         included,
+        includedDuties,
         current
       )
 
@@ -914,7 +1266,6 @@ export default function SchedulePdfImportStep({
             ]
           )
         )
-
       const subjects =
         new Map(
           current.subjects.map(
@@ -926,13 +1277,14 @@ export default function SchedulePdfImportStep({
         )
 
       for (const draft of included) {
-        const groupName = clean(draft.groupName)
-        const subjectName = clean(draft.subjectName)
+        const groupName =
+          clean(draft.groupName)
+        const subjectName =
+          clean(draft.subjectName)
 
         if (!groups.has(normalize(groupName))) {
           const grade =
             groupName.match(/^\s*(10|11|12)/)?.[1]
-
           const group =
             await maProfessorRepository.createGroup({
               academicYearId,
@@ -956,7 +1308,8 @@ export default function SchedulePdfImportStep({
             await maProfessorRepository.createSubject({
               academicYearId,
               name: subjectName,
-              shortName: shortName(subjectName),
+              shortName:
+                shortName(subjectName),
               code: '',
               active: true
             })
@@ -982,7 +1335,6 @@ export default function SchedulePdfImportStep({
             ]
           )
         )
-
       const resolved: Array<{
         draft: Draft
         assignmentId: string
@@ -991,12 +1343,15 @@ export default function SchedulePdfImportStep({
       for (const draft of included) {
         const group =
           groups.get(
-            normalize(clean(draft.groupName))
+            normalize(
+              clean(draft.groupName)
+            )
           )
-
         const subject =
           subjects.get(
-            normalize(clean(draft.subjectName))
+            normalize(
+              clean(draft.subjectName)
+            )
           )
 
         if (!group || !subject) {
@@ -1005,8 +1360,10 @@ export default function SchedulePdfImportStep({
           )
         }
 
-        const pair = `${group.id}|${subject.id}`
-        let assignment = assignments.get(pair)
+        const pair =
+          `${group.id}|${subject.id}`
+        let assignment =
+          assignments.get(pair)
 
         if (!assignment) {
           assignment =
@@ -1019,7 +1376,10 @@ export default function SchedulePdfImportStep({
               active: true
             })
 
-          assignments.set(pair, assignment)
+          assignments.set(
+            pair,
+            assignment
+          )
         }
 
         resolved.push({
@@ -1067,13 +1427,25 @@ export default function SchedulePdfImportStep({
           startTime: draft.startTime,
           endTime: draft.endTime,
           periodCount: draft.periodCount,
-          validFrom: snapshot.academicYear.startDate,
-          validUntil: snapshot.academicYear.endDate,
+          validFrom:
+            snapshot.academicYear.startDate,
+          validUntil:
+            snapshot.academicYear.endDate,
           active: true
         })
 
         existingSlots.add(key)
       }
+
+      const createdDuties =
+        await importDutyEvents(
+          snapshot.academicYear,
+          includedDuties
+        )
+
+      setProgress(
+        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'} e ${createdDuties} ocorrência${createdDuties === 1 ? '' : 's'} de cargos programada${createdDuties === 1 ? '' : 's'}.`
+      )
 
       onImported(
         await maProfessorRepository.getSetupSnapshot(
@@ -1087,6 +1459,13 @@ export default function SchedulePdfImportStep({
       setBusy(false)
     }
   }
+
+  const hasProposal =
+    drafts.length > 0 ||
+    duties.length > 0
+  const includedCount =
+    included.length +
+    includedDuties.length
 
   return (
     <div className="mx-auto max-w-[100rem]">
@@ -1102,7 +1481,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara uma proposta com turmas, disciplinas, dias, horas e tempos. Nada é aplicado antes da sua confirmação.
+              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação.
             </p>
           </div>
 
@@ -1111,7 +1490,7 @@ export default function SchedulePdfImportStep({
           </div>
         </div>
 
-        {drafts.length === 0 ? (
+        {!hasProposal ? (
           <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-cyan-300/25 bg-cyan-300/[0.035] p-6 text-center transition hover:border-cyan-300/45 hover:bg-cyan-300/[0.06]">
               <span className="text-lg font-black text-white">
@@ -1151,172 +1530,315 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Corrija o que estiver errado e desmarque os blocos que não pretende importar.
+                Corrija o que estiver errado e desmarque o que não pretende importar. Nenhuma sala é guardada.
               </p>
             </div>
 
-            <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
-              <table className="w-full min-w-[940px] border-collapse text-left">
-                <thead className="bg-white/[0.035] text-xs uppercase tracking-[0.12em] text-slate-500">
-                  <tr>
-                    <th className="px-3 py-3">Usar</th>
-                    <th className="px-3 py-3">Dia</th>
-                    <th className="px-3 py-3">Início</th>
-                    <th className="px-3 py-3">Fim</th>
-                    <th className="px-3 py-3">Tempos</th>
-                    <th className="px-3 py-3">Turma</th>
-                    <th className="px-3 py-3">Disciplina</th>
-                  </tr>
-                </thead>
+            {drafts.length > 0 ? (
+              <div className="mt-5">
+                <h2 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-cyan-100">
+                  Aulas
+                </h2>
 
-                <tbody>
-                  {drafts.map(draft => (
-                    <tr
-                      key={draft.id}
-                      className="border-t border-white/[0.07]"
-                    >
-                      <td className="px-3 py-3">
-                        <input
-                          type="checkbox"
-                          checked={draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                included:
-                                  event.target.checked
-                              }
-                            )
-                          }
-                          className="h-4 w-4 accent-cyan-300"
-                        />
-                      </td>
+                <div className="overflow-x-auto rounded-2xl border border-white/10">
+                  <table className="w-full min-w-[940px] border-collapse text-left">
+                    <thead className="bg-white/[0.035] text-xs uppercase tracking-[0.12em] text-slate-500">
+                      <tr>
+                        <th className="px-3 py-3">Usar</th>
+                        <th className="px-3 py-3">Dia</th>
+                        <th className="px-3 py-3">Início</th>
+                        <th className="px-3 py-3">Fim</th>
+                        <th className="px-3 py-3">Tempos</th>
+                        <th className="px-3 py-3">Turma</th>
+                        <th className="px-3 py-3">Disciplina</th>
+                      </tr>
+                    </thead>
 
-                      <td className="px-3 py-3">
-                        <select
-                          value={draft.weekday}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                weekday:
-                                  Number(event.target.value) as Weekday
-                              }
-                            )
-                          }
-                          className={inputClassName}
+                    <tbody>
+                      {drafts.map(draft => (
+                        <tr
+                          key={draft.id}
+                          className="border-t border-white/[0.07]"
                         >
-                          {weekdays.map(day => (
-                            <option
-                              key={day.value}
-                              value={day.value}
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    included:
+                                      event.target.checked
+                                  }
+                                )
+                              }
+                              className="h-4 w-4 accent-cyan-300"
+                            />
+                          </td>
+
+                          <td className="px-3 py-3">
+                            <select
+                              value={draft.weekday}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    weekday:
+                                      Number(event.target.value) as Weekday
+                                  }
+                                )
+                              }
+                              className={inputClassName}
                             >
-                              {day.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                              {weekdays.map(day => (
+                                <option
+                                  key={day.value}
+                                  value={day.value}
+                                >
+                                  {day.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          type="time"
-                          value={draft.startTime}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                startTime:
-                                  event.target.value
+                          <td className="px-3 py-3">
+                            <input
+                              type="time"
+                              value={draft.startTime}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    startTime:
+                                      event.target.value
+                                  }
+                                )
                               }
-                            )
-                          }
-                          className={inputClassName}
-                        />
-                      </td>
+                              className={inputClassName}
+                            />
+                          </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          type="time"
-                          value={draft.endTime}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                endTime:
-                                  event.target.value
+                          <td className="px-3 py-3">
+                            <input
+                              type="time"
+                              value={draft.endTime}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    endTime:
+                                      event.target.value
+                                  }
+                                )
                               }
-                            )
-                          }
-                          className={inputClassName}
-                        />
-                      </td>
+                              className={inputClassName}
+                            />
+                          </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={draft.periodCount}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                periodCount:
-                                  Math.max(
-                                    1,
-                                    Number(event.target.value) || 1
-                                  )
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              min={1}
+                              max={12}
+                              value={draft.periodCount}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    periodCount:
+                                      Math.max(
+                                        1,
+                                        Number(event.target.value) || 1
+                                      )
+                                  }
+                                )
                               }
-                            )
-                          }
-                          className={inputClassName}
-                        />
-                      </td>
+                              className={inputClassName}
+                            />
+                          </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          value={draft.groupName}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                groupName:
-                                  event.target.value
+                          <td className="px-3 py-3">
+                            <input
+                              value={draft.groupName}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    groupName:
+                                      event.target.value
+                                  }
+                                )
                               }
-                            )
-                          }
-                          placeholder="Ex.: 10.º D"
-                          className={inputClassName}
-                        />
-                      </td>
+                              placeholder="Ex.: 10.º D"
+                              className={inputClassName}
+                            />
+                          </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          value={draft.subjectName}
-                          disabled={!draft.included}
-                          onChange={event =>
-                            updateDraft(
-                              draft.id,
-                              {
-                                subjectName:
-                                  event.target.value
+                          <td className="px-3 py-3">
+                            <input
+                              value={draft.subjectName}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    subjectName:
+                                      event.target.value
+                                  }
+                                )
                               }
-                            )
-                          }
-                          placeholder="Disciplina"
-                          className={inputClassName}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                              placeholder="Disciplina"
+                              className={inputClassName}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
+            {duties.length > 0 ? (
+              <div className="mt-6">
+                <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-black uppercase tracking-[0.14em] text-violet-100">
+                      Cargos / componente não letiva
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      O MA-Professor programa as ocorrências no calendário. O sumário de cada ocorrência pode ser escrito antecipadamente ou no próprio dia.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-violet-300/15">
+                  <table className="w-full min-w-[720px] border-collapse text-left">
+                    <thead className="bg-violet-300/[0.04] text-xs uppercase tracking-[0.12em] text-slate-500">
+                      <tr>
+                        <th className="px-3 py-3">Usar</th>
+                        <th className="px-3 py-3">Dia</th>
+                        <th className="px-3 py-3">Início</th>
+                        <th className="px-3 py-3">Fim</th>
+                        <th className="px-3 py-3">Cargo / atividade</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {duties.map(duty => (
+                        <tr
+                          key={duty.id}
+                          className="border-t border-white/[0.07]"
+                        >
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={duty.included}
+                              onChange={event =>
+                                updateDuty(
+                                  duty.id,
+                                  {
+                                    included:
+                                      event.target.checked
+                                  }
+                                )
+                              }
+                              className="h-4 w-4 accent-violet-300"
+                            />
+                          </td>
+
+                          <td className="px-3 py-3">
+                            <select
+                              value={duty.weekday}
+                              disabled={!duty.included}
+                              onChange={event =>
+                                updateDuty(
+                                  duty.id,
+                                  {
+                                    weekday:
+                                      Number(event.target.value) as Weekday
+                                  }
+                                )
+                              }
+                              className={inputClassName}
+                            >
+                              {weekdays.map(day => (
+                                <option
+                                  key={day.value}
+                                  value={day.value}
+                                >
+                                  {day.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+
+                          <td className="px-3 py-3">
+                            <input
+                              type="time"
+                              value={duty.startTime}
+                              disabled={!duty.included}
+                              onChange={event =>
+                                updateDuty(
+                                  duty.id,
+                                  {
+                                    startTime:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              className={inputClassName}
+                            />
+                          </td>
+
+                          <td className="px-3 py-3">
+                            <input
+                              type="time"
+                              value={duty.endTime}
+                              disabled={!duty.included}
+                              onChange={event =>
+                                updateDuty(
+                                  duty.id,
+                                  {
+                                    endTime:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              className={inputClassName}
+                            />
+                          </td>
+
+                          <td className="px-3 py-3">
+                            <input
+                              value={duty.name}
+                              disabled={!duty.included}
+                              onChange={event =>
+                                updateDuty(
+                                  duty.id,
+                                  {
+                                    name:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              placeholder="Ex.: Eq Pedag"
+                              className={inputClassName}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-5 flex flex-wrap justify-end gap-3">
               <button
@@ -1333,13 +1855,13 @@ export default function SchedulePdfImportStep({
                 onClick={applyImport}
                 disabled={
                   busy ||
-                  included.length === 0
+                  includedCount === 0
                 }
                 className="rounded-xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-2.5 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy
                   ? 'A aplicar...'
-                  : `Confirmar ${included.length} bloco${included.length === 1 ? '' : 's'}`}
+                  : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
               </button>
             </div>
           </>
