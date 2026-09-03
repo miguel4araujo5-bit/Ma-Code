@@ -39,10 +39,21 @@ export interface MAProfessorAccessSession {
   checkedAt: string
 }
 
+export type MAProfessorLicensedAccessSession =
+  MAProfessorAccessSession & {
+    license: LicenseSummary
+  }
+
 export interface MAProfessorAccessResponse {
   success: true
   token: string
   email?: string
+  license: LicenseSummary | null
+}
+
+export interface MAProfessorAccountSessionResponse {
+  success: true
+  email: string
   license: LicenseSummary | null
 }
 
@@ -71,6 +82,7 @@ export interface MAProfessorAccessErrorResponse {
 
 export type MAProfessorAccessApiResult =
   | MAProfessorAccessResponse
+  | MAProfessorAccountSessionResponse
   | MAProfessorAccessRequestResponse
   | MAProfessorLicenseResponse
   | MAProfessorRenewalResponse
