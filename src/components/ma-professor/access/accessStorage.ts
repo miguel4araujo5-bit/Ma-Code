@@ -12,6 +12,12 @@ const DEVICE_STORAGE_KEY =
 export const MA_PROFESSOR_ACCESS_SESSION_EVENT =
   'ma-professor-access-session-change'
 
+let memoryAccess:
+  MAProfessorStoredAccess | null = null
+
+let memoryDeviceId:
+  string | null = null
+
 function notifySessionChange() {
   if (
     typeof window !==
@@ -48,22 +54,137 @@ function createDeviceId() {
   ].join('-')
 }
 
+function getStorage(
+  kind: 'local' | 'session'
+): Storage | null {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return null
+  }
+
+  try {
+    return kind === 'local'
+      ? window.localStorage
+      : window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+function readStoredValue(
+  key: string
+) {
+  for (
+    const kind of [
+      'local',
+      'session'
+    ] as const
+  ) {
+    const storage =
+      getStorage(kind)
+
+    if (!storage) {
+      continue
+    }
+
+    try {
+      const value =
+        storage.getItem(key)
+
+      if (value !== null) {
+        return value
+      }
+    } catch {
+      // Em navegação privada o browser pode bloquear este armazenamento.
+    }
+  }
+
+  return null
+}
+
+function writeStoredValue(
+  key: string,
+  value: string
+) {
+  for (
+    const kind of [
+      'local',
+      'session'
+    ] as const
+  ) {
+    const storage =
+      getStorage(kind)
+
+    if (!storage) {
+      continue
+    }
+
+    try {
+      storage.setItem(
+        key,
+        value
+      )
+
+      return true
+    } catch {
+      // Tenta o armazenamento seguinte; por fim existe fallback em memória.
+    }
+  }
+
+  return false
+}
+
+function removeStoredValue(
+  key: string
+) {
+  for (
+    const kind of [
+      'local',
+      'session'
+    ] as const
+  ) {
+    const storage =
+      getStorage(kind)
+
+    if (!storage) {
+      continue
+    }
+
+    try {
+      storage.removeItem(key)
+    } catch {
+      // A limpeza em memória continua a ser efetuada abaixo.
+    }
+  }
+}
+
 export function getOrCreateMAProfessorDeviceId() {
   const stored =
-    localStorage.getItem(
+    readStoredValue(
       DEVICE_STORAGE_KEY
     )
 
   if (
     stored
   ) {
+    memoryDeviceId = stored
     return stored
+  }
+
+  if (
+    memoryDeviceId
+  ) {
+    return memoryDeviceId
   }
 
   const deviceId =
     createDeviceId()
 
-  localStorage.setItem(
+  memoryDeviceId = deviceId
+
+  writeStoredValue(
     DEVICE_STORAGE_KEY,
     deviceId
   )
@@ -75,14 +196,14 @@ export function readMAProfessorStoredAccess():
   MAProfessorStoredAccess |
   null {
   const raw =
-    localStorage.getItem(
+    readStoredValue(
       ACCESS_STORAGE_KEY
     )
 
   if (
     !raw
   ) {
-    return null
+    return memoryAccess
   }
 
   try {
@@ -101,12 +222,13 @@ export function readMAProfessorStoredAccess():
         'string' ||
       !parsed.license
     ) {
-      return null
+      return memoryAccess
     }
 
+    memoryAccess = parsed
     return parsed
   } catch {
-    return null
+    return memoryAccess
   }
 }
 
@@ -114,7 +236,9 @@ export function saveMAProfessorStoredAccess(
   access:
     MAProfessorStoredAccess
 ) {
-  localStorage.setItem(
+  memoryAccess = access
+
+  writeStoredValue(
     ACCESS_STORAGE_KEY,
     JSON.stringify(
       access
@@ -125,7 +249,9 @@ export function saveMAProfessorStoredAccess(
 }
 
 export function clearMAProfessorStoredAccess() {
-  localStorage.removeItem(
+  memoryAccess = null
+
+  removeStoredValue(
     ACCESS_STORAGE_KEY
   )
 
