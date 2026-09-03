@@ -213,6 +213,15 @@ function createExtractedCell(
   }
 }
 
+function isStandaloneTimeRange(value: string) {
+  const normalized =
+    value.replace(/[hH.]/g, ':')
+
+  return /^\s*([01]?\d|2[0-3]):[0-5]\d\s*(?:-|–|—|a|as|às?)\s*([01]?\d|2[0-3]):[0-5]\d\s*$/i.test(
+    normalized
+  )
+}
+
 function splitItemsIntoPositionedCells(
   items: PositionedTextItem[]
 ) {
@@ -247,10 +256,16 @@ function splitItemsIntoPositionedCells(
       characterWidth * 4.5,
       18
     )
+    const currentText =
+      joinItemsAsText(currentItems)
+    const timetableTimeBreak =
+      isStandaloneTimeRange(currentText) &&
+      gap > 2
 
     if (
       gap > cellBreakThreshold ||
-      previousItem.hasEOL
+      previousItem.hasEOL ||
+      timetableTimeBreak
     ) {
       const cell = createExtractedCell(currentItems)
 
