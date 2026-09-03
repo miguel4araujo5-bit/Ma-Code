@@ -51,6 +51,12 @@ const setupSteps: SetupStepDefinition[] = [
   { id: 'confirmation', number: 9, title: 'Confirmação', shortTitle: 'Confirmar', description: 'Reveja os dados e conclua a configuração inicial.' }
 ]
 
+const importedScheduleSteps: SetupStepId[] = [
+  'groups',
+  'subjects',
+  'weekly_schedule'
+]
+
 const selectClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
 
@@ -65,12 +71,38 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day))
 }
 
+function hasCompleteImportedSchedule(
+  snapshot: SetupSnapshot
+) {
+  return (
+    snapshot.groups.length > 0 &&
+    snapshot.subjects.length > 0 &&
+    snapshot.teachingAssignments.length > 0 &&
+    snapshot.weeklyScheduleSlots.length > 0
+  )
+}
+
+function getEffectiveCompletedSteps(
+  snapshot: SetupSnapshot
+) {
+  const completed = new Set<SetupStepId>(
+    snapshot.progress?.completedSteps ?? []
+  )
+
+  if (hasCompleteImportedSchedule(snapshot)) {
+    for (const step of importedScheduleSteps) {
+      completed.add(step)
+    }
+  }
+
+  return completed
+}
+
 function getFirstIncompleteStep(
   snapshot: SetupSnapshot
 ): SetupStepId {
-  const completedSteps = new Set<SetupStepId>(
-    snapshot.progress?.completedSteps ?? []
-  )
+  const completedSteps =
+    getEffectiveCompletedSteps(snapshot)
 
   return (
     setupSteps.find(
@@ -90,6 +122,40 @@ function shouldOfferScheduleImport(snapshot: SetupSnapshot) {
     snapshot.subjects.length === 0 &&
     snapshot.teachingAssignments.length === 0 &&
     snapshot.weeklyScheduleSlots.length === 0
+  )
+}
+
+async function reconcileImportedScheduleProgress(
+  snapshot: SetupSnapshot
+) {
+  if (!hasCompleteImportedSchedule(snapshot)) {
+    return snapshot
+  }
+
+  const persistedCompleted = new Set<SetupStepId>(
+    snapshot.progress?.completedSteps ?? []
+  )
+  let changed = false
+
+  for (const step of importedScheduleSteps) {
+    if (persistedCompleted.has(step)) {
+      continue
+    }
+
+    await maProfessorRepository.completeSetupStep(
+      snapshot.academicYear.id,
+      step
+    )
+    persistedCompleted.add(step)
+    changed = true
+  }
+
+  if (!changed) {
+    return snapshot
+  }
+
+  return maProfessorRepository.getSetupSnapshot(
+    snapshot.academicYear.id
   )
 }
 
@@ -162,8 +228,14 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
   const [showScheduleImport, setShowScheduleImport] = useState(false)
 
   const completedSteps = useMemo(
-    () => new Set<SetupStepId>(snapshot.progress?.completedSteps ?? []),
-    [snapshot.progress?.completedSteps]
+    () => getEffectiveCompletedSteps(snapshot),
+    [
+      snapshot.progress?.completedSteps,
+      snapshot.groups.length,
+      snapshot.subjects.length,
+      snapshot.teachingAssignments.length,
+      snapshot.weeklyScheduleSlots.length
+    ]
   )
   const currentProgressStep = getFirstIncompleteStep(snapshot)
   const activeStepDefinition = setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
@@ -186,48 +258,22 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleStepCompleted(nextSnapshot: SetupSnapshot) {
-    onSnapshotChange(nextSnapshot)
-    if (nextSnapshot.academicYear.setupCompletedAt || nextSnapshot.progress?.completedAt) {
-      onCompleted(nextSnapshot)
+  async function handleStepCompleted(nextSnapshot: SetupSnapshot) {
+    const preparedSnapshot =
+      await reconcileImportedScheduleProgress(nextSnapshot)
+
+    onSnapshotChange(preparedSnapshot)
+    if (preparedSnapshot.academicYear.setupCompletedAt || preparedSnapshot.progress?.completedAt) {
+      onCompleted(preparedSnapshot)
       return
     }
-    setActiveStep(getFirstIncompleteStep(nextSnapshot))
+    setActiveStep(getFirstIncompleteStep(preparedSnapshot))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function handleScheduleImported(nextSnapshot: SetupSnapshot) {
-    const importedLessonSetupComplete =
-      nextSnapshot.groups.length > 0 &&
-      nextSnapshot.subjects.length > 0 &&
-      nextSnapshot.teachingAssignments.length > 0 &&
-      nextSnapshot.weeklyScheduleSlots.length > 0
-
-    let preparedSnapshot = nextSnapshot
-
-    if (importedLessonSetupComplete) {
-      const completed = new Set<SetupStepId>(
-        nextSnapshot.progress?.completedSteps ?? []
-      )
-
-      for (const step of [
-        'groups',
-        'subjects',
-        'weekly_schedule'
-      ] as SetupStepId[]) {
-        if (!completed.has(step)) {
-          await maProfessorRepository.completeSetupStep(
-            nextSnapshot.academicYear.id,
-            step
-          )
-        }
-      }
-
-      preparedSnapshot =
-        await maProfessorRepository.getSetupSnapshot(
-          nextSnapshot.academicYear.id
-        )
-    }
+    const preparedSnapshot =
+      await reconcileImportedScheduleProgress(nextSnapshot)
 
     onSnapshotChange(preparedSnapshot)
     setShowScheduleImport(false)
