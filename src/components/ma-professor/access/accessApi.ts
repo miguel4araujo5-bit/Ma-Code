@@ -9,6 +9,9 @@ import type {
 const MA_PROFESSOR_ACCESS_API_PREFIX =
   '/api/ma-professor/access'
 
+const MISSING_ACTIVE_PERIOD_MESSAGE =
+  'Esta conta não tem um período de acesso ativo.'
+
 interface ApiErrorBody {
   success?: boolean
   message?: string
@@ -114,6 +117,41 @@ export async function requestMAProfessorAccess(
   )
 }
 
+async function getFirstActivationMessage(
+  email: string
+) {
+  try {
+    const response =
+      await requestMAProfessorAccess(
+        email
+      )
+
+    switch (
+      response.request.status
+    ) {
+      case 'pending':
+        return 'A sua conta foi criada, mas o pedido de acesso ainda está em análise. Aguarde a aprovação da MA-CODE antes de tentar entrar.'
+
+      case 'approved':
+        return response.canActivate
+          ? 'O seu pedido já foi aprovado, mas o primeiro período de acesso ainda não foi ativado. Utilize a senha de ativação MP-... recebida por email em “Tenho uma senha de ativação”. Depois da primeira ativação poderá entrar normalmente com o seu email e a sua password pessoal.'
+          : 'O seu pedido já foi aprovado, mas a senha de ativação ainda não está disponível. Aguarde o email da MA-CODE antes de tentar entrar.'
+
+      case 'rejected':
+        return 'O pedido de acesso desta conta não foi aprovado. Contacte a MA-CODE se necessitar de esclarecimentos.'
+
+      default:
+        return null
+    }
+  } catch {
+    /*
+     * A consulta do estado é apenas uma melhoria da mensagem de erro.
+     * Se estiver indisponível, mantemos o erro original do login.
+     */
+    return null
+  }
+}
+
 export async function activateMAProfessorAccess(
   email: string,
   password: string,
@@ -149,14 +187,39 @@ export async function loginMAProfessorAccess(
   password: string,
   deviceId: string
 ) {
-  return postJson<MAProfessorAccessResponse>(
-    '/login',
-    {
-      email,
-      password,
-      deviceId
+  try {
+    return await postJson<MAProfessorAccessResponse>(
+      '/login',
+      {
+        email,
+        password,
+        deviceId
+      }
+    )
+  } catch (
+    error
+  ) {
+    if (
+      error instanceof Error &&
+      error.message ===
+        MISSING_ACTIVE_PERIOD_MESSAGE
+    ) {
+      const firstActivationMessage =
+        await getFirstActivationMessage(
+          email
+        )
+
+      if (
+        firstActivationMessage
+      ) {
+        throw new Error(
+          firstActivationMessage
+        )
+      }
     }
-  )
+
+    throw error
+  }
 }
 
 export async function startMAProfessorAccess(
