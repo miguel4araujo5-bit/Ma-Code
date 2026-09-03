@@ -82,6 +82,11 @@ interface DurableObjectStorageLike {
     key: string,
     value: T
   ): Promise<void>
+
+  put(
+    entries:
+      Record<string, unknown>
+  ): Promise<void>
 }
 
 interface DurableObjectStateLike {
