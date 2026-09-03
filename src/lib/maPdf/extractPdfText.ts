@@ -48,6 +48,11 @@ export type ExtractedPdfDocument = {
   characterCount: number
 }
 
+type ScheduleColumnAnchor = {
+  kind: 'day' | 'room'
+  centerX: number
+}
+
 function toFiniteNumber(
   value: unknown,
   fallback = 0
@@ -63,6 +68,15 @@ function normalizeText(value: unknown) {
         .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
         .trim()
     : ''
+}
+
+function normalizeComparableText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-PT')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function toPositionedItem(
@@ -204,6 +218,15 @@ function createExtractedCell(
   }
 }
 
+function hasTimeRange(value: string) {
+  const normalized =
+    value.replace(/[hH.]/g, ':')
+
+  return /\b([01]?\d|2[0-3]):[0-5]\d\s*(?:-|–|—|a|as|às?)\s*([01]?\d|2[0-3]):[0-5]\d\b/i.test(
+    normalized
+  )
+}
+
 function isStandaloneTimeRange(value: string) {
   const normalized =
     value.replace(/[hH.]/g, ':')
@@ -305,6 +328,127 @@ function extractCompactTimetableLesson(value: string) {
   return `${match[1]}.º ${match[2].toLocaleUpperCase('pt-PT')} ${subjectCode.toLocaleUpperCase('pt-PT')}`
 }
 
+function isWeekdayHeader(value: string) {
+  return /^(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?$/i.test(
+    value.trim()
+  )
+}
+
+function isRoomHeader(value: string) {
+  return normalizeComparableText(value) === 'sala'
+}
+
+function isLikelyDutyCell(value: string) {
+  const candidate = normalizeComparableText(value)
+    .replace(/^(?:te|cre|sp)\s+/, '')
+    .replace(/\s+(?:te|cre|sp)$/, '')
+    .trim()
+
+  return (
+    /^(?:eq|equipa)\s+/.test(candidate) ||
+    /^clube\s+/.test(candidate) ||
+    /^reuniao\b/.test(candidate) ||
+    /^artigo\s+79\b/.test(candidate) ||
+    /^trabalho\s+(?:individual|de escola)\b/.test(candidate)
+  )
+}
+
+function getCellCenter(
+  cell: ExtractedPdfCell
+) {
+  return cell.x + cell.width / 2
+}
+
+function discardTimetableRoomColumns(
+  lines: ExtractedPdfLine[]
+) {
+  const header = lines.find(line => {
+    const cells = line.positionedCells ?? []
+    const dayCount = cells.filter(
+      cell => isWeekdayHeader(cell.text)
+    ).length
+    const roomCount = cells.filter(
+      cell => isRoomHeader(cell.text)
+    ).length
+
+    return dayCount >= 2 && roomCount >= 2
+  })
+
+  if (!header?.positionedCells) {
+    return lines
+  }
+
+  const anchors: ScheduleColumnAnchor[] =
+    header.positionedCells
+      .flatMap(cell => {
+        if (isWeekdayHeader(cell.text)) {
+          return [{
+            kind: 'day' as const,
+            centerX: getCellCenter(cell)
+          }]
+        }
+
+        if (isRoomHeader(cell.text)) {
+          return [{
+            kind: 'room' as const,
+            centerX: getCellCenter(cell)
+          }]
+        }
+
+        return []
+      })
+      .sort(
+        (left, right) =>
+          left.centerX - right.centerX
+      )
+
+  if (
+    anchors.filter(anchor => anchor.kind === 'day').length < 2 ||
+    anchors.filter(anchor => anchor.kind === 'room').length < 2
+  ) {
+    return lines
+  }
+
+  return lines.map(line => {
+    const positionedCells = line.positionedCells ?? []
+
+    if (
+      line === header ||
+      !hasTimeRange(line.text) ||
+      positionedCells.length === 0
+    ) {
+      return line
+    }
+
+    const filteredCells = positionedCells.filter(cell => {
+      if (
+        hasTimeRange(cell.text) ||
+        extractCompactTimetableLesson(cell.text) ||
+        isLikelyDutyCell(cell.text)
+      ) {
+        return true
+      }
+
+      const centerX = getCellCenter(cell)
+      const nearestAnchor = anchors.reduce(
+        (nearest, anchor) =>
+          Math.abs(anchor.centerX - centerX) <
+          Math.abs(nearest.centerX - centerX)
+            ? anchor
+            : nearest,
+        anchors[0]
+      )
+
+      return nearestAnchor.kind !== 'room'
+    })
+
+    return {
+      ...line,
+      positionedCells: filteredCells
+    }
+  })
+}
+
 function prepareSchedulePositionedCells(
   cells: ExtractedPdfCell[]
 ) {
@@ -319,8 +463,6 @@ function prepareSchedulePositionedCells(
    *
    * Nas linhas letivas reduzimos apenas o conteúdo codificado a
    * "Turma + Disciplina". Tudo o resto, incluindo cargos, permanece intacto.
-   * Assim a coluna Sala pode ser ignorada pelo importador sem contaminar a
-   * disciplina com códigos como B2.11, Aud2, A1.LB, REO ou Pav_D.
    */
   return [...cells]
     .sort((a, b) => a.x - b.x)
@@ -502,7 +644,9 @@ export async function extractTextFromPdf(
         .filter(
           (item): item is PositionedTextItem => item !== null
         )
-      const lines = groupItemsIntoLines(positionedItems)
+      const lines = discardTimetableRoomColumns(
+        groupItemsIntoLines(positionedItems)
+      )
 
       characterCount += lines.reduce(
         (total, line) => total + line.text.length,
