@@ -23,8 +23,8 @@ import {
 } from './accessStorage'
 
 import type {
-  LicenseSummary
-} from '../types'
+  MAProfessorAccessResponse
+} from './accessTypes'
 
 type Mode =
   | 'intro'
@@ -65,15 +65,29 @@ function Shell({
 }
 
 function saveResponse(
-  response: {
-    token: string
-    license: LicenseSummary
-  },
-  deviceId: string
+  response:
+    MAProfessorAccessResponse,
+  deviceId: string,
+  fallbackEmail: string
 ) {
+  const responseEmail =
+    (
+      response.email ||
+      response.license?.email ||
+      fallbackEmail
+    )
+      .trim()
+      .toLowerCase()
+
+  if (!responseEmail) {
+    throw new Error(
+      'A sessão foi criada, mas não foi possível identificar a conta.'
+    )
+  }
+
   saveMAProfessorStoredAccess({
     token: response.token,
-    email: response.license.email,
+    email: responseEmail,
     deviceId,
     license: response.license
   })
@@ -465,7 +479,8 @@ export default function MAProfessorAuthGate({
 
         saveResponse(
           response,
-          deviceId
+          deviceId,
+          normalizedEmail
         )
 
         setStoredAccess(
@@ -521,9 +536,16 @@ export default function MAProfessorAuthGate({
             deviceId
           )
 
+        if (!response.license) {
+          throw new Error(
+            'A ativação foi concluída sem uma licença válida. Contacte a MA-CODE.'
+          )
+        }
+
         saveResponse(
           response,
-          deviceId
+          deviceId,
+          normalizedEmail
         )
 
         setStoredAccess(
@@ -584,7 +606,7 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Introduza o seu email e defina a password pessoal que irá utilizar para entrar no MA-Professor.
+            Introduza o seu email e defina a password pessoal que irá utilizar para entrar na sua conta MA-Professor.
           </p>
 
           <form
@@ -728,7 +750,7 @@ export default function MAProfessorAuthGate({
             onClick={goLogin}
             className="mt-6 w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/5"
           >
-            Já tenho acesso
+            Entrar na minha conta
           </button>
         </>
       ) : null}
@@ -739,13 +761,13 @@ export default function MAProfessorAuthGate({
             Entrar
           </p>
           <h1 className="mt-3 text-2xl font-black tracking-tight text-white">
-            Aceder ao MA-Professor
+            Aceder à sua conta MA-Professor
           </h1>
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Entre com o seu email e a password pessoal que definiu.
+            Entre com o seu email e a password pessoal que definiu. A entrada na conta é independente do estado da licença.
           </p>
           <p className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs leading-6 text-cyan-100">
-            A senha que começa por <strong>MP-</strong> não é utilizada para entrar. Serve apenas para ativar um período de acesso.
+            A senha que começa por <strong>MP-</strong> não é utilizada para entrar. Serve apenas para ativar um período de acesso às ferramentas.
           </p>
 
           <form
@@ -939,7 +961,7 @@ export default function MAProfessorAuthGate({
             onClick={goLogin}
             className="mt-4 w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-slate-300 transition hover:bg-white/5 hover:text-white"
           >
-            Já ativei — entrar com a minha password
+            Entrar com a minha password pessoal
           </button>
         </>
       ) : null}
