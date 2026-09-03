@@ -1,5 +1,6 @@
 import {
-  liveQuery
+  liveQuery,
+  type Subscription
 } from 'dexie'
 
 import {
@@ -15,6 +16,17 @@ import {
   ensureInitialSchoolCalendar2026_2027
 } from './initialSchoolCalendar2026_2027'
 
+function protectedWorkspaceIsMounted() {
+  return (
+    typeof document !== 'undefined' &&
+    Boolean(
+      document.querySelector(
+        '.ma-professor-product'
+      )
+    )
+  )
+}
+
 export default function InitialSchoolCalendarBootstrap({
   children
 }: {
@@ -22,39 +34,75 @@ export default function InitialSchoolCalendarBootstrap({
 }) {
   useEffect(() => {
     let disposed = false
+    let subscription: Subscription | null = null
+    let observer: MutationObserver | null = null
 
-    const subscription = liveQuery(
-      () =>
-        maProfessorRepository.getActiveAcademicYear()
-    ).subscribe({
-      next: academicYear => {
-        if (
-          disposed ||
-          !academicYear?.setupCompletedAt
-        ) {
-          return
-        }
+    function start() {
+      if (
+        disposed ||
+        subscription ||
+        !protectedWorkspaceIsMounted()
+      ) {
+        return
+      }
 
-        void ensureInitialSchoolCalendar2026_2027(
-          academicYear.id
-        ).catch(error => {
+      subscription = liveQuery(
+        () =>
+          maProfessorRepository.getActiveAcademicYear()
+      ).subscribe({
+        next: academicYear => {
+          if (
+            disposed ||
+            !academicYear?.setupCompletedAt
+          ) {
+            return
+          }
+
+          void ensureInitialSchoolCalendar2026_2027(
+            academicYear.id
+          ).catch(error => {
+            console.error(
+              'Não foi possível preparar automaticamente o calendário escolar inicial do MA-Professor.',
+              error
+            )
+          })
+        },
+        error: error => {
           console.error(
-            'Não foi possível preparar automaticamente o calendário escolar inicial do MA-Professor.',
+            'Não foi possível acompanhar o ano letivo ativo do MA-Professor.',
             error
           )
-        })
-      },
-      error: error => {
-        console.error(
-          'Não foi possível acompanhar o ano letivo ativo do MA-Professor.',
-          error
-        )
-      }
-    })
+        }
+      })
+
+      observer?.disconnect()
+      observer = null
+    }
+
+    start()
+
+    if (
+      !subscription &&
+      typeof MutationObserver !== 'undefined' &&
+      typeof document !== 'undefined'
+    ) {
+      observer = new MutationObserver(
+        start
+      )
+
+      observer.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true
+        }
+      )
+    }
 
     return () => {
       disposed = true
-      subscription.unsubscribe()
+      observer?.disconnect()
+      subscription?.unsubscribe()
     }
   }, [])
 
