@@ -1,6 +1,5 @@
 import {
-  liveQuery,
-  type Subscription
+  liveQuery
 } from 'dexie'
 
 import {
@@ -34,7 +33,9 @@ export default function InitialSchoolCalendarBootstrap({
 }) {
   useEffect(() => {
     let disposed = false
-    let subscription: Subscription | null = null
+    let subscription: {
+      unsubscribe: () => void
+    } | null = null
     let observer: MutationObserver | null = null
 
     function start() {
