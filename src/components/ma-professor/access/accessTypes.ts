@@ -27,7 +27,7 @@ export interface MAProfessorStoredAccess {
   token: string
   deviceId: string
   email: string
-  license: LicenseSummary
+  license: LicenseSummary | null
   checkedAt?: string
 }
 
@@ -35,14 +35,15 @@ export interface MAProfessorAccessSession {
   token: string
   deviceId: string
   email: string
-  license: LicenseSummary
+  license: LicenseSummary | null
   checkedAt: string
 }
 
 export interface MAProfessorAccessResponse {
   success: true
   token: string
-  license: LicenseSummary
+  email?: string
+  license: LicenseSummary | null
 }
 
 export interface MAProfessorAccessRequestResponse {
@@ -83,8 +84,12 @@ export type RenewableLicensePlan =
   >
 
 export function isLicenseUsable(
-  license: LicenseSummary
+  license: LicenseSummary | null | undefined
 ) {
+  if (!license) {
+    return false
+  }
+
   if (
     license.status ===
       'active' ||
