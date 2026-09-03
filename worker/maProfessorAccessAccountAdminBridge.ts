@@ -1,6 +1,6 @@
 import {
   MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
-} from './maProfessorAccessAuthBridge'
+} from './maProfessorAccountSessionBridge'
 
 import type {
   MaProfessorAccessEnv
