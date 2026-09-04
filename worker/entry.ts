@@ -22,7 +22,7 @@ import {
 } from './maProfessorAccess'
 import {
   MaProfessorAccessDurableObject
-} from './maProfessorApprovalPlanBridge'
+} from './maProfessorOperationalStateBridge'
 import {
   handleMAProfessorAccountAdminApiRequest,
   isMAProfessorAccountAdminApiPath
@@ -31,7 +31,7 @@ import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdminUnified'
+} from './maProfessorAdminFixed'
 import {
   notifyMAProfessorNewAccessRequest,
   type MAProfessorAccessAdminNotifierEnv
