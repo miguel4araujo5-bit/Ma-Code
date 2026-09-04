@@ -197,7 +197,6 @@ function detectWeekday(
 function extractTimeRange(value: string) {
   const normalized =
     value.replace(/[hH.]/g, ':')
-
   const match = normalized.match(
     /\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:-|–|—|a|as|às?)\s*([01]?\d|2[0-3]):([0-5]\d)\b/i
   )
@@ -270,9 +269,24 @@ function stripLessonNoise(
 }
 
 function extractDutyName(value: string) {
-  const candidate = clean(value)
+  const rawCandidate = clean(value)
+  const hasDutyMarker =
+    /\s+(?:SP|TE|Cre)$/i.test(rawCandidate)
+
+  const candidate = rawCandidate
     .replace(/\s+(?:SP|TE|Cre)$/i, '')
     .trim()
+
+  if (
+    !candidate ||
+    extractGroupName(candidate)
+  ) {
+    return ''
+  }
+
+  if (hasDutyMarker) {
+    return candidate
+  }
 
   if (
     /^(?:Eq(?:uipa)?\s+|Clube\s+)/i.test(candidate) ||
@@ -445,6 +459,7 @@ function parsePages(
   const duties: DutyDraft[] = []
   const seenLessons = new Set<string>()
   const seenDuties = new Set<string>()
+
   let lessonSequence = 0
   let dutySequence = 0
 
@@ -456,6 +471,7 @@ function parsePages(
   ) {
     const cleanedRaw =
       clean(raw)
+
     const groupName =
       extractGroupName(cleanedRaw)
 
@@ -486,6 +502,7 @@ function parsePages(
     }
 
     seenLessons.add(key)
+
     lessons.push({
       id:
         `pdf-slot-${lessonSequence += 1}`,
@@ -531,6 +548,7 @@ function parsePages(
     }
 
     seenDuties.add(key)
+
     duties.push({
       id:
         `pdf-duty-${dutySequence += 1}`,
@@ -550,6 +568,7 @@ function parsePages(
     for (const line of page.lines) {
       const positionedCells =
         line.positionedCells ?? []
+
       const detectedColumns =
         detectDayColumns(positionedCells)
 
@@ -806,12 +825,14 @@ function isSameExistingLesson(
     snapshot.teachingAssignments.find(
       item => item.id === slot.teachingAssignmentId
     )
+
   const group =
     assignment
       ? snapshot.groups.find(
           item => item.id === assignment.groupId
         )
       : null
+
   const subject =
     assignment
       ? snapshot.subjects.find(
@@ -916,6 +937,7 @@ function toISODate(value: Date): ISODate {
 
 function getWeekday(value: Date): Weekday {
   const day = value.getUTCDay()
+
   return (
     day === 0
       ? 7
@@ -954,6 +976,7 @@ function getDutyDates(
   ) {
     const current =
       parseISODate(range.startDate)
+
     const end =
       parseISODate(range.endDate)
 
@@ -1008,6 +1031,7 @@ async function importDutyEvents(
     await calendarRepository.listEvents({
       academicYearId: academicYear.id
     })
+
   const existingKeys =
     new Set(
       existingEvents
@@ -1125,8 +1149,10 @@ export default function SchedulePdfImportStep({
           },
           setProgress
         )
+
       const settings =
         await maProfessorRepository.getSettings()
+
       const proposal =
         parsePages(
           extracted.pages,
@@ -1144,6 +1170,7 @@ export default function SchedulePdfImportStep({
 
       setDrafts(proposal.lessons)
       setDuties(proposal.duties)
+
       setProgress(
         `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. Reveja antes de confirmar.`
       )
@@ -1170,6 +1197,7 @@ export default function SchedulePdfImportStep({
             : draft
       )
     )
+
     setError('')
   }
 
@@ -1188,6 +1216,7 @@ export default function SchedulePdfImportStep({
             : duty
       )
     )
+
     setError('')
   }
 
@@ -1238,6 +1267,7 @@ export default function SchedulePdfImportStep({
     try {
       const academicYearId =
         snapshot.academicYear.id
+
       let current =
         await maProfessorRepository.getSetupSnapshot(
           academicYearId
@@ -1247,6 +1277,7 @@ export default function SchedulePdfImportStep({
         included,
         includedDuties
       )
+
       validateExistingScheduleConflicts(
         included,
         includedDuties,
@@ -1266,6 +1297,7 @@ export default function SchedulePdfImportStep({
             ]
           )
         )
+
       const subjects =
         new Map(
           current.subjects.map(
@@ -1279,12 +1311,14 @@ export default function SchedulePdfImportStep({
       for (const draft of included) {
         const groupName =
           clean(draft.groupName)
+
         const subjectName =
           clean(draft.subjectName)
 
         if (!groups.has(normalize(groupName))) {
           const grade =
             groupName.match(/^\s*(10|11|12)/)?.[1]
+
           const group =
             await maProfessorRepository.createGroup({
               academicYearId,
@@ -1335,6 +1369,7 @@ export default function SchedulePdfImportStep({
             ]
           )
         )
+
       const resolved: Array<{
         draft: Draft
         assignmentId: string
@@ -1347,6 +1382,7 @@ export default function SchedulePdfImportStep({
               clean(draft.groupName)
             )
           )
+
         const subject =
           subjects.get(
             normalize(
@@ -1362,6 +1398,7 @@ export default function SchedulePdfImportStep({
 
         const pair =
           `${group.id}|${subject.id}`
+
         let assignment =
           assignments.get(pair)
 
@@ -1463,6 +1500,7 @@ export default function SchedulePdfImportStep({
   const hasProposal =
     drafts.length > 0 ||
     duties.length > 0
+
   const includedCount =
     included.length +
     includedDuties.length
@@ -1712,6 +1750,7 @@ export default function SchedulePdfImportStep({
                     <h2 className="text-sm font-black uppercase tracking-[0.14em] text-violet-100">
                       Cargos / componente não letiva
                     </h2>
+
                     <p className="mt-1 text-xs leading-5 text-slate-500">
                       O MA-Professor programa as ocorrências no calendário. O sumário de cada ocorrência pode ser escrito antecipadamente ou no próprio dia.
                     </p>
