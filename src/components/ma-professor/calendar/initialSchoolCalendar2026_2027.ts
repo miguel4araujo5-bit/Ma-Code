@@ -4,6 +4,9 @@ import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
+import {
+  isMAProfessorOperationallyReady
+} from '../setup/setupReadiness'
 import { scheduleWorkspaceRepository } from '../schedule/scheduleWorkspaceRepository'
 import type {
   ClassGroup,
@@ -333,8 +336,9 @@ async function prepare(
   }
 
   if (
-    !snapshot.academicYear.setupCompletedAt &&
-    !snapshot.progress?.completedAt
+    !isMAProfessorOperationallyReady(
+      snapshot
+    )
   ) {
     return {
       applied: false,
