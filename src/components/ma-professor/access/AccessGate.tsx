@@ -106,7 +106,7 @@ function requestStatusLabel(
       return 'Pedido em análise'
 
     default:
-      return 'Conta ativa'
+      return 'Conta autenticada'
   }
 }
 
@@ -916,7 +916,7 @@ export function AccessGate({
         </p>
 
         <h1 className="mt-3 text-3xl font-black">
-          A sua conta está ativa.
+          A sua conta está autenticada.
         </h1>
 
         <p className="mt-3 text-sm leading-7 text-slate-300">
@@ -973,7 +973,7 @@ export function AccessGate({
             onClick={() =>
               void refresh()
             }
-            className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-white/5 disabled:opacity-50"
+            className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:opacity-50"
           >
             {refreshing
               ? 'A verificar…'
