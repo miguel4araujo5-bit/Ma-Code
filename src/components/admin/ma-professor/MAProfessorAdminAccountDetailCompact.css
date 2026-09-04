@@ -1,3 +1,40 @@
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child > div:first-child > p:first-of-type {
+  font-size: 0.6rem;
+  line-height: 0.85rem;
+  letter-spacing: 0.12em;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child > div:first-child > h2 {
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+  line-height: 1.2rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child > div:first-child > p:nth-of-type(2) {
+  display: none;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:first-child > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
 .ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) {
   gap: 0.75rem;
   padding: 0.9rem;
@@ -38,6 +75,15 @@
 }
 
 @media (min-width: 640px) {
+  .ma-professor-admin-account-detail-compact > section:last-child > div:first-child {
+    padding: 0.9rem 1rem;
+  }
+
+  .ma-professor-admin-account-detail-compact > section:last-child > div:first-child > div:first-child > h2 {
+    font-size: 1rem;
+    line-height: 1.35rem;
+  }
+
   .ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) {
     gap: 1rem;
     padding: 1rem;
