@@ -7,17 +7,23 @@ import {
 import AdminShell from '../components/admin/AdminShell'
 import MAProfessorAccountMaintenance from '../components/admin/ma-professor/MAProfessorAccountMaintenance'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
+import MAProfessorApprovalQueue from '../components/admin/ma-professor/MAProfessorApprovalQueue'
 
 import {
-  approveMAProfessorAccessRequest,
   getMAProfessorAdminOverview,
   rejectMAProfessorAccessRequest,
   type MAProfessorAccessDecisionResult,
   type MAProfessorAdminOverview
 } from '../lib/admin/maProfessorAdminApi'
+
+import {
+  approveMAProfessorAccessPlan,
+  type MAProfessorApprovalPlan
+} from '../lib/admin/maProfessorApprovalApi'
+
 const workflow = [
   'Pedido',
-  'Análise',
+  'Plano',
   'Decisão',
   'Senha',
   'Email',
@@ -188,16 +194,20 @@ function MAProfessorAdminContent() {
       []
     )
 
-  const handleApproveRequest =
+  const applyApproval =
     useCallback(
       async (
-        email: string
+        email: string,
+        approvalPlan:
+          MAProfessorApprovalPlan
       ) => {
         setDecisionFeedback(null)
         setPasswordCopied(false)
+
         const result =
-          await approveMAProfessorAccessRequest(
-            email
+          await approveMAProfessorAccessPlan(
+            email,
+            approvalPlan
           )
 
         setDecisionFeedback(
@@ -207,6 +217,19 @@ function MAProfessorAdminContent() {
         await loadOverview()
       },
       [loadOverview]
+    )
+
+  const handleApproveRequest =
+    useCallback(
+      async (
+        email: string
+      ) => {
+        await applyApproval(
+          email,
+          'free'
+        )
+      },
+      [applyApproval]
     )
 
   const handleRejectRequest =
@@ -273,14 +296,14 @@ function MAProfessorAdminContent() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
-              Fase piloto
+              Aprovação de acessos
             </p>
 
             <h2 className="mt-2 text-xl font-black">
               Do pedido ao acesso
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              O acesso público atual é gratuito e sujeito à disponibilidade de vagas. O professor submete o pedido, a MA-CODE aprova ou rejeita e uma aprovação piloto gera sempre a senha antes de tentar enviar as instruções por email.
+              Cada pedido é aprovado numa modalidade explícita: gratuito, Fundador por 30 dias ou Fundador até ao fim do ano letivo. A decisão gera a senha antes de tentar enviar o email de ativação.
             </p>
           </div>
           <span
@@ -377,7 +400,7 @@ function MAProfessorAdminContent() {
                       .fallbackCredential
                       .password
                   }
-                  aria-label="Senha de fallback do acesso piloto"
+                  aria-label="Senha de fallback do acesso"
                   className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white outline-none"
                 />
                 <button
@@ -444,6 +467,16 @@ function MAProfessorAdminContent() {
             </p>
           </div>
         ) : null}
+
+        {overview ? (
+          <MAProfessorApprovalQueue
+            accessRequests={
+              overview.accessRequests
+            }
+            onApprove={applyApproval}
+          />
+        ) : null}
+
         {loading && !overview ? (
           <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-900/55 px-6 py-12 text-center">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-200" />
@@ -487,51 +520,55 @@ function MAProfessorAdminContent() {
         onChanged={loadOverview}
       />
 
-      <section className="mt-7 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-            Fase piloto
-          </p>
-
-          <p className="mt-3 text-2xl font-black">
-            Acesso gratuito
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            Vagas limitadas, pedido sujeito a decisão administrativa e manutenção da vaga ligada à utilização durante o piloto.
-          </p>
-        </article>
-
+      <section className="mt-7 grid gap-4 lg:grid-cols-3">
         <article className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-5">
           <p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-300">
-            Comunicação de acesso
-          </p>
-          <p className="mt-3 text-2xl font-black">
-            Decisão por email
+            Gratuito
           </p>
 
+          <p className="mt-3 text-2xl font-black">
+            Acesso piloto
+          </p>
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            A aprovação piloto gera sempre a senha de ativação. Depois, o sistema tenta enviar as instruções ao professor; se o envio não estiver disponível, a senha é apresentada para cópia manual. Uma rejeição envia apenas a decisão.
+            Aprovação sem pagamento. A senha é criada imediatamente e o professor recebe o link de ativação.
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
+            Fundador · 30 dias
+          </p>
+          <p className="mt-3 text-2xl font-black">
+            3,49 €
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            A decisão administrativa confirma o acesso de 30 dias e desencadeia a emissão e o envio da ativação.
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+            Fundador · Ano letivo
+          </p>
+          <p className="mt-3 text-2xl font-black">
+            15 €
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Aprovação até ao fim do ano letivo, com a mesma geração segura de senha e email de ativação.
           </p>
         </article>
       </section>
-      <section className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/[0.035] p-4 sm:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-          Infraestrutura comercial preservada
-        </p>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          O piloto gratuito é o fluxo público atual. Autorizações comerciais anteriores continuam reconhecidas pelo backend e mantêm as regras próprias de plano, pagamento e credencial, sem aparecerem como condição de entrada no piloto.
-        </p>
-      </section>
+
       <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-          Backend MA-Professor
+          Regra de segurança
         </p>
 
         <h2 className="mt-2 text-xl font-black">
-          A aprovação piloto não depende de pagamento.
+          A senha é criada antes do envio do email.
         </h2>
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Num pedido piloto, a aprovação administrativa cria primeiro a credencial, sem depender de uma autorização comercial ou do serviço de email. Depois tenta enviá-la ao professor e, se o envio falhar ou não estiver configurado, apresenta a senha para cópia manual. O período de acesso continua a ser criado pelo motor de acesso apenas quando ocorre a primeira ativação válida.
+          Em qualquer das três modalidades, uma falha de email não deve deixar a conta num estado impossível. Quando o envio não está disponível, a senha gerada é devolvida ao MA-ADMIN para cópia manual. O período de acesso só começa quando o professor utiliza uma ativação válida.
         </p>
       </section>
     </>
@@ -543,7 +580,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central de pedidos da fase piloto, decisões de acesso, credenciais, ativações, licenças, renovações e histórico através do backend protegido da MA-CODE."
+      description="Gestão central de pedidos, modalidade de acesso, credenciais, ativações, licenças, renovações e histórico através do backend protegido da MA-CODE."
     >
       <MAProfessorAdminContent />
     </AdminShell>
