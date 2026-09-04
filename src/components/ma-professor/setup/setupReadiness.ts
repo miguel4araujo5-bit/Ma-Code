@@ -6,6 +6,9 @@ import type {
   EntityId
 } from '../types'
 
+export const MA_PROFESSOR_OPEN_DAILY_EVENT =
+  'ma-professor-open-daily'
+
 export interface MAProfessorSetupReadiness {
   operationalReady: boolean
   fullSetupCompleted: boolean
