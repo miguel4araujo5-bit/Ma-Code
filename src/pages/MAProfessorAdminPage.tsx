@@ -5,7 +5,7 @@ import {
 } from 'react'
 
 import AdminShell from '../components/admin/AdminShell'
-import MAProfessorAccountMaintenance from '../components/admin/ma-professor/MAProfessorAccountMaintenance'
+import MAProfessorAccountMaintenanceCollapsible from '../components/admin/ma-professor/MAProfessorAccountMaintenanceCollapsible'
 import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
 import MAProfessorApprovalQueue from '../components/admin/ma-professor/MAProfessorApprovalQueue'
 
@@ -451,7 +451,7 @@ function MAProfessorAdminContent() {
         )}
       </section>
 
-      <MAProfessorAccountMaintenance
+      <MAProfessorAccountMaintenanceCollapsible
         overview={overview}
         loading={loading}
         onChanged={loadOverview}
