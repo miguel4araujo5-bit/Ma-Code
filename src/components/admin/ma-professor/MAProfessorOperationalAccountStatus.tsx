@@ -229,16 +229,11 @@ export default function MAProfessorOperationalAccountStatus({
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-            Estado real das contas
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Mostra apenas sessão e progresso técnico do onboarding. Não recebe turmas, alunos, horários, UFCD ou sumários.
-          </p>
-        </div>
+    <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
+          Estado real das contas
+        </p>
 
         <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1.5 text-[0.68rem] font-black text-slate-400">
           {statusLoading
@@ -250,7 +245,7 @@ export default function MAProfessorOperationalAccountStatus({
       {error ? (
         <div
           role="alert"
-          className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3 text-xs font-bold text-rose-200"
+          className="mt-3 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-3 text-xs font-bold text-rose-200"
         >
           {error}
         </div>
@@ -258,7 +253,7 @@ export default function MAProfessorOperationalAccountStatus({
 
       {!error &&
       !statusLoading ? (
-        <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+        <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
           <table className="min-w-full divide-y divide-white/10 text-left">
             <thead className="bg-slate-950/50 text-[0.65rem] font-black uppercase tracking-[0.1em] text-slate-500">
               <tr>
@@ -318,10 +313,6 @@ export default function MAProfessorOperationalAccountStatus({
           </table>
         </div>
       ) : null}
-
-      <p className="mt-3 text-[0.68rem] leading-5 text-slate-600">
-        “Sem sinal ainda” é normal para contas que ainda não abriram o MA-Professor depois desta atualização.
-      </p>
     </div>
   )
 }
