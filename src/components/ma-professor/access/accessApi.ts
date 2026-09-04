@@ -101,6 +101,11 @@ export async function requestMAProfessorAccess(
   accountPassword?: string,
   plan?: RenewableLicensePlan
 ) {
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase()
+
   if (
     typeof accountPassword !==
       'string' &&
@@ -108,11 +113,6 @@ export async function requestMAProfessorAccess(
   ) {
     const stored =
       readMAProfessorStoredAccess()
-
-    const normalizedEmail =
-      email
-        .trim()
-        .toLowerCase()
 
     if (
       !stored ||
@@ -139,7 +139,8 @@ export async function requestMAProfessorAccess(
 
   const body:
     Record<string, unknown> = {
-      email
+      email:
+        normalizedEmail
     }
 
   if (
@@ -151,7 +152,26 @@ export async function requestMAProfessorAccess(
   }
 
   if (plan) {
+    const stored =
+      readMAProfessorStoredAccess()
+
+    if (
+      !stored ||
+      stored.email
+        .trim()
+        .toLowerCase() !==
+        normalizedEmail
+    ) {
+      throw new Error(
+        'A sessão da conta não é válida.'
+      )
+    }
+
     body.plan = plan
+    body.token =
+      stored.token
+    body.deviceId =
+      stored.deviceId
   }
 
   return postJson<MAProfessorAccessRequestResponse>(
