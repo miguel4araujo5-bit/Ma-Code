@@ -579,6 +579,16 @@ const adminBridgeStubUrl = transpile(`
   export const generateMAProfessorAdminCredential =
     (...args) =>
       globalThis.__adminHooks.generate(...args)
+
+  export const updateMAProfessorAdminEmailDispatchStatus =
+    (...args) =>
+      globalThis.__adminHooks.update(...args)
+`)
+
+const explicitApprovalStubUrl = transpile(`
+  export const decideMAProfessorAccessRequestExplicitly =
+    (...args) =>
+      globalThis.__adminHooks.explicitApprove(...args)
 `)
 
 const fixedRuntimeSource = fixedSource
@@ -589,6 +599,10 @@ const fixedRuntimeSource = fixedSource
   .replaceAll(
     "'./maProfessorAccessAdminBridge'",
     `'${adminBridgeStubUrl}'`
+  )
+  .replaceAll(
+    "'./maProfessorExplicitApprovalBridge'",
+    `'${explicitApprovalStubUrl}'`
   )
   .replaceAll(
     "'./maProfessorEmailService'",
@@ -618,6 +632,51 @@ function installAdminHooks() {
             )
               ? 'dispensed'
               : 'confirmed'
+        }
+      }),
+
+    explicitApprove: async (
+      _env,
+      email,
+      approvalPlan
+    ) => {
+      const decisionMode =
+        approvalPlan === 'free'
+          ? 'pilot'
+          : 'commercial'
+
+      const emailDispatchStatus =
+        decisionMode === 'pilot'
+          ? 'pending'
+          : 'not_applicable'
+
+      return jsonResponse({
+        success: true,
+        message: 'Pedido aprovado.',
+        approvalPlan,
+        decisionMode,
+        emailDispatchStatus,
+        request: {
+          email,
+          status: 'approved',
+          decisionMode,
+          emailDispatchStatus
+        }
+      })
+    },
+
+    update: async (
+      _env,
+      email,
+      status
+    ) =>
+      jsonResponse({
+        success: true,
+        request: {
+          email,
+          status: 'approved',
+          decisionMode: 'pilot',
+          emailDispatchStatus: status
         }
       }),
 
@@ -700,7 +759,7 @@ for (
 }
 
 test(
-  'payment resolution without Resend does not consume a credential',
+  'payment resolution without Resend creates a credential for manual delivery',
   { concurrency: false },
   async () => {
     const hooks = installAdminHooks()
@@ -734,14 +793,139 @@ test(
         )
         assert.equal(
           body.credentialIssued,
-          false
+          true
         )
-        assert.equal(hooks.generated, 0)
+        assert.equal(
+          body.fallbackCredential.password,
+          'MP-COMMERCIAL-1234'
+        )
+        assert.equal(hooks.generated, 1)
         assert.equal(calls.length, 0)
       }
     )
   }
 )
+
+test(
+  'explicit free approval creates one credential and sends one activation email',
+  { concurrency: false },
+  async () => {
+    const hooks = installAdminHooks()
+
+    await withCapturedResend(
+      async calls => {
+        const professor =
+          'explicit-free@example.com'
+
+        const response = await fixed
+          .handleMAProfessorAdminApiRequest(
+            new Request(
+              'https://ma-code.pt/api/admin/ma-professor/requests/approve-plan',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type':
+                    'application/json'
+                },
+                body: JSON.stringify({
+                  email: professor,
+                  approvalPlan: 'free'
+                })
+              }
+            ),
+            {
+              RESEND_API_KEY_MA_PROFESSOR:
+                'test-key'
+            }
+          )
+
+        const body = await response.json()
+
+        assert.equal(
+          body.approvalPlan,
+          'free'
+        )
+        assert.equal(
+          body.emailDelivery,
+          'sent'
+        )
+        assert.equal(
+          body.credentialIssued,
+          true
+        )
+        assert.equal(hooks.generated, 1)
+        assert.equal(calls.length, 1)
+        assert.deepEqual(
+          readPayload(calls[0]).to,
+          [professor]
+        )
+      }
+    )
+  }
+)
+
+for (
+  const approvalPlan of
+  ['paid_30_days', 'school_year']
+) {
+  test(
+    `explicit ${approvalPlan} approval confirms payment, creates one credential and sends one activation email`,
+    { concurrency: false },
+    async () => {
+      const hooks = installAdminHooks()
+
+      await withCapturedResend(
+        async calls => {
+          const professor =
+            `${approvalPlan}@example.com`
+
+          const response = await fixed
+            .handleMAProfessorAdminApiRequest(
+              new Request(
+                'https://ma-code.pt/api/admin/ma-professor/requests/approve-plan',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type':
+                      'application/json'
+                  },
+                  body: JSON.stringify({
+                    email: professor,
+                    approvalPlan
+                  })
+                }
+              ),
+              {
+                RESEND_API_KEY_MA_PROFESSOR:
+                  'test-key'
+              }
+            )
+
+          const body = await response.json()
+
+          assert.equal(
+            body.approvalPlan,
+            approvalPlan
+          )
+          assert.equal(
+            body.emailDelivery,
+            'sent'
+          )
+          assert.equal(
+            body.credentialIssued,
+            true
+          )
+          assert.equal(hooks.generated, 1)
+          assert.equal(calls.length, 1)
+          assert.deepEqual(
+            readPayload(calls[0]).to,
+            [professor]
+          )
+        }
+      )
+    }
+  )
+}
 
 test(
   'email architecture has one Resend transport and no configurable admin override',
@@ -777,6 +961,10 @@ test(
     assert.match(
       fixedSource,
       /sendMAProfessorCommercialActivationEmail/
+    )
+    assert.match(
+      fixedSource,
+      /sendMAProfessorPilotApprovalEmail/
     )
   }
 )
