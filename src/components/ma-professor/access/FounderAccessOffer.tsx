@@ -101,7 +101,7 @@ export default function FounderAccessOffer({
             </span>
 
             <span className="mt-3 block text-xs leading-5 text-slate-400">
-              Sem renovação automática. O pedido de acesso prioritário fica registado para confirmação pela MA-CODE.
+              Sem renovação automática.
             </span>
 
             <span className="mt-4 inline-flex text-xs font-black text-cyan-200 transition group-hover:text-cyan-100">
@@ -131,7 +131,7 @@ export default function FounderAccessOffer({
             </span>
 
             <span className="mt-3 block text-xs leading-5 text-slate-400">
-              Acesso até ao fim do ano letivo. O pedido de acesso prioritário fica registado para confirmação pela MA-CODE.
+              Acesso até ao fim do ano letivo.
             </span>
 
             <span className="mt-4 inline-flex text-xs font-black text-violet-200 transition group-hover:text-violet-100">
@@ -144,7 +144,7 @@ export default function FounderAccessOffer({
         </div>
 
         <p className="mt-4 text-xs leading-5 text-slate-400">
-          Após confirmação do pagamento pela MA-CODE, o acesso é ativado com prioridade.
+          O pedido de acesso prioritário fica registado para confirmação pela MA-CODE. Após confirmação do pagamento, o acesso é ativado com prioridade.
         </p>
       </section>
 
