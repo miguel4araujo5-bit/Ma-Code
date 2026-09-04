@@ -15,6 +15,15 @@ const COMMERCE_STORAGE_KEY =
 const ACCOUNT_AUTH_STORAGE_KEY =
   'ma-professor-account-auth-v1'
 
+const LOGIN_THROTTLE_STORAGE_KEY =
+  'ma-professor-login-throttle-v1'
+
+const PUBLIC_STATUS_PATH =
+  '/api/ma-professor/access/status'
+
+const PUBLIC_LOGIN_PATH =
+  '/api/ma-professor/access/login'
+
 const INTERNAL_RESET_ACCESS_PATH =
   '/__internal/ma-professor/admin/accounts/reset-access'
 
@@ -23,6 +32,18 @@ const INTERNAL_DELETE_ACCOUNTS_PATH =
 
 const MAX_BATCH_EMAILS =
   100
+
+const MAX_FAILED_LOGIN_ATTEMPTS =
+  5
+
+const LOGIN_BLOCK_MINUTES =
+  15
+
+const LOGIN_THROTTLE_RETENTION_MS =
+  24 * 60 * 60 * 1000
+
+const MAX_LOGIN_THROTTLE_ENTRIES =
+  2_000
 
 type JsonObject =
   Record<string, unknown>
@@ -69,6 +90,21 @@ interface AccountAuthStateSnapshot {
   updatedAt?: number
 }
 
+interface LoginThrottleEntry {
+  failedAttempts: number
+  blockedUntil: number | null
+  updatedAt: number
+}
+
+interface LoginThrottleState {
+  schemaVersion: 1
+  entries: Record<
+    string,
+    LoginThrottleEntry
+  >
+  updatedAt: number
+}
+
 interface DurableObjectStorageLike {
   get<T>(
     key: string
@@ -97,7 +133,9 @@ interface DurableObjectStateLike {
 
 function json(
   body: unknown,
-  status = 200
+  status = 200,
+  extraHeaders:
+    Record<string, string> = {}
 ) {
   return new Response(
     JSON.stringify(
@@ -118,8 +156,16 @@ function json(
         'X-Content-Type-Options':
           'nosniff',
 
+        'X-Frame-Options':
+          'DENY',
+
+        'Referrer-Policy':
+          'no-referrer',
+
         'X-Robots-Tag':
-          'noindex, nofollow'
+          'noindex, nofollow',
+
+        ...extraHeaders
       }
     }
   )
@@ -136,6 +182,21 @@ function normalizeEmail(
         .slice(
           0,
           180
+        )
+    : ''
+}
+
+function normalizeId(
+  value: unknown,
+  maxLength = 256
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .trim()
+        .slice(
+          0,
+          maxLength
         )
     : ''
 }
@@ -159,7 +220,7 @@ async function readJson(
       await request.json()
   } catch {
     throw new Error(
-      'O pedido administrativo contém JSON inválido.'
+      'O pedido contém JSON inválido.'
     )
   }
 
@@ -172,7 +233,7 @@ async function readJson(
     )
   ) {
     throw new Error(
-      'O pedido administrativo é inválido.'
+      'O pedido é inválido.'
     )
   }
 
@@ -389,6 +450,329 @@ function removeAccountAuthentication(
     Date.now()
 }
 
+function createLoginThrottleState():
+  LoginThrottleState {
+  return {
+    schemaVersion:
+      1,
+    entries:
+      {},
+    updatedAt:
+      Date.now()
+  }
+}
+
+function normalizeLoginThrottleState(
+  stored:
+    | LoginThrottleState
+    | undefined
+) {
+  if (
+    !stored ||
+    stored.schemaVersion !==
+      1 ||
+    !stored.entries ||
+    typeof stored.entries !==
+      'object'
+  ) {
+    return createLoginThrottleState()
+  }
+
+  return stored
+}
+
+function pruneLoginThrottleState(
+  state:
+    LoginThrottleState,
+  now: number
+) {
+  for (
+    const [
+      key,
+      entry
+    ] of Object.entries(
+      state.entries
+    )
+  ) {
+    const blockExpired =
+      entry.blockedUntil ===
+        null ||
+      entry.blockedUntil <=
+        now
+
+    if (
+      blockExpired &&
+      now -
+        entry.updatedAt >
+        LOGIN_THROTTLE_RETENTION_MS
+    ) {
+      delete state.entries[
+        key
+      ]
+    }
+  }
+
+  const entries =
+    Object.entries(
+      state.entries
+    )
+
+  if (
+    entries.length <=
+    MAX_LOGIN_THROTTLE_ENTRIES
+  ) {
+    return
+  }
+
+  entries
+    .sort(
+      (
+        left,
+        right
+      ) =>
+        left[1].updatedAt -
+        right[1].updatedAt
+    )
+    .slice(
+      0,
+      entries.length -
+        MAX_LOGIN_THROTTLE_ENTRIES
+    )
+    .forEach(
+      ([key]) => {
+        delete state.entries[
+          key
+        ]
+      }
+    )
+}
+
+function bytesToBase64Url(
+  bytes: Uint8Array
+) {
+  let binary = ''
+
+  for (const byte of bytes) {
+    binary +=
+      String.fromCharCode(
+        byte
+      )
+  }
+
+  return btoa(binary)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
+async function hashValue(
+  value: string
+) {
+  const digest =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder()
+        .encode(
+          value
+        )
+    )
+
+  return bytesToBase64Url(
+    new Uint8Array(
+      digest
+    )
+  )
+}
+
+async function hashSessionToken(
+  token: string
+) {
+  const digest =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder()
+        .encode(
+          token
+        )
+    )
+
+  const bytes =
+    new Uint8Array(
+      digest
+    )
+
+  let binary = ''
+
+  for (const byte of bytes) {
+    binary +=
+      String.fromCharCode(
+        byte
+      )
+  }
+
+  return btoa(binary)
+}
+
+function getClientAddress(
+  request: Request
+) {
+  const cloudflareAddress =
+    normalizeId(
+      request.headers.get(
+        'CF-Connecting-IP'
+      ),
+      128
+    )
+
+  if (cloudflareAddress) {
+    return cloudflareAddress
+  }
+
+  const forwarded =
+    normalizeId(
+      request.headers.get(
+        'X-Forwarded-For'
+      ),
+      256
+    )
+
+  return forwarded
+    .split(',')[0]
+    ?.trim()
+    .slice(0, 128) ||
+    'unknown'
+}
+
+async function getLoginThrottleKey(
+  request: Request,
+  email: string
+) {
+  const addressHash =
+    await hashValue(
+      `ma-professor-login-ip-v1:${getClientAddress(
+        request
+      )}`
+    )
+
+  return `${email}|${addressHash}`
+}
+
+function removeLoginThrottleForEmails(
+  state:
+    LoginThrottleState,
+  targetEmails:
+    Set<string>
+) {
+  for (
+    const key of Object.keys(
+      state.entries
+    )
+  ) {
+    const separatorIndex =
+      key.indexOf('|')
+
+    const email =
+      separatorIndex >=
+        0
+        ? key.slice(
+            0,
+            separatorIndex
+          )
+        : ''
+
+    if (
+      targetEmails.has(
+        email
+      )
+    ) {
+      delete state.entries[
+        key
+      ]
+    }
+  }
+
+  state.updatedAt =
+    Date.now()
+}
+
+function readTimestamp(
+  value: unknown
+) {
+  return typeof value ===
+      'number' &&
+    Number.isFinite(
+      value
+    )
+    ? value
+    : null
+}
+
+function toIsoTimestamp(
+  value: unknown
+) {
+  const timestamp =
+    readTimestamp(
+      value
+    )
+
+  return timestamp ===
+    null
+    ? null
+    : new Date(
+        timestamp
+      ).toISOString()
+}
+
+function normalizeRequestStatus(
+  value: unknown
+) {
+  return value ===
+      'pending' ||
+    value ===
+      'approved' ||
+    value ===
+      'rejected'
+    ? value
+    : null
+}
+
+function getStatusMessage(
+  status:
+    | 'pending'
+    | 'approved'
+    | 'rejected',
+  canActivate: boolean,
+  activatedAt:
+    number | null
+) {
+  if (
+    status ===
+      'pending'
+  ) {
+    return 'O seu pedido continua em análise pela MA-CODE.'
+  }
+
+  if (
+    status ===
+      'rejected'
+  ) {
+    return 'Este pedido não foi aprovado. Contacte a MA-CODE se pretender esclarecer ou voltar a solicitar acesso.'
+  }
+
+  if (canActivate) {
+    return 'O seu pedido foi aprovado. Utilize a senha de ativação recebida para iniciar o período de acesso.'
+  }
+
+  if (
+    activatedAt !==
+    null
+  ) {
+    return 'O pedido está aprovado e o período anterior já foi ativado. Se precisar de um novo período de acesso, escolha uma das opções disponíveis.'
+  }
+
+  return 'O pedido foi aprovado, mas a senha de ativação ainda não está disponível.'
+}
+
 export class MaProfessorAccessDurableObject {
   private readonly state:
     DurableObjectStateLike
@@ -448,6 +832,431 @@ export class MaProfessorAccessDurableObject {
         this.state,
         this.env
       )
+  }
+
+  private async handleAccessStatus(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'O pedido de consulta de acesso é inválido.'
+        },
+        400
+      )
+    }
+
+    const token =
+      normalizeId(
+        body.token,
+        256
+      )
+
+    const deviceId =
+      normalizeId(
+        body.deviceId,
+        180
+      )
+
+    if (
+      !token ||
+      !deviceId
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'A sessão da conta não é válida.'
+        },
+        401
+      )
+    }
+
+    const accessState =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    if (
+      !accessState?.sessions
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'A sessão da conta já não é válida.'
+        },
+        401
+      )
+    }
+
+    const tokenHash =
+      await hashSessionToken(
+        token
+      )
+
+    const session =
+      accessState.sessions[
+        tokenHash
+      ]
+
+    const sessionEmail =
+      getObjectEmail(
+        session
+      )
+
+    const storedDeviceId =
+      session &&
+      typeof session.deviceId ===
+        'string'
+        ? normalizeId(
+            session.deviceId,
+            180
+          )
+        : ''
+
+    if (
+      !session ||
+      !sessionEmail ||
+      storedDeviceId !==
+        deviceId ||
+      session.revokedAt !==
+        null
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'A sessão da conta já não é válida.'
+        },
+        401
+      )
+    }
+
+    const accessRequest =
+      accessState.accessRequests?.[
+        sessionEmail
+      ]
+
+    if (!accessRequest) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não existe um pedido de acesso associado a esta conta.'
+        },
+        404
+      )
+    }
+
+    const status =
+      normalizeRequestStatus(
+        accessRequest.status
+      )
+
+    if (!status) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'O estado do pedido de acesso não é válido.'
+        },
+        500
+      )
+    }
+
+    const activatedAt =
+      readTimestamp(
+        accessRequest.activatedAt
+      )
+
+    const canActivate =
+      Boolean(
+        accessState.credentials?.[
+          sessionEmail
+        ]
+      )
+
+    return json({
+      success:
+        true,
+      request: {
+        email:
+          sessionEmail,
+        status,
+        requestedAt:
+          toIsoTimestamp(
+            accessRequest.requestedAt
+          ),
+        approvedAt:
+          toIsoTimestamp(
+            accessRequest.approvedAt
+          ),
+        rejectedAt:
+          toIsoTimestamp(
+            accessRequest.rejectedAt
+          ),
+        activatedAt:
+          toIsoTimestamp(
+            accessRequest.activatedAt
+          )
+      },
+      canActivate,
+      message:
+        getStatusMessage(
+          status,
+          canActivate,
+          activatedAt
+        )
+    })
+  }
+
+  private async handleLogin(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request.clone()
+        )
+    } catch {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (
+      !isValidEmail(
+        email
+      )
+    ) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const throttleKey =
+      await getLoginThrottleKey(
+        request,
+        email
+      )
+
+    const now =
+      Date.now()
+
+    const throttleState =
+      normalizeLoginThrottleState(
+        await this.state.storage.get<LoginThrottleState>(
+          LOGIN_THROTTLE_STORAGE_KEY
+        )
+      )
+
+    pruneLoginThrottleState(
+      throttleState,
+      now
+    )
+
+    const previousEntry =
+      throttleState.entries[
+        throttleKey
+      ]
+
+    if (
+      previousEntry?.blockedUntil !==
+        null &&
+      typeof previousEntry?.blockedUntil ===
+        'number' &&
+      previousEntry.blockedUntil >
+        now
+    ) {
+      const retryAfterSeconds =
+        Math.max(
+          1,
+          Math.ceil(
+            (
+              previousEntry.blockedUntil -
+              now
+            ) /
+              1000
+          )
+        )
+
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Foram feitas várias tentativas de entrada inválidas. Aguarde alguns minutos antes de tentar novamente.'
+        },
+        429,
+        {
+          'Retry-After':
+            String(
+              retryAfterSeconds
+            )
+        }
+      )
+    }
+
+    if (
+      previousEntry?.blockedUntil !==
+        null &&
+      typeof previousEntry?.blockedUntil ===
+        'number' &&
+      previousEntry.blockedUntil <=
+        now
+    ) {
+      delete throttleState.entries[
+        throttleKey
+      ]
+    }
+
+    const response =
+      await this.existing.fetch(
+        request
+      )
+
+    if (
+      response.status ===
+      401
+    ) {
+      const currentEntry =
+        throttleState.entries[
+          throttleKey
+        ]
+
+      const failedAttempts =
+        (
+          currentEntry
+            ?.failedAttempts ??
+          0
+        ) +
+        1
+
+      const blocked =
+        failedAttempts >=
+        MAX_FAILED_LOGIN_ATTEMPTS
+
+      throttleState.entries[
+        throttleKey
+      ] = {
+        failedAttempts:
+          blocked
+            ? 0
+            : failedAttempts,
+        blockedUntil:
+          blocked
+            ? now +
+              LOGIN_BLOCK_MINUTES *
+                60 *
+                1000
+            : null,
+        updatedAt:
+          now
+      }
+
+      throttleState.updatedAt =
+        now
+
+      await this.state.storage.put(
+        LOGIN_THROTTLE_STORAGE_KEY,
+        throttleState
+      )
+
+      if (blocked) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'Foram feitas várias tentativas de entrada inválidas. Aguarde alguns minutos antes de tentar novamente.'
+          },
+          429,
+          {
+            'Retry-After':
+              String(
+                LOGIN_BLOCK_MINUTES *
+                  60
+              )
+          }
+        )
+      }
+
+      return response
+    }
+
+    if (
+      response.ok &&
+      throttleState.entries[
+        throttleKey
+      ]
+    ) {
+      delete throttleState.entries[
+        throttleKey
+      ]
+
+      throttleState.updatedAt =
+        now
+
+      await this.state.storage.put(
+        LOGIN_THROTTLE_STORAGE_KEY,
+        throttleState
+      )
+    }
+
+    return response
   }
 
   private async handleAccountReset(
@@ -544,6 +1353,13 @@ export class MaProfessorAccessDurableObject {
         ACCOUNT_AUTH_STORAGE_KEY
       )
 
+    const loginThrottleState =
+      normalizeLoginThrottleState(
+        await this.state.storage.get<LoginThrottleState>(
+          LOGIN_THROTTLE_STORAGE_KEY
+        )
+      )
+
     removeAccessIdentity(
       accessState,
       targetEmails
@@ -559,11 +1375,19 @@ export class MaProfessorAccessDurableObject {
       targetEmails
     )
 
+    removeLoginThrottleForEmails(
+      loginThrottleState,
+      targetEmails
+    )
+
     const updates:
       Record<
         string,
         unknown
-      > = {}
+      > = {
+        [LOGIN_THROTTLE_STORAGE_KEY]:
+          loginThrottleState
+      }
 
     if (
       accessState
@@ -592,16 +1416,9 @@ export class MaProfessorAccessDurableObject {
         accountAuthState
     }
 
-    if (
-      Object.keys(
-        updates
-      ).length >
-      0
-    ) {
-      await this.state.storage.put(
-        updates
-      )
-    }
+    await this.state.storage.put(
+      updates
+    )
 
     /*
      * As bridges existentes mantêm partes do estado em memória.
@@ -630,6 +1447,24 @@ export class MaProfessorAccessDurableObject {
       new URL(
         request.url
       )
+
+    if (
+      url.pathname ===
+      PUBLIC_STATUS_PATH
+    ) {
+      return this.handleAccessStatus(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+      PUBLIC_LOGIN_PATH
+    ) {
+      return this.handleLogin(
+        request
+      )
+    }
 
     if (
       url.pathname ===
