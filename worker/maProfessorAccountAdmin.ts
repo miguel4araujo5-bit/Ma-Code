@@ -10,11 +10,17 @@ import type {
 export const MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX =
   '/api/admin/ma-professor/accounts'
 
+const OPERATIONAL_STATUS_PATH =
+  `${MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX}/operational-status`
+
 const RESET_ACCESS_PATH =
   `${MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX}/reset-access`
 
 const DELETE_ACCOUNTS_PATH =
   `${MA_PROFESSOR_ACCOUNT_ADMIN_API_PREFIX}/delete`
+
+const INTERNAL_OPERATIONAL_STATUS_PATH =
+  '/__internal/ma-professor/admin/accounts/operational-status'
 
 const INTERNAL_RESET_ACCESS_PATH =
   '/__internal/ma-professor/admin/accounts/reset-access'
@@ -544,6 +550,46 @@ async function deleteCloudAccountData(
   }
 }
 
+async function handleOperationalStatus(
+  request: Request,
+  env:
+    MaProfessorAccountAdminEnv,
+  body: JsonObject
+) {
+  let emails:
+    string[]
+
+  try {
+    emails =
+      normalizeEmailList(
+        body.emails
+      )
+  } catch (
+    error
+  ) {
+    return json(
+      {
+        success:
+          false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'A lista de utilizadores é inválida.'
+      },
+      400
+    )
+  }
+
+  return callInternalAccessMutation(
+    request,
+    env,
+    INTERNAL_OPERATIONAL_STATUS_PATH,
+    {
+      emails
+    }
+  )
+}
+
 async function handleResetAccess(
   request: Request,
   env:
@@ -702,6 +748,8 @@ export function isMAProfessorAccountAdminApiPath(
 ) {
   return (
     pathname ===
+      OPERATIONAL_STATUS_PATH ||
+    pathname ===
       RESET_ACCESS_PATH ||
     pathname ===
       DELETE_ACCOUNTS_PATH
@@ -806,6 +854,17 @@ export async function handleMAProfessorAccountAdminApiRequest(
     new URL(
       request.url
     )
+
+  if (
+    url.pathname ===
+      OPERATIONAL_STATUS_PATH
+  ) {
+    return handleOperationalStatus(
+      request,
+      env,
+      body
+    )
+  }
 
   if (
     url.pathname ===
