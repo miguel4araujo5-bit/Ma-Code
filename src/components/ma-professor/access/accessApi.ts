@@ -7,6 +7,10 @@ import type {
   RenewableLicensePlan
 } from './accessTypes'
 
+import {
+  readMAProfessorStoredAccess
+} from './accessStorage'
+
 const MA_PROFESSOR_ACCESS_API_PREFIX =
   '/api/ma-professor/access'
 
@@ -97,6 +101,42 @@ export async function requestMAProfessorAccess(
   accountPassword?: string,
   plan?: RenewableLicensePlan
 ) {
+  if (
+    typeof accountPassword !==
+      'string' &&
+    !plan
+  ) {
+    const stored =
+      readMAProfessorStoredAccess()
+
+    const normalizedEmail =
+      email
+        .trim()
+        .toLowerCase()
+
+    if (
+      !stored ||
+      stored.email
+        .trim()
+        .toLowerCase() !==
+        normalizedEmail
+    ) {
+      throw new Error(
+        'A sessão da conta não é válida.'
+      )
+    }
+
+    return postJson<MAProfessorAccessRequestResponse>(
+      '/status',
+      {
+        token:
+          stored.token,
+        deviceId:
+          stored.deviceId
+      }
+    )
+  }
+
   const body:
     Record<string, unknown> = {
       email
