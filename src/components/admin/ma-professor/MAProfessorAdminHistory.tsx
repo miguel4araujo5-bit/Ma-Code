@@ -220,7 +220,7 @@ function buildCommercialEvents(
       description:
         authorization.renewalId
           ? `${planLabel} · ${valueLabel}. O novo pedido de renovação ficou associado a uma autorização comercial própria.`
-          : `${planLabel} · ${valueLabel}. O plano escolhido pelo professor ficou associado à autorização inicial desta conta.`,
+          : `${planLabel} · ${valueLabel}. A modalidade autorizada no MA-ADMIN ficou associada ao acesso inicial desta conta.`,
       result:
         'Pagamento pendente',
       tone:
