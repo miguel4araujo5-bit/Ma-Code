@@ -520,45 +520,6 @@ function MAProfessorAdminContent() {
         onChanged={loadOverview}
       />
 
-      <section className="mt-7 grid gap-4 lg:grid-cols-3">
-        <article className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-300">
-            Gratuito
-          </p>
-
-          <p className="mt-3 text-2xl font-black">
-            Acesso piloto
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            Aprovação sem pagamento. A senha é criada imediatamente e o professor recebe o link de ativação.
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-            Fundador · 30 dias
-          </p>
-          <p className="mt-3 text-2xl font-black">
-            3,49 €
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            A decisão administrativa confirma o acesso de 30 dias e desencadeia a emissão e o envio da ativação.
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-            Fundador · Ano letivo
-          </p>
-          <p className="mt-3 text-2xl font-black">
-            15 €
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            Aprovação até ao fim do ano letivo, com a mesma geração segura de senha e email de ativação.
-          </p>
-        </article>
-      </section>
-
       <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
           Regra de segurança
