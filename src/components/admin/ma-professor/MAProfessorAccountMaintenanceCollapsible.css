@@ -1,0 +1,11 @@
+.ma-professor-account-maintenance-compact > section {
+  margin-top: 0.75rem;
+}
+
+.ma-professor-account-maintenance-compact > section > div:first-child {
+  display: none;
+}
+
+.ma-professor-account-maintenance-compact > section > .lg\:grid-cols-2 {
+  display: none;
+}
