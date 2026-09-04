@@ -28,6 +28,8 @@ import {
   saveMAProfessorAccessSession
 } from './accessStorage'
 
+import FounderAccessOffer from './FounderAccessOffer'
+
 import {
   getLicensePlanLabel,
   getLicenseStatusLabel,
@@ -937,100 +939,26 @@ export function AccessGate({
             </p>
           ) : (
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Pode ativar um período com uma senha MP-... ou escolher uma modalidade de acesso.
+              O seu pedido mantém-se na fila de análise. Pode aguardar a decisão ou escolher um acesso Fundador prioritário.
             </p>
           )}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-violet-300/20 bg-violet-300/[0.05] p-5">
-          <p className="text-sm font-black text-violet-100">
-            Tenho uma senha de ativação
-          </p>
-
-          <p className="mt-2 text-xs leading-5 text-slate-400">
-            A senha MP-... ativa o período de acesso. A sua password pessoal continua a ser utilizada apenas para entrar na conta.
-          </p>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <input
-              value={activationCode}
-              onChange={event =>
-                setActivationCode(
-                  event.target.value
-                    .toUpperCase()
-                )
-              }
-              placeholder="MP-XXXX-XXXX-XXXX-XXXX"
-              autoCapitalize="characters"
-              spellCheck={false}
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 font-mono text-sm uppercase tracking-wide text-white outline-none focus:border-violet-300/50"
-            />
-
-            <button
-              type="button"
-              disabled={
-                activating ||
-                !activationCode.trim()
-              }
-              onClick={() =>
-                void handleActivate()
-              }
-              className="rounded-xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 disabled:cursor-wait disabled:opacity-50"
-            >
-              {activating
-                ? 'A ativar…'
-                : 'Ativar período'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <p className="text-sm font-black text-white">
-            Escolher acesso
-          </p>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              disabled={Boolean(requestingPlan)}
-              onClick={() =>
-                void handleInitialPlan(
-                  'paid_30_days'
-                )
-              }
-              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-left transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-60"
-            >
-              <span className="block text-base font-black text-cyan-200">
-                3,49 € / 30 dias
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">
-                Sem renovação automática
-              </span>
-            </button>
-
-            <button
-              type="button"
-              disabled={Boolean(requestingPlan)}
-              onClick={() =>
-                void handleInitialPlan(
-                  'school_year'
-                )
-              }
-              className="rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-4 text-left transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
-            >
-              <span className="block text-base font-black text-violet-200">
-                15 €
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">
-                Acesso até ao fim do ano letivo
-              </span>
-            </button>
-          </div>
-
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Nesta fase, o pagamento e a ativação são confirmados pela MA-CODE. Escolher um plano não desbloqueia automaticamente as ferramentas.
-          </p>
-        </div>
+        <FounderAccessOffer
+          requestStatus={requestStatus}
+          activationCode={activationCode}
+          activating={activating}
+          requestingPlan={requestingPlan}
+          onActivationCodeChange={setActivationCode}
+          onActivate={() =>
+            void handleActivate()
+          }
+          onSelectPlan={plan =>
+            void handleInitialPlan(
+              plan
+            )
+          }
+        />
 
         {error ? (
           <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
