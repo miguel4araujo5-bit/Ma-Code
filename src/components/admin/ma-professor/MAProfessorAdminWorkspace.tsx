@@ -804,35 +804,19 @@ export default function MAProfessorAdminWorkspace({
                           </button>
 
                           {request.status === 'pending' ? (
-                            <>
-                              <button
-                                type="button"
-                                disabled={busyEmail === request.email}
-                                onClick={() => {
-                                  void runRequestAction(
-                                    request.email,
-                                    'approve'
-                                  )
-                                }}
-                                className="rounded-lg bg-emerald-300 px-2.5 py-1.5 text-[0.68rem] font-black text-slate-950 hover:bg-emerald-200 disabled:opacity-40"
-                              >
-                                Aprovar
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={busyEmail === request.email}
-                                onClick={() => {
-                                  void runRequestAction(
-                                    request.email,
-                                    'reject'
-                                  )
-                                }}
-                                className="rounded-lg border border-rose-300/25 bg-rose-300/[0.06] px-2.5 py-1.5 text-[0.68rem] font-black text-rose-200 hover:bg-rose-300/10 disabled:opacity-40"
-                              >
-                                Rejeitar
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              disabled={busyEmail === request.email}
+                              onClick={() => {
+                                void runRequestAction(
+                                  request.email,
+                                  'reject'
+                                )
+                              }}
+                              className="rounded-lg border border-rose-300/25 bg-rose-300/[0.06] px-2.5 py-1.5 text-[0.68rem] font-black text-rose-200 hover:bg-rose-300/10 disabled:opacity-40"
+                            >
+                              Rejeitar
+                            </button>
                           ) : null}
                         </div>
                       </td>
