@@ -397,45 +397,39 @@ export default function MAProfessorAdminAccountFlowSummary({
   ]
 
   return (
-    <section className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
-            Estado do percurso
-          </p>
-          <h3 className="mt-1 text-base font-black text-white">
-            Do pedido ao acesso
-          </h3>
-        </div>
-
-        <span className="text-[0.68rem] font-semibold text-slate-500">
-          Resumo de leitura · sem ações
-        </span>
+    <section className="rounded-[1.35rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-3 sm:p-4">
+      <div>
+        <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-cyan-300">
+          Estado do percurso
+        </p>
+        <h3 className="mt-0.5 text-sm font-black text-white">
+          Do pedido ao acesso
+        </h3>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-6">
         {steps.map(
           (step, index) => (
             <div
               key={step.label}
               className={[
-                'rounded-xl border px-3 py-3',
+                'min-w-0 rounded-lg border px-2.5 py-2',
                 getToneClassName(
                   step.tone
                 )
               ].join(' ')}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-[0.6rem] font-black opacity-60">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="flex-none text-[0.55rem] font-black opacity-55">
                   {String(
                     index + 1
                   ).padStart(2, '0')}
                 </span>
-                <p className="text-[0.65rem] font-black uppercase tracking-[0.1em] opacity-75">
+                <p className="min-w-0 truncate text-[0.58rem] font-black uppercase tracking-[0.08em] opacity-75">
                   {step.label}
                 </p>
               </div>
-              <p className="mt-2 text-xs font-black">
+              <p className="mt-1.5 break-words text-[0.7rem] font-black leading-4">
                 {step.value}
               </p>
             </div>
@@ -447,7 +441,7 @@ export default function MAProfessorAdminAccountFlowSummary({
         'commercial' &&
       request.emailDispatchStatus ===
         'not_applicable' ? (
-        <p className="mt-3 text-[0.68rem] leading-5 text-slate-600">
+        <p className="mt-2.5 text-[0.68rem] leading-5 text-slate-600">
           Nos acessos Fundador históricos, o resultado do envio de email não ficou persistido no pedido. O resumo não presume que o email foi entregue.
         </p>
       ) : null}
