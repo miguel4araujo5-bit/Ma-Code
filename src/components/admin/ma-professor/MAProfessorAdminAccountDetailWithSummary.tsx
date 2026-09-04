@@ -9,6 +9,7 @@ import type {
 
 import MAProfessorAdminAccountDetail from './MAProfessorAdminAccountDetail'
 import MAProfessorAdminAccountFlowSummary from './MAProfessorAdminAccountFlowSummary'
+import './MAProfessorAdminAccountDetailCompact.css'
 
 interface MAProfessorAdminAccountDetailWithSummaryProps {
   email: string
@@ -33,7 +34,7 @@ export default function MAProfessorAdminAccountDetailWithSummary({
   onClose
 }: MAProfessorAdminAccountDetailWithSummaryProps) {
   return (
-    <div className="space-y-4">
+    <div className="ma-professor-admin-account-detail-compact space-y-4">
       <MAProfessorAdminAccountFlowSummary
         email={email}
         request={request}
