@@ -6,7 +6,7 @@ import {
 
 import AdminShell from '../components/admin/AdminShell'
 import MAProfessorAccountMaintenanceCollapsible from '../components/admin/ma-professor/MAProfessorAccountMaintenanceCollapsible'
-import MAProfessorAdminWorkspace from '../components/admin/ma-professor/MAProfessorAdminWorkspace'
+import MAProfessorAdminWorkspaceCompact from '../components/admin/ma-professor/MAProfessorAdminWorkspaceCompact'
 import MAProfessorApprovalQueue from '../components/admin/ma-professor/MAProfessorApprovalQueue'
 
 import {
@@ -427,7 +427,7 @@ function MAProfessorAdminContent() {
           </div>
         ) : (
           <div className="mt-5">
-            <MAProfessorAdminWorkspace
+            <MAProfessorAdminWorkspaceCompact
               accessRequests={
                 overview?.accessRequests || []
               }
