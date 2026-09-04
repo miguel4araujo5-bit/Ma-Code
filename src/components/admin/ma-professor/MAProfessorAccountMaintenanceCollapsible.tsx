@@ -3,6 +3,7 @@ import type {
 } from '../../../lib/admin/maProfessorAdminApi'
 
 import MAProfessorAccountMaintenance from './MAProfessorAccountMaintenance'
+import './MAProfessorAccountMaintenanceCollapsible.css'
 
 interface MAProfessorAccountMaintenanceCollapsibleProps {
   overview:
@@ -57,7 +58,7 @@ export default function MAProfessorAccountMaintenanceCollapsible({
     emails.size
 
   return (
-    <details className="mt-7 group">
+    <details className="ma-professor-account-maintenance-compact mt-7 group">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.5rem] border border-rose-300/15 bg-slate-900/55 px-5 py-4 transition hover:bg-slate-900/75 sm:px-6">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
