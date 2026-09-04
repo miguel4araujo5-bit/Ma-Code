@@ -92,6 +92,29 @@ function setupLabel(
     : 'Por concluir'
 }
 
+function lastContactLabel(
+  status:
+    MAProfessorAccountOperationalStatus
+) {
+  if (
+    status.hasActiveSession
+  ) {
+    return formatDate(
+      status.lastSeenAt
+    )
+  }
+
+  if (
+    status.operationalStateReported
+  ) {
+    return `${formatDate(
+      status.operationalStateUpdatedAt
+    )} · sessão terminada`
+  }
+
+  return 'Ainda sem entrada registada'
+}
+
 export default function MAProfessorOperationalAccountStatus({
   emails,
   loading = false
@@ -243,7 +266,7 @@ export default function MAProfessorOperationalAccountStatus({
                   Conta
                 </th>
                 <th className="px-3 py-3">
-                  Último acesso
+                  Último contacto
                 </th>
                 <th className="px-3 py-3">
                   Onboarding
@@ -263,11 +286,9 @@ export default function MAProfessorOperationalAccountStatus({
                     </td>
 
                     <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-400">
-                      {status.hasActiveSession
-                        ? formatDate(
-                            status.lastSeenAt
-                          )
-                        : 'Nunca entrou / sem sessão'}
+                      {lastContactLabel(
+                        status
+                      )}
                     </td>
 
                     <td className="whitespace-nowrap px-3 py-3">
