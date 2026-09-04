@@ -1353,33 +1353,39 @@ export default function MAProfessorAdminAccountDetail({
                     Confirme apenas quando o recebimento tiver sido verificado. Se a MA-CODE ofereceu o acesso, registe-o como pagamento dispensado.
                   </p>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleConfirmPayment()
-                      }}
-                      disabled={!canResolvePayment}
-                      className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {commercialSaving
-                        ? 'A guardar…'
-                        : 'Confirmar pagamento'}
-                    </button>
+                  <details className="mt-3 rounded-xl border border-white/10 bg-slate-950/35">
+                    <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-slate-300">
+                      Ações avançadas
+                    </summary>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleDispensePayment()
-                      }}
-                      disabled={!canResolvePayment}
-                      className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-xs font-black text-violet-200 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {commercialSaving
-                        ? 'A guardar…'
-                        : 'Dispensar pagamento'}
-                    </button>
-                  </div>
+                    <div className="grid gap-2 border-t border-white/10 p-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleConfirmPayment()
+                        }}
+                        disabled={!canResolvePayment}
+                        className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {commercialSaving
+                          ? 'A guardar…'
+                          : 'Confirmar pagamento'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleDispensePayment()
+                        }}
+                        disabled={!canResolvePayment}
+                        className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-xs font-black text-violet-200 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {commercialSaving
+                          ? 'A guardar…'
+                          : 'Dispensar pagamento'}
+                      </button>
+                    </div>
+                  </details>
                 </div>
               ) : null}
 
@@ -1570,28 +1576,30 @@ export default function MAProfessorAdminAccountDetail({
           {currentLicense &&
           currentLicense.status !==
             'revoked' ? (
-            <div className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.035] p-4">
-              <p className="text-sm font-black text-rose-200">
-                Ação administrativa
-              </p>
+            <details className="mt-4 rounded-xl border border-rose-300/15 bg-rose-300/[0.035]">
+              <summary className="cursor-pointer list-none p-4 text-sm font-black text-rose-200">
+                Ações avançadas
+              </summary>
 
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Revogar bloqueia o acesso desta licença e invalida as sessões ativas. A conta e os dados do professor são preservados.
-              </p>
+              <div className="border-t border-rose-300/10 p-4">
+                <p className="text-xs leading-5 text-slate-500">
+                  Revogar bloqueia o acesso desta licença e invalida as sessões ativas. A conta e os dados do professor são preservados.
+                </p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  void handleRevokeLicense()
-                }}
-                disabled={!canRevokeLicense}
-                className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/[0.08] px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {revokingLicense
-                  ? 'A revogar…'
-                  : 'Revogar licença'}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleRevokeLicense()
+                  }}
+                  disabled={!canRevokeLicense}
+                  className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/[0.08] px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {revokingLicense
+                    ? 'A revogar…'
+                    : 'Revogar licença'}
+                </button>
+              </div>
+            </details>
           ) : currentLicense?.status ===
             'revoked' ? (
             <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] p-4">
@@ -1776,22 +1784,30 @@ export default function MAProfessorAdminAccountDetail({
 
           {request?.status ===
             'approved' ? (
-            <button
-              type="button"
-              onClick={() => {
-                void handleGenerateCredential()
-              }}
-              disabled={!canGenerateCredential}
-              className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {generatingCredential
-                ? 'A gerar…'
-                : pilotPeriodActivated
-                  ? 'Período já ativado'
-                  : credentialStatus?.hasCredential
-                    ? 'Gerar nova senha de ativação'
-                    : 'Gerar senha de ativação'}
-            </button>
+            <details className="mt-4 rounded-xl border border-white/10 bg-slate-950/35">
+              <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-slate-300">
+                Ações avançadas
+              </summary>
+
+              <div className="border-t border-white/10 p-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleGenerateCredential()
+                  }}
+                  disabled={!canGenerateCredential}
+                  className="w-full rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {generatingCredential
+                    ? 'A gerar…'
+                    : pilotPeriodActivated
+                      ? 'Período já ativado'
+                      : credentialStatus?.hasCredential
+                        ? 'Gerar nova senha de ativação'
+                        : 'Gerar senha de ativação'}
+                </button>
+              </div>
+            </details>
           ) : null}
 
           {isPendingAccessDecision ? (
