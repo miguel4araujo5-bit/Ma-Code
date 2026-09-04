@@ -13,6 +13,27 @@ export interface MAProfessorAccountAdminResult {
   cloudDataDeleted?: boolean
 }
 
+export interface MAProfessorAccountOperationalStatus {
+  email: string
+  hasActiveSession: boolean
+  activeSessionCount: number
+  sessionCreatedAt: string | null
+  lastSeenAt: string | null
+  operationalStateReported: boolean
+  operationalReady: boolean | null
+  operationalReadyAt: string | null
+  fullSetupCompleted: boolean | null
+  fullSetupCompletedAt: string | null
+  operationalStateUpdatedAt: string | null
+}
+
+interface MAProfessorOperationalStatusResult {
+  success: true
+  statuses:
+    MAProfessorAccountOperationalStatus[]
+  generatedAt: string
+}
+
 async function readResponseBody(
   response: Response
 ) {
@@ -46,7 +67,7 @@ function getApiMessage(
   return fallback
 }
 
-async function postAccountAction(
+async function postAccountJson(
   path: string,
   payload:
     Record<string, unknown>,
@@ -109,6 +130,22 @@ async function postAccountAction(
     )
   }
 
+  return body
+}
+
+async function postAccountAction(
+  path: string,
+  payload:
+    Record<string, unknown>,
+  fallbackMessage: string
+) {
+  const body =
+    await postAccountJson(
+      path,
+      payload,
+      fallbackMessage
+    )
+
   const data =
     body as
       MAProfessorAccountAdminResult |
@@ -135,6 +172,125 @@ async function postAccountAction(
   }
 
   return data
+}
+
+function isNullableString(
+  value: unknown
+) {
+  return value === null ||
+    typeof value ===
+      'string'
+}
+
+function assertOperationalStatus(
+  value: unknown
+): asserts value is MAProfessorAccountOperationalStatus {
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um estado operacional inválido.'
+    )
+  }
+
+  const data =
+    value as
+      Record<string, unknown>
+
+  if (
+    typeof data.email !==
+      'string' ||
+    typeof data.hasActiveSession !==
+      'boolean' ||
+    typeof data.activeSessionCount !==
+      'number' ||
+    !isNullableString(
+      data.sessionCreatedAt
+    ) ||
+    !isNullableString(
+      data.lastSeenAt
+    ) ||
+    typeof data.operationalStateReported !==
+      'boolean' ||
+    !(
+      data.operationalReady ===
+        null ||
+      typeof data.operationalReady ===
+        'boolean'
+    ) ||
+    !isNullableString(
+      data.operationalReadyAt
+    ) ||
+    !(
+      data.fullSetupCompleted ===
+        null ||
+      typeof data.fullSetupCompleted ===
+        'boolean'
+    ) ||
+    !isNullableString(
+      data.fullSetupCompletedAt
+    ) ||
+    !isNullableString(
+      data.operationalStateUpdatedAt
+    )
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um estado operacional inválido.'
+    )
+  }
+}
+
+export async function getMAProfessorAccountsOperationalStatus(
+  emails: string[]
+) {
+  if (
+    emails.length ===
+      0
+  ) {
+    return []
+  }
+
+  const body =
+    await postAccountJson(
+      '/operational-status',
+      {
+        emails
+      },
+      'Não foi possível consultar o estado operacional das contas.'
+    )
+
+  const data =
+    body as
+      MAProfessorOperationalStatusResult |
+      null
+
+  if (
+    !data ||
+    data.success !==
+      true ||
+    !Array.isArray(
+      data.statuses
+    ) ||
+    typeof data.generatedAt !==
+      'string'
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu estados operacionais inválidos.'
+    )
+  }
+
+  for (
+    const status of
+    data.statuses
+  ) {
+    assertOperationalStatus(
+      status
+    )
+  }
+
+  return data.statuses
 }
 
 export async function resetMAProfessorAccountAccess(
