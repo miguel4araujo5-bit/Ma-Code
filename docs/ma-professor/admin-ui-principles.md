@@ -9,6 +9,20 @@ O MA-ADMIN deve privilegiar o trabalho operacional do administrador e evitar ocu
 - Regras internas de segurança e invariantes técnicas devem ficar documentadas no código, testes e documentação técnica, não em cartões informativos permanentes no MA-ADMIN.
 - O ADMIN deve mostrar sobretudo estados, problemas e ações que o administrador possa efetivamente resolver.
 - Informação técnica sem ação imediata só deve aparecer quando explica um erro, um estado anómalo ou uma decisão que o administrador precisa de tomar.
+- Explicadores permanentes do fluxo geral não devem ocupar o topo do MA-ADMIN quando não exigem qualquer ação do administrador.
+
+## Fluxo administrativo de acesso
+
+A sequência de referência é:
+
+1. Pedido
+2. Plano
+3. Decisão
+4. Senha
+5. Email
+6. Acesso
+
+Esta sequência é documentação interna do funcionamento e não deve ser apresentada como um bloco visual permanente no MA-ADMIN.
 
 ## Invariante de segurança do acesso
 
@@ -30,4 +44,4 @@ Para um pedido pendente, o MA-ADMIN permite uma decisão explícita por utilizad
 - Fundador · 30 dias — 30 dias após ativação;
 - Fundador · ano letivo — validade até ao limite definido para o ano letivo.
 
-Estas regras são de funcionamento e de manutenção do produto. Não devem ser repetidas como cartões explicativos permanentes no fundo da interface administrativa.
+Estas regras são de funcionamento e de manutenção do produto. Não devem ser repetidas como cartões explicativos permanentes no fundo ou no topo da interface administrativa.
