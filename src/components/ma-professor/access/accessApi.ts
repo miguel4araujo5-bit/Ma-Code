@@ -180,6 +180,25 @@ export async function requestMAProfessorAccess(
   )
 }
 
+export async function reportMAProfessorOperationalState(
+  token: string,
+  deviceId: string,
+  operationalReady: boolean,
+  fullSetupCompleted: boolean
+) {
+  return postJson<{
+    success: true
+  }>(
+    '/operational-state',
+    {
+      token,
+      deviceId,
+      operationalReady,
+      fullSetupCompleted
+    }
+  )
+}
+
 export async function activateMAProfessorAccess(
   email: string,
   password: string,
