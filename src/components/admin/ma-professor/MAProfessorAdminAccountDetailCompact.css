@@ -1,0 +1,49 @@
+.ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) {
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) > article {
+  padding: 0.75rem;
+  border-radius: 1rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child article div[class*='grid'][class*='gap-3'][class*='sm:grid-cols-2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child article [class*='bg-white/[0.025]'][class*='p-3'] {
+  min-width: 0;
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.65rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child article [class*='bg-white/[0.025]'][class*='p-3'] > p:first-child {
+  font-size: 0.56rem;
+  line-height: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child article [class*='bg-white/[0.025]'][class*='p-3'] > p:nth-child(2) {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  line-height: 1rem;
+}
+
+.ma-professor-admin-account-detail-compact > section:last-child article [class*='bg-white/[0.025]'][class*='p-3'] > p:nth-child(3) {
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  line-height: 1rem;
+}
+
+@media (min-width: 640px) {
+  .ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) {
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .ma-professor-admin-account-detail-compact > section:last-child > div:nth-child(2) > article {
+    padding: 0.9rem;
+  }
+}
