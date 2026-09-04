@@ -519,19 +519,6 @@ function MAProfessorAdminContent() {
         loading={loading}
         onChanged={loadOverview}
       />
-
-      <section className="mt-7 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-          Regra de segurança
-        </p>
-
-        <h2 className="mt-2 text-xl font-black">
-          A senha é criada antes do envio do email.
-        </h2>
-        <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Em qualquer das três modalidades, uma falha de email não deve deixar a conta num estado impossível. Quando o envio não está disponível, a senha gerada é devolvida ao MA-ADMIN para cópia manual. O período de acesso só começa quando o professor utiliza uma ativação válida.
-        </p>
-      </section>
     </>
   )
 }
