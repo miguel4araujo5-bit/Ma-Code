@@ -178,7 +178,7 @@ export default function FounderAccessOffer({
 
       <section className="mt-4 rounded-2xl border border-white/10 bg-slate-950/45 p-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-white">
+          <div className="flex shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <MBWayLogo className="h-12 w-auto sm:h-14" />
           </div>
 
