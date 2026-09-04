@@ -76,6 +76,47 @@
   line-height: 1rem;
 }
 
+@media (max-width: 639px) {
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] {
+    min-width: 100%;
+  }
+
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(2),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(3),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(4),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(5),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(7),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:nth-child(8),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(2),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(3),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(4),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(5),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(7),
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(8) {
+    display: none;
+  }
+
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th,
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td {
+    padding: 0.65rem 0.55rem;
+  }
+
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] th:first-child,
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:first-child {
+    width: 52%;
+  }
+
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(9) > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .ma-professor-admin-workspace-compact table[class*='min-w-[1280px]'] td:nth-child(9) button {
+    white-space: nowrap;
+  }
+}
+
 @media (min-width: 640px) {
   .ma-professor-admin-workspace-compact > div > div:first-child {
     grid-template-columns: repeat(4, minmax(0, 1fr));
