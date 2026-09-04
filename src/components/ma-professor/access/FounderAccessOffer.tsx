@@ -43,34 +43,6 @@ function FounderBadge() {
   )
 }
 
-function FounderMark() {
-  return (
-    <span
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200 shadow-lg shadow-cyan-950/20"
-      aria-hidden="true"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-7 w-7"
-        fill="none"
-      >
-        <path
-          d="m4 8 4.2 3.1L12 5l3.8 6.1L20 8l-1.6 9H5.6L4 8Z"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M7 20h10"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-      </svg>
-    </span>
-  )
-}
-
 export default function FounderAccessOffer({
   requestStatus,
   activationCode,
@@ -87,23 +59,23 @@ export default function FounderAccessOffer({
     <>
       <section className="mt-6 overflow-hidden rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-300/[0.08] via-slate-950/35 to-violet-300/[0.09] p-5 shadow-xl shadow-cyan-950/15 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <FounderMark />
+          <div className="min-w-0">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-cyan-300">
+              Acesso Fundador
+            </p>
 
-            <div className="min-w-0">
-              <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
-                {requestIsApproved
-                  ? 'Quer ativar um acesso Fundador?'
-                  : 'Quer abolir a espera?'}
-              </h2>
+            <h2 className="mt-1.5 text-xl font-black tracking-tight text-white sm:text-2xl">
+              {requestIsApproved
+                ? 'Quer ativar um acesso Fundador?'
+                : 'Quer abolir a espera?'}
+            </h2>
 
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-                Selecione um dos acessos Fundador e{' '}
-                <strong className="text-emerald-200">
-                  passe à frente na fila de espera.
-                </strong>
-              </p>
-            </div>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+              Selecione um dos acessos Fundador e{' '}
+              <strong className="text-emerald-200">
+                passe à frente na fila de espera.
+              </strong>
+            </p>
           </div>
 
           <FounderBadge />
