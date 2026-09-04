@@ -13,6 +13,8 @@ import type {
   MAProfessorAdminOverview
 } from '../../../lib/admin/maProfessorAdminApi'
 
+import MAProfessorOperationalAccountStatus from './MAProfessorOperationalAccountStatus'
+
 interface MAProfessorAccountMaintenanceProps {
   overview:
     MAProfessorAdminOverview | null
@@ -417,11 +419,11 @@ export default function MAProfessorAccountMaintenance({
           </p>
 
           <h2 className="mt-2 text-xl font-black">
-            Repor ou apagar contas
+            Estado, reposição e eliminação de contas
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Utilize “Repor acesso” para voltar a testar uma conta sem eliminar a cópia cifrada dos dados escolares. A eliminação remove também os dados cloud associados ao email selecionado.
+            Confirme o último acesso e o estado mínimo do onboarding antes de utilizar ações de manutenção. “Repor acesso” preserva a cópia cifrada dos dados escolares; a eliminação remove também os dados cloud associados ao email selecionado.
           </p>
         </div>
 
@@ -432,6 +434,18 @@ export default function MAProfessorAccountMaintenance({
             : 'utilizadores'}
         </span>
       </div>
+
+      <MAProfessorOperationalAccountStatus
+        emails={
+          users.map(
+            user =>
+              user.email
+          )
+        }
+        loading={
+          loading
+        }
+      />
 
       {feedback ? (
         <div
