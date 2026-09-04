@@ -27,8 +27,61 @@
   line-height: 1.5rem;
 }
 
+.ma-professor-admin-workspace-compact > div > section > div:first-child {
+  padding: 0.75rem;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:first-child {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:first-child > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:first-child > div:first-child::-webkit-scrollbar {
+  display: none;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:first-child button {
+  flex: 0 0 auto;
+  border-radius: 0.65rem;
+  padding: 0.42rem 0.6rem;
+  font-size: 0.68rem;
+  line-height: 1rem;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:first-child > span {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child > div:nth-child(2) {
+  margin-top: 0.5rem;
+  gap: 0.5rem;
+}
+
+.ma-professor-admin-workspace-compact > div > section > div:first-child input[type='search'],
+.ma-professor-admin-workspace-compact > div > section > div:first-child select {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
 @media (min-width: 640px) {
   .ma-professor-admin-workspace-compact > div > div:first-child {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ma-professor-admin-workspace-compact > div > section > div:first-child {
+    padding: 0.9rem 1rem;
   }
 }
