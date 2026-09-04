@@ -22,7 +22,7 @@ import {
   type MAProfessorDecisionEmailDelivery
 } from '../../../lib/admin/maProfessorAdminApi'
 
-import MAProfessorAdminAccountDetail from './MAProfessorAdminAccountDetail'
+import MAProfessorAdminAccountDetailWithSummary from './MAProfessorAdminAccountDetailWithSummary'
 import MAProfessorAdminHistory from './MAProfessorAdminHistory'
 
 type WorkspaceTab =
@@ -1060,7 +1060,7 @@ export default function MAProfessorAdminWorkspace({
       </section>
 
       {selectedEmail ? (
-        <MAProfessorAdminAccountDetail
+        <MAProfessorAdminAccountDetailWithSummary
           email={selectedEmail}
           request={selectedRequest}
           license={selectedLicense}
