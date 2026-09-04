@@ -18,6 +18,11 @@ import {
   maProfessorRepository
 } from '../repository'
 
+import {
+  isMAProfessorOperationallyReady,
+  MA_PROFESSOR_OPEN_DAILY_EVENT
+} from '../setup/setupReadiness'
+
 import type {
   AcademicYear,
   EntityId,
@@ -46,6 +51,11 @@ interface DailyTarget {
 
 interface RefreshAcademicYearOptions {
   showLoading?: boolean
+}
+
+interface ActiveYearReadiness {
+  academicYear: AcademicYear | null
+  operationalReady: boolean
 }
 
 const THEME_STORAGE_KEY =
@@ -116,6 +126,12 @@ function ProductContent() {
     )
 
   const [
+    operationalReady,
+    setOperationalReady
+  ] =
+    useState(false)
+
+  const [
     checkingYear,
     setCheckingYear
   ] =
@@ -152,7 +168,7 @@ function ProductContent() {
       async (
         options:
           RefreshAcademicYearOptions = {}
-      ) => {
+      ): Promise<ActiveYearReadiness | null> => {
         const {
           showLoading = false
         } = options
@@ -172,11 +188,34 @@ function ProductContent() {
             await maProfessorRepository
               .getActiveAcademicYear()
 
+          let nextOperationalReady =
+            false
+
+          if (activeYear) {
+            const setupSnapshot =
+              await maProfessorRepository.getSetupSnapshot(
+                activeYear.id
+              )
+
+            nextOperationalReady =
+              isMAProfessorOperationallyReady(
+                setupSnapshot
+              )
+          }
+
           setAcademicYear(
             activeYear ?? null
           )
+          setOperationalReady(
+            nextOperationalReady
+          )
 
-          return activeYear ?? null
+          return {
+            academicYear:
+              activeYear ?? null,
+            operationalReady:
+              nextOperationalReady
+          }
         } catch (error) {
           setAcademicYearError(
             describeAcademicYearError(
@@ -185,7 +224,7 @@ function ProductContent() {
           )
 
           /*
-           * Não eliminamos academicYear aqui.
+           * Não eliminamos academicYear nem operationalReady aqui.
            *
            * Se já existirem dados carregados e uma atualização de
            * segundo plano falhar, a aplicação deve continuar a mostrar
@@ -208,10 +247,10 @@ function ProductContent() {
     void refreshAcademicYear({
       showLoading: true
     }).then(
-      activeYear => {
+      state => {
         if (
-          !activeYear
-            ?.setupCompletedAt
+          !state?.academicYear ||
+          !state.operationalReady
         ) {
           setWorkspace(
             'menu'
@@ -219,6 +258,43 @@ function ProductContent() {
         }
       }
     )
+  }, [
+    refreshAcademicYear
+  ])
+
+  useEffect(() => {
+    const openDaily =
+      () => {
+        void refreshAcademicYear()
+          .then(state => {
+            if (
+              !state?.academicYear ||
+              !state.operationalReady
+            ) {
+              setWorkspace(
+                'menu'
+              )
+              return
+            }
+
+            setDailyTarget({})
+            setWorkspace(
+              'daily'
+            )
+          })
+      }
+
+    window.addEventListener(
+      MA_PROFESSOR_OPEN_DAILY_EVENT,
+      openDaily
+    )
+
+    return () => {
+      window.removeEventListener(
+        MA_PROFESSOR_OPEN_DAILY_EVENT,
+        openDaily
+      )
+    }
   }, [
     refreshAcademicYear
   ])
@@ -297,29 +373,35 @@ function ProductContent() {
 
         let activeYear =
           academicYear
+        let ready =
+          operationalReady
 
         /*
-         * Não voltamos a consultar a base de dados em todas as
-         * mudanças de área. Isso desmontava o DailyWorkspaceView e
-         * podia apagar alterações ainda não guardadas.
-         *
-         * Só atualizamos quando não existe um ano letivo carregado ou
-         * quando a configuração ainda não está concluída.
+         * O trabalho diário depende do mínimo operacional, não da
+         * configuração pedagógica completa. Atualizamos apenas quando
+         * esse estado ainda não está disponível localmente.
          */
         if (
-          !activeYear
-            ?.setupCompletedAt
+          !activeYear ||
+          !ready
         ) {
-          activeYear =
+          const refreshed =
             await refreshAcademicYear({
               showLoading:
                 !activeYear
             })
+
+          activeYear =
+            refreshed?.academicYear ??
+            activeYear
+          ready =
+            refreshed?.operationalReady ??
+            false
         }
 
         if (
-          !activeYear
-            ?.setupCompletedAt
+          !activeYear ||
+          !ready
         ) {
           setWorkspace(
             'menu'
@@ -371,14 +453,14 @@ function ProductContent() {
 
   const retryAcademicYear =
     async () => {
-      const activeYear =
+      const state =
         await refreshAcademicYear({
           showLoading: true
         })
 
       if (
-        !activeYear
-          ?.setupCompletedAt
+        !state?.academicYear ||
+        !state.operationalReady
       ) {
         setWorkspace(
           'menu'
@@ -402,8 +484,11 @@ function ProductContent() {
   const showSetupRequired =
     workspace !== 'menu' &&
     !checkingYear &&
-    !academicYear &&
-    !academicYearError
+    !academicYearError &&
+    (
+      !academicYear ||
+      !operationalReady
+    )
 
   return (
     <div
@@ -458,8 +543,8 @@ function ProductContent() {
 
       {workspace ===
         'daily' &&
-      academicYear
-        ?.setupCompletedAt &&
+      academicYear &&
+      operationalReady &&
       !showLoading ? (
         <DailyWorkspaceView
           key={`${dailyTarget.date ?? 'today'}-${
@@ -480,8 +565,8 @@ function ProductContent() {
 
       {workspace ===
         'calendar' &&
-      academicYear
-        ?.setupCompletedAt &&
+      academicYear &&
+      operationalReady &&
       !showLoading ? (
         <CalendarProductWorkspace
           academicYearId={
@@ -565,15 +650,15 @@ function ProductContent() {
         <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-4 py-10 text-white">
           <section className="mx-auto max-w-2xl rounded-3xl border border-amber-300/20 bg-slate-900 p-8 text-center">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-              Configuração necessária
+              Configuração operacional necessária
             </p>
 
             <h1 className="mt-3 text-2xl font-black">
-              Termine primeiro a configuração inicial.
+              Prepare primeiro o mínimo para trabalhar.
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Crie o ano letivo, as turmas, as disciplinas e os módulos antes de abrir esta área.
+              É necessário ter turma, disciplina, pelo menos uma UFCD ou módulo e horário semanal para abrir as aulas.
             </p>
 
             <button
