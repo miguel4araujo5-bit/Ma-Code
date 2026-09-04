@@ -22,7 +22,7 @@ import {
 } from './maProfessorAccess'
 import {
   MaProfessorAccessDurableObject
-} from './maProfessorAccessAccountAdminBridge'
+} from './maProfessorOperationalStateBridge'
 import {
   handleMAProfessorAccountAdminApiRequest,
   isMAProfessorAccountAdminApiPath
@@ -257,7 +257,6 @@ const prepareMatchedGameSession =
           _gameSessionCredentials,
         ...publicData
       } = data
-
       return new Response(
         JSON.stringify({
           ...publicData,
