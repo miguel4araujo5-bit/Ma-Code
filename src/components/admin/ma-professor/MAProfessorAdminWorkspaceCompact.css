@@ -1,0 +1,34 @@
+.ma-professor-admin-workspace-compact > div > div:first-child {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ma-professor-admin-workspace-compact > div > div:first-child > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.875rem;
+}
+
+.ma-professor-admin-workspace-compact > div > div:first-child > div > p:first-child {
+  min-width: 0;
+  font-size: 0.625rem;
+  line-height: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.ma-professor-admin-workspace-compact > div > div:first-child > div > p:last-child {
+  flex: 0 0 auto;
+  margin-top: 0;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .ma-professor-admin-workspace-compact > div > div:first-child {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
