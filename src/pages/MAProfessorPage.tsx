@@ -6,6 +6,7 @@ import {
   MAProfessorProduct
 } from '../components/ma-professor/product/MAProfessorProduct'
 
+import MAProfessorActivationLinkGate from '../components/ma-professor/access/MAProfessorActivationLinkGate'
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
 import OperationalReadinessReporter from '../components/ma-professor/setup/OperationalReadinessReporter'
@@ -182,13 +183,15 @@ export default function MAProfessorPage() {
   )
 
   return (
-    <MAProfessorAuthGate>
-      <>
-        <OperationalReadinessReporter />
-        <InitialSchoolCalendarBootstrap>
-          <MAProfessorProduct />
-        </InitialSchoolCalendarBootstrap>
-      </>
-    </MAProfessorAuthGate>
+    <MAProfessorActivationLinkGate>
+      <MAProfessorAuthGate>
+        <>
+          <OperationalReadinessReporter />
+          <InitialSchoolCalendarBootstrap>
+            <MAProfessorProduct />
+          </InitialSchoolCalendarBootstrap>
+        </>
+      </MAProfessorAuthGate>
+    </MAProfessorActivationLinkGate>
   )
 }
