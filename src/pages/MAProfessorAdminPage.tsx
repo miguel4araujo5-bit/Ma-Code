@@ -21,15 +21,6 @@ import {
   type MAProfessorApprovalPlan
 } from '../lib/admin/maProfessorApprovalApi'
 
-const workflow = [
-  'Pedido',
-  'Plano',
-  'Decisão',
-  'Senha',
-  'Email',
-  'Acesso'
-]
-
 function formatUpdatedAt(
   value: string
 ) {
@@ -292,65 +283,11 @@ function MAProfessorAdminContent() {
       : null
   return (
     <>
-      <section className="rounded-[1.75rem] border border-cyan-300/15 bg-cyan-300/[0.04] p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
-              Aprovação de acessos
-            </p>
-
-            <h2 className="mt-2 text-xl font-black">
-              Do pedido ao acesso
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Cada pedido é aprovado numa modalidade explícita: gratuito, Fundador por 30 dias ou Fundador até ao fim do ano letivo. A decisão gera a senha antes de tentar enviar o email de ativação.
-            </p>
-          </div>
-          <span
-            className={[
-              'rounded-full border px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em]',
-              error
-                ? 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-                : loading
-                  ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
-                  : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-            ].join(' ')}
-          >
-            {error
-              ? 'Erro na ligação'
-              : loading
-                ? 'A carregar dados'
-                : 'Dados reais ativos'}
-          </span>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {workflow.map(
-            (item, index) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-white/10 bg-slate-950/45 p-4"
-              >
-                <span className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
-                  {String(
-                    index + 1
-                  ).padStart(
-                    2,
-                    '0'
-                  )}
-                </span>
-                <p className="mt-2 text-sm font-black text-slate-200">
-                  {item}
-                </p>
-              </div>
-            )
-          )}
-        </div>
-      </section>
       {decisionFeedback &&
       feedbackStyle ? (
         <section
           className={[
-            'mt-5 rounded-2xl border p-4 sm:p-5',
+            'rounded-2xl border p-4 sm:p-5',
             feedbackStyle.className
           ].join(' ')}
         >
