@@ -8,6 +8,7 @@ import {
 
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
+import OperationalReadinessReporter from '../components/ma-professor/setup/OperationalReadinessReporter'
 
 const siteUrl =
   'https://ma-code.pt'
@@ -182,9 +183,12 @@ export default function MAProfessorPage() {
 
   return (
     <MAProfessorAuthGate>
-      <InitialSchoolCalendarBootstrap>
-        <MAProfessorProduct />
-      </InitialSchoolCalendarBootstrap>
+      <>
+        <OperationalReadinessReporter />
+        <InitialSchoolCalendarBootstrap>
+          <MAProfessorProduct />
+        </InitialSchoolCalendarBootstrap>
+      </>
     </MAProfessorAuthGate>
   )
 }
