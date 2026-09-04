@@ -5,12 +5,19 @@ import {
 } from './maProfessorAdmin'
 
 import {
-  generateMAProfessorAdminCredential
+  generateMAProfessorAdminCredential,
+  updateMAProfessorAdminEmailDispatchStatus
 } from './maProfessorAccessAdminBridge'
 
 import {
+  decideMAProfessorAccessRequestExplicitly,
+  type MAProfessorExplicitApprovalPlan
+} from './maProfessorExplicitApprovalBridge'
+
+import {
   hasMAProfessorEmailTransport,
-  sendMAProfessorCommercialActivationEmail
+  sendMAProfessorCommercialActivationEmail,
+  sendMAProfessorPilotApprovalEmail
 } from './maProfessorEmailService'
 
 export {
@@ -29,17 +36,6 @@ const DISPENSE_PAYMENT_PATH =
 
 const APPROVE_PLAN_PATH =
   '/api/admin/ma-professor/requests/approve-plan'
-
-const ACCESS_REQUEST_PATH =
-  '/api/ma-professor/access/request'
-
-const ACCESS_DURABLE_OBJECT_NAME =
-  'ma-professor-access-global'
-
-type MAProfessorApprovalPlan =
-  | 'free'
-  | 'paid_30_days'
-  | 'school_year'
 
 type JsonObject =
   Record<string, unknown>
@@ -146,7 +142,7 @@ function isValidEmail(
 
 function normalizeApprovalPlan(
   value: unknown
-): MAProfessorApprovalPlan | null {
+): MAProfessorExplicitApprovalPlan | null {
   return value === 'free' ||
     value === 'paid_30_days' ||
     value === 'school_year'
@@ -242,6 +238,249 @@ function buildAdminRequest(
   )
 }
 
+async function persistPilotEmailStatus(
+  env: MaProfessorAdminEnv,
+  email: string,
+  status:
+    | 'not_configured'
+    | 'sent'
+    | 'failed'
+) {
+  try {
+    const response =
+      await updateMAProfessorAdminEmailDispatchStatus(
+        env,
+        email,
+        status
+      )
+
+    const body =
+      await readJsonObject(
+        response
+      )
+
+    return {
+      request:
+        response.ok
+          ? body?.request
+          : undefined
+    }
+  } catch (error) {
+    console.error(
+      'MA-Professor explicit pilot email status update failed',
+      {
+        email,
+        status,
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error)
+      }
+    )
+
+    return {
+      request:
+        undefined
+    }
+  }
+}
+
+async function completePilotApproval(
+  approvalResponse: Response,
+  env: MaProfessorAdminEnv,
+  email: string
+) {
+  if (!approvalResponse.ok) {
+    return approvalResponse
+  }
+
+  const approvalBody =
+    await readJsonObject(
+      approvalResponse
+    )
+
+  if (
+    !approvalBody ||
+    approvalBody.success !== true
+  ) {
+    return approvalResponse
+  }
+
+  let credentialResponse:
+    Response
+
+  try {
+    credentialResponse =
+      await generateMAProfessorAdminCredential(
+        env,
+        email
+      )
+  } catch (error) {
+    console.error(
+      'MA-Professor explicit pilot credential generation failed',
+      {
+        email,
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error)
+      }
+    )
+
+    const persisted =
+      await persistPilotEmailStatus(
+        env,
+        email,
+        'failed'
+      )
+
+    return json({
+      ...approvalBody,
+      request:
+        persisted.request ??
+        approvalBody.request,
+      message:
+        'Acesso gratuito aprovado, mas não foi possível gerar a senha de ativação. Consulte a ficha da conta.',
+      emailDelivery:
+        'failed',
+      credentialIssued:
+        false,
+      approvalPlan:
+        'free'
+    })
+  }
+
+  const credentialBody =
+    await readJsonObject(
+      credentialResponse
+    )
+
+  const credential =
+    credentialResponse.ok
+      ? readCredential(
+          credentialBody
+        )
+      : null
+
+  if (!credential) {
+    const persisted =
+      await persistPilotEmailStatus(
+        env,
+        email,
+        'failed'
+      )
+
+    return json({
+      ...approvalBody,
+      request:
+        persisted.request ??
+        approvalBody.request,
+      message:
+        'Acesso gratuito aprovado, mas não foi possível obter a senha de ativação. Consulte a ficha da conta.',
+      emailDelivery:
+        'failed',
+      credentialIssued:
+        false,
+      approvalPlan:
+        'free'
+    })
+  }
+
+  if (!hasMAProfessorEmailTransport(env)) {
+    const persisted =
+      await persistPilotEmailStatus(
+        env,
+        email,
+        'not_configured'
+      )
+
+    return json({
+      ...approvalBody,
+      request:
+        persisted.request ??
+        approvalBody.request,
+      message:
+        'Acesso gratuito aprovado e senha criada. O email automático não está configurado; copie a senha apresentada e envie-a manualmente ao professor.',
+      emailDelivery:
+        'not_configured',
+      credentialIssued:
+        true,
+      fallbackCredential:
+        credential,
+      approvalPlan:
+        'free'
+    })
+  }
+
+  const emailResult =
+    await sendMAProfessorPilotApprovalEmail(
+      env,
+      email,
+      credential.password
+    )
+
+  const dispatchStatus =
+    emailResult.status === 'sent'
+      ? 'sent'
+      : emailResult.status ===
+          'not_configured'
+        ? 'not_configured'
+        : 'failed'
+
+  const persisted =
+    await persistPilotEmailStatus(
+      env,
+      email,
+      dispatchStatus
+    )
+
+  if (emailResult.status === 'sent') {
+    return json({
+      ...approvalBody,
+      request:
+        persisted.request ??
+        approvalBody.request,
+      message:
+        'Acesso gratuito aprovado. A senha foi criada e o email de ativação foi enviado ao professor.',
+      emailDelivery:
+        'sent',
+      credentialIssued:
+        true,
+      approvalPlan:
+        'free'
+    })
+  }
+
+  console.error(
+    'MA-Professor explicit pilot approval email failed',
+    {
+      email,
+      status:
+        emailResult.status,
+      message:
+        emailResult.error ||
+        'Falha desconhecida.'
+    }
+  )
+
+  return json({
+    ...approvalBody,
+    request:
+      persisted.request ??
+      approvalBody.request,
+    message:
+      'Acesso gratuito aprovado e senha criada, mas o email não foi enviado. Copie a senha apresentada e envie-a manualmente ao professor.',
+    emailDelivery:
+      dispatchStatus,
+    credentialIssued:
+      true,
+    fallbackCredential:
+      credential,
+    approvalPlan:
+      'free'
+  })
+}
+
 async function completeCommercialActivation(
   request: Request,
   response: Response,
@@ -278,18 +517,6 @@ async function completeCommercialActivation(
 
   const paymentLabel =
     getResolvedPaymentLabel(pathname)
-
-  if (!hasMAProfessorEmailTransport(env)) {
-    return json({
-      ...responseBody,
-      message:
-        `${paymentLabel}. O envio automático de email não está configurado; a senha continua disponível para geração manual no painel.`,
-      emailDelivery:
-        'not_configured',
-      credentialIssued:
-        false
-    })
-  }
 
   let credentialResponse:
     Response
@@ -359,16 +586,31 @@ async function completeCommercialActivation(
     })
   }
 
+  const commerce =
+    credentialBody?.commerce ??
+    responseBody.commerce
+
+  if (!hasMAProfessorEmailTransport(env)) {
+    return json({
+      ...responseBody,
+      message:
+        `${paymentLabel}. A senha de ativação foi criada, mas o envio automático de email não está configurado. Copie a senha apresentada e envie-a manualmente ao professor.`,
+      commerce,
+      emailDelivery:
+        'not_configured',
+      credentialIssued:
+        true,
+      fallbackCredential:
+        credential
+    })
+  }
+
   const emailResult =
     await sendMAProfessorCommercialActivationEmail(
       env,
       email,
       credential.password
     )
-
-  const commerce =
-    credentialBody?.commerce ??
-    responseBody.commerce
 
   if (emailResult.status === 'sent') {
     console.info(
@@ -438,40 +680,6 @@ async function verifyAdminForPlanApproval(
   )
 }
 
-async function prepareCommercialPlan(
-  env: MaProfessorAdminEnv,
-  email: string,
-  plan:
-    | 'paid_30_days'
-    | 'school_year'
-) {
-  const id =
-    env.MA_PROFESSOR_ACCESS.idFromName(
-      ACCESS_DURABLE_OBJECT_NAME
-    )
-
-  const stub =
-    env.MA_PROFESSOR_ACCESS.get(id)
-
-  return stub.fetch(
-    new Request(
-      `https://ma-professor.internal${ACCESS_REQUEST_PATH}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            'application/json'
-        },
-        body:
-          JSON.stringify({
-            email,
-            plan
-          })
-      }
-    )
-  )
-}
-
 async function handleApprovePlan(
   request: Request,
   env: MaProfessorAdminEnv
@@ -532,40 +740,23 @@ async function handleApprovePlan(
     )
   }
 
-  if (approvalPlan !== 'free') {
-    const prepared =
-      await prepareCommercialPlan(
-        env,
-        email,
-        approvalPlan
-      )
+  const approvalResponse =
+    await decideMAProfessorAccessRequestExplicitly(
+      env,
+      email,
+      approvalPlan
+    )
 
-    if (!prepared.ok) {
-      return prepared
-    }
+  if (!approvalResponse.ok) {
+    return approvalResponse
   }
 
-  const approvalRequest =
-    buildAdminRequest(
-      request,
-      '/api/admin/ma-professor/requests/approve',
-      'POST',
-      {
-        email
-      }
+  if (approvalPlan === 'free') {
+    return completePilotApproval(
+      approvalResponse,
+      env,
+      email
     )
-
-  const approvalResponse =
-    await handleExistingMAProfessorAdminApiRequest(
-      approvalRequest,
-      env
-    )
-
-  if (
-    !approvalResponse.ok ||
-    approvalPlan === 'free'
-  ) {
-    return approvalResponse
   }
 
   const approvalBody =
@@ -601,7 +792,9 @@ async function handleApprovePlan(
   }
 
   const completedBody =
-    await readJsonObject(completed)
+    await readJsonObject(
+      completed
+    )
 
   if (!completedBody) {
     return completed
