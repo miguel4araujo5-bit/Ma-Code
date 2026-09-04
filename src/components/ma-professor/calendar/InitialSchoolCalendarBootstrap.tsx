@@ -12,6 +12,10 @@ import {
 } from '../repository'
 
 import {
+  isMAProfessorOperationallyReady
+} from '../setup/setupReadiness'
+
+import {
   ensureInitialSchoolCalendar2026_2027
 } from './initialSchoolCalendar2026_2027'
 
@@ -48,19 +52,32 @@ export default function InitialSchoolCalendarBootstrap({
       }
 
       subscription = liveQuery(
-        () =>
-          maProfessorRepository.getActiveAcademicYear()
+        async () => {
+          const academicYear =
+            await maProfessorRepository.getActiveAcademicYear()
+
+          if (!academicYear) {
+            return null
+          }
+
+          return maProfessorRepository.getSetupSnapshot(
+            academicYear.id
+          )
+        }
       ).subscribe({
-        next: academicYear => {
+        next: snapshot => {
           if (
             disposed ||
-            !academicYear?.setupCompletedAt
+            !snapshot ||
+            !isMAProfessorOperationallyReady(
+              snapshot
+            )
           ) {
             return
           }
 
           void ensureInitialSchoolCalendar2026_2027(
-            academicYear.id
+            snapshot.academicYear.id
           ).catch(error => {
             console.error(
               'Não foi possível preparar automaticamente o calendário escolar inicial do MA-Professor.',
@@ -70,7 +87,7 @@ export default function InitialSchoolCalendarBootstrap({
         },
         error: error => {
           console.error(
-            'Não foi possível acompanhar o ano letivo ativo do MA-Professor.',
+            'Não foi possível acompanhar a configuração operacional do MA-Professor.',
             error
           )
         }
