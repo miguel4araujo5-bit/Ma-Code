@@ -435,6 +435,10 @@ export default function MAProfessorAdminAccountDetail({
     request?.decisionMode ??
     null
 
+  const isPendingAccessDecision =
+    request?.status ===
+    'pending'
+
   const isPilotRequest =
     Boolean(
       request &&
@@ -1114,37 +1118,45 @@ export default function MAProfessorAdminAccountDetail({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                {isPilotRequest
-                  ? 'Fase piloto'
-                  : 'Plano e pagamento'}
+                {isPendingAccessDecision
+                  ? 'Modalidade de acesso'
+                  : isPilotRequest
+                    ? 'Fase piloto'
+                    : 'Plano e pagamento'}
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
-                {isPilotRequest
-                  ? 'Acesso gratuito'
-                  : 'Autorização comercial'}
+                {isPendingAccessDecision
+                  ? 'Por decidir'
+                  : isPilotRequest
+                    ? 'Acesso gratuito'
+                    : 'Autorização comercial'}
               </h3>
             </div>
 
             <span
               className={[
                 'rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                commercialLoading
-                  ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
-                  : isPilotRequest
+                isPendingAccessDecision
+                  ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+                  : commercialLoading
                     ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
-                    : getPaymentStatusClassName(
-                        commercialStatus?.paymentStatus
-                      )
+                    : isPilotRequest
+                      ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200'
+                      : getPaymentStatusClassName(
+                          commercialStatus?.paymentStatus
+                        )
               ].join(' ')}
             >
-              {commercialLoading
-                ? 'A verificar'
-                : isPilotRequest
-                  ? 'Piloto gratuito'
-                  : getPaymentStatusLabel(
-                      commercialStatus?.paymentStatus
-                    )}
+              {isPendingAccessDecision
+                ? 'A aguardar aprovação'
+                : commercialLoading
+                  ? 'A verificar'
+                  : isPilotRequest
+                    ? 'Piloto gratuito'
+                    : getPaymentStatusLabel(
+                        commercialStatus?.paymentStatus
+                      )}
             </span>
           </div>
 
@@ -1173,7 +1185,17 @@ export default function MAProfessorAdminAccountDetail({
             </div>
           ) : null}
 
-          {commercialLoading ? (
+          {isPendingAccessDecision ? (
+            <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+              <p className="text-sm font-black text-amber-200">
+                Modalidade ainda não definida
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                A modalidade será definida no MA-ADMIN no momento da aprovação deste pedido.
+              </p>
+            </div>
+          ) : commercialLoading ? (
             <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-4">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-300/20 border-t-violet-200" />
 
@@ -1592,9 +1614,11 @@ export default function MAProfessorAdminAccountDetail({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-300">
-                {isPilotRequest
-                  ? 'Acesso piloto'
-                  : 'Credencial'}
+                {isPendingAccessDecision
+                  ? 'Credencial'
+                  : isPilotRequest
+                    ? 'Acesso piloto'
+                    : 'Credencial'}
               </p>
 
               <h3 className="mt-1 text-lg font-black text-white">
@@ -1703,9 +1727,11 @@ export default function MAProfessorAdminAccountDetail({
                 label="Senha guardada para ativação"
                 value="Não"
                 note={
-                  isPilotRequest
-                    ? 'No piloto, pode emitir uma senha enquanto este período ainda não tiver sido ativado.'
-                    : 'A senha pode ser emitida quando a autorização comercial estiver pronta.'
+                  isPendingAccessDecision
+                    ? 'A senha de ativação só fica disponível depois de a modalidade ser aprovada.'
+                    : isPilotRequest
+                      ? 'No piloto, pode emitir uma senha enquanto este período ainda não tiver sido ativado.'
+                      : 'A senha pode ser emitida quando a autorização comercial estiver pronta.'
                 }
               />
 
@@ -1748,24 +1774,31 @@ export default function MAProfessorAdminAccountDetail({
             </div>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => {
-              void handleGenerateCredential()
-            }}
-            disabled={!canGenerateCredential}
-            className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {generatingCredential
-              ? 'A gerar…'
-              : pilotPeriodActivated
-                ? 'Período já ativado'
-                : credentialStatus?.hasCredential
-                  ? 'Gerar nova senha de ativação'
-                  : 'Gerar senha de ativação'}
-          </button>
+          {request?.status ===
+            'approved' ? (
+            <button
+              type="button"
+              onClick={() => {
+                void handleGenerateCredential()
+              }}
+              disabled={!canGenerateCredential}
+              className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {generatingCredential
+                ? 'A gerar…'
+                : pilotPeriodActivated
+                  ? 'Período já ativado'
+                  : credentialStatus?.hasCredential
+                    ? 'Gerar nova senha de ativação'
+                    : 'Gerar senha de ativação'}
+            </button>
+          ) : null}
 
-          {isPilotRequest ? (
+          {isPendingAccessDecision ? (
+            <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
+              A senha de ativação fica disponível depois de aprovar o pedido e definir a modalidade.
+            </p>
+          ) : isPilotRequest ? (
             request?.status !==
             'approved' ? (
               <p className="mt-3 text-[0.68rem] leading-5 text-slate-500">
