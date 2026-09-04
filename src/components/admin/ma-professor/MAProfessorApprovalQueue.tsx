@@ -102,18 +102,15 @@ export default function MAProfessorApprovalQueue({
     }
 
   return (
-    <section className="mt-5 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="mt-5 rounded-[1.75rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">
             Aprovação de acesso
           </p>
-          <h3 className="mt-2 text-xl font-black text-white">
+          <h3 className="mt-1 text-lg font-black text-white">
             Escolha o acesso antes de aprovar
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Uma única decisão cria a autorização correta, gera a senha de ativação e tenta enviar o email ao professor. Se o email falhar, a senha fica disponível para cópia manual.
-          </p>
         </div>
 
         <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-amber-200">
@@ -124,20 +121,20 @@ export default function MAProfessorApprovalQueue({
         </span>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-4 space-y-3">
         {pending.map(
           request => (
             <article
               key={request.email}
-              className="rounded-2xl border border-white/10 bg-slate-950/45 p-4"
+              className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 sm:p-4"
             >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-white">
                     {request.email}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Pedido pendente · escolha a modalidade que pretende autorizar.
+                    Pedido pendente
                   </p>
                 </div>
 
@@ -176,7 +173,7 @@ export default function MAProfessorApprovalQueue({
                             )
                           }}
                           className={[
-                            'rounded-xl border px-3 py-3 text-xs font-black transition disabled:cursor-wait disabled:opacity-50',
+                            'rounded-xl border px-3 py-2.5 text-xs font-black transition disabled:cursor-wait disabled:opacity-50',
                             className
                           ].join(' ')}
                         >
