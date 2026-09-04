@@ -85,7 +85,9 @@ function getDecisionFeedbackStyle(
   ) {
     return {
       title:
-        'Decisão guardada · envio automático ainda não configurado',
+        result.fallbackCredential
+          ? 'Acesso aprovado · copie a senha agora'
+          : 'Decisão guardada · envio automático ainda não configurado',
       className:
         'border-amber-300/20 bg-amber-300/[0.06]',
       titleClassName:
@@ -278,7 +280,7 @@ function MAProfessorAdminContent() {
               Do pedido ao acesso
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              O acesso público atual é gratuito e sujeito à disponibilidade de vagas. O professor submete o pedido, a MA-CODE aprova ou rejeita e, quando o envio automático estiver ativo, uma aprovação piloto gera a senha e envia as instruções diretamente por email.
+              O acesso público atual é gratuito e sujeito à disponibilidade de vagas. O professor submete o pedido, a MA-CODE aprova ou rejeita e uma aprovação piloto gera sempre a senha antes de tentar enviar as instruções por email.
             </p>
           </div>
           <span
@@ -362,7 +364,7 @@ function MAProfessorAdminContent() {
             .fallbackCredential ? (
             <div className="mt-4 rounded-xl border border-amber-300/20 bg-slate-950/50 p-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
-                Senha de acesso — copiar agora
+                Senha de ativação — copiar agora
               </p>
               <p className="mt-2 text-xs leading-5 text-slate-400">
                 A senha foi criada, mas o email não chegou a ser enviado. Por segurança, esta é a oportunidade de a copiar e enviar manualmente ao professor.
@@ -508,7 +510,7 @@ function MAProfessorAdminContent() {
           </p>
 
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Quando o serviço de envio está configurado, a aprovação piloto gera a senha e envia automaticamente as instruções ao professor. Uma rejeição envia apenas a decisão.
+            A aprovação piloto gera sempre a senha de ativação. Depois, o sistema tenta enviar as instruções ao professor; se o envio não estiver disponível, a senha é apresentada para cópia manual. Uma rejeição envia apenas a decisão.
           </p>
         </article>
       </section>
@@ -529,7 +531,7 @@ function MAProfessorAdminContent() {
           A aprovação piloto não depende de pagamento.
         </h2>
         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
-          Num pedido piloto, a aprovação administrativa permite emitir uma credencial sem criar uma autorização comercial. Com o serviço de email ativo, a senha é criada e enviada ao professor na própria aprovação. O período de acesso continua a ser criado pelo motor de acesso apenas quando ocorre a primeira ativação válida.
+          Num pedido piloto, a aprovação administrativa cria primeiro a credencial, sem depender de uma autorização comercial ou do serviço de email. Depois tenta enviá-la ao professor e, se o envio falhar ou não estiver configurado, apresenta a senha para cópia manual. O período de acesso continua a ser criado pelo motor de acesso apenas quando ocorre a primeira ativação válida.
         </p>
       </section>
     </>

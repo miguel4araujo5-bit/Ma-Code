@@ -88,6 +88,31 @@ async function withCapturedResend(callback) {
   }
 }
 
+async function withFailedResend(callback) {
+  const originalFetch = globalThis.fetch
+  const calls = []
+
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      init
+    })
+
+    return jsonResponse(
+      {
+        message: 'Falha simulada do Resend.'
+      },
+      503
+    )
+  }
+
+  try {
+    return await callback(calls)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
 function readPayload(call) {
   assert.equal(typeof call.init.body, 'string')
   return JSON.parse(call.init.body)
@@ -301,7 +326,13 @@ const pilot = await import(
 )
 
 function installPilotHooks(mode) {
+  let generated = 0
+
   globalThis.__pilotHooks = {
+    get generated() {
+      return generated
+    },
+
     decide: async (
       _env,
       email,
@@ -330,8 +361,10 @@ function installPilotHooks(mode) {
       })
     },
 
-    generate: async (_env, email) =>
-      jsonResponse({
+    generate: async (_env, email) => {
+      generated += 1
+
+      return jsonResponse({
         success: true,
         credential: {
           email,
@@ -342,7 +375,8 @@ function installPilotHooks(mode) {
           updatedAt:
             '2026-08-27T10:00:00.000Z'
         }
-      }),
+      })
+    },
 
     update: async (_env, email, status) =>
       jsonResponse({
@@ -353,6 +387,8 @@ function installPilotHooks(mode) {
         }
       })
   }
+
+  return globalThis.__pilotHooks
 }
 
 test(
@@ -418,6 +454,113 @@ test(
           readPayload(calls[1]).to,
           ['rejeitado@example.com']
         )
+      }
+    )
+  }
+)
+
+test(
+  'pilot approval without Resend still creates a credential for manual delivery',
+  { concurrency: false },
+  async () => {
+    const hooks = installPilotHooks('pilot')
+
+    await withCapturedResend(
+      async calls => {
+        const response = await pilot
+          .processMAProfessorAccessDecision(
+            {},
+            'sem-resend-piloto@example.com',
+            'approve'
+          )
+
+        const body = await response.json()
+
+        assert.equal(
+          body.emailDelivery,
+          'not_configured'
+        )
+        assert.equal(
+          body.credentialIssued,
+          true
+        )
+        assert.equal(
+          body.fallbackCredential.password,
+          'MP-TEST-1234'
+        )
+        assert.equal(hooks.generated, 1)
+        assert.equal(calls.length, 0)
+      }
+    )
+  }
+)
+
+test(
+  'pilot approval exposes the generated credential when Resend fails',
+  { concurrency: false },
+  async () => {
+    const hooks = installPilotHooks('pilot')
+
+    await withFailedResend(
+      async calls => {
+        const response = await pilot
+          .processMAProfessorAccessDecision(
+            {
+              RESEND_API_KEY_MA_PROFESSOR:
+                'test-key'
+            },
+            'falha-resend-piloto@example.com',
+            'approve'
+          )
+
+        const body = await response.json()
+
+        assert.equal(
+          body.emailDelivery,
+          'failed'
+        )
+        assert.equal(
+          body.credentialIssued,
+          true
+        )
+        assert.equal(
+          body.fallbackCredential.password,
+          'MP-TEST-1234'
+        )
+        assert.equal(hooks.generated, 1)
+        assert.equal(calls.length, 1)
+      }
+    )
+  }
+)
+
+test(
+  'pilot rejection without Resend does not create a credential',
+  { concurrency: false },
+  async () => {
+    const hooks = installPilotHooks('pilot')
+
+    await withCapturedResend(
+      async calls => {
+        const response = await pilot
+          .processMAProfessorAccessDecision(
+            {},
+            'rejeitado-sem-resend@example.com',
+            'reject'
+          )
+
+        const body = await response.json()
+
+        assert.equal(
+          body.emailDelivery,
+          'not_configured'
+        )
+        assert.equal(
+          body.credentialIssued,
+          false
+        )
+        assert.equal(hooks.generated, 0)
+        assert.equal(calls.length, 0)
       }
     )
   }

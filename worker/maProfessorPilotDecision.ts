@@ -366,27 +366,25 @@ export async function processMAProfessorAccessDecision(
     })
   }
 
-  if (!hasMAProfessorEmailTransport(env)) {
-    const persisted =
-      await persistEmailDispatchStatus(
-        env,
-        email,
-        'not_configured'
-      )
-
-    return json({
-      success: true,
-      message:
-        decision === 'approve'
-          ? 'Pedido piloto aprovado. O envio automático por Resend ainda não está configurado; gere e envie a senha de ativação manualmente através da ficha da conta.'
-          : 'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
-      request: persisted.request ?? request,
-      emailDelivery: 'not_configured',
-      credentialIssued: false
-    })
-  }
-
   if (decision === 'reject') {
+    if (!hasMAProfessorEmailTransport(env)) {
+      const persisted =
+        await persistEmailDispatchStatus(
+          env,
+          email,
+          'not_configured'
+        )
+
+      return json({
+        success: true,
+        message:
+          'Pedido piloto rejeitado. O envio automático por Resend ainda não está configurado.',
+        request: persisted.request ?? request,
+        emailDelivery: 'not_configured',
+        credentialIssued: false
+      })
+    }
+
     const result =
       await sendMAProfessorPilotRejectionEmail(
         env,
@@ -493,6 +491,25 @@ export async function processMAProfessorAccessDecision(
       request: persisted.request ?? request,
       emailDelivery: 'failed',
       credentialIssued: false
+    })
+  }
+
+  if (!hasMAProfessorEmailTransport(env)) {
+    const persisted =
+      await persistEmailDispatchStatus(
+        env,
+        email,
+        'not_configured'
+      )
+
+    return json({
+      success: true,
+      message:
+        'Pedido piloto aprovado e senha de ativação criada. O envio automático por Resend ainda não está configurado; copie a senha apresentada agora e envie-a manualmente ao professor.',
+      request: persisted.request ?? request,
+      emailDelivery: 'not_configured',
+      credentialIssued: true,
+      fallbackCredential: credential
     })
   }
 
