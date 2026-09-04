@@ -1284,11 +1284,11 @@ export default function MAProfessorAdminAccountDetail({
             <div className="mt-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailValue
-                  label="Plano escolhido"
+                  label="Modalidade autorizada"
                   value={getCommercialPlanLabel(
                     commercialStatus.plan
                   )}
-                  note="O plano é escolhido pelo professor antes do pedido e é apenas consultado no MA-ADMIN."
+                  note="A modalidade foi definida no MA-ADMIN no momento da aprovação deste pedido."
                 />
 
                 <DetailValue
