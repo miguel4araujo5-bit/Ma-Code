@@ -27,6 +27,20 @@ const CONFIRM_PAYMENT_PATH =
 const DISPENSE_PAYMENT_PATH =
   '/api/admin/ma-professor/commerce/dispense-payment'
 
+const APPROVE_PLAN_PATH =
+  '/api/admin/ma-professor/requests/approve-plan'
+
+const ACCESS_REQUEST_PATH =
+  '/api/ma-professor/access/request'
+
+const ACCESS_DURABLE_OBJECT_NAME =
+  'ma-professor-access-global'
+
+type MAProfessorApprovalPlan =
+  | 'free'
+  | 'paid_30_days'
+  | 'school_year'
+
 type JsonObject =
   Record<string, unknown>
 
@@ -130,6 +144,16 @@ function isValidEmail(
   )
 }
 
+function normalizeApprovalPlan(
+  value: unknown
+): MAProfessorApprovalPlan | null {
+  return value === 'free' ||
+    value === 'paid_30_days' ||
+    value === 'school_year'
+    ? value
+    : null
+}
+
 function readCredential(
   body: JsonObject | null
 ) {
@@ -169,6 +193,53 @@ function getResolvedPaymentLabel(
     DISPENSE_PAYMENT_PATH
     ? 'Pagamento dispensado'
     : 'Pagamento confirmado'
+}
+
+function buildAdminRequest(
+  source: Request,
+  pathname: string,
+  method: 'GET' | 'POST',
+  body?: JsonObject
+) {
+  const url =
+    new URL(source.url)
+
+  url.pathname = pathname
+  url.search = ''
+  url.hash = ''
+
+  const headers =
+    new Headers(source.headers)
+
+  if (method === 'POST') {
+    headers.set(
+      'Content-Type',
+      'application/json'
+    )
+  } else {
+    headers.delete(
+      'Content-Type'
+    )
+    headers.delete(
+      'Content-Length'
+    )
+  }
+
+  return new Request(
+    url.toString(),
+    {
+      method,
+      headers,
+      ...(method === 'POST'
+        ? {
+            body:
+              JSON.stringify(
+                body || {}
+              )
+          }
+        : {})
+    }
+  )
 }
 
 async function completeCommercialActivation(
@@ -350,12 +421,214 @@ async function completeCommercialActivation(
   })
 }
 
+async function verifyAdminForPlanApproval(
+  request: Request,
+  env: MaProfessorAdminEnv
+) {
+  const probe =
+    buildAdminRequest(
+      request,
+      '/api/admin/ma-professor/overview',
+      'GET'
+    )
+
+  return handleExistingMAProfessorAdminApiRequest(
+    probe,
+    env
+  )
+}
+
+async function prepareCommercialPlan(
+  env: MaProfessorAdminEnv,
+  email: string,
+  plan:
+    | 'paid_30_days'
+    | 'school_year'
+) {
+  const id =
+    env.MA_PROFESSOR_ACCESS.idFromName(
+      ACCESS_DURABLE_OBJECT_NAME
+    )
+
+  const stub =
+    env.MA_PROFESSOR_ACCESS.get(id)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${ACCESS_REQUEST_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email,
+            plan
+          })
+      }
+    )
+  )
+}
+
+async function handleApprovePlan(
+  request: Request,
+  env: MaProfessorAdminEnv
+) {
+  if (request.method !== 'POST') {
+    return json(
+      {
+        success: false,
+        message:
+          'Método não permitido.'
+      },
+      405
+    )
+  }
+
+  const authResponse =
+    await verifyAdminForPlanApproval(
+      request,
+      env
+    )
+
+  if (!authResponse.ok) {
+    return authResponse
+  }
+
+  const body =
+    await readRequestBody(request)
+
+  const email =
+    normalizeEmail(
+      body?.email
+    )
+
+  const approvalPlan =
+    normalizeApprovalPlan(
+      body?.approvalPlan
+    )
+
+  if (!isValidEmail(email)) {
+    return json(
+      {
+        success: false,
+        message:
+          'Indique um email válido.'
+      },
+      400
+    )
+  }
+
+  if (!approvalPlan) {
+    return json(
+      {
+        success: false,
+        message:
+          'Selecione Gratuito, 30 dias ou Ano letivo.'
+      },
+      400
+    )
+  }
+
+  if (approvalPlan !== 'free') {
+    const prepared =
+      await prepareCommercialPlan(
+        env,
+        email,
+        approvalPlan
+      )
+
+    if (!prepared.ok) {
+      return prepared
+    }
+  }
+
+  const approvalRequest =
+    buildAdminRequest(
+      request,
+      '/api/admin/ma-professor/requests/approve',
+      'POST',
+      {
+        email
+      }
+    )
+
+  const approvalResponse =
+    await handleExistingMAProfessorAdminApiRequest(
+      approvalRequest,
+      env
+    )
+
+  if (
+    !approvalResponse.ok ||
+    approvalPlan === 'free'
+  ) {
+    return approvalResponse
+  }
+
+  const approvalBody =
+    await readJsonObject(
+      approvalResponse
+    )
+
+  const paymentRequest =
+    buildAdminRequest(
+      request,
+      CONFIRM_PAYMENT_PATH,
+      'POST',
+      {
+        email
+      }
+    )
+
+  const paymentResponse =
+    await handleExistingMAProfessorAdminApiRequest(
+      paymentRequest,
+      env
+    )
+
+  const completed =
+    await completeCommercialActivation(
+      paymentRequest,
+      paymentResponse,
+      env
+    )
+
+  if (!completed.ok) {
+    return completed
+  }
+
+  const completedBody =
+    await readJsonObject(completed)
+
+  if (!completedBody) {
+    return completed
+  }
+
+  return json({
+    ...completedBody,
+    request:
+      approvalBody?.request ??
+      completedBody.request,
+    approvalPlan
+  })
+}
+
 export async function handleMAProfessorAdminApiRequest(
   request: Request,
   env: MaProfessorAdminEnv
 ): Promise<Response | null> {
   const pathname =
     new URL(request.url).pathname
+
+  if (pathname === APPROVE_PLAN_PATH) {
+    return handleApprovePlan(
+      request,
+      env
+    )
+  }
 
   if (
     !isCommercialPaymentResolutionPath(
