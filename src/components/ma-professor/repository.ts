@@ -102,9 +102,9 @@ const SETUP_STEPS: SetupStepId[] = [
   'groups',
   'subjects',
   'modules',
+  'weekly_schedule',
   'assessment_criteria',
   'planifications',
-  'weekly_schedule',
   'students',
   'confirmation'
 ]
