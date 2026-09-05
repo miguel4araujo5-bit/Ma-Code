@@ -1,9 +1,13 @@
 import {
   createMAProfessorDatabaseSnapshot,
   downloadEncryptedMAProfessorDatabaseSnapshot,
-  restoreMAProfessorDatabaseSnapshot,
   type MAProfessorRestoreSnapshotResult
 } from './databaseSnapshotService'
+
+import {
+  createMAProfessorSnapshotContentSignature,
+  restoreMAProfessorDatabaseSnapshotIfLocalUnchanged
+} from './guardedSnapshotRestore'
 
 import {
   countMAProfessorSnapshotRecords,
@@ -32,6 +36,9 @@ export interface MAProfessorOnlineRestorePreviewFound {
   matchesLocal: boolean
 
   localFingerprint:
+    string
+
+  localContentSignature:
     string
 
   remoteFingerprint:
@@ -72,6 +79,9 @@ export interface MAProfessorRestoreOnlineOptions
     number
 
   expectedRemoteFingerprint:
+    string
+
+  expectedLocalContentSignature:
     string
 }
 
@@ -134,6 +144,18 @@ function assertFingerprint(
   return normalized
 }
 
+function assertLocalContentSignature(
+  value: string
+) {
+  if (!value) {
+    throw new MAProfessorOnlineRestoreSafetyError(
+      'A verificação dos dados deste dispositivo não é válida. Compare novamente antes de restaurar.'
+    )
+  }
+
+  return value
+}
+
 export async function previewMAProfessorOnlineRestore(
   options:
     MAProfessorOnlineRestoreOptions
@@ -194,6 +216,11 @@ export async function previewMAProfessorOnlineRestore(
 
     localFingerprint,
 
+    localContentSignature:
+      createMAProfessorSnapshotContentSignature(
+        localSnapshot
+      ),
+
     remoteFingerprint,
 
     localRecords:
@@ -245,6 +272,11 @@ export async function restoreMAProfessorOnlineSnapshot(
   const expectedFingerprint =
     assertFingerprint(
       options.expectedRemoteFingerprint
+    )
+
+  const expectedLocalContentSignature =
+    assertLocalContentSignature(
+      options.expectedLocalContentSignature
     )
 
   /*
@@ -300,13 +332,15 @@ export async function restoreMAProfessorOnlineSnapshot(
   }
 
   /*
-   * databaseSnapshotService valida integralmente o snapshot antes
-   * de iniciar o restauro e substitui as tabelas dentro de uma única
-   * transação IndexedDB.
+   * A comparação do estado local e o restauro decorrem dentro da
+   * mesma transação IndexedDB. Se outra aba tiver gravado qualquer
+   * alteração depois do preview, a transação aborta antes de limpar
+   * ou substituir tabelas.
    */
   const restore =
-    await restoreMAProfessorDatabaseSnapshot(
-      downloaded.snapshot
+    await restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(
+      downloaded.snapshot,
+      expectedLocalContentSignature
     )
 
   /*
