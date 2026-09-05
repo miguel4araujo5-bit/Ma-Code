@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -69,6 +70,34 @@ function formatDate(value: string) {
     month: 'long',
     year: 'numeric'
   }).format(new Date(year, month - 1, day))
+}
+
+function normalizeSchoolName(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-PT')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function isSBentoSchoolName(value: string) {
+  const normalized = normalizeSchoolName(value)
+
+  if (!normalized) return false
+
+  const mentionsSBento =
+    normalized.includes('s bento') ||
+    normalized.includes('sao bento')
+
+  if (!mentionsSBento) return false
+
+  return (
+    normalized.includes('vizela') ||
+    normalized.startsWith('agrupamento de escolas') ||
+    normalized.startsWith('escola basica e secundaria') ||
+    normalized.startsWith('ebs ')
+  )
 }
 
 function hasCompleteImportedSchedule(
@@ -183,9 +212,39 @@ function AcademicYearSummary({ snapshot, onContinue }: { snapshot: SetupSnapshot
 
 export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }: SetupWizardProps) {
   const [activeStep, setActiveStep] = useState<SetupStepId>(() => getInitialStep(snapshot))
-  const [showScheduleImport, setShowScheduleImport] = useState(
-    () => shouldOfferScheduleImport(snapshot)
-  )
+  const [showScheduleImport, setShowScheduleImport] = useState(false)
+
+  useEffect(() => {
+    let disposed = false
+
+    if (!shouldOfferScheduleImport(snapshot)) {
+      setShowScheduleImport(false)
+      return () => {
+        disposed = true
+      }
+    }
+
+    void maProfessorRepository
+      .getTeacherProfile()
+      .then(profile => {
+        if (disposed) return
+
+        setShowScheduleImport(
+          isSBentoSchoolName(
+            profile?.schoolName ?? ''
+          )
+        )
+      })
+      .catch(() => {
+        if (!disposed) {
+          setShowScheduleImport(false)
+        }
+      })
+
+    return () => {
+      disposed = true
+    }
+  }, [snapshot.academicYear.id])
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
