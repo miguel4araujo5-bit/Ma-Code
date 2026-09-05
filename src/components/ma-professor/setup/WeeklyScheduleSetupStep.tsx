@@ -1,9 +1,13 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -81,6 +85,53 @@ const weekdays: WeekdayDefinition[] = [
 
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50'
+
+const UNSAVED_SCHEDULE_DRAFT_MESSAGE =
+  'Existe um bloco de horário por guardar neste passo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
+const RETARGET_SCHEDULE_DRAFT_MESSAGE =
+  'Existe um bloco de horário por guardar. Se mudar de turma e disciplina, esse bloco passará a ser aplicado à nova seleção. Pretende continuar?'
+
+const SAVING_SCHEDULE_MESSAGE =
+  'Está a ser guardado um bloco de horário. Se continuar agora, a operação pode ficar incompleta. Pretende continuar?'
+
+function createInitialScheduleForm(
+  snapshot: SetupSnapshot
+): ScheduleFormState {
+  return {
+    teachingAssignmentId: '',
+    weekday: 1,
+    startTime: '08:30',
+    endTime: '09:20',
+    periodCount: '1',
+    validFrom:
+      snapshot.academicYear.startDate,
+    validUntil:
+      snapshot.academicYear.endDate
+  }
+}
+
+function areScheduleFormsEqual(
+  left: ScheduleFormState,
+  right: ScheduleFormState
+) {
+  return (
+    left.teachingAssignmentId ===
+      right.teachingAssignmentId &&
+    left.weekday ===
+      right.weekday &&
+    left.startTime ===
+      right.startTime &&
+    left.endTime ===
+      right.endTime &&
+    left.periodCount ===
+      right.periodCount &&
+    left.validFrom ===
+      right.validFrom &&
+    left.validUntil ===
+      right.validUntil
+  )
+}
 
 function getErrorMessage(
   error: unknown
@@ -238,21 +289,23 @@ export default function WeeklyScheduleSetupStep({
     form,
     setForm
   ] =
-    useState<ScheduleFormState>({
-      teachingAssignmentId:
-        '',
-      weekday: 1,
-      startTime:
-        '08:30',
-      endTime:
-        '09:20',
-      periodCount:
-        '1',
-      validFrom:
-        snapshot.academicYear.startDate,
-      validUntil:
-        snapshot.academicYear.endDate
-    })
+    useState<ScheduleFormState>(
+      () =>
+        createInitialScheduleForm(
+          snapshot
+        )
+    )
+
+  const [
+    scheduleFormBaseline,
+    setScheduleFormBaseline
+  ] =
+    useState<ScheduleFormState>(
+      () =>
+        createInitialScheduleForm(
+          snapshot
+        )
+    )
 
   const [
     busy,
@@ -271,6 +324,26 @@ export default function WeeklyScheduleSetupStep({
     setSuccess
   ] =
     useState('')
+
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
+  const hasUnsavedScheduleDraft =
+    !areScheduleFormsEqual(
+      form,
+      scheduleFormBaseline
+    )
+
+  const hasProtectedScheduleWork =
+    hasUnsavedScheduleDraft || busy
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasProtectedScheduleWork,
+    rootRef,
+    busy
+      ? SAVING_SCHEDULE_MESSAGE
+      : UNSAVED_SCHEDULE_DRAFT_MESSAGE
+  )
 
   const assignments =
     useMemo(
@@ -535,36 +608,68 @@ export default function WeeklyScheduleSetupStep({
     setSuccess('')
   }
 
-  function selectAssignment(
+  function confirmRetargetScheduleDraft() {
+    if (!hasUnsavedScheduleDraft) {
+      return true
+    }
+
+    return window.confirm(
+      RETARGET_SCHEDULE_DRAFT_MESSAGE
+    )
+  }
+
+  function requestSelectAssignment(
     teachingAssignmentId:
       EntityId
   ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
+    if (busy) {
+      return false
+    }
+
+    if (
+      teachingAssignmentId ===
+      form.teachingAssignmentId
+    ) {
+      return true
+    }
+
+    if (
+      !confirmRetargetScheduleDraft()
+    ) {
+      return false
+    }
+
+    const nextForm:
+      ScheduleFormState = {
+        ...form,
         teachingAssignmentId
-      })
-    )
+      }
+
+    setForm(nextForm)
+
+    if (!hasUnsavedScheduleDraft) {
+      setScheduleFormBaseline(
+        nextForm
+      )
+    }
 
     clearMessages()
+
+    return true
   }
 
   function resetForm(
     preserveAssignment =
       true
   ) {
-    setForm(
-      (
-        current
-      ) => ({
+    const nextForm:
+      ScheduleFormState = {
         teachingAssignmentId:
           preserveAssignment
-            ? current.teachingAssignmentId
+            ? form.teachingAssignmentId
             : '',
         weekday:
-          current.weekday,
+          form.weekday,
         startTime:
           '08:30',
         endTime:
@@ -575,26 +680,48 @@ export default function WeeklyScheduleSetupStep({
           snapshot.academicYear.startDate,
         validUntil:
           snapshot.academicYear.endDate
-      })
-    )
+      }
 
+    setForm(nextForm)
+    setScheduleFormBaseline(
+      nextForm
+    )
     clearMessages()
   }
 
-  function selectAssignmentFromList(
+  function requestResetForm(
+    preserveAssignment =
+      true
+  ) {
+    if (busy) {
+      return
+    }
+
+    if (
+      hasUnsavedScheduleDraft &&
+      !window.confirm(
+        UNSAVED_SCHEDULE_DRAFT_MESSAGE
+      )
+    ) {
+      return
+    }
+
+    resetForm(
+      preserveAssignment
+    )
+  }
+
+  function requestSelectAssignmentFromList(
     teachingAssignmentId:
       EntityId
   ) {
-    setForm(
-      (
-        current
-      ) => ({
-        ...current,
+    if (
+      !requestSelectAssignment(
         teachingAssignmentId
-      })
-    )
-
-    clearMessages()
+      )
+    ) {
+      return
+    }
 
     window.scrollTo({
       top: 0,
@@ -822,23 +949,24 @@ export default function WeeklyScheduleSetupStep({
                 )
           )
 
-      setForm(
-        (
-          current
-        ) => ({
-          ...current,
+      const nextForm:
+        ScheduleFormState = {
+          ...form,
           teachingAssignmentId:
             nextUncoveredAssignment
               ?.id ??
-            current
-              .teachingAssignmentId,
+            form.teachingAssignmentId,
           startTime:
             '08:30',
           endTime:
             '09:20',
           periodCount:
             '1'
-        })
+        }
+
+      setForm(nextForm)
+      setScheduleFormBaseline(
+        nextForm
       )
 
       setSuccess(
@@ -861,6 +989,16 @@ export default function WeeklyScheduleSetupStep({
     if (
       busy
     ) {
+      return
+    }
+
+    if (
+      hasUnsavedScheduleDraft
+    ) {
+      setError(
+        'Existe um bloco de horário por guardar neste passo. Adicione-o ao horário ou limpe o formulário antes de continuar.'
+      )
+
       return
     }
 
@@ -929,399 +1067,407 @@ export default function WeeklyScheduleSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]"
+    >
       <form
         onSubmit={
           handleSubmit
         }
         className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-          Passo 7 de 9
-        </p>
+        <fieldset
+          disabled={busy}
+          className="contents"
+        >
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
+            Passo 7 de 9
+          </p>
 
-        <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-          Horário semanal
-        </h2>
+          <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            Horário semanal
+          </h2>
 
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-          Introduza os blocos semanais de cada turma e disciplina. O
-          MA-Professor utilizará este horário para criar as aulas
-          previstas e calcular a evolução das UFCD.
-        </p>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+            Introduza os blocos semanais de cada turma e disciplina. O
+            MA-Professor utilizará este horário para criar as aulas
+            previstas e calcular a evolução das UFCD.
+          </p>
 
-        <div className="mt-7 space-y-5">
-          <label className="block">
-            <FieldLabel>
-              Turma e disciplina
-            </FieldLabel>
+          <div className="mt-7 space-y-5">
+            <label className="block">
+              <FieldLabel>
+                Turma e disciplina
+              </FieldLabel>
 
-            <select
-              value={
-                form.teachingAssignmentId
-              }
-              onChange={(
-                event
-              ) =>
-                selectAssignment(
-                  event.target.value
-                )
-              }
-              required
-              className={
-                inputClassName
-              }
-            >
-              <option value="">
-                Selecione uma turma e disciplina
-              </option>
-
-              {assignments.map(
-                (
-                  assignment
-                ) => (
-                  <option
-                    key={
-                      assignment.id
-                    }
-                    value={
-                      assignment.id
-                    }
-                  >
-                    {
-                      assignment.displayName
-                    }
-                  </option>
-                )
-              )}
-            </select>
-          </label>
-
-          {selectedAssignment ? (
-            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-200">
-                Seleção atual
-              </p>
-
-              <p className="mt-2 font-black text-white">
-                {
-                  selectedAssignment.displayName
+              <select
+                value={
+                  form.teachingAssignmentId
                 }
-              </p>
+                onChange={(
+                  event
+                ) =>
+                  requestSelectAssignment(
+                    event.target.value
+                  )
+                }
+                required
+                className={
+                  inputClassName
+                }
+              >
+                <option value="">
+                  Selecione uma turma e disciplina
+                </option>
 
-              <p className="mt-1 text-xs leading-6 text-slate-400">
-                Já possui{' '}
-                {
+                {assignments.map(
                   (
+                    assignment
+                  ) => (
+                    <option
+                      key={
+                        assignment.id
+                      }
+                      value={
+                        assignment.id
+                      }
+                    >
+                      {
+                        assignment.displayName
+                      }
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            {selectedAssignment ? (
+              <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-200">
+                  Seleção atual
+                </p>
+
+                <p className="mt-2 font-black text-white">
+                  {
+                    selectedAssignment.displayName
+                  }
+                </p>
+
+                <p className="mt-1 text-xs leading-6 text-slate-400">
+                  Já possui{' '}
+                  {
+                    (
+                      slotsByAssignment.get(
+                        selectedAssignment.id
+                      ) ??
+                      []
+                    ).length
+                  }{' '}
+                  {(
                     slotsByAssignment.get(
                       selectedAssignment.id
                     ) ??
                     []
-                  ).length
-                }{' '}
-                {(
-                  slotsByAssignment.get(
-                    selectedAssignment.id
-                  ) ??
-                  []
-                ).length ===
-                1
-                  ? 'bloco semanal'
-                  : 'blocos semanais'}
-                .
-              </p>
+                  ).length ===
+                  1
+                    ? 'bloco semanal'
+                    : 'blocos semanais'}
+                  .
+                </p>
+              </div>
+            ) : null}
+
+            <fieldset>
+              <legend className="text-sm font-bold text-slate-200">
+                Dia da semana
+              </legend>
+
+              <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {weekdays.map(
+                  (
+                    weekday
+                  ) => (
+                    <button
+                      key={
+                        weekday.value
+                      }
+                      type="button"
+                      onClick={() =>
+                        setForm(
+                          (
+                            current
+                          ) => ({
+                            ...current,
+                            weekday:
+                              weekday.value
+                          })
+                        )
+                      }
+                      className={`rounded-xl border px-2 py-3 text-xs font-black transition ${
+                        form.weekday ===
+                        weekday.value
+                          ? 'border-cyan-300/35 bg-cyan-300/10 text-cyan-100'
+                          : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white'
+                      }`}
+                      aria-label={
+                        weekday.label
+                      }
+                    >
+                      {
+                        weekday.shortLabel
+                      }
+                    </button>
+                  )
+                )}
+              </div>
+            </fieldset>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block">
+                <FieldLabel>
+                  Hora de início
+                </FieldLabel>
+
+                <input
+                  type="time"
+                  value={
+                    form.startTime
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setForm(
+                      (
+                        current
+                      ) => ({
+                        ...current,
+                        startTime:
+                          event
+                            .target
+                            .value
+                      })
+                    )
+                  }
+                  required
+                  className={
+                    inputClassName
+                  }
+                />
+              </label>
+
+              <label className="block">
+                <FieldLabel>
+                  Hora de fim
+                </FieldLabel>
+
+                <input
+                  type="time"
+                  value={
+                    form.endTime
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setForm(
+                      (
+                        current
+                      ) => ({
+                        ...current,
+                        endTime:
+                          event
+                            .target
+                            .value
+                      })
+                    )
+                  }
+                  required
+                  className={
+                    inputClassName
+                  }
+                />
+              </label>
             </div>
-          ) : null}
 
-          <fieldset>
-            <legend className="text-sm font-bold text-slate-200">
-              Dia da semana
-            </legend>
+            <label className="block">
+              <FieldLabel>
+                Número de tempos
+              </FieldLabel>
 
-            <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">
-              {weekdays.map(
-                (
-                  weekday
-                ) => (
-                  <button
-                    key={
-                      weekday.value
+              <input
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                value={
+                  form.periodCount
+                }
+                onChange={(
+                  event
+                ) =>
+                  setForm(
+                    (
+                      current
+                    ) => ({
+                      ...current,
+                      periodCount:
+                        event
+                          .target
+                          .value
+                    })
+                  )
+                }
+                placeholder="1"
+                required
+                className={
+                  inputClassName
+                }
+              />
+
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                Exemplo: uma aula consecutiva de 100 minutos pode
+                corresponder a 2 tempos.
+              </p>
+            </label>
+
+            <fieldset className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+              <legend className="px-2 text-sm font-bold text-slate-200">
+                Vigência deste horário
+              </legend>
+
+              <p className="mt-1 text-xs leading-6 text-slate-500">
+                Permite alterar o horário durante o ano sem apagar o
+                horário anterior.
+              </p>
+
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                <label className="block">
+                  <FieldLabel>
+                    Válido desde
+                  </FieldLabel>
+
+                  <input
+                    type="date"
+                    min={
+                      snapshot.academicYear.startDate
                     }
-                    type="button"
-                    onClick={() =>
+                    max={
+                      snapshot.academicYear.endDate
+                    }
+                    value={
+                      form.validFrom
+                    }
+                    onChange={(
+                      event
+                    ) =>
                       setForm(
                         (
                           current
                         ) => ({
                           ...current,
-                          weekday:
-                            weekday.value
+                          validFrom:
+                            event
+                              .target
+                              .value
                         })
                       )
                     }
-                    className={`rounded-xl border px-2 py-3 text-xs font-black transition ${
-                      form.weekday ===
-                      weekday.value
-                        ? 'border-cyan-300/35 bg-cyan-300/10 text-cyan-100'
-                        : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white'
-                    }`}
-                    aria-label={
-                      weekday.label
+                    required
+                    className={
+                      inputClassName
                     }
-                  >
-                    {
-                      weekday.shortLabel
+                  />
+                </label>
+
+                <label className="block">
+                  <FieldLabel>
+                    Válido até
+                  </FieldLabel>
+
+                  <input
+                    type="date"
+                    min={
+                      form.validFrom ||
+                      snapshot.academicYear.startDate
                     }
-                  </button>
-                )
-              )}
-            </div>
-          </fieldset>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <FieldLabel>
-                Hora de início
-              </FieldLabel>
-
-              <input
-                type="time"
-                value={
-                  form.startTime
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      startTime:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                required
-                className={
-                  inputClassName
-                }
-              />
-            </label>
-
-            <label className="block">
-              <FieldLabel>
-                Hora de fim
-              </FieldLabel>
-
-              <input
-                type="time"
-                value={
-                  form.endTime
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      endTime:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                required
-                className={
-                  inputClassName
-                }
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <FieldLabel>
-              Número de tempos
-            </FieldLabel>
-
-            <input
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              value={
-                form.periodCount
-              }
-              onChange={(
-                event
-              ) =>
-                setForm(
-                  (
-                    current
-                  ) => ({
-                    ...current,
-                    periodCount:
+                    max={
+                      snapshot.academicYear.endDate
+                    }
+                    value={
+                      form.validUntil
+                    }
+                    onChange={(
                       event
-                        .target
-                        .value
-                  })
+                    ) =>
+                      setForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+                          validUntil:
+                            event
+                              .target
+                              .value
+                        })
+                      )
+                    }
+                    required
+                    className={
+                      inputClassName
+                    }
+                  />
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          {error ? (
+            <div
+              role="alert"
+              className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
+            >
+              {error}
+            </div>
+          ) : null}
+
+          {success ? (
+            <div
+              role="status"
+              className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-100"
+            >
+              {success}
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="submit"
+              disabled={
+                busy
+              }
+              className="inline-flex flex-1 items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-55"
+            >
+              {busy
+                ? 'A guardar...'
+                : 'Adicionar ao horário'}
+            </button>
+
+            <button
+              type="button"
+              disabled={
+                busy
+              }
+              onClick={() =>
+                requestResetForm(
+                  false
                 )
               }
-              placeholder="1"
-              required
-              className={
-                inputClassName
-              }
-            />
-
-            <p className="mt-2 text-xs leading-6 text-slate-500">
-              Exemplo: uma aula consecutiva de 100 minutos pode
-              corresponder a 2 tempos.
-            </p>
-          </label>
-
-          <fieldset className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-            <legend className="px-2 text-sm font-bold text-slate-200">
-              Vigência deste horário
-            </legend>
-
-            <p className="mt-1 text-xs leading-6 text-slate-500">
-              Permite alterar o horário durante o ano sem apagar o
-              horário anterior.
-            </p>
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-2">
-              <label className="block">
-                <FieldLabel>
-                  Válido desde
-                </FieldLabel>
-
-                <input
-                  type="date"
-                  min={
-                    snapshot.academicYear.startDate
-                  }
-                  max={
-                    snapshot.academicYear.endDate
-                  }
-                  value={
-                    form.validFrom
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        validFrom:
-                          event
-                            .target
-                            .value
-                      })
-                    )
-                  }
-                  required
-                  className={
-                    inputClassName
-                  }
-                />
-              </label>
-
-              <label className="block">
-                <FieldLabel>
-                  Válido até
-                </FieldLabel>
-
-                <input
-                  type="date"
-                  min={
-                    form.validFrom ||
-                    snapshot.academicYear.startDate
-                  }
-                  max={
-                    snapshot.academicYear.endDate
-                  }
-                  value={
-                    form.validUntil
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        validUntil:
-                          event
-                            .target
-                            .value
-                      })
-                    )
-                  }
-                  required
-                  className={
-                    inputClassName
-                  }
-                />
-              </label>
-            </div>
-          </fieldset>
-        </div>
-
-        {error ? (
-          <div
-            role="alert"
-            className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
-          >
-            {error}
+              className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              Limpar
+            </button>
           </div>
-        ) : null}
-
-        {success ? (
-          <div
-            role="status"
-            className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-100"
-          >
-            {success}
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="submit"
-            disabled={
-              busy
-            }
-            className="inline-flex flex-1 items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-55"
-          >
-            {busy
-              ? 'A guardar...'
-              : 'Adicionar ao horário'}
-          </button>
-
-          <button
-            type="button"
-            disabled={
-              busy
-            }
-            onClick={() =>
-              resetForm(
-                false
-              )
-            }
-            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
-          >
-            Limpar
-          </button>
-        </div>
+        </fieldset>
       </form>
 
       <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-xl shadow-black/15 sm:p-6">
@@ -1527,12 +1673,13 @@ export default function WeeklyScheduleSetupStep({
                   {!configured ? (
                     <button
                       type="button"
+                      disabled={busy}
                       onClick={() =>
-                        selectAssignmentFromList(
+                        requestSelectAssignmentFromList(
                           assignment.id
                         )
                       }
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-bold text-slate-400 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.05] hover:text-cyan-100"
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-bold text-slate-400 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.05] hover:text-cyan-100 disabled:cursor-wait disabled:opacity-50"
                     >
                       Adicionar horário
                     </button>
