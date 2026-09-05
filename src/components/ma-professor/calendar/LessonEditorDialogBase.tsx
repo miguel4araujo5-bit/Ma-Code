@@ -621,6 +621,7 @@ export default function LessonEditorDialog({
 
       await onSaved(updated)
     } catch (saveError) {
+      assessmentSectionRef.current?.resetTransientSaveState()
       setError(getErrorMessage(saveError))
     } finally {
       setSaving(false)
