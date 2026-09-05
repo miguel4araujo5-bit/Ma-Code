@@ -7,6 +7,10 @@ import {
 } from 'react';
 
 import {
+    useMAProfessorAccess
+} from '../access/AccessGate';
+
+import {
     getAssessmentActivityTypeLabel
 } from '../assessments/assessmentRepository';
 
@@ -27,6 +31,13 @@ import type {
     Score,
     SummarySource
 } from '../types';
+
+import {
+    deleteMAProfessorDailyDraft,
+    readMAProfessorDailyDraft,
+    saveMAProfessorDailyDraft,
+    shouldAutoRestoreMAProfessorDailyDraft
+} from './dailyDraftStorage';
 
 import {
     dailyWorkspaceRepository,
@@ -453,6 +464,13 @@ export default function DailyWorkspaceView({
     onSaved,
     onNavigationGuardChange
 }: DailyWorkspaceViewProps) {
+    const {
+        session
+    } = useMAProfessorAccess();
+
+    const accountEmail =
+        session.email;
+
     const [date, setDate] =
         useState<ISODate>(
             initialDate ?? todayISO()
@@ -536,6 +554,10 @@ export default function DailyWorkspaceView({
 
     const loadRequestRef = useRef(0);
     const savingRef = useRef(false);
+    const draftWriteEpochRef =
+        useRef(0);
+    const hadUnsavedChangesRef =
+        useRef(false);
     const navigationGuardRef =
         useRef<() => Promise<boolean>>(
             async () => true
@@ -599,6 +621,178 @@ export default function DailyWorkspaceView({
         []
     );
 
+    const restoreDailyDraft =
+        useCallback(
+            async (
+                nextWorkspace:
+                    DailyDateWorkspace,
+                requestId: number
+            ) => {
+                const nextSelectedLesson =
+                    nextWorkspace
+                        .selectedLesson;
+
+                if (
+                    !nextSelectedLesson
+                ) {
+                    return;
+                }
+
+                const lessonId =
+                    nextSelectedLesson
+                        .context
+                        .lessonRow
+                        .lesson.id;
+
+                const nextLessonForm =
+                    buildLessonForm(
+                        nextSelectedLesson
+                    );
+
+                const nextAssessmentForm =
+                    buildAssessmentForm(
+                        nextSelectedLesson
+                    );
+
+                const nextStudents =
+                    buildStudentRows(
+                        nextSelectedLesson
+                            .students
+                    );
+
+                const baseSavedSignature =
+                    buildEditorSignature(
+                        nextLessonForm,
+                        nextAssessmentForm,
+                        nextStudents
+                    );
+
+                let draft;
+
+                try {
+                    draft =
+                        await readMAProfessorDailyDraft(
+                            accountEmail,
+                            academicYearId,
+                            lessonId
+                        );
+                } catch {
+                    return;
+                }
+
+                if (
+                    requestId !==
+                        loadRequestRef.current ||
+                    !draft ||
+                    draft.academicYearId !==
+                        academicYearId ||
+                    draft.lessonId !==
+                        lessonId ||
+                    draft.date !==
+                        nextWorkspace.date ||
+                    !shouldAutoRestoreMAProfessorDailyDraft(
+                        draft,
+                        baseSavedSignature
+                    )
+                ) {
+                    return;
+                }
+
+                const draftByStudent =
+                    new Map(
+                        draft.students.map(
+                            row => [
+                                row.studentId,
+                                row
+                            ]
+                        )
+                    );
+
+                const restoredStudents =
+                    nextStudents.map(
+                        row => {
+                            const stored =
+                                draftByStudent.get(
+                                    row.student.id
+                                );
+
+                            if (!stored) {
+                                return row;
+                            }
+
+                            return {
+                                ...row,
+                                attendanceStatus:
+                                    stored.attendanceStatus,
+                                attendanceCode:
+                                    stored.attendanceCode,
+                                attendanceNote:
+                                    stored.attendanceNote,
+                                assessmentStatus:
+                                    stored.assessmentStatus,
+                                assessmentScore:
+                                    null,
+                                assessmentScoreText:
+                                    stored.assessmentScoreText,
+                                assessmentNote:
+                                    stored.assessmentNote
+                            };
+                        }
+                    );
+
+                const restoredLessonForm:
+                    LessonFormState = {
+                    ...draft.lesson,
+                    planificationItemIds: [
+                        ...draft.lesson
+                            .planificationItemIds
+                    ]
+                };
+
+                const restoredAssessmentForm:
+                    AssessmentFormState = {
+                    ...draft.assessment
+                };
+
+                const reconstructedSignature =
+                    buildEditorSignature(
+                        restoredLessonForm,
+                        restoredAssessmentForm,
+                        restoredStudents
+                    );
+
+                if (
+                    reconstructedSignature !==
+                    draft.draftSignature
+                ) {
+                    return;
+                }
+
+                setLessonForm(
+                    restoredLessonForm
+                );
+                setAssessmentForm(
+                    restoredAssessmentForm
+                );
+                setStudents(
+                    restoredStudents
+                );
+                setAssessmentIdToDelete(
+                    draft.assessmentIdToDelete
+                );
+                setSavedSignature(
+                    baseSavedSignature
+                );
+                setSuccess(
+                    'Rascunho não guardado recuperado neste dispositivo. Reveja e guarde a aula.'
+                );
+            },
+            [
+                accountEmail,
+                academicYearId
+            ]
+        );
+
     const loadDate = useCallback(
         async (
             nextDate: ISODate,
@@ -634,6 +828,18 @@ export default function DailyWorkspaceView({
 
                 hydrate(nextWorkspace);
 
+                await restoreDailyDraft(
+                    nextWorkspace,
+                    requestId
+                );
+
+                if (
+                    requestId !==
+                    loadRequestRef.current
+                ) {
+                    return false;
+                }
+
                 return true;
             } catch (loadError) {
                 if (
@@ -659,7 +865,8 @@ export default function DailyWorkspaceView({
         },
         [
             academicYearId,
-            hydrate
+            hydrate,
+            restoreDailyDraft
         ]
     );
 
@@ -735,6 +942,209 @@ export default function DailyWorkspaceView({
                 currentEditorSignature !==
                     savedSignature
         );
+
+    const persistCurrentDailyDraft =
+        useCallback(
+            async () => {
+                if (
+                    !selectedLesson ||
+                    !lessonForm ||
+                    !assessmentForm ||
+                    savingRef.current ||
+                    !savedSignature ||
+                    !currentEditorSignature ||
+                    currentEditorSignature ===
+                        savedSignature
+                ) {
+                    return;
+                }
+
+                const lessonId =
+                    selectedLesson
+                        .context
+                        .lessonRow
+                        .lesson.id;
+
+                const writeEpoch =
+                    draftWriteEpochRef.current;
+
+                try {
+                    await saveMAProfessorDailyDraft({
+                        accountEmail,
+                        academicYearId,
+                        lessonId,
+                        date,
+                        baseSavedSignature:
+                            savedSignature,
+                        draftSignature:
+                            currentEditorSignature,
+                        assessmentIdToDelete,
+                        lesson: {
+                            ...lessonForm,
+                            planificationItemIds: [
+                                ...lessonForm
+                                    .planificationItemIds
+                            ]
+                        },
+                        assessment: {
+                            ...assessmentForm
+                        },
+                        students:
+                            students.map(
+                                row => ({
+                                    studentId:
+                                        row.student.id,
+                                    attendanceStatus:
+                                        row.attendanceStatus,
+                                    attendanceCode:
+                                        row.attendanceCode,
+                                    attendanceNote:
+                                        row.attendanceNote,
+                                    assessmentStatus:
+                                        row.assessmentStatus,
+                                    assessmentScoreText:
+                                        row.assessmentScoreText,
+                                    assessmentNote:
+                                        row.assessmentNote
+                                })
+                            )
+                    });
+
+                    if (
+                        writeEpoch !==
+                        draftWriteEpochRef.current
+                    ) {
+                        try {
+                            await deleteMAProfessorDailyDraft(
+                                accountEmail,
+                                academicYearId,
+                                lessonId
+                            );
+                        } catch {
+                            // A gravação pedagógica continua a ser a fonte autoritativa.
+                        }
+                    }
+                } catch {
+                    // A proteção auxiliar nunca deve bloquear o trabalho normal do professor.
+                }
+            },
+            [
+                accountEmail,
+                academicYearId,
+                assessmentForm,
+                assessmentIdToDelete,
+                currentEditorSignature,
+                date,
+                lessonForm,
+                savedSignature,
+                selectedLesson,
+                students
+            ]
+        );
+
+    useEffect(() => {
+        if (!selectedLesson) {
+            hadUnsavedChangesRef.current =
+                false;
+            return;
+        }
+
+        const lessonId =
+            selectedLesson
+                .context
+                .lessonRow
+                .lesson.id;
+
+        if (!hasUnsavedChanges) {
+            if (
+                hadUnsavedChangesRef.current
+            ) {
+                hadUnsavedChangesRef.current =
+                    false;
+                draftWriteEpochRef.current +=
+                    1;
+
+                void deleteMAProfessorDailyDraft(
+                    accountEmail,
+                    academicYearId,
+                    lessonId
+                ).catch(() => {
+                    // Um rascunho antigo nunca altera o estado já guardado.
+                });
+            }
+
+            return;
+        }
+
+        hadUnsavedChangesRef.current =
+            true;
+
+        const timeout =
+            window.setTimeout(
+                () => {
+                    void persistCurrentDailyDraft();
+                },
+                300
+            );
+
+        return () => {
+            window.clearTimeout(
+                timeout
+            );
+        };
+    }, [
+        accountEmail,
+        academicYearId,
+        hasUnsavedChanges,
+        persistCurrentDailyDraft,
+        selectedLesson
+    ]);
+
+    useEffect(() => {
+        if (!hasUnsavedChanges) {
+            return;
+        }
+
+        const handleVisibilityChange =
+            () => {
+                if (
+                    document.visibilityState ===
+                    'hidden'
+                ) {
+                    void persistCurrentDailyDraft();
+                }
+            };
+
+        const handlePageHide =
+            () => {
+                void persistCurrentDailyDraft();
+            };
+
+        document.addEventListener(
+            'visibilitychange',
+            handleVisibilityChange
+        );
+
+        window.addEventListener(
+            'pagehide',
+            handlePageHide
+        );
+
+        return () => {
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange
+            );
+
+            window.removeEventListener(
+                'pagehide',
+                handlePageHide
+            );
+        };
+    }, [
+        hasUnsavedChanges,
+        persistCurrentDailyDraft
+    ]);
 
     const weekTimeSlots = useMemo(
         () => {
@@ -970,14 +1380,16 @@ export default function DailyWorkspaceView({
         }
 
         try {
+            const lessonId =
+                selectedLesson
+                    .context
+                    .lessonRow
+                    .lesson.id;
+
             const result =
                 await dailyWorkspaceRepository.saveLesson(
                     {
-                        lessonId:
-                            selectedLesson
-                                .context
-                                .lessonRow
-                                .lesson.id,
+                        lessonId,
                         status:
                             effectiveStatus,
                         startTime:
@@ -1072,6 +1484,19 @@ export default function DailyWorkspaceView({
                         }
                     }
                 );
+
+            draftWriteEpochRef.current +=
+                1;
+
+            try {
+                await deleteMAProfessorDailyDraft(
+                    accountEmail,
+                    academicYearId,
+                    lessonId
+                );
+            } catch {
+                // A aula já foi guardada; uma falha auxiliar não altera esse resultado.
+            }
 
             if (reload) {
                 const reloaded =
