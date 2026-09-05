@@ -11,9 +11,9 @@ const membershipSource = await readFile(
   'utf8'
 )
 
-const rosterSource = await readFile(
+const repositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/students/studentRosterRepository.ts',
+    '../../src/components/ma-professor/repository.ts',
     import.meta.url
   ),
   'utf8'
@@ -54,14 +54,6 @@ const assessmentWorkspaceSource = await readFile(
 const groupsRepositorySource = await readFile(
   new URL(
     '../../src/components/ma-professor/groups/groupsWorkspaceRepository.ts',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const studentsSetupSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/setup/StudentsSetupStep.tsx',
     import.meta.url
   ),
   'utf8'
@@ -199,15 +191,9 @@ test(
       ]
     )
 
-    const initialStudent = {
-      ...structured,
-      membershipPeriods:
-        initialPeriods
-    }
-
     const closedPeriods =
       module.closeStudentMembership(
-        initialStudent,
+        initialPeriods,
         '2026-10-31'
       )
 
@@ -223,11 +209,7 @@ test(
 
     const reopenedPeriods =
       module.reopenStudentMembership(
-        {
-          ...initialStudent,
-          membershipPeriods:
-            closedPeriods
-        },
+        closedPeriods,
         '2026-11-10'
       )
 
@@ -279,38 +261,28 @@ test(
   'new students get a conservative membership start without rewriting existing student history',
   () => {
     assert.match(
-      rosterSource,
-      /maProfessorRepository[\s\S]{0,100}\.saveStudentsForGroup\(/
-    )
-
-    assert.match(
-      rosterSource,
-      /existingStudentIds/
-    )
-
-    assert.match(
-      rosterSource,
+      repositorySource,
       /hasTaughtLesson/
     )
 
     assert.match(
-      rosterSource,
-      /createInitialStudentMembership/
+      repositorySource,
+      /getLocalISODate/
     )
 
     assert.match(
-      rosterSource,
-      /if\s*\(\s*existingStudentIds\.has\(\s*student\.id\s*\)\s*\)[\s\S]*return student/
+      repositorySource,
+      /membershipPeriods:\s*createInitialStudentMembership\([\s\S]*membershipStartDate/
+    )
+
+    assert.match(
+      repositorySource,
+      /if\s*\(\s*current\s*\)[\s\S]*\.\.\.current[\s\S]*active:\s*true/
     )
 
     assert.match(
       groupsRepositorySource,
-      /saveStudentsForGroupWithMembership/
-    )
-
-    assert.match(
-      studentsSetupSource,
-      /saveStudentsForGroupWithMembership/
+      /maProfessorRepository\.saveStudentsForGroup/
     )
   }
 )
@@ -336,7 +308,7 @@ test(
 )
 
 test(
-  'attendance uses membership on the lesson date instead of current active state',
+  'attendance uses membership on the lesson date and keeps historical attendance evidence',
   () => {
     assert.match(
       attendanceSource,
@@ -355,7 +327,12 @@ test(
 
     assert.match(
       attendanceSource,
-      /existingByStudent|attendanceByStudent/
+      /attendanceByLesson\.has\([\s\S]*lesson\.id/
+    )
+
+    assert.match(
+      attendanceSource,
+      /listStudentsForLesson/
     )
   }
 )
@@ -371,6 +348,11 @@ test(
     assert.match(
       assessmentSource,
       /lesson\.date/
+    )
+
+    assert.match(
+      assessmentSource,
+      /listStudentsForLesson/
     )
 
     assert.match(
@@ -405,7 +387,12 @@ test(
 
     assert.match(
       assessmentWorkspaceSource,
-      /activityStudents|studentsForActivity|membersForLesson/
+      /activityStudents/
+    )
+
+    assert.match(
+      assessmentWorkspaceSource,
+      /allGroupStudents/
     )
   }
 )
