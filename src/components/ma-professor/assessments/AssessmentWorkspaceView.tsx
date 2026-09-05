@@ -1,8 +1,19 @@
 import {
   type ChangeEvent,
   useEffect,
+  useMemo,
+  useRef,
   useState
 } from 'react'
+
+import {
+  hasMAProfessorDirtyDraftRecord,
+  reconcileMAProfessorDraftRecord
+} from '../navigation/draftReconciliation'
+
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
   EntityId,
@@ -206,15 +217,37 @@ export default function AssessmentWorkspaceView({
   onLessonSelect,
   onSaveFinalGrade
 }: AssessmentWorkspaceViewProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(
+      null
+    )
+
+  const persistedGradeDrafts =
+    useMemo(
+      () =>
+        buildGradeDrafts(
+          snapshot
+        ),
+      [
+        snapshot.generatedAt
+      ]
+    )
+
+  const previousPersistedGradeDraftsRef =
+    useRef<GradeDrafts>(
+      persistedGradeDrafts
+    )
+
+  const discardOnNextSnapshotRef =
+    useRef(false)
+
   const [
     gradeDrafts,
     setGradeDrafts
   ] =
     useState<GradeDrafts>(
       () =>
-        buildGradeDrafts(
-          snapshot
-        )
+        persistedGradeDrafts
     )
 
   const [
@@ -234,14 +267,57 @@ export default function AssessmentWorkspaceView({
     )
 
   useEffect(() => {
+    const previousPersisted =
+      previousPersistedGradeDraftsRef.current
+
     setGradeDrafts(
-      buildGradeDrafts(
-        snapshot
-      )
+      current =>
+        discardOnNextSnapshotRef.current
+          ? persistedGradeDrafts
+          : reconcileMAProfessorDraftRecord(
+              previousPersisted,
+              current,
+              persistedGradeDrafts
+            )
     )
+
+    discardOnNextSnapshotRef.current =
+      false
+
+    previousPersistedGradeDraftsRef.current =
+      persistedGradeDrafts
   }, [
+    persistedGradeDrafts,
     snapshot.generatedAt
   ])
+
+  const hasAssessmentUnsavedChanges =
+    useMemo(
+      () =>
+        hasMAProfessorDirtyDraftRecord(
+          persistedGradeDrafts,
+          gradeDrafts
+        ),
+      [
+        gradeDrafts,
+        persistedGradeDrafts
+      ]
+    )
+
+  function confirmDiscardUnsavedChanges() {
+    return (
+      !hasAssessmentUnsavedChanges ||
+      window.confirm(
+        'Existem classificações ou observações por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasAssessmentUnsavedChanges,
+    rootRef,
+    'Existem classificações ou observações por guardar. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
+  )
 
   function updateGradeDraft(
     studentId: EntityId,
@@ -277,6 +353,15 @@ export default function AssessmentWorkspaceView({
     event:
       ChangeEvent<HTMLSelectElement>
   ) {
+    if (
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardOnNextSnapshotRef.current =
+      true
+
     setFeedback(
       null
     )
@@ -295,6 +380,15 @@ export default function AssessmentWorkspaceView({
     event:
       ChangeEvent<HTMLSelectElement>
   ) {
+    if (
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardOnNextSnapshotRef.current =
+      true
+
     setFeedback(
       null
     )
@@ -308,6 +402,35 @@ export default function AssessmentWorkspaceView({
         event.target.value ||
         null
     })
+  }
+
+  function handleRefresh() {
+    if (
+      !onRefresh ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardOnNextSnapshotRef.current =
+      true
+
+    onRefresh()
+  }
+
+  function handleLessonSelect(
+    lessonId: EntityId
+  ) {
+    if (
+      !onLessonSelect ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    onLessonSelect(
+      lessonId
+    )
   }
 
   async function saveFinalGrade(
@@ -433,7 +556,12 @@ export default function AssessmentWorkspaceView({
     'Sem UFCD selecionada'
 
   return (
-    <div className="space-y-6">
+    <div
+      ref={
+        rootRef
+      }
+      className="space-y-6"
+    >
       <section className="overflow-hidden rounded-[2rem] border border-amber-300/15 bg-slate-950/75 shadow-2xl shadow-amber-950/10 backdrop-blur-xl">
         <div className="border-b border-white/10 px-5 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -460,7 +588,7 @@ export default function AssessmentWorkspaceView({
             <button
               type="button"
               onClick={
-                onRefresh
+                handleRefresh
               }
               disabled={
                 loading ||
@@ -585,7 +713,7 @@ export default function AssessmentWorkspaceView({
             <button
               type="button"
               onClick={
-                onRefresh
+                handleRefresh
               }
               disabled={
                 loading
@@ -609,6 +737,12 @@ export default function AssessmentWorkspaceView({
           }`}
         >
           {feedback.message}
+        </div>
+      ) : null}
+
+      {hasAssessmentUnsavedChanges ? (
+        <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm font-bold text-amber-100">
+          Existem classificações ou observações por guardar.
         </div>
       ) : null}
 
@@ -868,7 +1002,7 @@ export default function AssessmentWorkspaceView({
                       <button
                         type="button"
                         onClick={() =>
-                          onLessonSelect?.(
+                          handleLessonSelect(
                             activity.lesson.id
                           )
                         }
