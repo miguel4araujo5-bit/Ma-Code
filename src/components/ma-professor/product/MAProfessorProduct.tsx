@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -57,6 +58,9 @@ interface ActiveYearReadiness {
   academicYear: AcademicYear | null
   operationalReady: boolean
 }
+
+type DailyNavigationGuard =
+  () => Promise<boolean>
 
 const THEME_STORAGE_KEY =
   'ma-professor-theme'
@@ -161,6 +165,23 @@ function ProductContent() {
   ] =
     useState<ProductTheme>(
       getInitialTheme
+    )
+
+  const dailyNavigationGuardRef =
+    useRef<DailyNavigationGuard | null>(
+      null
+    )
+
+  const handleDailyNavigationGuardChange =
+    useCallback(
+      (
+        guard:
+          DailyNavigationGuard | null
+      ) => {
+        dailyNavigationGuardRef.current =
+          guard
+      },
+      []
     )
 
   const refreshAcademicYear =
@@ -330,36 +351,28 @@ function ProductContent() {
         return
       }
 
-      /*
-       * O DailyWorkspaceView já protege o fecho e a atualização do
-       * browser quando existem alterações por guardar, mas ainda não
-       * comunica esse estado diretamente ao menu principal.
-       *
-       * Até essa comunicação ser adicionada no DailyWorkspaceView,
-       * esta confirmação impede que a mudança de área descarte
-       * silenciosamente o trabalho do professor.
-       */
-      if (
-        workspace ===
-          'daily' &&
-        nextWorkspace !==
-          'daily'
-      ) {
-        const confirmed =
-          window.confirm(
-            'Vai sair do ecrã da aula. Confirme que carregou em “Guardar tudo”. Pretende continuar?'
-          )
-
-        if (!confirmed) {
-          return
-        }
-      }
-
       setChangingWorkspace(
         true
       )
 
       try {
+        if (
+          workspace ===
+            'daily' &&
+          nextWorkspace !==
+            'daily'
+        ) {
+          const canLeave =
+            await (
+              dailyNavigationGuardRef.current?.() ??
+              Promise.resolve(true)
+            )
+
+          if (!canLeave) {
+            return
+          }
+        }
+
         if (
           nextWorkspace ===
           'menu'
@@ -559,6 +572,9 @@ function ProductContent() {
           }
           initialLessonId={
             dailyTarget.lessonId
+          }
+          onNavigationGuardChange={
+            handleDailyNavigationGuardChange
           }
         />
       ) : null}
