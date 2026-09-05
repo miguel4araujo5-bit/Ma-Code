@@ -11,12 +11,32 @@ import {
   readMAProfessorStoredAccess
 } from './accessStorage'
 
+import {
+  canUseStoredSessionForVerificationFallback,
+  publishMAProfessorAccessVerificationState
+} from './accessVerificationPolicy'
+
 const MA_PROFESSOR_ACCESS_API_PREFIX =
   '/api/ma-professor/access'
 
 interface ApiErrorBody {
   success?: boolean
   message?: string
+}
+
+export class MAProfessorAccessApiError
+  extends Error {
+  readonly status: number
+
+  constructor(
+    message: string,
+    status: number
+  ) {
+    super(message)
+    this.name =
+      'MAProfessorAccessApiError'
+    this.status = status
+  }
 }
 
 async function readResponseBody(
@@ -85,11 +105,12 @@ async function postJson<T>(
   if (
     !response.ok
   ) {
-    throw new Error(
+    throw new MAProfessorAccessApiError(
       getApiMessage(
         data,
         'Não foi possível concluir o pedido.'
-      )
+      ),
+      response.status
     )
   }
 
@@ -248,13 +269,51 @@ export async function verifyMAProfessorAccountSession(
   token: string,
   deviceId: string
 ) {
-  return postJson<MAProfessorAccountSessionResponse>(
-    '/account/verify',
-    {
-      token,
-      deviceId
+  try {
+    const response =
+      await postJson<MAProfessorAccountSessionResponse>(
+        '/account/verify',
+        {
+          token,
+          deviceId
+        }
+      )
+
+    publishMAProfessorAccessVerificationState(
+      'verified'
+    )
+
+    return response
+  } catch (verificationError) {
+    const stored =
+      readMAProfessorStoredAccess()
+
+    if (
+      !canUseStoredSessionForVerificationFallback(
+        verificationError,
+        stored,
+        token,
+        deviceId
+      )
+    ) {
+      publishMAProfessorAccessVerificationState(
+        'verified'
+      )
+      throw verificationError
     }
-  )
+
+    publishMAProfessorAccessVerificationState(
+      'local-cache'
+    )
+
+    return {
+      success: true,
+      email:
+        stored!.email,
+      license:
+        stored!.license
+    } satisfies MAProfessorAccountSessionResponse
+  }
 }
 
 export async function startMAProfessorAccess(
