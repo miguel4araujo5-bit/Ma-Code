@@ -295,34 +295,40 @@ test(
 )
 
 test(
-  'opening a Daily date materializes scheduled lessons before reading the workspace',
+  'operational readiness prepares today before the Daily workspace can open',
   () => {
     assert.match(
-      dailyViewSource,
+      productSource,
       /ensureDailyScheduledLessonsForDate/
     )
 
-    const loadDate =
+    const refreshAcademicYear =
       getSection(
-        dailyViewSource,
-        'const loadDate = useCallback(',
+        productSource,
+        'const refreshAcademicYear =',
         'useEffect(() => {'
       )
 
+    const readinessPosition =
+      refreshAcademicYear.indexOf(
+        'isMAProfessorOperationallyReady('
+      )
     const preparePosition =
-      loadDate.indexOf(
+      refreshAcademicYear.indexOf(
         'await ensureDailyScheduledLessonsForDate('
       )
-    const workspacePosition =
-      loadDate.indexOf(
-        'await dailyWorkspaceRepository.getDateWorkspace('
+    const readyStatePosition =
+      refreshAcademicYear.indexOf(
+        'setOperationalReady('
       )
 
+    assert.ok(readinessPosition >= 0)
     assert.ok(preparePosition >= 0)
-    assert.ok(workspacePosition >= 0)
+    assert.ok(readyStatePosition >= 0)
     assert.ok(
-      preparePosition < workspacePosition,
-      'As aulas do horário têm de ser preparadas antes de o Diário consultar o dia.'
+      readinessPosition < preparePosition &&
+      preparePosition < readyStatePosition,
+      'A aula de hoje deve ser preparada depois da validação operacional e antes de o produto anunciar que está pronto.'
     )
   }
 )
