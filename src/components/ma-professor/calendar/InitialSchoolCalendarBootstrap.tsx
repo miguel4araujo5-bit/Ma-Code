@@ -13,6 +13,10 @@ import {
 } from '../repository'
 
 import {
+  isSBentoSchoolName
+} from '../setup/schoolDutyDatePolicy'
+
+import {
   isMAProfessorOperationallyReady
 } from '../setup/setupReadiness'
 
@@ -29,43 +33,6 @@ type SchoolSelectionStage =
   | 'other-school'
   | 'ready'
   | 'error'
-
-function normalizeSchoolName(
-  value: string
-) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-PT')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function isSBentoSchoolName(
-  value: string
-) {
-  const normalized =
-    normalizeSchoolName(value)
-
-  if (!normalized) {
-    return false
-  }
-
-  const mentionsSBento =
-    normalized.includes('s bento') ||
-    normalized.includes('sao bento')
-
-  if (!mentionsSBento) {
-    return false
-  }
-
-  return (
-    normalized.includes('vizela') ||
-    normalized.startsWith('agrupamento de escolas') ||
-    normalized.startsWith('escola basica e secundaria') ||
-    normalized.startsWith('ebs ')
-  )
-}
 
 function protectedWorkspaceIsMounted() {
   return (
