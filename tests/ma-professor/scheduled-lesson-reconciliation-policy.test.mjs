@@ -140,12 +140,16 @@ function input(overrides = {}) {
   }
 }
 
+async function loadPolicy() {
+  return import(
+    transpile(policySource)
+  )
+}
+
 test(
   'only untouched generated placeholders are eligible for automatic reconciliation',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
+    const policy = await loadPolicy()
 
     assert.equal(
       policy.isPristineScheduledLesson(
@@ -204,9 +208,7 @@ test(
 test(
   'schedule occurrence identity follows the schedule slot and school week',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
+    const policy = await loadPolicy()
 
     assert.equal(
       policy.getScheduleOccurrenceKey(
@@ -235,10 +237,7 @@ test(
 test(
   'a pristine placeholder follows a time change without leaving a duplicate',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
-
+    const policy = await loadPolicy()
     const plan =
       policy.planScheduledLessonReconciliation(
         input({
@@ -278,10 +277,7 @@ test(
 test(
   'a pristine placeholder follows a weekday change within the same week',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
-
+    const policy = await loadPolicy()
     const plan =
       policy.planScheduledLessonReconciliation(
         input({
@@ -308,9 +304,7 @@ test(
 test(
   'deactivation removes only a pristine future placeholder',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
+    const policy = await loadPolicy()
 
     const pristinePlan =
       policy.planScheduledLessonReconciliation(
@@ -329,17 +323,16 @@ test(
       0
     )
 
-    const edited =
-      pristineLesson({
-        notes: 'Preparação já iniciada.',
-        updatedAt: '2026-09-10T09:00:00.000Z'
-      })
-
     const protectedPlan =
       policy.planScheduledLessonReconciliation(
         input({
           slots: [slot({ active: false })],
-          lessons: [edited]
+          lessons: [
+            pristineLesson({
+              notes: 'Preparação já iniciada.',
+              updatedAt: '2026-09-10T09:00:00.000Z'
+            })
+          ]
         })
       )
 
@@ -357,28 +350,25 @@ test(
 test(
   'a later blocking event removes only an untouched placeholder and does not recreate it',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
-
-    const blockingEvent = {
-      id: 'event-1',
-      academicYearId: 'year-1',
-      type: 'holiday',
-      scope: 'all',
-      groupId: null,
-      teachingAssignmentId: null,
-      title: 'Feriado',
-      description: '',
-      startDate: '2026-09-14',
-      endDate: '2026-09-14',
-      blocksLessons: true
-    }
-
+    const policy = await loadPolicy()
     const plan =
       policy.planScheduledLessonReconciliation(
         input({
-          events: [blockingEvent],
+          events: [
+            {
+              id: 'event-1',
+              academicYearId: 'year-1',
+              type: 'holiday',
+              scope: 'all',
+              groupId: null,
+              teachingAssignmentId: null,
+              title: 'Feriado',
+              description: '',
+              startDate: '2026-09-14',
+              endDate: '2026-09-14',
+              blocksLessons: true
+            }
+          ],
           lessons: [pristineLesson()]
         })
       )
@@ -397,9 +387,7 @@ test(
 test(
   'taught, cancelled, edited or related-data lessons are preserved and block replacement for the same schedule occurrence',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
+    const policy = await loadPolicy()
 
     const protectedCases = [
       {
@@ -465,10 +453,7 @@ test(
 test(
   'an already correct occurrence is idempotent',
   async () => {
-    const policy = await import(
-      transpile(policySource)
-    )
-
+    const policy = await loadPolicy()
     const plan =
       policy.planScheduledLessonReconciliation(
         input({
@@ -492,8 +477,16 @@ test(
 )
 
 test(
-  'the persistence layer rechecks related data before deleting and uses normal lesson validation when creating',
+  'the persistence layer atomically rechecks pristine state and every related-data guard before deleting',
   () => {
+    assert.match(
+      reconciliationRepositorySource,
+      /maProfessorDb\.transaction\(/
+    )
+    assert.match(
+      reconciliationRepositorySource,
+      /isPristineScheduledLesson\(/
+    )
     assert.match(
       reconciliationRepositorySource,
       /lessonAttendance/
@@ -508,7 +501,15 @@ test(
     )
     assert.match(
       reconciliationRepositorySource,
-      /lessonRepository\.deletePlannedLesson\(/
+      /planificationItems/
+    )
+    assert.match(
+      reconciliationRepositorySource,
+      /maProfessorDb\.lessons\.delete\(/
+    )
+    assert.match(
+      reconciliationRepositorySource,
+      /deletedLessonIds\.length !==[\s\S]*plan\.deleteLessonIds\.length[\s\S]*createdLessonIds:\s*\[\]/
     )
     assert.match(
       reconciliationRepositorySource,
