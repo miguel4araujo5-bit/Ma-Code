@@ -4,6 +4,10 @@ import {
   openMAProfessorDatabase
 } from '../db'
 
+import {
+  isStudentMemberOnDate
+} from '../students/studentMembership'
+
 import type {
   AssessmentActivityType,
   AssessmentCriterion,
@@ -460,7 +464,7 @@ async function getAssessmentContext(
   }
 }
 
-async function listActiveStudents(
+async function listStudentsForGroup(
   groupId:
     EntityId
 ) {
@@ -476,11 +480,31 @@ async function listActiveStudents(
       .toArray()
 
   return sortStudents(
+    students
+  )
+}
+
+async function listStudentsForLesson(
+  groupId: EntityId,
+  lesson: Lesson,
+  evidenceStudentIds:
+    Set<EntityId> = new Set()
+) {
+  const students =
+    await listStudentsForGroup(
+      groupId
+    )
+
+  return sortStudents(
     students.filter(
-      (
-        student
-      ) =>
-        student.active
+      student =>
+        isStudentMemberOnDate(
+          student,
+          lesson.date
+        ) ||
+        evidenceStudentIds.has(
+          student.id
+        )
     )
   )
 }
@@ -802,17 +826,12 @@ export class AssessmentRepository {
 
     const [
       schemeContext,
-      students,
       assessments
     ] =
       await Promise.all([
         resolveActiveScheme(
           assignment.id,
           module.id
-        ),
-
-        listActiveStudents(
-          group.id
         ),
 
         maProfessorDb
@@ -826,6 +845,47 @@ export class AssessmentRepository {
           .toArray()
       ])
 
+    const resultLists =
+      await Promise.all(
+        assessments.map(
+          assessment =>
+            getResults(
+              assessment.id
+            )
+        )
+      )
+
+    const resultsByAssessmentId =
+      new Map(
+        assessments.map(
+          (
+            assessment,
+            index
+          ) => [
+            assessment.id,
+            resultLists[index]
+          ]
+        )
+      )
+
+    const evidenceStudentIds =
+      new Set(
+        resultLists.flatMap(
+          results =>
+            results.map(
+              result =>
+                result.studentId
+            )
+        )
+      )
+
+    const students =
+      await listStudentsForLesson(
+        group.id,
+        lesson,
+        evidenceStudentIds
+      )
+
     const assessmentItems =
       await Promise.all(
         sortAssessments(
@@ -834,22 +894,19 @@ export class AssessmentRepository {
           async (
             assessment
           ): Promise<LessonAssessmentWorkspaceItem> => {
-            const [
-              {
-                criterion,
-                scheme
-              },
-              results
-            ] =
-              await Promise.all([
-                getCriterionAndScheme(
-                  assessment.criterionId
-                ),
+            const {
+              criterion,
+              scheme
+            } =
+              await getCriterionAndScheme(
+                assessment.criterionId
+              )
 
-                getResults(
-                  assessment.id
-                )
-              ])
+            const results =
+              resultsByAssessmentId.get(
+                assessment.id
+              ) ??
+              []
 
             if (
               scheme.teachingAssignmentId !==
@@ -1228,7 +1285,6 @@ export class AssessmentRepository {
         criterion,
         scheme
       },
-      students,
       results
     ] =
       await Promise.all([
@@ -1236,14 +1292,22 @@ export class AssessmentRepository {
           assessment.criterionId
         ),
 
-        listActiveStudents(
-          group.id
-        ),
-
         getResults(
           assessment.id
         )
       ])
+
+    const students =
+      await listStudentsForLesson(
+        group.id,
+        lesson,
+        new Set(
+          results.map(
+            result =>
+              result.studentId
+          )
+        )
+      )
 
     if (
       scheme.teachingAssignmentId !==
@@ -1376,9 +1440,21 @@ export class AssessmentRepository {
       )
     }
 
+    const existingResults =
+      await getResults(
+        assessment.id
+      )
+
     const students =
-      await listActiveStudents(
-        group.id
+      await listStudentsForLesson(
+        group.id,
+        lesson,
+        new Set(
+          existingResults.map(
+            result =>
+              result.studentId
+          )
+        )
       )
 
     const studentById =
@@ -1391,6 +1467,22 @@ export class AssessmentRepository {
             student
           ]
         )
+      )
+
+    const memberStudentIds =
+      new Set(
+        students
+          .filter(
+            student =>
+              isStudentMemberOnDate(
+                student,
+                lesson.date
+              )
+          )
+          .map(
+            student =>
+              student.id
+          )
       )
 
     const entryByStudent =
@@ -1430,11 +1522,6 @@ export class AssessmentRepository {
       }
     )
 
-    const existingResults =
-      await getResults(
-        assessment.id
-      )
-
     const existingByStudent =
       new Map(
         existingResults.map(
@@ -1471,6 +1558,9 @@ export class AssessmentRepository {
           (
             result
           ) =>
+            memberStudentIds.has(
+              result.studentId
+            ) &&
             !entryByStudent.has(
               result.studentId
             )
