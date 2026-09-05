@@ -187,6 +187,20 @@ function resetScenario({
 }) {
   const daily = resetDailyState()
   daily.lesson = null
+  daily.scheduleSlots = [
+    {
+      id: 'schedule-1',
+      academicYearId: 'year-1',
+      teachingAssignmentId: 'assignment-1',
+      weekday: 1,
+      startTime: '09:00',
+      endTime: '10:00',
+      periodCount: 1,
+      validFrom: '2026-09-01',
+      validUntil: '2027-08-31',
+      active: true
+    }
+  ]
 
   globalThis.__firstSummarySmoke = {
     date: '2026-09-07',
