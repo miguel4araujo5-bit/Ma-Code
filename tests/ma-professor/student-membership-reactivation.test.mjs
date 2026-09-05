@@ -89,12 +89,17 @@ test(
 
     assert.match(
       dbSource,
+      /const\s+studentChanges\s*=\s*modifications\s+as\s+Partial<Student>/
+    )
+
+    assert.match(
+      dbSource,
       /student\.active\s*!==\s*false/
     )
 
     assert.match(
       dbSource,
-      /modifications\.active\s*!==\s*true/
+      /studentChanges\.active\s*!==\s*true/
     )
 
     assert.match(
