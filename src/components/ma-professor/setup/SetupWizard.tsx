@@ -22,6 +22,9 @@ import StudentsSetupStep from './StudentsSetupStep'
 import SubjectsSetupStep from './SubjectsSetupStep'
 import WeeklyScheduleSetupStep from './WeeklyScheduleSetupStep'
 import {
+  isSBentoSchoolName
+} from './schoolDutyDatePolicy'
+import {
   getMAProfessorSetupReadiness,
   hasCompleteScheduleCoverage,
   MA_PROFESSOR_OPEN_DAILY_EVENT
@@ -70,34 +73,6 @@ function formatDate(value: string) {
     month: 'long',
     year: 'numeric'
   }).format(new Date(year, month - 1, day))
-}
-
-function normalizeSchoolName(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-PT')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function isSBentoSchoolName(value: string) {
-  const normalized = normalizeSchoolName(value)
-
-  if (!normalized) return false
-
-  const mentionsSBento =
-    normalized.includes('s bento') ||
-    normalized.includes('sao bento')
-
-  if (!mentionsSBento) return false
-
-  return (
-    normalized.includes('vizela') ||
-    normalized.startsWith('agrupamento de escolas') ||
-    normalized.startsWith('escola basica e secundaria') ||
-    normalized.startsWith('ebs ')
-  )
 }
 
 function hasCompleteImportedSchedule(
