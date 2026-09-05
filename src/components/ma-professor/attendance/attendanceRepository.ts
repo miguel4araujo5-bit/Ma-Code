@@ -4,6 +4,10 @@ import {
   openMAProfessorDatabase
 } from '../db'
 
+import {
+  isStudentMemberOnDate
+} from '../students/studentMembership'
+
 import type {
   AttendanceStatus,
   EntityId,
@@ -602,7 +606,7 @@ async function getStudentInGroup(
   return student
 }
 
-async function listActiveStudentsForGroup(
+async function listStudentsForGroup(
   groupId:
     EntityId
 ) {
@@ -617,6 +621,45 @@ async function listActiveStudentsForGroup(
         groupId
       )
       .toArray()
+
+  return sortStudents(
+    students
+  )
+}
+
+async function listStudentsForLesson(
+  groupId: EntityId,
+  date: ISODate,
+  evidenceStudentIds:
+    Set<EntityId> = new Set()
+) {
+  const students =
+    await listStudentsForGroup(
+      groupId
+    )
+
+  return sortStudents(
+    students.filter(
+      student =>
+        isStudentMemberOnDate(
+          student,
+          date
+        ) ||
+        evidenceStudentIds.has(
+          student.id
+        )
+    )
+  )
+}
+
+async function listActiveStudentsForGroup(
+  groupId:
+    EntityId
+) {
+  const students =
+    await listStudentsForGroup(
+      groupId
+    )
 
   return sortStudents(
     students.filter(
@@ -759,54 +802,36 @@ async function calculateStudentModuleSummary(
   settings:
     MAProfessorSettings
 ): Promise<StudentAbsenceSummary> {
-  await getStudentInGroup(
-    studentId,
-    assignment.groupId
-  )
-
-  const lessons:
-    Lesson[] =
-    await maProfessorDb
-      .lessons
-      .where(
-        'moduleId'
-      )
-      .equals(
-        module.id
-      )
-      .toArray()
-
-  const taughtLessons =
-    lessons.filter(
-      (
-        lesson
-      ) =>
-        lesson.status ===
-          'taught' &&
-        lesson.countTowardProgress
+  const student =
+    await getStudentInGroup(
+      studentId,
+      assignment.groupId
     )
 
-  const taughtLessonIds =
-    new Set(
-      taughtLessons.map(
-        (
-          lesson
-        ) =>
-          lesson.id
-      )
-    )
-
-  const attendanceRecords:
-    LessonAttendance[] =
-    await maProfessorDb
-      .lessonAttendance
-      .where(
-        'studentId'
-      )
-      .equals(
-        studentId
-      )
-      .toArray()
+  const [
+    lessons,
+    attendanceRecords
+  ] =
+    await Promise.all([
+      maProfessorDb
+        .lessons
+        .where(
+          'moduleId'
+        )
+        .equals(
+          module.id
+        )
+        .toArray(),
+      maProfessorDb
+        .lessonAttendance
+        .where(
+          'studentId'
+        )
+        .equals(
+          studentId
+        )
+        .toArray()
+    ])
 
   const attendanceByLesson =
     new Map<
@@ -815,14 +840,6 @@ async function calculateStudentModuleSummary(
     >()
 
   attendanceRecords
-    .filter(
-      (
-        record
-      ) =>
-        taughtLessonIds.has(
-          record.lessonId
-        )
-    )
     .sort(
       (
         left,
@@ -841,6 +858,25 @@ async function calculateStudentModuleSummary(
           record
         )
       }
+    )
+
+  const taughtLessons =
+    lessons.filter(
+      (
+        lesson
+      ) =>
+        lesson.status ===
+          'taught' &&
+        lesson.countTowardProgress &&
+        (
+          isStudentMemberOnDate(
+            student,
+            lesson.date
+          ) ||
+          attendanceByLesson.has(
+            lesson.id
+          )
+        )
     )
 
   const absences =
@@ -1067,14 +1103,18 @@ export class AttendanceRepository {
         lessonId
       )
 
-    const students =
-      await listActiveStudentsForGroup(
-        assignment.groupId
-      )
-
     const attendanceByStudent =
       await getAttendanceMapForLesson(
         lesson.id
+      )
+
+    const students =
+      await listStudentsForLesson(
+        assignment.groupId,
+        lesson.date,
+        new Set(
+          attendanceByStudent.keys()
+        )
       )
 
     const rows =
@@ -1161,9 +1201,18 @@ export class AttendanceRepository {
       )
     }
 
+    const existingByStudent =
+      await getAttendanceMapForLesson(
+        lesson.id
+      )
+
     const students =
-      await listActiveStudentsForGroup(
-        assignment.groupId
+      await listStudentsForLesson(
+        assignment.groupId,
+        lesson.date,
+        new Set(
+          existingByStudent.keys()
+        )
       )
 
     const studentById =
@@ -1228,11 +1277,6 @@ export class AttendanceRepository {
         'Indique pelo menos um registo de assiduidade.'
       )
     }
-
-    const existingByStudent =
-      await getAttendanceMapForLesson(
-        lesson.id
-      )
 
     const timestamp =
       now()
@@ -1330,26 +1374,19 @@ export class AttendanceRepository {
   ) {
     await this.initialize()
 
-    const {
-      assignment
-    } =
-      await getLessonContext(
+    const register =
+      await this.getLessonAttendanceRegister(
         lessonId
-      )
-
-    const students =
-      await listActiveStudentsForGroup(
-        assignment.groupId
       )
 
     return this.saveLessonAttendance(
       lessonId,
-      students.map(
+      register.rows.map(
         (
-          student
+          row
         ) => ({
           studentId:
-            student.id,
+            row.student.id,
           status:
             'present' as const
         })
