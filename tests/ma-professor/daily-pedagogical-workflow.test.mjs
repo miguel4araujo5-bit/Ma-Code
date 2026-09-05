@@ -354,7 +354,7 @@ test(
     )
     assert.match(
       dailyPreparationSource,
-      /lessonRepository\.generateScheduledLessons\(\{[\s\S]*dateFrom:\s*date,[\s\S]*dateTo:\s*date,[\s\S]*createCancelledForBlockedDates:\s*false/
+      /scheduledLessonReconciliationRepository\.reconcile\(\{[\s\S]*dateFrom:\s*date,[\s\S]*dateTo:\s*date/
     )
   }
 )
