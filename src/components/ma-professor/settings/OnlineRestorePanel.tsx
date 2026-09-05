@@ -374,7 +374,10 @@ export function OnlineRestorePanel({
               foundPreview.serverRevision,
 
             expectedRemoteFingerprint:
-              foundPreview.remoteFingerprint
+              foundPreview.remoteFingerprint,
+
+            expectedLocalContentSignature:
+              foundPreview.localContentSignature
           })
 
         setRestored(
