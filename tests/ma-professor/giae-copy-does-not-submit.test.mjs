@@ -28,7 +28,7 @@ const calendarEditorSource = await readFile(
 
 const lessonRepositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/lessons/lessonRepository.ts',
+    '../../src/components/ma-professor/lessons/lessonRepositoryBase.ts',
     import.meta.url
   ),
   'utf8'
