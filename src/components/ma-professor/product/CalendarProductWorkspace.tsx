@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -14,6 +15,9 @@ import {
   type CalendarWorkspaceFilters,
   type CalendarWorkspaceSnapshot
 } from '../calendar/calendarWorkspaceRepository'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 import type {
   EntityId,
   ISODate,
@@ -24,6 +28,9 @@ interface CalendarProductWorkspaceProps {
   academicYearId: EntityId
   onOpenLesson: (date: ISODate, lessonId: EntityId) => void
 }
+
+const EVENT_EDITOR_DISCARD_MESSAGE =
+  'Existem alterações por guardar neste evento. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
 function todayISO(): ISODate {
   const date = new Date()
@@ -114,6 +121,18 @@ export function CalendarProductWorkspace({
   const [eventText, setEventText] = useState('')
   const [eventSaving, setEventSaving] = useState(false)
   const [eventError, setEventError] = useState('')
+  const eventEditorRef = useRef<HTMLDivElement>(null)
+
+  const hasUnsavedEventText = Boolean(
+    selectedEvent &&
+    eventText !== selectedEvent.description
+  )
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedEventText,
+    eventEditorRef,
+    EVENT_EDITOR_DISCARD_MESSAGE
+  )
 
   const loadCalendar = useCallback(async () => {
     setLoading(true)
@@ -171,13 +190,27 @@ export function CalendarProductWorkspace({
   }
 
   function closeEventEditor() {
-    if (eventSaving) {
-      return
-    }
-
     setSelectedEvent(null)
     setEventText('')
     setEventError('')
+  }
+
+  function confirmDiscardEventTextChanges() {
+    return !hasUnsavedEventText ||
+      window.confirm(
+        EVENT_EDITOR_DISCARD_MESSAGE
+      )
+  }
+
+  function requestCloseEventEditor() {
+    if (
+      eventSaving ||
+      !confirmDiscardEventTextChanges()
+    ) {
+      return
+    }
+
+    closeEventEditor()
   }
 
   async function saveEventText() {
@@ -272,6 +305,7 @@ export function CalendarProductWorkspace({
 
       {selectedEvent ? (
         <div
+          ref={eventEditorRef}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
@@ -307,7 +341,7 @@ export function CalendarProductWorkspace({
 
               <button
                 type="button"
-                onClick={closeEventEditor}
+                onClick={requestCloseEventEditor}
                 disabled={eventSaving}
                 aria-label="Fechar"
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-50"
@@ -356,7 +390,7 @@ export function CalendarProductWorkspace({
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
-                onClick={closeEventEditor}
+                onClick={requestCloseEventEditor}
                 disabled={eventSaving}
                 className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm font-bold text-slate-300 disabled:opacity-50"
               >
