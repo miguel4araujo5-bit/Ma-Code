@@ -11,17 +11,17 @@ const membershipSource = await readFile(
   'utf8'
 )
 
-const typesSource = await readFile(
+const rosterSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/types.ts',
+    '../../src/components/ma-professor/students/studentRosterRepository.ts',
     import.meta.url
   ),
   'utf8'
 )
 
-const repositorySource = await readFile(
+const typesSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/repository.ts',
+    '../../src/components/ma-professor/types.ts',
     import.meta.url
   ),
   'utf8'
@@ -46,6 +46,22 @@ const assessmentSource = await readFile(
 const assessmentWorkspaceSource = await readFile(
   new URL(
     '../../src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const groupsRepositorySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/groups/groupsWorkspaceRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const studentsSetupSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/StudentsSetupStep.tsx',
     import.meta.url
   ),
   'utf8'
@@ -199,21 +215,61 @@ test(
 )
 
 test(
-  'new students persist an explicit membership start while existing students keep their history',
+  'new students get a conservative membership start without rewriting existing student history',
   () => {
     assert.match(
-      repositorySource,
-      /export interface StudentDraft[\s\S]*membershipStartDate\?:\s*ISODate/
+      rosterSource,
+      /maProfessorRepository\.saveStudentsForGroup/
     )
 
     assert.match(
-      repositorySource,
-      /membershipPeriods:\s*\[[\s\S]*startDate:[\s\S]*endDate:\s*null[\s\S]*\]/
+      rosterSource,
+      /existingStudentIds/
     )
 
     assert.match(
-      repositorySource,
-      /if\s*\(\s*current\s*\)[\s\S]*membershipPeriods:\s*current\.membershipPeriods/
+      rosterSource,
+      /hasTaughtLesson/
+    )
+
+    assert.match(
+      rosterSource,
+      /createInitialStudentMembership/
+    )
+
+    assert.match(
+      rosterSource,
+      /if\s*\(\s*existingStudentIds\.has\(\s*student\.id\s*\)\s*\)[\s\S]*return student/
+    )
+
+    assert.match(
+      groupsRepositorySource,
+      /saveStudentsForGroupWithMembership/
+    )
+
+    assert.match(
+      studentsSetupSource,
+      /saveStudentsForGroupWithMembership/
+    )
+  }
+)
+
+test(
+  'deactivation and reactivation only update explicit membership history',
+  () => {
+    assert.match(
+      groupsRepositorySource,
+      /closeStudentMembership/
+    )
+
+    assert.match(
+      groupsRepositorySource,
+      /reopenStudentMembership/
+    )
+
+    assert.match(
+      groupsRepositorySource,
+      /membershipPeriods/
     )
   }
 )
