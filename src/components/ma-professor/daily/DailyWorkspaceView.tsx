@@ -890,19 +890,9 @@ export default function DailyWorkspaceView({
                 summary
             );
 
-            setLessonForm(current =>
-                current
-                    ? {
-                          ...current,
-                          giaeStatus:
-                              'submitted'
-                      }
-                    : current
-            );
-
             setError('');
             setSuccess(
-                'Sumário copiado. O estado “Submetido no GIAE” foi assinalado.'
+                'Sumário copiado. O estado no GIAE mantém-se inalterado.'
             );
         } catch {
             setError(
