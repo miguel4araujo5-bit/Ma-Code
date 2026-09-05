@@ -11,9 +11,9 @@ const membershipSource = await readFile(
   'utf8'
 )
 
-const repositorySource = await readFile(
+const dbSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/repository.ts',
+    '../../src/components/ma-professor/db.ts',
     import.meta.url
   ),
   'utf8'
@@ -75,16 +75,31 @@ test(
 )
 
 test(
-  'reimporting an inactive existing student reopens membership instead of only flipping active',
+  'all persisted inactive-to-active student transitions reopen membership centrally',
   () => {
     assert.match(
-      repositorySource,
-      /reopenStudentMembership/
+      dbSource,
+      /students\.hook\(\s*'updating'/
     )
 
     assert.match(
-      repositorySource,
-      /if\s*\(\s*current\s*\)[\s\S]{0,1200}current\.active[\s\S]{0,1200}reopenStudentMembership\([\s\S]{0,250}membershipStartDate/
+      dbSource,
+      /object\.active\s*===\s*false/
+    )
+
+    assert.match(
+      dbSource,
+      /modifications\.active\s*===\s*true/
+    )
+
+    assert.match(
+      dbSource,
+      /reopenStudentMembership\(/
+    )
+
+    assert.match(
+      dbSource,
+      /getLocalISODate\(\)/
     )
   }
 )
