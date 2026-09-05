@@ -2,8 +2,19 @@ import {
   type ChangeEvent,
   type FormEvent,
   useEffect,
+  useMemo,
+  useRef,
   useState
 } from 'react'
+
+import {
+  hasMAProfessorDirtyDraftRecord,
+  reconcileMAProfessorDraftRecord
+} from '../navigation/draftReconciliation'
+
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
   EntityId,
@@ -266,6 +277,46 @@ export default function GroupsWorkspaceView({
   onUpdateStudent,
   onSetStudentActive
 }: GroupsWorkspaceViewProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(
+      null
+    )
+
+  const persistedGroupForm =
+    useMemo(
+      () =>
+        createGroupForm(
+          snapshot
+        ),
+      [
+        snapshot.generatedAt
+      ]
+    )
+
+  const persistedStudentForms =
+    useMemo(
+      () =>
+        createStudentForms(
+          snapshot.students
+        ),
+      [
+        snapshot.generatedAt
+      ]
+    )
+
+  const previousPersistedGroupFormRef =
+    useRef<GroupFormState>(
+      persistedGroupForm
+    )
+
+  const previousPersistedStudentFormsRef =
+    useRef<StudentForms>(
+      persistedStudentForms
+    )
+
+  const discardOnNextSnapshotRef =
+    useRef(false)
+
   const [
     showCreateGroup,
     setShowCreateGroup
@@ -286,9 +337,7 @@ export default function GroupsWorkspaceView({
   ] =
     useState<GroupFormState>(
       () =>
-        createGroupForm(
-          snapshot
-        )
+        persistedGroupForm
     )
 
   const [
@@ -297,9 +346,7 @@ export default function GroupsWorkspaceView({
   ] =
     useState<StudentForms>(
       () =>
-        createStudentForms(
-          snapshot.students
-        )
+        persistedStudentForms
     )
 
   const [
@@ -331,22 +378,120 @@ export default function GroupsWorkspaceView({
     )
 
   useEffect(() => {
+    const previousPersistedGroupForm =
+      previousPersistedGroupFormRef.current
+
+    const previousPersistedStudentForms =
+      previousPersistedStudentFormsRef.current
+
     setGroupForm(
-      createGroupForm(
-        snapshot
-      )
+      current =>
+        discardOnNextSnapshotRef.current
+          ? persistedGroupForm
+          : reconcileMAProfessorDraftRecord(
+              {
+                group:
+                  previousPersistedGroupForm
+              },
+              {
+                group:
+                  current
+              },
+              {
+                group:
+                  persistedGroupForm
+              }
+            ).group
     )
 
     setStudentForms(
-      createStudentForms(
-        snapshot.students
-      )
+      current =>
+        discardOnNextSnapshotRef.current
+          ? persistedStudentForms
+          : reconcileMAProfessorDraftRecord(
+              previousPersistedStudentForms,
+              current,
+              persistedStudentForms
+            )
     )
 
-    setImportText('')
+    discardOnNextSnapshotRef.current =
+      false
+
+    previousPersistedGroupFormRef.current =
+      persistedGroupForm
+
+    previousPersistedStudentFormsRef.current =
+      persistedStudentForms
   }, [
+    persistedGroupForm,
+    persistedStudentForms,
     snapshot.generatedAt
   ])
+
+  const groupFormDirty =
+    useMemo(
+      () =>
+        hasMAProfessorDirtyDraftRecord(
+          {
+            group:
+              persistedGroupForm
+          },
+          {
+            group:
+              groupForm
+          }
+        ),
+      [
+        groupForm,
+        persistedGroupForm
+      ]
+    )
+
+  const studentFormsDirty =
+    useMemo(
+      () =>
+        hasMAProfessorDirtyDraftRecord(
+          persistedStudentForms,
+          studentForms
+        ),
+      [
+        persistedStudentForms,
+        studentForms
+      ]
+    )
+
+  const newGroupDirty =
+    showCreateGroup &&
+    JSON.stringify(
+      newGroup
+    ) !==
+      JSON.stringify(
+        createEmptyGroupForm()
+      )
+
+  const hasGroupsUnsavedChanges =
+    groupFormDirty ||
+    studentFormsDirty ||
+    newGroupDirty ||
+    Boolean(
+      importText.trim()
+    )
+
+  function confirmDiscardUnsavedChanges() {
+    return (
+      !hasGroupsUnsavedChanges ||
+      window.confirm(
+        'Existem alterações na turma ou nos alunos por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasGroupsUnsavedChanges,
+    rootRef,
+    'Existem alterações na turma ou nos alunos por guardar. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
+  )
 
   const busy =
     loading ||
@@ -361,6 +506,74 @@ export default function GroupsWorkspaceView({
           student =>
             student.active
         )
+
+  function discardLocalDraftsOnNextSnapshot() {
+    discardOnNextSnapshotRef.current =
+      true
+
+    setImportText('')
+    setNewGroup(
+      createEmptyGroupForm()
+    )
+    setShowCreateGroup(false)
+  }
+
+  function handleGroupFilterChange(
+    event: ChangeEvent<HTMLSelectElement>
+  ) {
+    if (
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardLocalDraftsOnNextSnapshot()
+    setFeedback(null)
+
+    onFiltersChange({
+      groupId:
+        event.target.value ||
+        null
+    })
+  }
+
+  function handleRefresh() {
+    if (
+      !onRefresh ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardLocalDraftsOnNextSnapshot()
+    onRefresh()
+  }
+
+  function handleCreateGroupToggle() {
+    if (
+      showCreateGroup &&
+      newGroupDirty &&
+      !window.confirm(
+        'Existem dados da nova turma por guardar. Se cancelar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    ) {
+      return
+    }
+
+    if (
+      showCreateGroup
+    ) {
+      setNewGroup(
+        createEmptyGroupForm()
+      )
+    }
+
+    setShowCreateGroup(
+      current =>
+        !current
+    )
+    setFeedback(null)
+  }
 
   async function runAction(
     actionId: string,
@@ -605,7 +818,10 @@ export default function GroupsWorkspaceView({
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      ref={rootRef}
+      className="space-y-6"
+    >
       <section className="overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl">
         <div className="border-b border-white/10 px-5 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -632,13 +848,9 @@ export default function GroupsWorkspaceView({
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => {
-                  setShowCreateGroup(
-                    current =>
-                      !current
-                  )
-                  setFeedback(null)
-                }}
+                onClick={
+                  handleCreateGroupToggle
+                }
                 disabled={busy}
                 className="rounded-2xl border border-cyan-200/25 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-50"
               >
@@ -649,7 +861,7 @@ export default function GroupsWorkspaceView({
 
               <button
                 type="button"
-                onClick={onRefresh}
+                onClick={handleRefresh}
                 disabled={
                   busy ||
                   !onRefresh
@@ -675,14 +887,8 @@ export default function GroupsWorkspaceView({
                 snapshot.filters.groupId ??
                 ''
               }
-              onChange={(
-                event: ChangeEvent<HTMLSelectElement>
-              ) =>
-                onFiltersChange({
-                  groupId:
-                    event.target.value ||
-                    null
-                })
+              onChange={
+                handleGroupFilterChange
               }
               disabled={
                 busy ||
