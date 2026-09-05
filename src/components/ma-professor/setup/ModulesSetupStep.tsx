@@ -1,9 +1,13 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -32,6 +36,12 @@ type EntryMode =
 
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+
+const UNSAVED_MODULE_DRAFT_MESSAGE =
+  'Existem UFCD ou módulos por guardar neste passo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
+const RETARGET_MODULE_DRAFT_MESSAGE =
+  'Existe um rascunho de UFCD ou módulo por guardar. Se mudar de disciplina, esse rascunho passará a ser aplicado à nova disciplina. Pretende continuar?'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -372,6 +382,31 @@ export default function ModulesSetupStep({
   ] =
     useState('')
 
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
+  const hasUnsavedSingleModuleDraft =
+    Boolean(
+      code.trim() ||
+      name.trim() ||
+      plannedPeriods.trim()
+    )
+
+  const hasUnsavedBulkModuleDraft =
+    Boolean(
+      bulkText.trim()
+    )
+
+  const hasUnsavedModuleDraft =
+    hasUnsavedSingleModuleDraft ||
+    hasUnsavedBulkModuleDraft
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedModuleDraft,
+    rootRef,
+    UNSAVED_MODULE_DRAFT_MESSAGE
+  )
+
   const selectedSubject =
     selectedSubjectId
       ? subjectById.get(
@@ -462,6 +497,35 @@ export default function ModulesSetupStep({
     )
 
     return nextSnapshot
+  }
+
+  function confirmRetargetModuleDraft() {
+    if (!hasUnsavedModuleDraft) {
+      return true
+    }
+
+    return window.confirm(
+      RETARGET_MODULE_DRAFT_MESSAGE
+    )
+  }
+
+  function requestSelectSubject(
+    subjectId: EntityId
+  ) {
+    if (
+      subjectId ===
+      selectedSubjectId
+    ) {
+      return
+    }
+
+    if (
+      !confirmRetargetModuleDraft()
+    ) {
+      return
+    }
+
+    setSelectedSubjectId(subjectId)
   }
 
   function toggleAssignment(
@@ -724,10 +788,16 @@ export default function ModulesSetupStep({
 
       await refreshSnapshot()
 
-      setCode('')
-      setName('')
-      setPlannedPeriods('')
-      setBulkText('')
+      if (
+        entryMode ===
+        'bulk'
+      ) {
+        setBulkText('')
+      } else {
+        setCode('')
+        setName('')
+        setPlannedPeriods('')
+      }
 
       setSuccess(
         drafts.length ===
@@ -760,6 +830,16 @@ export default function ModulesSetupStep({
 
   async function handleContinue() {
     if (busy) {
+      return
+    }
+
+    if (
+      hasUnsavedModuleDraft
+    ) {
+      setError(
+        'Existem UFCD ou módulos por guardar neste passo. Adicione o rascunho atual antes de continuar.'
+      )
+
       return
     }
 
@@ -841,7 +921,10 @@ export default function ModulesSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"
+    >
       <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
           Passo 4 de 9
@@ -866,7 +949,7 @@ export default function ModulesSetupStep({
                 key={subject.id}
                 type="button"
                 onClick={() =>
-                  setSelectedSubjectId(
+                  requestSelectSubject(
                     subject.id
                   )
                 }
