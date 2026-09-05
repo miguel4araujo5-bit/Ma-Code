@@ -13,11 +13,15 @@ import {
   AccountIsolationGate
 } from '../access/AccountIsolationGate'
 
+import InitialSchoolCalendarBootstrap from '../calendar/InitialSchoolCalendarBootstrap'
+
 import DailyWorkspaceView from '../daily/DailyWorkspaceView'
 
 import {
   maProfessorRepository
 } from '../repository'
+
+import OperationalReadinessReporter from '../setup/OperationalReadinessReporter'
 
 import {
   isMAProfessorOperationallyReady,
@@ -699,7 +703,12 @@ export function MAProfessorProduct() {
   return (
     <AccessGate>
       <AccountIsolationGate>
-        <ProductContent />
+        <>
+          <OperationalReadinessReporter />
+          <InitialSchoolCalendarBootstrap>
+            <ProductContent />
+          </InitialSchoolCalendarBootstrap>
+        </>
       </AccountIsolationGate>
     </AccessGate>
   )
