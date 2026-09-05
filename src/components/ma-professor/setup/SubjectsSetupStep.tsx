@@ -214,7 +214,7 @@ export default function SubjectsSetupStep({
     )
 
   const hasDirtySubjectEdit =
-    Boolean(editingSubject) &&
+    editingSubject !== null &&
     (
       form.name !== editingSubject.name ||
       form.shortName !== editingSubject.shortName ||
