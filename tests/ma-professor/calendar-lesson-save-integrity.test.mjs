@@ -19,6 +19,14 @@ const editorSource = await readFile(
   'utf8'
 )
 
+const assessmentSectionSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/DailyLessonAssessmentSection.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const saveSafetySource = await readFile(
   new URL(
     '../../src/components/ma-professor/calendar/calendarLessonSaveSafety.ts',
@@ -138,6 +146,24 @@ test(
     assert.match(
       lessonRepositorySource,
       /getLessonContext\([\s\S]*next,[\s\S]*current/
+    )
+  }
+)
+
+test(
+  'a rolled-back full save clears only the transient new-assessment id so the draft can be retried safely',
+  () => {
+    assert.match(
+      assessmentSectionSource,
+      /resetTransientSaveState:\s*\(\)\s*=>\s*void/
+    )
+    assert.match(
+      assessmentSectionSource,
+      /resetTransientSaveState\(\)[\s\S]*draftCreatedAssessmentIdRef\.current\s*=\s*null/
+    )
+    assert.match(
+      editorSource,
+      /catch \(saveError\)[\s\S]*assessmentSectionRef\.current\?\.resetTransientSaveState\(\)/
     )
   }
 )
