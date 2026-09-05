@@ -11,6 +11,7 @@ import MAProfessorActivationLinkGate from '../components/ma-professor/access/MAP
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
 import OperationalReadinessReporter from '../components/ma-professor/setup/OperationalReadinessReporter'
+import SnapshotCapacityNotice from '../components/ma-professor/sync/SnapshotCapacityNotice'
 import SyncStatePersistenceNotice from '../components/ma-professor/sync/SyncStatePersistenceNotice'
 
 const siteUrl =
@@ -191,6 +192,7 @@ export default function MAProfessorPage() {
           <OperationalReadinessReporter />
           <AccessVerificationNotice />
           <SyncStatePersistenceNotice />
+          <SnapshotCapacityNotice />
           <InitialSchoolCalendarBootstrap>
             <MAProfessorProduct />
           </InitialSchoolCalendarBootstrap>
