@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -12,6 +13,9 @@ import type {
   EntityId,
   Subject
 } from '../types'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 type SubjectsSetupStepProps = {
   snapshot: SetupSnapshot
@@ -80,6 +84,9 @@ const emptyForm: SubjectFormState = {
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
 
+const discardSubjectDraftMessage =
+  'Existem alterações por guardar nesta disciplina. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
@@ -105,6 +112,7 @@ export default function SubjectsSetupStep({
   onSnapshotChange,
   onCompleted
 }: SubjectsSetupStepProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const [form, setForm] = useState<SubjectFormState>(emptyForm)
 
   const [editingSubjectId, setEditingSubjectId] =
@@ -159,6 +167,71 @@ export default function SubjectsSetupStep({
     [snapshot.groups]
   )
 
+  const editingSubject = useMemo(
+    () =>
+      editingSubjectId
+        ? snapshot.subjects.find(
+            subject => subject.id === editingSubjectId
+          ) ?? null
+        : null,
+    [editingSubjectId, snapshot.subjects]
+  )
+
+  const defaultNewGroupIds = useMemo(
+    () => new Set(activeGroups.map(group => group.id)),
+    [activeGroups]
+  )
+
+  const hasChangedNewGroupSelection =
+    !editingSubjectId &&
+    customMode &&
+    (
+      form.groupIds.length !== defaultNewGroupIds.size ||
+      form.groupIds.some(groupId => !defaultNewGroupIds.has(groupId))
+    )
+
+  const hasUnsavedNewSubject =
+    !editingSubjectId &&
+    (
+      Boolean(
+        form.name.trim() ||
+        form.shortName.trim() ||
+        form.code.trim()
+      ) ||
+      hasChangedNewGroupSelection
+    )
+
+  const persistedEditingGroupIds =
+    editingSubjectId
+      ? assignmentsBySubject.get(editingSubjectId) ??
+        new Set<EntityId>()
+      : new Set<EntityId>()
+
+  const hasNewGroupAssignments =
+    Boolean(editingSubject) &&
+    form.groupIds.some(
+      groupId => !persistedEditingGroupIds.has(groupId)
+    )
+
+  const hasDirtySubjectEdit =
+    Boolean(editingSubject) &&
+    (
+      form.name !== editingSubject.name ||
+      form.shortName !== editingSubject.shortName ||
+      form.code !== editingSubject.code ||
+      hasNewGroupAssignments
+    )
+
+  const hasUnsavedSubjectSetupChanges =
+    hasUnsavedNewSubject ||
+    hasDirtySubjectEdit
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedSubjectSetupChanges,
+    rootRef,
+    discardSubjectDraftMessage
+  )
+
   async function refreshSnapshot() {
     const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
       snapshot.academicYear.id
@@ -173,6 +246,21 @@ export default function SubjectsSetupStep({
     setForm(emptyForm)
     setEditingSubjectId(null)
     setCustomMode(false)
+  }
+
+  function confirmDiscardSubjectDraft() {
+    return (
+      !hasUnsavedSubjectSetupChanges ||
+      window.confirm(discardSubjectDraftMessage)
+    )
+  }
+
+  function requestResetForm() {
+    if (busy || !confirmDiscardSubjectDraft()) {
+      return
+    }
+
+    resetForm()
   }
 
   function chooseSuggestion(
@@ -191,6 +279,33 @@ export default function SubjectsSetupStep({
     })
   }
 
+  function requestChooseSuggestion(
+    suggestion: SubjectSuggestion
+  ) {
+    const targetGroupIds =
+      activeGroups.map(group => group.id)
+
+    const alreadySelected =
+      !editingSubjectId &&
+      !customMode &&
+      form.name === suggestion.name &&
+      form.shortName === suggestion.shortName &&
+      form.code === '' &&
+      form.groupIds.length === targetGroupIds.length &&
+      targetGroupIds.every(groupId =>
+        form.groupIds.includes(groupId)
+      )
+
+    if (
+      busy ||
+      (!alreadySelected && !confirmDiscardSubjectDraft())
+    ) {
+      return
+    }
+
+    chooseSuggestion(suggestion)
+  }
+
   function chooseCustomSubject() {
     setEditingSubjectId(null)
     setCustomMode(true)
@@ -201,6 +316,22 @@ export default function SubjectsSetupStep({
       ...emptyForm,
       groupIds: activeGroups.map(group => group.id)
     })
+  }
+
+  function requestChooseCustomSubject() {
+    const alreadyEmptyCustom =
+      !editingSubjectId &&
+      customMode &&
+      !hasUnsavedNewSubject
+
+    if (
+      busy ||
+      (!alreadyEmptyCustom && !confirmDiscardSubjectDraft())
+    ) {
+      return
+    }
+
+    chooseCustomSubject()
   }
 
   function toggleGroup(groupId: EntityId) {
@@ -238,6 +369,14 @@ export default function SubjectsSetupStep({
 
     setError('')
     setSuccess('')
+  }
+
+  function requestStartEditing(subject: Subject) {
+    if (busy || !confirmDiscardSubjectDraft()) {
+      return
+    }
+
+    startEditing(subject)
   }
 
   async function createMissingAssignments(
@@ -365,6 +504,14 @@ export default function SubjectsSetupStep({
       return
     }
 
+    if (hasUnsavedSubjectSetupChanges) {
+      setError(
+        'Existem alterações por guardar neste passo. Guarde ou adicione a disciplina, ou cancele o rascunho, antes de continuar.'
+      )
+
+      return
+    }
+
     if (
       activeSubjects.length === 0 ||
       snapshot.teachingAssignments.filter(
@@ -411,7 +558,10 @@ export default function SubjectsSetupStep({
   )
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"
+    >
       <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
           Passo 3 de 9
@@ -446,7 +596,7 @@ export default function SubjectsSetupStep({
                     key={suggestion.name}
                     type="button"
                     onClick={() =>
-                      chooseSuggestion(suggestion)
+                      requestChooseSuggestion(suggestion)
                     }
                     className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
                       selected
@@ -461,7 +611,7 @@ export default function SubjectsSetupStep({
 
               <button
                 type="button"
-                onClick={chooseCustomSubject}
+                onClick={requestChooseCustomSubject}
                 className={`rounded-xl border px-3 py-2.5 text-sm font-black transition ${
                   customMode &&
                   !editingSubjectId
@@ -491,7 +641,7 @@ export default function SubjectsSetupStep({
               {!editingSubjectId ? (
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={requestResetForm}
                   className="text-xs font-bold text-slate-500 transition hover:text-white"
                 >
                   Limpar
@@ -641,7 +791,7 @@ export default function SubjectsSetupStep({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={resetForm}
+                  onClick={requestResetForm}
                   className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300"
                 >
                   Cancelar
@@ -730,9 +880,7 @@ export default function SubjectsSetupStep({
 
                     <button
                       type="button"
-                      onClick={() =>
-                        startEditing(subject)
-                      }
+                      onClick={() => requestStartEditing(subject)}
                       className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100"
                     >
                       Editar
