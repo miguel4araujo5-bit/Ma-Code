@@ -2,17 +2,17 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const dailyViewSource = await readFile(
+const calendarWrapperSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    '../../src/components/ma-professor/calendar/calendarWorkspaceRepository.ts',
     import.meta.url
   ),
   'utf8'
 )
 
-const calendarProductSource = await readFile(
+const calendarBaseSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/product/CalendarProductWorkspace.tsx',
+    '../../src/components/ma-professor/calendar/calendarWorkspaceRepositoryBase.ts',
     import.meta.url
   ),
   'utf8'
@@ -29,6 +29,14 @@ const scheduleRepositorySource = await readFile(
 const lessonRepositorySource = await readFile(
   new URL(
     '../../src/components/ma-professor/lessons/lessonRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const dailyPreparationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
     import.meta.url
   ),
   'utf8'
@@ -60,49 +68,70 @@ function getSection(
 }
 
 test(
-  'characterization: Daily date navigation currently loads persisted lessons without materializing the target date',
+  'calendar keeps the former workspace implementation intact behind a small reconciliation wrapper',
   () => {
-    const loadDate = getSection(
-      dailyViewSource,
-      'const loadDate = useCallback(',
-      'useEffect(() => {'
+    assert.match(
+      calendarWrapperSource,
+      /extends BaseCalendarWorkspaceRepository/
+    )
+    assert.match(
+      calendarWrapperSource,
+      /export \* from '\.\/calendarWorkspaceRepositoryBase'/
     )
 
     assert.match(
-      loadDate,
-      /dailyWorkspaceRepository\.getDateWorkspace\(/
+      calendarBaseSource,
+      /export class CalendarWorkspaceRepository/
     )
-
-    assert.doesNotMatch(
-      loadDate,
-      /ensureDailyScheduledLessonsForDate|generateScheduledLessons/
+    assert.match(
+      calendarBaseSource,
+      /lessonRepository\.listLessons\(/
     )
   }
 )
 
 test(
-  'characterization: Calendar navigation currently reads the requested period without materializing scheduled lessons first',
+  'calendar wrapper reconciles only the visible today-or-future slice and reloads only when persistence changed',
   () => {
-    const loadCalendar = getSection(
-      calendarProductSource,
-      'const loadCalendar = useCallback(',
-      'useEffect(() => {'
-    )
-
     assert.match(
-      loadCalendar,
-      /calendarWorkspaceRepository\.getWorkspace\(/
+      calendarWrapperSource,
+      /maxDate\([\s\S]*displayStartDate[\s\S]*academicYear\.startDate[\s\S]*todayISO\(\)/
     )
-
-    assert.doesNotMatch(
-      loadCalendar,
-      /ensureDailyScheduledLessonsForDate|generateScheduledLessons|reconcile/
+    assert.match(
+      calendarWrapperSource,
+      /minDate\([\s\S]*displayEndDate[\s\S]*academicYear\.endDate/
+    )
+    assert.match(
+      calendarWrapperSource,
+      /scheduledLessonReconciliationRepository\.reconcile\(/
+    )
+    assert.match(
+      calendarWrapperSource,
+      /deletedLessonIds\.length === 0[\s\S]*createdLessonIds\.length === 0[\s\S]*return initialSnapshot/
+    )
+    assert.match(
+      calendarWrapperSource,
+      /return super\.getWorkspace\(/
     )
   }
 )
 
 test(
-  'characterization: editing a weekly schedule slot does not reconcile already linked lessons',
+  'Daily initial preparation no longer calls the add-only generator directly',
+  () => {
+    assert.match(
+      dailyPreparationSource,
+      /scheduledLessonReconciliationRepository\.reconcile\(/
+    )
+    assert.doesNotMatch(
+      dailyPreparationSource,
+      /lessonRepository\.generateScheduledLessons/
+    )
+  }
+)
+
+test(
+  'editing a weekly schedule slot remains non-destructive and defers lesson cleanup to lazy reconciliation',
   () => {
     const updateSlot = getSection(
       scheduleRepositorySource,
@@ -114,16 +143,15 @@ test(
       updateSlot,
       /weeklyScheduleSlots\.put\(/
     )
-
     assert.doesNotMatch(
       updateSlot,
-      /maProfessorDb\.lessons|lessonRepository|scheduleSlotId|reconcil/
+      /maProfessorDb\.lessons|deletePlannedLesson/
     )
   }
 )
 
 test(
-  'characterization: deleting a schedule slot with linked lessons is deliberately blocked to preserve history',
+  'deleting a schedule slot with linked lessons stays blocked to preserve pedagogical history',
   () => {
     const deleteSlot = getSection(
       scheduleRepositorySource,
@@ -147,35 +175,7 @@ test(
 )
 
 test(
-  'characterization: scheduled generation deduplicates by assignment, date and start time instead of schedule-slot identity',
-  () => {
-    const positionKey = getSection(
-      lessonRepositorySource,
-      'function lessonPositionKey(',
-      'function eventBlocksAssignment('
-    )
-
-    assert.match(
-      positionKey,
-      /teachingAssignmentId/
-    )
-    assert.match(
-      positionKey,
-      /date/
-    )
-    assert.match(
-      positionKey,
-      /startTime/
-    )
-    assert.doesNotMatch(
-      positionKey,
-      /scheduleSlotId/
-    )
-  }
-)
-
-test(
-  'characterization: scheduled generation only adds missing lessons and does not update or remove stale generated placeholders',
+  'legacy annual generation remains add-only and is isolated from the new reconciliation path',
   () => {
     const generate = getSection(
       lessonRepositorySource,
@@ -193,50 +193,7 @@ test(
     )
     assert.doesNotMatch(
       generate,
-      /\.bulkPut\(|\.delete\(|deletePlannedLesson\(|reconcil/
+      /deletePlannedLesson\(|reconcileScheduled/
     )
   }
-)
-
-test(
-  'characterization: no central pristine-scheduled-placeholder policy exists yet',
-  () => {
-    assert.doesNotMatch(
-      lessonRepositorySource,
-      /isPristineScheduled|isSafeScheduledPlaceholder|reconcileScheduled/
-    )
-
-    assert.doesNotMatch(
-      scheduleRepositorySource,
-      /isPristineScheduled|isSafeScheduledPlaceholder|reconcileScheduled/
-    )
-  }
-)
-
-test.todo(
-  'future contract: a pristine scheduled placeholder follows a schedule time change without creating a duplicate lesson'
-)
-
-test.todo(
-  'future contract: a pristine scheduled placeholder moves with a weekday change while taught, cancelled or edited lessons remain untouched'
-)
-
-test.todo(
-  'future contract: deactivating a schedule slot removes only pristine future placeholders and preserves pedagogical history'
-)
-
-test.todo(
-  'future contract: a later blocking school event removes only pristine placeholders that have not acquired teacher work'
-)
-
-test.todo(
-  'future contract: Daily materializes the requested date before reading its workspace'
-)
-
-test.todo(
-  'future contract: Calendar materializes the requested visible period before reading its workspace'
-)
-
-test.todo(
-  'future contract: repeated reconciliation is idempotent and never creates duplicate scheduled lessons'
 )
