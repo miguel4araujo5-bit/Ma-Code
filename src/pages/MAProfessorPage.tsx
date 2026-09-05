@@ -6,6 +6,7 @@ import {
   MAProfessorProduct
 } from '../components/ma-professor/product/MAProfessorProduct'
 
+import AccessVerificationNotice from '../components/ma-professor/access/AccessVerificationNotice'
 import MAProfessorActivationLinkGate from '../components/ma-professor/access/MAProfessorActivationLinkGate'
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
 import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
@@ -187,6 +188,7 @@ export default function MAProfessorPage() {
       <MAProfessorAuthGate>
         <>
           <OperationalReadinessReporter />
+          <AccessVerificationNotice />
           <InitialSchoolCalendarBootstrap>
             <MAProfessorProduct />
           </InitialSchoolCalendarBootstrap>
