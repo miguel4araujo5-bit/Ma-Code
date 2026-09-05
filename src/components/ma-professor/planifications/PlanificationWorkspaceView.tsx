@@ -3,8 +3,18 @@ import {
   type FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
+
+import {
+  hasMAProfessorDirtyDraftRecord,
+  reconcileMAProfessorDraftRecord
+} from '../navigation/draftReconciliation'
+
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
   EntityId,
@@ -130,6 +140,13 @@ type CreateForm = {
   lines: string
 }
 
+interface PersistedPlanificationEditorState {
+  createForm: CreateForm
+  metadataTitle: string
+  metadataDescription: string
+  itemDrafts: ItemDrafts
+}
+
 const emptyItem:
   ItemDraft = {
   content:
@@ -226,6 +243,44 @@ function itemDraftsFromSnapshot(
       ]
     )
   ) as ItemDrafts
+}
+
+function persistedEditorStateFromSnapshot(
+  snapshot:
+    PlanificationWorkspaceSnapshot
+): PersistedPlanificationEditorState {
+  return {
+    createForm:
+      initialCreateForm(
+        snapshot
+      ),
+
+    metadataTitle:
+      snapshot.planification
+        ?.title ??
+      '',
+
+    metadataDescription:
+      snapshot.planification
+        ?.description ??
+      '',
+
+    itemDrafts:
+      itemDraftsFromSnapshot(
+        snapshot
+      )
+  }
+}
+
+function isItemDraftEmpty(
+  draft: ItemDraft
+) {
+  return !(
+    draft.content.trim() ||
+    draft.activity.trim() ||
+    draft.objectives.trim() ||
+    draft.suggestedSummary.trim()
+  )
 }
 
 function parseLines(
@@ -417,15 +472,37 @@ export default function PlanificationWorkspaceView({
   onImportLines,
   onLessonSelect
 }: PlanificationWorkspaceViewProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(
+      null
+    )
+
+  const persistedEditorState =
+    useMemo(
+      () =>
+        persistedEditorStateFromSnapshot(
+          snapshot
+        ),
+      [
+        snapshot.generatedAt
+      ]
+    )
+
+  const previousPersistedEditorStateRef =
+    useRef<PersistedPlanificationEditorState>(
+      persistedEditorState
+    )
+
+  const discardOnNextSnapshotRef =
+    useRef(false)
+
   const [
     createForm,
     setCreateForm
   ] =
     useState<CreateForm>(
       () =>
-        initialCreateForm(
-          snapshot
-        )
+        persistedEditorState.createForm
     )
 
   const [
@@ -433,9 +510,7 @@ export default function PlanificationWorkspaceView({
     setMetadataTitle
   ] =
     useState(
-      snapshot.planification
-        ?.title ??
-      ''
+      persistedEditorState.metadataTitle
     )
 
   const [
@@ -443,9 +518,7 @@ export default function PlanificationWorkspaceView({
     setMetadataDescription
   ] =
     useState(
-      snapshot.planification
-        ?.description ??
-      ''
+      persistedEditorState.metadataDescription
     )
 
   const [
@@ -454,9 +527,7 @@ export default function PlanificationWorkspaceView({
   ] =
     useState<ItemDrafts>(
       () =>
-        itemDraftsFromSnapshot(
-          snapshot
-        )
+        persistedEditorState.itemDrafts
     )
 
   const [
@@ -492,40 +563,130 @@ export default function PlanificationWorkspaceView({
     )
 
   useEffect(() => {
+    const previous =
+      previousPersistedEditorStateRef.current
+
+    const discard =
+      discardOnNextSnapshotRef.current
+
     setCreateForm(
-      initialCreateForm(
-        snapshot
-      )
+      current =>
+        discard ||
+        JSON.stringify(
+          current
+        ) ===
+          JSON.stringify(
+            previous.createForm
+          )
+          ? persistedEditorState.createForm
+          : current
     )
 
     setMetadataTitle(
-      snapshot.planification
-        ?.title ??
-      ''
+      current =>
+        discard ||
+        current ===
+          previous.metadataTitle
+          ? persistedEditorState.metadataTitle
+          : current
     )
 
     setMetadataDescription(
-      snapshot.planification
-        ?.description ??
-      ''
+      current =>
+        discard ||
+        current ===
+          previous.metadataDescription
+          ? persistedEditorState.metadataDescription
+          : current
     )
 
     setItemDrafts(
-      itemDraftsFromSnapshot(
-        snapshot
+      current =>
+        discard
+          ? persistedEditorState.itemDrafts
+          : reconcileMAProfessorDraftRecord(
+              previous.itemDrafts,
+              current,
+              persistedEditorState.itemDrafts
+            )
+    )
+
+    if (discard) {
+      setNewItem(
+        emptyItem
       )
-    )
+      setImportText(
+        ''
+      )
+    }
 
-    setNewItem(
-      emptyItem
-    )
+    discardOnNextSnapshotRef.current =
+      false
 
-    setImportText(
-      ''
-    )
+    previousPersistedEditorStateRef.current =
+      persistedEditorState
   }, [
+    persistedEditorState,
     snapshot.generatedAt
   ])
+
+  const hasPlanificationUnsavedChanges =
+    useMemo(
+      () => {
+        if (
+          !snapshot.planification
+        ) {
+          return JSON.stringify(
+            createForm
+          ) !==
+            JSON.stringify(
+              persistedEditorState.createForm
+            )
+        }
+
+        return (
+          metadataTitle !==
+            persistedEditorState.metadataTitle ||
+          metadataDescription !==
+            persistedEditorState.metadataDescription ||
+          hasMAProfessorDirtyDraftRecord(
+            persistedEditorState.itemDrafts,
+            itemDrafts
+          ) ||
+          !isItemDraftEmpty(
+            newItem
+          ) ||
+          Boolean(
+            importText.trim()
+          )
+        )
+      },
+      [
+        createForm,
+        importText,
+        itemDrafts,
+        metadataDescription,
+        metadataTitle,
+        newItem,
+        persistedEditorState,
+        snapshot.planification
+      ]
+    )
+
+  function confirmDiscardUnsavedChanges() {
+    return (
+      !hasPlanificationUnsavedChanges ||
+      window.confirm(
+        'Existem alterações por guardar na planificação. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasPlanificationUnsavedChanges,
+    rootRef,
+    'Existem alterações por guardar na planificação. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
+  )
 
   const selectedModuleLabel =
     useMemo(
@@ -550,6 +711,57 @@ export default function PlanificationWorkspaceView({
     Boolean(
       busyAction
     )
+
+  function handleFiltersChange(
+    filters:
+      PlanificationWorkspaceFilters
+  ) {
+    if (
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardOnNextSnapshotRef.current =
+      true
+
+    setFeedback(
+      null
+    )
+
+    onFiltersChange(
+      filters
+    )
+  }
+
+  function handleRefresh() {
+    if (
+      !onRefresh ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    discardOnNextSnapshotRef.current =
+      true
+
+    onRefresh()
+  }
+
+  function handleLessonSelect(
+    lessonId: EntityId
+  ) {
+    if (
+      !onLessonSelect ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    onLessonSelect(
+      lessonId
+    )
+  }
 
   async function runAction(
     actionId:
@@ -954,7 +1166,12 @@ export default function PlanificationWorkspaceView({
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      ref={
+        rootRef
+      }
+      className="space-y-6"
+    >
       <section className="overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl">
         <div className="border-b border-white/10 px-5 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -981,7 +1198,7 @@ export default function PlanificationWorkspaceView({
             <button
               type="button"
               onClick={
-                onRefresh
+                handleRefresh
               }
               disabled={
                 busy ||
@@ -1012,7 +1229,7 @@ export default function PlanificationWorkspaceView({
                 event:
                   ChangeEvent<HTMLSelectElement>
               ) =>
-                onFiltersChange({
+                handleFiltersChange({
                   teachingAssignmentId:
                     event.target.value ||
                     null,
@@ -1069,7 +1286,7 @@ export default function PlanificationWorkspaceView({
                 event:
                   ChangeEvent<HTMLSelectElement>
               ) =>
-                onFiltersChange({
+                handleFiltersChange({
                   teachingAssignmentId:
                     snapshot.filters
                       .teachingAssignmentId,
@@ -1134,6 +1351,12 @@ export default function PlanificationWorkspaceView({
           }`}
         >
           {feedback.message}
+        </div>
+      ) : null}
+
+      {hasPlanificationUnsavedChanges ? (
+        <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm font-bold text-amber-100">
+          Existem alterações por guardar na planificação.
         </div>
       ) : null}
 
@@ -1691,7 +1914,7 @@ export default function PlanificationWorkspaceView({
                             <button
                               type="button"
                               onClick={() =>
-                                onLessonSelect(
+                                handleLessonSelect(
                                   usedLesson.id
                                 )
                               }
@@ -1861,11 +2084,8 @@ export default function PlanificationWorkspaceView({
                 type="submit"
                 disabled={
                   busy ||
-                  !(
-                    newItem.content.trim() ||
-                    newItem.activity.trim() ||
-                    newItem.objectives.trim() ||
-                    newItem.suggestedSummary.trim()
+                  isItemDraftEmpty(
+                    newItem
                   )
                 }
                 className="rounded-2xl border border-emerald-200/30 bg-gradient-to-r from-emerald-300 to-teal-300 px-6 py-3 text-sm font-black text-slate-950 disabled:opacity-45"
