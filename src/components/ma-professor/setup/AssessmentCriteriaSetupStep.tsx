@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -14,6 +15,9 @@ import type {
   AssessmentSchemeScope,
   EntityId
 } from '../types'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 type AssessmentCriteriaSetupStepProps = {
   snapshot: SetupSnapshot
@@ -51,6 +55,9 @@ const inputClassName =
 
 const textareaClassName =
   'min-h-24 w-full resize-y rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+
+const discardCriteriaDraftMessage =
+  'Existem alterações por guardar nestes critérios. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
 function createLocalId() {
   const uuid =
@@ -131,6 +138,9 @@ export default function AssessmentCriteriaSetupStep({
   onSnapshotChange,
   onCompleted
 }: AssessmentCriteriaSetupStepProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
   const [
     form,
     setForm
@@ -522,6 +532,39 @@ export default function AssessmentCriteriaSetupStep({
     ) <
     0.001
 
+  const hasUnsavedCriteriaDraft =
+    form.scope !==
+      emptyForm.scope ||
+    form.moduleId !==
+      emptyForm.moduleId ||
+    form.schemeName !==
+      emptyForm.schemeName ||
+    criteria.length !==
+      1 ||
+    criteria.some(
+      (
+        criterion,
+        index
+      ) =>
+        Boolean(
+          criterion.name.trim() ||
+          criterion.description.trim() ||
+          criterion.weightPercent !==
+            (
+              index ===
+                0
+                ? '100'
+                : ''
+            )
+        )
+    )
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedCriteriaDraft,
+    rootRef,
+    discardCriteriaDraftMessage
+  )
+
   async function refreshSnapshot() {
     const nextSnapshot =
       await maProfessorRepository.getSetupSnapshot(
@@ -560,6 +603,28 @@ export default function AssessmentCriteriaSetupStep({
     resetCriteria()
   }
 
+  function confirmDiscardCriteriaDraft() {
+    return (
+      !hasUnsavedCriteriaDraft ||
+      window.confirm(
+        discardCriteriaDraftMessage
+      )
+    )
+  }
+
+  function requestResetForm() {
+    if (
+      busy ||
+      !confirmDiscardCriteriaDraft()
+    ) {
+      return
+    }
+
+    resetForm(
+      false
+    )
+  }
+
   function selectAssignment(
     teachingAssignmentId:
       EntityId
@@ -572,6 +637,29 @@ export default function AssessmentCriteriaSetupStep({
     resetCriteria()
     setError('')
     setSuccess('')
+  }
+
+  function requestSelectAssignment(
+    teachingAssignmentId:
+      EntityId
+  ) {
+    if (
+      busy ||
+      teachingAssignmentId ===
+        form.teachingAssignmentId
+    ) {
+      return
+    }
+
+    if (
+      !confirmDiscardCriteriaDraft()
+    ) {
+      return
+    }
+
+    selectAssignment(
+      teachingAssignmentId
+    )
   }
 
   function updateCriterion(
@@ -938,6 +1026,16 @@ export default function AssessmentCriteriaSetupStep({
     }
 
     if (
+      hasUnsavedCriteriaDraft
+    ) {
+      setError(
+        'Existem alterações por guardar neste passo. Guarde os critérios ou limpe o rascunho antes de continuar.'
+      )
+
+      return
+    }
+
+    if (
       snapshot.assessmentSchemes.length ===
       0
     ) {
@@ -1002,7 +1100,10 @@ export default function AssessmentCriteriaSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]"
+    >
       <form
         onSubmit={
           handleSubmit
@@ -1036,7 +1137,7 @@ export default function AssessmentCriteriaSetupStep({
               onChange={(
                 event
               ) =>
-                selectAssignment(
+                requestSelectAssignment(
                   event.target.value
                 )
               }
@@ -1520,10 +1621,8 @@ export default function AssessmentCriteriaSetupStep({
             disabled={
               busy
             }
-            onClick={() =>
-              resetForm(
-                false
-              )
+            onClick={
+              requestResetForm
             }
             className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
           >
@@ -1615,7 +1714,7 @@ export default function AssessmentCriteriaSetupStep({
                     <button
                       type="button"
                       onClick={() =>
-                        selectAssignment(
+                        requestSelectAssignment(
                           assignment.id
                         )
                       }
@@ -1725,7 +1824,7 @@ export default function AssessmentCriteriaSetupStep({
                         <button
                           type="button"
                           onClick={() =>
-                            selectAssignment(
+                            requestSelectAssignment(
                               assignment.id
                             )
                           }
