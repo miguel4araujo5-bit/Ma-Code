@@ -102,29 +102,27 @@ export function isLicenseUsable(
     return false
   }
 
-  if (
-    license.status ===
-      'active' ||
-    license.status ===
-      'expiring'
-  ) {
-    return true
-  }
+  const usableStatus =
+    license.status === 'active' ||
+    license.status === 'expiring' ||
+    license.status === 'renewal_pending'
 
   if (
-    license.status ===
-      'renewal_pending' &&
-    license.validUntil
+    !usableStatus ||
+    !license.validUntil
   ) {
-    return (
-      new Date(
-        license.validUntil
-      ).getTime() >
-      Date.now()
-    )
+    return false
   }
 
-  return false
+  const validUntil =
+    new Date(
+      license.validUntil
+    ).getTime()
+
+  return (
+    Number.isFinite(validUntil) &&
+    validUntil > Date.now()
+  )
 }
 
 export function getLicensePlanLabel(
