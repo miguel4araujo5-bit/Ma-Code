@@ -8,6 +8,9 @@ export const MA_PROFESSOR_SNAPSHOT_MAX_BODY_BYTES =
 export const MA_PROFESSOR_SNAPSHOT_MAX_CIPHERTEXT_CHARACTERS =
   1_480_000
 
+export const MA_PROFESSOR_SNAPSHOT_CAPACITY_EVENT =
+  'ma-professor-snapshot-capacity'
+
 const WARNING_RATIO =
   0.75
 
@@ -59,6 +62,10 @@ export interface MAProfessorSnapshotPushCapacityInput {
   encrypted:
     MAProfessorEncryptedRecord
 }
+
+let currentCapacity:
+  MAProfessorSnapshotPushCapacity | null =
+    null
 
 function classifyUsage(
   ratio: number
@@ -153,6 +160,35 @@ export function inspectMAProfessorSnapshotPushCapacity(
     usagePercent:
       usageRatio * 100
   }
+}
+
+export function readMAProfessorSnapshotPushCapacity() {
+  return currentCapacity
+}
+
+export function publishMAProfessorSnapshotPushCapacity(
+  capacity:
+    MAProfessorSnapshotPushCapacity
+) {
+  currentCapacity =
+    capacity
+
+  if (
+    typeof window ===
+      'undefined'
+  ) {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(
+      MA_PROFESSOR_SNAPSHOT_CAPACITY_EVENT,
+      {
+        detail:
+          capacity
+      }
+    )
+  )
 }
 
 export class MAProfessorSnapshotCapacityError
