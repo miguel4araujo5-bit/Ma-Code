@@ -11,6 +11,10 @@ import {
 } from './BackupSettingsPanel'
 
 import {
+  BackupLocalSafetyPanel
+} from './BackupLocalSafetyPanel'
+
+import {
   LicenseSettingsPanel
 } from './LicenseSettingsPanel'
 
@@ -193,11 +197,15 @@ export function SettingsWorkspaceView({
 
             {tab ===
             'backup' ? (
-              <BackupSettingsPanel
-                onDataChanged={
-                  onDataChanged
-                }
-              />
+              <div className="space-y-6">
+                <BackupLocalSafetyPanel />
+
+                <BackupSettingsPanel
+                  onDataChanged={
+                    onDataChanged
+                  }
+                />
+              </div>
             ) : null}
 
             {tab ===
