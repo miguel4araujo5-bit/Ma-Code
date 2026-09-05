@@ -4,10 +4,25 @@ const STORAGE_PREFIX =
 const STATE_VERSION =
   1 as const
 
+export const MA_PROFESSOR_SYNC_STATE_PERSISTENCE_EVENT =
+  'ma-professor-sync-state-persistence'
+
 export type MAProfessorManualSyncOperation =
   | 'upload'
   | 'verify'
   | 'restore'
+
+export type MAProfessorSyncStatePersistenceStatus =
+  | 'saved'
+  | 'warning'
+
+export interface MAProfessorSyncStatePersistenceState {
+  status:
+    MAProfessorSyncStatePersistenceStatus
+
+  operation:
+    MAProfessorManualSyncOperation | null
+}
 
 export interface MAProfessorManualSyncState {
   version:
@@ -28,6 +43,45 @@ export interface MAProfessorManualSyncState {
   lastOperation:
     MAProfessorManualSyncOperation
 }
+
+let persistenceState:
+  MAProfessorSyncStatePersistenceState = {
+  status:
+    'saved',
+
+  operation:
+    null
+}
+
+function publishPersistenceState(
+  next:
+    MAProfessorSyncStatePersistenceState
+) {
+  persistenceState =
+    next
+
+  if (
+    typeof window ===
+      'undefined'
+  ) {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(
+      MA_PROFESSOR_SYNC_STATE_PERSISTENCE_EVENT,
+      {
+        detail:
+          next
+      }
+    )
+  )
+}
+
+export function readMAProfessorSyncStatePersistenceState() {
+  return persistenceState
+}
+
 function normalizeEmail(
   email: string
 ) {
@@ -53,6 +107,7 @@ function createStorageKey(
     normalizeDeviceId(
       deviceId
     )
+
   if (
     !normalizedEmail ||
     !normalizedDeviceId
@@ -88,6 +143,7 @@ function isObject(
     )
   )
 }
+
 function isValidDate(
   value: unknown
 ): value is string {
@@ -114,6 +170,7 @@ function isValidOperation(
     value === 'restore'
   )
 }
+
 function parseState(
   value: unknown
 ): MAProfessorManualSyncState | null {
@@ -144,6 +201,7 @@ function parseState(
   ) {
     return null
   }
+
   return {
     version:
       STATE_VERSION,
@@ -175,6 +233,7 @@ export function readMAProfessorManualSyncState(
   ) {
     return null
   }
+
   const key =
     createStorageKey(
       email,
@@ -207,6 +266,7 @@ export function readMAProfessorManualSyncState(
     return null
   }
 }
+
 export function saveMAProfessorManualSyncState(
   email: string,
   deviceId: string,
@@ -219,9 +279,15 @@ export function saveMAProfessorManualSyncState(
     typeof window ===
       'undefined'
   ) {
-    throw new Error(
-      'Não foi possível guardar o estado da sincronização neste dispositivo.'
-    )
+    publishPersistenceState({
+      status:
+        'warning',
+
+      operation:
+        state.lastOperation
+    })
+
+    return false
   }
 
   const key =
@@ -237,6 +303,7 @@ export function saveMAProfessorManualSyncState(
 
     ...state
   }
+
   try {
     window.localStorage.setItem(
       key,
@@ -244,10 +311,32 @@ export function saveMAProfessorManualSyncState(
         payload
       )
     )
+
+    publishPersistenceState({
+      status:
+        'saved',
+
+      operation:
+        null
+    })
+
+    return true
   } catch {
-    throw new Error(
-      'O browser não permitiu guardar o estado da sincronização. A cópia cifrada não será considerada confirmada neste dispositivo.'
-    )
+    /*
+     * A operação online ou o restauro já pode ter sido concluído
+     * quando chegamos a este ponto. Uma falha apenas neste metadado
+     * técnico nunca deve transformar esse sucesso real num erro nem
+     * provocar uma repetição automática da operação principal.
+     */
+    publishPersistenceState({
+      status:
+        'warning',
+
+      operation:
+        state.lastOperation
+    })
+
+    return false
   }
 }
 
@@ -267,6 +356,7 @@ export function clearMAProfessorManualSyncState(
       email,
       deviceId
     )
+
   try {
     window.localStorage.removeItem(
       key
