@@ -54,6 +54,16 @@ test(
 )
 
 test(
+  'saving one entry mode clears only that mode and preserves a draft in the other mode',
+  () => {
+    assert.match(
+      source,
+      /if \(\s*entryMode ===\s*'bulk'\s*\) \{\s*setBulkText\(''\)\s*\} else \{[\s\S]*setCode\(''\)[\s\S]*setName\(''\)[\s\S]*setPlannedPeriods\(''\)[\s\S]*\}/
+    )
+  }
+)
+
+test(
   'modules setup refuses to continue while either module-entry mode still contains unsaved work',
   () => {
     assert.match(
