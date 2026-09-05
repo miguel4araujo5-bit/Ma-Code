@@ -19,9 +19,11 @@ import {
 } from '../repository'
 import type {
   AcademicYear,
-  ISODate,
   Weekday
 } from '../types'
+import {
+  getDutyDatesForSchool
+} from './schoolDutyDatePolicy'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -127,39 +129,6 @@ const weekdayPatterns: Array<{
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
-
-const S_BENTO_2026_2027_DUTY_RANGES: Array<{
-  startDate: ISODate
-  endDate: ISODate
-}> = [
-  {
-    startDate: '2026-09-21',
-    endDate: '2026-12-15'
-  },
-  {
-    startDate: '2027-01-04',
-    endDate: '2027-03-19'
-  },
-  {
-    startDate: '2027-04-05',
-    endDate: '2027-06-11'
-  }
-]
-
-const S_BENTO_2026_2027_CLOSED_DATES =
-  new Set<ISODate>([
-    '2026-10-05',
-    '2026-12-01',
-    '2026-12-08',
-    '2027-02-08',
-    '2027-02-09',
-    '2027-02-10',
-    '2027-03-19',
-    '2027-04-25',
-    '2027-05-01',
-    '2027-05-27',
-    '2027-06-10'
-  ])
 
 function normalize(value: string) {
   return value
@@ -914,98 +883,6 @@ function validateExistingScheduleConflicts(
   }
 }
 
-function parseISODate(value: ISODate) {
-  const [year, month, day] =
-    value.split('-').map(Number)
-
-  return new Date(
-    Date.UTC(
-      year,
-      month - 1,
-      day
-    )
-  )
-}
-
-function toISODate(value: Date): ISODate {
-  return [
-    value.getUTCFullYear(),
-    String(value.getUTCMonth() + 1).padStart(2, '0'),
-    String(value.getUTCDate()).padStart(2, '0')
-  ].join('-')
-}
-
-function getWeekday(value: Date): Weekday {
-  const day = value.getUTCDay()
-
-  return (
-    day === 0
-      ? 7
-      : day
-  ) as Weekday
-}
-
-function getDutyRanges(
-  academicYear: AcademicYear
-) {
-  if (
-    normalize(academicYear.name) ===
-      '2026/2027'
-  ) {
-    return S_BENTO_2026_2027_DUTY_RANGES
-  }
-
-  return [
-    {
-      startDate: academicYear.startDate,
-      endDate: academicYear.endDate
-    }
-  ]
-}
-
-function getDutyDates(
-  academicYear: AcademicYear,
-  weekday: Weekday
-) {
-  const result: ISODate[] = []
-
-  for (
-    const range of getDutyRanges(
-      academicYear
-    )
-  ) {
-    const current =
-      parseISODate(range.startDate)
-
-    const end =
-      parseISODate(range.endDate)
-
-    while (current <= end) {
-      const isoDate =
-        toISODate(current)
-
-      if (
-        getWeekday(current) === weekday &&
-        !(
-          normalize(academicYear.name) ===
-            '2026/2027' &&
-          S_BENTO_2026_2027_CLOSED_DATES.has(
-            isoDate
-          )
-        )
-      ) {
-        result.push(isoDate)
-      }
-
-      current.setUTCDate(
-        current.getUTCDate() + 1
-      )
-    }
-  }
-
-  return result
-}
-
 function dutyEventTitle(
   duty: DutyDraft
 ) {
@@ -1014,14 +891,15 @@ function dutyEventTitle(
 
 function dutyEventKey(
   title: string,
-  date: ISODate
+  date: string
 ) {
   return `${normalize(title)}|${date}`
 }
 
 async function importDutyEvents(
   academicYear: AcademicYear,
-  duties: DutyDraft[]
+  duties: DutyDraft[],
+  schoolName: string
 ) {
   if (duties.length === 0) {
     return 0
@@ -1056,9 +934,10 @@ async function importDutyEvents(
       dutyEventTitle(duty)
 
     for (
-      const date of getDutyDates(
+      const date of getDutyDatesForSchool(
         academicYear,
-        duty.weekday
+        duty.weekday,
+        schoolName
       )
     ) {
       const key =
@@ -1474,10 +1353,28 @@ export default function SchedulePdfImportStep({
         existingSlots.add(key)
       }
 
+      let schoolName = ''
+
+      if (includedDuties.length > 0) {
+        const profile =
+          await maProfessorRepository.getTeacherProfile()
+
+        schoolName =
+          profile?.schoolName?.trim() ??
+          ''
+
+        if (!schoolName) {
+          throw new Error(
+            'Não foi possível identificar a escola do professor. Confirme a escola antes de programar os cargos no calendário.'
+          )
+        }
+      }
+
       const createdDuties =
         await importDutyEvents(
           snapshot.academicYear,
-          includedDuties
+          includedDuties,
+          schoolName
         )
 
       setProgress(
