@@ -24,6 +24,21 @@ const INTERNAL_CREDENTIAL_GENERATE_PATH =
 const PUBLIC_ACTIVATE_PATH =
   '/api/ma-professor/access/activate'
 
+const PASSWORD_HASH_ITERATIONS =
+  100_000
+
+const PASSWORD_SALT_BYTES =
+  16
+
+const GENERATED_PASSWORD_ALPHABET =
+  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+const GENERATED_PASSWORD_GROUPS =
+  4
+
+const GENERATED_PASSWORD_GROUP_LENGTH =
+  4
+
 export type MAProfessorExplicitApprovalPlan =
   | 'free'
   | 'paid_30_days'
@@ -58,10 +73,27 @@ interface StoredAccessRequestSnapshot {
   updatedAt: number
 }
 
+interface StoredAccessCredentialSnapshot {
+  email: string
+  passwordSalt: string
+  passwordHash: string
+  passwordIterations: number
+  createdAt: number
+  updatedAt: number
+  authorizationId?: string
+  authorizationPlan?:
+    | 'paid_30_days'
+    | 'school_year'
+}
+
 interface AccessStateSnapshot {
   accessRequests?: Record<
     string,
     StoredAccessRequestSnapshot
+  >
+  credentials?: Record<
+    string,
+    StoredAccessCredentialSnapshot
   >
   updatedAt?: number
   [key: string]: unknown
@@ -268,6 +300,78 @@ function buildRequestSummary(
   }
 }
 
+function buildCredentialResponse(
+  email: string,
+  credential:
+    StoredAccessCredentialSnapshot,
+  password: string
+) {
+  return {
+    email,
+    hasCredential: true,
+    activationCode: null,
+    createdAt:
+      toIso(
+        credential.createdAt
+      ),
+    updatedAt:
+      toIso(
+        credential.updatedAt
+      ),
+    password
+  }
+}
+
+function buildCommercialStatus(
+  email: string,
+  authorization:
+    StoredCommercialAuthorization | null
+) {
+  if (!authorization) {
+    return undefined
+  }
+
+  const paymentStatus =
+    authorization.paymentDispensedAt !==
+      null
+      ? 'dispensed' as const
+      : authorization.paymentConfirmedAt !==
+          null
+        ? 'confirmed' as const
+        : 'pending' as const
+
+  return {
+    email,
+    authorizationId:
+      authorization.id,
+    plan:
+      authorization.plan,
+    amountCents:
+      authorization.amountCents,
+    currency:
+      authorization.currency,
+    paymentStatus,
+    selectedAt:
+      toIso(
+        authorization.selectedAt
+      ),
+    paymentConfirmedAt:
+      toIso(
+        authorization.paymentConfirmedAt
+      ),
+    paymentDispensedAt:
+      toIso(
+        authorization.paymentDispensedAt
+      ),
+    credentialIssuedAt:
+      toIso(
+        authorization.credentialIssuedAt
+      ),
+    canGenerateCredential:
+      false
+  }
+}
+
 function getLatestInitialAuthorization(
   state: StoredCommerceState,
   email: string
@@ -343,6 +447,177 @@ function createAuthorization(
       now,
     updatedAt:
       now
+  }
+}
+
+function bytesToBase64(
+  bytes: Uint8Array
+) {
+  let binary = ''
+
+  for (const byte of bytes) {
+    binary +=
+      String.fromCharCode(byte)
+  }
+
+  return btoa(binary)
+}
+
+function toArrayBuffer(
+  value: Uint8Array
+): ArrayBuffer {
+  const copy =
+    new Uint8Array(
+      value.byteLength
+    )
+
+  copy.set(value)
+
+  return copy.buffer
+}
+
+async function hashPassword(
+  password: string,
+  salt: Uint8Array,
+  iterations: number
+) {
+  const encodedPassword =
+    new TextEncoder()
+      .encode(password)
+
+  const baseKey =
+    await globalThis.crypto.subtle.importKey(
+      'raw',
+      toArrayBuffer(
+        encodedPassword
+      ),
+      'PBKDF2',
+      false,
+      [
+        'deriveBits'
+      ]
+    )
+
+  const bits =
+    await globalThis.crypto.subtle.deriveBits(
+      {
+        name:
+          'PBKDF2',
+        salt:
+          toArrayBuffer(salt),
+        iterations,
+        hash:
+          'SHA-256'
+      },
+      baseKey,
+      256
+    )
+
+  return bytesToBase64(
+    new Uint8Array(bits)
+  )
+}
+
+function generatePassword() {
+  const characterCount =
+    GENERATED_PASSWORD_GROUPS *
+    GENERATED_PASSWORD_GROUP_LENGTH
+
+  const randomBytes =
+    new Uint8Array(
+      characterCount
+    )
+
+  globalThis.crypto.getRandomValues(
+    randomBytes
+  )
+
+  const characters =
+    Array.from(
+      randomBytes,
+      byte =>
+        GENERATED_PASSWORD_ALPHABET[
+          byte %
+          GENERATED_PASSWORD_ALPHABET.length
+        ]
+    )
+
+  const groups: string[] = []
+
+  for (
+    let index = 0;
+    index <
+      GENERATED_PASSWORD_GROUPS;
+    index += 1
+  ) {
+    const start =
+      index *
+      GENERATED_PASSWORD_GROUP_LENGTH
+
+    groups.push(
+      characters
+        .slice(
+          start,
+          start +
+            GENERATED_PASSWORD_GROUP_LENGTH
+        )
+        .join('')
+    )
+  }
+
+  return `MP-${groups.join('-')}`
+}
+
+async function createCredential(
+  email: string,
+  now: number,
+  authorization:
+    StoredCommercialAuthorization | null
+) {
+  const password =
+    generatePassword()
+
+  const salt =
+    new Uint8Array(
+      PASSWORD_SALT_BYTES
+    )
+
+  globalThis.crypto.getRandomValues(
+    salt
+  )
+
+  const passwordHash =
+    await hashPassword(
+      password,
+      salt,
+      PASSWORD_HASH_ITERATIONS
+    )
+
+  const credential:
+    StoredAccessCredentialSnapshot = {
+    email,
+    passwordSalt:
+      bytesToBase64(salt),
+    passwordHash,
+    passwordIterations:
+      PASSWORD_HASH_ITERATIONS,
+    createdAt:
+      now,
+    updatedAt:
+      now,
+    ...(authorization
+      ? {
+          authorizationId:
+            authorization.id,
+          authorizationPlan:
+            authorization.plan
+        }
+      : {})
+  }
+
+  return {
+    credential,
+    password
   }
 }
 
@@ -534,16 +809,19 @@ export class MaProfessorAccessDurableObject {
         ? 'pilot' as const
         : 'commercial' as const
 
+    let authorization:
+      StoredCommercialAuthorization | null =
+      null
+
     if (approvalPlan === 'free') {
       commerceState.authorizations =
         commerceState.authorizations.filter(
-          authorization =>
+          item =>
             !(
-              authorization.email ===
-                email &&
-              !authorization.renewalId &&
+              item.email === email &&
+              !item.renewalId &&
               isUnusedAuthorization(
-                authorization
+                item
               )
             )
         )
@@ -555,22 +833,80 @@ export class MaProfessorAccessDurableObject {
         )
 
       if (
-        !latest ||
-        latest.plan !==
-          approvalPlan ||
-        !isUnusedAuthorization(
+        latest &&
+        latest.plan === approvalPlan &&
+        isUnusedAuthorization(
           latest
         )
       ) {
-        commerceState.authorizations.push(
+        authorization = latest
+      } else {
+        authorization =
           createAuthorization(
             email,
             approvalPlan,
             now
           )
+
+        commerceState.authorizations.push(
+          authorization
         )
       }
     }
+
+    let generated:
+      Awaited<ReturnType<typeof createCredential>>
+
+    try {
+      generated =
+        await createCredential(
+          email,
+          now,
+          authorization
+        )
+    } catch (error) {
+      console.error(
+        'MA-Professor atomic approval credential generation failed',
+        {
+          email,
+          approvalPlan,
+          message:
+            error instanceof Error
+              ? error.message
+              : String(error)
+        }
+      )
+
+      return json(
+        {
+          success: false,
+          message:
+            'Não foi possível gerar a senha de ativação. O pedido permanece pendente e pode voltar a ser aprovado.',
+          credentialIssued:
+            false,
+          approvalPlan
+        },
+        500
+      )
+    }
+
+    if (authorization) {
+      authorization.paymentConfirmedAt =
+        now
+      authorization.credentialIssuedAt =
+        now
+      authorization.updatedAt =
+        now
+    }
+
+    const credentials =
+      accessState.credentials || {}
+
+    credentials[email] =
+      generated.credential
+
+    accessState.credentials =
+      credentials
 
     accessRequest.status =
       'approved'
@@ -579,6 +915,12 @@ export class MaProfessorAccessDurableObject {
       now
 
     accessRequest.rejectedAt =
+      null
+
+    accessRequest.failedActivationAttempts =
+      0
+
+    accessRequest.blockedUntil =
       null
 
     accessRequest.decisionMode =
@@ -612,8 +954,8 @@ export class MaProfessorAccessDurableObject {
       success: true,
       message:
         decisionMode === 'pilot'
-          ? 'Pedido aprovado para acesso gratuito.'
-          : 'Pedido aprovado para acesso Fundador.',
+          ? 'Pedido aprovado para acesso gratuito e senha criada.'
+          : 'Pedido aprovado para acesso Fundador, pagamento confirmado e senha criada.',
       request:
         buildRequestSummary(
           accessRequest
@@ -625,7 +967,20 @@ export class MaProfessorAccessDurableObject {
         toIso(
           accessRequest.emailDispatchUpdatedAt
         ),
-      approvalPlan
+      approvalPlan,
+      credentialIssued:
+        true,
+      credential:
+        buildCredentialResponse(
+          email,
+          generated.credential,
+          generated.password
+        ),
+      commerce:
+        buildCommercialStatus(
+          email,
+          authorization
+        )
     })
   }
 
