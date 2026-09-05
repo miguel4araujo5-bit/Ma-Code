@@ -2,6 +2,11 @@ import Dexie, {
   type Table
 } from 'dexie'
 
+import {
+  getLocalISODate,
+  reopenStudentMembership
+} from './students/studentMembership'
+
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -21,6 +26,7 @@ import type {
   SchoolCalendarEvent,
   SetupProgress,
   Student,
+  StudentMembershipPeriod,
   Subject,
   SummarySuggestion,
   TeacherLocalProfile,
@@ -263,6 +269,48 @@ export class MAProfessorDatabase extends Dexie {
       setupProgress:
         '&id, academicYearId, currentStep, completedAt'
     })
+
+    this.students.hook(
+      'updating',
+      (
+        modifications,
+        _primaryKey,
+        object
+      ) => {
+        if (
+          object.active !==
+            false ||
+          modifications.active !==
+            true
+        ) {
+          return
+        }
+
+        const requestedPeriods =
+          modifications.membershipPeriods as
+            | StudentMembershipPeriod[]
+            | undefined
+
+        if (
+          requestedPeriods?.some(
+            period =>
+              period.endDate ===
+              null
+          )
+        ) {
+          return
+        }
+
+        return {
+          membershipPeriods:
+            reopenStudentMembership(
+              requestedPeriods ??
+                object.membershipPeriods,
+              getLocalISODate()
+            )
+        }
+      }
+    )
 
     this.on(
       'populate',
