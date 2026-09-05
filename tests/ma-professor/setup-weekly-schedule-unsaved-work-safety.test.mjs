@@ -24,13 +24,18 @@ test(
 )
 
 test(
-  'weekly schedule protects browser close and navigation away from the setup step',
+  'weekly schedule protects browser close and navigation away while dirty or saving',
   () => {
     assert.match(source, /rootRef/)
+    assert.match(source, /hasProtectedScheduleWork/)
+    assert.match(
+      source,
+      /hasUnsavedScheduleDraft\s*\|\|\s*busy/
+    )
     assert.match(source, /useMAProfessorUnsavedWorkspaceProtection/)
     assert.match(
       source,
-      /useMAProfessorUnsavedWorkspaceProtection\([\s\S]*hasUnsavedScheduleDraft[\s\S]*rootRef/
+      /useMAProfessorUnsavedWorkspaceProtection\([\s\S]*hasProtectedScheduleWork[\s\S]*rootRef/
     )
     assert.match(source, /ref=\{rootRef\}/)
   }
