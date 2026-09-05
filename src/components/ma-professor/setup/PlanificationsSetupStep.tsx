@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -13,6 +14,9 @@ import {
 import type {
   EntityId
 } from '../types'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 type PlanificationsSetupStepProps = {
   snapshot: SetupSnapshot
@@ -51,6 +55,9 @@ const inputClassName =
 
 const textareaClassName =
   'min-h-28 w-full resize-y rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+
+const discardPlanificationDraftMessage =
+  'Existem alterações por guardar nesta planificação. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
 function createLocalId() {
   const uuid =
@@ -170,6 +177,9 @@ export default function PlanificationsSetupStep({
   onSnapshotChange,
   onCompleted
 }: PlanificationsSetupStepProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
   const [
     form,
     setForm
@@ -514,6 +524,34 @@ export default function PlanificationsSetupStep({
       ]
     )
 
+  const defaultPlanificationTitle =
+    selectedModule
+      ? getDefaultPlanificationTitle(
+          selectedModule.code,
+          selectedModule.name
+        )
+      : ''
+
+  const hasUnsavedPlanificationDraft =
+    form.title !==
+      defaultPlanificationTitle ||
+    Boolean(
+      form.description.trim()
+    ) ||
+    items.length !==
+      1 ||
+    meaningfulItems.length >
+      0 ||
+    Boolean(
+      importText.trim()
+    )
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedPlanificationDraft,
+    rootRef,
+    discardPlanificationDraftMessage
+  )
+
   async function refreshSnapshot() {
     const nextSnapshot =
       await maProfessorRepository.getSetupSnapshot(
@@ -547,6 +585,26 @@ export default function PlanificationsSetupStep({
 
     resetItems()
     clearMessages()
+  }
+
+  function confirmDiscardPlanificationDraft() {
+    return (
+      !hasUnsavedPlanificationDraft ||
+      window.confirm(
+        discardPlanificationDraftMessage
+      )
+    )
+  }
+
+  function requestResetForm() {
+    if (
+      busy ||
+      !confirmDiscardPlanificationDraft()
+    ) {
+      return
+    }
+
+    resetForm()
   }
 
   function selectAssignment(
@@ -589,6 +647,29 @@ export default function PlanificationsSetupStep({
     clearMessages()
   }
 
+  function requestSelectAssignment(
+    teachingAssignmentId:
+      EntityId
+  ) {
+    if (
+      busy ||
+      teachingAssignmentId ===
+        form.teachingAssignmentId
+    ) {
+      return
+    }
+
+    if (
+      !confirmDiscardPlanificationDraft()
+    ) {
+      return
+    }
+
+    selectAssignment(
+      teachingAssignmentId
+    )
+  }
+
   function selectModule(
     moduleId:
       EntityId
@@ -616,6 +697,29 @@ export default function PlanificationsSetupStep({
 
     resetItems()
     clearMessages()
+  }
+
+  function requestSelectModule(
+    moduleId:
+      EntityId
+  ) {
+    if (
+      busy ||
+      moduleId ===
+        form.moduleId
+    ) {
+      return
+    }
+
+    if (
+      !confirmDiscardPlanificationDraft()
+    ) {
+      return
+    }
+
+    selectModule(
+      moduleId
+    )
   }
 
   function selectModuleFromList(
@@ -651,6 +755,29 @@ export default function PlanificationsSetupStep({
       top: 0,
       behavior: 'smooth'
     })
+  }
+
+  function requestSelectModuleFromList(
+    moduleId:
+      EntityId
+  ) {
+    if (
+      busy ||
+      moduleId ===
+        form.moduleId
+    ) {
+      return
+    }
+
+    if (
+      !confirmDiscardPlanificationDraft()
+    ) {
+      return
+    }
+
+    selectModuleFromList(
+      moduleId
+    )
   }
 
   function updateItem(
@@ -1182,6 +1309,16 @@ export default function PlanificationsSetupStep({
     }
 
     if (
+      hasUnsavedPlanificationDraft
+    ) {
+      setError(
+        'Existem alterações por guardar neste passo. Guarde a planificação ou limpe o rascunho antes de continuar.'
+      )
+
+      return
+    }
+
+    if (
       activePlanifications.length ===
       0
     ) {
@@ -1244,7 +1381,10 @@ export default function PlanificationsSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+    >
       <form
         onSubmit={
           handleSubmit
@@ -1278,7 +1418,7 @@ export default function PlanificationsSetupStep({
               onChange={(
                 event
               ) =>
-                selectAssignment(
+                requestSelectAssignment(
                   event.target.value
                 )
               }
@@ -1324,7 +1464,7 @@ export default function PlanificationsSetupStep({
               onChange={(
                 event
               ) =>
-                selectModule(
+                requestSelectModule(
                   event.target.value
                 )
               }
@@ -1806,7 +1946,7 @@ Realização de trabalho de grupo.`}
               busy
             }
             onClick={
-              resetForm
+              requestResetForm
             }
             className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
           >
@@ -1964,7 +2104,7 @@ Realização de trabalho de grupo.`}
                               <button
                                 type="button"
                                 onClick={() =>
-                                  selectModuleFromList(
+                                  requestSelectModuleFromList(
                                     module.id
                                   )
                                 }
