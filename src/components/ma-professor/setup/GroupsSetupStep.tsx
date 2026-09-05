@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -8,6 +9,9 @@ import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 import type {
   ClassGroup,
   EntityId
@@ -43,6 +47,12 @@ const classLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+
+const DISCARD_STEP_MESSAGE =
+  'Existem alterações por guardar neste passo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
+const DISCARD_EDIT_MESSAGE =
+  'Existem alterações por guardar nesta turma. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -91,6 +101,7 @@ export default function GroupsSetupStep({
   onSnapshotChange,
   onCompleted
 }: GroupsSetupStepProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const [selectedYears, setSelectedYears] = useState<ProfessionalGrade[]>([])
   const [selectedGroupNames, setSelectedGroupNames] = useState<string[]>([])
   const [editingGroupId, setEditingGroupId] = useState<EntityId | null>(null)
@@ -118,6 +129,30 @@ export default function GroupsSetupStep({
         )
       ),
     [snapshot.groups]
+  )
+
+  const editingGroup = editingGroupId
+    ? snapshot.groups.find(group => group.id === editingGroupId) ?? null
+    : null
+
+  const hasPendingGroupSelection = selectedGroupNames.length > 0
+
+  const hasDirtyGroupEdit = Boolean(
+    editingGroup &&
+    (
+      editForm.name !== editingGroup.name ||
+      editForm.courseName !== editingGroup.courseName ||
+      editForm.gradeLevel !== editingGroup.gradeLevel
+    )
+  )
+
+  const hasUnsavedGroupSetupChanges =
+    hasPendingGroupSelection || hasDirtyGroupEdit
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedGroupSetupChanges,
+    rootRef,
+    DISCARD_STEP_MESSAGE
   )
 
   async function refreshSnapshot() {
@@ -237,6 +272,21 @@ export default function GroupsSetupStep({
     setSuccess('')
   }
 
+  function confirmDiscardDirtyGroupEdit() {
+    return !hasDirtyGroupEdit || window.confirm(DISCARD_EDIT_MESSAGE)
+  }
+
+  function requestStartEditing(group: ClassGroup) {
+    if (
+      group.id !== editingGroupId &&
+      !confirmDiscardDirtyGroupEdit()
+    ) {
+      return
+    }
+
+    startEditing(group)
+  }
+
   function cancelEditing() {
     setEditingGroupId(null)
 
@@ -245,6 +295,14 @@ export default function GroupsSetupStep({
       courseName: '',
       gradeLevel: ''
     })
+  }
+
+  function requestCancelEditing() {
+    if (!confirmDiscardDirtyGroupEdit()) {
+      return
+    }
+
+    cancelEditing()
   }
 
   async function handleEditSubmit(
@@ -285,6 +343,13 @@ export default function GroupsSetupStep({
       return
     }
 
+    if (hasUnsavedGroupSetupChanges) {
+      setError(
+        'Existem alterações por guardar neste passo. Adicione as turmas selecionadas ou guarde/cancele a edição em curso antes de continuar.'
+      )
+      return
+    }
+
     if (activeGroups.length === 0) {
       setError('Adicione pelo menos uma turma antes de continuar.')
       return
@@ -314,7 +379,10 @@ export default function GroupsSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]"
+    >
       <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
           Passo 2 de 9
@@ -518,7 +586,7 @@ export default function GroupsSetupStep({
 
                   <button
                     type="button"
-                    onClick={() => startEditing(group)}
+                    onClick={() => requestStartEditing(group)}
                     className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100"
                   >
                     Editar
@@ -608,7 +676,7 @@ export default function GroupsSetupStep({
               <button
                 type="button"
                 disabled={busy}
-                onClick={cancelEditing}
+                onClick={requestCancelEditing}
                 className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-300"
               >
                 Cancelar
