@@ -1,3 +1,4 @@
+import Dexie from 'dexie'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -11,6 +12,10 @@ import {
 import DailyLessonAssessmentSection, {
   type DailyLessonAssessmentSectionHandle
 } from '../assessments/DailyLessonAssessmentSection'
+
+import {
+  maProfessorDb
+} from '../db'
 
 import {
   lessonRepository
@@ -28,6 +33,10 @@ import {
   getCalendarLessonStatusLabel,
   type CalendarLessonEditorContext
 } from './calendarWorkspaceRepository'
+
+import {
+  assertCalendarLessonRelatedDataCompatibility
+} from './calendarLessonSaveSafety'
 
 import LessonAttendanceSection, {
   type LessonAttendanceSectionHandle
@@ -125,9 +134,11 @@ function getModuleLabel(code: string, name: string) {
 }
 
 function wait(milliseconds: number) {
-  return new Promise<void>(resolve => {
-    window.setTimeout(resolve, milliseconds)
-  })
+  return Dexie.waitFor(
+    new Promise<void>(resolve => {
+      window.setTimeout(resolve, milliseconds)
+    })
+  )
 }
 
 async function saveAttendanceWhenReady(
@@ -504,79 +515,113 @@ export default function LessonEditorDialog({
     setError('')
 
     try {
-      let updated = await lessonRepository.updateLesson(
-        lesson.id,
-        {
-          moduleId: form.moduleId,
-          status: form.status,
-          date: form.date,
-          startTime: form.startTime,
-          endTime: form.endTime,
-          periodCount,
-          countTowardProgress:
-            form.status === 'cancelled'
-              ? false
-              : form.countTowardProgress,
-          plannedActivity: form.plannedActivity,
-          summary: form.summary,
-          summarySource: form.summarySource,
-          planificationItemIds:
-            form.planificationItemIds,
-          notes: form.notes
+      const updated = await maProfessorDb.transaction(
+        'rw',
+        maProfessorDb.tables,
+        async () => {
+          const [
+            attendanceCount,
+            assessmentCount
+          ] = await Promise.all([
+            maProfessorDb
+              .lessonAttendance
+              .where('lessonId')
+              .equals(lesson.id)
+              .count(),
+            maProfessorDb
+              .lessonAssessments
+              .where('lessonId')
+              .equals(lesson.id)
+              .count()
+          ])
+
+          assertCalendarLessonRelatedDataCompatibility(
+            form.status,
+            attendanceCount,
+            assessmentCount
+          )
+
+          let savedLesson = await lessonRepository.updateLesson(
+            lesson.id,
+            {
+              moduleId: form.moduleId,
+              status: form.status,
+              date: form.date,
+              startTime: form.startTime,
+              endTime: form.endTime,
+              periodCount,
+              countTowardProgress:
+                form.status === 'cancelled'
+                  ? false
+                  : form.countTowardProgress,
+              plannedActivity: form.plannedActivity,
+              summary: form.summary,
+              summarySource: form.summarySource,
+              planificationItemIds:
+                form.planificationItemIds,
+              notes: form.notes
+            },
+            {
+              expectedUpdatedAt: lesson.updatedAt
+            }
+          )
+
+          if (
+            form.giaeStatus === 'submitted' &&
+            savedLesson.status === 'taught' &&
+            savedLesson.summary.trim() &&
+            savedLesson.giaeStatus !== 'submitted'
+          ) {
+            savedLesson =
+              await lessonRepository.markGIAESubmitted(
+                savedLesson.id
+              )
+          }
+
+          if (
+            form.giaeStatus === 'pending' &&
+            savedLesson.giaeStatus === 'submitted'
+          ) {
+            savedLesson =
+              await lessonRepository.markGIAEPending(
+                savedLesson.id
+              )
+          }
+
+          if (savedLesson.status === 'taught') {
+            const attendanceSection =
+              attendanceSectionRef.current
+
+            const assessmentSection =
+              assessmentSectionRef.current
+
+            if (!attendanceSection) {
+              throw new Error(
+                'Não foi possível preparar a assiduidade desta aula.'
+              )
+            }
+
+            if (!assessmentSection) {
+              throw new Error(
+                'Não foi possível preparar as avaliações desta aula.'
+              )
+            }
+
+            await saveAttendanceWhenReady(
+              attendanceSection,
+              savedLesson
+            )
+
+            await assessmentSection.saveAssessments(savedLesson)
+          }
+
+          return savedLesson
         }
       )
 
-      if (
-        form.giaeStatus === 'submitted' &&
-        updated.status === 'taught' &&
-        updated.summary.trim() &&
-        updated.giaeStatus !== 'submitted'
-      ) {
-        updated =
-          await lessonRepository.markGIAESubmitted(
-            updated.id
-          )
-      }
-
-      if (
-        form.giaeStatus === 'pending' &&
-        updated.giaeStatus === 'submitted'
-      ) {
-        updated =
-          await lessonRepository.markGIAEPending(
-            updated.id
-          )
-      }
-
-      if (updated.status === 'taught') {
-        const attendanceSection =
-          attendanceSectionRef.current
-
-        const assessmentSection =
-          assessmentSectionRef.current
-
-        if (!attendanceSection) {
-          throw new Error(
-            'Não foi possível preparar a assiduidade desta aula.'
-          )
-        }
-
-        if (!assessmentSection) {
-          throw new Error(
-            'Não foi possível preparar as avaliações desta aula.'
-          )
-        }
-
-        await saveAttendanceWhenReady(
-          attendanceSection,
-          updated
-        )
-
-        await assessmentSection.saveAssessments(updated)
-      }
-
       await onSaved(updated)
     } catch (saveError) {
+      assessmentSectionRef.current?.resetTransientSaveState()
       setError(getErrorMessage(saveError))
     } finally {
       setSaving(false)
