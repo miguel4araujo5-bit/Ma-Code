@@ -19,10 +19,6 @@ import type {
 
 export * from './planificationWorkspaceRepositoryBase'
 
-function markChanged() {
-  markDashboardDataDirty()
-}
-
 export class PlanificationWorkspaceRepository
   extends BasePlanificationWorkspaceRepository {
   async createPlanification(
@@ -33,7 +29,7 @@ export class PlanificationWorkspaceRepository
         input
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -47,7 +43,7 @@ export class PlanificationWorkspaceRepository
         changes
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -61,7 +57,7 @@ export class PlanificationWorkspaceRepository
         draft
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -75,7 +71,7 @@ export class PlanificationWorkspaceRepository
         changes
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -92,7 +88,7 @@ export class PlanificationWorkspaceRepository
         status
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -104,7 +100,7 @@ export class PlanificationWorkspaceRepository
         itemId
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -118,7 +114,7 @@ export class PlanificationWorkspaceRepository
         orderedIds
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 
@@ -132,7 +128,7 @@ export class PlanificationWorkspaceRepository
         text
       )
 
-    markChanged()
+    markDashboardDataDirty()
     return result
   }
 }
