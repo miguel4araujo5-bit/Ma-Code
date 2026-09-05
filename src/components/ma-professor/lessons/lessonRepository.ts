@@ -16,7 +16,8 @@ import type {
 } from './lessonRepositoryBase'
 
 import {
-  assertLessonHistoricalDateChangeAllowed
+  assertLessonHistoricalDateChangeAllowed,
+  assertLessonHistoricalModuleChangeAllowed
 } from './lessonHistoricalEditSafety'
 
 export type {
@@ -72,11 +73,19 @@ export class LessonRepository
           changes.date ??
           latest.date
 
+        const nextModuleId =
+          changes.moduleId ??
+          latest.moduleId
+
+        const relatedContextChanged =
+          latest.date !== nextDate ||
+          latest.moduleId !== nextModuleId
+
         const [
           attendanceCount,
           assessmentCount
         ] =
-          latest.date === nextDate
+          !relatedContextChanged
             ? [0, 0]
             : await Promise.all([
                 maProfessorDb
@@ -102,6 +111,13 @@ export class LessonRepository
         assertLessonHistoricalDateChangeAllowed(
           latest.date,
           nextDate,
+          attendanceCount,
+          assessmentCount
+        )
+
+        assertLessonHistoricalModuleChangeAllowed(
+          latest.moduleId,
+          nextModuleId,
           attendanceCount,
           assessmentCount
         )
