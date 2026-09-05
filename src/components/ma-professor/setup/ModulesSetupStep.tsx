@@ -1394,7 +1394,7 @@ export default function ModulesSetupStep({
           }
           className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-300/10 px-5 py-3.5 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-45"
         >
-          Continuar para critérios de avaliação
+          Continuar para o horário semanal
         </button>
       </section>
     </div>

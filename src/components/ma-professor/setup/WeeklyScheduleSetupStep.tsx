@@ -1082,7 +1082,7 @@ export default function WeeklyScheduleSetupStep({
           className="contents"
         >
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-            Passo 7 de 9
+            Passo 5 de 9
           </p>
 
           <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">

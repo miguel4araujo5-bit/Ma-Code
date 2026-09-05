@@ -1252,7 +1252,7 @@ export default function PlanificationsSetupStep({
         className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6"
       >
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-          Passo 6 de 9
+          Passo 7 de 9
         </p>
 
         <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">

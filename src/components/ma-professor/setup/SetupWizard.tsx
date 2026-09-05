@@ -45,14 +45,14 @@ type SetupStepDefinition = {
 }
 
 const setupSteps: SetupStepDefinition[] = [
-  { id: 'groups', number: 1, title: 'Turmas', shortTitle: 'Turmas', description: 'Selecione rapidamente as turmas do ensino profissional que leciona.' },
-  { id: 'subjects', number: 2, title: 'Disciplinas', shortTitle: 'Disciplinas', description: 'Escolha as disciplinas e associe cada uma às turmas onde a leciona.' },
-  { id: 'modules', number: 3, title: 'UFCD ou módulos', shortTitle: 'UFCD', description: 'Introduza cada UFCD uma vez e indique apenas as turmas onde se aplica.' },
-  { id: 'weekly_schedule', number: 4, title: 'Horário semanal', shortTitle: 'Horário', description: 'Indique os dias, as horas e os tempos letivos.' },
-  { id: 'assessment_criteria', number: 5, title: 'Critérios de avaliação', shortTitle: 'Critérios', description: 'Configure critérios e ponderações que totalizem 100%.' },
-  { id: 'planifications', number: 6, title: 'Planificações', shortTitle: 'Planos', description: 'Organize conteúdos, atividades, objetivos e sumários.' },
-  { id: 'students', number: 7, title: 'Alunos', shortTitle: 'Alunos', description: 'Adicione o número e o nome dos alunos de cada turma.' },
-  { id: 'confirmation', number: 8, title: 'Confirmação', shortTitle: 'Confirmar', description: 'Reveja os dados e conclua a configuração pedagógica.' }
+  { id: 'groups', number: 2, title: 'Turmas', shortTitle: 'Turmas', description: 'Selecione rapidamente as turmas do ensino profissional que leciona.' },
+  { id: 'subjects', number: 3, title: 'Disciplinas', shortTitle: 'Disciplinas', description: 'Escolha as disciplinas e associe cada uma às turmas onde a leciona.' },
+  { id: 'modules', number: 4, title: 'UFCD ou módulos', shortTitle: 'UFCD', description: 'Introduza cada UFCD uma vez e indique apenas as turmas onde se aplica.' },
+  { id: 'weekly_schedule', number: 5, title: 'Horário semanal', shortTitle: 'Horário', description: 'Indique os dias, as horas e os tempos letivos.' },
+  { id: 'assessment_criteria', number: 6, title: 'Critérios de avaliação', shortTitle: 'Critérios', description: 'Configure critérios e ponderações que totalizem 100%.' },
+  { id: 'planifications', number: 7, title: 'Planificações', shortTitle: 'Planos', description: 'Organize conteúdos, atividades, objetivos e sumários.' },
+  { id: 'students', number: 8, title: 'Alunos', shortTitle: 'Alunos', description: 'Adicione o número e o nome dos alunos de cada turma.' },
+  { id: 'confirmation', number: 9, title: 'Confirmação', shortTitle: 'Confirmar', description: 'Reveja os dados e conclua a configuração pedagógica.' }
 ]
 
 const importedScheduleSteps: SetupStepId[] = [
@@ -238,9 +238,9 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
   const currentProgressStep = getFirstIncompleteStep(snapshot)
   const activeStepDefinition = setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
   const completedSetupSteps = setupSteps.filter(step => completedSteps.has(step.id)).length
-  const totalVisibleSteps = setupSteps.length
-  const completedCount = completedSetupSteps
-  const completionPercent = Math.round((completedCount / totalVisibleSteps) * 100)
+  const totalSetupSteps = setupSteps.length + 1
+  const completedCount = completedSetupSteps + 1
+  const completionPercent = Math.round((completedCount / totalSetupSteps) * 100)
 
   function isStepUnlocked(stepId: SetupStepId) {
     if (stepId === 'academic_year') return true
@@ -310,7 +310,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
             <p className="mt-2 text-sm leading-6 text-slate-400">Ano letivo ativo: {snapshot.academicYear.name}</p>
           </div>
           <div className="min-w-[12rem] rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <div className="flex items-center justify-between gap-4"><span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span><span className="text-sm font-black text-cyan-100">{completedCount}/{totalVisibleSteps}</span></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span><span className="text-sm font-black text-cyan-100">{completedCount}/{totalSetupSteps}</span></div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} /></div>
           </div>
         </div>
@@ -320,7 +320,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-200">Pronto para trabalhar</p>
               <p className="mt-2 font-black text-white">Turmas, disciplinas, UFCD e horário já permitem gerar as aulas.</p>
-              <p className="mt-1 text-sm leading-6 text-slate-300">Pode escrever o primeiro sumário agora e continuar alunos, critérios e planificações mais tarde.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-300">Pode escrever o primeiro sumário agora e continuar critérios, planificações e alunos mais tarde.</p>
             </div>
             <button
               type="button"
@@ -366,7 +366,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
         {activeStep !== 'academic_year' ? (
           <div className="mt-5 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Passo {activeStepDefinition.number} de {totalVisibleSteps}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Passo {activeStepDefinition.number} de {totalSetupSteps}</p>
               <p className="mt-2 font-black text-white">{activeStepDefinition.title}</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">{activeStepDefinition.description}</p>
             </div>
