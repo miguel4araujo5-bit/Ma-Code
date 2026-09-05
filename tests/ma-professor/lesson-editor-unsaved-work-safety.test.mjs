@@ -10,22 +10,30 @@ const editorSource = await readFile(
   'utf8'
 )
 
+const baseSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/calendar/LessonEditorDialogBase.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'lesson editor tracks dirty state across lesson, attendance and assessment drafts',
   () => {
-    assert.match(editorSource, /formBaselineRef/)
+    assert.match(editorSource, /formDirty/)
     assert.match(editorSource, /attendanceDirty/)
     assert.match(editorSource, /assessmentDirty/)
     assert.match(editorSource, /hasUnsavedLessonChanges/)
     assert.match(
       editorSource,
-      /JSON\.stringify\([\s\S]*form[\s\S]*formBaselineRef\.current/
+      /formDirty\s*\|\|[\s\S]*attendanceDirty\s*\|\|[\s\S]*assessmentDirty/
     )
   }
 )
 
 test(
-  'all lesson editor close paths require one shared discard confirmation and browser unload is protected',
+  'all original lesson editor close paths are routed through one protected onClose callback and browser unload is protected',
   () => {
     assert.match(editorSource, /requestClose/)
     assert.match(editorSource, /confirmDiscardLessonChanges/)
@@ -39,15 +47,20 @@ test(
     )
     assert.match(
       editorSource,
-      /event\.key === 'Escape'[\s\S]*requestClose\(\)/
+      /onClose=\{requestClose\}/
+    )
+
+    assert.match(
+      baseSource,
+      /event\.key === 'Escape'[\s\S]*onClose\(\)/
     )
     assert.match(
-      editorSource,
-      /event\.target === event\.currentTarget[\s\S]*requestClose\(\)/
+      baseSource,
+      /event\.target === event\.currentTarget[\s\S]*onClose\(\)/
     )
     assert.ok(
-      (editorSource.match(/onClick=\{requestClose\}/g) ?? []).length >= 2,
-      'header and footer close buttons must both use requestClose'
+      (baseSource.match(/onClick=\{onClose\}/g) ?? []).length >= 2,
+      'header and footer close buttons must both route through the protected onClose prop'
     )
   }
 )
@@ -56,11 +69,13 @@ test(
   'attendance interactions are tracked and cannot be silently dropped by saving the lesson as non-taught',
   () => {
     assert.match(editorSource, /handleAttendanceClickCapture/)
-    assert.match(editorSource, /onChangeCapture=\{handleAttendanceChangeCapture\}/)
-    assert.match(editorSource, /onClickCapture=\{handleAttendanceClickCapture\}/)
+    assert.match(editorSource, /Assiduidade/)
+    assert.match(editorSource, /Marcar todos presentes/)
+    assert.match(editorSource, /label === 'Presente'/)
+    assert.match(editorSource, /label === 'Falta'/)
     assert.match(
       editorSource,
-      /form\.status !== 'taught'[\s\S]*attendanceDirty[\s\S]*setError/
+      /currentStatus !== 'taught'[\s\S]*attendanceDirty[\s\S]*event\.preventDefault\(\)/
     )
     assert.match(
       editorSource,
@@ -73,18 +88,28 @@ test(
   'assessment interactions are tracked and removing a new assessment requires confirmation',
   () => {
     assert.match(editorSource, /handleAssessmentClickCapture/)
-    assert.match(editorSource, /onChangeCapture=\{handleAssessmentChangeCapture\}/)
-    assert.match(editorSource, /onClickCapture=\{handleAssessmentClickCapture\}/)
-    assert.match(editorSource, /Remover nova avaliação/)
+    assert.match(editorSource, /Avaliações da aula/)
+    assert.match(editorSource, /label === '\+ Nova avaliação'/)
+    assert.match(editorSource, /label !== 'Remover nova avaliação'/)
     assert.match(
       editorSource,
-      /Remover nova avaliação[\s\S]*window\.confirm|window\.confirm[\s\S]*Remover nova avaliação/
+      /window\.confirm\([\s\S]*ASSESSMENT_REMOVE_MESSAGE/
     )
     assert.match(editorSource, /event\.preventDefault\(\)/)
     assert.match(editorSource, /event\.stopPropagation\(\)/)
     assert.match(
       editorSource,
       /event\.nativeEvent\.stopImmediatePropagation\(\)/
+    )
+  }
+)
+
+test(
+  'successful full save clears the wrapper dirty flags before handing control back to the application',
+  () => {
+    assert.match(
+      editorSource,
+      /async function handleSaved[\s\S]*setFormDirty\(false\)[\s\S]*setAttendanceDirty\(false\)[\s\S]*setAssessmentDirty\(false\)[\s\S]*props\.onSaved/
     )
   }
 )
