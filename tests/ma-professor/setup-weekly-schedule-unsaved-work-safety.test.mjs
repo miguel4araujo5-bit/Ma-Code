@@ -79,7 +79,7 @@ test(
     assert.match(source, /const nextForm:\s*ScheduleFormState/)
     assert.match(
       source,
-      /setForm\(nextForm\)[\s\S]*setScheduleFormBaseline\(nextForm\)/
+      /setForm\(nextForm\)[\s\S]*setScheduleFormBaseline\(\s*nextForm\s*\)/
     )
   }
 )
