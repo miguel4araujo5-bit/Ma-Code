@@ -90,7 +90,9 @@ const recoveryDependencyStub = transpile(`
   export async function registerMAProfessorRecoveryVerifier() { throw new Error('unused'); }
   export async function createMAProfessorDatabaseSnapshot() { throw new Error('unused'); }
   export async function downloadEncryptedMAProfessorDatabaseSnapshot() { throw new Error('unused'); }
-  export async function restoreMAProfessorDatabaseSnapshot() { throw new Error('unused'); }
+  export function createMAProfessorSnapshotContentSignature() { return 'unused'; }
+  export class MAProfessorLocalSnapshotChangedError extends Error {}
+  export async function restoreMAProfessorDatabaseSnapshotIfLocalUnchanged() { throw new Error('unused'); }
   export function countMAProfessorSnapshotRecords() { return 0; }
   export async function createMAProfessorSnapshotFingerprint() { return 'unused'; }
   export function saveMAProfessorManualSyncState() { return true; }
@@ -112,6 +114,10 @@ const deviceRecoveryRuntime =
     )
     .replaceAll(
       "'./databaseSnapshotService'",
+      `'${recoveryDependencyStub}'`
+    )
+    .replaceAll(
+      "'./guardedSnapshotRestore'",
       `'${recoveryDependencyStub}'`
     )
     .replaceAll(
@@ -714,7 +720,7 @@ test(
 
     const automaticRestorePosition =
       deviceRecoverySource.indexOf(
-        'await restoreMAProfessorDatabaseSnapshot(',
+        'await restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(',
         localDataGuardPosition
       )
 
@@ -728,7 +734,7 @@ test(
     assert.ok(
       automaticRestorePosition >
         manualRestorePosition,
-      'Dados locais diferentes têm de provocar restauro manual antes de qualquer substituição automática.'
+      'Dados locais diferentes têm de provocar restauro manual antes de qualquer substituição automática protegida.'
     )
   }
 )
