@@ -47,13 +47,24 @@ function isSBentoSchoolName(
   const normalized =
     normalizeSchoolName(value)
 
-  return [
-    'agrupamento de escolas de s bento vizela',
-    'agrupamento de escolas s bento vizela',
-    'escola basica e secundaria de s bento vizela',
-    'ebs s bento vizela',
-    'ebs s bento'
-  ].includes(normalized)
+  if (!normalized) {
+    return false
+  }
+
+  const mentionsSBento =
+    normalized.includes('s bento') ||
+    normalized.includes('sao bento')
+
+  if (!mentionsSBento) {
+    return false
+  }
+
+  return (
+    normalized.includes('vizela') ||
+    normalized.startsWith('agrupamento de escolas') ||
+    normalized.startsWith('escola basica e secundaria') ||
+    normalized.startsWith('ebs ')
+  )
 }
 
 function protectedWorkspaceIsMounted() {
