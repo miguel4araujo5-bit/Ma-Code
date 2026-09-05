@@ -2,8 +2,8 @@ import {
   ensureInitialSchoolCalendar2026_2027
 } from '../calendar/initialSchoolCalendar2026_2027'
 import {
-  lessonRepository
-} from '../lessons/lessonRepository'
+  scheduledLessonReconciliationRepository
+} from '../lessons/scheduledLessonReconciliationRepository'
 import {
   maProfessorRepository
 } from '../repository'
@@ -66,13 +66,9 @@ export async function ensureDailyScheduledLessonsForDate(
     }
   }
 
-  await lessonRepository.generateScheduledLessons({
+  await scheduledLessonReconciliationRepository.reconcile({
     academicYearId,
-    dateFrom:
-      date,
-    dateTo:
-      date,
-    createCancelledForBlockedDates:
-      false
+    dateFrom: date,
+    dateTo: date
   })
 }
