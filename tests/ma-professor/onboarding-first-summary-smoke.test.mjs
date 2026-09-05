@@ -108,9 +108,9 @@ const initialCalendarUrl = transpile(`
   }
 `)
 
-const lessonRepositoryUrl = transpile(`
-  export const lessonRepository = {
-    async generateScheduledLessons(input) {
+const reconciliationRepositoryUrl = transpile(`
+  export const scheduledLessonReconciliationRepository = {
+    async reconcile(input) {
       const smoke = globalThis.__firstSummarySmoke
       smoke.genericCalls.push(structuredClone(input))
 
@@ -119,10 +119,9 @@ const lessonRepositoryUrl = transpile(`
       )
 
       return {
-        created: created ? [structuredClone(globalThis.__dailyState.lesson)] : [],
-        createdPlanned: created ? 1 : 0,
-        createdCancelled: 0,
-        skippedExisting: created ? 0 : 1,
+        deletedLessonIds: [],
+        createdLessonIds: created ? ['lesson-1'] : [],
+        preservedLessonIds: created ? [] : ['lesson-1'],
         skippedWithoutModule: 0,
         createdOutsidePlannedCapacity: 0
       }
@@ -160,8 +159,8 @@ const preparationRuntime = preparationSource
     `'${initialCalendarUrl}'`
   )
   .replaceAll(
-    "'../lessons/lessonRepository'",
-    `'${lessonRepositoryUrl}'`
+    "'../lessons/scheduledLessonReconciliationRepository'",
+    `'${reconciliationRepositoryUrl}'`
   )
   .replaceAll(
     "'../repository'",
@@ -302,8 +301,7 @@ test(
       {
         academicYearId: 'year-1',
         dateFrom: smoke.date,
-        dateTo: smoke.date,
-        createCancelledForBlockedDates: false
+        dateTo: smoke.date
       }
     )
     assert.equal(
@@ -361,7 +359,7 @@ test(
     assert.equal(
       smoke.genericCalls.length,
       0,
-      'Na primeira preparação aplicada de S. Bento, o helper deve aguardar o preset e regressar sem uma segunda geração.'
+      'Na primeira preparação aplicada de S. Bento, o helper deve aguardar o preset e regressar sem uma segunda reconciliação.'
     )
     assert.equal(
       daily.lesson.id,
