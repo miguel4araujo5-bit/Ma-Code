@@ -8,6 +8,16 @@ import {
   type StudentDraft
 } from '../repository'
 
+import {
+  closeStudentMembership,
+  getLocalISODate,
+  reopenStudentMembership
+} from '../students/studentMembership'
+
+import {
+  saveStudentsForGroupWithMembership
+} from '../students/studentRosterRepository'
+
 import type {
   AcademicYear,
   ClassGroup,
@@ -516,7 +526,7 @@ export class GroupsWorkspaceRepository {
     groupId: EntityId,
     drafts: StudentDraft[]
   ) {
-    return maProfessorRepository.saveStudentsForGroup(
+    return saveStudentsForGroupWithMembership(
       academicYearId,
       groupId,
       drafts
@@ -620,12 +630,56 @@ export class GroupsWorkspaceRepository {
     studentId: EntityId,
     active: boolean
   ) {
-    return this.updateStudent(
-      studentId,
-      {
-        active
-      }
+    await this.initialize()
+
+    const current =
+      await maProfessorDb.students.get(
+        studentId
+      )
+
+    if (
+      !current
+    ) {
+      throw new Error(
+        'O aluno indicado não existe.'
+      )
+    }
+
+    if (
+      current.active ===
+      active
+    ) {
+      return current
+    }
+
+    const membershipPeriods =
+      current.membershipPeriods &&
+      current.membershipPeriods.length >
+        0
+        ? active
+          ? reopenStudentMembership(
+              current.membershipPeriods,
+              getLocalISODate()
+            )
+          : closeStudentMembership(
+              current.membershipPeriods,
+              getLocalISODate()
+            )
+        : current.membershipPeriods
+
+    const updated: Student = {
+      ...current,
+      active,
+      membershipPeriods,
+      updatedAt:
+        now()
+    }
+
+    await maProfessorDb.students.put(
+      updated
     )
+
+    return updated
   }
 }
 
