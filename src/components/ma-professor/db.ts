@@ -277,8 +277,11 @@ export class MAProfessorDatabase extends Dexie {
         _primaryKey,
         object
       ) => {
+        const student =
+          object as Student
+
         if (
-          object.active !==
+          student.active !==
             false ||
           modifications.active !==
             true
@@ -305,7 +308,7 @@ export class MAProfessorDatabase extends Dexie {
           membershipPeriods:
             reopenStudentMembership(
               requestedPeriods ??
-                object.membershipPeriods,
+                student.membershipPeriods,
               getLocalISODate()
             )
         }
