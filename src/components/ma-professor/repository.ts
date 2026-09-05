@@ -4,6 +4,11 @@ import {
   openMAProfessorDatabase
 } from './db'
 
+import {
+  createInitialStudentMembership,
+  getLocalISODate
+} from './students/studentMembership'
+
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -1478,20 +1483,90 @@ export class MAProfessorRepository {
   ) {
     await this.initialize()
 
-    const group =
-      await maProfessorDb.groups.get(
-        groupId
-      )
+    const [
+      group,
+      academicYear
+    ] =
+      await Promise.all([
+        maProfessorDb.groups.get(
+          groupId
+        ),
+        maProfessorDb.academicYears.get(
+          academicYearId
+        )
+      ])
 
     if (
       !group ||
       group.academicYearId !==
-        academicYearId
+        academicYearId ||
+      !academicYear
     ) {
       throw new Error(
         'A turma indicada não pertence ao ano letivo selecionado.'
       )
     }
+
+    const [
+      assignments,
+      lessons
+    ] =
+      await Promise.all([
+        maProfessorDb.teachingAssignments
+          .where(
+            'academicYearId'
+          )
+          .equals(
+            academicYearId
+          )
+          .toArray(),
+        maProfessorDb.lessons
+          .where(
+            'academicYearId'
+          )
+          .equals(
+            academicYearId
+          )
+          .toArray()
+      ])
+
+    const groupAssignmentIds =
+      new Set(
+        assignments
+          .filter(
+            assignment =>
+              assignment.groupId ===
+                groupId
+          )
+          .map(
+            assignment =>
+              assignment.id
+          )
+      )
+
+    const hasTaughtLesson =
+      lessons.some(
+        lesson =>
+          lesson.status ===
+            'taught' &&
+          groupAssignmentIds.has(
+            lesson.teachingAssignmentId
+          )
+      )
+
+    const localToday =
+      getLocalISODate()
+
+    const membershipStartDate =
+      hasTaughtLesson
+        ? localToday <
+          academicYear.startDate
+          ? academicYear.startDate
+          : localToday >
+            academicYear.endDate
+            ? academicYear.endDate
+            : localToday
+        : academicYear.startDate
 
     const cleanedDrafts =
       drafts.map(
@@ -1620,7 +1695,11 @@ export class MAProfessorRepository {
                 draft.name,
               active: true,
               notes:
-                draft.notes
+                draft.notes,
+              membershipPeriods:
+                createInitialStudentMembership(
+                  membershipStartDate
+                )
             }
           )
         }
