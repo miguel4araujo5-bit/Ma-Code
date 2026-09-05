@@ -16,6 +16,9 @@ import {
 import InitialSchoolCalendarBootstrap from '../calendar/InitialSchoolCalendarBootstrap'
 
 import DailyWorkspaceView from '../daily/DailyWorkspaceView'
+import {
+  ensureDailyScheduledLessonsForDate
+} from '../daily/dailyScheduledLessonPreparation'
 
 import {
   maProfessorRepository
@@ -68,6 +71,31 @@ type DailyNavigationGuard =
 
 const THEME_STORAGE_KEY =
   'ma-professor-theme'
+
+function getTodayISODate(): ISODate {
+  const today = new Date()
+
+  return [
+    String(
+      today.getFullYear()
+    ).padStart(
+      4,
+      '0'
+    ),
+    String(
+      today.getMonth() + 1
+    ).padStart(
+      2,
+      '0'
+    ),
+    String(
+      today.getDate()
+    ).padStart(
+      2,
+      '0'
+    )
+  ].join('-')
+}
 
 function getInitialTheme():
   ProductTheme {
@@ -226,6 +254,13 @@ function ProductContent() {
               isMAProfessorOperationallyReady(
                 setupSnapshot
               )
+
+            if (nextOperationalReady) {
+              await ensureDailyScheduledLessonsForDate(
+                activeYear.id,
+                getTodayISODate()
+              )
+            }
           }
 
           setAcademicYear(
