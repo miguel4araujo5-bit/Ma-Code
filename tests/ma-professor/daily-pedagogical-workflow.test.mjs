@@ -18,6 +18,14 @@ const dailyViewSource = await readFile(
   'utf8'
 )
 
+const dailyPreparationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const productSource = await readFile(
   new URL(
     '../../src/components/ma-professor/product/MAProfessorProduct.tsx',
@@ -282,6 +290,65 @@ test(
     assert.equal(
       state.lesson.summary,
       ''
+    )
+  }
+)
+
+test(
+  'opening a Daily date materializes scheduled lessons before reading the workspace',
+  () => {
+    assert.match(
+      dailyViewSource,
+      /ensureDailyScheduledLessonsForDate/
+    )
+
+    const loadDate =
+      getSection(
+        dailyViewSource,
+        'const loadDate = useCallback(',
+        'useEffect(() => {'
+      )
+
+    const preparePosition =
+      loadDate.indexOf(
+        'await ensureDailyScheduledLessonsForDate('
+      )
+    const workspacePosition =
+      loadDate.indexOf(
+        'await dailyWorkspaceRepository.getDateWorkspace('
+      )
+
+    assert.ok(preparePosition >= 0)
+    assert.ok(workspacePosition >= 0)
+    assert.ok(
+      preparePosition < workspacePosition,
+      'As aulas do horário têm de ser preparadas antes de o Diário consultar o dia.'
+    )
+  }
+)
+
+test(
+  'Daily schedule preparation is date-scoped and preserves the S. Bento preset ordering',
+  () => {
+    assert.match(
+      dailyPreparationSource,
+      /isSBentoSchoolName/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /ensureInitialSchoolCalendar2026_2027/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /preparedSBentoYears/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /preparation\.applied/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /lessonRepository\.generateScheduledLessons\(\{[\s\S]*dateFrom:\s*date,[\s\S]*dateTo:\s*date,[\s\S]*createCancelledForBlockedDates:\s*false/
     )
   }
 )
