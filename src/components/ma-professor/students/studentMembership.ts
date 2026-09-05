@@ -121,7 +121,9 @@ export function reopenStudentMembership(
     periods.length ===
       0
   ) {
-    return periods
+    return createInitialStudentMembership(
+      startDate
+    )
   }
 
   const sorted =
