@@ -170,6 +170,12 @@ test(
         claimRequiredUi
       )
 
+    const conflictUi =
+      position(
+        "stage ===\n    'conflict'",
+        claimButton
+      )
+
     assert.ok(
       claimButton > claimRequiredUi
     )
@@ -177,7 +183,7 @@ test(
     assert.match(
       isolationSource.slice(
         claimRequiredUi,
-        claimButton + 200
+        conflictUi
       ),
       /Sim, estes dados pertencem a esta conta/
     )
