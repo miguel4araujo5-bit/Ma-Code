@@ -31,7 +31,7 @@ import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdminFixed'
+} from './maProfessorAdminAtomicApproval'
 import {
   notifyMAProfessorNewAccessRequest,
   type MAProfessorAccessAdminNotifierEnv
