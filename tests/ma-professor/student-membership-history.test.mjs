@@ -184,6 +184,67 @@ test(
       true
     )
 
+    const initialPeriods =
+      module.createInitialStudentMembership(
+        '2026-09-15'
+      )
+
+    assert.deepEqual(
+      initialPeriods,
+      [
+        {
+          startDate: '2026-09-15',
+          endDate: null
+        }
+      ]
+    )
+
+    const initialStudent = {
+      ...structured,
+      membershipPeriods:
+        initialPeriods
+    }
+
+    const closedPeriods =
+      module.closeStudentMembership(
+        initialStudent,
+        '2026-10-31'
+      )
+
+    assert.deepEqual(
+      closedPeriods,
+      [
+        {
+          startDate: '2026-09-15',
+          endDate: '2026-10-31'
+        }
+      ]
+    )
+
+    const reopenedPeriods =
+      module.reopenStudentMembership(
+        {
+          ...initialStudent,
+          membershipPeriods:
+            closedPeriods
+        },
+        '2026-11-10'
+      )
+
+    assert.deepEqual(
+      reopenedPeriods,
+      [
+        {
+          startDate: '2026-09-15',
+          endDate: '2026-10-31'
+        },
+        {
+          startDate: '2026-11-10',
+          endDate: null
+        }
+      ]
+    )
+
     const legacyActive = {
       ...structured,
       membershipPeriods: undefined,
@@ -219,7 +280,7 @@ test(
   () => {
     assert.match(
       rosterSource,
-      /maProfessorRepository\.saveStudentsForGroup/
+      /maProfessorRepository[\s\S]{0,100}\.saveStudentsForGroup\(/
     )
 
     assert.match(
@@ -319,7 +380,12 @@ test(
 
     assert.match(
       assessmentSource,
-      /idsToDelete[\s\S]*studentById\.has/
+      /const\s+memberStudentIds[\s\S]*isStudentMemberOnDate\([\s\S]*lesson\.date/
+    )
+
+    assert.match(
+      assessmentSource,
+      /const\s+idsToDelete[\s\S]*memberStudentIds\.has\([\s\S]*!entryByStudent\.has\(/
     )
   }
 )
