@@ -41,6 +41,14 @@ const reconciliationSource = await readFile(
   'utf8'
 )
 
+const navigationProtectionSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/navigation/useUnsavedWorkspaceProtection.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const planificationSource = await readFile(
   new URL(
     '../../src/components/ma-professor/planifications/PlanificationWorkspaceView.tsx',
@@ -52,30 +60,6 @@ const planificationSource = await readFile(
 const assessmentSource = await readFile(
   new URL(
     '../../src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const appSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/MAProfessorApp.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const menuSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const productSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',
     import.meta.url
   ),
   'utf8'
@@ -154,7 +138,41 @@ test(
 )
 
 test(
-  'planifications preserve unrelated unsaved edits across snapshot refreshes and guard destructive navigation',
+  'shared unsaved-work protection warns on browser close and intercepts navigation outside the editor root',
+  () => {
+    assert.match(
+      navigationProtectionSource,
+      /beforeunload/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /document\.addEventListener\([\s\S]*['"]click['"][\s\S]*handleExternalClick[\s\S]*true/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /rootRef\.current\?\.contains/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /window\.confirm/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /event\.preventDefault\(\)/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /event\.stopPropagation\(\)/
+    )
+    assert.match(
+      navigationProtectionSource,
+      /event\.stopImmediatePropagation\(\)/
+    )
+  }
+)
+
+test(
+  'planifications preserve unrelated unsaved edits across snapshot refreshes and guard destructive actions',
   () => {
     assert.match(
       planificationSource,
@@ -170,11 +188,7 @@ test(
     )
     assert.match(
       planificationSource,
-      /beforeunload/
-    )
-    assert.match(
-      planificationSource,
-      /onNavigationGuardChange/
+      /useMAProfessorUnsavedWorkspaceProtection/
     )
 
     assert.match(
@@ -191,11 +205,16 @@ test(
       planificationSource,
       /handleRefresh[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onRefresh/
     )
+
+    assert.match(
+      planificationSource,
+      /handleLessonSelect[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onLessonSelect/
+    )
   }
 )
 
 test(
-  'assessment grades preserve other dirty students across one-student saves and guard filters',
+  'assessment grades preserve other dirty students across one-student saves and guard destructive actions',
   () => {
     assert.match(
       assessmentSource,
@@ -211,11 +230,7 @@ test(
     )
     assert.match(
       assessmentSource,
-      /beforeunload/
-    )
-    assert.match(
-      assessmentSource,
-      /onNavigationGuardChange/
+      /useMAProfessorUnsavedWorkspaceProtection/
     )
 
     assert.match(
@@ -232,109 +247,15 @@ test(
       assessmentSource,
       /handleModuleChange[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onFiltersChange/
     )
-  }
-)
 
-test(
-  'management workspace navigation waits for the active unsaved-work guard',
-  () => {
     assert.match(
-      appSource,
-      /workspaceNavigationGuardRef/
-    )
-    assert.match(
-      appSource,
-      /handleWorkspaceNavigationGuardChange/
-    )
-
-    const start = appSource.indexOf(
-      'async function handleWorkspaceChange('
-    )
-
-    assert.ok(start >= 0)
-
-    const section = appSource.slice(
-      start,
-      appSource.indexOf(
-        'function handleCalendarModeChange(',
-        start
-      )
-    )
-
-    const guardPosition = section.indexOf(
-      'workspaceNavigationGuardRef.current'
-    )
-    const workspacePosition = section.indexOf(
-      'setActiveWorkspace('
-    )
-
-    assert.ok(guardPosition >= 0)
-    assert.ok(workspacePosition >= 0)
-    assert.ok(
-      guardPosition < workspacePosition,
-      'O guard tem de correr antes da troca de workspace.'
+      assessmentSource,
+      /handleRefresh[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onRefresh/
     )
 
     assert.match(
-      appSource,
-      /AssessmentWorkspaceView[\s\S]*onNavigationGuardChange=\{[\s\S]*handleWorkspaceNavigationGuardChange/
-    )
-    assert.match(
-      appSource,
-      /PlanificationWorkspaceView[\s\S]*onNavigationGuardChange=\{[\s\S]*handleWorkspaceNavigationGuardChange/
-    )
-  }
-)
-
-test(
-  'unsaved management work is also guarded when leaving the nested menu or top-level product workspace',
-  () => {
-    assert.match(
-      menuSource,
-      /managementNavigationGuardRef/
-    )
-    assert.match(
-      menuSource,
-      /handleManagementBack/
-    )
-    assert.match(
-      menuSource,
-      /MAProfessorApp[\s\S]*onNavigationGuardChange/
-    )
-
-    assert.match(
-      productSource,
-      /activeNavigationGuardRef/
-    )
-    assert.match(
-      productSource,
-      /handleNavigationGuardChange/
-    )
-
-    const start = productSource.indexOf(
-      'const handleSelect ='
-    )
-    const end = productSource.indexOf(
-      'const handleDataChanged =',
-      start
-    )
-    const section = productSource.slice(
-      start,
-      end
-    )
-
-    const guardPosition = section.indexOf(
-      'activeNavigationGuardRef.current'
-    )
-    const finalWorkspacePosition = section.lastIndexOf(
-      'setWorkspace('
-    )
-
-    assert.ok(guardPosition >= 0)
-    assert.ok(finalWorkspacePosition >= 0)
-    assert.ok(
-      guardPosition < finalWorkspacePosition,
-      'O guard global tem de correr antes de sair do workspace atual.'
+      assessmentSource,
+      /handleLessonSelect[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onLessonSelect/
     )
   }
 )
