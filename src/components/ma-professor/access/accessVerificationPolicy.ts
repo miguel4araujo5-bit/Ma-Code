@@ -14,6 +14,10 @@ interface StoredAccessIdentity {
   deviceId?: unknown
 }
 
+let currentVerificationState:
+  MAProfessorAccessVerificationState =
+    'verified'
+
 export function getMAProfessorAccessErrorStatus(
   error: unknown
 ) {
@@ -67,5 +71,31 @@ export function canUseStoredSessionForVerificationFallback(
   return (
     storedAccess.token === token &&
     storedAccess.deviceId === deviceId
+  )
+}
+
+export function readMAProfessorAccessVerificationState() {
+  return currentVerificationState
+}
+
+export function publishMAProfessorAccessVerificationState(
+  state:
+    MAProfessorAccessVerificationState
+) {
+  currentVerificationState = state
+
+  if (
+    typeof window === 'undefined'
+  ) {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(
+      MA_PROFESSOR_ACCESS_VERIFICATION_EVENT,
+      {
+        detail: state
+      }
+    )
   )
 }
