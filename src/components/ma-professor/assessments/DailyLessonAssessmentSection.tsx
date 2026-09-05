@@ -67,6 +67,7 @@ export interface DailyLessonAssessmentSectionHandle {
     status: LessonStatus
   }) => void
   saveAssessments: (lesson: Lesson) => Promise<void>
+  resetTransientSaveState: () => void
 }
 
 const activityTypeOptions: AssessmentActivityType[] = [
@@ -760,6 +761,10 @@ const DailyLessonAssessmentSection = forwardRef<
                 : current
             )
           }
+        },
+
+        resetTransientSaveState() {
+          draftCreatedAssessmentIdRef.current = null
         }
       }),
       [
