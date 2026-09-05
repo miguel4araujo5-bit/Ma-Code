@@ -18,6 +18,14 @@ const wizardSource = await readFile(
   'utf8'
 )
 
+const repositorySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/repository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const stepSources = new Map(
   await Promise.all(
     [
@@ -89,6 +97,30 @@ test(
     assert.match(
       wizardSource,
       /Passo \{activeStepDefinition\.number\} de \{totalSetupSteps\}/
+    )
+  }
+)
+
+test(
+  'repository setup progression follows the same sequence as the wizard',
+  () => {
+    const match = repositorySource.match(
+      /const SETUP_STEPS: SetupStepId\[\] = \[([\s\S]*?)\n\]/
+    )
+
+    assert.ok(match, 'missing SETUP_STEPS in repository')
+
+    const repositoryStepIds = Array.from(
+      match[1].matchAll(/'([^']+)'/g),
+      result => result[1]
+    )
+
+    assert.deepEqual(
+      repositoryStepIds,
+      [
+        'academic_year',
+        ...expectedSequence.map(([id]) => id)
+      ]
     )
   }
 )
