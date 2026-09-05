@@ -84,7 +84,12 @@ test(
 
     assert.match(
       dbSource,
-      /object\.active\s*!==\s*false/
+      /const\s+student\s*=\s*object\s+as\s+Student/
+    )
+
+    assert.match(
+      dbSource,
+      /student\.active\s*!==\s*false/
     )
 
     assert.match(
