@@ -3,6 +3,10 @@ import {
   openMAProfessorDatabase
 } from '../db'
 
+import {
+  isStudentMemberOnDate
+} from '../students/studentMembership'
+
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -769,16 +773,6 @@ function buildActivityRows(
     }
   )
 
-  const activeStudentIds =
-    new Set(
-      students.map(
-        (
-          student
-        ) =>
-          student.id
-      )
-    )
-
   const rows =
     assessments.map(
       (
@@ -810,29 +804,46 @@ function buildActivityRows(
           )
         }
 
-        const assessmentResults =
-          (
-            resultsByAssessmentId.get(
-              assessment.id
-            ) ??
-            []
-          ).filter(
-            (
-              result
-            ) =>
-              activeStudentIds.has(
-                result.studentId
-              )
-          )
+        const allAssessmentResults =
+          resultsByAssessmentId.get(
+            assessment.id
+          ) ??
+          []
 
         const resultStudentIds =
           new Set(
-            assessmentResults.map(
-              (
-                result
-              ) =>
+            allAssessmentResults.map(
+              result =>
                 result.studentId
             )
+          )
+
+        const activityStudents =
+          students.filter(
+            student =>
+              isStudentMemberOnDate(
+                student,
+                lesson.date
+              ) ||
+              resultStudentIds.has(
+                student.id
+              )
+          )
+
+        const activityStudentIds =
+          new Set(
+            activityStudents.map(
+              student =>
+                student.id
+            )
+          )
+
+        const assessmentResults =
+          allAssessmentResults.filter(
+            result =>
+              activityStudentIds.has(
+                result.studentId
+              )
           )
 
         return {
@@ -881,9 +892,9 @@ function buildActivityRows(
             ),
 
           complete:
-            students.length >
+            activityStudents.length >
               0 &&
-            students.every(
+            activityStudents.every(
               (
                 student
               ) =>
@@ -1555,15 +1566,20 @@ export class AssessmentWorkspaceRepository {
         context.criteria
       )
 
-    const students =
+    const allGroupStudents =
       sortStudents(
         context.students.filter(
-          (
-            student
-          ) =>
-            student.active &&
+          student =>
             student.groupId ===
               selectedGroup.id
+        )
+      )
+
+    const students =
+      sortStudents(
+        allGroupStudents.filter(
+          student =>
+            student.active
         )
       )
 
@@ -1615,7 +1631,7 @@ export class AssessmentWorkspaceRepository {
         context.lessons,
         schemeContext.criteria,
         results,
-        students
+        allGroupStudents
       )
 
     const studentRows =
