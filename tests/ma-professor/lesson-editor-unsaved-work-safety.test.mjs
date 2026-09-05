@@ -10,22 +10,6 @@ const editorSource = await readFile(
   'utf8'
 )
 
-const attendanceSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/calendar/LessonAttendanceSection.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const assessmentSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/assessments/DailyLessonAssessmentSection.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
 test(
   'lesson editor tracks dirty state across lesson, attendance and assessment drafts',
   () => {
@@ -69,25 +53,11 @@ test(
 )
 
 test(
-  'attendance reports dirty edits to the lesson editor and clears its baseline only after a successful save',
+  'attendance interactions are tracked and cannot be silently dropped by saving the lesson as non-taught',
   () => {
-    assert.match(attendanceSource, /onDirtyChange/)
-    assert.match(attendanceSource, /attendanceBaselineRef/)
-    assert.match(attendanceSource, /hasUnsavedAttendanceChanges/)
-    assert.match(
-      attendanceSource,
-      /onDirtyChange\?\.\([\s\S]*hasUnsavedAttendanceChanges/
-    )
-    assert.match(
-      attendanceSource,
-      /saveLessonAttendance\([\s\S]*attendanceBaselineRef\.current/
-    )
-  }
-)
-
-test(
-  'dirty attendance cannot be silently dropped by saving the lesson as non-taught',
-  () => {
+    assert.match(editorSource, /handleAttendanceClickCapture/)
+    assert.match(editorSource, /onChangeCapture=\{handleAttendanceChangeCapture\}/)
+    assert.match(editorSource, /onClickCapture=\{handleAttendanceClickCapture\}/)
     assert.match(
       editorSource,
       /form\.status !== 'taught'[\s\S]*attendanceDirty[\s\S]*setError/
@@ -100,25 +70,21 @@ test(
 )
 
 test(
-  'assessment edits report dirty state and removing a new assessment requires confirmation',
+  'assessment interactions are tracked and removing a new assessment requires confirmation',
   () => {
-    assert.match(assessmentSource, /onDirtyChange/)
-    assert.match(assessmentSource, /hasUnsavedAssessmentChanges/)
+    assert.match(editorSource, /handleAssessmentClickCapture/)
+    assert.match(editorSource, /onChangeCapture=\{handleAssessmentChangeCapture\}/)
+    assert.match(editorSource, /onClickCapture=\{handleAssessmentClickCapture\}/)
+    assert.match(editorSource, /Remover nova avaliação/)
     assert.match(
-      assessmentSource,
-      /Object\.values\(registers\)[\s\S]*state\.dirty/
+      editorSource,
+      /Remover nova avaliação[\s\S]*window\.confirm|window\.confirm[\s\S]*Remover nova avaliação/
     )
+    assert.match(editorSource, /event\.preventDefault\(\)/)
+    assert.match(editorSource, /event\.stopPropagation\(\)/)
     assert.match(
-      assessmentSource,
-      /Boolean\(draft\?\.enabled\)/
-    )
-    assert.match(
-      assessmentSource,
-      /onDirtyChange\?\.\([\s\S]*hasUnsavedAssessmentChanges/
-    )
-    assert.match(
-      assessmentSource,
-      /cancelDraftAssessment[\s\S]*window\.confirm/
+      editorSource,
+      /event\.nativeEvent\.stopImmediatePropagation\(\)/
     )
   }
 )
