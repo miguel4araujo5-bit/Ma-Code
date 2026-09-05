@@ -52,6 +52,10 @@ import {
   type MAProfessorSnapshotPushResult
 } from './snapshotApi'
 
+import {
+  assertMAProfessorSnapshotDataIntegrity
+} from './snapshotIntegrityValidation'
+
 export const MA_PROFESSOR_DATABASE_SNAPSHOT_RECORD_ID =
   'database-v1'
 
@@ -810,8 +814,15 @@ function validateDatabaseSnapshot(
     )
   }
 
-  return value as unknown as
-    MAProfessorDatabaseSnapshot
+  const snapshot =
+    value as unknown as
+      MAProfessorDatabaseSnapshot
+
+  assertMAProfessorSnapshotDataIntegrity(
+    snapshot.tables
+  )
+
+  return snapshot
 }
 
 function countSnapshotRecords(
