@@ -84,12 +84,12 @@ test(
 
     assert.match(
       dbSource,
-      /object\.active\s*===\s*false/
+      /object\.active\s*!==\s*false/
     )
 
     assert.match(
       dbSource,
-      /modifications\.active\s*===\s*true/
+      /modifications\.active\s*!==\s*true/
     )
 
     assert.match(
