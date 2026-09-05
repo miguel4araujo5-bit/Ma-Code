@@ -10,6 +10,14 @@ import {
     getAssessmentActivityTypeLabel
 } from '../assessments/assessmentRepository';
 
+import {
+    createMAProfessorBackup
+} from '../settings/backupRepository';
+
+import {
+    downloadTextFile
+} from '../settings/csvExport';
+
 import type {
     AssessmentActivityType,
     EntityId,
@@ -32,6 +40,9 @@ interface DailyWorkspaceViewProps {
     initialDate?: ISODate;
     initialLessonId?: EntityId;
     onSaved?: () => void | Promise<void>;
+    onNavigationGuardChange?: (
+        guard: (() => Promise<boolean>) | null
+    ) => void;
 }
 
 interface LessonFormState {
@@ -439,7 +450,8 @@ export default function DailyWorkspaceView({
     academicYearId,
     initialDate,
     initialLessonId,
-    onSaved
+    onSaved,
+    onNavigationGuardChange
 }: DailyWorkspaceViewProps) {
     const [date, setDate] =
         useState<ISODate>(
@@ -491,6 +503,11 @@ export default function DailyWorkspaceView({
     const [saving, setSaving] =
         useState(false);
 
+    const [
+        emergencyBackupBusy,
+        setEmergencyBackupBusy
+    ] = useState(false);
+
     const [error, setError] =
         useState('');
 
@@ -519,6 +536,10 @@ export default function DailyWorkspaceView({
 
     const loadRequestRef = useRef(0);
     const savingRef = useRef(false);
+    const navigationGuardRef =
+        useRef<() => Promise<boolean>>(
+            async () => true
+        );
 
     const hydrate = useCallback(
         (
@@ -1121,6 +1142,147 @@ export default function DailyWorkspaceView({
             reload: false,
             announce: false
         });
+    }
+
+    navigationGuardRef.current =
+        saveBeforeNavigation;
+
+    useEffect(() => {
+        if (!onNavigationGuardChange) {
+            return;
+        }
+
+        const guard = () =>
+            navigationGuardRef.current();
+
+        onNavigationGuardChange(
+            guard
+        );
+
+        return () => {
+            onNavigationGuardChange(
+                null
+            );
+        };
+    }, [onNavigationGuardChange]);
+
+    async function downloadEmergencyBackup() {
+        if (
+            !selectedLesson ||
+            !lessonForm ||
+            !assessmentForm ||
+            emergencyBackupBusy
+        ) {
+            return;
+        }
+
+        setEmergencyBackupBusy(true);
+
+        try {
+            const persistedBackup =
+                await createMAProfessorBackup();
+
+            const exportedAt =
+                new Date().toISOString();
+
+            const emergencyBackup = {
+                product:
+                    'ma-professor-emergency-backup',
+                schemaVersion: 1,
+                exportedAt,
+                reason:
+                    error.trim() ||
+                    'Não foi possível guardar a aula.',
+                persistedBackup,
+                unsavedDailyDraft: {
+                    academicYearId,
+                    date,
+                    lessonId:
+                        selectedLesson
+                            .context
+                            .lessonRow
+                            .lesson.id,
+                    assessmentIdToDelete,
+                    context: {
+                        groupName:
+                            lessonRow?.group.name ??
+                            '',
+                        subjectName:
+                            lessonRow?.subject.name ??
+                            '',
+                        subjectShortName:
+                            lessonRow?.subject.shortName ??
+                            '',
+                        moduleCode:
+                            lessonRow?.module.code ??
+                            '',
+                        moduleName:
+                            lessonRow?.module.name ??
+                            ''
+                    },
+                    lesson: lessonForm,
+                    assessment:
+                        assessmentForm,
+                    students:
+                        students.map(row => ({
+                            studentId:
+                                row.student.id,
+                            number:
+                                row.student.number,
+                            name:
+                                row.student.name,
+                            attendanceStatus:
+                                row.attendanceStatus,
+                            attendanceCode:
+                                row.attendanceCode,
+                            attendanceNote:
+                                row.attendanceNote,
+                            assessmentStatus:
+                                row.assessmentStatus,
+                            assessmentScoreText:
+                                row.assessmentScoreText,
+                            assessmentNote:
+                                row.assessmentNote
+                        }))
+                },
+                recoveryNote:
+                    'Esta cópia de emergência contém o backup local já persistido e, em separado, o estado da aula que ainda estava no ecrã. O ficheiro não está cifrado e pode conter dados de alunos.'
+            };
+
+            const time =
+                exportedAt
+                    .slice(11, 19)
+                    .replace(/:/g, '-');
+
+            downloadTextFile(
+                `ma-professor-emergencia-aula-${date}-${time}.json`,
+                JSON.stringify(
+                    emergencyBackup,
+                    null,
+                    2
+                ),
+                'application/json;charset=utf-8'
+            );
+
+            setSuccess(
+                'Cópia de segurança de emergência criada. Os dados no ecrã continuam disponíveis para tentar guardar novamente.'
+            );
+        } catch (backupError) {
+            const backupMessage =
+                backupError instanceof Error &&
+                backupError.message.trim()
+                    ? backupError.message
+                    : 'erro inesperado';
+
+            setSuccess('');
+            setError(current =>
+                `${current || 'Não foi possível guardar a aula.'} Também não foi possível criar a cópia de segurança: ${backupMessage}`
+            );
+        } finally {
+            setEmergencyBackupBusy(
+                false
+            );
+        }
     }
 
     async function changeDate(
@@ -3275,24 +3437,46 @@ export default function DailyWorkspaceView({
                                 ) : null}
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    void saveAll()
-                                }
-                                disabled={
-                                    loading ||
-                                    saving ||
-                                    !hasUnsavedChanges
-                                }
-                                className="rounded-lg bg-cyan-300 px-5 py-2 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {saving
-                                    ? 'A guardar…'
-                                    : hasUnsavedChanges
-                                      ? 'Guardar aula'
-                                      : 'Aula guardada'}
-                            </button>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                {error &&
+                                hasUnsavedChanges ? (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void downloadEmergencyBackup()
+                                        }
+                                        disabled={
+                                            saving ||
+                                            emergencyBackupBusy
+                                        }
+                                        title="Inclui os dados já guardados e o estado atual ainda não guardado. O ficheiro JSON não está cifrado."
+                                        className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-100 transition hover:border-amber-200/50 hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-50"
+                                    >
+                                        {emergencyBackupBusy
+                                            ? 'A preparar cópia…'
+                                            : 'Guardar cópia de segurança'}
+                                    </button>
+                                ) : null}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        void saveAll()
+                                    }
+                                    disabled={
+                                        loading ||
+                                        saving ||
+                                        !hasUnsavedChanges
+                                    }
+                                    className="rounded-lg bg-cyan-300 px-5 py-2 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {saving
+                                        ? 'A guardar…'
+                                        : hasUnsavedChanges
+                                          ? 'Guardar aula'
+                                          : 'Aula guardada'}
+                                </button>
+                            </div>
                         </footer>
                     </article>
                 ) : !loading &&
