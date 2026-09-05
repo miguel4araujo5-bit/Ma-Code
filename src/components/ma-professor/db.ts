@@ -280,19 +280,20 @@ export class MAProfessorDatabase extends Dexie {
         const student =
           object as Student
 
+        const studentChanges =
+          modifications as Partial<Student>
+
         if (
           student.active !==
             false ||
-          modifications.active !==
+          studentChanges.active !==
             true
         ) {
           return
         }
 
         const requestedPeriods =
-          modifications.membershipPeriods as
-            | StudentMembershipPeriod[]
-            | undefined
+          studentChanges.membershipPeriods
 
         if (
           requestedPeriods?.some(
