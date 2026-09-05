@@ -16,9 +16,14 @@ import {
 
 import {
   createMAProfessorDatabaseSnapshot,
-  downloadEncryptedMAProfessorDatabaseSnapshot,
-  restoreMAProfessorDatabaseSnapshot
+  downloadEncryptedMAProfessorDatabaseSnapshot
 } from './databaseSnapshotService'
+
+import {
+  createMAProfessorSnapshotContentSignature,
+  MAProfessorLocalSnapshotChangedError,
+  restoreMAProfessorDatabaseSnapshotIfLocalUnchanged
+} from './guardedSnapshotRestore'
 
 import {
   countMAProfessorSnapshotRecords,
@@ -1255,6 +1260,11 @@ export async function recoverMAProfessorOnNewDevice(
   const localSnapshot =
     await createMAProfessorDatabaseSnapshot()
 
+  const localContentSignature =
+    createMAProfessorSnapshotContentSignature(
+      localSnapshot
+    )
+
   const [
     localFingerprint,
     remoteFingerprint
@@ -1355,10 +1365,40 @@ export async function recoverMAProfessorOnNewDevice(
     }
   }
 
-  const restored =
-    await restoreMAProfessorDatabaseSnapshot(
-      downloaded.snapshot
-    )
+  let restored
+
+  try {
+    restored =
+      await restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(
+        downloaded.snapshot,
+        localContentSignature
+      )
+  } catch (error) {
+    if (
+      error instanceof
+        MAProfessorLocalSnapshotChangedError
+    ) {
+      return {
+        authorized:
+          true,
+
+        dataStatus:
+          'manual-restore-required',
+
+        serverRevision:
+          downloaded.remote
+            .serverRevision,
+
+        restoredRecords:
+          0,
+
+        message:
+          'Este dispositivo ficou autorizado, mas os dados locais foram alterados durante a recuperação. Por segurança, nada foi substituído. Compare as cópias em Definições → Dados e cópias.'
+      }
+    }
+
+    throw error
+  }
 
   const verifiedSnapshot =
     await createMAProfessorDatabaseSnapshot()
