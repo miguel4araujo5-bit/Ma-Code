@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -14,6 +15,9 @@ import type {
   EntityId,
   Student
 } from '../types'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 type StudentsSetupStepProps = {
   snapshot: SetupSnapshot
@@ -38,6 +42,12 @@ const inputClassName =
 
 const textareaClassName =
   'min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+
+const discardStudentDraftMessage =
+  'Existem alterações por guardar nos alunos desta turma. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
+const discardNewStudentWorkMessage =
+  'Existem alunos novos ou texto de importação por guardar. Se limpar, esses dados serão perdidos. Pretende continuar?'
 
 function createLocalId() {
   const uuid =
@@ -296,6 +306,9 @@ export default function StudentsSetupStep({
   onSnapshotChange,
   onCompleted
 }: StudentsSetupStepProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
   const initialGroupId =
     getInitialGroupId(
       snapshot
@@ -519,6 +532,85 @@ export default function StudentsSetupStep({
       ]
     )
 
+  const persistedStudentsById =
+    useMemo(
+      () =>
+        new Map(
+          (
+            studentsByGroup.get(
+              selectedGroupId
+            ) ??
+            []
+          ).map(
+            (
+              student
+            ) => [
+              student.id,
+              student
+            ]
+          )
+        ),
+      [
+        selectedGroupId,
+        studentsByGroup
+      ]
+    )
+
+  const hasUnsavedNewStudentRows =
+    rows.some(
+      (
+        row
+      ) =>
+        !row.persisted &&
+        isMeaningfulRow(row)
+    )
+
+  const hasDirtyPersistedStudentRows =
+    rows.some(
+      (
+        row
+      ) => {
+        if (!row.persisted) {
+          return false
+        }
+
+        const persistedStudent =
+          persistedStudentsById.get(
+            row.localId
+          )
+
+        return Boolean(
+          persistedStudent &&
+          (
+            row.name !==
+              persistedStudent.name ||
+            row.notes !==
+              persistedStudent.notes
+          )
+        )
+      }
+    )
+
+  const hasPendingStudentImport =
+    Boolean(
+      importText.trim()
+    )
+
+  const hasUnsavedStudentsSetupChanges =
+    hasUnsavedNewStudentRows ||
+    hasDirtyPersistedStudentRows ||
+    hasPendingStudentImport
+
+  const hasDiscardableNewStudentWork =
+    hasUnsavedNewStudentRows ||
+    hasPendingStudentImport
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasUnsavedStudentsSetupChanges,
+    rootRef,
+    discardStudentDraftMessage
+  )
+
   async function refreshSnapshot() {
     const nextSnapshot =
       await maProfessorRepository.getSetupSnapshot(
@@ -535,6 +627,24 @@ export default function StudentsSetupStep({
   function clearMessages() {
     setError('')
     setSuccess('')
+  }
+
+  function confirmDiscardStudentDraft() {
+    return (
+      !hasUnsavedStudentsSetupChanges ||
+      window.confirm(
+        discardStudentDraftMessage
+      )
+    )
+  }
+
+  function confirmDiscardNewStudentWork() {
+    return (
+      !hasDiscardableNewStudentWork ||
+      window.confirm(
+        discardNewStudentWorkMessage
+      )
+    )
   }
 
   function selectGroup(
@@ -558,6 +668,28 @@ export default function StudentsSetupStep({
       top: 0,
       behavior: 'smooth'
     })
+  }
+
+  function requestSelectGroup(
+    groupId: EntityId
+  ) {
+    if (
+      busy ||
+      groupId ===
+        selectedGroupId
+    ) {
+      return
+    }
+
+    if (
+      !confirmDiscardStudentDraft()
+    ) {
+      return
+    }
+
+    selectGroup(
+      groupId
+    )
   }
 
   function updateRow(
@@ -672,6 +804,17 @@ export default function StudentsSetupStep({
 
     setImportText('')
     clearMessages()
+  }
+
+  function requestClearUnsavedRows() {
+    if (
+      busy ||
+      !confirmDiscardNewStudentWork()
+    ) {
+      return
+    }
+
+    clearUnsavedRows()
   }
 
   function importStudents() {
@@ -966,6 +1109,16 @@ export default function StudentsSetupStep({
     }
 
     if (
+      hasUnsavedStudentsSetupChanges
+    ) {
+      setError(
+        'Existem alterações por guardar neste passo. Guarde os alunos desta turma ou descarte o trabalho pendente antes de continuar.'
+      )
+
+      return
+    }
+
+    if (
       totalStudents ===
       0
     ) {
@@ -1052,7 +1205,10 @@ export default function StudentsSetupStep({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+    <div
+      ref={rootRef}
+      className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+    >
       <form
         onSubmit={
           handleSubmit
@@ -1086,7 +1242,7 @@ export default function StudentsSetupStep({
               onChange={(
                 event
               ) =>
-                selectGroup(
+                requestSelectGroup(
                   event.target.value
                 )
               }
@@ -1375,7 +1531,7 @@ export default function StudentsSetupStep({
                 busy
               }
               onClick={
-                clearUnsavedRows
+                requestClearUnsavedRows
               }
               className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
             >
@@ -1576,7 +1732,7 @@ export default function StudentsSetupStep({
                         busy
                       }
                       onClick={() =>
-                        selectGroup(
+                        requestSelectGroup(
                           group.id
                         )
                       }
