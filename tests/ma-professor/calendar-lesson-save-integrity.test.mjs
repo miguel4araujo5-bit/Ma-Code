@@ -50,7 +50,7 @@ test(
     assert.match(editorSource, /maProfessorDb\.transaction\(/)
     assert.match(
       editorSource,
-      /maProfessorDb\.tables/[\s\S]*lessonRepository\.updateLesson/[\s\S]*saveAttendance/[\s\S]*saveAssessments/
+      /maProfessorDb\.tables[\s\S]*lessonRepository\.updateLesson[\s\S]*saveAttendance[\s\S]*saveAssessments/
     )
   }
 )
