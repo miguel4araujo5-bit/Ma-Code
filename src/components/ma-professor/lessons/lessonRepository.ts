@@ -56,6 +56,10 @@ export interface LessonChanges {
   notes?: string
 }
 
+export interface LessonUpdateOptions {
+  expectedUpdatedAt?: string
+}
+
 export interface LessonFilters {
   academicYearId: EntityId
   dateFrom?: ISODate | null
@@ -594,7 +598,8 @@ function createLessonRecord(
 }
 
 async function getLessonContext(
-  lesson: Lesson
+  lesson: Lesson,
+  previousLesson: Lesson | null = null
 ) {
   const [
     academicYear,
@@ -690,6 +695,22 @@ async function getLessonContext(
     )
   }
 
+  const preservesHistoricalScheduleAssociation =
+    Boolean(
+      previousLesson &&
+      previousLesson.origin ===
+        'scheduled' &&
+      lesson.origin ===
+        'scheduled' &&
+      previousLesson.scheduleSlotId &&
+      previousLesson.scheduleSlotId ===
+        lesson.scheduleSlotId &&
+      previousLesson.teachingAssignmentId ===
+        lesson.teachingAssignmentId &&
+      previousLesson.date ===
+        lesson.date
+    )
+
   if (
     lesson.scheduleSlotId
   ) {
@@ -697,8 +718,11 @@ async function getLessonContext(
       !scheduleSlot ||
       scheduleSlot.academicYearId !==
         academicYear.id ||
-      scheduleSlot.teachingAssignmentId !==
-        assignment.id
+      (
+        !preservesHistoricalScheduleAssociation &&
+        scheduleSlot.teachingAssignmentId !==
+          assignment.id
+      )
     ) {
       throw new Error(
         'O bloco de horário indicado não pertence a esta aula.'
@@ -706,14 +730,17 @@ async function getLessonContext(
     }
 
     if (
-      lesson.date <
-        scheduleSlot.validFrom ||
-      lesson.date >
-        scheduleSlot.validUntil ||
-      getWeekday(
-        lesson.date
-      ) !==
-        scheduleSlot.weekday
+      !preservesHistoricalScheduleAssociation &&
+      (
+        lesson.date <
+          scheduleSlot.validFrom ||
+        lesson.date >
+          scheduleSlot.validUntil ||
+        getWeekday(
+          lesson.date
+        ) !==
+          scheduleSlot.weekday
+      )
     ) {
       throw new Error(
         'A data da aula não corresponde à vigência do bloco de horário.'
@@ -1364,7 +1391,8 @@ export class LessonRepository {
 
   async updateLesson(
     id: EntityId,
-    changes: LessonChanges
+    changes: LessonChanges,
+    options: LessonUpdateOptions = {}
   ) {
     await this.initialize()
 
@@ -1380,6 +1408,16 @@ export class LessonRepository {
     ) {
       throw new Error(
         'A aula indicada não existe.'
+      )
+    }
+
+    if (
+      options.expectedUpdatedAt &&
+      current.updatedAt !==
+        options.expectedUpdatedAt
+    ) {
+      throw new Error(
+        'Esta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
       )
     }
 
@@ -1454,7 +1492,8 @@ export class LessonRepository {
     )
 
     await getLessonContext(
-      next
+      next,
+      current
     )
 
     await assertNoLessonCollision(
@@ -1474,6 +1513,31 @@ export class LessonRepository {
       maProfessorDb.lessons,
       maProfessorDb.planificationItems,
       async () => {
+        const latest =
+          await maProfessorDb
+            .lessons
+            .get(
+              id
+            )
+
+        if (
+          !latest
+        ) {
+          throw new Error(
+            'A aula indicada não existe.'
+          )
+        }
+
+        if (
+          options.expectedUpdatedAt &&
+          latest.updatedAt !==
+            options.expectedUpdatedAt
+        ) {
+          throw new Error(
+            'Esta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
+          )
+        }
+
         await maProfessorDb
           .lessons
           .put(
