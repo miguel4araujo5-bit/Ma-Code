@@ -10,6 +10,10 @@ import type {
   MAProfessorBackupData
 } from '../types'
 
+import {
+  validateMAProfessorBackupDataIntegrity
+} from './backupValidation'
+
 const DATA_KEYS: Array<keyof MAProfessorBackupData> = [
   'teacherProfiles',
   'academicYears',
@@ -194,10 +198,15 @@ export function validateMAProfessorBackup(
     })
   }
 
-  if (typeof value.exportedAt !== 'string') {
+  if (
+    typeof value.exportedAt !== 'string' ||
+    Number.isNaN(
+      Date.parse(value.exportedAt)
+    )
+  ) {
     issues.push({
       path: 'exportedAt',
-      message: 'A data de exportação está em falta.',
+      message: 'A data de exportação está em falta ou é inválida.',
       severity: 'warning'
     })
   }
@@ -222,6 +231,21 @@ export function validateMAProfessorBackup(
         severity: 'error'
       })
     }
+  }
+
+  if (
+    DATA_KEYS.every(
+      key =>
+        Array.isArray(
+          data[key]
+        )
+    )
+  ) {
+    issues.push(
+      ...validateMAProfessorBackupDataIntegrity(
+        data
+      )
+    )
   }
 
   if (
