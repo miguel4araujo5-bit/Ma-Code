@@ -65,6 +65,11 @@ export interface ModuleUnit extends AuditFields {
   active: boolean
 }
 
+export interface StudentMembershipPeriod {
+  startDate: ISODate
+  endDate: ISODate | null
+}
+
 export interface Student extends AuditFields {
   id: EntityId
   academicYearId: EntityId
@@ -73,6 +78,7 @@ export interface Student extends AuditFields {
   name: string
   active: boolean
   notes: string
+  membershipPeriods?: StudentMembershipPeriod[]
 }
 
 export type AssessmentSchemeScope =
