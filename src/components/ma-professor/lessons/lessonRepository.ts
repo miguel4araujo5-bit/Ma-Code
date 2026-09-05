@@ -1155,6 +1155,9 @@ function hasGIAERelevantChanges(
 }
 
 export class LessonRepository {
+  private readonly giaeInvalidatedAt =
+    new Map<EntityId, string>()
+
   async initialize() {
     await openMAProfessorDatabase()
   }
@@ -1426,13 +1429,16 @@ export class LessonRepository {
       }
     }
 
-    if (
+    const giaeInvalidated =
       current.giaeStatus ===
         'submitted' &&
       hasGIAERelevantChanges(
         current,
         next
       )
+
+    if (
+      giaeInvalidated
     ) {
       next = {
         ...next,
@@ -1482,6 +1488,19 @@ export class LessonRepository {
         )
       }
     )
+
+    if (
+      giaeInvalidated
+    ) {
+      this.giaeInvalidatedAt.set(
+        id,
+        next.updatedAt
+      )
+    } else {
+      this.giaeInvalidatedAt.delete(
+        id
+      )
+    }
 
     return next
   }
@@ -1578,6 +1597,27 @@ export class LessonRepository {
       )
     }
 
+    const invalidatedAt =
+      this.giaeInvalidatedAt.get(
+        id
+      )
+
+    if (
+      invalidatedAt &&
+      invalidatedAt ===
+        lesson.updatedAt
+    ) {
+      this.giaeInvalidatedAt.delete(
+        id
+      )
+
+      return lesson
+    }
+
+    this.giaeInvalidatedAt.delete(
+      id
+    )
+
     if (
       lesson.status !==
         'taught' ||
@@ -1630,6 +1670,10 @@ export class LessonRepository {
         'A aula indicada não existe.'
       )
     }
+
+    this.giaeInvalidatedAt.delete(
+      id
+    )
 
     const updated:
       Lesson = {
@@ -1719,6 +1763,14 @@ export class LessonRepository {
       .bulkPut(
         updated
       )
+
+    uniqueLessonIds.forEach(
+      lessonId => {
+        this.giaeInvalidatedAt.delete(
+          lessonId
+        )
+      }
+    )
 
     return updated
   }
@@ -2005,6 +2057,10 @@ export class LessonRepository {
             id
           )
       }
+    )
+
+    this.giaeInvalidatedAt.delete(
+      id
     )
 
     return true
