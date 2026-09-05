@@ -49,14 +49,6 @@ const dailyViewSource = await readFile(
   'utf8'
 )
 
-const productSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
-
 const draftStorageModule = await import(
   transpile(draftStorageSource)
 )
@@ -173,19 +165,15 @@ test(
 )
 
 test(
-  'Daily receives the authenticated account identity for draft isolation',
+  'Daily reads the authenticated account identity for draft isolation inside the existing access boundary',
   () => {
     assert.match(
-      productSource,
+      dailyViewSource,
       /useMAProfessorAccess/
     )
     assert.match(
-      productSource,
-      /accountEmail=\{[\s\S]*session\.email[\s\S]*\}/
-    )
-    assert.match(
       dailyViewSource,
-      /accountEmail:\s*string/
+      /session\.email/
     )
   }
 )
