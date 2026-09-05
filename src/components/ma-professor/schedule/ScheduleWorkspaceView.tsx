@@ -3,8 +3,13 @@ import {
   type FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
+
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
   EntityId,
@@ -266,6 +271,11 @@ export default function ScheduleWorkspaceView({
   onUpdateSchoolCalendarEvent,
   onDeleteSchoolCalendarEvent
 }: ScheduleWorkspaceViewProps) {
+  const rootRef =
+    useRef<HTMLDivElement>(
+      null
+    )
+
   const [
     slotForm,
     setSlotForm
@@ -285,6 +295,16 @@ export default function ScheduleWorkspaceView({
         snapshot
       )
   )
+
+  const slotBaselineRef =
+    useRef<SlotFormState>(
+      slotForm
+    )
+
+  const eventBaselineRef =
+    useRef<EventFormState>(
+      eventForm
+    )
 
   const [
     editingSlotId,
@@ -326,27 +346,41 @@ export default function ScheduleWorkspaceView({
 
   useEffect(() => {
     if (
+      !showSlotForm &&
       !editingSlotId
     ) {
-      setSlotForm(
+      const nextSlotForm =
         createSlotForm(
           snapshot
         )
+
+      slotBaselineRef.current =
+        nextSlotForm
+      setSlotForm(
+        nextSlotForm
       )
     }
 
     if (
+      !showEventForm &&
       !editingEventId
     ) {
-      setEventForm(
+      const nextEventForm =
         createEventForm(
           snapshot
         )
+
+      eventBaselineRef.current =
+        nextEventForm
+      setEventForm(
+        nextEventForm
       )
     }
   }, [
     editingEventId,
     editingSlotId,
+    showEventForm,
+    showSlotForm,
     snapshot.generatedAt
   ])
 
@@ -440,6 +474,61 @@ export default function ScheduleWorkspaceView({
       busyAction
     )
 
+  const hasSlotUnsavedChanges =
+    showSlotForm &&
+    JSON.stringify(
+      slotForm
+    ) !==
+      JSON.stringify(
+        slotBaselineRef.current
+      )
+
+  const hasEventUnsavedChanges =
+    showEventForm &&
+    JSON.stringify(
+      eventForm
+    ) !==
+      JSON.stringify(
+        eventBaselineRef.current
+      )
+
+  const hasScheduleUnsavedChanges =
+    hasSlotUnsavedChanges ||
+    hasEventUnsavedChanges
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasScheduleUnsavedChanges,
+    rootRef,
+    'Existem alterações no horário ou em eventos por guardar. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
+  )
+
+  function confirmDiscardSlotChanges() {
+    return (
+      !hasSlotUnsavedChanges ||
+      window.confirm(
+        'Existem alterações no bloco de horário por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
+  function confirmDiscardEventChanges() {
+    return (
+      !hasEventUnsavedChanges ||
+      window.confirm(
+        'Existem alterações no evento escolar por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
+  function confirmDiscardScheduleChanges() {
+    return (
+      !hasScheduleUnsavedChanges ||
+      window.confirm(
+        'Existem alterações no horário ou em eventos por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+      )
+    )
+  }
+
   async function runAction(
     actionId: string,
     action: () => Promise<void> | void,
@@ -508,23 +597,130 @@ export default function ScheduleWorkspaceView({
   }
 
   function resetSlotForm() {
-    setEditingSlotId(null)
-
-    setSlotForm(
+    const nextSlotForm =
       createSlotForm(
         snapshot
       )
+
+    slotBaselineRef.current =
+      nextSlotForm
+    setEditingSlotId(null)
+    setSlotForm(
+      nextSlotForm
     )
   }
 
   function resetEventForm() {
-    setEditingEventId(null)
-
-    setEventForm(
+    const nextEventForm =
       createEventForm(
         snapshot
       )
+
+    eventBaselineRef.current =
+      nextEventForm
+    setEditingEventId(null)
+    setEventForm(
+      nextEventForm
     )
+  }
+
+  function handleSlotFormToggle() {
+    if (
+      showSlotForm
+    ) {
+      if (
+        !confirmDiscardSlotChanges()
+      ) {
+        return
+      }
+
+      resetSlotForm()
+      setShowSlotForm(false)
+      setFeedback(null)
+      return
+    }
+
+    resetSlotForm()
+    setShowSlotForm(true)
+    setFeedback(null)
+  }
+
+  function handleEventFormToggle() {
+    if (
+      showEventForm
+    ) {
+      if (
+        !confirmDiscardEventChanges()
+      ) {
+        return
+      }
+
+      resetEventForm()
+      setShowEventForm(false)
+      setFeedback(null)
+      return
+    }
+
+    resetEventForm()
+    setShowEventForm(true)
+    setFeedback(null)
+  }
+
+  function handleCancelSlotEditing() {
+    if (
+      !confirmDiscardSlotChanges()
+    ) {
+      return
+    }
+
+    resetSlotForm()
+    setShowSlotForm(false)
+  }
+
+  function handleCancelEventEditing() {
+    if (
+      !confirmDiscardEventChanges()
+    ) {
+      return
+    }
+
+    resetEventForm()
+    setShowEventForm(false)
+  }
+
+  function discardOpenForms() {
+    resetSlotForm()
+    setShowSlotForm(false)
+    resetEventForm()
+    setShowEventForm(false)
+  }
+
+  function handleFiltersChange(
+    filters: ScheduleWorkspaceFilters
+  ) {
+    if (
+      !confirmDiscardScheduleChanges()
+    ) {
+      return
+    }
+
+    discardOpenForms()
+    setFeedback(null)
+    onFiltersChange(
+      filters
+    )
+  }
+
+  function handleRefresh() {
+    if (
+      !onRefresh ||
+      !confirmDiscardScheduleChanges()
+    ) {
+      return
+    }
+
+    discardOpenForms()
+    onRefresh()
   }
 
   async function saveSlot(
@@ -612,11 +808,21 @@ export default function ScheduleWorkspaceView({
   function editSlot(
     row: ScheduleWorkspaceSnapshot['slotRows'][number]
   ) {
-    setEditingSlotId(
-      row.slot.id
-    )
+    if (
+      showSlotForm &&
+      editingSlotId ===
+        row.slot.id
+    ) {
+      return
+    }
 
-    setSlotForm({
+    if (
+      !confirmDiscardSlotChanges()
+    ) {
+      return
+    }
+
+    const nextSlotForm: SlotFormState = {
       teachingAssignmentId:
         row.slot.teachingAssignmentId,
       weekday:
@@ -635,8 +841,16 @@ export default function ScheduleWorkspaceView({
         row.slot.validUntil,
       active:
         row.slot.active
-    })
+    }
 
+    slotBaselineRef.current =
+      nextSlotForm
+    setEditingSlotId(
+      row.slot.id
+    )
+    setSlotForm(
+      nextSlotForm
+    )
     setShowSlotForm(true)
     setFeedback(null)
   }
@@ -644,16 +858,40 @@ export default function ScheduleWorkspaceView({
   async function toggleSlot(
     row: ScheduleWorkspaceSnapshot['slotRows'][number]
   ) {
+    const nextActive =
+      !row.slot.active
+
     await runAction(
       `toggle-slot-${row.slot.id}`,
-      () =>
-        onUpdateScheduleSlot(
+      async () => {
+        await onUpdateScheduleSlot(
           row.slot.id,
           {
             active:
-              !row.slot.active
+              nextActive
           }
-        ),
+        )
+
+        if (
+          showSlotForm &&
+          editingSlotId ===
+            row.slot.id
+        ) {
+          slotBaselineRef.current = {
+            ...slotBaselineRef.current,
+            active:
+              nextActive
+          }
+
+          setSlotForm(
+            current => ({
+              ...current,
+              active:
+                nextActive
+            })
+          )
+        }
+      },
       row.slot.active
         ? 'O bloco de horário foi desativado.'
         : 'O bloco de horário foi ativado.'
@@ -663,6 +901,18 @@ export default function ScheduleWorkspaceView({
   async function deleteSlot(
     row: ScheduleWorkspaceSnapshot['slotRows'][number]
   ) {
+    const deletingEditedSlot =
+      showSlotForm &&
+      editingSlotId ===
+        row.slot.id
+
+    if (
+      deletingEditedSlot &&
+      !confirmDiscardSlotChanges()
+    ) {
+      return
+    }
+
     const confirmed =
       window.confirm(
         `Eliminar o bloco de ${getWeekdayLabel(
@@ -678,10 +928,18 @@ export default function ScheduleWorkspaceView({
 
     await runAction(
       `delete-slot-${row.slot.id}`,
-      () =>
-        onDeleteScheduleSlot(
+      async () => {
+        await onDeleteScheduleSlot(
           row.slot.id
-        ),
+        )
+
+        if (
+          deletingEditedSlot
+        ) {
+          resetSlotForm()
+          setShowSlotForm(false)
+        }
+      },
       'O bloco de horário foi eliminado.'
     )
   }
@@ -787,11 +1045,21 @@ export default function ScheduleWorkspaceView({
   function editEvent(
     row: ScheduleWorkspaceSnapshot['eventRows'][number]
   ) {
-    setEditingEventId(
-      row.event.id
-    )
+    if (
+      showEventForm &&
+      editingEventId ===
+        row.event.id
+    ) {
+      return
+    }
 
-    setEventForm({
+    if (
+      !confirmDiscardEventChanges()
+    ) {
+      return
+    }
+
+    const nextEventForm: EventFormState = {
       type:
         row.event.type,
       scope:
@@ -812,8 +1080,16 @@ export default function ScheduleWorkspaceView({
         row.event.endDate,
       blocksLessons:
         row.event.blocksLessons
-    })
+    }
 
+    eventBaselineRef.current =
+      nextEventForm
+    setEditingEventId(
+      row.event.id
+    )
+    setEventForm(
+      nextEventForm
+    )
     setShowEventForm(true)
     setFeedback(null)
   }
@@ -821,6 +1097,18 @@ export default function ScheduleWorkspaceView({
   async function deleteEvent(
     row: ScheduleWorkspaceSnapshot['eventRows'][number]
   ) {
+    const deletingEditedEvent =
+      showEventForm &&
+      editingEventId ===
+        row.event.id
+
+    if (
+      deletingEditedEvent &&
+      !confirmDiscardEventChanges()
+    ) {
+      return
+    }
+
     const confirmed =
       window.confirm(
         `Eliminar o evento “${row.event.title}”?`
@@ -834,16 +1122,27 @@ export default function ScheduleWorkspaceView({
 
     await runAction(
       `delete-event-${row.event.id}`,
-      () =>
-        onDeleteSchoolCalendarEvent(
+      async () => {
+        await onDeleteSchoolCalendarEvent(
           row.event.id
-        ),
+        )
+
+        if (
+          deletingEditedEvent
+        ) {
+          resetEventForm()
+          setShowEventForm(false)
+        }
+      },
       'O evento escolar foi eliminado.'
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      ref={rootRef}
+      className="space-y-6"
+    >
       <section className="overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl">
         <div className="border-b border-white/10 px-5 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -870,16 +1169,7 @@ export default function ScheduleWorkspaceView({
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => {
-                  resetSlotForm()
-
-                  setShowSlotForm(
-                    current =>
-                      !current
-                  )
-
-                  setFeedback(null)
-                }}
+                onClick={handleSlotFormToggle}
                 disabled={busy}
                 className="rounded-2xl border border-cyan-200/25 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:opacity-50"
               >
@@ -890,16 +1180,7 @@ export default function ScheduleWorkspaceView({
 
               <button
                 type="button"
-                onClick={() => {
-                  resetEventForm()
-
-                  setShowEventForm(
-                    current =>
-                      !current
-                  )
-
-                  setFeedback(null)
-                }}
+                onClick={handleEventFormToggle}
                 disabled={busy}
                 className="rounded-2xl border border-violet-200/25 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-50"
               >
@@ -910,7 +1191,7 @@ export default function ScheduleWorkspaceView({
 
               <button
                 type="button"
-                onClick={onRefresh}
+                onClick={handleRefresh}
                 disabled={
                   busy ||
                   !onRefresh
@@ -940,7 +1221,7 @@ export default function ScheduleWorkspaceView({
               onChange={(
                 event: ChangeEvent<HTMLSelectElement>
               ) =>
-                onFiltersChange({
+                handleFiltersChange({
                   teachingAssignmentId:
                     event.target.value ||
                     null,
@@ -977,7 +1258,7 @@ export default function ScheduleWorkspaceView({
               onChange={(
                 event: ChangeEvent<HTMLInputElement>
               ) =>
-                onFiltersChange({
+                handleFiltersChange({
                   teachingAssignmentId:
                     snapshot.filters
                       .teachingAssignmentId,
@@ -1074,10 +1355,7 @@ export default function ScheduleWorkspaceView({
             {editingSlotId ? (
               <button
                 type="button"
-                onClick={() => {
-                  resetSlotForm()
-                  setShowSlotForm(false)
-                }}
+                onClick={handleCancelSlotEditing}
                 disabled={busy}
                 className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-black text-slate-300"
               >
@@ -1491,10 +1769,7 @@ export default function ScheduleWorkspaceView({
             {editingEventId ? (
               <button
                 type="button"
-                onClick={() => {
-                  resetEventForm()
-                  setShowEventForm(false)
-                }}
+                onClick={handleCancelEventEditing}
                 disabled={busy}
                 className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-black text-slate-300"
               >
