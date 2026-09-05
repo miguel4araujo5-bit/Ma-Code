@@ -5,6 +5,7 @@ import type {
 import {
   assertMAProfessorSnapshotPushCapacity,
   inspectMAProfessorSnapshotPushCapacity,
+  publishMAProfessorSnapshotPushCapacity,
   type MAProfessorSnapshotPushCapacity
 } from './snapshotCapacityPolicy'
 
@@ -549,6 +550,10 @@ export async function pushMAProfessorEncryptedSnapshot(
 
       encrypted
     })
+
+  publishMAProfessorSnapshotPushCapacity(
+    capacity
+  )
 
   assertMAProfessorSnapshotPushCapacity(
     capacity
