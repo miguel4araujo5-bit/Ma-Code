@@ -9,8 +9,6 @@ import {
 import AccessVerificationNotice from '../components/ma-professor/access/AccessVerificationNotice'
 import MAProfessorActivationLinkGate from '../components/ma-professor/access/MAProfessorActivationLinkGate'
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
-import InitialSchoolCalendarBootstrap from '../components/ma-professor/calendar/InitialSchoolCalendarBootstrap'
-import OperationalReadinessReporter from '../components/ma-professor/setup/OperationalReadinessReporter'
 import SnapshotCapacityNotice from '../components/ma-professor/sync/SnapshotCapacityNotice'
 import SyncStatePersistenceNotice from '../components/ma-professor/sync/SyncStatePersistenceNotice'
 
@@ -189,13 +187,10 @@ export default function MAProfessorPage() {
     <MAProfessorActivationLinkGate>
       <MAProfessorAuthGate>
         <>
-          <OperationalReadinessReporter />
           <AccessVerificationNotice />
           <SyncStatePersistenceNotice />
           <SnapshotCapacityNotice />
-          <InitialSchoolCalendarBootstrap>
-            <MAProfessorProduct />
-          </InitialSchoolCalendarBootstrap>
+          <MAProfessorProduct />
         </>
       </MAProfessorAuthGate>
     </MAProfessorActivationLinkGate>
