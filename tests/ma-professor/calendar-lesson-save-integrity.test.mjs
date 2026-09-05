@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import * as ts from 'typescript'
 
 const lessonRepositorySource = await readFile(
   new URL(
@@ -18,13 +19,33 @@ const editorSource = await readFile(
   'utf8'
 )
 
-const attendanceSource = await readFile(
+const saveSafetySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/calendar/LessonAttendanceSection.tsx',
+    '../../src/components/ma-professor/calendar/calendarLessonSaveSafety.ts',
     import.meta.url
   ),
   'utf8'
-)
+).catch(() => '')
+
+function transpile(source) {
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022
+    },
+    reportDiagnostics: true
+  })
+
+  const errors = (output.diagnostics || []).filter(
+    item => item.category === ts.DiagnosticCategory.Error
+  )
+
+  assert.equal(errors.length, 0)
+
+  return `data:text/javascript;base64,${Buffer.from(
+    output.outputText
+  ).toString('base64')}`
+}
 
 test(
   'lesson updates can require the exact version that the editor originally loaded',
@@ -56,23 +77,49 @@ test(
 )
 
 test(
-  'calendar validates persisted attendance before allowing a taught lesson to become non-taught',
-  () => {
-    assert.match(
-      attendanceSource,
-      /validateLessonChanges/
+  'non-taught lesson states reject persisted attendance or assessments',
+  async () => {
+    assert.ok(saveSafetySource)
+
+    const safety = await import(
+      transpile(saveSafetySource)
     )
-    assert.match(
-      attendanceSource,
-      /row\.attendance/
+
+    assert.doesNotThrow(() =>
+      safety.assertCalendarLessonRelatedDataCompatibility(
+        'taught',
+        3,
+        2
+      )
     )
-    assert.match(
-      attendanceSource,
+
+    assert.throws(
+      () =>
+        safety.assertCalendarLessonRelatedDataCompatibility(
+          'planned',
+          1,
+          0
+        ),
       /Mantenha-a marcada como dada/i
+    )
+
+    assert.throws(
+      () =>
+        safety.assertCalendarLessonRelatedDataCompatibility(
+          'cancelled',
+          0,
+          1
+        ),
+      /Mantenha-a marcada como dada/i
+    )
+
+    assert.match(
+      editorSource,
+      /assertCalendarLessonRelatedDataCompatibility/
     )
     assert.match(
       editorSource,
-      /attendanceSection\.validateLessonChanges/
+      /lessonAttendance[\s\S]*lessonAssessments/
     )
   }
 )
