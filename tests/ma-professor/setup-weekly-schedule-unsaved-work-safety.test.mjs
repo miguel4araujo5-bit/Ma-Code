@@ -85,14 +85,11 @@ test(
 )
 
 test(
-  'slot controls are frozen while a schedule write is in flight',
+  'slot controls are frozen together while a schedule write is in flight',
   () => {
-    const disabledBusyCount =
-      (source.match(/disabled=\{\s*busy\s*\}/g) ?? []).length
-
-    assert.ok(
-      disabledBusyCount >= 8,
-      `expected at least 8 busy-disabled slot controls, found ${disabledBusyCount}`
+    assert.match(
+      source,
+      /<fieldset[\s\S]*disabled=\{busy\}[\s\S]*className="contents"/
     )
   }
 )
