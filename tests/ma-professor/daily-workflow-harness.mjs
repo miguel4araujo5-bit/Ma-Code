@@ -61,7 +61,8 @@ const calendarUrl = transpile(`
 `)
 
 const dbUrl = transpile(`
-  export const maProfessorDb={tables:[],lessons:{async get(id){const x=globalThis.__dailyState;return x.lesson.id===id?structuredClone(x.lesson):null}},weeklyScheduleSlots:{where(){return {equals(){return {async toArray(){return []}}}}}},async transaction(_m,_t,callback){globalThis.__dailyState.transactions+=1;return callback()}};
+  const s=()=>globalThis.__dailyState; const c=structuredClone;
+  export const maProfessorDb={tables:[],lessons:{async get(id){const x=s();return x.lesson.id===id?c(x.lesson):null}},weeklyScheduleSlots:{where(){return {equals(){return {async toArray(){return c(s().scheduleSlots||[])}}}}}},async transaction(_m,_t,callback){s().transactions+=1;return callback()}};
 `)
 
 const source = await readFile(
@@ -86,6 +87,7 @@ export function resetDailyState() {
     transactions: 0,
     nextAssessment: 0,
     lesson: {id:'lesson-1',academicYearId:'year-1',teachingAssignmentId:'assignment-1',date:'2026-09-07',origin:'extra',scheduleSlotId:null,status:'planned',startTime:'09:00',endTime:'10:00',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending',updatedAt:'v1'},
+    scheduleSlots: [],
     students: [{id:'student-1',groupId:'group-1',number:1,name:'Ana'},{id:'student-2',groupId:'group-1',number:2,name:'Bruno'}],
     criteria: [{id:'criterion-1',name:'Desempenho'}],
     attendance: {},
