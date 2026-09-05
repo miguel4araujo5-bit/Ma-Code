@@ -14,10 +14,6 @@ import {
   reopenStudentMembership
 } from '../students/studentMembership'
 
-import {
-  saveStudentsForGroupWithMembership
-} from '../students/studentRosterRepository'
-
 import type {
   AcademicYear,
   ClassGroup,
@@ -526,7 +522,7 @@ export class GroupsWorkspaceRepository {
     groupId: EntityId,
     drafts: StudentDraft[]
   ) {
-    return saveStudentsForGroupWithMembership(
+    return maProfessorRepository.saveStudentsForGroup(
       academicYearId,
       groupId,
       drafts
