@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const source = await readFile(
+const wrapperSource = await readFile(
   new URL(
     '../../src/components/ma-professor/calendar/ExtraLessonDialog.tsx',
     import.meta.url
@@ -10,74 +10,113 @@ const source = await readFile(
   'utf8'
 )
 
+const baseSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/calendar/ExtraLessonDialogBase.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
-  'extra lesson tracks user-made changes without treating async suggestion refreshes as edits',
+  'extra lesson tracks only user interactions while preserving async suggestion updates in the base implementation',
   () => {
-    assert.match(source, /hasUserChanges/)
-    assert.match(source, /markUserChange/)
-    assert.match(source, /onChangeCapture=\{markUserChange\}/)
+    assert.match(wrapperSource, /hasUserChanges/)
+    assert.match(wrapperSource, /markUserChange/)
     assert.match(
-      source,
+      wrapperSource,
+      /onChangeCapture=\{markUserChange\}/
+    )
+    assert.match(
+      baseSource,
       /loadSelectionContext[\s\S]*setForm\(\(current\)[\s\S]*currentModuleStillExists/
     )
-  }
-)
-
-test(
-  'buttons that fill or alter the extra lesson explicitly mark user changes',
-  () => {
-    assert.match(
-      source,
-      /handleStatusChange[\s\S]*markUserChange\(\)/
-    )
-    assert.match(
-      source,
-      /applyScheduleSlot[\s\S]*markUserChange\(\)/
-    )
-    assert.match(
-      source,
-      /copyPreviousLesson[\s\S]*markUserChange\(\)/
-    )
-    assert.match(
-      source,
-      /usePlanificationItem[\s\S]*markUserChange\(\)/
-    )
-    assert.match(
-      source,
-      /disconnectPlanification[\s\S]*markUserChange\(\)/
+    assert.doesNotMatch(
+      wrapperSource,
+      /loadSelectionContext/
     )
   }
 )
 
 test(
-  'all destructive close paths use one shared confirmation',
+  'form-changing buttons are captured without marking close, cancel or submit actions as new edits',
   () => {
-    assert.match(source, /confirmDiscardExtraLessonChanges/)
-    assert.match(source, /requestClose/)
+    assert.match(wrapperSource, /handleUserActionCapture/)
     assert.match(
-      source,
-      /event\.key === 'Escape'[\s\S]*requestClose\(\)/
+      wrapperSource,
+      /onClickCapture=\{handleUserActionCapture\}/
     )
     assert.match(
-      source,
-      /event\.target === event\.currentTarget[\s\S]*requestClose\(\)/
+      wrapperSource,
+      /button\.type === 'submit'/
+    )
+    assert.match(
+      wrapperSource,
+      /ariaLabel === 'Fechar criação da aula extra'/
+    )
+    assert.match(wrapperSource, /text === 'Fechar'/)
+    assert.match(wrapperSource, /text === 'Cancelar'/)
+    assert.match(
+      wrapperSource,
+      /markUserChange\(\)/
+    )
+  }
+)
+
+test(
+  'all existing close paths flow through one protected onClose callback',
+  () => {
+    assert.match(
+      wrapperSource,
+      /confirmDiscardExtraLessonChanges/
+    )
+    assert.match(wrapperSource, /requestClose/)
+    assert.match(
+      wrapperSource,
+      /onClose=\{requestClose\}/
+    )
+    assert.match(
+      baseSource,
+      /event\.key === 'Escape'[\s\S]*onClose\(\)/
+    )
+    assert.match(
+      baseSource,
+      /event\.target === event\.currentTarget[\s\S]*onClose\(\)/
     )
     assert.ok(
-      (source.match(/onClick=\{requestClose\}/g) ?? []).length >= 2,
-      'header close and footer Cancelar must both use requestClose'
+      (baseSource.match(/onClick=\{onClose\}/g) ?? []).length >= 2,
+      'header close and footer Cancelar must retain the shared onClose callback'
     )
   }
 )
 
 test(
-  'browser close and external navigation are protected while the extra lesson has user changes',
+  'browser close and navigation are protected only after the user changes the extra lesson',
   () => {
-    assert.match(source, /rootRef/)
-    assert.match(source, /useMAProfessorUnsavedWorkspaceProtection/)
+    assert.match(wrapperSource, /rootRef/)
     assert.match(
-      source,
+      wrapperSource,
+      /useMAProfessorUnsavedWorkspaceProtection/
+    )
+    assert.match(
+      wrapperSource,
       /useMAProfessorUnsavedWorkspaceProtection\([\s\S]*hasUserChanges/
     )
-    assert.match(source, /ref=\{rootRef\}/)
+    assert.match(wrapperSource, /ref=\{rootRef\}/)
+  }
+)
+
+test(
+  'successful creation clears the pending-change flag before handing the lesson back to the app',
+  () => {
+    assert.match(wrapperSource, /handleCreated/)
+    assert.match(
+      wrapperSource,
+      /handleCreated[\s\S]*setHasUserChanges\(false\)[\s\S]*onCreated\(lesson\)/
+    )
+    assert.match(
+      wrapperSource,
+      /onCreated=\{handleCreated\}/
+    )
   }
 )
