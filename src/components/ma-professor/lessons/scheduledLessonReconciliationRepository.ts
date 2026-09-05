@@ -10,6 +10,7 @@ import {
   lessonRepository
 } from './lessonRepository'
 import {
+  isPristineScheduledLesson,
   planScheduledLessonReconciliation
 } from './scheduledLessonReconciliation'
 
@@ -44,6 +45,78 @@ function assertDateRange(
       'O intervalo de reconciliação das aulas não é válido.'
     )
   }
+}
+
+async function deleteLessonIfStillPristine(
+  lessonId: EntityId
+) {
+  return maProfessorDb.transaction(
+    'rw',
+    [
+      maProfessorDb.lessons,
+      maProfessorDb.lessonAttendance,
+      maProfessorDb.lessonAssessments,
+      maProfessorDb.summarySuggestions,
+      maProfessorDb.planificationItems
+    ],
+    async () => {
+      const lesson =
+        await maProfessorDb.lessons.get(
+          lessonId
+        )
+
+      if (!lesson) {
+        return true
+      }
+
+      const [
+        attendanceCount,
+        assessmentCount,
+        suggestionCount,
+        planificationItems
+      ] = await Promise.all([
+        maProfessorDb.lessonAttendance
+          .where('lessonId')
+          .equals(lessonId)
+          .count(),
+        maProfessorDb.lessonAssessments
+          .where('lessonId')
+          .equals(lessonId)
+          .count(),
+        maProfessorDb.summarySuggestions
+          .where('lessonId')
+          .equals(lessonId)
+          .count(),
+        maProfessorDb.planificationItems
+          .toArray()
+      ])
+
+      const hasRelatedData =
+        attendanceCount > 0 ||
+        assessmentCount > 0 ||
+        suggestionCount > 0 ||
+        planificationItems.some(
+          item =>
+            item.usedLessonId ===
+            lessonId
+        )
+
+      if (
+        !isPristineScheduledLesson(
+          lesson,
+          hasRelatedData
+        )
+      ) {
+        return false
+      }
+
+      await maProfessorDb.lessons.delete(
+        lessonId
+      )
+
+      return true
+    }
+  )
 }
 
 export class ScheduledLessonReconciliationRepository {
@@ -87,7 +160,8 @@ export class ScheduledLessonReconciliationRepository {
       lessons,
       attendanceRows,
       assessments,
-      suggestions
+      suggestions,
+      planificationItems
     ] = await Promise.all([
       maProfessorDb.teachingAssignments
         .where('academicYearId')
@@ -116,6 +190,8 @@ export class ScheduledLessonReconciliationRepository {
         .equals(input.academicYearId)
         .toArray(),
       maProfessorDb.summarySuggestions
+        .toArray(),
+      maProfessorDb.planificationItems
         .toArray()
     ])
 
@@ -165,6 +241,21 @@ export class ScheduledLessonReconciliationRepository {
       }
     )
 
+    planificationItems.forEach(
+      item => {
+        if (
+          item.usedLessonId &&
+          academicYearLessonIds.has(
+            item.usedLessonId
+          )
+        ) {
+          relatedLessonIds.add(
+            item.usedLessonId
+          )
+        }
+      }
+    )
+
     const plan =
       planScheduledLessonReconciliation({
         academicYear,
@@ -188,7 +279,7 @@ export class ScheduledLessonReconciliationRepository {
       plan.deleteLessonIds
     ) {
       const deleted =
-        await lessonRepository.deletePlannedLesson(
+        await deleteLessonIfStillPristine(
           lessonId
         )
 
@@ -196,6 +287,31 @@ export class ScheduledLessonReconciliationRepository {
         deletedLessonIds.push(
           lessonId
         )
+      }
+    }
+
+    if (
+      deletedLessonIds.length !==
+      plan.deleteLessonIds.length
+    ) {
+      return {
+        deletedLessonIds,
+        createdLessonIds: [],
+        preservedLessonIds: [
+          ...new Set([
+            ...plan.preservedLessonIds,
+            ...plan.deleteLessonIds.filter(
+              lessonId =>
+                !deletedLessonIds.includes(
+                  lessonId
+                )
+            )
+          ])
+        ],
+        skippedWithoutModule:
+          plan.skippedWithoutModule,
+        createdOutsidePlannedCapacity:
+          plan.createdOutsidePlannedCapacity
       }
     }
 
