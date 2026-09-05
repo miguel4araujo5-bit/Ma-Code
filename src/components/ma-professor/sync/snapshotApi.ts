@@ -2,6 +2,12 @@ import type {
   MAProfessorEncryptedRecord
 } from './cryptoService'
 
+import {
+  assertMAProfessorSnapshotPushCapacity,
+  inspectMAProfessorSnapshotPushCapacity,
+  type MAProfessorSnapshotPushCapacity
+} from './snapshotCapacityPolicy'
+
 const API_PREFIX =
   '/api/ma-professor/snapshot'
 
@@ -17,6 +23,8 @@ export interface MAProfessorSnapshotPushResult {
   serverRevision: number
   recordRevision: number
   updatedAt: string
+  capacity:
+    MAProfessorSnapshotPushCapacity
 }
 
 export interface MAProfessorSnapshotNotFoundResult {
@@ -241,7 +249,7 @@ function parseEncryptedRecord(
 
 function parsePushResult(
   value: unknown
-): MAProfessorSnapshotPushResult {
+) {
   if (
     !isObject(
       value
@@ -265,7 +273,7 @@ function parsePushResult(
 
   return {
     success:
-      true,
+      true as const,
 
     recordId:
       normalizeRecordId(
@@ -498,7 +506,7 @@ export async function pushMAProfessorEncryptedSnapshot(
   expectedServerRevision: number,
   encrypted:
     MAProfessorEncryptedRecord
-) {
+): Promise<MAProfessorSnapshotPushResult> {
   const normalizedToken =
     validateSessionValue(
       token,
@@ -526,6 +534,26 @@ export async function pushMAProfessorEncryptedSnapshot(
     )
   }
 
+  const capacity =
+    inspectMAProfessorSnapshotPushCapacity({
+      token:
+        normalizedToken,
+
+      deviceId:
+        normalizedDeviceId,
+
+      recordId:
+        normalizedRecordId,
+
+      expectedServerRevision,
+
+      encrypted
+    })
+
+  assertMAProfessorSnapshotPushCapacity(
+    capacity
+  )
+
   const data =
     await postJson(
       '/push',
@@ -548,9 +576,13 @@ export async function pushMAProfessorEncryptedSnapshot(
       'Não foi possível guardar a cópia cifrada.'
     )
 
-  return parsePushResult(
-    data
-  )
+  return {
+    ...parsePushResult(
+      data
+    ),
+
+    capacity
+  }
 }
 
 export async function getMAProfessorEncryptedSnapshot(
