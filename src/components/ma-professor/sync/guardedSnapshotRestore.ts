@@ -9,7 +9,7 @@ import {
   type MAProfessorRestoreSnapshotResult
 } from './databaseSnapshotService'
 
-function snapshotContentSignature(
+export function createMAProfessorSnapshotContentSignature(
   snapshot:
     MAProfessorDatabaseSnapshot
 ) {
@@ -34,22 +34,6 @@ function snapshotContentSignature(
   })
 }
 
-export function hasMAProfessorSnapshotContentChanged(
-  expected:
-    MAProfessorDatabaseSnapshot,
-  current:
-    MAProfessorDatabaseSnapshot
-) {
-  return (
-    snapshotContentSignature(
-      expected
-    ) !==
-    snapshotContentSignature(
-      current
-    )
-  )
-}
-
 export class MAProfessorLocalSnapshotChangedError
   extends Error {
   constructor() {
@@ -65,8 +49,8 @@ export class MAProfessorLocalSnapshotChangedError
 export async function restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(
   remoteSnapshot:
     MAProfessorDatabaseSnapshot,
-  expectedLocalSnapshot:
-    MAProfessorDatabaseSnapshot
+  expectedLocalContentSignature:
+    string
 ): Promise<MAProfessorRestoreSnapshotResult> {
   const database =
     await openMAProfessorDatabase()
@@ -88,11 +72,14 @@ export async function restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(
       const currentLocalSnapshot =
         await createMAProfessorDatabaseSnapshot()
 
-      if (
-        hasMAProfessorSnapshotContentChanged(
-          expectedLocalSnapshot,
+      const currentLocalContentSignature =
+        createMAProfessorSnapshotContentSignature(
           currentLocalSnapshot
         )
+
+      if (
+        currentLocalContentSignature !==
+        expectedLocalContentSignature
       ) {
         throw new MAProfessorLocalSnapshotChangedError()
       }
