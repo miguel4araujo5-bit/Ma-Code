@@ -2,6 +2,9 @@ import {
   maProfessorDb,
   openMAProfessorDatabase
 } from './db'
+import {
+  markDashboardDataDirty
+} from './dashboard/dashboardRefreshSignal'
 
 import type {
   EntityId,
@@ -989,7 +992,7 @@ export class PlanificationImportRepository {
       normalizedEntries
     )
 
-    return maProfessorDb.transaction(
+    const result = await maProfessorDb.transaction(
       'rw',
       maProfessorDb.academicYears,
       maProfessorDb.teachingAssignments,
@@ -1210,6 +1213,20 @@ export class PlanificationImportRepository {
         }
       }
     )
+
+    if (
+      result.results.some(
+        item =>
+          item.action ===
+            'created' ||
+          item.action ===
+            'appended'
+      )
+    ) {
+      markDashboardDataDirty()
+    }
+
+    return result
   }
 }
 
