@@ -752,24 +752,45 @@ export class GIAEWorkspaceRepository {
   async markSubmitted(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAESubmitted(
-      lessonId
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      () =>
+        lessonRepository.markGIAESubmitted(
+          lessonId
+        )
     )
   }
 
   async markPending(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAEPending(
-      lessonId
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      () =>
+        lessonRepository.markGIAEPending(
+          lessonId
+        )
     )
   }
 
   async markManySubmitted(
     lessonIds: EntityId[]
   ) {
-    return lessonRepository.markManyGIAESubmitted(
-      lessonIds
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      () =>
+        lessonRepository.markManyGIAESubmitted(
+          lessonIds
+        )
     )
   }
 }
