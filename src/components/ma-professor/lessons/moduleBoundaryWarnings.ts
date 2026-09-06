@@ -4,13 +4,9 @@ import type {
   Lesson,
   ModuleUnit
 } from '../types'
-import type {
-  ScheduledLessonCreationPlan
-} from './scheduledLessonReconciliation'
 
 export interface ModuleBoundaryWarning {
-  source: 'existing' | 'planned'
-  lessonId: EntityId | null
+  lessonId: EntityId
   moduleId: EntityId
   teachingAssignmentId: EntityId
   scheduleSlotId: EntityId | null
@@ -24,26 +20,12 @@ export interface ModuleBoundaryWarning {
 
 interface DetectModuleBoundaryWarningsInput {
   modules: ModuleUnit[]
-  existingLessons: Lesson[]
-  plannedLessons: ScheduledLessonCreationPlan[]
+  lessons: Lesson[]
 }
 
-type ProgressCandidate = {
-  source: 'existing' | 'planned'
-  lessonId: EntityId | null
-  moduleId: EntityId
-  teachingAssignmentId: EntityId
-  scheduleSlotId: EntityId | null
-  date: ISODate
-  startTime: string
-  periodCount: number
-  countTowardProgress: boolean
-  stableOrder: number
-}
-
-function compareCandidates(
-  left: ProgressCandidate,
-  right: ProgressCandidate
+function compareLessons(
+  left: Lesson,
+  right: Lesson
 ) {
   return (
     left.date.localeCompare(
@@ -52,8 +34,12 @@ function compareCandidates(
     left.startTime.localeCompare(
       right.startTime
     ) ||
-    left.stableOrder -
-      right.stableOrder
+    left.createdAt.localeCompare(
+      right.createdAt
+    ) ||
+    left.id.localeCompare(
+      right.id
+    )
   )
 }
 
@@ -70,83 +56,27 @@ export function detectModuleBoundaryWarnings(
         ])
     )
 
-  const candidates:
-    ProgressCandidate[] = []
-
-  input.existingLessons.forEach(
-    (lesson, index) => {
-      if (
-        lesson.status === 'cancelled' ||
-        !lesson.countTowardProgress ||
-        !activeModuleById.has(
-          lesson.moduleId
-        )
-      ) {
-        return
-      }
-
-      candidates.push({
-        source: 'existing',
-        lessonId: lesson.id,
-        moduleId: lesson.moduleId,
-        teachingAssignmentId:
-          lesson.teachingAssignmentId,
-        scheduleSlotId:
-          lesson.scheduleSlotId,
-        date: lesson.date,
-        startTime: lesson.startTime,
-        periodCount: lesson.periodCount,
-        countTowardProgress: true,
-        stableOrder: index
-      })
-    }
-  )
-
-  const plannedOffset =
-    candidates.length
-
-  input.plannedLessons.forEach(
-    (lesson, index) => {
-      if (
-        !lesson.countTowardProgress ||
-        !activeModuleById.has(
-          lesson.moduleId
-        )
-      ) {
-        return
-      }
-
-      candidates.push({
-        source: 'planned',
-        lessonId: null,
-        moduleId: lesson.moduleId,
-        teachingAssignmentId:
-          lesson.teachingAssignmentId,
-        scheduleSlotId:
-          lesson.scheduleSlotId,
-        date: lesson.date,
-        startTime: lesson.startTime,
-        periodCount: lesson.periodCount,
-        countTowardProgress: true,
-        stableOrder:
-          plannedOffset + index
-      })
-    }
-  )
-
-  candidates.sort(
-    compareCandidates
-  )
-
   const allocatedPeriodsByModule =
     new Map<EntityId, number>()
   const warnings:
     ModuleBoundaryWarning[] = []
 
-  for (const candidate of candidates) {
+  const progressLessons =
+    [...input.lessons]
+      .filter(
+        lesson =>
+          lesson.status !== 'cancelled' &&
+          lesson.countTowardProgress &&
+          activeModuleById.has(
+            lesson.moduleId
+          )
+      )
+      .sort(compareLessons)
+
+  for (const lesson of progressLessons) {
     const module =
       activeModuleById.get(
-        candidate.moduleId
+        lesson.moduleId
       )
 
     if (!module) {
@@ -155,12 +85,12 @@ export function detectModuleBoundaryWarnings(
 
     const allocatedBefore =
       allocatedPeriodsByModule.get(
-        candidate.moduleId
+        lesson.moduleId
       ) ?? 0
 
     const allocatedAfter =
       allocatedBefore +
-      candidate.periodCount
+      lesson.periodCount
 
     if (
       allocatedBefore <
@@ -169,38 +99,30 @@ export function detectModuleBoundaryWarnings(
         module.plannedPeriods
     ) {
       warnings.push({
-        source: candidate.source,
-        lessonId:
-          candidate.lessonId,
-        moduleId:
-          candidate.moduleId,
+        lessonId: lesson.id,
+        moduleId: lesson.moduleId,
         teachingAssignmentId:
-          candidate.teachingAssignmentId,
+          lesson.teachingAssignmentId,
         scheduleSlotId:
-          candidate.scheduleSlotId,
-        date: candidate.date,
-        startTime:
-          candidate.startTime,
+          lesson.scheduleSlotId,
+        date: lesson.date,
+        startTime: lesson.startTime,
         plannedPeriods:
           module.plannedPeriods,
         allocatedPeriodsBefore:
           allocatedBefore,
         lessonPeriodCount:
-          candidate.periodCount,
+          lesson.periodCount,
         overflowPeriods:
           allocatedAfter -
           module.plannedPeriods
       })
     }
 
-    if (
-      candidate.countTowardProgress
-    ) {
-      allocatedPeriodsByModule.set(
-        candidate.moduleId,
-        allocatedAfter
-      )
-    }
+    allocatedPeriodsByModule.set(
+      lesson.moduleId,
+      allocatedAfter
+    )
   }
 
   return warnings
