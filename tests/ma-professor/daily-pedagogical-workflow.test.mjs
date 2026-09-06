@@ -295,7 +295,7 @@ test(
 )
 
 test(
-  'operational readiness prepares today before the Daily workspace can open',
+  'operational readiness preserves the valid year while Daily still waits for preparation',
   () => {
     assert.match(
       productSource,
@@ -313,22 +313,28 @@ test(
       refreshAcademicYear.indexOf(
         'isMAProfessorOperationallyReady('
       )
-    const preparePosition =
-      refreshAcademicYear.indexOf(
-        'await ensureDailyScheduledLessonsForDate('
-      )
     const readyStatePosition =
       refreshAcademicYear.indexOf(
         'setOperationalReady('
       )
+    const preparePosition =
+      refreshAcademicYear.indexOf(
+        'await ensureDailyScheduledLessonsForDate('
+      )
 
     assert.ok(readinessPosition >= 0)
-    assert.ok(preparePosition >= 0)
     assert.ok(readyStatePosition >= 0)
+    assert.ok(preparePosition >= 0)
     assert.ok(
-      readinessPosition < preparePosition &&
-      preparePosition < readyStatePosition,
-      'A aula de hoje deve ser preparada depois da validação operacional e antes de o produto anunciar que está pronto.'
+      readinessPosition < readyStatePosition &&
+      readyStatePosition < preparePosition,
+      'O estado válido do ano deve ser preservado antes de uma preparação diária que pode falhar.'
+    )
+
+    assert.match(
+      productSource,
+      /workspace ===[\s\S]*'daily'[\s\S]*academicYear &&[\s\S]*operationalReady &&[\s\S]*dailyPreparationReady &&[\s\S]*<DailyWorkspaceView/,
+      'O Daily só pode montar depois de a preparação diária estar confirmada.'
     )
   }
 )
