@@ -612,13 +612,13 @@ test('Agent 3 integration has no direct persistence path and blocks PDF import w
     adapterSource,
     /commitPlanificationImportBatch\s*\(/
   )
+  assert.match(
+    adapterSource,
+    /suggestedSummary:\s*''/
+  )
   assert.doesNotMatch(
     panelSource,
     /maProfessorDb\.|createPlanification\s*\(|addPlanificationItem\s*\(/
-  )
-  assert.match(
-    panelSource,
-    /suggestedSummary:\s*''/
   )
   assert.doesNotMatch(
     panelSource,
