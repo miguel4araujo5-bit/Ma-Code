@@ -129,6 +129,14 @@ const reconciliationRepositoryUrl = transpile(`
   }
 `)
 
+const moduleBoundaryWarningRepositoryUrl = transpile(`
+  export const moduleBoundaryWarningRepository = {
+    async listWarnings() {
+      return []
+    }
+  }
+`)
+
 const repositoryUrl = transpile(`
   export const maProfessorRepository = {
     async getAcademicYear(academicYearId) {
@@ -157,6 +165,10 @@ const preparationRuntime = preparationSource
   .replaceAll(
     "'../calendar/initialSchoolCalendar2026_2027'",
     `'${initialCalendarUrl}'`
+  )
+  .replaceAll(
+    "'../lessons/moduleBoundaryWarningRepository'",
+    `'${moduleBoundaryWarningRepositoryUrl}'`
   )
   .replaceAll(
     "'../lessons/scheduledLessonReconciliationRepository'",
@@ -283,11 +295,16 @@ test(
       sBentoApplied: false
     })
 
-    await ensureDailyScheduledLessonsForDate(
-      'year-1',
-      smoke.date
-    )
+    const preparation =
+      await ensureDailyScheduledLessonsForDate(
+        'year-1',
+        smoke.date
+      )
 
+    assert.deepEqual(
+      preparation.moduleBoundaryWarnings,
+      []
+    )
     assert.equal(
       smoke.sBentoCalls,
       0
@@ -347,11 +364,16 @@ test(
       sBentoApplied: true
     })
 
-    await ensureDailyScheduledLessonsForDate(
-      'year-1',
-      smoke.date
-    )
+    const preparation =
+      await ensureDailyScheduledLessonsForDate(
+        'year-1',
+        smoke.date
+      )
 
+    assert.deepEqual(
+      preparation.moduleBoundaryWarnings,
+      []
+    )
     assert.equal(
       smoke.sBentoCalls,
       1
