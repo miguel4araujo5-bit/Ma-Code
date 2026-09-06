@@ -1,0 +1,145 @@
+# MA-CODE — Comunicação entre agentes
+
+## 1. Endereço canónico e finalidade
+
+- Repositório: `miguel4araujo5-bit/Ma-Code`
+- Branch exclusiva de comunicação: `coordination/agents`
+- Ficheiro: `AGENT_MESSAGES.md`
+- Versão do protocolo: 1.0 — 2026-09-06
+- URL: https://github.com/miguel4araujo5-bit/Ma-Code/blob/coordination/agents/AGENT_MESSAGES.md
+
+Este ficheiro transporta mensagens e decisões dos seis agentes. Não substitui a main como fonte técnica nem o manifesto de propriedade dos ficheiros.
+Consultar sempre esta branch explicitamente, mesmo trabalhando numa branch de código diferente.
+Não abrir PR desta branch para main, não fazer merge, rebase, reset ou force-push desta branch. Não desenvolver código nela.
+A autorização do utilizador para publicar ou integrar código continua a ser necessária nos termos já acordados.
+
+## 2. Responsabilidades
+
+| Agente | Responsabilidade |
+|---|---|
+| 1 | Orquestração, manifesto, contratos e integração dos ficheiros partilhados |
+| 2 | Acesso, ativação, licenças e módulo administrativo do MA-Professor |
+| 3 | Setup, horários, turmas, alunos e planificações, incluindo importação PDF |
+| 4 | Aulas, sumários, calendário, assiduidade, avaliação e GIAE |
+| 5 | Backups, sincronização, cifragem e recuperação |
+| 6 | Verificação independente da não-regressão em toda a MA-CODE |
+
+Cada agente usa apenas a sua identidade. Não escrever em nome de outro agente ou do utilizador.
+Exceção explícita ao escritor único: os seis agentes podem acrescentar os seus próprios eventos neste ficheiro através do protocolo de concorrência abaixo. Isto não lhes concede acesso de escrita a ficheiros funcionais alheios.
+O agente 1 mantém as regras e a estrutura do protocolo. Os restantes acrescentam eventos; não alteram as regras.
+
+## 3. Quando ler e comunicar
+
+Ler no início de cada turno, antes de editar código, antes de entregar um lote e antes de integrar.
+Voltar a ler quando uma dependência exigir uma decisão. Não fazer polling contínuo nem esperar indefinidamente.
+Comunicar apenas mudanças úteis: entrega, pedido concreto, bloqueio, descoberta relevante, decisão ou resultado de validação.
+Não publicar logs completos, mensagens repetidas ou atualizações sem informação nova.
+Agrupar eventos independentes da mesma leitura numa única escrita quando possível.
+
+Este ficheiro não acorda agentes parados nem garante notificações automáticas. Um agente só lê quando está efetivamente a trabalhar.
+Se não conseguir ler ou escrever, declarar a limitação na conversa e fornecer a mensagem para encaminhamento. Nunca afirmar que enviou sem confirmar.
+
+## 4. Mensagens e receções: acrescentar, nunca apagar
+
+Usar mensagens originais imutáveis e eventos separados de receção, resposta e resolução.
+Não apagar o texto depois da leitura. LIDO significa receção, não execução, resolução ou aprovação.
+Não modificar eventos anteriores, incluindo os de outros agentes.
+
+Tipos:
+- MENSAGEM: pedido, entrega ou informação.
+- LIDO: destinatário confirma receção da mensagem referenciada.
+- RESPOSTA: destinatário responde com informação ou decisão dentro da sua competência.
+- BLOQUEADO: identifica impedimento, responsável necessário e trabalho independente possível.
+- RESOLVIDO: destinatário descreve a ação executada e apresenta evidência; não equivale a aprovação de código.
+- ENCERRADO: remetente confirma que a resposta/resolução satisfaz o pedido.
+- CANCELADO: remetente cancela o próprio pedido, indicando o motivo.
+
+Para `6 > 1`, quem acrescenta LIDO é o agente 1, como `1 > 6`, referindo o ID original.
+O estado de cada conversa resulta da sequência de eventos e da referência à mensagem original.
+Se uma resolução for insuficiente, o remetente acrescenta RESPOSTA com o que falta; não apaga o histórico.
+
+## 5. IDs e datas
+
+Cada evento tem um ID único:
+`A<agente>-<AAAAMMDDTHHMMSSZ>-<sufixo aleatório>`
+
+A data usa ISO 8601 em UTC ou com desvio explícito. Nunca usar apenas uma hora sem dia/fuso.
+Cada evento de seguimento inclui Referência com o ID da mensagem original.
+Preferir um destinatário por mensagem. Para vários destinatários, listar os números; cada um confirma individualmente.
+
+## 6. Formato
+
+Copiar este modelo e preencher apenas com factos verificados. Os exemplos são modelos, não mensagens enviadas.
+
+```markdown
+### A6-20260906T165800Z-<sufixo>
+Tipo: MENSAGEM
+De: 6
+Para: 1
+Data: 2026-09-06T16:58:00Z
+Referência: —
+Assunto: <pedido ou entrega concreta>
+Prioridade: NORMAL | BLOQUEANTE
+Lote: <identificador ou não aplicável>
+Branch: <branch de código ou não aplicável>
+BASE_SHA: <SHA ou não aplicável>
+HEAD_SHA: <SHA ou não aplicável>
+
+Mensagem: <factos, problema e ação pedida>
+Ficheiros: <caminhos exatos quando aplicável>
+Evidência: <PR, CI, teste e resultado; ou não verificado>
+Critério de conclusão: <resultado observável esperado>
+```
+
+Receção pelo destinatário:
+
+```markdown
+### A1-20260906T170300Z-<sufixo>
+Tipo: LIDO
+De: 1
+Para: 6
+Data: 2026-09-06T17:03:00Z
+Referência: <ID da mensagem do agente 6>
+
+Mensagem: Recebido. <próxima ação concreta, se conhecida>
+```
+
+## 7. Escrita segura e concorrência — obrigatório
+
+1. Ler a versão remota mais recente na branch coordination/agents e obter o SHA do blob do ficheiro. SHA de commit e SHA de blob são diferentes.
+2. Preparar apenas o acréscimo dos próprios eventos à versão recebida, preservando integralmente o conteúdo anterior.
+3. Usar a API Contents de GitHub ou ferramenta equivalente que exija o SHA atual do ficheiro. Indicar SEMPRE a branch coordination/agents.
+4. Enviar conteúdo completo = versão acabada de ler + eventos novos, com o SHA do blob lido.
+5. Se houver conflito de versão, reler o ficheiro e reaplicar apenas os eventos ainda ausentes. Nunca reenviar cegamente uma cópia antiga.
+6. Se houver timeout ou resposta incerta, procurar primeiro os IDs no remoto. Se já estiverem presentes e corretos, a operação está concluída: não duplicar.
+7. No máximo três tentativas por operação. Persistindo o conflito, comunicar a limitação na conversa e continuar trabalho independente.
+8. Depois de sucesso, reler e confirmar os próprios IDs e conteúdo antes de afirmar que comunicou.
+9. Nunca usar force-push, atualização sem controlo de versão ou substituição por uma cópia de outra branch.
+
+Commit recomendado: `docs(coordination): A6 to A1 <assunto curto> [skip ci]`.
+O marcador não garante que integrações externas o respeitem.
+
+## 8. Dependências e aprovações
+
+Pedidos de alteração partilhada incluem caminho, causa, contrato atual/proposto, consumidores e teste de aceitação.
+O agente 1 decide a atribuição; não basta escrever uma mensagem para adquirir a propriedade de um ficheiro.
+O agente 6 associa pareceres ao SHA exato e explicita testes executados e limitações. Alterações posteriores não herdam automaticamente a aprovação.
+Uma mensagem não autoriza merge, publicação, pagamentos, envios externos nem alteração de dados reais.
+Uma resposta LIDO do agente 1 não autoriza alterações fora do manifesto.
+Não ficar parado por uma dependência quando existe trabalho independente autorizado.
+
+## 9. Segurança e manutenção
+
+Não incluir credenciais, tokens, chaves, dados pessoais de alunos, PDFs privados ou logs sensíveis.
+Preferir caminhos, SHAs, IDs de testes e ligações a evidência adequada.
+Não copiar este ficheiro para assets públicos do site.
+A branch contém uma cópia técnica inicial do repositório; o seu código pode ficar desatualizado. Nunca usá-lo como base de desenvolvimento.
+O workflow GitHub Actions consultado em 2026-09-06 reage a push em main, PR para main e execução manual. Não abrir PR nem executar workflows desta branch.
+A configuração externa do Cloudflare não foi confirmada. Se surgirem builds automáticos desta branch, reportar ao agente 1; não alterar configurações de deploy por iniciativa própria.
+Não apagar nem arquivar mensagens nesta primeira versão. Se crescer demasiado, o agente 1 define arquivo verificável sem perda de conteúdo.
+
+---
+
+## 10. Registo de eventos
+
+Ainda não existem mensagens. Acrescentar eventos abaixo desta linha.
