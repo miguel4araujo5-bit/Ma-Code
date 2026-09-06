@@ -53,6 +53,11 @@ const lessonUrl = transpile(`
   };
 `)
 
+const temporalSafetyUrl = transpile(`
+  export function isFutureLessonDate(){return false}
+  export function resolveLessonStatusForDate(_date,status){return status}
+`)
+
 const calendarUrl = transpile(`
   export const calendarWorkspaceRepository={
     async getLessonEditorContext(){const x=globalThis.__dailyState;return {lessonRow:{lesson:structuredClone(x.lesson),assignment:{id:'assignment-1'},module:{id:'module-1',code:'M1',name:'Módulo 1'},group:{id:'group-1',name:'10.º D'},subject:{id:'subject-1',name:'Animação',shortName:'AE'}}}},
@@ -76,6 +81,7 @@ const runtime = source
   .replaceAll("'../attendance/attendanceRepository'", `'${attendanceUrl}'`)
   .replaceAll("'../calendar/calendarWorkspaceRepository'", `'${calendarUrl}'`)
   .replaceAll("'../lessons/lessonRepository'", `'${lessonUrl}'`)
+  .replaceAll("'../lessons/lessonTemporalSafety'", `'${temporalSafetyUrl}'`)
   .replaceAll("'../db'", `'${dbUrl}'`)
 
 const module = await import(transpile(runtime))
