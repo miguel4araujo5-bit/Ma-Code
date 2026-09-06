@@ -698,7 +698,7 @@ test(
     backupData.settings[0] = {
       ...backupData.settings[0],
       defaultPeriodMinutes: 90,
-      theme: 'light',
+      theme: 'system',
       updatedAt: '2026-09-05T09:30:00.000Z'
     }
 
