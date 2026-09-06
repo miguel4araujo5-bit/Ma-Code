@@ -135,11 +135,29 @@ export function __push(table, record) {
 }
 `)
 
+const dashboardUrl = asDataModule(`
+let revision = 0
+
+export function markDashboardDataDirty() {
+  revision += 1
+  return revision
+}
+
+export function getDashboardDataRevision() {
+  return revision
+}
+`)
+
 const repositoryUrl = transpile(
-  source.replace(
-    "from './db'",
-    `from '${dbUrl}'`
-  )
+  source
+    .replace(
+      "from './db'",
+      `from '${dbUrl}'`
+    )
+    .replace(
+      "from './dashboard/dashboardRefreshSignal'",
+      `from '${dashboardUrl}'`
+    )
 )
 
 const repositoryModule = await import(repositoryUrl)
