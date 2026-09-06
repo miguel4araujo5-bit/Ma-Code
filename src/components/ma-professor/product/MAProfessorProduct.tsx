@@ -64,6 +64,7 @@ interface RefreshAcademicYearOptions {
 interface ActiveYearReadiness {
   academicYear: AcademicYear | null
   operationalReady: boolean
+  dailyPreparationReady: boolean
 }
 
 type DailyNavigationGuard =
@@ -144,6 +145,19 @@ function describeAcademicYearError(
   return 'Não foi possível consultar os dados do ano letivo.'
 }
 
+function describeDailyPreparationError(
+  error: unknown
+) {
+  if (
+    error instanceof Error &&
+    error.message.trim()
+  ) {
+    return error.message
+  }
+
+  return 'Não foi possível preparar as aulas de hoje.'
+}
+
 function ProductContent() {
   const [
     workspace,
@@ -168,6 +182,12 @@ function ProductContent() {
     useState(false)
 
   const [
+    dailyPreparationReady,
+    setDailyPreparationReady
+  ] =
+    useState(false)
+
+  const [
     checkingYear,
     setCheckingYear
   ] =
@@ -182,6 +202,12 @@ function ProductContent() {
   const [
     academicYearError,
     setAcademicYearError
+  ] =
+    useState('')
+
+  const [
+    dailyPreparationError,
+    setDailyPreparationError
   ] =
     useState('')
 
@@ -254,13 +280,6 @@ function ProductContent() {
               isMAProfessorOperationallyReady(
                 setupSnapshot
               )
-
-            if (nextOperationalReady) {
-              await ensureDailyScheduledLessonsForDate(
-                activeYear.id,
-                getTodayISODate()
-              )
-            }
           }
 
           setAcademicYear(
@@ -270,11 +289,51 @@ function ProductContent() {
             nextOperationalReady
           )
 
+          let nextDailyPreparationReady =
+            false
+
+          if (
+            activeYear &&
+            nextOperationalReady
+          ) {
+            setDailyPreparationError(
+              ''
+            )
+
+            try {
+              await ensureDailyScheduledLessonsForDate(
+                activeYear.id,
+                getTodayISODate()
+              )
+
+              nextDailyPreparationReady =
+                true
+            } catch (
+              preparationError
+            ) {
+              setDailyPreparationError(
+                describeDailyPreparationError(
+                  preparationError
+                )
+              )
+            }
+          } else {
+            setDailyPreparationError(
+              ''
+            )
+          }
+
+          setDailyPreparationReady(
+            nextDailyPreparationReady
+          )
+
           return {
             academicYear:
               activeYear ?? null,
             operationalReady:
-              nextOperationalReady
+              nextOperationalReady,
+            dailyPreparationReady:
+              nextDailyPreparationReady
           }
         } catch (error) {
           setAcademicYearError(
@@ -427,15 +486,23 @@ function ProductContent() {
           academicYear
         let ready =
           operationalReady
+        let dailyReady =
+          dailyPreparationReady
 
         /*
          * O trabalho diário depende do mínimo operacional, não da
-         * configuração pedagógica completa. Atualizamos apenas quando
-         * esse estado ainda não está disponível localmente.
+         * configuração pedagógica completa. Se o Daily ainda não tiver
+         * sido preparado, repetimos apenas essa preparação sem perder o
+         * ano letivo que já está validado.
          */
         if (
           !activeYear ||
-          !ready
+          !ready ||
+          (
+            nextWorkspace ===
+              'daily' &&
+            !dailyPreparationReady
+          )
         ) {
           const refreshed =
             await refreshAcademicYear({
@@ -448,6 +515,9 @@ function ProductContent() {
             activeYear
           ready =
             refreshed?.operationalReady ??
+            false
+          dailyReady =
+            refreshed?.dailyPreparationReady ??
             false
         }
 
@@ -467,6 +537,13 @@ function ProductContent() {
           'daily'
         ) {
           setDailyTarget({})
+          setWorkspace(
+            'daily'
+          )
+
+          if (!dailyReady) {
+            return
+          }
         }
 
         setWorkspace(
@@ -520,6 +597,21 @@ function ProductContent() {
       }
     }
 
+  const retryDailyPreparation =
+    async () => {
+      const state =
+        await refreshAcademicYear()
+
+      if (
+        !state?.academicYear ||
+        !state.operationalReady
+      ) {
+        setWorkspace(
+          'menu'
+        )
+      }
+    }
+
   const showLoading =
     workspace !== 'menu' &&
     checkingYear &&
@@ -532,6 +624,18 @@ function ProductContent() {
     Boolean(
       academicYearError
     )
+
+  const showDailyPreparationError =
+    workspace === 'daily' &&
+    Boolean(
+      academicYear
+    ) &&
+    operationalReady &&
+    !dailyPreparationReady &&
+    Boolean(
+      dailyPreparationError
+    ) &&
+    !showLoading
 
   const showSetupRequired =
     workspace !== 'menu' &&
@@ -597,6 +701,7 @@ function ProductContent() {
         'daily' &&
       academicYear &&
       operationalReady &&
+      dailyPreparationReady &&
       !showLoading ? (
         <DailyWorkspaceView
           key={`${dailyTarget.date ?? 'today'}-${
@@ -679,6 +784,52 @@ function ProductContent() {
                 type="button"
                 onClick={() =>
                   void retryAcademicYear()
+                }
+                className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
+              >
+                Tentar novamente
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setWorkspace(
+                    'menu'
+                  )
+                }
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-white"
+              >
+                Abrir menu
+              </button>
+            </div>
+          </section>
+        </main>
+      ) : null}
+
+      {showDailyPreparationError ? (
+        <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-4 py-10 text-white">
+          <section className="mx-auto max-w-2xl rounded-3xl border border-amber-300/20 bg-slate-900 p-8 text-center">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+              Preparação das aulas indisponível
+            </p>
+
+            <h1 className="mt-3 text-2xl font-black">
+              Não foi possível preparar as aulas de hoje.
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              {dailyPreparationError}
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              O ano letivo e a configuração continuam guardados. Pode tentar novamente ou abrir o menu sem perder dados.
+            </p>
+
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  void retryDailyPreparation()
                 }
                 className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
               >
