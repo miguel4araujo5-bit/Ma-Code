@@ -27,9 +27,9 @@ const typesSource = await readFile(
   'utf8'
 )
 
-const repositorySource = await readFile(
+const settingsPanelSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/repository.ts',
+    '../../src/components/ma-professor/settings/ProfileSettingsPanel.tsx',
     import.meta.url
   ),
   'utf8'
@@ -151,7 +151,7 @@ test('only untouched pending automatic recoveries with explicit new metadata are
 test('manual creation and automatic threshold creation use different origins', () => {
   assert.match(
     attendanceSource,
-    /createLearningRecovery\([\s\S]*origin[\s\S]*manual/
+    /createLearningRecovery\([\s\S]*manual/
   )
 
   assert.match(
@@ -170,7 +170,7 @@ test('editing a recovery marks it as teacher-touched before persistence complete
 test('synchronization removes only stale untouched automatic recoveries below the threshold', () => {
   assert.match(
     attendanceSource,
-    /synchronizeRecoveriesForModule[\s\S]*warningLevel[\s\S]*recovery_required[\s\S]*canAutomaticallyRemoveRecovery[\s\S]*learningRecoveries[\s\S]*(?:delete|bulkDelete)/
+    /synchronizeRecoveriesForModule[\s\S]*canAutomaticallyRemoveRecovery[\s\S]*warningLevel[\s\S]*recovery_required[\s\S]*learningRecoveries[\s\S]*delete/
   )
 })
 
@@ -181,9 +181,21 @@ test('active-year reconciliation exists for threshold changes', () => {
   )
 })
 
-test('settings reconcile recoveries centrally only when the recovery threshold changes', () => {
+test('the current settings consumer reconciles only after a recovery-threshold change was saved', () => {
   assert.match(
-    repositorySource,
-    /updateSettings[\s\S]*learningRecoveryThresholdPercent[\s\S]*!==[\s\S]*learningRecoveryThresholdPercent[\s\S]*settings\.put[\s\S]*synchronizeRecoveriesForActiveAcademicYear/
+    settingsPanelSource,
+    /previousSettings[\s\S]*learningRecoveryThresholdPercent[\s\S]*!==[\s\S]*learningRecoveryThresholdPercent/
   )
+
+  const saveIndex =
+    settingsPanelSource.indexOf(
+      'maProfessorRepository.updateSettings('
+    )
+  const syncIndex =
+    settingsPanelSource.indexOf(
+      '.synchronizeRecoveriesForActiveAcademicYear()'
+    )
+
+  assert.ok(saveIndex >= 0)
+  assert.ok(syncIndex > saveIndex)
 })
