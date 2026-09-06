@@ -217,9 +217,13 @@ async function hashToken(token) {
       new TextEncoder().encode(token)
     )
 
-  return bytesToBase64(
-    new Uint8Array(hash)
-  )
+  return Array.from(
+    new Uint8Array(hash),
+    byte =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
 }
 
 async function createActivationCredential(
