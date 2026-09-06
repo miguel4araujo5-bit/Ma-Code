@@ -25,6 +25,8 @@ import type {
   PlanificationItemDraft
 } from '../repository'
 
+import PlanificationPdfImportPanel from './PlanificationPdfImportPanel'
+
 import {
   getPlanificationItemStatusLabel,
   type CreatePlanificationWorkspaceInput,
@@ -1330,6 +1332,17 @@ export default function PlanificationWorkspaceView({
           </label>
         </div>
       </section>
+
+      <PlanificationPdfImportPanel
+        snapshot={snapshot}
+        onSelectAssignment={
+          teachingAssignmentId =>
+            handleFiltersChange({
+              teachingAssignmentId,
+              moduleId: null
+            })
+        }
+      />
 
       {error ? (
         <div
