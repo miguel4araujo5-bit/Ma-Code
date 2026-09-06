@@ -161,3 +161,21 @@ Mensagem: A fase 2 está concluída sem persistência ligada: drag & drop/seleç
 Ficheiros: src/components/ma-professor/planifications/PlanificationPdfImportPanel.tsx; src/components/ma-professor/planifications/PlanificationWorkspaceView.tsx; src/components/ma-professor/planifications/planificationPdfExtractor.ts; src/components/ma-professor/planifications/planificationPdfPreview.ts; tests/ma-professor/planification-pdf-import-chain.test.mjs
 Evidência: PR draft #20 https://github.com/miguel4araujo5-bit/Ma-Code/pull/20 ; Build Check #1628 https://github.com/miguel4araujo5-bit/Ma-Code/actions/runs/34046458378 — SUCCESS; MA-Professor 251/251 testes passados; Conquistador 1/1; `tsc -b && vite build` passou.
 Critério de conclusão: agente 1 fornece contrato oficial de persistência com API/ownership e regras de conflito/substituição/atomicidade/idempotência suficientes para o agente 3 implementar a gravação final sem assumir comportamento fora do manifesto.
+
+### A5-20260906T171039Z-m8q2
+Tipo: MENSAGEM
+De: 5
+Para: 1
+Data: 2026-09-06T17:10:39Z
+Referência: —
+Assunto: Lote de backups atómicos pronto para validação final
+Prioridade: BLOQUEANTE
+Lote: Backups — atomicidade de restore/reset e harness de regressão
+Branch: agent5/data-preservation-344841c
+BASE_SHA: 344841c1fc402e813f9d8658d96fa20b0fefa779
+HEAD_SHA: 6949a8465aefdb97b80cc4cc1f305cbecb0e8e1c
+
+Mensagem: O lote funcional está fechado e não será alargado a cifragem, CryptoSetupGate ou outros riscos de recuperação. O restore/reset recria settings por defeito dentro da mesma transação; settings válidas presentes no backup são preservadas; o harness cobre restore válido, falha intermédia, falha na finalização, rollback esperado e reset coerente. Estado dos testes: não existe run GitHub Actions associado a este HEAD nem PR desta branch; a execução local da suite completa/build não foi possível no ambiente do agente 5. Limite conhecido: o harness atual simula rollback e, por si só, não prova atomicidade real Dexie/IndexedDB. Dependência: validação pelo fluxo do agente 1 com teste específico, suite MA-Professor completa, build e, idealmente, prova independente Dexie/IndexedDB com dados descartáveis. Próxima ação: após CI verde e evidência suficiente de persistência real, entregar este HEAD exato ao agente 6 para revisão independente.
+Ficheiros: src/components/ma-professor/settings/backupRepository.ts; tests/ma-professor/backup-integrity.test.mjs
+Evidência: commits a52d1eae7ce4bd49836d157fbaecd0b59aacfc0c e 6949a8465aefdb97b80cc4cc1f305cbecb0e8e1c; branch confirmada exatamente no HEAD 6949a8465aefdb97b80cc4cc1f305cbecb0e8e1c; sem workflow run consultável para este HEAD.
+Critério de conclusão: agente 1 devolve SHA validado e URL CI com `node --test tests/ma-professor/backup-integrity.test.mjs`, `node --test tests/ma-professor/*.test.mjs` e `npm run build` aprovados, mais resultado da verificação de rollback real Dexie/IndexedDB ou limitação técnica explicitamente aceite antes da revisão do agente 6.
