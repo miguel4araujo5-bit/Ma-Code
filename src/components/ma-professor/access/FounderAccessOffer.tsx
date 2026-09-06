@@ -52,6 +52,12 @@ export default function FounderAccessOffer({
   onActivate,
   onSelectPlan
 }: FounderAccessOfferProps) {
+  if (
+    requestStatus === 'rejected'
+  ) {
+    return null
+  }
+
   const requestIsApproved =
     requestStatus === 'approved'
 
