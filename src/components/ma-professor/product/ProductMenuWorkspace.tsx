@@ -1,4 +1,8 @@
 import {
+  liveQuery
+} from 'dexie'
+
+import {
   useEffect,
   useState
 } from 'react'
@@ -221,6 +225,57 @@ export function ProductMenuWorkspace({
       setSection('management')
     }
   }, [setupCompleted])
+
+  useEffect(() => {
+    if (
+      !academicYear ||
+      setupCompleted
+    ) {
+      return
+    }
+
+    let disposed = false
+
+    const subscription =
+      liveQuery(
+        () =>
+          maProfessorRepository.getAcademicYear(
+            academicYear.id
+          )
+      ).subscribe({
+        next: persistedYear => {
+          if (
+            disposed ||
+            !persistedYear?.setupCompletedAt
+          ) {
+            return
+          }
+
+          disposed = true
+          setSection('home')
+          subscription.unsubscribe()
+
+          void Promise.resolve(
+            onDataChanged()
+          ).catch(() => {
+            // O estado persistido continua válido; a atualização exterior
+            // poderá ser repetida pela navegação seguinte ou por reload.
+          })
+        },
+        error: () => {
+          // Falhar esta observação nunca pode bloquear o setup local.
+        }
+      })
+
+    return () => {
+      disposed = true
+      subscription.unsubscribe()
+    }
+  }, [
+    academicYear,
+    onDataChanged,
+    setupCompleted
+  ])
 
   useEffect(() => {
     if (academicYear) {
