@@ -106,6 +106,23 @@ function now() {
   return new Date().toISOString()
 }
 
+function buildCopiedLessonFingerprint(
+  lesson: Lesson
+) {
+  return JSON.stringify({
+    id: lesson.id,
+    teachingAssignmentId:
+      lesson.teachingAssignmentId,
+    moduleId: lesson.moduleId,
+    date: lesson.date,
+    startTime: lesson.startTime,
+    endTime: lesson.endTime,
+    periodCount: lesson.periodCount,
+    status: lesson.status,
+    summary: lesson.summary.trim()
+  })
+}
+
 function toISODate(date: Date): ISODate {
   return [
     String(date.getFullYear()).padStart(4, '0'),
@@ -574,6 +591,63 @@ export function formatGIAERowsForClipboard(
 }
 
 export class GIAEWorkspaceRepository {
+  private readonly copiedLessonFingerprints =
+    new Map<EntityId, string>()
+
+  recordCopiedLesson(
+    lesson: Lesson
+  ) {
+    this.copiedLessonFingerprints.set(
+      lesson.id,
+      buildCopiedLessonFingerprint(
+        lesson
+      )
+    )
+  }
+
+  recordCopiedLessons(
+    lessons: Lesson[]
+  ) {
+    lessons.forEach(
+      (
+        lesson
+      ) =>
+        this.recordCopiedLesson(
+          lesson
+        )
+    )
+  }
+
+  private assertCopiedVersion(
+    lesson: Lesson
+  ) {
+    const copiedFingerprint =
+      this.copiedLessonFingerprints.get(
+        lesson.id
+      )
+
+    if (!copiedFingerprint) {
+      throw new Error(
+        'Copie este sumário antes de o marcar como submetido no GIAE.'
+      )
+    }
+
+    if (
+      copiedFingerprint !==
+      buildCopiedLessonFingerprint(
+        lesson
+      )
+    ) {
+      this.copiedLessonFingerprints.delete(
+        lesson.id
+      )
+
+      throw new Error(
+        'Este sumário foi alterado desde a última cópia. Copie-o novamente antes de o marcar como submetido no GIAE.'
+      )
+    }
+  }
+
   async initialize() {
     await openMAProfessorDatabase()
   }
@@ -752,24 +826,116 @@ export class GIAEWorkspaceRepository {
   async markSubmitted(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAESubmitted(
-      lessonId
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      async () => {
+        const lesson =
+          await maProfessorDb.lessons.get(
+            lessonId
+          )
+
+        if (!lesson) {
+          throw new Error(
+            'A aula indicada não existe.'
+          )
+        }
+
+        this.assertCopiedVersion(
+          lesson
+        )
+
+        const updated =
+          await lessonRepository.markGIAESubmitted(
+            lessonId
+          )
+
+        this.copiedLessonFingerprints.delete(
+          lessonId
+        )
+
+        return updated
+      }
     )
   }
 
   async markPending(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAEPending(
-      lessonId
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      async () => {
+        const updated =
+          await lessonRepository.markGIAEPending(
+            lessonId
+          )
+
+        this.copiedLessonFingerprints.delete(
+          lessonId
+        )
+
+        return updated
+      }
     )
   }
 
   async markManySubmitted(
     lessonIds: EntityId[]
   ) {
-    return lessonRepository.markManyGIAESubmitted(
-      lessonIds
+    await this.initialize()
+
+    const uniqueLessonIds =
+      Array.from(
+        new Set(
+          lessonIds
+        )
+      )
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      async () => {
+        for (
+          const lessonId of
+          uniqueLessonIds
+        ) {
+          const lesson =
+            await maProfessorDb.lessons.get(
+              lessonId
+            )
+
+          if (!lesson) {
+            throw new Error(
+              'Uma das aulas indicadas não existe.'
+            )
+          }
+
+          this.assertCopiedVersion(
+            lesson
+          )
+        }
+
+        const updated =
+          await lessonRepository.markManyGIAESubmitted(
+            uniqueLessonIds
+          )
+
+        uniqueLessonIds.forEach(
+          (
+            lessonId
+          ) =>
+            this.copiedLessonFingerprints.delete(
+              lessonId
+            )
+        )
+
+        return updated
+      }
     )
   }
 }
