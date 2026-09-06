@@ -28,6 +28,11 @@ import {
   lessonRepository
 } from '../lessons/lessonRepository'
 
+import {
+  isFutureLessonDate,
+  resolveLessonStatusForDate
+} from '../lessons/lessonTemporalSafety'
+
 import type {
   AssessmentActivityType,
   AssessmentCriterion,
@@ -436,8 +441,7 @@ function buildStudentRows(
         row => [
           row.student.id,
           row
-        ]
-      )
+        ])
     )
 
   return students.map(
@@ -554,6 +558,29 @@ function buildAssessmentEntries(
         }
       ]
     }
+  )
+}
+
+function hasFutureAttendanceOrAssessmentInput(
+  input: DailyLessonSaveDraft
+) {
+  return input.students.some(
+    row =>
+      row.attendanceStatus ===
+        'absent' ||
+      Boolean(
+        row.attendanceCode.trim()
+      ) ||
+      Boolean(
+        row.attendanceNote.trim()
+      ) ||
+      row.assessmentStatus !==
+        'not_evaluated' ||
+      row.assessmentScore !==
+        null ||
+      Boolean(
+        row.assessmentNote.trim()
+      )
   )
 }
 
@@ -791,8 +818,61 @@ export class DailyWorkspaceRepository {
       | EntityId
       | null
   }> {
+    const loadedLesson =
+      await lessonRepository.getLesson(
+        input.lessonId
+      )
+
+    if (!loadedLesson) {
+      throw new Error(
+        'A aula indicada não existe.'
+      )
+    }
+
+    const futurePreparation =
+      isFutureLessonDate(
+        loadedLesson.date
+      )
+
+    const effectiveStatus =
+      resolveLessonStatusForDate(
+        loadedLesson.date,
+        input.status
+      )
+
     if (
-      input.status ===
+      futurePreparation &&
+      input.giaeStatus ===
+        'submitted'
+    ) {
+      throw new Error(
+        'Uma aula futura não pode ser marcada como submetida no GIAE. Guarde apenas a preparação da aula.'
+      )
+    }
+
+    if (
+      futurePreparation &&
+      input.assessment.mode !==
+        'none'
+    ) {
+      throw new Error(
+        'Uma aula futura ainda não pode receber avaliações. Guarde apenas o sumário, a atividade e a planificação.'
+      )
+    }
+
+    if (
+      futurePreparation &&
+      hasFutureAttendanceOrAssessmentInput(
+        input
+      )
+    ) {
+      throw new Error(
+        'Uma aula futura ainda não pode receber faltas ou classificações. Guarde apenas o sumário, a atividade e a planificação.'
+      )
+    }
+
+    if (
+      effectiveStatus ===
         'taught' &&
       !input.summary.trim()
     ) {
@@ -866,7 +946,7 @@ export class DailyWorkspaceRepository {
         .mode !== 'none'
     ) {
       if (
-        input.status !==
+        effectiveStatus !==
         'taught'
       ) {
         throw new Error(
@@ -901,7 +981,7 @@ export class DailyWorkspaceRepository {
     }
 
     if (
-      input.status !==
+      effectiveStatus !==
       'taught'
     ) {
       const [
@@ -977,6 +1057,12 @@ export class DailyWorkspaceRepository {
           )
         }
 
+        const currentEffectiveStatus =
+          resolveLessonStatusForDate(
+            currentLesson.date,
+            input.status
+          )
+
         const scheduleRepairChanges =
           await getLegacyScheduleRepairChanges(
             input.lessonId
@@ -988,7 +1074,7 @@ export class DailyWorkspaceRepository {
             {
               ...scheduleRepairChanges,
               status:
-                input.status,
+                currentEffectiveStatus,
               startTime:
                 input.startTime,
               endTime:
@@ -996,7 +1082,7 @@ export class DailyWorkspaceRepository {
               periodCount:
                 input.periodCount,
               countTowardProgress:
-                input.status ===
+                currentEffectiveStatus ===
                 'cancelled'
                   ? false
                   : input.countTowardProgress,
