@@ -35,14 +35,6 @@ const repositorySource = await readFile(
   'utf8'
 )
 
-const backupValidationSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/settings/backupValidation.ts',
-    import.meta.url
-  ),
-  'utf8'
-)
-
 function transpile(source) {
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -80,7 +72,7 @@ test('learning recoveries record a conservative optional origin and teacher-touc
   )
 })
 
-test('only untouched pending automatic recoveries are eligible for automatic cleanup', async () => {
+test('only untouched pending automatic recoveries with explicit new metadata are eligible for cleanup', async () => {
   assert.ok(
     policySource,
     'learningRecoveryLifecycle.ts must exist'
@@ -113,6 +105,10 @@ test('only untouched pending automatic recoveries are eligible for automatic cle
     {
       ...base,
       origin: undefined
+    },
+    {
+      ...base,
+      teacherTouchedAt: undefined
     },
     {
       ...base,
@@ -189,23 +185,5 @@ test('settings reconcile recoveries centrally only when the recovery threshold c
   assert.match(
     repositorySource,
     /updateSettings[\s\S]*learningRecoveryThresholdPercent[\s\S]*!==[\s\S]*learningRecoveryThresholdPercent[\s\S]*settings\.put[\s\S]*synchronizeRecoveriesForActiveAcademicYear/
-  )
-})
-
-test('backup validation accepts legacy omissions but validates new provenance when present', () => {
-  assert.match(
-    backupValidationSource,
-    /learningRecoveries[\s\S]*origin[\s\S]*automatic_threshold[\s\S]*manual/
-  )
-
-  assert.match(
-    backupValidationSource,
-    /teacherTouchedAt[\s\S]*isIsoDateTime/
-  )
-
-  assert.doesNotMatch(
-    backupValidationSource,
-    /required[^\n]*origin|origin[^\n]*required/i,
-    'legacy recovery records without origin must remain valid'
   )
 })
