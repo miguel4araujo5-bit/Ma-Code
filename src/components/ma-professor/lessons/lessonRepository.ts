@@ -22,7 +22,8 @@ import {
 } from './lessonHistoricalEditSafety'
 
 import {
-  assertLessonNotTaughtInFuture
+  assertLessonNotTaughtInFuture,
+  resolveLessonStatusForDate
 } from './lessonTemporalSafety'
 
 export type {
@@ -45,14 +46,17 @@ export class LessonRepository
   override async createLesson(
     input: LessonDraft
   ) {
-    assertLessonNotTaughtInFuture(
-      input.date,
+    const requestedStatus =
       input.status ?? 'planned'
-    )
 
-    return super.createLesson(
-      input
-    )
+    return super.createLesson({
+      ...input,
+      status:
+        resolveLessonStatusForDate(
+          input.date,
+          requestedStatus
+        )
+    })
   }
 
   override async updateLesson(
@@ -91,14 +95,28 @@ export class LessonRepository
           changes.date ??
           latest.date
 
-        const nextStatus =
+        const requestedStatus =
           changes.status ??
           latest.status
 
-        assertLessonNotTaughtInFuture(
-          nextDate,
-          nextStatus
-        )
+        const nextStatus =
+          resolveLessonStatusForDate(
+            nextDate,
+            requestedStatus
+          )
+
+        const safeChanges:
+          LessonChanges =
+          nextStatus !==
+            requestedStatus ||
+          changes.status !==
+            undefined
+            ? {
+                ...changes,
+                status:
+                  nextStatus
+              }
+            : changes
 
         const nextModuleId =
           changes.moduleId ??
@@ -151,7 +169,7 @@ export class LessonRepository
 
         return super.updateLesson(
           id,
-          changes,
+          safeChanges,
           options
         )
       }
