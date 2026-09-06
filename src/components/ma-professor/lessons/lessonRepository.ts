@@ -12,6 +12,7 @@ import {
 
 import type {
   LessonChanges,
+  LessonDraft,
   LessonUpdateOptions
 } from './lessonRepositoryBase'
 
@@ -19,6 +20,11 @@ import {
   assertLessonHistoricalDateChangeAllowed,
   assertLessonHistoricalModuleChangeAllowed
 } from './lessonHistoricalEditSafety'
+
+import {
+  assertLessonNotTaughtInFuture,
+  resolveLessonStatusForDate
+} from './lessonTemporalSafety'
 
 export type {
   LessonDraft,
@@ -37,6 +43,22 @@ export {
 
 export class LessonRepository
   extends BaseLessonRepository {
+  override async createLesson(
+    input: LessonDraft
+  ) {
+    const requestedStatus =
+      input.status ?? 'planned'
+
+    return super.createLesson({
+      ...input,
+      status:
+        resolveLessonStatusForDate(
+          input.date,
+          requestedStatus
+        )
+    })
+  }
+
   override async updateLesson(
     id: EntityId,
     changes: LessonChanges,
@@ -72,6 +94,29 @@ export class LessonRepository
         const nextDate =
           changes.date ??
           latest.date
+
+        const requestedStatus =
+          changes.status ??
+          latest.status
+
+        const nextStatus =
+          resolveLessonStatusForDate(
+            nextDate,
+            requestedStatus
+          )
+
+        const safeChanges:
+          LessonChanges =
+          nextStatus !==
+            requestedStatus ||
+          changes.status !==
+            undefined
+            ? {
+                ...changes,
+                status:
+                  nextStatus
+              }
+            : changes
 
         const nextModuleId =
           changes.moduleId ??
@@ -124,10 +169,60 @@ export class LessonRepository
 
         return super.updateLesson(
           id,
-          changes,
+          safeChanges,
           options
         )
       }
+    )
+  }
+
+  override async markGIAESubmitted(
+    id: EntityId
+  ) {
+    await this.initialize()
+
+    const lesson =
+      await maProfessorDb.lessons.get(
+        id
+      )
+
+    if (lesson) {
+      assertLessonNotTaughtInFuture(
+        lesson.date,
+        lesson.status
+      )
+    }
+
+    return super.markGIAESubmitted(
+      id
+    )
+  }
+
+  override async markManyGIAESubmitted(
+    ids: EntityId[]
+  ) {
+    await this.initialize()
+
+    const lessons =
+      await maProfessorDb.lessons.bulkGet(
+        ids
+      )
+
+    lessons.forEach(
+      lesson => {
+        if (!lesson) {
+          return
+        }
+
+        assertLessonNotTaughtInFuture(
+          lesson.date,
+          lesson.status
+        )
+      }
+    )
+
+    return super.markManyGIAESubmitted(
+      ids
     )
   }
 }
