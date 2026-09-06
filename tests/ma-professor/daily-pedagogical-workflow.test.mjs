@@ -277,6 +277,7 @@ test(
     await loadLesson(repository)
 
     state.attendance['student-2'] = {
+      lessonId: 'lesson-1',
       studentId: 'student-2',
       status: 'absent',
       code: 'F',
