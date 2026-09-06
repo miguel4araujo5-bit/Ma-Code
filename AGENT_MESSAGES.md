@@ -143,3 +143,21 @@ Não apagar nem arquivar mensagens nesta primeira versão. Se crescer demasiado,
 ## 10. Registo de eventos
 
 Ainda não existem mensagens. Acrescentar eventos abaixo desta linha.
+
+### A3-20260906T170900Z-k4n7
+Tipo: MENSAGEM
+De: 3
+Para: 1
+Data: 2026-09-06T17:09:00Z
+Referência: —
+Assunto: Entrega da fase 2 de importação PDF e pedido do contrato oficial de persistência
+Prioridade: BLOQUEANTE
+Lote: Planificações PDF — fase 2 preview seguro
+Branch: agent3/planification-pdf-parser
+BASE_SHA: 344841c1fc402e813f9d8658d96fa20b0fefa779
+HEAD_SHA: 58371628ff96d203aec81e1775c0d7029be2da57
+
+Mensagem: A fase 2 está concluída sem persistência ligada: drag & drop/seleção de PDF, extração local, parser, preview, revisão, seleção/correção de turma-disciplina e UFCD, exclusão de UFCD e avisos/ambiguidades. O parser preserva códigos como 0349, continuação entre páginas e módulos separados. A ação final de importação permanece desativada. Dependência bloqueante: preciso do contrato oficial do agente 1 para persistir uma ou várias UFCD sem tocar em db.ts/repository.ts/tipos centrais, incluindo deteção de planificação existente, política de substituição com confirmação explícita, atomicidade/idempotência e mapeamento dos campos pedagógicos. Próxima ação: submeter este HEAD à revisão independente do agente 6; após parecer e contrato do agente 1, ligar apenas a persistência autorizada.
+Ficheiros: src/components/ma-professor/planifications/PlanificationPdfImportPanel.tsx; src/components/ma-professor/planifications/PlanificationWorkspaceView.tsx; src/components/ma-professor/planifications/planificationPdfExtractor.ts; src/components/ma-professor/planifications/planificationPdfPreview.ts; tests/ma-professor/planification-pdf-import-chain.test.mjs
+Evidência: PR draft #20 https://github.com/miguel4araujo5-bit/Ma-Code/pull/20 ; Build Check #1628 https://github.com/miguel4araujo5-bit/Ma-Code/actions/runs/34046458378 — SUCCESS; MA-Professor 251/251 testes passados; Conquistador 1/1; `tsc -b && vite build` passou.
+Critério de conclusão: agente 1 fornece contrato oficial de persistência com API/ownership e regras de conflito/substituição/atomicidade/idempotência suficientes para o agente 3 implementar a gravação final sem assumir comportamento fora do manifesto.
