@@ -816,8 +816,13 @@ async function handlePaidAccessRequest(
         existingRequest?.status ===
         'rejected'
     ) {
-        return context.base.fetch(
-            request
+        return json(
+            {
+                success: false,
+                message:
+                    'O pedido de acesso desta conta foi rejeitado. Não é possível iniciar um acesso Fundador enquanto este estado se mantiver.'
+            },
+            409
         );
     }
 
@@ -1033,6 +1038,34 @@ async function handlePaidRenewal(
             )[0] || null;
 
     if (!renewal) {
+        const conflictingRenewal =
+            [...(accessState.renewals || [])]
+                .filter(
+                    item =>
+                        item.email ===
+                            email &&
+                        item.status ===
+                            'pending' &&
+                        item.requestedPlan !==
+                            requestedPlan
+                )
+                .sort(
+                    (left, right) =>
+                        right.requestedAt -
+                        left.requestedAt
+                )[0] || null;
+
+        if (conflictingRenewal) {
+            return json(
+                {
+                    success: false,
+                    message:
+                        'Já existe um pedido de renovação pendente para outro plano. Aguarde a respetiva resolução antes de alterar o plano.'
+                },
+                409
+            );
+        }
+
         return baseResponse;
     }
 
@@ -1589,9 +1622,16 @@ async function handlePaidActivation(
             authorization.renewalId
         );
 
+    const previousValidUntil =
+        isRenewal &&
+        existingLicense
+            ? existingLicense.validUntil
+            : null;
+
     const validFrom =
-        isRenewal
-            ? now
+        isRenewal &&
+        existingLicense
+            ? existingLicense.validFrom
             : license.validFrom;
 
     license.plan =
@@ -1600,16 +1640,33 @@ async function handlePaidActivation(
     license.validFrom =
         validFrom;
 
-    license.validUntil =
+    if (
         authorization.plan ===
         'paid_30_days'
-            ? addDays(
-                  validFrom,
-                  PAID_30_DAYS
-              )
-            : getSchoolYearValidUntil(
-                  validFrom
-              );
+    ) {
+        const periodStart =
+            previousValidUntil !== null &&
+            previousValidUntil > now
+                ? previousValidUntil
+                : now;
+
+        license.validUntil =
+            addDays(
+                periodStart,
+                PAID_30_DAYS
+            );
+    } else {
+        const schoolYearAnchor =
+            previousValidUntil !== null &&
+            previousValidUntil > now
+                ? previousValidUntil + 1
+                : now;
+
+        license.validUntil =
+            getSchoolYearValidUntil(
+                schoolYearAnchor
+            );
+    }
 
     license.revokedAt =
         null;
@@ -1642,7 +1699,7 @@ async function handlePaidActivation(
             freshState.renewals?.find(
                 item =>
                     item.id ===
-                    authorization.renewalId
+                        authorization.renewalId
             );
 
         if (!freshRenewal) {
