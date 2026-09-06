@@ -2,6 +2,12 @@ import {
   ensureInitialSchoolCalendar2026_2027
 } from '../calendar/initialSchoolCalendar2026_2027'
 import {
+  moduleBoundaryWarningRepository
+} from '../lessons/moduleBoundaryWarningRepository'
+import type {
+  ModuleBoundaryWarning
+} from '../lessons/moduleBoundaryWarnings'
+import {
   scheduledLessonReconciliationRepository
 } from '../lessons/scheduledLessonReconciliationRepository'
 import {
@@ -18,10 +24,26 @@ import type {
 const preparedSBentoYears =
   new Set<EntityId>()
 
+export interface DailyScheduledLessonPreparationResult {
+  moduleBoundaryWarnings:
+    ModuleBoundaryWarning[]
+}
+
+async function readModuleBoundaryWarnings(
+  academicYearId: EntityId
+): Promise<DailyScheduledLessonPreparationResult> {
+  return {
+    moduleBoundaryWarnings:
+      await moduleBoundaryWarningRepository.listWarnings(
+        academicYearId
+      )
+  }
+}
+
 export async function ensureDailyScheduledLessonsForDate(
   academicYearId: EntityId,
   date: ISODate
-) {
+): Promise<DailyScheduledLessonPreparationResult> {
   const [
     academicYear,
     profile
@@ -42,7 +64,9 @@ export async function ensureDailyScheduledLessonsForDate(
     date < academicYear.startDate ||
     date > academicYear.endDate
   ) {
-    return
+    return {
+      moduleBoundaryWarnings: []
+    }
   }
 
   if (
@@ -62,7 +86,10 @@ export async function ensureDailyScheduledLessonsForDate(
       preparedSBentoYears.add(
         academicYearId
       )
-      return
+
+      return readModuleBoundaryWarnings(
+        academicYearId
+      )
     }
   }
 
@@ -71,4 +98,8 @@ export async function ensureDailyScheduledLessonsForDate(
     dateFrom: date,
     dateTo: date
   })
+
+  return readModuleBoundaryWarnings(
+    academicYearId
+  )
 }
