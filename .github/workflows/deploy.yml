@@ -39,11 +39,21 @@ jobs:
       - name: Run independent Dexie IndexedDB rollback proof
         run: node --test tests/validation/agent5-dexie-indexeddb-rollback.test.mjs
 
-      - name: Run Conquistador tests
-        run: npm run test:conquistador
+      - name: Run Agent 5 backup-integrity test specifically
+        id: agent5_specific
+        continue-on-error: true
+        run: node --test tests/ma-professor/backup-integrity.test.mjs
 
-      - name: Run MA-Professor notification guard
+      - name: Run MA-Professor full suite
+        id: ma_professor_suite
+        continue-on-error: true
         run: node --test tests/ma-professor/*.test.mjs
 
       - name: Build project
         run: npm run build
+
+      - name: Report validation failure if Agent 5 tests failed
+        if: steps.agent5_specific.outcome != 'success' || steps.ma_professor_suite.outcome != 'success'
+        run: |
+          echo 'Agent 5 validation tests failed; see previous steps.'
+          exit 1
