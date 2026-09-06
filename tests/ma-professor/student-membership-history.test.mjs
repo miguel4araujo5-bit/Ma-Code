@@ -29,7 +29,7 @@ const typesSource = await readFile(
 
 const attendanceSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/attendance/attendanceRepository.ts',
+    '../../src/components/ma-professor/attendance/attendanceRepositoryBase.ts',
     import.meta.url
   ),
   'utf8'

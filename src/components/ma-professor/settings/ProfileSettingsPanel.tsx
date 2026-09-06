@@ -4,6 +4,10 @@ import {
   useState
 } from 'react'
 
+import {
+  attendanceRepository
+} from '../attendance/attendanceRepository'
+
 import { maProfessorRepository } from '../repository'
 
 interface FormState {
@@ -139,6 +143,14 @@ export function ProfileSettingsPanel() {
         )
       }
 
+      const previousSettings =
+        await maProfessorRepository.getSettings()
+
+      const recoveryThresholdChanged =
+        previousSettings
+          .learningRecoveryThresholdPercent !==
+        numeric.learningRecoveryThresholdPercent
+
       await Promise.all([
         maProfessorRepository.saveTeacherProfile({
           displayName: form.displayName,
@@ -152,9 +164,25 @@ export function ProfileSettingsPanel() {
         })
       ])
 
+      let recoverySyncWarning =
+        ''
+
+      if (
+        recoveryThresholdChanged
+      ) {
+        try {
+          await attendanceRepository
+            .synchronizeRecoveriesForActiveAcademicYear()
+        } catch {
+          recoverySyncWarning =
+            ' As definições foram guardadas, mas não foi possível atualizar automaticamente as recuperações. Utilize “Verificar recuperações” no ecrã de assiduidade.'
+        }
+      }
+
       setFeedback({
         tone: 'success',
-        message: 'Perfil e regras gerais guardados.'
+        message:
+          `Perfil e regras gerais guardados.${recoverySyncWarning}`
       })
     } catch (error) {
       setFeedback({
