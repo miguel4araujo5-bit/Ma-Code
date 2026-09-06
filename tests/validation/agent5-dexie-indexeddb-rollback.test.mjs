@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import Dexie from 'dexie';
 import 'fake-indexeddb/auto';
+
+const { default: Dexie } = await import('dexie');
 
 function sorted(rows) {
   return [...rows].sort((a, b) => String(a.id).localeCompare(String(b.id)));
