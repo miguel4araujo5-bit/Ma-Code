@@ -13,6 +13,7 @@ import type {
 import {
   formatGIAERowForClipboard,
   formatGIAERowsForClipboard,
+  giaeWorkspaceRepository,
   type GIAEWorkspaceFilters,
   type GIAEWorkspaceRow,
   type GIAEWorkspaceRowState,
@@ -1215,26 +1216,51 @@ export default function GIAEWorkspaceView({
   ) {
     void runAction(
       `copy:${row.lesson.id}`,
-      () =>
-        writeClipboard(
+      async () => {
+        await writeClipboard(
           formatGIAERowForClipboard(
             row
           )
-        ),
+        )
+
+        giaeWorkspaceRepository.recordCopiedLesson(
+          row.lesson
+        )
+      },
       'Sumário copiado.'
     )
   }
 
   function handleCopyVisible() {
+    const copiedLessons =
+      snapshot.rows
+        .filter(
+          (
+            row
+          ) =>
+            row.canCopy
+        )
+        .map(
+          (
+            row
+          ) =>
+            row.lesson
+        )
+
     void runAction(
       'copy-visible',
-      () =>
-        writeClipboard(
+      async () => {
+        await writeClipboard(
           formatGIAERowsForClipboard(
             snapshot.rows,
             true
           )
-        ),
+        )
+
+        giaeWorkspaceRepository.recordCopiedLessons(
+          copiedLessons
+        )
+      },
       `${visibleCopyCount} ${
         visibleCopyCount ===
         1
