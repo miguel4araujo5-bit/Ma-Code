@@ -36,6 +36,25 @@ export function isFutureLessonDate(
   return lessonDate > referenceDate
 }
 
+export function resolveLessonStatusForDate(
+  lessonDate: ISODate,
+  status: LessonStatus,
+  referenceDate: ISODate =
+    todayISO()
+): LessonStatus {
+  if (
+    status === 'taught' &&
+    isFutureLessonDate(
+      lessonDate,
+      referenceDate
+    )
+  ) {
+    return 'planned'
+  }
+
+  return status
+}
+
 export function assertLessonNotTaughtInFuture(
   lessonDate: ISODate,
   status: LessonStatus,
