@@ -12,6 +12,7 @@ import {
 
 import type {
   LessonChanges,
+  LessonDraft,
   LessonUpdateOptions
 } from './lessonRepositoryBase'
 
@@ -19,6 +20,10 @@ import {
   assertLessonHistoricalDateChangeAllowed,
   assertLessonHistoricalModuleChangeAllowed
 } from './lessonHistoricalEditSafety'
+
+import {
+  assertLessonNotTaughtInFuture
+} from './lessonTemporalSafety'
 
 export type {
   LessonDraft,
@@ -37,6 +42,19 @@ export {
 
 export class LessonRepository
   extends BaseLessonRepository {
+  override async createLesson(
+    input: LessonDraft
+  ) {
+    assertLessonNotTaughtInFuture(
+      input.date,
+      input.status ?? 'planned'
+    )
+
+    return super.createLesson(
+      input
+    )
+  }
+
   override async updateLesson(
     id: EntityId,
     changes: LessonChanges,
@@ -72,6 +90,15 @@ export class LessonRepository
         const nextDate =
           changes.date ??
           latest.date
+
+        const nextStatus =
+          changes.status ??
+          latest.status
+
+        assertLessonNotTaughtInFuture(
+          nextDate,
+          nextStatus
+        )
 
         const nextModuleId =
           changes.moduleId ??
@@ -128,6 +155,56 @@ export class LessonRepository
           options
         )
       }
+    )
+  }
+
+  override async markGIAESubmitted(
+    id: EntityId
+  ) {
+    await this.initialize()
+
+    const lesson =
+      await maProfessorDb.lessons.get(
+        id
+      )
+
+    if (lesson) {
+      assertLessonNotTaughtInFuture(
+        lesson.date,
+        lesson.status
+      )
+    }
+
+    return super.markGIAESubmitted(
+      id
+    )
+  }
+
+  override async markManyGIAESubmitted(
+    ids: EntityId[]
+  ) {
+    await this.initialize()
+
+    const lessons =
+      await maProfessorDb.lessons.bulkGet(
+        ids
+      )
+
+    lessons.forEach(
+      lesson => {
+        if (!lesson) {
+          return
+        }
+
+        assertLessonNotTaughtInFuture(
+          lesson.date,
+          lesson.status
+        )
+      }
+    )
+
+    return super.markManyGIAESubmitted(
+      ids
     )
   }
 }
