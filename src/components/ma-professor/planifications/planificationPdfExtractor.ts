@@ -251,8 +251,11 @@ export async function extractPlanificationPdf(
       await file.arrayBuffer()
     )
 
+  const loadingTask =
+    getDocument({ data })
+
   const pdf =
-    await getDocument({ data }).promise
+    await loadingTask.promise
 
   const pages:
     PlanificationPdfExtractionPage[] = []
@@ -294,7 +297,7 @@ export async function extractPlanificationPdf(
       })
     }
   } finally {
-    await pdf.destroy()
+    await loadingTask.destroy()
   }
 
   const document =
