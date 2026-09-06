@@ -23,7 +23,8 @@ export function canAutomaticallyRemoveRecovery(
       'automatic_threshold' &&
     recovery.status ===
       'pending' &&
-    !recovery.teacherTouchedAt &&
+    recovery.teacherTouchedAt ===
+      null &&
     !recovery.contents.trim() &&
     !recovery.activity.trim() &&
     recovery.plannedDate ===
