@@ -26,9 +26,14 @@ function transpile(source) {
 
 const dbUrl = transpile(`
   const s = () => globalThis.__giaeConcurrencyState;
+  const c = structuredClone;
 
   export const maProfessorDb = {
-    lessons: {},
+    lessons: {
+      async get() {
+        return c(s().lesson);
+      }
+    },
     async transaction(_mode, _tables, callback) {
       const state = s();
       state.transactionAttempts += 1;
@@ -130,6 +135,14 @@ export async function __testSaveSummary(summary) {
       state.lesson = {
         ...current,
         summary,
+        giaeStatus:
+          current.giaeStatus === 'submitted'
+            ? 'pending'
+            : current.giaeStatus,
+        giaeSubmittedAt:
+          current.giaeStatus === 'submitted'
+            ? null
+            : current.giaeSubmittedAt,
         updatedAt: 'summary-v2'
       };
       return structuredClone(state.lesson);
@@ -188,10 +201,17 @@ function resetState(initialGIAEStatus = 'pending') {
 async function runConcurrentScenario({
   initialGIAEStatus,
   action,
-  expectedGIAEStatus
+  expectedGIAEStatus,
+  requiresCopiedVersion = false
 }) {
   const state = resetState(initialGIAEStatus)
   const repository = new module.GIAEWorkspaceRepository()
+
+  if (requiresCopiedVersion) {
+    repository.recordCopiedLesson(
+      structuredClone(state.lesson)
+    )
+  }
 
   const giaePromise = action(repository)
 
@@ -232,7 +252,8 @@ test(
   async () => {
     const state = await runConcurrentScenario({
       initialGIAEStatus: 'pending',
-      expectedGIAEStatus: 'submitted',
+      expectedGIAEStatus: 'pending',
+      requiresCopiedVersion: true,
       action: repository =>
         repository.markSubmitted('lesson-1')
     })
@@ -263,7 +284,8 @@ test(
   async () => {
     await runConcurrentScenario({
       initialGIAEStatus: 'pending',
-      expectedGIAEStatus: 'submitted',
+      expectedGIAEStatus: 'pending',
+      requiresCopiedVersion: true,
       action: repository =>
         repository.markManySubmitted([
           'lesson-1'
