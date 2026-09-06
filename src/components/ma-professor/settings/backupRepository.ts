@@ -1,5 +1,6 @@
 import {
-  ensureDefaultMAProfessorSettings,
+  createDefaultMAProfessorSettings,
+  MA_PROFESSOR_DEFAULT_SETTINGS_ID,
   maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
@@ -368,6 +369,21 @@ async function putBackupData(data: MAProfessorBackupData) {
   await maProfessorDb.setupProgress.bulkPut(data.setupProgress)
 }
 
+async function ensureDefaultSettingsInCurrentTransaction() {
+  const existingSettings =
+    await maProfessorDb.settings.get(
+      MA_PROFESSOR_DEFAULT_SETTINGS_ID
+    )
+
+  if (existingSettings) {
+    return
+  }
+
+  await maProfessorDb.settings.put(
+    createDefaultMAProfessorSettings()
+  )
+}
+
 export async function restoreMAProfessorBackup(
   backup: MAProfessorBackup
 ) {
@@ -387,10 +403,9 @@ export async function restoreMAProfessorBackup(
     async () => {
       await clearAllTables()
       await putBackupData(backup.data)
+      await ensureDefaultSettingsInCurrentTransaction()
     }
   )
-
-  await ensureDefaultMAProfessorSettings()
 }
 
 export async function resetMAProfessorDatabase() {
@@ -401,10 +416,9 @@ export async function resetMAProfessorDatabase() {
     maProfessorDb.tables,
     async () => {
       await clearAllTables()
+      await ensureDefaultSettingsInCurrentTransaction()
     }
   )
-
-  await ensureDefaultMAProfessorSettings()
 }
 
 export function getBackupFileName(exportedAt: string) {

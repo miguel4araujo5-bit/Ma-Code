@@ -46,9 +46,6 @@ const validationSource = await readFile(
 const validationUrl =
   transpile(validationSource)
 
-const validationModule =
-  await import(validationUrl)
-
 const repositorySource = await readFile(
   new URL(
     '../../src/components/ma-professor/settings/backupRepository.ts',
@@ -57,10 +54,199 @@ const repositorySource = await readFile(
   'utf8'
 )
 
+const dbSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/db.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dbStubUrl = transpile(`
+  const TABLE_NAMES = [
+    'teacherProfiles',
+    'academicYears',
+    'groups',
+    'subjects',
+    'teachingAssignments',
+    'modules',
+    'students',
+    'assessmentSchemes',
+    'assessmentCriteria',
+    'planifications',
+    'planificationItems',
+    'weeklyScheduleSlots',
+    'schoolCalendarEvents',
+    'lessons',
+    'summarySuggestions',
+    'lessonAttendance',
+    'lessonAssessments',
+    'assessmentResults',
+    'moduleFinalGrades',
+    'learningRecoveries',
+    'settings',
+    'setupProgress'
+  ];
+
+  function state() {
+    const current = globalThis.__backupRepositoryDbTest;
+
+    if (!current) {
+      throw new Error('backup db test state not initialized');
+    }
+
+    return current;
+  }
+
+  function clone(value) {
+    return structuredClone(value);
+  }
+
+  function table(name) {
+    return {
+      name,
+
+      async toArray() {
+        return clone(state().data[name] || []);
+      },
+
+      async clear() {
+        const current = state();
+        current.operations.push({
+          kind: 'clear',
+          table: name,
+          inTransaction: current.transactionDepth > 0
+        });
+        current.data[name] = [];
+      },
+
+      async bulkPut(records) {
+        const current = state();
+        current.operations.push({
+          kind: 'bulkPut',
+          table: name,
+          inTransaction: current.transactionDepth > 0
+        });
+
+        if (current.failBulkPutTable === name) {
+          throw new Error('simulated bulkPut failure: ' + name);
+        }
+
+        const next = new Map(
+          (current.data[name] || []).map(record => [record.id, clone(record)])
+        );
+
+        for (const record of records) {
+          next.set(record.id, clone(record));
+        }
+
+        current.data[name] = [...next.values()];
+      },
+
+      async get(id) {
+        const current = state();
+        const found = (current.data[name] || [])
+          .find(record => record.id === id);
+
+        return typeof found === 'undefined'
+          ? undefined
+          : clone(found);
+      },
+
+      async put(record) {
+        const current = state();
+        const inTransaction = current.transactionDepth > 0;
+
+        current.operations.push({
+          kind: 'put',
+          table: name,
+          id: record.id,
+          inTransaction
+        });
+
+        if (
+          name === 'settings' &&
+          record.id === 'default'
+        ) {
+          current.defaultSettingsPutCalls += 1;
+          current.defaultSettingsPutInsideTransaction = inTransaction;
+
+          if (current.failDefaultSettingsPut) {
+            throw new Error('simulated default settings finalization failure');
+          }
+        }
+
+        const next = new Map(
+          (current.data[name] || []).map(item => [item.id, clone(item)])
+        );
+
+        next.set(record.id, clone(record));
+        current.data[name] = [...next.values()];
+      }
+    };
+  }
+
+  export const MA_PROFESSOR_DEFAULT_SETTINGS_ID = 'default';
+
+  export function createDefaultMAProfessorSettings(
+    timestamp = '2026-09-06T12:00:00.000Z'
+  ) {
+    state().defaultSettingsCreateCalls += 1;
+
+    return {
+      id: MA_PROFESSOR_DEFAULT_SETTINGS_ID,
+      defaultPeriodMinutes: 50,
+      defaultAbsentAssessmentScore: 0,
+      defaultExemptAssessmentScore: 10,
+      absenceWarningPercent: 8,
+      learningRecoveryThresholdPercent: 10,
+      weekStartsOn: 1,
+      locale: 'pt-PT',
+      theme: 'dark',
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+  }
+
   export const maProfessorDb = {};
-  export async function openMAProfessorDatabase() {}
-  export async function ensureDefaultMAProfessorSettings() {}
+
+  for (const name of TABLE_NAMES) {
+    maProfessorDb[name] = table(name);
+  }
+
+  maProfessorDb.tables = TABLE_NAMES.map(
+    name => maProfessorDb[name]
+  );
+
+  maProfessorDb.transaction = async function(
+    mode,
+    tables,
+    callback
+  ) {
+    const current = state();
+    const before = clone(current.data);
+
+    current.transactionCalls += 1;
+    current.transactionModes.push(mode);
+    current.transactionDepth += 1;
+
+    try {
+      const result = await callback();
+      current.commits += 1;
+      return result;
+    } catch (error) {
+      current.data = before;
+      current.rollbacks += 1;
+      throw error;
+    } finally {
+      current.transactionDepth -= 1;
+    }
+  };
+
+  export async function openMAProfessorDatabase() {
+    state().openCalls += 1;
+    return maProfessorDb;
+  }
 `)
 
 const repositoryRuntimeSource =
@@ -80,6 +266,31 @@ const repository = await import(
 
 const stamp =
   '2026-09-05T08:00:00.000Z'
+
+const tableNames = [
+  'teacherProfiles',
+  'academicYears',
+  'groups',
+  'subjects',
+  'teachingAssignments',
+  'modules',
+  'students',
+  'assessmentSchemes',
+  'assessmentCriteria',
+  'planifications',
+  'planificationItems',
+  'weeklyScheduleSlots',
+  'schoolCalendarEvents',
+  'lessons',
+  'summarySuggestions',
+  'lessonAttendance',
+  'lessonAssessments',
+  'assessmentResults',
+  'moduleFinalGrades',
+  'learningRecoveries',
+  'settings',
+  'setupProgress'
+]
 
 function audit() {
   return {
@@ -302,6 +513,36 @@ function createBackup(data = createValidData()) {
   }
 }
 
+function emptyDatabaseData() {
+  return Object.fromEntries(
+    tableNames.map(name => [name, []])
+  )
+}
+
+function resetDatabaseHarness({
+  data = emptyDatabaseData(),
+  failDefaultSettingsPut = false,
+  failBulkPutTable = null
+} = {}) {
+  globalThis.__backupRepositoryDbTest = {
+    data: structuredClone(data),
+    operations: [],
+    transactionCalls: 0,
+    transactionModes: [],
+    transactionDepth: 0,
+    commits: 0,
+    rollbacks: 0,
+    openCalls: 0,
+    defaultSettingsCreateCalls: 0,
+    defaultSettingsPutCalls: 0,
+    defaultSettingsPutInsideTransaction: false,
+    failDefaultSettingsPut,
+    failBulkPutTable
+  }
+
+  return globalThis.__backupRepositoryDbTest
+}
+
 function errorMessages(result) {
   return result.issues
     .filter(issue => issue.severity === 'error')
@@ -444,6 +685,293 @@ test(
     assert.match(
       repositorySource,
       /validateMAProfessorBackupDataIntegrity/
+    )
+  }
+)
+
+test(
+  'restore preserves valid backup data and existing backup settings exactly',
+  async () => {
+    const backupData =
+      createValidData()
+
+    backupData.settings[0] = {
+      ...backupData.settings[0],
+      defaultPeriodMinutes: 90,
+      theme: 'system',
+      updatedAt: '2026-09-05T09:30:00.000Z'
+    }
+
+    const harness =
+      resetDatabaseHarness({
+        data: {
+          ...emptyDatabaseData(),
+          students: [
+            {
+              id: 'old-student',
+              marker: 'must-be-replaced'
+            }
+          ],
+          settings: [
+            {
+              id: 'default',
+              marker: 'old-settings'
+            }
+          ]
+        }
+      })
+
+    await repository.restoreMAProfessorBackup(
+      createBackup(backupData)
+    )
+
+    assert.deepEqual(
+      harness.data,
+      backupData,
+      'Um backup válido deve ser restaurado sem substituir as settings que já vêm no próprio backup.'
+    )
+    assert.equal(
+      harness.defaultSettingsCreateCalls,
+      0,
+      'Settings válidas presentes no backup não devem ser recriadas.'
+    )
+    assert.equal(
+      harness.defaultSettingsPutCalls,
+      0,
+      'Settings válidas presentes no backup não devem ser sobrescritas por defaults.'
+    )
+    assert.equal(harness.commits, 1)
+    assert.equal(harness.rollbacks, 0)
+  }
+)
+
+test(
+  'restore creates missing default settings inside the same transaction',
+  async () => {
+    const backupData =
+      createValidData()
+
+    backupData.settings = []
+
+    const harness =
+      resetDatabaseHarness()
+
+    await repository.restoreMAProfessorBackup(
+      createBackup(backupData)
+    )
+
+    assert.equal(harness.transactionCalls, 1)
+    assert.deepEqual(
+      harness.transactionModes,
+      ['rw']
+    )
+    assert.equal(
+      harness.defaultSettingsCreateCalls,
+      1
+    )
+    assert.equal(
+      harness.defaultSettingsPutCalls,
+      1
+    )
+    assert.equal(
+      harness.defaultSettingsPutInsideTransaction,
+      true,
+      'A criação das settings por defeito tem de participar na mesma transação do restauro.'
+    )
+    assert.equal(
+      harness.data.settings.length,
+      1
+    )
+    assert.equal(
+      harness.data.settings[0].id,
+      'default'
+    )
+    assert.deepEqual(
+      harness.data.students,
+      backupData.students,
+      'A criação das settings em falta não pode alterar outros dados válidos do backup.'
+    )
+    assert.equal(harness.commits, 1)
+    assert.equal(harness.rollbacks, 0)
+  }
+)
+
+test(
+  'restore rolls back completely when default-settings finalization fails',
+  async () => {
+    const initialData = {
+      ...emptyDatabaseData(),
+      students: [
+        {
+          id: 'local-before',
+          marker: 'preserve-on-failure'
+        }
+      ],
+      lessons: [
+        {
+          id: 'lesson-before',
+          marker: 'preserve-on-failure'
+        }
+      ],
+      settings: [
+        {
+          id: 'default',
+          marker: 'settings-before'
+        }
+      ]
+    }
+
+    const backupData =
+      createValidData()
+
+    backupData.settings = []
+
+    const harness =
+      resetDatabaseHarness({
+        data: initialData,
+        failDefaultSettingsPut: true
+      })
+
+    await assert.rejects(
+      () =>
+        repository.restoreMAProfessorBackup(
+          createBackup(backupData)
+        ),
+      /simulated default settings finalization failure/
+    )
+
+    assert.deepEqual(
+      harness.data,
+      initialData,
+      'Uma falha na finalização não pode deixar o backup parcialmente aplicado nem destruir o estado anterior.'
+    )
+    assert.equal(
+      harness.defaultSettingsPutInsideTransaction,
+      true
+    )
+    assert.equal(harness.commits, 0)
+    assert.equal(harness.rollbacks, 1)
+  }
+)
+
+test(
+  'restore rolls back completely when a backup table write fails midway',
+  async () => {
+    const initialData = {
+      ...emptyDatabaseData(),
+      teacherProfiles: [
+        {
+          id: 'teacher-before',
+          marker: 'preserve-on-failure'
+        }
+      ],
+      students: [
+        {
+          id: 'student-before',
+          marker: 'preserve-on-failure'
+        }
+      ],
+      settings: [
+        {
+          id: 'default',
+          marker: 'settings-before'
+        }
+      ]
+    }
+
+    const harness =
+      resetDatabaseHarness({
+        data: initialData,
+        failBulkPutTable: 'students'
+      })
+
+    await assert.rejects(
+      () =>
+        repository.restoreMAProfessorBackup(
+          createBackup()
+        ),
+      /simulated bulkPut failure: students/
+    )
+
+    assert.deepEqual(
+      harness.data,
+      initialData,
+      'Uma falha a meio dos bulkPut tem de reverter clears e escritas já efetuadas na transação.'
+    )
+    assert.equal(harness.commits, 0)
+    assert.equal(harness.rollbacks, 1)
+  }
+)
+
+test(
+  'reset leaves one valid default settings record and no pedagogical data',
+  async () => {
+    const harness =
+      resetDatabaseHarness({
+        data: createValidData()
+      })
+
+    await repository.resetMAProfessorDatabase()
+
+    for (const tableName of tableNames) {
+      if (tableName === 'settings') {
+        continue
+      }
+
+      assert.deepEqual(
+        harness.data[tableName],
+        [],
+        `${tableName} deve ficar vazia após reset.`
+      )
+    }
+
+    assert.equal(
+      harness.data.settings.length,
+      1
+    )
+    assert.deepEqual(
+      harness.data.settings[0],
+      {
+        id: 'default',
+        defaultPeriodMinutes: 50,
+        defaultAbsentAssessmentScore: 0,
+        defaultExemptAssessmentScore: 10,
+        absenceWarningPercent: 8,
+        learningRecoveryThresholdPercent: 10,
+        weekStartsOn: 1,
+        locale: 'pt-PT',
+        theme: 'dark',
+        createdAt: '2026-09-06T12:00:00.000Z',
+        updatedAt: '2026-09-06T12:00:00.000Z'
+      }
+    )
+    assert.equal(
+      harness.defaultSettingsPutInsideTransaction,
+      true
+    )
+    assert.equal(harness.commits, 1)
+    assert.equal(harness.rollbacks, 0)
+  }
+)
+
+test(
+  'backup repository uses existing db exports without introducing a reverse dependency from db.ts',
+  () => {
+    assert.match(
+      repositorySource,
+      /createDefaultMAProfessorSettings/
+    )
+    assert.match(
+      repositorySource,
+      /MA_PROFESSOR_DEFAULT_SETTINGS_ID/
+    )
+    assert.doesNotMatch(
+      dbSource,
+      /settings\/backupRepository/
+    )
+    assert.doesNotMatch(
+      dbSource,
+      /backupRepository/
     )
   }
 )
