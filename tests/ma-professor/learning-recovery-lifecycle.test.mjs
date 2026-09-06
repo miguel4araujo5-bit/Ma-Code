@@ -27,9 +27,17 @@ const typesSource = await readFile(
   'utf8'
 )
 
-const settingsPanelSource = await readFile(
+const repositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/settings/ProfileSettingsPanel.tsx',
+    '../../src/components/ma-professor/repository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const backupValidationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/backupValidation.ts',
     import.meta.url
   ),
   'utf8'
@@ -97,46 +105,51 @@ test('only untouched pending automatic recoveries are eligible for automatic cle
     true
   )
 
-  assert.equal(
-    policy.canAutomaticallyRemoveRecovery({
+  for (const protectedRecovery of [
+    {
       ...base,
       origin: 'manual'
-    }),
-    false
-  )
-
-  assert.equal(
-    policy.canAutomaticallyRemoveRecovery({
+    },
+    {
       ...base,
       origin: undefined
-    }),
-    false,
-    'legacy recoveries without origin must be preserved'
-  )
-
-  assert.equal(
-    policy.canAutomaticallyRemoveRecovery({
+    },
+    {
       ...base,
       teacherTouchedAt: '2026-09-06T08:00:00.000Z'
-    }),
-    false
-  )
-
-  assert.equal(
-    policy.canAutomaticallyRemoveRecovery({
+    },
+    {
       ...base,
       status: 'in_progress'
-    }),
-    false
-  )
-
-  assert.equal(
-    policy.canAutomaticallyRemoveRecovery({
+    },
+    {
+      ...base,
+      status: 'completed'
+    },
+    {
       ...base,
       contents: 'Conteúdo definido pelo professor'
-    }),
-    false
-  )
+    },
+    {
+      ...base,
+      activity: 'Ficha de recuperação'
+    },
+    {
+      ...base,
+      plannedDate: '2026-10-10'
+    },
+    {
+      ...base,
+      result: 'Trabalho iniciado'
+    }
+  ]) {
+    assert.equal(
+      policy.canAutomaticallyRemoveRecovery(
+        protectedRecovery
+      ),
+      false
+    )
+  }
 })
 
 test('manual creation and automatic threshold creation use different origins', () => {
@@ -151,28 +164,48 @@ test('manual creation and automatic threshold creation use different origins', (
   )
 })
 
-test('editing a recovery marks it as teacher-touched before persistence', () => {
+test('editing a recovery marks it as teacher-touched before persistence completes', () => {
   assert.match(
     attendanceSource,
-    /updateLearningRecovery[\s\S]*teacherTouchedAt[\s\S]*timestamp[\s\S]*learningRecoveries[\s\S]*put/
+    /updateLearningRecovery[\s\S]*teacherTouchedAt[\s\S]*updatedAt/
   )
 })
 
 test('synchronization removes only stale untouched automatic recoveries below the threshold', () => {
   assert.match(
     attendanceSource,
-    /synchronizeRecoveriesForModule[\s\S]*warningLevel[\s\S]*recovery_required[\s\S]*canAutomaticallyRemoveRecovery[\s\S]*learningRecoveries[\s\S]*delete/
+    /synchronizeRecoveriesForModule[\s\S]*warningLevel[\s\S]*recovery_required[\s\S]*canAutomaticallyRemoveRecovery[\s\S]*learningRecoveries[\s\S]*(?:delete|bulkDelete)/
   )
 })
 
-test('threshold changes trigger a conservative active-year reconciliation', () => {
+test('active-year reconciliation exists for threshold changes', () => {
   assert.match(
     attendanceSource,
     /synchronizeRecoveriesForActiveAcademicYear/
   )
+})
+
+test('settings reconcile recoveries centrally only when the recovery threshold changes', () => {
+  assert.match(
+    repositorySource,
+    /updateSettings[\s\S]*learningRecoveryThresholdPercent[\s\S]*!==[\s\S]*learningRecoveryThresholdPercent[\s\S]*settings\.put[\s\S]*synchronizeRecoveriesForActiveAcademicYear/
+  )
+})
+
+test('backup validation accepts legacy omissions but validates new provenance when present', () => {
+  assert.match(
+    backupValidationSource,
+    /learningRecoveries[\s\S]*origin[\s\S]*automatic_threshold[\s\S]*manual/
+  )
 
   assert.match(
-    settingsPanelSource,
-    /learningRecoveryThresholdPercent[\s\S]*synchronizeRecoveriesForActiveAcademicYear/
+    backupValidationSource,
+    /teacherTouchedAt[\s\S]*isIsoDateTime/
+  )
+
+  assert.doesNotMatch(
+    backupValidationSource,
+    /required[^\n]*origin|origin[^\n]*required/i,
+    'legacy recovery records without origin must remain valid'
   )
 })
