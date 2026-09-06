@@ -259,6 +259,60 @@ test(
 )
 
 test(
+  'a stale Daily workspace cannot overwrite newer attendance when the lesson version did not change',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+
+    state.lesson = {
+      ...state.lesson,
+      status: 'taught',
+      summary: 'Sumário já guardado.'
+    }
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    state.attendance['student-2'] = {
+      lessonId: 'lesson-1',
+      studentId: 'student-2',
+      status: 'absent',
+      code: 'F',
+      note: 'Falta alterada noutra aba.'
+    }
+
+    await assert.rejects(
+      () =>
+        repository.saveLesson(
+          lessonDraft({
+            summary:
+              'Sumário já guardado.',
+            students:
+              studentDrafts()
+          })
+        ),
+      /assiduidade ou a avaliação.*outra aba ou janela/i
+    )
+
+    assert.equal(
+      state.lesson.updatedAt,
+      'v1'
+    )
+    assert.equal(
+      state.attendance['student-2'].status,
+      'absent'
+    )
+    assert.equal(
+      state.attendance['student-2'].note,
+      'Falta alterada noutra aba.'
+    )
+  }
+)
+
+test(
   'a taught lesson without a summary is rejected before persistence',
   { concurrency: false },
   async () => {

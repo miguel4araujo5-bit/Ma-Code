@@ -130,6 +130,11 @@ export interface DailyLessonSaveDraft {
   assessment: DailyAssessmentSaveDraft
 }
 
+interface DailyRelatedRecordVersion {
+  assessmentId: EntityId | null
+  fingerprint: string
+}
+
 function getErrorMessage(
   error: unknown
 ) {
@@ -584,11 +589,159 @@ function hasFutureAttendanceOrAssessmentInput(
   )
 }
 
+function fingerprintRecords(
+  records: unknown[]
+) {
+  return records
+    .map(record =>
+      JSON.stringify(record)
+    )
+    .sort()
+}
+
+function buildRelatedRecordFingerprint(
+  attendanceRecords: unknown[],
+  assessment: LessonAssessment | null,
+  assessmentResults: unknown[]
+) {
+  return JSON.stringify({
+    attendance:
+      fingerprintRecords(
+        attendanceRecords
+      ),
+    assessment:
+      assessment
+        ? JSON.stringify(
+            assessment
+          )
+        : null,
+    results:
+      fingerprintRecords(
+        assessmentResults
+      )
+  })
+}
+
+function buildLoadedRelatedRecordVersion(
+  attendance: LessonAttendanceRegister,
+  assessment: LessonAssessment | null,
+  assessmentRegister:
+    | Awaited<
+        ReturnType<
+          typeof assessmentRepository.getAssessmentRegister
+        >
+      >
+    | null
+): DailyRelatedRecordVersion {
+  return {
+    assessmentId:
+      assessment?.id ?? null,
+    fingerprint:
+      buildRelatedRecordFingerprint(
+        attendance.rows.flatMap(
+          row =>
+            row.attendance
+              ? [row.attendance]
+              : []
+        ),
+        assessment,
+        assessmentRegister
+          ?.rows.flatMap(
+            row =>
+              row.result
+                ? [row.result]
+                : []
+          ) ?? []
+      )
+  }
+}
+
+async function getCurrentRelatedRecordVersion(
+  lessonId: EntityId,
+  assessmentId: EntityId | null
+): Promise<DailyRelatedRecordVersion> {
+  const [
+    attendanceRecords,
+    assessment
+  ] =
+    await Promise.all([
+      maProfessorDb
+        .lessonAttendance
+        .where(
+          'lessonId'
+        )
+        .equals(
+          lessonId
+        )
+        .toArray(),
+      assessmentId
+        ? maProfessorDb
+            .lessonAssessments
+            .get(
+              assessmentId
+            )
+        : Promise.resolve(
+            undefined
+          )
+    ])
+
+  const validAssessment =
+    assessment &&
+    assessment.lessonId === lessonId
+      ? assessment
+      : null
+
+  const assessmentResults =
+    validAssessment
+      ? await maProfessorDb
+          .assessmentResults
+          .where(
+            'assessmentId'
+          )
+          .equals(
+            validAssessment.id
+          )
+          .toArray()
+      : []
+
+  return {
+    assessmentId:
+      validAssessment?.id ?? null,
+    fingerprint:
+      buildRelatedRecordFingerprint(
+        attendanceRecords,
+        validAssessment,
+        assessmentResults
+      )
+  }
+}
+
+async function buildDailySaveResult(
+  lesson: Lesson,
+  assessmentId: EntityId | null
+) {
+  return {
+    lesson,
+    assessmentId,
+    relatedRecordVersion:
+      await getCurrentRelatedRecordVersion(
+        lesson.id,
+        assessmentId
+      )
+  }
+}
+
 export class DailyWorkspaceRepository {
   private readonly loadedLessonVersions =
     new Map<
       EntityId,
       string
+    >()
+
+  private readonly loadedRelatedRecordVersions =
+    new Map<
+      EntityId,
+      DailyRelatedRecordVersion
     >()
 
   async getDateWorkspace(
@@ -804,6 +957,16 @@ export class DailyWorkspaceRepository {
     this.loadedLessonVersions.set(
       lessonId,
       context.lessonRow.lesson.updatedAt
+    )
+
+    this.loadedRelatedRecordVersions.set(
+      lessonId,
+      buildLoadedRelatedRecordVersion(
+        attendance,
+        selectedAssessmentItem
+          ?.assessment ?? null,
+        assessmentRegister
+      )
     )
 
     return workspace
@@ -1025,7 +1188,15 @@ export class DailyWorkspaceRepository {
         input.lessonId
       )
 
-    if (!expectedUpdatedAt) {
+    const expectedRelatedRecordVersion =
+      this.loadedRelatedRecordVersions.get(
+        input.lessonId
+      )
+
+    if (
+      !expectedUpdatedAt ||
+      !expectedRelatedRecordVersion
+    ) {
       throw new Error(
         'Atualize a aula antes de guardar.'
       )
@@ -1054,6 +1225,28 @@ export class DailyWorkspaceRepository {
         ) {
           throw new Error(
             'Esta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
+          )
+        }
+
+        const currentRelatedRecordVersion =
+          await getCurrentRelatedRecordVersion(
+            input.lessonId,
+            expectedRelatedRecordVersion
+              .assessmentId
+          )
+
+        if (
+          currentRelatedRecordVersion
+            .assessmentId !==
+            expectedRelatedRecordVersion
+              .assessmentId ||
+          currentRelatedRecordVersion
+            .fingerprint !==
+            expectedRelatedRecordVersion
+              .fingerprint
+        ) {
+          throw new Error(
+            'A assiduidade ou a avaliação desta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
           )
         }
 
@@ -1132,10 +1325,10 @@ export class DailyWorkspaceRepository {
             )
           }
 
-          return {
-            lesson: updated,
-            assessmentId: null
-          }
+          return buildDailySaveResult(
+            updated,
+            null
+          )
         }
 
         const attendanceEntries:
@@ -1180,10 +1373,10 @@ export class DailyWorkspaceRepository {
             )
           }
 
-          return {
-            lesson: updated,
-            assessmentId: null
-          }
+          return buildDailySaveResult(
+            updated,
+            null
+          )
         }
 
         if (
@@ -1234,11 +1427,10 @@ export class DailyWorkspaceRepository {
             throw error
           }
 
-          return {
-            lesson: updated,
-            assessmentId:
-              assessment.id
-          }
+          return buildDailySaveResult(
+            updated,
+            assessment.id
+          )
         }
 
         if (
@@ -1274,12 +1466,11 @@ export class DailyWorkspaceRepository {
           assessmentEntries
         )
 
-        return {
-          lesson: updated,
-          assessmentId:
-            input.assessment
-              .assessmentId
-        }
+        return buildDailySaveResult(
+          updated,
+          input.assessment
+            .assessmentId
+        )
       }
     )
 
@@ -1288,7 +1479,17 @@ export class DailyWorkspaceRepository {
       result.lesson.updatedAt
     )
 
-    return result
+    this.loadedRelatedRecordVersions.set(
+      input.lessonId,
+      result.relatedRecordVersion
+    )
+
+    return {
+      lesson:
+        result.lesson,
+      assessmentId:
+        result.assessmentId
+    }
   }
 
   describeError(
