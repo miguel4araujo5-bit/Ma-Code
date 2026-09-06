@@ -49,6 +49,36 @@ function normalizeLineBreaks(
     .join('\n')
 }
 
+export function splitPlanificationContentBlocks(
+  value: string
+) {
+  const seen =
+    new Set<string>()
+
+  return value
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(line =>
+      line
+        .trim()
+        .replace(/\s+/g, ' ')
+    )
+    .filter(Boolean)
+    .filter(line => {
+      const key =
+        line.toLocaleLowerCase(
+          'pt-PT'
+        )
+
+      if (seen.has(key)) {
+        return false
+      }
+
+      seen.add(key)
+      return true
+    })
+}
+
 function moduleLabel(
   code: string,
   name: string
@@ -270,6 +300,56 @@ function titleForSection(
     : 'Planificação importada'
 }
 
+function itemsForRow(
+  row: PlanificationPdfImportConfirmedRow
+) {
+  if (row.mode === 'skip') {
+    return []
+  }
+
+  const blocks =
+    splitPlanificationContentBlocks(
+      row.content
+    )
+
+  const contents =
+    blocks.length
+      ? blocks
+      : ['']
+
+  const objectives =
+    normalizeLineBreaks(
+      row.objectives
+    )
+  const activity =
+    normalizeLineBreaks(
+      row.activity
+    )
+  const resources =
+    normalizeLineBreaks(
+      row.resources
+    )
+  const evaluation =
+    normalizeLineBreaks(
+      row.evaluation
+    )
+
+  return contents.map(
+    content => ({
+      content,
+      objectives,
+      activity,
+      resources,
+      evaluation,
+      suggestedSummary: '',
+      sourcePages: [
+        ...row.section
+          .sourcePages
+      ]
+    })
+  )
+}
+
 export async function commitPlanificationPdfImport(
   file: File,
   rows: PlanificationPdfImportConfirmedRow[]
@@ -326,37 +406,9 @@ export async function commitPlanificationPdfImport(
               description: ''
             },
             items:
-              row.mode === 'skip'
-                ? []
-                : [
-                    {
-                      content:
-                        normalizeLineBreaks(
-                          row.content
-                        ),
-                      objectives:
-                        normalizeLineBreaks(
-                          row.objectives
-                        ),
-                      activity:
-                        normalizeLineBreaks(
-                          row.activity
-                        ),
-                      resources:
-                        normalizeLineBreaks(
-                          row.resources
-                        ),
-                      evaluation:
-                        normalizeLineBreaks(
-                          row.evaluation
-                        ),
-                      suggestedSummary: '',
-                      sourcePages: [
-                        ...row.section
-                          .sourcePages
-                      ]
-                    }
-                  ]
+              itemsForRow(
+                row
+              )
           })
         )
     })
