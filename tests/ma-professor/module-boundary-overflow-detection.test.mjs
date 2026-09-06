@@ -3,9 +3,17 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import * as ts from 'typescript'
 
-const policySource = await readFile(
+const warningSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/lessons/scheduledLessonReconciliation.ts',
+    '../../src/components/ma-professor/lessons/moduleBoundaryWarnings.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const dailyPreparationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
     import.meta.url
   ),
   'utf8'
@@ -31,20 +39,10 @@ function transpile(source) {
   ).toString('base64')}`
 }
 
-async function loadPolicy() {
+async function loadWarnings() {
   return import(
-    transpile(policySource)
+    transpile(warningSource)
   )
-}
-
-function assignment() {
-  return {
-    id: 'assignment-1',
-    academicYearId: 'year-1',
-    groupId: 'group-1',
-    subjectId: 'subject-1',
-    active: true
-  }
 }
 
 function moduleUnit(
@@ -66,109 +64,70 @@ function moduleUnit(
   }
 }
 
-function existingProgressLesson() {
+function lesson({
+  id,
+  date,
+  moduleId = 'module-1',
+  periodCount = 2,
+  countTowardProgress = true,
+  status = 'taught'
+}) {
   return {
-    id: 'lesson-existing',
+    id,
     academicYearId: 'year-1',
     teachingAssignmentId: 'assignment-1',
-    moduleId: 'module-1',
+    moduleId,
     scheduleSlotId: 'slot-1',
     origin: 'scheduled',
-    status: 'taught',
-    date: '2026-09-07',
+    status,
+    date,
     startTime: '09:00',
     endTime: '10:40',
-    periodCount: 2,
-    countTowardProgress: true,
+    periodCount,
+    countTowardProgress,
     plannedActivity: '',
-    summary: 'Primeiro bloco.',
+    summary: status === 'taught' ? 'Sumário.' : '',
     summarySource: 'manual',
     planificationItemIds: [],
     giaeStatus: 'pending',
     giaeSubmittedAt: null,
     notes: '',
-    createdAt: '2026-09-07T11:00:00.000Z',
-    updatedAt: '2026-09-07T11:05:00.000Z'
-  }
-}
-
-function input() {
-  return {
-    academicYear: {
-      id: 'year-1',
-      name: '2026/2027',
-      startDate: '2026-09-01',
-      endDate: '2027-08-31'
-    },
-    assignments: [assignment()],
-    slots: [
-      {
-        id: 'slot-1',
-        academicYearId: 'year-1',
-        teachingAssignmentId: 'assignment-1',
-        weekday: 1,
-        startTime: '09:00',
-        endTime: '10:40',
-        periodCount: 2,
-        validFrom: '2026-09-01',
-        validUntil: '2027-08-31',
-        active: true
-      }
-    ],
-    modules: [
-      moduleUnit('module-1', 1, 3),
-      moduleUnit('module-2', 2, 10)
-    ],
-    events: [],
-    lessons: [existingProgressLesson()],
-    relatedLessonIds: new Set(['lesson-existing']),
-    dateFrom: '2026-09-14',
-    dateTo: '2026-09-20'
+    createdAt: `${date}T11:00:00.000Z`,
+    updatedAt: `${date}T11:05:00.000Z`
   }
 }
 
 test(
-  'a two-period block that starts inside a three-period UFCD is detected as crossing the module boundary without changing allocation',
+  'a persisted two-period block crossing a three-period UFCD boundary is detected without changing lesson data',
   async () => {
-    const policy = await loadPolicy()
-    const plan =
-      policy.planScheduledLessonReconciliation(
-        input()
-      )
+    const warnings = await loadWarnings()
 
-    assert.equal(
-      plan.createLessons.length,
-      1
-    )
+    const first = lesson({
+      id: 'lesson-1',
+      date: '2026-09-07'
+    })
+    const crossing = lesson({
+      id: 'lesson-2',
+      date: '2026-09-14'
+    })
 
-    const created =
-      plan.createLessons[0]
-
-    assert.equal(
-      created.moduleId,
-      'module-1',
-      'A deteção não deve alterar silenciosamente a regra atual de atribuição.'
-    )
-    assert.equal(
-      created.periodCount,
-      2
-    )
-    assert.equal(
-      created.countTowardProgress,
-      true
-    )
-    assert.equal(
-      plan.createdOutsidePlannedCapacity,
-      0,
-      'A fronteira é distinta de uma aula criada quando a UFCD já estava cheia.'
-    )
+    const result =
+      warnings.detectModuleBoundaryWarnings({
+        modules: [
+          moduleUnit('module-1', 1, 3),
+          moduleUnit('module-2', 2, 10)
+        ],
+        lessons: [
+          first,
+          crossing
+        ]
+      })
 
     assert.deepEqual(
-      plan.moduleBoundaryWarnings,
+      result,
       [
         {
-          source: 'planned',
-          lessonId: null,
+          lessonId: 'lesson-2',
           moduleId: 'module-1',
           teachingAssignmentId: 'assignment-1',
           scheduleSlotId: 'slot-1',
@@ -181,5 +140,94 @@ test(
         }
       ]
     )
+
+    assert.equal(
+      crossing.moduleId,
+      'module-1',
+      'A deteção não deve reatribuir a aula.'
+    )
+    assert.equal(
+      crossing.periodCount,
+      2,
+      'A deteção não deve dividir nem reduzir o bloco.'
+    )
+    assert.equal(
+      crossing.countTowardProgress,
+      true,
+      'A deteção não deve alterar a contabilização existente.'
+    )
+  }
+)
+
+test(
+  'cancelled and non-progress lessons do not create false UFCD boundary warnings',
+  async () => {
+    const warnings = await loadWarnings()
+
+    const result =
+      warnings.detectModuleBoundaryWarnings({
+        modules: [
+          moduleUnit('module-1', 1, 3)
+        ],
+        lessons: [
+          lesson({
+            id: 'lesson-1',
+            date: '2026-09-07'
+          }),
+          lesson({
+            id: 'lesson-cancelled',
+            date: '2026-09-14',
+            status: 'cancelled'
+          }),
+          lesson({
+            id: 'lesson-no-progress',
+            date: '2026-09-21',
+            countTowardProgress: false
+          })
+        ]
+      })
+
+    assert.deepEqual(
+      result,
+      []
+    )
+  }
+)
+
+test(
+  'Daily preparation returns persisted UFCD boundary warnings after both S. Bento bootstrap and generic reconciliation',
+  () => {
+    assert.match(
+      dailyPreparationSource,
+      /moduleBoundaryWarningRepository/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /moduleBoundaryWarnings:\s*await moduleBoundaryWarningRepository\.listWarnings/
+    )
+
+    const sBentoPosition =
+      dailyPreparationSource.indexOf(
+        'if (preparation.applied)'
+      )
+    const sBentoWarningPosition =
+      dailyPreparationSource.indexOf(
+        'return readModuleBoundaryWarnings(',
+        sBentoPosition
+      )
+    const reconcilePosition =
+      dailyPreparationSource.indexOf(
+        'await scheduledLessonReconciliationRepository.reconcile('
+      )
+    const genericWarningPosition =
+      dailyPreparationSource.indexOf(
+        'return readModuleBoundaryWarnings(',
+        reconcilePosition
+      )
+
+    assert.ok(sBentoPosition >= 0)
+    assert.ok(sBentoWarningPosition > sBentoPosition)
+    assert.ok(reconcilePosition > sBentoWarningPosition)
+    assert.ok(genericWarningPosition > reconcilePosition)
   }
 )
