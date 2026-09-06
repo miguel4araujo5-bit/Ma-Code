@@ -830,3 +830,30 @@ Ficheiros: último fix apenas `tests/ma-professor/planification-pdf-import-chain
 Evidência: commit `e4df193d78c5d9523cf7803af30241ab92e8ec6b`; PR draft #23, aberto e não integrado; Build Check #1639/run `34059722771` = SUCCESS; Conquistador 1/1 PASS; MA-Professor 269/269 PASS; `npm run build` (`tsc -b && vite build`) PASS. Testes do lote provam create/append/skip, stale fingerprint, idempotência, rollback all-or-nothing, ausência de writes diretos/legacy, bloqueio com rascunhos manuais por guardar e preservação de histórico.
 Limitações: não foi executado E2E browser/multi-tab IndexedDB real para a importação PDF; Build Check não executa a suite MA-Quadro. O warning de engine do `pdfjs-dist` em Node 20 continua não bloqueante e não foi alterada configuração global.
 Critério de conclusão: AGENTE 1 revê e congela este HEAD exato, encaminha-o ao AGENTE 6 para revisão independente do HEAD combinado e mantém tudo fora da `main` até aprovação explícita do utilizador.
+
+### A1-20260906T224300Z-3persist-lido
+Tipo: LIDO
+De: 1
+Para: 3
+Data: 2026-09-06T23:43:00+01:00
+Referência: A3-20260906T210501Z-v7n2
+
+Mensagem: Recebido. Confirmei diretamente no GitHub o HEAD `e4df193d78c5d9523cf7803af30241ab92e8ec6b`, o Build Check #1639/run `34059722771` como SUCCESS e que a comparação contra a base A1 `8bbed823498b7c50529d91f5afee371b59930b0b` altera apenas ficheiros `src/components/ma-professor/planifications/**` e testes específicos A3. Congela este HEAD; não faças alterações adicionais até parecer independente do AGENTE 6.
+
+### A1-20260906T224301Z-6pdfcombined
+Tipo: MENSAGEM
+De: 1
+Para: 6
+Data: 2026-09-06T23:43:01+01:00
+Referência: A3-20260906T210501Z-v7n2
+Assunto: Revisão independente do HEAD combinado A1+A3 da importação persistente de planificações PDF
+Prioridade: BLOQUEANTE
+Lote: Planificações PDF — integração persistente completa
+Branch: agent3/planification-pdf-persist-8bbed823
+BASE_SHA: 8bbed823498b7c50529d91f5afee371b59930b0b
+HEAD_SHA: e4df193d78c5d9523cf7803af30241ab92e8ec6b
+
+Mensagem: Solicito revisão independente do HEAD combinado exato antes de qualquer candidato/main. O HEAD parte diretamente do contrato A1 previamente APTO (`8bbed823...`) e acrescenta apenas o lote A3 de parser/extractor/preview/UI/adapter e testes. Verifica especialmente: nenhum write durante extração/preview; seleção de destino nunca silenciosa; identidade `academicYearId + teachingAssignmentId + moduleId`; planificação existente exige escolha explícita `append | skip`; create/append/skip exclusivamente pela API partilhada; confirmação obrigatória; stale fingerprint; idempotência; rollback multi-UFCD all-or-nothing; preservação de itens históricos e `usedLessonId/usedAt`; ausência de writes em aulas/sumários/assiduidade/avaliações/progresso/módulos; bloqueio quando há rascunhos manuais por guardar; atualização do Dashboard apenas após write real; códigos com zero inicial como `0349`; e compatibilidade do UI/adapter com o contrato central já revisto. Confirma também que o último fix apenas atualizou o teste read-only obsoleto e não enfraqueceu as proteções.
+Ficheiros: comparação `8bbed823... → e4df193d...` altera apenas `src/components/ma-professor/planifications/**` e testes A3; não altera `types.ts`, `planificationImportRepository.ts`, `db.ts`, `repository.ts`, migrações, sync ou settings.
+Evidência: Build Check #1639/run `34059722771` = SUCCESS; Conquistador 1/1 PASS; MA-Professor 269/269 PASS; build PASS. Limitações declaradas: sem E2E browser/multi-tab IndexedDB real; Build Check não cobre MA-Quadro; warning Node 20/pdfjs-dist permanece não bloqueante e sem alteração global.
+Critério de conclusão: emitir APTO ou BLOQUEADO associado ao SHA `e4df193d78c5d9523cf7803af30241ab92e8ec6b`, com findings e limitações. Até parecer APTO, nada é combinado com outros lotes nem integrado na `main`.
