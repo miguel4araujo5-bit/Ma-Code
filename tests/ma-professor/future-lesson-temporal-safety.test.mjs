@@ -40,25 +40,33 @@ const temporalSafetySource = await readFile(
   'utf8'
 )
 
-const repositorySource = await readFile(
+const lessonRepositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/lessons/lessonRepositoryBase.ts',
+    '../../src/components/ma-professor/lessons/lessonRepository.ts',
     import.meta.url
   ),
   'utf8'
 )
 
-const dailyViewSource = await readFile(
+const dailyRepositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    '../../src/components/ma-professor/daily/dailyWorkspaceRepository.ts',
     import.meta.url
   ),
   'utf8'
 )
 
-const calendarEditorSource = await readFile(
+const attendanceRepositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/calendar/LessonEditorDialogBase.tsx',
+    '../../src/components/ma-professor/attendance/attendanceRepositoryBase.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const assessmentRepositorySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/assessmentRepository.ts',
     import.meta.url
   ),
   'utf8'
@@ -70,7 +78,8 @@ const temporalSafetyModule = await import(
 
 const {
   assertLessonNotTaughtInFuture,
-  isFutureLessonDate
+  isFutureLessonDate,
+  resolveLessonStatusForDate
 } = temporalSafetyModule
 
 test(
@@ -103,184 +112,201 @@ test(
 )
 
 test(
-  'domain guard rejects taught future lessons but preserves planned preparation',
+  'future preparation stays planned while today past and cancellation keep their normal status',
   () => {
     const referenceDate = '2026-09-06'
 
-    assert.doesNotThrow(() =>
-      assertLessonNotTaughtInFuture(
+    assert.equal(
+      resolveLessonStatusForDate(
         '2026-09-07',
-        'planned',
+        'taught',
         referenceDate
-      )
+      ),
+      'planned'
+    )
+    assert.equal(
+      resolveLessonStatusForDate(
+        '2026-09-06',
+        'taught',
+        referenceDate
+      ),
+      'taught'
+    )
+    assert.equal(
+      resolveLessonStatusForDate(
+        '2026-09-05',
+        'taught',
+        referenceDate
+      ),
+      'taught'
+    )
+    assert.equal(
+      resolveLessonStatusForDate(
+        '2026-09-07',
+        'cancelled',
+        referenceDate
+      ),
+      'cancelled'
+    )
+  }
+)
+
+test(
+  'explicit future GIAE/taught guard still rejects invalid submitted-state paths',
+  () => {
+    assert.throws(
+      () =>
+        assertLessonNotTaughtInFuture(
+          '2026-09-07',
+          'taught',
+          '2026-09-06'
+        ),
+      /aula futura não pode ser marcada como dada/i
     )
 
     assert.doesNotThrow(() =>
       assertLessonNotTaughtInFuture(
         '2026-09-06',
         'taught',
-        referenceDate
+        '2026-09-06'
       )
-    )
-
-    assert.throws(
-      () =>
-        assertLessonNotTaughtInFuture(
-          '2026-09-07',
-          'taught',
-          referenceDate
-        ),
-      /aula futura não pode ser marcada como dada/i
     )
   }
 )
 
 test(
-  'lesson repository enforces the temporal guard for saves and GIAE submission paths',
+  'lesson repository normalizes future taught writes and guards GIAE individual and bulk submission',
   () => {
     assert.match(
-      repositorySource,
+      lessonRepositorySource,
+      /override async createLesson\([\s\S]*resolveLessonStatusForDate\(/s
+    )
+    assert.match(
+      lessonRepositorySource,
+      /override async updateLesson\([\s\S]*const nextStatus =[\s\S]*resolveLessonStatusForDate\(/s
+    )
+
+    const submittedStart =
+      lessonRepositorySource.indexOf(
+        'override async markGIAESubmitted('
+      )
+    const manyStart =
+      lessonRepositorySource.indexOf(
+        'override async markManyGIAESubmitted(',
+        submittedStart
+      )
+
+    assert.ok(
+      submittedStart >= 0 &&
+      manyStart > submittedStart
+    )
+
+    assert.match(
+      lessonRepositorySource.slice(
+        submittedStart,
+        manyStart
+      ),
       /assertLessonNotTaughtInFuture\(\s*lesson\.date,\s*lesson\.status\s*\)/s
     )
 
-    const markSubmittedStart =
-      repositorySource.indexOf(
-        'async markGIAESubmitted('
-      )
-    const markPendingStart =
-      repositorySource.indexOf(
-        'async markGIAEPending(',
-        markSubmittedStart
-      )
-    const markSubmittedBody =
-      repositorySource.slice(
-        markSubmittedStart,
-        markPendingStart
-      )
-
     assert.match(
-      markSubmittedBody,
-      /assertLessonNotTaughtInFuture\(\s*lesson\.date,\s*lesson\.status\s*\)/s
-    )
-
-    const markManyStart =
-      repositorySource.indexOf(
-        'async markManyGIAESubmitted('
-      )
-    const previousTemplateStart =
-      repositorySource.indexOf(
-        'async getPreviousLessonTemplate(',
-        markManyStart
-      )
-    const markManyBody =
-      repositorySource.slice(
-        markManyStart,
-        previousTemplateStart
-      )
-
-    assert.match(
-      markManyBody,
+      lessonRepositorySource.slice(
+        manyStart
+      ),
       /assertLessonNotTaughtInFuture\(\s*lesson\.date,\s*lesson\.status\s*\)/s
     )
   }
 )
 
 test(
-  'Daily keeps future preparation planned and blocks attendance assessment and GIAE actions',
+  'Daily future preparation rejects GIAE attendance and assessment input before persistence',
   () => {
-    assert.match(
-      dailyViewSource,
-      /const isFutureLesson =\s*Boolean\([\s\S]*isFutureLessonDate\([\s\S]*lessonRow\.lesson\.date/s
-    )
-
     const saveStart =
-      dailyViewSource.indexOf(
-        'async function saveAll('
+      dailyRepositorySource.indexOf(
+        'async saveLesson('
       )
-    const navigationStart =
-      dailyViewSource.indexOf(
-        'async function saveBeforeNavigation()',
+    const describeStart =
+      dailyRepositorySource.indexOf(
+        'describeError(',
         saveStart
       )
     const saveBody =
-      dailyViewSource.slice(
+      dailyRepositorySource.slice(
         saveStart,
-        navigationStart
+        describeStart
       )
 
     assert.match(
       saveBody,
-      /const effectiveStatus:[\s\S]*isFutureLesson\s*\?\s*'planned'/s
-    )
-
-    const nextPlanificationStart =
-      dailyViewSource.indexOf(
-        'function useNextPlanificationItem()'
-      )
-    const previousLessonStart =
-      dailyViewSource.indexOf(
-        'function copyPreviousLesson()',
-        nextPlanificationStart
-      )
-    const attendanceStart =
-      dailyViewSource.indexOf(
-        'function markAllPresent()',
-        previousLessonStart
-      )
-
-    assert.match(
-      dailyViewSource.slice(
-        nextPlanificationStart,
-        previousLessonStart
-      ),
-      /isFutureLesson[\s\S]*\?\s*'planned'/s
-    )
-
-    assert.match(
-      dailyViewSource.slice(
-        previousLessonStart,
-        attendanceStart
-      ),
-      /isFutureLesson[\s\S]*\?\s*'planned'/s
-    )
-
-    assert.match(
-      dailyViewSource,
-      /lessonForm\.giaeStatus ===[\s\S]*disabled=\{[\s\S]*isFutureLesson/s
+      /const futurePreparation =[\s\S]*isFutureLessonDate\(/s
     )
     assert.match(
-      dailyViewSource,
-      /onClick=\{\s*markAllPresent\s*\}[\s\S]*disabled=\{[\s\S]*isFutureLesson/s
+      saveBody,
+      /const effectiveStatus =[\s\S]*resolveLessonStatusForDate\(/s
     )
     assert.match(
-      dailyViewSource,
-      /onClick=\{\(\) =>[\s\S]*changeAssessment\([\s\S]*'new'[\s\S]*disabled=\{[\s\S]*isFutureLesson/s
+      saveBody,
+      /futurePreparation &&[\s\S]*input\.giaeStatus ===[\s\S]*'submitted'[\s\S]*aula futura não pode ser marcada como submetida no GIAE/i
+    )
+    assert.match(
+      saveBody,
+      /futurePreparation &&[\s\S]*input\.assessment\.mode !==[\s\S]*'none'[\s\S]*aula futura ainda não pode receber avaliações/i
+    )
+    assert.match(
+      saveBody,
+      /futurePreparation &&[\s\S]*hasFutureAttendanceOrAssessmentInput\([\s\S]*aula futura ainda não pode receber faltas ou classificações/i
+    )
+    assert.match(
+      saveBody,
+      /status:\s*currentEffectiveStatus/s
     )
   }
 )
 
 test(
-  'Calendar editor prevents a future lesson from being marked taught or submitted',
+  'Daily only persists attendance and assessments after the normalized lesson is actually taught',
+  () => {
+    const updatedStatusGuard =
+      dailyRepositorySource.indexOf(
+        "updated.status !==\n          'taught'"
+      )
+    const attendanceSave =
+      dailyRepositorySource.indexOf(
+        'attendanceRepository.saveLessonAttendance(',
+        updatedStatusGuard
+      )
+    const assessmentCreate =
+      dailyRepositorySource.indexOf(
+        'assessmentRepository.createLessonAssessment(',
+        attendanceSave
+      )
+
+    assert.ok(
+      updatedStatusGuard >= 0,
+      'Deve existir saída antecipada quando a aula normalizada não está dada.'
+    )
+    assert.ok(
+      attendanceSave > updatedStatusGuard,
+      'A assiduidade só deve ser guardada depois da verificação do estado efetivo.'
+    )
+    assert.ok(
+      assessmentCreate > attendanceSave,
+      'A avaliação deve ficar atrás da mesma barreira de estado efetivo.'
+    )
+  }
+)
+
+test(
+  'attendance and assessment repositories already require a taught lesson',
   () => {
     assert.match(
-      calendarEditorSource,
-      /const isFutureLesson =\s*isFutureLessonDate\(\s*form\.date\s*\)/s
+      attendanceRepositorySource,
+      /async saveLessonAttendance\([\s\S]*lesson\.status !==[\s\S]*'taught'[\s\S]*assiduidade só pode ser guardada depois de a aula ser marcada como dada/i
     )
+
     assert.match(
-      calendarEditorSource,
-      /taughtDisabled=\{isFutureLesson\}/s
-    )
-    assert.match(
-      calendarEditorSource,
-      /const canSubmitToGIAE =\s*!isFutureLesson\s*&&/s
-    )
-    assert.match(
-      calendarEditorSource,
-      /Marcar como dada[\s\S]*disabled=\{\s*saving\s*\|\|\s*isFutureLesson\s*\}/s
-    )
-    assert.match(
-      calendarEditorSource,
-      /form\.status === 'taught'\s*&&\s*!isFutureLesson/s
+      assessmentRepositorySource,
+      /async createLessonAssessment\([\s\S]*context\.lesson\.status !==[\s\S]*'taught'[\s\S]*avaliação só pode ser registada depois de a aula ser marcada como dada/i
     )
   }
 )
