@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -13,6 +14,9 @@ import {
 import {
   calendarRepository
 } from '../calendar/calendarRepository'
+import {
+  useMAProfessorUnsavedWorkspaceProtection
+} from '../navigation/useUnsavedWorkspaceProtection'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -129,6 +133,9 @@ const weekdayPatterns: Array<{
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
+
+const UNSAVED_SCHEDULE_IMPORT_MESSAGE =
+  'Existe uma proposta de horário importada por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
 
 function normalize(value: string) {
   return value
@@ -981,6 +988,9 @@ export default function SchedulePdfImportStep({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const rootRef =
+    useRef<HTMLDivElement>(null)
+
   const included = useMemo(
     () => drafts.filter(
       draft => draft.included
@@ -1398,12 +1408,38 @@ export default function SchedulePdfImportStep({
     drafts.length > 0 ||
     duties.length > 0
 
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasProposal,
+    rootRef,
+    UNSAVED_SCHEDULE_IMPORT_MESSAGE
+  )
+
+  function requestContinueWithoutPdf() {
+    if (!hasProposal) {
+      onContinueWithoutPdf()
+      return
+    }
+
+    if (
+      !window.confirm(
+        UNSAVED_SCHEDULE_IMPORT_MESSAGE
+      )
+    ) {
+      return
+    }
+
+    onContinueWithoutPdf()
+  }
+
   const includedCount =
     included.length +
     includedDuties.length
 
   return (
-    <div className="mx-auto max-w-[100rem]">
+    <div
+      ref={rootRef}
+      className="mx-auto max-w-[100rem]"
+    >
       <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-7 lg:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-3xl">
@@ -1451,7 +1487,7 @@ export default function SchedulePdfImportStep({
             <button
               type="button"
               disabled={busy}
-              onClick={onContinueWithoutPdf}
+              onClick={requestContinueWithoutPdf}
               className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-3.5 text-sm font-bold text-slate-300 transition hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-50"
             >
               Continuar sem PDF
@@ -1779,7 +1815,7 @@ export default function SchedulePdfImportStep({
             <div className="mt-5 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
-                onClick={onContinueWithoutPdf}
+                onClick={requestContinueWithoutPdf}
                 disabled={busy}
                 className="rounded-xl border border-white/10 bg-white/[0.025] px-4 py-2.5 text-sm font-bold text-slate-400 transition hover:text-white disabled:opacity-50"
               >
