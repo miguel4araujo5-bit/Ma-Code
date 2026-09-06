@@ -303,6 +303,10 @@ export type LearningRecoveryStatus =
   | 'in_progress'
   | 'completed'
 
+export type LearningRecoveryOrigin =
+  | 'automatic_threshold'
+  | 'manual'
+
 export interface LearningRecovery extends AuditFields {
   id: EntityId
   academicYearId: EntityId
@@ -319,6 +323,8 @@ export interface LearningRecovery extends AuditFields {
   status: LearningRecoveryStatus
   result: string
   completedAt: ISODateTime | null
+  origin?: LearningRecoveryOrigin
+  teacherTouchedAt?: ISODateTime | null
 }
 
 export interface MAProfessorSettings extends AuditFields {
