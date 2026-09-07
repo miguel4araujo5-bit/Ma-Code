@@ -1315,6 +1315,7 @@ export default function WeeklyScheduleSetupStep({
                           .target
                           .value
                     })
+                  )
                 }
                 placeholder="1"
                 required
@@ -1711,7 +1712,7 @@ export default function WeeklyScheduleSetupStep({
                 uncoveredAssignments.length
               }{' '}
               {uncoveredAssignments.length ===
-              1
+                1
                 ? 'turma e disciplina'
                 : 'turmas e disciplinas'}
               .
