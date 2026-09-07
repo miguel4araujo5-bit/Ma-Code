@@ -246,6 +246,25 @@ async function hashToken(
   )
 }
 
+async function hashLegacyToken(
+  token: string
+) {
+  const hash =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder()
+        .encode(token)
+    )
+
+  return Array.from(
+    new Uint8Array(hash),
+    byte =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
+}
+
 function getDaysRemaining(
   validUntil: number,
   now: number
@@ -413,6 +432,37 @@ export class MaProfessorAccessDurableObject {
         this.state,
         this.env
       )
+  }
+
+  private async findSession(
+    accessState:
+      AccessStateSnapshot,
+    token: string
+  ) {
+    const sessions =
+      accessState.sessions
+
+    if (!sessions) {
+      return null
+    }
+
+    const canonicalTokenHash =
+      await hashToken(token)
+    const canonicalSession =
+      sessions[
+        canonicalTokenHash
+      ]
+
+    if (canonicalSession) {
+      return canonicalSession
+    }
+
+    const legacyTokenHash =
+      await hashLegacyToken(token)
+
+    return sessions[
+      legacyTokenHash
+    ] ?? null
   }
 
   private async issueAccountSession(
@@ -684,12 +734,11 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const tokenHash =
-      await hashToken(token)
     const session =
-      accessState.sessions[
-        tokenHash
-      ]
+      await this.findSession(
+        accessState,
+        token
+      )
 
     if (
       !session ||
@@ -715,6 +764,8 @@ export class MaProfessorAccessDurableObject {
       STORAGE_KEY,
       accessState
     )
+
+    this.refreshExisting()
 
     const license =
       accessState
@@ -784,12 +835,11 @@ export class MaProfessorAccessDurableObject {
         )
 
       if (accessState?.sessions) {
-        const tokenHash =
-          await hashToken(token)
         const session =
-          accessState.sessions[
-            tokenHash
-          ]
+          await this.findSession(
+            accessState,
+            token
+          )
 
         if (
           session &&
@@ -807,6 +857,8 @@ export class MaProfessorAccessDurableObject {
             STORAGE_KEY,
             accessState
           )
+
+          this.refreshExisting()
         }
       }
     }
