@@ -2,9 +2,25 @@
 
 Atualizado por: AGENTE 1 — SEGUNDA GERAÇÃO (A1-G2)
 Sessão: A1-G2
-Data da verificação: 2026-09-07T12:07:00+01:00
+Data da verificação: 2026-09-07T12:24:00+01:00
 Último evento processado no canal ativo: `A2-20260907T102300Z-g2r1`
 Fonte técnica: `main` em `344841c1fc402e813f9d8658d96fa20b0fefa779`; este ficheiro é coordenação e não substitui a `main`.
+
+## Regra obrigatória de comunicação direta
+
+A instrução do utilizador de 2026-09-07T12:20+01:00 elimina o utilizador como intermediário normal entre agentes. O AGENTE 1 formalizou a regra em `AGENT_PROTOCOL_V1_1.md`, commit `492cbd1423f962612089a4bf1eb4f93472f12b64`.
+
+A partir desta atualização:
+
+- pedidos de coordenação, dependências, bloqueios, ownership, entregas, testes/revisões e handoffs são publicados diretamente em `AGENT_MESSAGES.md`;
+- nenhum agente com acesso ao canal pede ao utilizador para copiar ou encaminhar mensagens a outro agente;
+- antes de repetir um pedido, deve verificar a referência existente e continuar a mesma sequência;
+- publicar não significa que o destinatário leu ou executou; não há polling contínuo;
+- perguntas exclusivamente dependentes do utilizador são centralizadas pelo A1-G2;
+- apenas A1-G2 altera `AGENT_STATUS.md` e as regras do protocolo;
+- a conversa de cada agente deve resumir apenas o que concluiu, o que efetivamente publicou e o que falta.
+
+Esta regra não altera ownership, revisões, segurança, branches APTO nem autorização de `main`.
 
 ## Transição G2 e exclusividade
 
@@ -32,24 +48,24 @@ Fonte técnica: `main` em `344841c1fc402e813f9d8658d96fa20b0fefa779`; este fiche
 | `PDF-IMPORT` | Importação persistente de planificações | PR #23 contém contrato A1 do PR #21 e lote A3 final; `0349`, destinos, create/append/skip, stale/idempotência cobertos | A1-G2 + A3-G2 apenas para smoke; **branch congelada** | Não alterar | Smoke real + candidato combinado | `agent3/planification-pdf-persist-8bbed823` / `e4df193d78c5d9523cf7803af30241ab92e8ec6b`; PR #23 | #1639 SUCCESS; MA-Professor 269/269, Conquistador, build; Workers SUCCESS | **APTO** `A6-20260906T225903Z-pdfapto` | Manter congelado; no candidato testar PDF real, reload, ambiguidade, concorrência com formulário manual e dados descartáveis |
 | `BACKUP-ATOMIC` | Preservação/recuperação | Restore/reset atómicos; rollback real Dexie 2/2 previamente provado | **A5-G2**, lote histórico congelado | `settings/backupRepository.ts` + teste aprovado; manifesto A5-G2 mantém `sync/**`, `settings/**` exceto `LicenseSettingsPanel.tsx`/`SettingsWorkspaceView.tsx`, e workers `maProfessorRecovery.ts`, `maProfessorSnapshot.ts`, `maProfessorSync.ts` | Não reabrir investigação encerrada | `agent5/data-preservation-344841c` / `94fd528ac0a38d4eca7b56a83cd160a0616a84df`; PR #18 | #1635 SUCCESS; 252/252, Conquistador, build, Workers | **APTO** `A6-20260906T203634Z-b5apto` | Handoff A5-G2 concluído. Manter branch congelada. A5-G2 pode continuar apenas diagnóstico independente; novo write só após finding reproduzido e em branch nova |
 | `CI-ISOLATION` | Fiabilidade de validação global | PRs #25/#26 correram em paralelo sem cancelamento cruzado; workflow inclui Conquistador, MA-Professor, MA-Quadro e build | **A1-G2** | `.github/workflows/deploy.yml` | Nenhuma para lote isolado | `agent1/ci-isolation-maquadro-344841c` / `745dab64e2355b1e14a36687d60a21e77b6e0f34`; PR #24 draft | #1640 SUCCESS; Conquistador 1/1, MA-Professor 246/246, MA-Quadro 15/15, build PASS | **APTO** A6 em 2026-09-07T09:48:04Z | Congelar. Elegível uma vez no futuro candidato; não integrar sem aprovação do utilizador |
-| `COMM-01` | Integridade da coordenação / risco de decisões perdidas | `5f4ace... → e623cb6...`: 1 adição / 20 eliminações em `AGENT_MESSAGES.md`; evento A5-G2 desapareceu do conteúdo ativo embora permaneça na história | **A1-G2** | `coordination/agents/AGENT_MESSAGES.md` e este status | Evitar nova substituição concorrente; não reescrever eventos existentes | `coordination/agents` HEAD observado `9b1723636f98018c599f12e7f0fa4970713a6d61` | n/a | n/a | Restaurar por append verificável o evento A5-G2 e publicar eventos A1-G2 sem apagar A2/A3; confirmar por leitura. Até lá, este status é o checkpoint de handoff |
+| `COMM-01` | Integridade da coordenação / risco de decisões perdidas | `5f4ace... → e623cb6...`: 1 adição / 20 eliminações em `AGENT_MESSAGES.md`; evento A5-G2 desapareceu do conteúdo ativo embora permaneça na história | **A1-G2** | `coordination/agents/AGENT_MESSAGES.md` e este status | Evitar nova substituição concorrente; não reescrever eventos existentes | `coordination/agents`; protocolo direto formalizado em `492cbd1423f962612089a4bf1eb4f93472f12b64` | n/a | n/a | Restaurar por append verificável o evento A5-G2 e publicar a adoção A1-G2 no canal ativo sem apagar A2/A3; confirmar por leitura. Até lá, protocolo + status são checkpoint oficial |
 
 ## Handoffs G2 — instruções atuais
 
 ### A2-G2
-Passagem confirmada. O antecessor fica parado para novos writes. Usar exclusivamente `agent2-g2/access-session-contract-7ec8904` para o lote `A2-NR-01`; a branch histórica não deve avançar. Prioridade máxima por ser acesso.
+Passagem confirmada. O antecessor fica parado para novos writes. Usar exclusivamente `agent2-g2/access-session-contract-7ec8904` para o lote `A2-NR-01`; a branch histórica não deve avançar. Prioridade máxima por ser acesso. Comunicar resultados/bloqueios diretamente pelo canal; não usar o utilizador como mensageiro.
 
 ### A3-G2
-Passagem confirmada. O PR #23 permanece congelado. Para Horário/Xadrez usar exclusivamente `agent3-g2/schedule-pdf-xadrez-344841c`. `src/lib/maPdf/extractPdfText.ts` **não** é transferido; A3-G2 deve pedir autorização se provar que precisa de o alterar.
+Passagem confirmada. O PR #23 permanece congelado. Para Horário/Xadrez usar exclusivamente `agent3-g2/schedule-pdf-xadrez-344841c`. `src/lib/maPdf/extractPdfText.ts` **não** é transferido; A3-G2 deve pedir autorização ao A1 pelo canal se provar que precisa de o alterar.
 
 ### A4-G2
-Passagem de função reconhecida. Primeiro lote autorizado: `A4-DAILY-NR-01` em `agent4-g2/daily-null-assessment-9bde7c4`. O consumo GIAE fica em fila e não deve ser implementado simultaneamente. `lessonRepositoryBase.ts` continua A1.
+Passagem de função reconhecida. Primeiro lote autorizado: `A4-DAILY-NR-01` em `agent4-g2/daily-null-assessment-9bde7c4`. O consumo GIAE fica em fila e não deve ser implementado simultaneamente. `lessonRepositoryBase.ts` continua A1. Dependências devem ser publicadas diretamente no canal.
 
 ### A5-G2
 Passagem confirmada. O PR #18 fica congelado e não é reaberto. O manifesto indicado na mensagem histórica `A5-20260907T102830Z-g2r5` é aceite: `sync/**`, `settings/**` exceto `LicenseSettingsPanel.tsx` e `SettingsWorkspaceView.tsx`, mais `worker/maProfessorRecovery.ts`, `worker/maProfessorSnapshot.ts`, `worker/maProfessorSync.ts`. Persistência central, tipos, migrações, composição e partilhados continuam A1. Hipóteses ainda não reproduzidas não autorizam correção funcional.
 
 ### A6-G2
-Passagem de função reconhecida. Mantém independência: não altera código funcional, não integra e não publica. Pareceres são sempre por SHA exato. PR #24 e contrato PR #27 já têm pareceres A6 válidos acima; PR #17 está bloqueado e deve ser reavaliado apenas no novo SHA A4-G2.
+Passagem de função reconhecida. Mantém independência: não altera código funcional, não integra e não publica. Pareceres são sempre por SHA exato. PR #24 e contrato PR #27 já têm pareceres A6 válidos acima; PR #17 está bloqueado e deve ser reavaliado apenas no novo SHA A4-G2. Publicar pareceres diretamente no canal, sem pedir encaminhamento ao utilizador.
 
 ## Candidato
 
@@ -69,8 +85,8 @@ Não elegíveis atualmente:
 
 ## Próximas ações A1-G2
 
-1. Reparar `COMM-01` sem reescrever/apagar eventos: restaurar por append o evento A5-G2 perdido e publicar a sucessão/handoffs A1-G2 no canal ativo.
+1. Reparar `COMM-01` sem reescrever/apagar eventos: restaurar por append o evento A5-G2 perdido e publicar a adoção A1-G2 no canal ativo quando a escrita puder preservar integralmente o ficheiro.
 2. Não tocar na `main`.
-3. Receber A2-G2 como primeiro bloqueio prioritário e A4-G2 Daily como risco de dados; manter GIAE em fila para evitar dois lotes ativos no mesmo agente.
+3. Receber diretamente pelo canal A2-G2 como primeiro bloqueio prioritário e A4-G2 Daily como risco de dados; manter GIAE em fila para evitar dois lotes ativos no mesmo agente.
 4. Preservar PR #23, PR #18 e PR #24 nos SHAs A6-APTOS.
 5. Após cada novo HEAD, atualizar esta fila com CI, parecer A6, limitações e próxima ação.
