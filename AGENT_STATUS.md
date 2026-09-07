@@ -2,9 +2,9 @@
 
 Atualizado por: AGENTE 1 — SEGUNDA GERAÇÃO (A1-G2)
 Sessão: A1-G2
-Data da verificação: 2026-09-07T13:22:00+01:00
+Data da verificação: 2026-09-07T22:08:10+01:00
 Último evento processado no canal ativo: `A4-20260907T120048Z-cfdep`
-Evidência externa mais recente processada: parecer A6-G2 no PR #29, 2026-09-07T12:21:13Z, HEAD `df7098fe510aa79fc72bde035053389045a8d117` — **APTO**.
+Evidência externa mais recente processada: comunicação A1-G2 no PR #23 em 2026-09-07T21:05:26Z para o lote `A3-SETUP-ACTION-COLORS-01`; ainda sem resposta A3/A6 e branch visual ainda sem commits.
 Fonte técnica: `main` confirmada em `344841c1fc402e813f9d8658d96fa20b0fefa779`; este ficheiro é coordenação e não substitui a `main`.
 
 ## Regra obrigatória de comunicação direta
@@ -50,6 +50,7 @@ Nada nesta regra altera ownership, revisões, branches APTO ou a proibição de 
 | `A4-GIAE-NR-02` | **BLOQUEIO FUNCIONAL / falso sucesso** na re-submissão explícita | PR #22 `efa7446...` pode apresentar sucesso deixando `pending`; contrato A1 opt-in PR #27 já foi validado | **A4-G2** | A4 apenas `giae/**` + testes. API autorizada: `src/components/ma-professor/giaeExplicitSubmissionRepository.ts`; `lessonRepositoryBase.ts` continua A1 | Daily já APTO; contrato PR #27 APTO; `DEPLOY-PR-01` limita PR/CI | Base de consumo deve partir do contrato `f314a8b6379d876cacacb96481cbf40effd2d5ce`; PR #22 histórico não deve avançar | #1637 e #1643 SUCCESS nos antecessores | Contrato PR #27 **APTO PARA CONSUMO CONTROLADO**; GIAE combinado ainda **BLOQUEADO** | A4-G2 pode agora iniciar o consumo controlado numa branch nova baseada em `f314a8b...`, alterando só `giae/**` e testes. Provar single/bulk/stale/clipboard/falso-sucesso. **Parar antes de novo PR/push para CI** enquanto `DEPLOY-PR-01` estiver aberto |
 | `A3-HORARIO-XADREZ-01` | **BLOQUEIO DE UTILIZAÇÃO** — `Clube Xadrez` não reconhecido/importado corretamente | PDF real confirma `Clube Xadrez` terça 15:20–16:10; diagnóstico aponta `SchedulePdfImportStep.tsx` e possível extrator partilhado | **A3-G2** | Pode alterar `setup/SchedulePdfImportStep.tsx` e testes A3; `src/lib/maPdf/extractPdfText.ts` reservado A1 | Separado do PR #23; não publicar PDF privado; `DEPLOY-PR-01` limita PR/CI | `agent3-g2/schedule-pdf-xadrez-344841c` | Pendente | Pendente | Reproduzir/corrigir no domínio A3; se precisar do extrator partilhado, pedir contrato ao A1; checkpoint antes de PR/CI |
 | `A3-PTPT-COPY-01` | **LINGUAGEM / UX** | Ambas as frases estão em `src/components/ma-professor/setup/SetupConfirmationStep.tsx` | **A3-G2** | `SetupConfirmationStep.tsx` | Alteração textual; não tocar no PR #23 congelado | Branch A3-G2 ativa adequada | Pendente | Pendente | `Revisei...` → `Revi...`; `cópias cifradas online` → `cópias de segurança cifradas online`; validar proporcionalmente; sem novo PR apenas para copy enquanto `DEPLOY-PR-01` estiver aberto |
+| `A3-SETUP-ACTION-COLORS-01` | **UX / orientação visual** — ação de avanço deve ser imediatamente distinguível da conclusão e de ações secundárias, sem “arco-íris” | Contrato A1 `A1_UI_ACTION_COLOR_CONTRACT.md`; comunicação A1 no PR #23 em 2026-09-07T21:05:26Z; branch verificada ainda idêntica à base | **A3-G2**; revisão **A6-G2** | Apenas `src/components/ma-professor/setup/**` + testes próprios do setup. Não alterar comportamento/persistência. Paleta: ciano=avançar; verde=concluir/sucesso real; slate=secundário; vermelho=destrutivo | Separado de PR #23, Horário/Xadrez e contratos partilhados; `DEPLOY-PR-01` impede novo PR/CI sem checkpoint A1 | `agent3-g2/setup-action-colors-344841c` / ainda `344841c1fc402e813f9d8658d96fa20b0fefa779` | Pendente | Pendente | **A3-G2 pode iniciar já.** Inventariar CTAs, aplicar regra sem mudança funcional, preservar focus/disabled/contraste e proteções de dados. Comunicar HEAD ao A1; A6 revê o SHA exato. Parar antes de PR/CI enquanto `DEPLOY-PR-01` estiver aberto |
 | `PDF-IMPORT` | Importação persistente de planificações | PR #23 contém contrato A1 e lote A3; `0349`, destinos, create/append/skip, stale/idempotência cobertos | A1-G2 + A3-G2 apenas para smoke; branch congelada | Não alterar | Smoke real + candidato combinado | `agent3/planification-pdf-persist-8bbed823` / `e4df193d78c5d9523cf7803af30241ab92e8ec6b`; PR #23 | #1639 SUCCESS; MA-Professor 269/269; Conquistador; build; Workers | **APTO** `A6-20260906T225903Z-pdfapto` | Manter congelado; no candidato testar PDF real, reload, ambiguidade, concorrência com formulário manual e dados descartáveis |
 | `BACKUP-ATOMIC` | Preservação/recuperação | Restore/reset atómicos; rollback real Dexie 2/2 anteriormente provado | **A5-G2**, lote histórico congelado | `settings/backupRepository.ts` + teste; manifesto A5-G2 separado | Não reabrir investigação encerrada | `agent5/data-preservation-344841c` / `94fd528ac0a38d4eca7b56a83cd160a0616a84df`; PR #18 | #1635 SUCCESS; 252/252; Conquistador; build; Workers | **APTO** `A6-20260906T203634Z-b5apto` | Manter congelado. Novo write apenas em branch nova após finding reproduzido; respeitar `DEPLOY-PR-01` |
 | `CI-ISOLATION` | Fiabilidade de validação global | PRs #25/#26 correram em paralelo; workflow inclui Conquistador, MA-Professor, MA-Quadro e build | **A1-G2** | `.github/workflows/deploy.yml` | Interação com `DEPLOY-PR-01` | `agent1/ci-isolation-maquadro-344841c` / `745dab64e2355b1e14a36687d60a21e77b6e0f34`; PR #24 | #1640 SUCCESS; MA-Quadro 15/15 | **APTO** A6 2026-09-07T09:48:04Z | Congelar; elegível para futuro candidato; não usar novos PRs descartáveis enquanto `DEPLOY-PR-01` estiver aberto |
@@ -64,16 +65,16 @@ Nada nesta regra altera ownership, revisões, branches APTO ou a proibição de 
 Passagem confirmada. Usar exclusivamente `agent2-g2/access-session-contract-7ec8904` para `A2-NR-01`. Pode continuar prova/correção na branch; parar antes de novo PR/CI por `DEPLOY-PR-01`.
 
 ### A3-G2
-Passagem confirmada. PR #23 congelado. Horário/Xadrez apenas em `agent3-g2/schedule-pdf-xadrez-344841c`; extrator partilhado não transferido. `A3-PTPT-COPY-01` também é A3-G2. Parar antes de novo PR/CI por `DEPLOY-PR-01`.
+Passagem confirmada. PR #23 congelado. Horário/Xadrez apenas em `agent3-g2/schedule-pdf-xadrez-344841c`; extrator partilhado não transferido. `A3-PTPT-COPY-01` também é A3-G2. **Novo lote autorizado `A3-SETUP-ACTION-COLORS-01`**: usar exclusivamente `agent3-g2/setup-action-colors-344841c`, base `344841c1fc402e813f9d8658d96fa20b0fefa779`, apenas `src/components/ma-professor/setup/**` + testes próprios. Contrato obrigatório: `A1_UI_ACTION_COLOR_CONTRACT.md`; ciano=avançar, verde=concluir, slate=secundário, vermelho=destrutivo, sem violeta como nova cor de CTA. Pode iniciar implementação já; parar antes de PR/CI por `DEPLOY-PR-01`.
 
 ### A4-G2
-**Daily concluído tecnicamente e APTO no SHA `df7098fe...`; congelar PR #29.** O parecer A6 não autoriza merge/main. O PR #17 fica absorvido pelo PR #29 e não deve ser integrado separadamente. A4-G2 fica agora autorizado a passar ao lote `A4-GIAE-NR-02`: criar/usar branch nova baseada em `f314a8b6379d876cacacb96481cbf40effd2d5ce`, consumir apenas `giaeExplicitSubmissionRepository` dentro de `giae/**` e testes próprios, sem tocar em `lessonRepositoryBase.ts`. Pode desenvolver/provar localmente; parar antes de novo PR/push para CI enquanto `DEPLOY-PR-01` estiver aberto.
+**Daily concluído tecnicamente e APTO no SHA `df7098fe...`; congelar PR #29.** O parecer A6 não autoriza merge/main. O PR #17 fica absorvido pelo PR #29 e não deve ser integrado separadamente. A4-G2 fica agora autorizado a passar ao lote `A4-GIAE-NR-02`: usar a branch `agent4-g2/giae-explicit-resubmit-f314a8b`, criada pelo A1 exatamente a partir de `f314a8b6379d876cacacb96481cbf40effd2d5ce`; consumir apenas `giaeExplicitSubmissionRepository` dentro de `giae/**` e testes próprios, sem tocar em `lessonRepositoryBase.ts`. Pode desenvolver/provar localmente; parar antes de novo PR/push para CI enquanto `DEPLOY-PR-01` estiver aberto.
 
 ### A5-G2
 PR #18 congelado/APTO. Mantém o manifesto já aceite e não reabre o lote. Novo write só em branch nova após finding reproduzido; respeitar `DEPLOY-PR-01`.
 
 ### A6-G2
-Mantém independência. Parecer PR #29 `df7098fe...` **APTO** processado. PR #24 e contrato PR #27 também têm pareceres A6 válidos. O próximo lote A4 a rever será GIAE apenas depois de consumo do contrato e novo SHA/CI; não há pedido novo enquanto `DEPLOY-PR-01` impedir esse passo.
+Mantém independência. Parecer PR #29 `df7098fe...` **APTO** processado. PR #24 e contrato PR #27 também têm pareceres A6 válidos. Para `A3-SETUP-ACTION-COLORS-01`, **aguardar o HEAD final do A3** e depois rever o SHA exato segundo `A1_UI_ACTION_COLOR_CONTRACT.md`: coerência semântica, ausência de arco-íris/cores concorrentes, contraste, focus-visible, disabled, não depender apenas da cor, nenhum comportamento funcional alterado e nenhum ficheiro fora de `setup/**` + testes próprios. Não há parecer até existir novo HEAD.
 
 ## Candidato
 
@@ -90,6 +91,7 @@ Não elegíveis atualmente:
 - GIAE até consumo do contrato PR #27 e revisão A6 do HEAD combinado;
 - Horário/Xadrez;
 - copy PT-PT até commit/validação;
+- `A3-SETUP-ACTION-COLORS-01` até implementação + revisão A6;
 - qualquer combinação ainda não revista por A6 no SHA final.
 
 `DEPLOY-PR-01` continua a impedir preparar novo candidato via PR enquanto não estiver esclarecido o comportamento da integração Cloudflare.
@@ -97,9 +99,10 @@ Não elegíveis atualmente:
 ## Próximas ações A1-G2
 
 1. Não tocar na `main`; continua em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
-2. Congelar PR #29/`df7098fe...` como APTO e nunca integrar PR #17 separadamente.
-3. Autorizar A4-G2 a avançar para o consumo GIAE em branch nova baseada em `f314a8b...`, mas sem novo PR/push para CI enquanto `DEPLOY-PR-01` estiver aberto.
-4. Tratar `DEPLOY-PR-01` antes de novos PRs/CI; confirmar Branch control/configuração Cloudflare quando possível e centralizar qualquer decisão do utilizador.
-5. Manter `COMM-01/02/03` como regra de preservação: não corrigir histórico editando eventos antigos.
-6. Preservar PR #23, PR #18, PR #24 e PR #29 nos SHAs A6-APTOS.
-7. Atualizar esta fila após cada novo HEAD/evento relevante.
+2. A3-G2 deve iniciar `A3-SETUP-ACTION-COLORS-01` na branch dedicada; A6-G2 aguarda o HEAD final e revê-o por SHA exato.
+3. Congelar PR #29/`df7098fe...` como APTO e nunca integrar PR #17 separadamente.
+4. A4-G2 pode avançar para o consumo GIAE em `agent4-g2/giae-explicit-resubmit-f314a8b`, mas sem novo PR/push para CI enquanto `DEPLOY-PR-01` estiver aberto.
+5. Tratar `DEPLOY-PR-01` antes de novos PRs/CI; confirmar Branch control/configuração Cloudflare quando possível e centralizar qualquer decisão do utilizador.
+6. Manter `COMM-01/02/03` como regra de preservação: não corrigir histórico editando eventos antigos.
+7. Preservar PR #23, PR #18, PR #24 e PR #29 nos SHAs A6-APTOS.
+8. Atualizar esta fila após cada novo HEAD/evento relevante.
