@@ -70,18 +70,9 @@ const lessonRepositoryUrl = transpile(`
   }
 
   export const lessonRepository = {
-    async markGIAESubmitted(id) {
-      const current = state();
-      current.singleSubmitCalls += 1;
-      const lesson = getLesson(id);
-      const updated = {
-        ...lesson,
-        giaeStatus: 'submitted',
-        giaeSubmittedAt: '2026-09-06T20:00:00.000Z',
-        updatedAt: 'submitted-v1'
-      };
-      current.lessons.set(id, updated);
-      return clone(updated);
+    async markGIAESubmitted() {
+      state().legacySingleSubmitCalls += 1;
+      throw new Error('Legacy single GIAE submission path must not be used.');
     },
 
     async markGIAEPending(id) {
@@ -96,24 +87,86 @@ const lessonRepositoryUrl = transpile(`
       return clone(updated);
     },
 
-    async markManyGIAESubmitted(ids) {
-      const current = state();
-      current.bulkSubmitCalls += 1;
-      const results = [];
+    async markManyGIAESubmitted() {
+      state().legacyBulkSubmitCalls += 1;
+      throw new Error('Legacy bulk GIAE submission path must not be used.');
+    }
+  };
+`)
 
-      for (const id of ids) {
-        const lesson = getLesson(id);
-        const updated = {
-          ...lesson,
-          giaeStatus: 'submitted',
-          giaeSubmittedAt: '2026-09-06T20:00:00.000Z',
-          updatedAt: 'bulk-submitted-v1'
-        };
-        current.lessons.set(id, updated);
-        results.push(clone(updated));
+const explicitSubmissionUrl = transpile(`
+  const state = () => globalThis.__giaeCopyVersionState;
+  const clone = value => structuredClone(value);
+
+  function getLesson(id) {
+    const lesson = state().lessons.get(id);
+    if (!lesson) {
+      throw new Error('A aula indicada não existe.');
+    }
+    return clone(lesson);
+  }
+
+  function assertExpectedVersion(lesson, expectedUpdatedAt) {
+    if (!expectedUpdatedAt || lesson.updatedAt !== expectedUpdatedAt) {
+      throw new Error(
+        'Esta aula foi alterada desde a cópia para o GIAE. Copie novamente o sumário antes de o marcar como submetido.'
+      );
+    }
+  }
+
+  function buildSubmitted(lesson, updatedAt) {
+    return {
+      ...lesson,
+      giaeStatus: 'submitted',
+      giaeSubmittedAt: updatedAt,
+      updatedAt
+    };
+  }
+
+  export const giaeExplicitSubmissionRepository = {
+    async markSubmitted(input) {
+      const current = state();
+      current.singleSubmitCalls += 1;
+      const lesson = getLesson(input.lessonId);
+      assertExpectedVersion(lesson, input.expectedUpdatedAt);
+
+      if (current.forcePendingSingleResult) {
+        return clone(lesson);
       }
 
-      return results;
+      const updated = buildSubmitted(
+        lesson,
+        'explicit-submitted-' + current.singleSubmitCalls
+      );
+      current.lessons.set(input.lessonId, updated);
+      return clone(updated);
+    },
+
+    async markManySubmitted(inputs) {
+      const current = state();
+      current.bulkSubmitCalls += 1;
+
+      const lessons = inputs.map(input => {
+        const lesson = getLesson(input.lessonId);
+        assertExpectedVersion(lesson, input.expectedUpdatedAt);
+        return lesson;
+      });
+
+      if (current.forcePendingBulkResult) {
+        return lessons.map(clone);
+      }
+
+      const updatedAt =
+        'explicit-bulk-submitted-' + current.bulkSubmitCalls;
+      const updated = lessons.map(lesson =>
+        buildSubmitted(lesson, updatedAt)
+      );
+
+      for (const lesson of updated) {
+        current.lessons.set(lesson.id, lesson);
+      }
+
+      return updated.map(clone);
     }
   };
 `)
@@ -137,13 +190,22 @@ const viewSource = await readFile(
 const runtime = repositorySource
   .replaceAll("'../db'", `'${dbUrl}'`)
   .replaceAll(
+    "'../giaeExplicitSubmissionRepository'",
+    `'${explicitSubmissionUrl}'`
+  )
+  .replaceAll(
     "'../lessons/lessonRepository'",
     `'${lessonRepositoryUrl}'`
   )
 
 const module = await import(transpile(runtime))
 
-function buildLesson(id, summary, updatedAt) {
+function buildLesson(
+  id,
+  summary,
+  updatedAt,
+  giaeStatus = 'pending'
+) {
   return {
     id,
     academicYearId: 'year-1',
@@ -161,8 +223,11 @@ function buildLesson(id, summary, updatedAt) {
     summary,
     summarySource: 'manual',
     planificationItemIds: [],
-    giaeStatus: 'pending',
-    giaeSubmittedAt: null,
+    giaeStatus,
+    giaeSubmittedAt:
+      giaeStatus === 'submitted'
+        ? 'submitted-old'
+        : null,
     notes: '',
     createdAt: '2026-09-05T09:00:00.000Z',
     updatedAt
@@ -179,6 +244,10 @@ function resetState(lessons) {
     ),
     singleSubmitCalls: 0,
     bulkSubmitCalls: 0,
+    legacySingleSubmitCalls: 0,
+    legacyBulkSubmitCalls: 0,
+    forcePendingSingleResult: false,
+    forcePendingBulkResult: false,
     transactionTail: Promise.resolve()
   }
 
@@ -214,6 +283,7 @@ test(
     )
 
     assert.equal(state.singleSubmitCalls, 0)
+    assert.equal(state.legacySingleSubmitCalls, 0)
     assert.equal(
       state.lessons.get(original.id).giaeStatus,
       'pending'
@@ -222,7 +292,7 @@ test(
 )
 
 test(
-  'the exact copied version can be marked submitted',
+  'the exact copied version can be marked submitted through the explicit contract',
   { concurrency: false },
   async () => {
     const lesson = buildLesson(
@@ -239,11 +309,88 @@ test(
     )
 
     assert.equal(state.singleSubmitCalls, 1)
+    assert.equal(state.legacySingleSubmitCalls, 0)
     assert.equal(submitted.giaeStatus, 'submitted')
     assert.equal(
       state.lessons.get(lesson.id).giaeStatus,
       'submitted'
     )
+  }
+)
+
+test(
+  'submitted S0 edited to S1 pending can be explicitly recopied and submitted as S1',
+  { concurrency: false },
+  async () => {
+    const submittedS0 = buildLesson(
+      'lesson-1',
+      'Sumário S0.',
+      'submitted-s0',
+      'submitted'
+    )
+    const state = resetState([submittedS0])
+    const repository = new module.GIAEWorkspaceRepository()
+
+    const editedS1 = buildLesson(
+      submittedS0.id,
+      'Sumário S1 depois da edição.',
+      'edited-s1',
+      'pending'
+    )
+    state.lessons.set(editedS1.id, editedS1)
+
+    repository.recordCopiedLesson(editedS1)
+    const result = await repository.markSubmitted(
+      editedS1.id
+    )
+
+    assert.equal(result.giaeStatus, 'submitted')
+    assert.equal(
+      state.lessons.get(editedS1.id).giaeStatus,
+      'submitted'
+    )
+    assert.equal(
+      state.lessons.get(editedS1.id).summary,
+      'Sumário S1 depois da edição.'
+    )
+    assert.equal(state.singleSubmitCalls, 1)
+    assert.equal(state.legacySingleSubmitCalls, 0)
+  }
+)
+
+test(
+  'a pending return is never presented as successful and keeps the copied authorization for retry',
+  { concurrency: false },
+  async () => {
+    const lesson = buildLesson(
+      'lesson-1',
+      'Sumário S1.',
+      'v1'
+    )
+    const state = resetState([lesson])
+    const repository = new module.GIAEWorkspaceRepository()
+
+    repository.recordCopiedLesson(lesson)
+    state.forcePendingSingleResult = true
+
+    await assert.rejects(
+      () => repository.markSubmitted(lesson.id),
+      /confirmar.*submissão/i
+    )
+
+    assert.equal(
+      state.lessons.get(lesson.id).giaeStatus,
+      'pending'
+    )
+
+    state.forcePendingSingleResult = false
+    const submitted = await repository.markSubmitted(
+      lesson.id
+    )
+
+    assert.equal(submitted.giaeStatus, 'submitted')
+    assert.equal(state.singleSubmitCalls, 2)
+    assert.equal(state.legacySingleSubmitCalls, 0)
   }
 )
 
@@ -263,6 +410,8 @@ test(
 
     assert.equal(state.singleSubmitCalls, 0)
     assert.equal(state.bulkSubmitCalls, 0)
+    assert.equal(state.legacySingleSubmitCalls, 0)
+    assert.equal(state.legacyBulkSubmitCalls, 0)
     assert.equal(
       state.lessons.get(lesson.id).giaeStatus,
       'pending'
@@ -314,6 +463,7 @@ test(
     )
 
     assert.equal(state.bulkSubmitCalls, 0)
+    assert.equal(state.legacyBulkSubmitCalls, 0)
     assert.equal(
       state.lessons.get(first.id).giaeStatus,
       'pending'
@@ -326,7 +476,7 @@ test(
 )
 
 test(
-  'bulk submit succeeds when every current lesson matches its copied version',
+  'bulk submit succeeds atomically through the explicit contract when every copied version matches',
   { concurrency: false },
   async () => {
     const first = buildLesson(
@@ -357,6 +507,7 @@ test(
       ])
 
     assert.equal(state.bulkSubmitCalls, 1)
+    assert.equal(state.legacyBulkSubmitCalls, 0)
     assert.equal(submitted.length, 2)
     assert.equal(
       state.lessons.get(first.id).giaeStatus,
@@ -366,6 +517,65 @@ test(
       state.lessons.get(second.id).giaeStatus,
       'submitted'
     )
+    assert.equal(
+      state.lessons.get(first.id).updatedAt,
+      state.lessons.get(second.id).updatedAt
+    )
+  }
+)
+
+test(
+  'bulk pending return is rejected and copied authorizations remain available',
+  { concurrency: false },
+  async () => {
+    const first = buildLesson(
+      'lesson-1',
+      'Primeiro sumário.',
+      'v1'
+    )
+    const second = buildLesson(
+      'lesson-2',
+      'Segundo sumário.',
+      'v1'
+    )
+    const state = resetState([
+      first,
+      second
+    ])
+    const repository = new module.GIAEWorkspaceRepository()
+
+    repository.recordCopiedLessons([
+      first,
+      second
+    ])
+    state.forcePendingBulkResult = true
+
+    await assert.rejects(
+      () => repository.markManySubmitted([
+        first.id,
+        second.id
+      ]),
+      /confirmar.*todas.*aulas/i
+    )
+
+    assert.equal(
+      state.lessons.get(first.id).giaeStatus,
+      'pending'
+    )
+    assert.equal(
+      state.lessons.get(second.id).giaeStatus,
+      'pending'
+    )
+
+    state.forcePendingBulkResult = false
+    const submitted = await repository.markManySubmitted([
+      first.id,
+      second.id
+    ])
+
+    assert.equal(submitted.length, 2)
+    assert.equal(state.bulkSubmitCalls, 2)
+    assert.equal(state.legacyBulkSubmitCalls, 0)
   }
 )
 
