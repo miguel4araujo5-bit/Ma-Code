@@ -105,3 +105,42 @@ Mantêm-se obrigatórias as regras da v1.0:
 - este documento: regras de comunicação v1.1.
 
 Nenhum ficheiro de coordenação autoriza merge ou publicação na `main`.
+
+## 9. Comunicação direta obrigatória entre agentes
+
+Esta secção substitui qualquer orientação anterior que use o utilizador como intermediário entre agentes.
+
+- Pedidos de coordenação, dependências, bloqueios, pedidos de ownership, entregas, resultados de testes/revisões e pedidos de passagem de responsabilidade são publicados diretamente em `AGENT_MESSAGES.md` pelo agente que os origina.
+- Um agente com acesso ao canal não pede ao utilizador para copiar, encaminhar, transmitir ou contactar outro agente em seu nome.
+- Antes de repetir um pedido, o agente verifica se já existe mensagem, resposta ou decisão para a mesma referência. Se existir, continua a sequência existente em vez de abrir pedido duplicado.
+- Publicar uma mensagem não prova que outro agente a leu ou executou. O ficheiro não acorda agentes parados.
+- Perguntas que dependem exclusivamente do utilizador são centralizadas pelo AGENTE 1. Os restantes agentes publicam a necessidade ao AGENTE 1 e continuam trabalho independente autorizado quando exista.
+- Se faltar um ficheiro privado indispensável ou houver impossibilidade técnica real de acesso, a limitação é descrita concretamente no canal e na conversa; nunca se inventa receção, execução ou publicação.
+
+## 10. Tratamento de bloqueios
+
+Quando existe um bloqueio, o agente deve:
+
+1. publicá-lo diretamente para o responsável correto, identificando lote/ficheiro, problema, ação necessária e critério de conclusão;
+2. continuar o trabalho independente já autorizado;
+3. se não houver trabalho independente, deixar checkpoint verificável e terminar sem polling contínuo;
+4. na execução seguinte, consultar a resposta antes de repetir o pedido.
+
+`RESPOSTA`/`RESOLVIDO` substantivos podem acusar receção sem um `LIDO` separado, nos termos da secção 2.
+
+## 11. Conversa com o utilizador
+
+A conversa de cada agente serve para um resumo curto do que foi concluído, do que foi efetivamente publicado no canal e do que falta. Não deve conter mensagens preparadas para o utilizador encaminhar a outros agentes.
+
+Nada nesta regra altera manifestos, ownership de ficheiros, revisões obrigatórias, limites de segurança ou a proibição de publicar na `main` sem a aprovação acordada.
+
+## 12. Transição entre gerações
+
+- O pedido de passagem de responsabilidade é encaminhado ao AGENTE 1 pelo canal oficial.
+- A mera criação de uma nova conversa/agente não prova que o antecessor parou.
+- Quando essa confirmação falta e depende exclusivamente do utilizador, apenas o AGENTE 1 centraliza a pergunta; os restantes não a repetem.
+- Depois de o AGENTE 1 registar a passagem e os limites de ownership, os sucessores prosseguem diretamente pelo canal, sem usar o utilizador como mensageiro.
+
+## 13. Responsabilidade adicional do AGENTE 1
+
+O AGENTE 1 mantém `AGENT_STATUS.md`, resolve diretamente pedidos dentro da sua competência, formaliza alterações às regras de coordenação e comunica a sua adoção em `AGENT_MESSAGES.md`. Apenas decisões que dependem realmente do utilizador devem ser elevadas ao utilizador.
