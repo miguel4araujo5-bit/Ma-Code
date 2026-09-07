@@ -313,6 +313,95 @@ test(
 )
 
 test(
+  'a stale Daily workspace cannot create a second first assessment after another context created one',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+
+    state.lesson = {
+      ...state.lesson,
+      status: 'taught',
+      summary: 'Sumário já guardado.'
+    }
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    state.assessments.push({
+      assessment: {
+        id: 'assessment-external',
+        lessonId: 'lesson-1',
+        criterionId: 'criterion-1',
+        title: 'Avaliação criada noutra aba',
+        activityType: 'practical_work',
+        description: '',
+        updatedAt: 'a-external'
+      },
+      criterion: structuredClone(
+        state.criteria[0]
+      )
+    })
+
+    await assert.rejects(
+      () =>
+        repository.saveLesson(
+          lessonDraft({
+            summary:
+              'Sumário já guardado.',
+            students:
+              studentDrafts({
+                anaScore: 17,
+                assessment: true
+              }),
+            assessment: {
+              mode: 'new',
+              assessmentId: null,
+              criterionId:
+                'criterion-1',
+              title:
+                'Avaliação stale',
+              activityType:
+                'practical_work',
+              description:
+                'Não deve ser criada.'
+            }
+          })
+        ),
+      /assiduidade ou a avaliação.*outra aba ou janela/i
+    )
+
+    assert.equal(
+      state.lesson.updatedAt,
+      'v1'
+    )
+    assert.deepEqual(
+      state.attendance,
+      {}
+    )
+    assert.equal(
+      state.assessments.length,
+      1
+    )
+    assert.equal(
+      state.assessments[0]
+        .assessment.id,
+      'assessment-external'
+    )
+    assert.equal(
+      state.nextAssessment,
+      0
+    )
+    assert.deepEqual(
+      state.results,
+      {}
+    )
+  }
+)
+
+test(
   'a taught lesson without a summary is rejected before persistence',
   { concurrency: false },
   async () => {
