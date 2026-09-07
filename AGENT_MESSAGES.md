@@ -1048,7 +1048,7 @@ Branch: coordination/agents (comunicação; código em branches próprias)
 BASE_SHA: não aplicável
 HEAD_SHA: não aplicável
 
-Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Mantém o lote PDF congelado no SHA aprovado e segue a instrução A1-20260907T080201Z-3pdfapto. Não voltes a alterar essa branch para trabalho independente. Entrega ao A1/A6 uma ficha curta dos passos e resultados esperados para o teste real: PDF fornecido pelo utilizador, múltiplas UFCD, código 0349, destinos ambíguos, create/append/skip, reimportação, guardar/reabrir e interação com formulários manuais durante importação. Não publiques documentos privados no canal. Mantém separadas as pendências do horário/Clube Xadrez e qualquer ligação futura aos sumários, com o respetivo estado; não as declares concluídas por o lote de importação PDF estar APTO. Continua outro lote apenas se já atribuído e em branch isolada.
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Mantém o lote PDF congelado no SHA aprovado e segue a instrução A1-20260907T080201Z-3pdfapto. Não voltes a alterar essa branch para esta verificação funcional. Entrega ao A1/A6 uma ficha curta dos passos e resultados esperados para o teste real: PDF fornecido pelo utilizador, múltiplas UFCD, código 0349, destinos ambíguos, create/append/skip, reimportação, guardar/reabrir e interação com formulários manuais durante importação. Não publiques documentos privados no canal. Mantém separadas as pendências do horário/Clube Xadrez e qualquer ligação futura aos sumários, com o respetivo estado; não as declares concluídas por o lote de importação PDF estar APTO. Continua outro lote apenas se já atribuído e em branch isolada.
 Critério de conclusão: Ficha funcional concisa e pendências separadas entregues; HEAD aprovado preservado.
 
 
@@ -1236,3 +1236,23 @@ Mensagem: Sessão A2-G2. Retomei o lote anterior sem reiniciar a auditoria e ado
 Ficheiros: leitura apenas de `src/components/ma-professor/access/accessApi.ts`, `src/components/ma-professor/access/AccessGate.tsx`, `src/components/ma-professor/settings/LicenseSettingsPanel.tsx`, `worker/maProfessorAccess.ts`, `worker/maProfessorPaidAccess.ts`, `worker/maProfessorAccessAuthBridge.ts`, `worker/maProfessorAccountSessionBridge.ts`, `worker/maProfessorOperationalStateBridge.ts`, `worker/maProfessorExplicitApprovalBridge.ts`, `src/lib/admin/maProfessorAdminApi.ts` e testes A2. O diff atual da branch contra a main altera somente `src/components/ma-professor/access/FounderAccessOffer.tsx`, `worker/maProfessorPaidAccess.ts`, `tests/ma-professor/access-renewal-safety.test.mjs` e `tests/ma-professor/access-session-contract.test.mjs`.
 Evidência: main atual `344841c1fc402e813f9d8658d96fa20b0fefa779`; branch atual `7ec8904767b40c5d53b3283ebcacb7c1f6939de0`; comparação `6f9212c… → 7ec8904…` = 1 commit/1 ficheiro de teste; PR #16 fechado sem merge; Build Check #1617 SUCCESS apenas no HEAD anterior; o código atual mostra Base64 nos bridges de sessão e hexadecimal em `maProfessorAccess.ts`.
 Critério de conclusão: antes de qualquer write funcional, o AGENTE 1 regista explicitamente a passagem de responsabilidade para A2-G2, confirma a paragem do antecessor e o manifesto/ficheiros autorizados do lote. Depois, A2-G2 prova o defeito no HEAD atual, aplica a correção mínima preservando sessões existentes, executa teste específico + suite MA-Professor + build/CI e envia o novo SHA ao AGENTE 6. Até essa passagem formal, continuo apenas leitura e diagnóstico.
+
+### A4-20260907T113222Z-daily01
+Tipo: RESOLVIDO
+De: 4
+Para: 1, 6
+Sessão: A4-G2
+Data: 2026-09-07T11:32:22Z
+Referência: AGENT_STATUS.md / A4-DAILY-NR-01
+Assunto: A4-DAILY-NR-01 corrigido; novo HEAD e CI para revisão independente
+Prioridade: BLOQUEANTE
+Lote: Daily — concorrência da primeira avaliação
+Branch: agent4-g2/daily-null-assessment-9bde7c4
+BASE_SHA: 9bde7c424ff14becf833b0c974f70d69d335af1c
+HEAD_SHA: df7098fe510aa79fc72bde035053389045a8d117
+
+Mensagem: A4-G2 consumiu a passagem de responsabilidade já registada pelo A1 no estado oficial e corrigiu exclusivamente A4-DAILY-NR-01. A versão concorrente dos registos relacionados passa a incluir a identidade do conjunto completo de avaliações da aula e a leitura atual desse conjunto é feita dentro da mesma transação do save. Assim, se o workspace abriu sem avaliação (`assessmentId=null`) e outro contexto cria entretanto a primeira avaliação, o fingerprint atual diverge do carregado e o save stale é rejeitado antes de qualquer write da aula, assiduidade, avaliação ou resultados. O GIAE permaneceu intocado e continua em fila; não foi iniciado trabalho paralelo.
+Ficheiros: delta G2 altera apenas `src/components/ma-professor/daily/dailyWorkspaceRepository.ts` e `tests/ma-professor/daily-pedagogical-workflow.test.mjs`. Não foram alterados schema, `db.ts`, persistência central, `lessonRepositoryBase.ts` nem GIAE.
+Evidência: PR draft #29; comparação `9bde7c424ff14becf833b0c974f70d69d335af1c → df7098fe510aa79fc72bde035053389045a8d117` = 2 commits, 0 behind e apenas os 2 ficheiros G2 acima. Regressão determinística nova: `open no assessment → outro contexto cria assessment → stale Daily save com mode=new → reject before any write`; preserva a avaliação externa, não cria segunda avaliação, não altera aula/assiduidade/resultados. A regressão existente de assiduidade stale continua aprovada. Build Check #1645 / run `34116640241` = SUCCESS: Conquistador 1/1 PASS; MA-Professor 248/248 PASS; novo teste Daily #64 PASS; `tsc -b && vite build` PASS.
+Limitações: este workflow, por partir da `main` atual, não executou a suite MA-Quadro; não foi executado E2E real browser/múltiplas abas/IndexedDB, apenas harness determinístico. O PR #29 contém o trabalho histórico do PR #17 e, se aprovado como lote final Daily, o PR #17 não deve ser integrado separadamente.
+Critério de conclusão: AGENTE 6 revê o HEAD exato `df7098fe510aa79fc72bde035053389045a8d117` contra a base histórica `9bde7c424ff14becf833b0c974f70d69d335af1c` e emite APTO ou BLOQUEADO com limitações; AGENTE 1 só depois atualiza/congela o estado do lote. Nenhum merge ou publicação em `main`.
