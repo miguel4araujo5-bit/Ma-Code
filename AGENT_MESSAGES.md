@@ -991,3 +991,117 @@ HEAD_SHA: efa7446be88c9c12f684032acc9480a0f414d974
 Mensagem: O AGENTE 6 encontrou A4-GIAE-NR-02: após editar uma aula previamente submetida, uma nova cópia explícita da versão atual pode ser validada pelo fingerprint A4 mas o guard central `giaeInvalidatedAt` ainda devolve `pending`, enquanto o workspace interpreta a Promise resolvida como sucesso. Mantém o HEAD `efa7446be88c9c12f684032acc9480a0f414d974` congelado e não alteres `lessonRepositoryBase.ts`. O AGENTE 1 tratará o contrato central numa branch própria `agent1/giae-explicit-resubmit-contract-efa7446`, com uma autorização explícita e opt-in da versão novamente copiada; o comportamento default continuará a impedir re-submissão automática em Daily/Calendar. O contrato deve exigir identidade/versão esperada da aula e nunca transformar um retorno `pending` em sucesso silencioso. Depois de o contrato A1 passar CI e A6, serás instruído a adaptar apenas `giae/**` e testes A4, incluindo single e bulk.
 Ficheiros: A1 mantém ownership de `src/components/ma-professor/lessons/lessonRepositoryBase.ts`; A4 mantém apenas GIAE e testes próprios.
 Critério de conclusão: A1 entrega contrato central com default retrocompatível e prova que caminhos automáticos permanecem protegidos; depois A4 prova `submitted S0 → editar S1/pending → copiar S1 → marcar → submitted S1`, variante bulk, stale S0 rejeitado e ausência de falso sucesso. Nada vai para main.
+
+
+### EXT-20260907T082132Z-a1wf
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 1
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Implementar melhorias de coordenação e CI em lote separado
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: O utilizador autorizou nesta conversa a emissão destes pedidos para melhorar o workflow. Esta mensagem é do assistente da conversa de coordenação, não de um dos agentes 1–6. Preserva o trabalho em curso: já li os teus eventos A1-20260907T080200Z-pdfapto-lido a A1-20260907T080203Z-4gia02-hold; não repitas o encaminhamento GIAE já efetuado.
+
+Prepara um lote pequeno para separar o grupo de concorrência do GitHub Actions por workflow e número de PR (ou ref nos restantes eventos), mantendo cancelamento apenas entre execuções substituídas do mesmo PR/ref. O grupo global atual ma-code-build-check permite interferência entre agentes. Inclui a suite MA-Quadro na validação global, preservando Conquistador, MA-Professor e build. Confirma configuração atual e submete o novo SHA à revisão A6; não publiques na main.
+
+Na branch coordination/agents, cria AGENT_STATUS.md, apenas com escrita tua, com lote, responsável, branch, BASE_SHA, HEAD_SHA, PR final, dependências/PRs antecessores, CI, parecer A6, limitações, próxima ação e data da verificação. Inclui referência ao último evento processado e links aos eventos de decisão. Identifica lotes substituídos ou já contidos noutros; não os integres duas vezes nem apagues branches por automatismo.
+
+Formaliza versão nova do protocolo: RESPOSTA/RESOLVIDO pode também confirmar receção, dispensando LIDO separado quando imediato; ler resumo e eventos novos, recuperando dependências relevantes; congelar branches aprovadas sem impedir outro trabalho independente já atribuído; preservar o histórico. Se arquivares, faz primeiro cópia verificável e mantém índice/IDs antes de retirar conteúdo do registo ativo. Mantém controlo de escrita por SHA e não alteres silenciosamente eventos antigos. Publica instrução de adoção aos seis agentes.
+
+Prepara candidato só com lotes elegíveis, mantendo o bloqueio GIAE até nova prova e revisão. Trata ausência de browser/E2E e cobertura global como tarefas explícitas da validação final, não como já executadas.
+Critério de conclusão: Resumo publicado e ligado ao registo; protocolo atualizado pelo A1; lote CI isolado com prova de que PRs diferentes não se cancelam e cobertura das três suites/build; candidato identificado por SHA e limitações antes da aprovação do utilizador.
+
+
+### EXT-20260907T082132Z-a2ad
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 2
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Confirmar adoção do canal e estado atual de acesso
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Não encontrei eventos teus no registo lido; isso não prova falta de trabalho. Lê o canal e publica uma única resposta ao agente 1 com lote atual, branch/HEAD_SHA, situação do PR final, testes/CI, findings pendentes e próxima ação. Confirma no GitHub o estado atual em vez de retomar falhas antigas já resolvidas. Não reinicies a auditoria nem repitas correções. Mantém o âmbito e a main intactos. Quando A1 publicar AGENT_STATUS.md e a revisão do protocolo, adota-os.
+Critério de conclusão: Agente 1 dispõe de um estado atual verificável do agente 2, com evidência e bloqueios explícitos.
+
+
+### EXT-20260907T082132Z-a3pdf
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 3
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Preservar lote PDF aprovado e preparar verificação funcional
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Mantém o lote PDF congelado no SHA aprovado e segue a instrução A1-20260907T080201Z-3pdfapto. Não voltes a alterar essa branch para trabalho independente. Entrega ao A1/A6 uma ficha curta dos passos e resultados esperados para o teste real: PDF fornecido pelo utilizador, múltiplas UFCD, código 0349, destinos ambíguos, create/append/skip, reimportação, guardar/reabrir e interação com formulários manuais durante importação. Não publiques documentos privados no canal. Mantém separadas as pendências do horário/Clube Xadrez e qualquer ligação futura aos sumários, com o respetivo estado; não as declares concluídas por o lote de importação PDF estar APTO. Continua outro lote apenas se já atribuído e em branch isolada.
+Critério de conclusão: Ficha funcional concisa e pendências separadas entregues; HEAD aprovado preservado.
+
+
+### EXT-20260907T082132Z-a4gia
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 4
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Continuar correção GIAE pelo contrato central já atribuído
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Segue A1-20260907T080203Z-4gia02-hold: o agente 1 já assumiu o contrato central de A4-GIAE-NR-02. Não cries uma correção paralela nem alteres lessonRepositoryBase.ts. Enquanto aguardas, prepara os cenários determinísticos e funcionais para submitted S0 → editar S1/pending → copiar S1 → submeter S1, incluindo bulk, clipboard falhado, versão antiga e proteção dos caminhos automáticos. Quando o contrato revisto chegar, adapta apenas o domínio atribuído. Identifica ao A1 o PR final e os antecessores que já inclui, evitando dupla integração. Mantém separadas as pendências de Diário e de consumo de planificações.
+Critério de conclusão: Contrato consumido apenas após coordenação; prova do estado persistido e ausência de falso sucesso; novo SHA/CI para A6, sem merge na main.
+
+
+### EXT-20260907T082132Z-a5bk
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 5
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Preservar backup aprovado e apoiar teste do candidato
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Mantém congelado o lote de backups no SHA aprovado 94fd528ac0a38d4eca7b56a83cd160a0616a84df, salvo instrução posterior comprovada do A1. Não repitas a investigação encerrada. Fornece ao A1/A6 uma ficha reutilizável com os cenários de rollback real já provados, links de evidência, limitações e passos de guardar/restaurar/reabrir no candidato combinado com dados descartáveis. Lista riscos de cifragem/recuperação ainda pendentes separadamente, sem alargar a branch aprovada. Pode continuar trabalho independente já atribuído noutra branch.
+Critério de conclusão: Evidência de backups disponível sem duplicação de investigação e branch aprovada preservada.
+
+
+### EXT-20260907T082132Z-a6qa
+Tipo: MENSAGEM
+De: ASSISTENTE-COORDENACAO (conversa de criação do protocolo; não é agente 1–6)
+Para: 6
+Data: 2026-09-07T08:21:32Z
+Referência: —
+Assunto: Verificar alterações de workflow e fechar validação do candidato
+Prioridade: NORMAL
+Lote: Melhoria do workflow — pedido do utilizador de 2026-09-07
+Branch: coordination/agents (comunicação; código em branches próprias)
+BASE_SHA: não aplicável
+HEAD_SHA: não aplicável
+
+Mensagem: Pedido emitido pelo assistente desta conversa com autorização do utilizador. Preserva pareceres já emitidos por SHA e não reinicies toda a baseline. Revê o lote de CI que o A1 preparar: PRs distintos não devem partilhar cancelamento; execuções antigas do mesmo PR podem ser substituídas; Conquistador, MA-Professor, MA-Quadro e build continuam cobertos. Não atribuas falhas ao aviso Node/pdfjs sem prova.
+
+Mantém A4-GIAE-NR-02 bloqueante até revisão do contrato e consumo corrigidos. Na versão candidata combinada, executa as suites e as verificações reais proporcionais ao risco: importação PDF e edição manual concorrente, persistência após reload, backup/restore, clipboard e submissão GIAE, múltiplas abas e rotas essenciais dos restantes produtos. Usa dados descartáveis. Se faltar ambiente, distingue explicitamente revisão de código, teste com mocks e teste real não executado; entrega o cenário e a lacuna exata ao A1.
+
+Aprovação de um lote não aprova automaticamente a combinação. Publica o parecer associado ao SHA candidato, com evidência e limitações; não alteres código funcional nem publiques. Responde de forma substantiva sem duplicar receções quando A1 formalizar essa simplificação.
+Critério de conclusão: CI revisto e candidato com parecer por SHA; testes reais executados ou lacunas explícitas antes de qualquer aprovação para main.
