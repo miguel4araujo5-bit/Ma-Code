@@ -428,8 +428,7 @@ function buildStudentRows(
         summary => [
           summary.studentId,
           summary
-        ]
-      )
+        ])
     )
 
   const students =
@@ -601,6 +600,7 @@ function fingerprintRecords(
 
 function buildRelatedRecordFingerprint(
   attendanceRecords: unknown[],
+  lessonAssessmentIds: EntityId[],
   assessment: LessonAssessment | null,
   assessmentResults: unknown[]
 ) {
@@ -609,6 +609,8 @@ function buildRelatedRecordFingerprint(
       fingerprintRecords(
         attendanceRecords
       ),
+    assessmentIds:
+      [...lessonAssessmentIds].sort(),
     assessment:
       assessment
         ? JSON.stringify(
@@ -624,6 +626,7 @@ function buildRelatedRecordFingerprint(
 
 function buildLoadedRelatedRecordVersion(
   attendance: LessonAttendanceRegister,
+  lessonAssessments: LessonAssessment[],
   assessment: LessonAssessment | null,
   assessmentRegister:
     | Awaited<
@@ -644,6 +647,9 @@ function buildLoadedRelatedRecordVersion(
               ? [row.attendance]
               : []
         ),
+        lessonAssessments.map(
+          item => item.id
+        ),
         assessment,
         assessmentRegister
           ?.rows.flatMap(
@@ -662,7 +668,7 @@ async function getCurrentRelatedRecordVersion(
 ): Promise<DailyRelatedRecordVersion> {
   const [
     attendanceRecords,
-    assessment
+    lessonAssessments
   ] =
     await Promise.all([
       maProfessorDb
@@ -674,21 +680,24 @@ async function getCurrentRelatedRecordVersion(
           lessonId
         )
         .toArray(),
-      assessmentId
-        ? maProfessorDb
-            .lessonAssessments
-            .get(
-              assessmentId
-            )
-        : Promise.resolve(
-            undefined
-          )
+      maProfessorDb
+        .lessonAssessments
+        .where(
+          'lessonId'
+        )
+        .equals(
+          lessonId
+        )
+        .toArray()
     ])
 
   const validAssessment =
-    assessment &&
-    assessment.lessonId === lessonId
-      ? assessment
+    assessmentId
+      ? lessonAssessments.find(
+          item =>
+            item.id ===
+            assessmentId
+        ) ?? null
       : null
 
   const assessmentResults =
@@ -710,6 +719,9 @@ async function getCurrentRelatedRecordVersion(
     fingerprint:
       buildRelatedRecordFingerprint(
         attendanceRecords,
+        lessonAssessments.map(
+          item => item.id
+        ),
         validAssessment,
         assessmentResults
       )
@@ -963,6 +975,9 @@ export class DailyWorkspaceRepository {
       lessonId,
       buildLoadedRelatedRecordVersion(
         attendance,
+        assessmentWorkspace.assessments.map(
+          item => item.assessment
+        ),
         selectedAssessmentItem
           ?.assessment ?? null,
         assessmentRegister
