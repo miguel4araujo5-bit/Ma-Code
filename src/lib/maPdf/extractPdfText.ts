@@ -344,12 +344,76 @@ function getCellCenter(
   return cell.x + cell.width / 2
 }
 
-function getCellColumnProbeX(
-  cell: ExtractedPdfCell
+function getScheduleColumnAnchorForCell(
+  cell: ExtractedPdfCell,
+  anchors: ScheduleColumnAnchor[]
 ) {
-  return cell.x + Math.min(
-    5,
-    Math.max(1, cell.width * 0.12)
+  if (anchors.length === 0) {
+    return null
+  }
+
+  const left = cell.x
+  const right =
+    cell.x + Math.max(0, cell.width)
+  const centerX = getCellCenter(cell)
+  let bestAnchor: ScheduleColumnAnchor | null = null
+  let bestOverlap = 0
+  let hasUniqueBestOverlap = true
+
+  for (
+    let index = 0;
+    index < anchors.length;
+    index += 1
+  ) {
+    const anchor = anchors[index]
+    const leftBoundary =
+      index === 0
+        ? Number.NEGATIVE_INFINITY
+        : (
+            anchors[index - 1].centerX +
+            anchor.centerX
+          ) / 2
+    const rightBoundary =
+      index === anchors.length - 1
+        ? Number.POSITIVE_INFINITY
+        : (
+            anchor.centerX +
+            anchors[index + 1].centerX
+          ) / 2
+    const overlap = Math.max(
+      0,
+      Math.min(right, rightBoundary) -
+      Math.max(left, leftBoundary)
+    )
+
+    if (overlap > bestOverlap) {
+      bestAnchor = anchor
+      bestOverlap = overlap
+      hasUniqueBestOverlap = true
+      continue
+    }
+
+    if (
+      overlap > 0 &&
+      Math.abs(overlap - bestOverlap) < 0.001
+    ) {
+      hasUniqueBestOverlap = false
+    }
+  }
+
+  if (bestOverlap > 0) {
+    return hasUniqueBestOverlap
+      ? bestAnchor
+      : null
+  }
+
+  return anchors.reduce(
+    (nearest, anchor) =>
+      Math.abs(anchor.centerX - centerX) <
+      Math.abs(nearest.centerX - centerX)
+        ? anchor
+        : nearest,
+    anchors[0]
   )
 }
 
@@ -484,22 +548,21 @@ function discardTimetableRoomColumns(
         continue
       }
 
-      const probeX = getCellColumnProbeX(cell)
-      const nearestAnchor = anchors.reduce(
-        (nearest, anchor) =>
-          Math.abs(anchor.centerX - probeX) <
-          Math.abs(nearest.centerX - probeX)
-            ? anchor
-            : nearest,
-        anchors[0]
-      )
+      const matchedAnchor =
+        getScheduleColumnAnchorForCell(
+          cell,
+          anchors
+        )
 
-      if (nearestAnchor.kind === 'room') {
+      if (
+        !matchedAnchor ||
+        matchedAnchor.kind === 'room'
+      ) {
         continue
       }
 
       const dayIndex = dayAnchors.findIndex(
-        anchor => anchor === nearestAnchor
+        anchor => anchor === matchedAnchor
       )
 
       if (dayIndex < 0) {
