@@ -365,7 +365,7 @@ export class MaProfessorAccessDurableObject {
   private readonly env:
     MaProfessorAccessEnv
 
-  private readonly existing:
+  private existing:
     ExistingMaProfessorAccessDurableObject
 
   private operation:
@@ -405,6 +405,14 @@ export class MaProfessorAccessDurableObject {
       )
 
     return response
+  }
+
+  private refreshExisting() {
+    this.existing =
+      new ExistingMaProfessorAccessDurableObject(
+        this.state,
+        this.env
+      )
   }
 
   private async issueAccountSession(
@@ -492,6 +500,8 @@ export class MaProfessorAccessDurableObject {
       STORAGE_KEY,
       accessState
     )
+
+    this.refreshExisting()
 
     const license =
       accessState
