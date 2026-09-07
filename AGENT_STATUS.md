@@ -2,7 +2,7 @@
 
 Atualizado por: AGENTE 1 — SEGUNDA GERAÇÃO (A1-G2)
 Sessão: A1-G2
-Data da verificação: 2026-09-08T00:00:28+01:00
+Data da verificação: 2026-09-08T00:22:00+01:00
 Último evento processado no `AGENT_MESSAGES.md` ativo: `A4-20260907T120048Z-cfdep`
 Fonte técnica: `main` confirmada em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
 
@@ -14,16 +14,26 @@ O `AGENT_MESSAGES.md` continua append-only. O conector disponível nesta sessão
 
 Nada é integrado ou publicado em `main` sem aprovação explícita do utilizador para o lote concreto.
 
-## Proteção operacional — DEPLOY-PR-01
+## Proteção operacional — DEPLOY-PR-01 / SAFE-VALIDATION-01
 
-Cloudflare publicou comentários `Deployment successful` em PRs de trabalho, embora `main` continue em `344841c...`. Não está provado que esses builds tenham promovido produção, mas a configuração privada de Branch control ainda não foi verificada.
+Protocolo obrigatório: `A1_SAFE_VALIDATION_PROTOCOL.md`.
 
-Até esclarecimento:
-- não abrir novos PRs nem fazer novos pushes funcionais a PRs existentes apenas para obter CI;
-- trabalho seguro em branches autorizadas pode continuar;
-- testes locais e revisão de código por SHA são permitidos;
-- parar antes de qualquer nova ação que possa disparar publicação/CI não necessária;
+A investigação A1 confirmou:
+- o repositório tem `default_branch = main`;
+- `.github/workflows/deploy.yml` já contém `workflow_dispatch` e executa apenas testes/build; não contém `wrangler deploy`;
+- GitHub suporta execução manual desse workflow com `ref` de uma branch existente;
+- o GitHub App Cloudflare observado subscreve `push` e `pull_request`, não `workflow_dispatch`;
+- a documentação Cloudflare atual indica `npx wrangler versions upload` como deploy command por defeito para branches não-production, criando versão sem promoção imediata; a configuração privada pode, contudo, ser personalizada.
+
+Política A1:
+- não abrir novo PR nem fazer push apenas para obter CI;
+- para HEADs finais já existentes, a prova executável preferida é `Build Check` via `workflow_dispatch` na branch exata;
+- o run só conta para A6 se `head_sha` = SHA revisto;
+- commits funcionais novos são permitidos apenas quando necessários ao próprio lote, depois de teste local proporcional e evitando pushes intermédios;
+- trabalho já produzido não é rebaseado/reconstruído apenas por causa de CI;
 - `main` permanece protegida.
+
+Configuração Cloudflare recomendada para fechar definitivamente o risco externo: production branch `main` e `Builds for non-production branches = OFF` durante esta fase. Se previews forem mantidos, o non-production deploy command deve ser `npx wrangler versions upload`. Esta alteração é de conta Cloudflare e não é feita pelo A1 sem acesso/autorização.
 
 ## Estado atual por agente/lote
 
@@ -36,6 +46,7 @@ Até esclarecimento:
 - O próprio A2 encontrou depois um risco adicional: `/logout` escreve revogação em storage mas pode deixar `this.existing` com cache antiga; `/account/verify` também escreve `lastSeenAt` sem refresh. Compatibilidade hex legada também não está provada end-to-end em `/account/verify` e `/logout`.
 - A1 autorizou follow-up isolado por teste determinístico: sessão válida → `/logout` → `/account/verify` = 401 → `/renew` = 401 sem renewal; mais cenário histórico hash hex.
 - Se o stale-cache se confirmar, correção preferida: refresh/invalidação mínima após writes diretos no bridge, sem redesenho do núcleo.
+- A2 deve testar localmente, evitar pushes intermédios e entregar um HEAD final isolado; CI final por `workflow_dispatch` na branch exata.
 - Estado: **NÃO APTO / follow-up em curso**. A6 aguarda novo HEAD/checkpoint.
 
 ### A3-G2 — setup
@@ -46,6 +57,7 @@ Até esclarecimento:
 - O finding A6 `A6-SETUP-COLORS-NR-01` do HEAD anterior `f61bdb87...` foi corrigido: `daySlots.map(...)` voltou a fechar corretamente com `)}`.
 - A6 reviu o novo SHA e declarou o bloqueio de código **CORRIGIDO**, sem novo finding de código, mas com **VERIFICAÇÃO INCOMPLETA** por falta de execução de teste/build nesse SHA.
 - A1 pediu ao A3, sem alterar o HEAD: `node --test tests/ma-professor/setup-action-color-coding.test.mjs`, `npm run build` e, se possível, suite MA-Professor proporcional, com comando + resultado.
+- A validação automatizada final deve ser por `workflow_dispatch` nesta branch exata, sem novo commit/PR.
 - Estado: **código corrigido; falta prova executável para fechar parecer A6**.
 
 #### A3-HORARIO-XADREZ-01
@@ -55,6 +67,7 @@ Até esclarecimento:
 - Âmbito A3 autorizado: `src/components/ma-professor/setup/SchedulePdfImportStep.tsx` + testes próprios.
 - `src/lib/maPdf/extractPdfText.ts` continua reservado ao A1; se necessário, A3 para e pede contrato.
 - A1 autorizou A3 a começar Xadrez em paralelo enquanto o A6 fecha o lote de cores.
+- Testar localmente e evitar commits/pushes intermédios; entregar HEAD final isolado.
 - Estado: **pendente de implementação**.
 
 #### A3-PTPT-COPY-01
@@ -84,7 +97,8 @@ Até esclarecimento:
 - A4 corrigiu administrativamente o nome da branch por fast-forward; ignorar a branch antiga `agent4-g2/giae-explicit-submit-f314a8b` para coordenação futura.
 - Delta contra `f314a8b...`: 2 commits, 0 behind, apenas `src/components/ma-professor/giae/giaeWorkspaceRepository.ts` e `tests/ma-professor/giae-copy-version-guard.test.mjs`.
 - Implementação consome exclusivamente `giaeExplicitSubmissionRepository`, guarda `expectedUpdatedAt`, rejeita retorno não realmente `submitted`, preserva retry/autorização de cópia e bloqueia uso legacy nos testes.
-- A1 aceitou o checkpoint e pediu: comando + resultado dos testes locais neste SHA, sem novo push; revisão independente A6 por SHA exato, mesmo sem CI/E2E.
+- A1 aceitou o checkpoint e pediu: comando + resultado dos testes locais neste SHA, sem novo push; revisão independente A6 por SHA exato.
+- A validação automatizada final deve ser por `workflow_dispatch` nesta branch exata, sem novo PR/push só para CI.
 - Estado: **implementado e congelado; aguarda evidência local + parecer A6**.
 
 ### A5-G2 — preservação
@@ -96,8 +110,8 @@ Até esclarecimento:
 ### A6-G2 — revisão independente
 
 Fila atual:
-1. fechar A3 cores `64e3149336c6097c9777a8feb38209f9bfb37be9` assim que A3 entregar teste/build local;
-2. rever código A4 GIAE `ba87e69873a0277a63e84b98bf539038aba0151f` contra `f314a8b...`, explicitando ausência de CI/E2E e incorporando evidência local A4 quando chegar;
+1. fechar A3 cores `64e3149336c6097c9777a8feb38209f9bfb37be9` assim que existir prova executável; `workflow_dispatch` é aceite se o `head_sha` for exatamente esse SHA;
+2. rever código A4 GIAE `ba87e69873a0277a63e84b98bf539038aba0151f` contra `f314a8b...` e incorporar prova local/`workflow_dispatch` quando existir;
 3. manter A2 `a3d07b8e...` suspenso até novo follow-up/HEAD;
 4. rever futuros HEADs Xadrez/PT-PT separadamente.
 
