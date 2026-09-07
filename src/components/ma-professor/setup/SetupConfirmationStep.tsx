@@ -1901,7 +1901,7 @@ export default function SetupConfirmationStep({
           onClick={() =>
             void handleFinishSetup()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-emerald-200/45 bg-gradient-to-r from-emerald-300 via-teal-300 to-emerald-200 px-5 py-4 text-sm font-black text-emerald-950 shadow-lg shadow-emerald-950/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200/30 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         >
           {busy
             ? 'A concluir a configuração...'
