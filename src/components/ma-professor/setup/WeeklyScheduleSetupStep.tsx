@@ -1315,7 +1315,6 @@ export default function WeeklyScheduleSetupStep({
                           .target
                           .value
                     })
-                  )
                 }
                 placeholder="1"
                 required
@@ -1613,6 +1612,7 @@ export default function WeeklyScheduleSetupStep({
                             </div>
                           )
                         }
+                      )}
                     </div>
                   )}
                 </article>
