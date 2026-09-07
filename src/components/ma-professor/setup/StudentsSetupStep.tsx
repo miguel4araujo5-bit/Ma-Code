@@ -1587,7 +1587,7 @@ export default function StudentsSetupStep({
             onClick={
               importStudents
             }
-            className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-violet-300/20 bg-violet-300/[0.08] px-5 py-3.5 text-sm font-black text-violet-100 transition hover:border-violet-300/35 hover:bg-violet-300/[0.12] disabled:opacity-50"
+            className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3.5 text-sm font-bold text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100 disabled:opacity-50"
           >
             Importar alunos
           </button>
@@ -1840,7 +1840,7 @@ export default function StudentsSetupStep({
           onClick={() =>
             void handleContinue()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-5 py-3.5 text-sm font-black text-white transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/45 bg-gradient-to-r from-cyan-300 via-sky-300 to-cyan-200 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
         >
           Guardar alunos e continuar
         </button>
