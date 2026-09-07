@@ -43,6 +43,25 @@ Ainda não foi encontrada na `main` uma implementação existente de importaçã
 - **A1-G2 — contratos partilhados:** decidir posteriormente onde vive parsing/exportação `.xlsx`, dependências, tipos/contratos partilhados e fronteiras de ownership.
 - **A6-G2 — revisão independente:** rever o desenho antes de implementação e novamente o SHA final quando existir.
 
+## Parecer A5-G2 incorporado no planeamento
+
+O A5-G2 recomenda como contrato base de preservação a opção mais conservadora:
+
+- template `.xlsx` original tratado como ficheiro efémero por defeito;
+- nunca escrever no ficheiro/handle de origem;
+- gerar sempre uma nova cópia de saída;
+- classificações estruturadas do MA-Professor continuam a ser a fonte de verdade;
+- template e output preenchido ficam fora de backup e sync por defeito;
+- não guardar bytes do workbook nem metadados ricos em `settings`;
+- qualquer mapeamento persistido deve ser mínimo, isolado por conta + ano letivo e invalidado quando o hash/identidade do template mudar;
+- troca de conta deve limpar cache transitória e impedir reutilização cruzada;
+- restore/new device recupera os dados estruturados, mas exige nova seleção do template oficial;
+- persistência local cifrada do template só deve ser considerada no futuro como opt-in, não como comportamento base.
+
+Testes de aceitação A5 para o desenho futuro incluem: bytes/hash do original invariáveis; nenhum write para a origem; ausência de template/output nos backups e snapshots; isolamento por conta/ano letivo; invalidação por template diferente; e recuperação baseada nos dados estruturados, não no documento Excel.
+
+Estado A1: esta recomendação fica **aceite como base provisória de arquitetura**, sujeita ainda aos pareceres funcionais A4, UX A3 e revisão de desenho A6. Não autoriza implementação.
+
 ## Regra de prioridade
 
 Esta funcionalidade não bloqueia nem desvia trabalho dos bloqueios atuais. Nenhum agente deve começar implementação funcional sem decisão posterior do A1 após receber os pareceres de análise.
