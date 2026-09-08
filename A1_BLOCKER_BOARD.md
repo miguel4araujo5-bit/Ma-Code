@@ -1,6 +1,6 @@
 # A1-G2 — QUADRO ATIVO DE DESBLOQUEIO
 
-Atualização: 2026-09-08T08:52+01:00
+Atualização: 2026-09-08T11:34+01:00
 
 Regra operacional: nenhum agente fica apenas “a aguardar”. Cada pendência tem proprietário, ação executável e critério de saída. Se houver impedimento técnico real, deve ser escalado ao A1 com causa e evidência concreta.
 
@@ -37,7 +37,7 @@ Delta confirmado: 1 commit, 0 behind, 1 ficheiro, apenas 2 alterações:
 - `Revisei os dados apresentados.` → `Revi os dados apresentados.`
 - `Posso criar cópias cifradas online` → `Posso criar cópias de segurança cifradas online`
 
-AÇÃO A3: manter congelado.
+AÇÃO A3: manter este HEAD congelado.
 
 ## PRONTO PARA VALIDAÇÃO NO CANDIDATO — A3-G2 — CORES / CTA
 
@@ -46,6 +46,23 @@ HEAD congelado: `64e3149336c6097c9777a8feb38209f9bfb37be9`
 A6: finding de código anterior corrigido; nenhum novo finding de código. Falta prova executável no SHA isolado.
 
 DECISÃO A1: não reabrir nem fazer push só para CI. Teste específico + suites/build ficam obrigatórios no candidato combinado.
+
+### MICRO-TAREFA MECÂNICA A3 — OVERLAP CORES + PT-PT
+
+Motivo: o candidato único tem uma única sobreposição material entre lotes independentes em `src/components/ma-professor/setup/SetupConfirmationStep.tsx`.
+
+A1 comunicou diretamente no PR #23, comentário `5583926744`.
+
+AÇÃO A3:
+- partir exatamente de `64e3149336c6097c9777a8feb38209f9bfb37be9`;
+- alterar apenas `SetupConfirmationStep.tsx`;
+- aplicar exclusivamente as duas substituições PT-PT já aprovadas;
+- zero reformat e zero outra alteração;
+- branch temporária, sem PR/merge/main;
+- entregar branch, HEAD e blob SHA;
+- provar diff apenas 2 adições + 2 remoções.
+
+CRITÉRIO DE SAÍDA: blob final = estado visual integral de Cores + exatamente as duas frases PT-PT. O A1 consumirá apenas esse blob no snapshot; o micro-HEAD não entra como histórico.
 
 ## PRONTO PARA VALIDAÇÃO NO CANDIDATO — A4-G2 — GIAE
 
@@ -65,21 +82,23 @@ AÇÃO A4: manter congelado e conservar checklist E2E/smoke: single, bulk, stale
 
 ## PRIORIDADE ATIVA — A1-G2 — CANDIDATO ÚNICO
 
-A1 é agora o proprietário da próxima ação.
+A1 continua proprietário da composição e não fica bloqueado por trabalho funcional adicional dos agentes.
 
 FAZER AGORA — A1:
-1. inventariar dependências e relações de ancestralidade entre todos os lotes elegíveis;
+1. manter o inventário BASE→HEAD e as relações de ancestralidade confirmadas;
 2. garantir que nenhum PR/lote histórico empilhado é integrado duas vezes;
-3. definir ordem de combinação segura e identificar conflitos de ficheiro antes de criar candidato;
-4. preparar branch de candidato apenas depois dessa verificação;
-5. no candidato executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais aos lotes;
-6. entregar SHA combinado ao A6 para revisão final independente;
-7. só depois pedir autorização explícita do utilizador para qualquer merge em `main`.
+3. consumir o blob mecânico Cores+PT-PT apenas quando o A3 provar o diff exato;
+4. criar o snapshot candidato com `344841c...` como parent técnico e os blobs finais dos lotes elegíveis;
+5. verificar o delta completo e ausência de ficheiros de coordenação;
+6. executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais;
+7. entregar SHA combinado ao A6 para revisão final independente;
+8. só depois pedir autorização explícita do utilizador para qualquer merge em `main`.
 
 ## FILA A6 A PARTIR DE AGORA
 
-- Não há revisão isolada pendente de A2, Xadrez ou PT-PT.
+- Não repetir revisões isoladas já fechadas.
 - Cores e GIAE mantêm limitações executáveis para o candidato combinado.
+- A micro-tarefa A3 de overlap é apenas mecânica e não requer parecer A6 isolado se o diff provar exatamente as duas substituições sobre o HEAD de Cores.
 - Próxima revisão material A6: SHA do candidato único, com suites/build/smokes completos e lista de limitações E2E não executadas.
 
 ## PROTEÇÕES
