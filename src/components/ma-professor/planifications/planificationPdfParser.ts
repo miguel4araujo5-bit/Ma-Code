@@ -399,7 +399,7 @@ function extractLeadingCode(value: string) {
 
 function parseDurationHours(value: string) {
   const match = normalizeSpaces(value).match(
-    /\(\s*(\d+(?:[.,]\d+)?)\s*horas?\s*\)/i
+    /\(\s*(\d+(?:[.,]\d+)?)\s*(?:h|horas?)\s*\)/i
   )
 
   if (!match) {
@@ -449,7 +449,7 @@ function cleanModuleName(
       ' '
     )
     .replace(
-      /\(\s*\d+(?:[.,]\d+)?\s*horas?\s*\)/gi,
+      /\(\s*\d+(?:[.,]\d+)?\s*(?:h|horas?)\s*\)/gi,
       ' '
     )
     .replace(/^[\s–—-]+|[\s–—-]+$/g, '')
@@ -634,7 +634,7 @@ export function parsePlanificationPdfDocument(
   let pendingUfcdLabel = false
 
   for (const page of document.pages) {
-    let sawTableHeader = false
+    let sawTableHeader = Boolean(current && anchors.length >= 4)
     let bodyStarted = false
     let evaluationReached = false
 
@@ -644,11 +644,18 @@ export function parsePlanificationPdfDocument(
 
       if (isTableHeaderLine(line)) {
         sawTableHeader = true
+        evaluationReached = false
         continue
       }
 
       if (!sawTableHeader) {
         continue
+      }
+
+      if (positioned.some(cell =>
+        getColumnKind(cell, anchors) === 'module' && hasUfcdCode(cell.text)
+      )) {
+        evaluationReached = false
       }
 
       if (
@@ -748,7 +755,12 @@ export function parsePlanificationPdfDocument(
         continue
       }
 
-      for (const cell of positioned) {
+      // Establish the section before assigning its period and remaining columns.
+      const orderedCells = [...positioned].sort((left, right) =>
+        Number(getColumnKind(right, anchors) === 'module') -
+        Number(getColumnKind(left, anchors) === 'module')
+      )
+      for (const cell of orderedCells) {
         const value =
           normalizeSpaces(cell.text)
 

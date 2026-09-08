@@ -8,6 +8,7 @@ import {
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
+import ModulePlanificationImportPanel from './ModulePlanificationImportPanel'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -401,8 +402,10 @@ export default function ModulesSetupStep({
     hasUnsavedSingleModuleDraft ||
     hasUnsavedBulkModuleDraft
 
+  const [importActive, setImportActive] = useState(false)
+
   useMAProfessorUnsavedWorkspaceProtection(
-    hasUnsavedModuleDraft,
+    hasUnsavedModuleDraft || importActive,
     rootRef,
     UNSAVED_MODULE_DRAFT_MESSAGE
   )
@@ -925,7 +928,13 @@ export default function ModulesSetupStep({
       ref={rootRef}
       className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"
     >
-      <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
+      <ModulePlanificationImportPanel
+        snapshot={snapshot}
+        disabled={busy || hasUnsavedModuleDraft}
+        onActiveChange={setImportActive}
+        onImported={refreshSnapshot}
+      />
+      <fieldset disabled={importActive} className="min-w-0 rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
           Passo 4 de 9
         </p>
@@ -1238,9 +1247,9 @@ export default function ModulesSetupStep({
             Não existem disciplinas disponíveis. Volte ao passo anterior e adicione pelo menos uma disciplina.
           </p>
         )}
-      </section>
+      </fieldset>
 
-      <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-xl shadow-black/15 sm:p-6">
+      <fieldset disabled={importActive} className="min-w-0 rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-xl shadow-black/15 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -1396,7 +1405,7 @@ export default function ModulesSetupStep({
         >
           Continuar para o horário semanal
         </button>
-      </section>
+      </fieldset>
     </div>
   )
 }
