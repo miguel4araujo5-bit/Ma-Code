@@ -1838,7 +1838,7 @@ export default function SetupConfirmationStep({
 
             <span>
               <span className="block font-black text-white">
-                Revisei os dados apresentados.
+                Revi os dados apresentados.
               </span>
 
               <span className="mt-1 block text-sm leading-6 text-slate-400">
@@ -1878,7 +1878,7 @@ export default function SetupConfirmationStep({
               </span>
 
               <span className="mt-1 block text-sm leading-6 text-slate-400">
-                Os dados principais ficam guardados localmente. Posso criar cópias cifradas online e utilizar a chave de recuperação para autorizar outro dispositivo.
+                Os dados principais ficam guardados localmente. Posso criar cópias de segurança cifradas online e utilizar a chave de recuperação para autorizar outro dispositivo.
               </span>
             </span>
           </label>
