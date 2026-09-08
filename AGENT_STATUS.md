@@ -1,159 +1,139 @@
 # MA-CODE — Estado consolidado dos agentes
 
 Atualizado por: AGENTE 1 — SEGUNDA GERAÇÃO (A1-G2)
-Sessão: A1-G2
-Data da verificação: 2026-09-08T00:22:00+01:00
-Último evento processado no `AGENT_MESSAGES.md` ativo: `A4-20260907T120048Z-cfdep`
-Fonte técnica: `main` confirmada em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
+Data da verificação: 2026-09-08T08:52:00+01:00
+Fonte técnica oficial: `main` confirmada em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
 
 ## Regra central de coordenação
 
-A1-G2 é o ponto central. O utilizador não transporta mensagens entre agentes. A1 identifica causas, distribui trabalho por ownership, resolve dependências e pede revisão A6 quando aplicável.
+A1-G2 é o ponto central. O utilizador não transporta mensagens entre agentes. A1 identifica causas, distribui trabalho, resolve dependências e pede revisão A6 quando aplicável.
 
-O `AGENT_MESSAGES.md` continua append-only. O conector disponível nesta sessão não oferece append atómico e substituir o ficheiro completo já originou `COMM-01/02/03`; por isso A1 não reescreve esse histórico. Enquanto não existir append seguro, instruções urgentes são publicadas diretamente nos PRs/canais GitHub dos agentes e refletidas neste `AGENT_STATUS.md`.
+`AGENT_MESSAGES.md` mantém-se append-only. Como o conector desta sessão não oferece append atómico e substituições completas já originaram incidentes `COMM-01/02/03`, A1 não reescreve o histórico. Instruções urgentes são publicadas diretamente nos PRs/canais GitHub dos agentes e refletidas neste ficheiro e em `A1_BLOCKER_BOARD.md`.
 
-Nada é integrado ou publicado em `main` sem aprovação explícita do utilizador para o lote concreto.
+Nada é integrado ou publicado em `main` sem aprovação explícita do utilizador para o candidato concreto.
 
-## Proteção operacional — DEPLOY-PR-01 / SAFE-VALIDATION-01
+## Proteção operacional — SAFE-VALIDATION-01 / DEPLOY-PR-01
 
-Protocolo obrigatório: `A1_SAFE_VALIDATION_PROTOCOL.md`.
+Protocolo: `A1_SAFE_VALIDATION_PROTOCOL.md`.
 
-A investigação A1 confirmou:
-- o repositório tem `default_branch = main`;
-- `.github/workflows/deploy.yml` já contém `workflow_dispatch` e executa apenas testes/build; não contém `wrangler deploy`;
-- GitHub suporta execução manual desse workflow com `ref` de uma branch existente;
-- o GitHub App Cloudflare observado subscreve `push` e `pull_request`, não `workflow_dispatch`;
-- a documentação Cloudflare atual indica `npx wrangler versions upload` como deploy command por defeito para branches não-production, criando versão sem promoção imediata; a configuração privada pode, contudo, ser personalizada.
-
-Política A1:
-- não abrir novo PR nem fazer push apenas para obter CI;
-- para HEADs finais já existentes, a prova executável preferida é `Build Check` via `workflow_dispatch` na branch exata;
-- o run só conta para A6 se `head_sha` = SHA revisto;
-- commits funcionais novos são permitidos apenas quando necessários ao próprio lote, depois de teste local proporcional e evitando pushes intermédios;
-- trabalho já produzido não é rebaseado/reconstruído apenas por causa de CI;
+- Não abrir PR nem fazer push apenas para obter CI.
+- Para HEADs finais existentes, preferir `Build Check` via `workflow_dispatch` na branch exata quando necessário.
+- Um run só conta para A6 se `head_sha` coincidir exatamente com o SHA revisto.
+- Commits funcionais novos apenas quando necessários ao próprio lote.
 - `main` permanece protegida.
-
-Configuração Cloudflare recomendada para fechar definitivamente o risco externo: production branch `main` e `Builds for non-production branches = OFF` durante esta fase. Se previews forem mantidos, o non-production deploy command deve ser `npx wrangler versions upload`. Esta alteração é de conta Cloudflare e não é feita pelo A1 sem acesso/autorização.
 
 ## Estado atual por agente/lote
 
-### A2-G2 — acesso/renovação — PRIORIDADE MÁXIMA
+### A2-G2 — acesso/renovação — FECHADO/APTO
 
 - Branch: `agent2-g2/access-session-contract-7ec8904`
-- HEAD intermédio: `a3d07b8e8ed774fd88d23859d6b64e19ebff9f23`
-- PR #28 draft.
-- Build Check #1648 / run `34117890604`: SUCCESS; MA-Professor 251/251; Conquistador e build passaram.
-- O próprio A2 encontrou depois um risco adicional: `/logout` escreve revogação em storage mas pode deixar `this.existing` com cache antiga; `/account/verify` também escreve `lastSeenAt` sem refresh. Compatibilidade hex legada também não está provada end-to-end em `/account/verify` e `/logout`.
-- A1 autorizou follow-up isolado por teste determinístico: sessão válida → `/logout` → `/account/verify` = 401 → `/renew` = 401 sem renewal; mais cenário histórico hash hex.
-- Se o stale-cache se confirmar, correção preferida: refresh/invalidação mínima após writes diretos no bridge, sem redesenho do núcleo.
-- A2 deve testar localmente, evitar pushes intermédios e entregar um HEAD final isolado; CI final por `workflow_dispatch` na branch exata.
-- Estado: **NÃO APTO / follow-up em curso**. A6 aguarda novo HEAD/checkpoint.
+- HEAD FINAL: `7038930471c80753b40ffde91eb023fc050f0030`
+- Build Check #1649 / run `34169554049`: SUCCESS.
+- A6-G2: **APTO** por SHA exato.
+- Corrige stale-cache pós-logout e preserva Base64 canónico + compatibilidade hex legada.
+- Limitações E2E/multi-dispositivo ficam para candidato global.
+- A2 deve manter o HEAD congelado.
 
 ### A3-G2 — setup
 
-#### A3-SETUP-ACTION-COLORS-01
+#### A3-SETUP-ACTION-COLORS-01 — PRONTO PARA CANDIDATO
 - Branch: `agent3-g2/setup-action-colors-344841c`
-- HEAD atual congelado: `64e3149336c6097c9777a8feb38209f9bfb37be9`.
-- O finding A6 `A6-SETUP-COLORS-NR-01` do HEAD anterior `f61bdb87...` foi corrigido: `daySlots.map(...)` voltou a fechar corretamente com `)}`.
-- A6 reviu o novo SHA e declarou o bloqueio de código **CORRIGIDO**, sem novo finding de código, mas com **VERIFICAÇÃO INCOMPLETA** por falta de execução de teste/build nesse SHA.
-- A1 pediu ao A3, sem alterar o HEAD: `node --test tests/ma-professor/setup-action-color-coding.test.mjs`, `npm run build` e, se possível, suite MA-Professor proporcional, com comando + resultado.
-- A validação automatizada final deve ser por `workflow_dispatch` nesta branch exata, sem novo commit/PR.
-- Estado: **código corrigido; falta prova executável para fechar parecer A6**.
+- HEAD: `64e3149336c6097c9777a8feb38209f9bfb37be9`
+- Finding de código anterior corrigido; A6 não encontrou novo finding de código.
+- Falta apenas prova executável isolada; por decisão A1, essa prova será fechada no candidato combinado.
+- Manter congelado.
 
-#### A3-HORARIO-XADREZ-01
+#### A3-HORARIO-XADREZ-01 — FECHADO/APTO
 - Branch: `agent3-g2/schedule-pdf-xadrez-344841c`
-- Continua em `344841c1fc402e813f9d8658d96fa20b0fefa779` neste checkpoint.
-- Objetivo: reconhecer/importar `Clube Xadrez` terça 15:20–16:10.
-- Âmbito A3 autorizado: `src/components/ma-professor/setup/SchedulePdfImportStep.tsx` + testes próprios.
-- `src/lib/maPdf/extractPdfText.ts` continua reservado ao A1; se necessário, A3 para e pede contrato.
-- A1 autorizou A3 a começar Xadrez em paralelo enquanto o A6 fecha o lote de cores.
-- Testar localmente e evitar commits/pushes intermédios; entregar HEAD final isolado.
-- Estado: **pendente de implementação**.
+- BASE: `344841c1fc402e813f9d8658d96fa20b0fefa779`
+- HEAD FINAL: `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+- Delta: 1 commit; apenas `src/lib/maPdf/extractPdfText.ts` + `tests/ma-professor/schedule-pdf-column-geometry.test.mjs`.
+- A3: smoke geométrico isolado 6/6 PASS.
+- A6-G2: **APTO** para futura combinação controlada, com limitações executáveis a fechar no candidato combinado.
+- Manter congelado.
 
-#### A3-PTPT-COPY-01
+#### A3-PTPT-COPY-01 — FECHADO/APTO
 - Branch: `agent3-g2/setup-ptpt-copy-344841c`
-- Continua na base `344841c...` neste checkpoint.
-- Alterações exclusivas: `Revisei os dados apresentados.` → `Revi os dados apresentados.`; `Posso criar cópias cifradas online` → `Posso criar cópias de segurança cifradas online`.
-- Tratar depois do Xadrez; não misturar com o HEAD de cores ou PR #23.
+- BASE: `344841c1fc402e813f9d8658d96fa20b0fefa779`
+- HEAD FINAL: `b0e2928a0e80306503a38787f4a46a8acea7fee1`
+- Delta: 1 commit, 0 behind, 1 ficheiro, apenas 2 substituições textuais autorizadas.
+- A6-G2: **APTO** para futura combinação controlada.
+- Manter congelado.
 
-#### PDF-IMPORT
-- PR #23 / HEAD `e4df193d78c5d9523cf7803af30241ab92e8ec6b` permanece congelado/APTO.
-- Não alterar nem integrar ainda; smokes reais ficam para o candidato combinado.
+#### PDF-IMPORT — FECHADO/APTO
+- PR #23 / HEAD `e4df193d78c5d9523cf7803af30241ab92e8ec6b`.
+- Preservar congelado; smokes reais ficam para candidato combinado.
 
 ### A4-G2 — Daily e GIAE
 
-#### A4-DAILY-NR-01
-- Branch `agent4-g2/daily-null-assessment-9bde7c4`
-- HEAD `df7098fe510aa79fc72bde035053389045a8d117`
-- PR #29 draft.
-- A6: **APTO** nesse SHA; CI #1645 SUCCESS; MA-Professor 248/248; Conquistador e build PASS.
+#### A4-DAILY-NR-01 — FECHADO/APTO
+- Branch: `agent4-g2/daily-null-assessment-9bde7c4`
+- HEAD: `df7098fe510aa79fc72bde035053389045a8d117`
+- A6: **APTO**; CI #1645 SUCCESS.
 - PR #29 contém o trabalho histórico do PR #17; não integrar PR #17 separadamente.
-- Estado: **congelado/APTO para futura combinação**.
 
-#### A4-GIAE-NR-02
-- Contrato A1/A6 base: `f314a8b6379d876cacacb96481cbf40effd2d5ce`, APTO para consumo controlado.
-- Branch canónica A4: `agent4-g2/giae-explicit-resubmit-f314a8b`.
-- HEAD atual: `ba87e69873a0277a63e84b98bf539038aba0151f`.
-- A4 corrigiu administrativamente o nome da branch por fast-forward; ignorar a branch antiga `agent4-g2/giae-explicit-submit-f314a8b` para coordenação futura.
-- Delta contra `f314a8b...`: 2 commits, 0 behind, apenas `src/components/ma-professor/giae/giaeWorkspaceRepository.ts` e `tests/ma-professor/giae-copy-version-guard.test.mjs`.
-- Implementação consome exclusivamente `giaeExplicitSubmissionRepository`, guarda `expectedUpdatedAt`, rejeita retorno não realmente `submitted`, preserva retry/autorização de cópia e bloqueia uso legacy nos testes.
-- A1 aceitou o checkpoint e pediu: comando + resultado dos testes locais neste SHA, sem novo push; revisão independente A6 por SHA exato.
-- A validação automatizada final deve ser por `workflow_dispatch` nesta branch exata, sem novo PR/push só para CI.
-- Estado: **implementado e congelado; aguarda evidência local + parecer A6**.
+#### A4-GIAE-NR-02 — PRONTO PARA CANDIDATO
+- Contrato base A1/A6: `f314a8b6379d876cacacb96481cbf40effd2d5ce`.
+- Branch canónica: `agent4-g2/giae-explicit-resubmit-f314a8b`.
+- HEAD: `ba87e69873a0277a63e84b98bf539038aba0151f`.
+- Prova local isolada: **9/9 PASS**.
+- A6: sem finding bloqueante de código; validação completa de suite/build/E2E diferida para candidato combinado.
+- Manter congelado.
 
 ### A5-G2 — preservação
 
-- Backup/restore PR #18 / HEAD `94fd528ac0a38d4eca7b56a83cd160a0616a84df` permanece congelado/APTO.
-- Para a futura funcionalidade Excel, A5 recomenda como contrato base: template `.xlsx` efémero por defeito; original nunca escrito; output preenchido fora de backup/sync por defeito; classificações estruturadas do MA-Professor permanecem fonte de verdade; metadados mínimos de mapeamento apenas se necessários e isolados por conta/ano letivo.
-- Nenhuma implementação Excel autorizada ainda.
+- BACKUP-ATOMIC / PR #18 / HEAD `94fd528ac0a38d4eca7b56a83cd160a0616a84df`: **APTO** e congelado.
+- Excel final UFCD/módulo continua apenas em análise/planeamento; nenhuma implementação autorizada.
 
 ### A6-G2 — revisão independente
 
-Fila atual:
-1. fechar A3 cores `64e3149336c6097c9777a8feb38209f9bfb37be9` assim que existir prova executável; `workflow_dispatch` é aceite se o `head_sha` for exatamente esse SHA;
-2. rever código A4 GIAE `ba87e69873a0277a63e84b98bf539038aba0151f` contra `f314a8b...` e incorporar prova local/`workflow_dispatch` quando existir;
-3. manter A2 `a3d07b8e...` suspenso até novo follow-up/HEAD;
-4. rever futuros HEADs Xadrez/PT-PT separadamente.
+- A2 `7038930471...`: APTO.
+- Xadrez `800d9119...`: APTO.
+- PT-PT `b0e2928a...`: APTO.
+- Cores `64e31493...`: sem finding de código; prova executável diferida.
+- GIAE `ba87e698...`: sem finding de código; prova completa diferida.
+- Próxima revisão material: SHA do candidato combinado, com suites/build/smokes e limitações E2E explicitadas.
 
-A6 nunca autoriza merge por si só; parecer é sempre por SHA exato.
-
-## Nova funcionalidade — avaliação final UFCD/módulo em Excel
-
-Planeamento: `A1_EXCEL_UFCD_FINAL_ASSESSMENT_PLANNING.md`.
-
-Princípios já suportados pela análise:
-- reutilizar `assessments/**` e `moduleFinalGrades` como fonte de verdade;
-- Excel é camada de importação/mapeamento/exportação, não segunda base de classificações;
-- original nunca alterado;
-- gerar uma cópia `.xlsx` preenchida;
-- template efémero por defeito e output fora de backup/sync;
-- mapeamento de alunos/colunas e ambiguidades exigem revisão explícita do professor;
-- autoavaliação e regra de cálculo não podem ser inventadas universalmente; devem respeitar critérios/configuração reais;
-- preservar fórmulas, folhas e formatação tanto quanto tecnicamente possível;
-- nenhuma implementação até A1 receber as análises A3/A4/A5 e definir contrato.
-
-## Lotes já APTO e congelados para futura combinação
+## Outros lotes fechados/APTO para futura combinação
 
 - `PDF-IMPORT`: `e4df193d78c5d9523cf7803af30241ab92e8ec6b`
 - `BACKUP-ATOMIC`: `94fd528ac0a38d4eca7b56a83cd160a0616a84df`
 - `CI-ISOLATION`: `745dab64e2355b1e14a36687d60a21e77b6e0f34`
 - `A4-DAILY-NR-01`: `df7098fe510aa79fc72bde035053389045a8d117`
+- `A2-NR-01`: `7038930471c80753b40ffde91eb023fc050f0030`
+- `A3-HORARIO-XADREZ-01`: `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+- `A3-PTPT-COPY-01`: `b0e2928a0e80306503a38787f4a46a8acea7fee1`
 
-Não combinar ainda: A2, A3 cores/Xadrez/PT-PT e A4 GIAE ainda não estão todos fechados.
+Lotes elegíveis mas com prova executável a fechar no candidato:
+- `A3-SETUP-ACTION-COLORS-01`: `64e3149336c6097c9777a8feb38209f9bfb37be9`
+- `A4-GIAE-NR-02`: `ba87e69873a0277a63e84b98bf539038aba0151f`
 
-## Incidentes de integridade do canal
+## Nova funcionalidade — avaliação final UFCD/módulo em Excel
 
-- `COMM-01`: evento A5 desapareceu do conteúdo ativo apesar de permanecer na história Git.
-- `COMM-02`: um append anterior alterou texto histórico.
-- `COMM-03`: tentativa de restaurar histórico também voltou a editar mensagens antigas.
+Planeamento: `A1_EXCEL_UFCD_FINAL_ASSESSMENT_PLANNING.md`.
 
-Regra permanente: nunca corrigir histórico por edição; qualquer retificação futura apenas por novo evento append-only quando existir mecanismo seguro.
+Princípios já definidos:
+- `assessments/**` / `moduleFinalGrades` continuam fonte de verdade;
+- Excel é camada de importação/mapeamento/exportação, não segunda base de classificações;
+- original nunca alterado; gerar nova cópia `.xlsx`;
+- template efémero por defeito e output fora de backup/sync por defeito;
+- ambiguidades de alunos/colunas exigem confirmação explícita;
+- critérios, autoavaliação e cálculo respeitam configuração real, não regras universais inventadas;
+- preservar fórmulas/folhas/formatação tanto quanto tecnicamente possível;
+- nenhuma implementação antes do contrato A1.
 
-## Próxima fase
+## Prioridade atual — A1-G2
 
-Quando A2, A3 e A4 tiverem HEADs finais tecnicamente fechados:
-1. A1 verifica dependências e lotes contidos/empilhados;
-2. prepara um único candidato combinado sem duplicar PRs históricos;
-3. executa suites Conquistador + MA-Professor + MA-Quadro, build e smokes proporcionais aos riscos;
-4. entrega o SHA combinado ao A6 para revisão final independente;
-5. só após parecer final e aprovação explícita do utilizador poderá haver autorização de merge para `main`.
+A1 deve agora preparar o candidato combinado com máxima cautela:
+1. inventariar dependências/ancestralidade entre lotes;
+2. evitar integração duplicada de PRs/lotes empilhados;
+3. determinar ordem segura e conflitos de ficheiro;
+4. só depois criar branch de candidato;
+5. executar suites Conquistador + MA-Professor + MA-Quadro, build e smokes proporcionais;
+6. pedir revisão final A6 do SHA exato;
+7. apenas após parecer A6 apresentar o candidato ao utilizador e pedir autorização explícita antes de qualquer merge em `main`.
+
+## Integridade do canal
+
+- `COMM-01/02/03` permanecem registados.
+- Nunca corrigir histórico de `AGENT_MESSAGES.md` por edição; qualquer retificação futura apenas por novo evento append-only quando existir mecanismo seguro.
