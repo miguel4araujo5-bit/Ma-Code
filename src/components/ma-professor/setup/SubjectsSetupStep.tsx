@@ -615,8 +615,8 @@ export default function SubjectsSetupStep({
                 className={`rounded-xl border px-3 py-2.5 text-sm font-black transition ${
                   customMode &&
                   !editingSubjectId
-                    ? 'border-violet-300/40 bg-violet-300/15 text-violet-50'
-                    : 'border-violet-300/20 bg-violet-300/[0.06] text-violet-200 hover:bg-violet-300/[0.1]'
+                    ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-50'
+                    : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]'
                 }`}
               >
                 + Outra disciplina
@@ -901,7 +901,7 @@ export default function SubjectsSetupStep({
           onClick={() =>
             void handleContinue()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-300/10 px-5 py-3.5 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:cursor-not-allowed disabled:opacity-45"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/45 bg-gradient-to-r from-cyan-300 via-sky-300 to-cyan-200 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
         >
           Continuar para UFCD / módulos
         </button>
