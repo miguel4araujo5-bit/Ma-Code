@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ma-code-build-check
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,6 +38,9 @@ jobs:
 
       - name: Run MA-Professor notification guard
         run: node --test tests/ma-professor/*.test.mjs
+
+      - name: Run MA-Quadro tests
+        run: npm run test:ma-quadro
 
       - name: Build project
         run: npm run build
