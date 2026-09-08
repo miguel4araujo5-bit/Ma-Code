@@ -11,11 +11,13 @@ const source = await readFile(
 )
 
 test(
-  'assessment criteria setup derives meaningful unsaved work from the local draft',
+  'assessment criteria setup derives meaningful unsaved work from the multi-discipline draft',
   () => {
     assert.match(source, /hasUnsavedCriteriaDraft/)
     assert.match(source, /form\.scope\s*!==\s*emptyForm\.scope/)
-    assert.match(source, /form\.moduleId\s*!==\s*emptyForm\.moduleId/)
+    assert.match(source, /form\.teachingAssignmentIds\.length/)
+    assert.match(source, /form\.moduleTeachingAssignmentId/)
+    assert.match(source, /form\.moduleId/)
     assert.match(source, /form\.schemeName\s*!==\s*emptyForm\.schemeName/)
     assert.match(source, /criteria\.length\s*!==\s*1/)
     assert.match(source, /criterion\.name\.trim\(\)/)
@@ -25,7 +27,7 @@ test(
 )
 
 test(
-  'assessment criteria setup protects browser close and navigation to another setup step',
+  'assessment criteria setup protects browser close and setup navigation',
   () => {
     assert.match(source, /rootRef/)
     assert.match(source, /useMAProfessorUnsavedWorkspaceProtection/)
@@ -38,21 +40,60 @@ test(
 )
 
 test(
-  'assessment criteria setup does not silently replace or clear a dirty draft',
+  'assessment criteria setup does not silently clear a dirty draft',
   () => {
     assert.match(source, /confirmDiscardCriteriaDraft/)
-    assert.match(source, /requestSelectAssignment/)
     assert.match(source, /requestResetForm/)
-    assert.match(
-      source,
-      /function requestSelectAssignment\([\s\S]*confirmDiscardCriteriaDraft\(\)/
-    )
     assert.match(
       source,
       /function requestResetForm\(\)[\s\S]*confirmDiscardCriteriaDraft\(\)/
     )
-    assert.match(source, /requestSelectAssignment\(\s*event\.target\.value\s*\)/)
     assert.match(source, /onClick=\{\s*requestResetForm\s*\}/)
+  }
+)
+
+test(
+  'normal criteria flow applies one draft to explicit associations through the atomic batch API',
+  () => {
+    assert.match(source, /assessmentCriteriaBatchRepository/)
+    assert.match(
+      source,
+      /await\s+assessmentCriteriaBatchRepository\.createSubjectSchemes\(\{/
+    )
+    assert.match(
+      source,
+      /teachingAssignmentIds:\s*form\.teachingAssignmentIds/
+    )
+    assert.match(source, /type="checkbox"/)
+    assert.match(
+      source,
+      /Este conjunto será aplicado a todas as UFCD das\s+disciplinas selecionadas\./
+    )
+  }
+)
+
+test(
+  'UFCD customization is secondary and consumes the evidence-guarded core API',
+  () => {
+    assert.match(source, /Personalizar uma UFCD/)
+    assert.match(
+      source,
+      /Estes critérios substituem os critérios gerais apenas\s+na UFCD selecionada\./
+    )
+    assert.match(
+      source,
+      /assessmentCriteriaModuleRepository\.createModuleScheme\(/
+    )
+    assert.doesNotMatch(
+      source,
+      /maProfessorRepository\.createAssessmentScheme\(/
+    )
+    assert.match(
+      source,
+      /Se esta UFCD já tiver avaliações ou classificações\s+registadas, a personalização será bloqueada para\s+preservar o histórico\./
+    )
+    assert.doesNotMatch(source, /name="criteria-scope"/)
+    assert.doesNotMatch(source, />\s*Apenas uma UFCD\s*</)
   }
 )
 
@@ -67,5 +108,6 @@ test(
       source,
       /hasUnsavedCriteriaDraft[\s\S]*return[\s\S]*completeSetupStep/
     )
+    assert.match(source, /uncoveredAssignments\.length/)
   }
 )
