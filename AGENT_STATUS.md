@@ -17,6 +17,7 @@ Este ficheiro é o **único resumo operacional** dos seis agentes.
 - **Nenhuma tarefa nova conta como concluída sem SHA exato, provas proporcionais e pedido explícito de revisão.**
 - Nenhum merge/publicação em `main` sem candidato testado, revisão independente A6 no SHA exato e aprovação explícita do utilizador.
 - O realinhamento de responsabilidades não reinicia trabalho nem invalida SHAs já aprovados.
+- **Aceleração operacional em vigor:** não criar micro-gates A3/A6 para sobreposições mecânicas ou checkpoints já destinados ao candidato. O A1 resolve sobreposições de integração; o A6 concentra o gate no SHA candidato final, salvo finding novo que exija revisão antecipada.
 
 ## Papéis principais
 
@@ -41,9 +42,10 @@ O âmbito está fechado. Novas melhorias passam para a entrega seguinte, salvo e
    - HEAD `e4df193d78c5d9523cf7803af30241ab92e8ec6b`
    - A6 **APTO**; smokes reais ficam para candidato.
 
-3. **A3 Horário/Xadrez**
-   - HEAD `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+3. **A3 Horário/Xadrez — base preservada**
+   - HEAD base `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
    - smoke A3 6/6; A6 **APTO**.
+   - Para o candidato, o estado deste lote nos paths do importador é agora **substituído** pelo lote A1 `A1-SCHEDULE-DUTY-COMPLETE-01` HEAD `891a95270efe2b097c462e48b99220f939a1215f`, que parte exatamente de `800d911...` e preserva a correção de geometria/Xadrez.
 
 4. **A3 Cores + PT-PT — estado efetivo para composição**
    - Cores HEAD `64e3149336c6097c9777a8feb38209f9bfb37be9`.
@@ -91,12 +93,9 @@ Requisito: abrir aula e escrever diretamente `0–20` junto ao aluno; nota váli
 - `assessmentAtomicPersistenceRepository.createLessonAssessmentWithResults(...)` envolve criação + resultados numa só transação.
 - provas A2: estrutural 3/3 PASS; compile isolada PASS; harness rollback/retry 2/2 PASS.
 
-**Correção A4 entregue para revisão:**
-- branch `agent4-g2/daily-quick-grade-atomic-faf6f38`
-- HEAD `8d7ea0dd15434b2ff425d4c1cb7569a8e2599034`
-- base funcional `df7098fe...`; preserva o UX Quick Grade anterior e consome o core A2 no caminho de nova avaliação.
-- delta exclusivo sobre `391346b3...`: `assessmentAtomicPersistenceRepository.ts`, `DailyLessonAssessmentSection.tsx`, teste core, teste de consumo.
-- pedido A6 publicado; suite/build literal ainda não executada neste SHA.
+**Correção A4 consumida no final seguro:**
+- checkpoint `8d7ea0dd15434b2ff425d4c1cb7569a8e2599034`
+- o estado final a integrar é `A4-DAILY-FINAL-SAFE` `1189b340f9a11ff1ce6910a7777da99fa7a0846b`.
 
 ### 11. A4-DAILY-GIAE-AUTO-01 — copiar sumário assinala automaticamente GIAE
 
@@ -108,27 +107,41 @@ Regra de produto:
 - clipboard fail = zero alteração;
 - stale/submit fail nunca produz falso sucesso.
 
-**HEAD A4 atual:**
-- branch `agent4-g2/daily-giae-auto-0cb0bdc`
-- HEAD `9c023277c2b7c954508a7cab2b058f0f12f4f9bf`
-- inclui GIAE Auto no `DailyWorkspaceView`, testes de auto-submissão e o contrato explícito GIAE herdado da linha `ba87e698...`.
+Checkpoint `9c023277c2b7c954508a7cab2b058f0f12f4f9bf`; estado final consumido por `A4-DAILY-FINAL-SAFE` abaixo.
 
-**Decisão A1 de composição — opção core existente:**
-- A2 criou a alternativa `bfaf4e5d8dc7133019c186146eb73c5a9e081235` (`giaeDailyPersistenceRepository.savePendingVersion(...)`), mas auditoria posterior mostrou que o caminho real `dailyWorkspaceRepository.saveLesson()` já satisfaz o contrato pending-first de forma mais completa porque guarda o editor inteiro.
-- No HEAD `9c02327...`, `handleCopySummary()` guarda primeiro alterações pendentes via `saveAll`; `saveLesson()` executa `updateLesson()` + eventual `submitted -> pending` na mesma transação; depois o handler relê a versão, confirma o sumário, executa clipboard e só então `markSubmitted({ expectedUpdatedAt: currentLesson.updatedAt })`.
-- **A1 decide NÃO integrar `bfaf4e5...` nesta entrega.** O SHA fica congelado como experiência core alternativo não consumido; não entra apenas por organização.
-- A2 classificou `9c02327...` como sem finding core bloqueante nesta leitura, mas ainda **VERIFICAÇÃO INCOMPLETA** até prova proporcional.
+Decisão A1: a alternativa core A2 `bfaf4e5d8dc7133019c186146eb73c5a9e081235` não entra nesta entrega; o caminho real `dailyWorkspaceRepository.saveLesson()` já satisfaz o pending-first guardando o editor inteiro antes de copiar/submeter.
 
-### 12. A4-DAILY-FINAL-SAFE — composição final Quick Grade + GIAE Auto
+### 12. A4-DAILY-FINAL-SAFE — Quick Grade atómico + GIAE Auto
 
-**ÚNICO DESENVOLVIMENTO BLOQUEANTE ATUAL: A4.**
+- branch `agent4-g2/daily-final-safe-9c02327`
+- HEAD **`1189b340f9a11ff1ce6910a7777da99fa7a0846b`**
+- parent `9c023277c2b7c954508a7cab2b058f0f12f4f9bf`.
+- A1 confirmou que o avanço parent→HEAD é 1 commit / 4 paths e apenas a correção atómica Quick Grade; GIAE Auto do parent permanece.
+- leitura A1 confirmou: nova avaliação usa `createLessonAssessmentWithResults(...)`; avaliação existente não cria duplicado; GIAE guarda/relê a versão atual, copia primeiro e submete apenas com `expectedUpdatedAt` correspondente.
+- Não há CI específico deste SHA; por decisão de aceleração, não se cria PR/push apenas para CI e o gate A6 concentra-se no candidato combinado.
 
-- merge-base entre `9c023277...` e `8d7ea0dd...` = `391346b3...`.
-- o delta exclusivo de `8d7ea0dd...` toca apenas 4 paths e não colide com `DailyWorkspaceView.tsx` do GIAE Auto.
-- A1 autorizou: criar branch nova a partir de `9c023277...`, integrar o estado `8d7ea0dd...` por merge/cherry-pick controlado, preservar branches anteriores e entregar novo HEAD final.
-- o HEAD final tem de conter simultaneamente Quick Grade atómico + GIAE Auto + contrato explícito GIAE.
+### 13. A1-SCHEDULE-DUTY-COMPLETE-01 — cargos completos + correção manual do preview
 
-Comentário operacional A1 no PR #27: `5588937439`.
+Novo pedido explícito/bloqueante do utilizador após observar o PDF real de horário.
+
+PDF real esperado na quinta-feira:
+- `Eq Pedag` — 09:25–10:15;
+- `Co PCE` — 10:30–11:20;
+- `Clube Xadrez` — 13:20–14:10.
+
+Bug observado: preview mostrava apenas `Eq Pedag` e `Clube Xadrez`; `Co PCE` era perdido porque a geometria removia a coluna `SP` e `extractDutyName()` ficava dependente de uma lista rígida.
+
+Correção A1, com agentes em pausa por decisão do utilizador:
+- branch `agent1/schedule-duty-complete-800d911`
+- base `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+- HEAD **`891a95270efe2b097c462e48b99220f939a1215f`**
+- paths: `SchedulePdfImportStep.tsx` + `schedule-pdf-duty-completeness.test.mjs`.
+- compare base→HEAD: 2 commits / 2 paths; componente +108/-3, teste +76.
+- parser aceita `Co PCE` e outros nomes multi-palavra válidos sem depender do marcador removido; rejeita ruído de sala/marcador e siglas letivas isoladas.
+- preview passa a mostrar **`+ Adicionar aula / hora`** e **`+ Adicionar cargo`**, permitindo completar manualmente blocos em falta antes da confirmação.
+- harness A1 isolado do parser: **11/11 PASS** (`Eq Pedag`, `Co PCE`, `Clube Xadrez`, `Co PCE SP`, e rejeição de `SP`, `REO`, `A2.14`, `Aud2`, `AS`, `AEXP`, turma).
+- teste de regressão adicionado; suite/build literal ainda não executados neste SHA e ficam para candidato.
+- comentário operacional no PR #23: `5590224977`.
 
 ## Segurança/recuperação A5
 
@@ -136,40 +149,29 @@ Investigação concluída sem encontrar risco atualmente alcançável de perda i
 
 ## Ações atuais por agente
 
-### A1 — COORDENAÇÃO / PRODUTO / WORKFLOW
-1. manter âmbito/ownership fechados;
-2. acompanhar `A4-DAILY-FINAL-SAFE` e impedir uso dos checkpoints bloqueados como final;
-3. após HEAD final A4 + parecer A6, materializar candidato único, verificar ancestralidade/deduplicação, executar MA-Professor + Conquistador + MA-Quadro + build + smokes e entregar SHA ao A6.
+### A1 — COORDENAÇÃO / PRODUTO / WORKFLOW — AÇÃO ATIVA
+1. compor agora o candidato único partindo de `main` `344841c...` sem merges históricos duplicados;
+2. usar `891a9527...` como estado final do importador de horário/Xadrez/cargos;
+3. integrar `1189b340...`, critérios `c3104b...` + guard `715ecd84...`, acesso, PDF planificações, cores/PT-PT, backup e CI isolation, resolvendo sobreposições mecanicamente;
+4. executar testes MA-Professor + Conquistador + MA-Quadro + build + smokes dirigidos;
+5. entregar o SHA candidato exato ao A6 para **uma revisão final única**.
 
 ### A2 — CORE / ACESSO / DADOS / PERSISTÊNCIA
-- acesso `703893...` APTO e congelado;
-- critérios `715ecd84...` congelado; prova real final no candidato;
-- Quick Grade atomic core `abfa52e...` entregue/congelado;
-- `bfaf4e5...` congelado como alternativa GIAE não consumida nesta entrega;
-- sem novo write salvo finding A6 concreto.
+- lotes desta entrega congelados; sem nova ação enquanto não houver finding concreto no candidato.
 
 ### A3 — INTERFACE / UX / PT-PT / VISUAL
-- critérios UX `c3104b...` congelado; sem desenvolvimento pendente;
-- preservar PDF/Xadrez/Cores/PT-PT.
+- lotes desta entrega congelados; sem nova ação enquanto não houver finding concreto no candidato.
+- a correção A1 `891a9527...` substitui apenas o estado final dos paths de importação do horário; não reescreve o histórico A3.
 
-### A4 — PEDAGOGIA / AULAS / AVALIAÇÕES / GIAE — AÇÃO ATIVA BLOQUEANTE
-- Quick Grade corrigido `8d7ea0dd...` entregue separadamente;
-- GIAE Auto `9c023277...` entregue separadamente;
-- **FAZER AGORA:** criar HEAD final único que combine estes dois estados, executar provas dirigidas e pedir revisão A6.
-- parecer Excel entregue e separado desta entrega.
+### A4 — PEDAGOGIA / AULAS / AVALIAÇÕES / GIAE
+- final seguro `1189b340...` congelado; sem nova ação enquanto não houver finding concreto no candidato.
 
 ### A5 — SEGURANÇA DE DADOS / RECUPERAÇÃO / SNAPSHOTS
-- BACKUP-ATOMIC preservado; sem blocker atual.
-- smoke backup/restore no candidato.
+- BACKUP-ATOMIC preservado; smoke backup/restore no candidato.
 
-### A6 — REVISÃO INDEPENDENTE / NÃO-REGRESSÃO / RELEASE — AÇÃO ATIVA
-1. rever `8d7ea0dd...` e `9c023277...` como checkpoints;
-2. não gastar gate de release em `bfaf4e5...`, que ficou fora da composição funcional;
-3. quando A4 entregar `A4-DAILY-FINAL-SAFE`, rever o SHA integral sem herdar APTO automaticamente dos checkpoints;
-4. critérios core+UX mantêm VERIFICAÇÃO INCOMPLETA até prova executável do candidato;
-5. revisão final obrigatória do candidato combinado.
-
-Comentário operacional A1 ao A6 no PR #24: `5588941843`.
+### A6 — REVISÃO INDEPENDENTE / NÃO-REGRESSÃO / RELEASE
+- não gastar novo gate em checkpoints intermédios sem finding concreto;
+- próxima ação útil: revisão independente do **SHA candidato final A1** depois das provas globais.
 
 ## Fila seguinte visível — fora da entrega atual
 
@@ -195,7 +197,7 @@ A5 segurança/recuperação; A2 core; A1 âmbito; A6 revisão. Corrigir o caminh
 - testes MA-Quadro;
 - build completo;
 - testes específicos dos lotes novos;
-- smokes: critérios multi-disciplina; override UFCD sem evidência; bloqueio real Dexie com evidência/stale; PDF/Xadrez; Daily Quick Grade; rollback/retry sem assessment órfão; cópia/tick GIAE; stale/clipboard fail/submit fail; GIAE single/bulk; backup/restore; acesso/logout/renovação;
+- smokes: critérios multi-disciplina; override UFCD sem evidência; bloqueio real Dexie com evidência/stale; PDF planificações; horário real com `Eq Pedag` + `Co PCE` + `Clube Xadrez`; adição manual de aula/hora e cargo no preview; Daily Quick Grade; rollback/retry sem assessment órfão; cópia/tick GIAE; stale/clipboard fail/submit fail; GIAE single/bulk; backup/restore; acesso/logout/renovação;
 - dados descartáveis; nenhuma informação escolar privada em comentários/fixtures públicas;
 - cada prova deve corresponder ao SHA avaliado;
 - build verde não substitui testes funcionais.
@@ -205,4 +207,4 @@ Fluxo final obrigatório:
 
 ## Estado de fecho neste momento
 
-**Ainda não concluído.** Falta `A4-DAILY-FINAL-SAFE -> A6 do SHA final A4 -> candidato A1 -> testes globais -> A6 final -> aprovação explícita do utilizador`. A `main` permanece protegida em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
+**Desenvolvimento funcional desta entrega está fechado nos SHAs acima, incluindo o novo bug de cargos.** Falta apenas `candidato A1 -> testes globais/smokes -> A6 final -> apresentação -> aprovação explícita do utilizador`. A `main` permanece protegida em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
