@@ -6,6 +6,9 @@ import {
 } from 'react'
 
 import {
+  assessmentCriteriaBatchRepository
+} from '../assessmentCriteriaBatchRepository'
+import {
   maProfessorRepository,
   type AssessmentCriterionDraft,
   type SetupSnapshot
@@ -37,15 +40,17 @@ type CriterionFormRow = {
 }
 
 type CriteriaFormState = {
-  teachingAssignmentId: EntityId
+  teachingAssignmentIds: EntityId[]
   scope: AssessmentSchemeScope
+  moduleTeachingAssignmentId: EntityId
   moduleId: EntityId
   schemeName: string
 }
 
 const emptyForm: CriteriaFormState = {
-  teachingAssignmentId: '',
+  teachingAssignmentIds: [],
   scope: 'subject',
+  moduleTeachingAssignmentId: '',
   moduleId: '',
   schemeName: 'Critérios de avaliação'
 }
@@ -177,86 +182,12 @@ export default function AssessmentCriteriaSetupStep({
   ] =
     useState('')
 
-  const groupById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.groups.map(
-            (
-              group
-            ) => [
-              group.id,
-              group
-            ]
-          )
-        ),
-      [
-        snapshot.groups
-      ]
-    )
-
-  const subjectById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.subjects.map(
-            (
-              subject
-            ) => [
-              subject.id,
-              subject
-            ]
-          )
-        ),
-      [
-        snapshot.subjects
-      ]
-    )
-
-  const moduleById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.modules.map(
-            (
-              module
-            ) => [
-              module.id,
-              module
-            ]
-          )
-        ),
-      [
-        snapshot.modules
-      ]
-    )
-
-  const schemeById =
-    useMemo(
-      () =>
-        new Map(
-          snapshot.assessmentSchemes.map(
-            (
-              scheme
-            ) => [
-              scheme.id,
-              scheme
-            ]
-          )
-        ),
-      [
-        snapshot.assessmentSchemes
-      ]
-    )
-
   const assignments =
     useMemo(
       () =>
         snapshot.teachingAssignments
           .filter(
-            (
-              assignment
-            ) =>
+            assignment =>
               assignment.active
           )
           .sort(
@@ -279,20 +210,34 @@ export default function AssessmentCriteriaSetupStep({
       ]
     )
 
-  const selectedAssignment =
+  const moduleById =
+    useMemo(
+      () =>
+        new Map(
+          snapshot.modules.map(
+            module => [
+              module.id,
+              module
+            ]
+          )
+        ),
+      [
+        snapshot.modules
+      ]
+    )
+
+  const selectedModuleAssignment =
     useMemo(
       () =>
         assignments.find(
-          (
-            assignment
-          ) =>
+          assignment =>
             assignment.id ===
-            form.teachingAssignmentId
+            form.moduleTeachingAssignmentId
         ) ??
         null,
       [
         assignments,
-        form.teachingAssignmentId
+        form.moduleTeachingAssignmentId
       ]
     )
 
@@ -301,12 +246,10 @@ export default function AssessmentCriteriaSetupStep({
       () =>
         snapshot.modules
           .filter(
-            (
-              module
-            ) =>
+            module =>
               module.active &&
               module.teachingAssignmentId ===
-                form.teachingAssignmentId
+                form.moduleTeachingAssignmentId
           )
           .sort(
             (
@@ -318,7 +261,7 @@ export default function AssessmentCriteriaSetupStep({
           ),
       [
         snapshot.modules,
-        form.teachingAssignmentId
+        form.moduleTeachingAssignmentId
       ]
     )
 
@@ -331,9 +274,7 @@ export default function AssessmentCriteriaSetupStep({
         >()
 
       snapshot.assessmentCriteria.forEach(
-        (
-          criterion
-        ) => {
+        criterion => {
           const schemeCriteria =
             result.get(
               criterion.schemeId
@@ -352,9 +293,7 @@ export default function AssessmentCriteriaSetupStep({
       )
 
       result.forEach(
-        (
-          schemeCriteria
-        ) => {
+        schemeCriteria => {
           schemeCriteria.sort(
             (
               left,
@@ -380,9 +319,7 @@ export default function AssessmentCriteriaSetupStep({
         >()
 
       assignments.forEach(
-        (
-          assignment
-        ) => {
+        assignment => {
           result.set(
             assignment.id,
             []
@@ -392,15 +329,11 @@ export default function AssessmentCriteriaSetupStep({
 
       snapshot.assessmentSchemes
         .filter(
-          (
-            scheme
-          ) =>
+          scheme =>
             scheme.active
         )
         .forEach(
-          (
-            scheme
-          ) => {
+          scheme => {
             const schemes =
               result.get(
                 scheme.teachingAssignmentId
@@ -424,13 +357,45 @@ export default function AssessmentCriteriaSetupStep({
       snapshot.assessmentSchemes
     ])
 
+  const assignmentHasSubjectScheme =
+    useMemo(() => {
+      const result =
+        new Set<EntityId>()
+
+      assignments.forEach(
+        assignment => {
+          const schemes =
+            schemesByAssignment.get(
+              assignment.id
+            ) ??
+            []
+
+          if (
+            schemes.some(
+              scheme =>
+                scheme.active &&
+                scheme.scope ===
+                  'subject'
+            )
+          ) {
+            result.add(
+              assignment.id
+            )
+          }
+        }
+      )
+
+      return result
+    }, [
+      assignments,
+      schemesByAssignment
+    ])
+
   const uncoveredAssignments =
     useMemo(
       () =>
         assignments.filter(
-          (
-            assignment
-          ) => {
+          assignment => {
             const schemes =
               schemesByAssignment.get(
                 assignment.id
@@ -439,9 +404,7 @@ export default function AssessmentCriteriaSetupStep({
 
             const hasSubjectScheme =
               schemes.some(
-                (
-                  scheme
-                ) =>
+                scheme =>
                   scheme.scope ===
                     'subject' &&
                   scheme.active
@@ -455,9 +418,7 @@ export default function AssessmentCriteriaSetupStep({
 
             const modules =
               snapshot.modules.filter(
-                (
-                  module
-                ) =>
+                module =>
                   module.active &&
                   module.teachingAssignmentId ===
                     assignment.id
@@ -471,13 +432,9 @@ export default function AssessmentCriteriaSetupStep({
             }
 
             return modules.some(
-              (
-                module
-              ) =>
+              module =>
                 !schemes.some(
-                  (
-                    scheme
-                  ) =>
+                  scheme =>
                     scheme.scope ===
                       'module' &&
                     scheme.moduleId ===
@@ -535,8 +492,12 @@ export default function AssessmentCriteriaSetupStep({
   const hasUnsavedCriteriaDraft =
     form.scope !==
       emptyForm.scope ||
-    form.moduleId !==
-      emptyForm.moduleId ||
+    form.teachingAssignmentIds.length >
+      0 ||
+    Boolean(
+      form.moduleTeachingAssignmentId ||
+      form.moduleId
+    ) ||
     form.schemeName !==
       emptyForm.schemeName ||
     criteria.length !==
@@ -586,20 +547,10 @@ export default function AssessmentCriteriaSetupStep({
     ])
   }
 
-  function resetForm(
-    preserveAssignment =
-      true
-  ) {
-    const teachingAssignmentId =
-      preserveAssignment
-        ? form.teachingAssignmentId
-        : ''
-
-    setForm({
-      ...emptyForm,
-      teachingAssignmentId
-    })
-
+  function resetForm() {
+    setForm(
+      emptyForm
+    )
     resetCriteria()
   }
 
@@ -620,46 +571,69 @@ export default function AssessmentCriteriaSetupStep({
       return
     }
 
-    resetForm(
-      false
-    )
-  }
-
-  function selectAssignment(
-    teachingAssignmentId:
-      EntityId
-  ) {
-    setForm({
-      ...emptyForm,
-      teachingAssignmentId
-    })
-
-    resetCriteria()
+    resetForm()
     setError('')
     setSuccess('')
   }
 
-  function requestSelectAssignment(
+  function setScope(
+    scope: AssessmentSchemeScope
+  ) {
+    if (
+      busy ||
+      scope ===
+        form.scope
+    ) {
+      return
+    }
+
+    setForm(
+      current => ({
+        ...current,
+        scope,
+        teachingAssignmentIds: [],
+        moduleTeachingAssignmentId: '',
+        moduleId: ''
+      })
+    )
+    setError('')
+    setSuccess('')
+  }
+
+  function toggleAssignment(
     teachingAssignmentId:
       EntityId
   ) {
     if (
       busy ||
-      teachingAssignmentId ===
-        form.teachingAssignmentId
+      assignmentHasSubjectScheme.has(
+        teachingAssignmentId
+      )
     ) {
       return
     }
 
-    if (
-      !confirmDiscardCriteriaDraft()
-    ) {
-      return
-    }
-
-    selectAssignment(
-      teachingAssignmentId
+    setForm(
+      current => ({
+        ...current,
+        teachingAssignmentIds:
+          current.teachingAssignmentIds.includes(
+            teachingAssignmentId
+          )
+            ? current.teachingAssignmentIds.filter(
+                currentId =>
+                  currentId !==
+                  teachingAssignmentId
+              )
+            : [
+                ...current.teachingAssignmentIds,
+                teachingAssignmentId
+              ]
+      })
     )
+
+    setError('')
+    setSuccess('')
   }
 
   function updateCriterion(
@@ -672,13 +646,9 @@ export default function AssessmentCriteriaSetupStep({
     >
   ) {
     setCriteria(
-      (
-        current
-      ) =>
+      current =>
         current.map(
-          (
-            criterion
-          ) =>
+          criterion =>
             criterion.localId ===
             localId
               ? {
@@ -692,9 +662,7 @@ export default function AssessmentCriteriaSetupStep({
 
   function addCriterion() {
     setCriteria(
-      (
-        current
-      ) => [
+      current => [
         ...current,
         createCriterionRow(
           current.length
@@ -721,13 +689,9 @@ export default function AssessmentCriteriaSetupStep({
     }
 
     setCriteria(
-      (
-        current
-      ) =>
+      current =>
         current.filter(
-          (
-            criterion
-          ) =>
+          criterion =>
             criterion.localId !==
             localId
         )
@@ -773,9 +737,7 @@ export default function AssessmentCriteriaSetupStep({
       )
 
     setCriteria(
-      (
-        current
-      ) =>
+      current =>
         current.map(
           (
             criterion,
@@ -798,73 +760,13 @@ export default function AssessmentCriteriaSetupStep({
     setSuccess('')
   }
 
-  function validateForm():
+  function validateCriteria():
     AssessmentCriterionDraft[] {
-    if (
-      !form.teachingAssignmentId
-    ) {
-      throw new Error(
-        'Selecione a turma e a disciplina dos critérios.'
-      )
-    }
-
     if (
       !form.schemeName.trim()
     ) {
       throw new Error(
         'Indique um nome para o conjunto de critérios.'
-      )
-    }
-
-    if (
-      form.scope ===
-        'module' &&
-      !form.moduleId
-    ) {
-      throw new Error(
-        'Selecione a UFCD ou módulo onde estes critérios serão aplicados.'
-      )
-    }
-
-    const existingSchemes =
-      schemesByAssignment.get(
-        form.teachingAssignmentId
-      ) ??
-      []
-
-    if (
-      form.scope ===
-        'subject' &&
-      existingSchemes.some(
-        (
-          scheme
-        ) =>
-          scheme.scope ===
-            'subject' &&
-          scheme.active
-      )
-    ) {
-      throw new Error(
-        'Esta turma e disciplina já possuem critérios gerais.'
-      )
-    }
-
-    if (
-      form.scope ===
-        'module' &&
-      existingSchemes.some(
-        (
-          scheme
-        ) =>
-          scheme.scope ===
-            'module' &&
-          scheme.moduleId ===
-            form.moduleId &&
-          scheme.active
-      )
-    ) {
-      throw new Error(
-        'Esta UFCD ou módulo já possui critérios específicos.'
       )
     }
 
@@ -957,6 +859,45 @@ export default function AssessmentCriteriaSetupStep({
     return criterionDrafts
   }
 
+  function validateModuleSelection() {
+    if (
+      !form.moduleTeachingAssignmentId
+    ) {
+      throw new Error(
+        'Selecione a turma e a disciplina da personalização.'
+      )
+    }
+
+    if (
+      !form.moduleId
+    ) {
+      throw new Error(
+        'Selecione a UFCD ou módulo a personalizar.'
+      )
+    }
+
+    const existingSchemes =
+      schemesByAssignment.get(
+        form.moduleTeachingAssignmentId
+      ) ??
+      []
+
+    if (
+      existingSchemes.some(
+        scheme =>
+          scheme.scope ===
+            'module' &&
+          scheme.moduleId ===
+            form.moduleId &&
+          scheme.active
+      )
+    ) {
+      throw new Error(
+        'Esta UFCD ou módulo já possui critérios específicos.'
+      )
+    }
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -974,36 +915,60 @@ export default function AssessmentCriteriaSetupStep({
 
     try {
       const criterionDrafts =
-        validateForm()
+        validateCriteria()
 
-      await maProfessorRepository.createAssessmentScheme(
-        {
+      if (
+        form.scope ===
+        'subject'
+      ) {
+        if (
+          form.teachingAssignmentIds.length ===
+          0
+        ) {
+          throw new Error(
+            'Selecione pelo menos uma turma e disciplina em “Aplicar a”.'
+          )
+        }
+
+        await assessmentCriteriaBatchRepository.createSubjectSchemes({
           academicYearId:
             snapshot.academicYear.id,
-          teachingAssignmentId:
-            form.teachingAssignmentId,
-          moduleId:
-            form.scope ===
-              'module'
-              ? form.moduleId
-              : null,
-          scope:
-            form.scope,
+          teachingAssignmentIds:
+            form.teachingAssignmentIds,
           name:
             form.schemeName,
+          criteria:
+            criterionDrafts,
           active: true
-        },
-        criterionDrafts
-      )
+        })
+      } else {
+        validateModuleSelection()
+
+        await maProfessorRepository.createAssessmentScheme(
+          {
+            academicYearId:
+              snapshot.academicYear.id,
+            teachingAssignmentId:
+              form.moduleTeachingAssignmentId,
+            moduleId:
+              form.moduleId,
+            scope: 'module',
+            name:
+              form.schemeName,
+            active: true
+          },
+          criterionDrafts
+        )
+      }
 
       await refreshSnapshot()
-
-      resetForm(
-        true
-      )
+      resetForm()
 
       setSuccess(
-        'Critérios de avaliação guardados com sucesso.'
+        form.scope ===
+          'subject'
+          ? 'Critérios aplicados com sucesso às disciplinas selecionadas.'
+          : 'Personalização da UFCD guardada com sucesso.'
       )
     } catch (
       submitError
@@ -1053,9 +1018,7 @@ export default function AssessmentCriteriaSetupStep({
       setError(
         `Ainda faltam critérios para: ${uncoveredAssignments
           .map(
-            (
-              assignment
-            ) =>
+            assignment =>
               assignment.displayName
           )
           .join(', ')}.`
@@ -1119,248 +1082,11 @@ export default function AssessmentCriteriaSetupStep({
         </h2>
 
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-          Defina os critérios e as respetivas ponderações. Pode aplicar
-          o mesmo conjunto a todas as UFCD da turma e disciplina ou
-          criar critérios específicos para cada UFCD.
+          Defina primeiro o conjunto de critérios e as respetivas ponderações.
+          Depois escolha as disciplinas onde o pretende aplicar.
         </p>
 
         <div className="mt-7 space-y-5">
-          <label className="block">
-            <FieldLabel>
-              Turma e disciplina
-            </FieldLabel>
-
-            <select
-              value={
-                form.teachingAssignmentId
-              }
-              onChange={(
-                event
-              ) =>
-                requestSelectAssignment(
-                  event.target.value
-                )
-              }
-              required
-              className={
-                inputClassName
-              }
-            >
-              <option value="">
-                Selecione uma turma e disciplina
-              </option>
-
-              {assignments.map(
-                (
-                  assignment
-                ) => (
-                  <option
-                    key={
-                      assignment.id
-                    }
-                    value={
-                      assignment.id
-                    }
-                  >
-                    {
-                      assignment.displayName
-                    }
-                  </option>
-                )
-              )}
-            </select>
-          </label>
-
-          {selectedAssignment ? (
-            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-200">
-                Seleção atual
-              </p>
-
-              <p className="mt-2 font-black text-white">
-                {
-                  selectedAssignment.displayName
-                }
-              </p>
-
-              <p className="mt-1 text-xs leading-6 text-slate-400">
-                Turma:{' '}
-                {groupById.get(
-                  selectedAssignment.groupId
-                )?.name ??
-                  '—'}
-
-                {' · '}
-
-                Disciplina:{' '}
-                {subjectById.get(
-                  selectedAssignment.subjectId
-                )?.name ??
-                  '—'}
-              </p>
-            </div>
-          ) : null}
-
-          <fieldset>
-            <legend className="text-sm font-bold text-slate-200">
-              Onde aplicar estes critérios?
-            </legend>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
-                  form.scope ===
-                  'subject'
-                    ? 'border-cyan-300/35 bg-cyan-300/[0.08]'
-                    : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="criteria-scope"
-                    value="subject"
-                    checked={
-                      form.scope ===
-                      'subject'
-                    }
-                    onChange={() =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          scope:
-                            'subject',
-                          moduleId:
-                            ''
-                        })
-                      )
-                    }
-                    className="mt-1 h-4 w-4 border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
-                  />
-
-                  <span>
-                    <span className="block font-black text-white">
-                      Todas as UFCD
-                    </span>
-
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      Utilize o mesmo conjunto de critérios em toda a
-                      disciplina desta turma.
-                    </span>
-                  </span>
-                </div>
-              </label>
-
-              <label
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
-                  form.scope ===
-                  'module'
-                    ? 'border-violet-300/35 bg-violet-300/[0.08]'
-                    : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="criteria-scope"
-                    value="module"
-                    checked={
-                      form.scope ===
-                      'module'
-                    }
-                    onChange={() =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          scope:
-                            'module'
-                        })
-                      )
-                    }
-                    className="mt-1 h-4 w-4 border-white/20 bg-slate-900 text-violet-300 focus:ring-violet-300/30"
-                  />
-
-                  <span>
-                    <span className="block font-black text-white">
-                      Apenas uma UFCD
-                    </span>
-
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      Crie critérios diferentes para uma UFCD ou módulo
-                      específico.
-                    </span>
-                  </span>
-                </div>
-              </label>
-            </div>
-          </fieldset>
-
-          {form.scope ===
-          'module' ? (
-            <label className="block">
-              <FieldLabel>
-                UFCD ou módulo
-              </FieldLabel>
-
-              <select
-                value={
-                  form.moduleId
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm(
-                    (
-                      current
-                    ) => ({
-                      ...current,
-                      moduleId:
-                        event
-                          .target
-                          .value
-                    })
-                  )
-                }
-                required
-                disabled={
-                  !form.teachingAssignmentId
-                }
-                className={
-                  inputClassName
-                }
-              >
-                <option value="">
-                  Selecione a UFCD ou módulo
-                </option>
-
-                {selectedAssignmentModules.map(
-                  (
-                    module
-                  ) => (
-                    <option
-                      key={
-                        module.id
-                      }
-                      value={
-                        module.id
-                      }
-                    >
-                      {module.code
-                        ? `${module.code} — `
-                        : ''}
-
-                      {module.name}
-                    </option>
-                  )
-                )}
-              </select>
-            </label>
-          ) : null}
-
           <label className="block">
             <FieldLabel>
               Nome do conjunto
@@ -1371,20 +1097,15 @@ export default function AssessmentCriteriaSetupStep({
               value={
                 form.schemeName
               }
-              onChange={(
-                event
-              ) =>
-                setForm(
-                  (
-                    current
-                  ) => ({
-                    ...current,
-                    schemeName:
-                      event
-                        .target
-                        .value
-                  })
-                )
+              onChange={
+                event =>
+                  setForm(
+                    current => ({
+                      ...current,
+                      schemeName:
+                        event.target.value
+                    })
+                  )
               }
               placeholder="Critérios de avaliação"
               required
@@ -1468,18 +1189,15 @@ export default function AssessmentCriteriaSetupStep({
                         value={
                           criterion.name
                         }
-                        onChange={(
-                          event
-                        ) =>
-                          updateCriterion(
-                            criterion.localId,
-                            {
-                              name:
-                                event
-                                  .target
-                                  .value
-                            }
-                          )
+                        onChange={
+                          event =>
+                            updateCriterion(
+                              criterion.localId,
+                              {
+                                name:
+                                  event.target.value
+                              }
+                            )
                         }
                         placeholder="Trabalhos práticos"
                         required
@@ -1504,18 +1222,15 @@ export default function AssessmentCriteriaSetupStep({
                           value={
                             criterion.weightPercent
                           }
-                          onChange={(
-                            event
-                          ) =>
-                            updateCriterion(
-                              criterion.localId,
-                              {
-                                weightPercent:
-                                  event
-                                    .target
-                                    .value
-                              }
-                            )
+                          onChange={
+                            event =>
+                              updateCriterion(
+                                criterion.localId,
+                                {
+                                  weightPercent:
+                                    event.target.value
+                                }
+                              )
                           }
                           required
                           className={`${inputClassName} pr-10`}
@@ -1537,18 +1252,15 @@ export default function AssessmentCriteriaSetupStep({
                       value={
                         criterion.description
                       }
-                      onChange={(
-                        event
-                      ) =>
-                        updateCriterion(
-                          criterion.localId,
-                          {
-                            description:
-                              event
-                                .target
-                                .value
-                          }
-                        )
+                      onChange={
+                        event =>
+                          updateCriterion(
+                            criterion.localId,
+                            {
+                              description:
+                                event.target.value
+                            }
+                          )
                       }
                       placeholder="Qualidade da execução, cumprimento das orientações e adequação do resultado."
                       className={
@@ -1577,11 +1289,231 @@ export default function AssessmentCriteriaSetupStep({
               onClick={
                 distributeEqually
               }
-              className="inline-flex flex-1 items-center justify-center rounded-2xl border border-violet-300/15 bg-violet-300/[0.055] px-4 py-3 text-sm font-bold text-violet-100 transition hover:border-violet-300/30 hover:bg-violet-300/[0.09]"
+              className="inline-flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-bold text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100"
             >
               Distribuir 100% igualmente
             </button>
           </div>
+        </div>
+
+        <div className="mt-8 border-t border-white/10 pt-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+                Aplicar a
+              </p>
+
+              <h3 className="mt-2 text-xl font-black text-white">
+                {form.scope ===
+                'subject'
+                  ? 'Disciplinas'
+                  : 'Personalização de UFCD'}
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                setScope(
+                  form.scope ===
+                    'subject'
+                    ? 'module'
+                    : 'subject'
+                )
+              }
+              className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-bold text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.06] disabled:opacity-50"
+            >
+              {form.scope ===
+              'subject'
+                ? 'Personalizar uma UFCD'
+                : 'Voltar à aplicação por disciplina'}
+            </button>
+          </div>
+
+          {form.scope ===
+          'subject' ? (
+            <div className="mt-5">
+              <p className="text-sm leading-6 text-slate-300">
+                Este conjunto será aplicado a todas as UFCD das disciplinas selecionadas.
+              </p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {assignments.map(
+                  assignment => {
+                    const alreadyConfigured =
+                      assignmentHasSubjectScheme.has(
+                        assignment.id
+                      )
+                    const selected =
+                      form.teachingAssignmentIds.includes(
+                        assignment.id
+                      )
+
+                    return (
+                      <label
+                        key={
+                          assignment.id
+                        }
+                        className={`flex items-start gap-3 rounded-2xl border p-4 transition ${
+                          alreadyConfigured
+                            ? 'cursor-not-allowed border-white/10 bg-white/[0.02] opacity-60'
+                            : selected
+                              ? 'cursor-pointer border-cyan-300/35 bg-cyan-300/[0.08]'
+                              : 'cursor-pointer border-white/10 bg-white/[0.03] hover:border-cyan-300/25'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={
+                            alreadyConfigured ||
+                            busy
+                          }
+                          onChange={() =>
+                            toggleAssignment(
+                              assignment.id
+                            )
+                          }
+                          className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+                        />
+
+                        <span>
+                          <span className="block font-black text-white">
+                            {assignment.displayName}
+                          </span>
+
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            {alreadyConfigured
+                              ? 'Já possui critérios gerais.'
+                              : 'Aplicar o conjunto geral a todas as UFCD desta disciplina.'}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  }
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-violet-300/15 bg-violet-300/[0.055] p-4">
+              <p className="text-sm font-bold text-violet-100">
+                Personalização avançada
+              </p>
+
+              <p className="mt-2 text-xs leading-6 text-violet-100/70">
+                Estes critérios substituem os critérios gerais apenas na UFCD selecionada.
+              </p>
+
+              <div className="mt-4 grid gap-4">
+                <label className="block">
+                  <FieldLabel>
+                    Turma e disciplina
+                  </FieldLabel>
+
+                  <select
+                    value={
+                      form.moduleTeachingAssignmentId
+                    }
+                    onChange={
+                      event =>
+                        setForm(
+                          current => ({
+                            ...current,
+                            moduleTeachingAssignmentId:
+                              event.target.value,
+                            moduleId: ''
+                          })
+                        )
+                    }
+                    required
+                    className={
+                      inputClassName
+                    }
+                  >
+                    <option value="">
+                      Selecione uma turma e disciplina
+                    </option>
+
+                    {assignments.map(
+                      assignment => (
+                        <option
+                          key={
+                            assignment.id
+                          }
+                          value={
+                            assignment.id
+                          }
+                        >
+                          {assignment.displayName}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <FieldLabel>
+                    UFCD ou módulo
+                  </FieldLabel>
+
+                  <select
+                    value={
+                      form.moduleId
+                    }
+                    onChange={
+                      event =>
+                        setForm(
+                          current => ({
+                            ...current,
+                            moduleId:
+                              event.target.value
+                          })
+                        )
+                    }
+                    required
+                    disabled={
+                      !form.moduleTeachingAssignmentId
+                    }
+                    className={
+                      inputClassName
+                    }
+                  >
+                    <option value="">
+                      Selecione a UFCD ou módulo
+                    </option>
+
+                    {selectedAssignmentModules.map(
+                      module => (
+                        <option
+                          key={
+                            module.id
+                          }
+                          value={
+                            module.id
+                          }
+                        >
+                          {module.code
+                            ? `${module.code} — `
+                            : ''}
+                          {module.name}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                {selectedModuleAssignment ? (
+                  <p className="text-xs leading-6 text-slate-400">
+                    Associação selecionada:{' '}
+                    <span className="font-bold text-slate-200">
+                      {selectedModuleAssignment.displayName}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
 
         {error ? (
@@ -1613,7 +1545,10 @@ export default function AssessmentCriteriaSetupStep({
           >
             {busy
               ? 'A guardar...'
-              : 'Guardar critérios'}
+              : form.scope ===
+                  'subject'
+                ? 'Aplicar critérios'
+                : 'Guardar personalização'}
           </button>
 
           <button
@@ -1644,17 +1579,13 @@ export default function AssessmentCriteriaSetupStep({
           </div>
 
           <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100">
-            {
-              snapshot.assessmentSchemes.length
-            }
+            {snapshot.assessmentSchemes.length}
           </span>
         </div>
 
         <div className="mt-5 space-y-5">
           {assignments.map(
-            (
-              assignment
-            ) => {
+            assignment => {
               const schemes =
                 schemesByAssignment.get(
                   assignment.id
@@ -1663,9 +1594,7 @@ export default function AssessmentCriteriaSetupStep({
 
               const uncovered =
                 uncoveredAssignments.some(
-                  (
-                    current
-                  ) =>
+                  current =>
                     current.id ===
                     assignment.id
                 )
@@ -1680,15 +1609,11 @@ export default function AssessmentCriteriaSetupStep({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-black text-white">
-                        {
-                          assignment.displayName
-                        }
+                        {assignment.displayName}
                       </p>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        {
-                          schemes.length
-                        }{' '}
+                        {schemes.length}{' '}
                         {schemes.length ===
                         1
                           ? 'conjunto de critérios'
@@ -1711,23 +1636,13 @@ export default function AssessmentCriteriaSetupStep({
 
                   {schemes.length ===
                   0 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        requestSelectAssignment(
-                          assignment.id
-                        )
-                      }
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-bold text-slate-400 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.05] hover:text-cyan-100"
-                    >
-                      Adicionar critérios
-                    </button>
+                    <p className="mt-4 rounded-xl border border-dashed border-white/10 px-4 py-3 text-xs text-slate-500">
+                      Ainda sem critérios configurados.
+                    </p>
                   ) : (
                     <div className="mt-4 space-y-3">
                       {schemes.map(
-                        (
-                          scheme
-                        ) => {
+                        scheme => {
                           const schemeCriteria =
                             criteriaByScheme.get(
                               scheme.id
@@ -1751,15 +1666,13 @@ export default function AssessmentCriteriaSetupStep({
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                   <p className="font-bold text-white">
-                                    {
-                                      scheme.name
-                                    }
+                                    {scheme.name}
                                   </p>
 
                                   <p className="mt-1 text-xs leading-5 text-slate-500">
                                     {scheme.scope ===
                                     'subject'
-                                      ? 'Aplicado a todas as UFCD'
+                                      ? 'Aplicado a todas as UFCD desta disciplina'
                                       : module
                                         ? `${
                                             module.code
@@ -1780,9 +1693,7 @@ export default function AssessmentCriteriaSetupStep({
 
                               <div className="mt-4 space-y-2">
                                 {schemeCriteria.map(
-                                  (
-                                    criterion
-                                  ) => (
+                                  criterion => (
                                     <div
                                       key={
                                         criterion.id
@@ -1791,16 +1702,12 @@ export default function AssessmentCriteriaSetupStep({
                                     >
                                       <div>
                                         <p className="text-sm font-bold text-slate-200">
-                                          {
-                                            criterion.name
-                                          }
+                                          {criterion.name}
                                         </p>
 
                                         {criterion.description ? (
                                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                                            {
-                                              criterion.description
-                                            }
+                                            {criterion.description}
                                           </p>
                                         ) : null}
                                       </div>
@@ -1808,8 +1715,7 @@ export default function AssessmentCriteriaSetupStep({
                                       <span className="shrink-0 text-sm font-black text-cyan-100">
                                         {formatPercentage(
                                           criterion.weightPercent
-                                        )}
-                                        %
+                                        )}%
                                       </span>
                                     </div>
                                   )
@@ -1819,20 +1725,6 @@ export default function AssessmentCriteriaSetupStep({
                           )
                         }
                       )}
-
-                      {uncovered ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            requestSelectAssignment(
-                              assignment.id
-                            )
-                          }
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100"
-                        >
-                          Completar critérios em falta
-                        </button>
-                      ) : null}
                     </div>
                   )}
                 </article>
@@ -1847,9 +1739,7 @@ export default function AssessmentCriteriaSetupStep({
           </p>
 
           <p className="mt-2 text-xs leading-6 text-violet-100/65">
-            A média de cada critério será calculada separadamente e
-            depois ponderada para sugerir a classificação final da
-            UFCD.
+            A personalização de uma UFCD substitui o conjunto geral apenas nessa UFCD.
           </p>
         </div>
 
@@ -1865,7 +1755,7 @@ export default function AssessmentCriteriaSetupStep({
           onClick={() =>
             void handleContinue()
           }
-          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-5 py-3.5 text-sm font-black text-white transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3.5 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Guardar critérios e continuar
         </button>
