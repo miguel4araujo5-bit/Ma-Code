@@ -20,6 +20,10 @@ import {
 } from '../assessments/dailyQuickGrade';
 
 import {
+    giaeExplicitSubmissionRepository
+} from '../giaeExplicitSubmissionRepository';
+
+import {
     createMAProfessorBackup
 } from '../settings/backupRepository';
 
@@ -43,6 +47,11 @@ import {
     saveMAProfessorDailyDraft,
     shouldAutoRestoreMAProfessorDailyDraft
 } from './dailyDraftStorage';
+
+import {
+    isFutureGIAECopyDate,
+    resolveGIAEStatusAfterSummaryChange
+} from './dailyGIAEAuto';
 
 import {
     dailyWorkspaceRepository,
@@ -1345,10 +1354,19 @@ export default function DailyWorkspaceView({
     }
 
     async function handleCopySummary() {
-        const summary =
-            lessonForm?.summary.trim() ?? '';
+        if (
+            !selectedLesson ||
+            !lessonForm ||
+            !assessmentForm ||
+            savingRef.current
+        ) {
+            return;
+        }
 
-        if (!summary) {
+        const summary =
+            lessonForm.summary;
+
+        if (!summary.trim()) {
             setError(
                 'Escreva primeiro o sumário antes de copiar.'
             );
@@ -1356,20 +1374,149 @@ export default function DailyWorkspaceView({
             return;
         }
 
+        const lessonId =
+            selectedLesson.context
+                .lessonRow.lesson.id;
+
+        if (hasUnsavedChanges) {
+            const saved =
+                await saveAll({
+                    reload: false,
+                    announce: false
+                });
+
+            if (!saved) {
+                return;
+            }
+        }
+
+        savingRef.current = true;
+        setSaving(true);
+        setError('');
+        setSuccess('');
+
+        let copied = false;
+
         try {
+            const currentWorkspace =
+                await dailyWorkspaceRepository.getLessonWorkspace(
+                    academicYearId,
+                    lessonId,
+                    selectedAssessmentId ??
+                        undefined
+                );
+
+            const currentLesson =
+                currentWorkspace.context
+                    .lessonRow.lesson;
+
+            if (
+                currentLesson.summary !==
+                summary
+            ) {
+                throw new Error(
+                    'Esta aula foi alterada noutra aba ou janela. Reveja a versão atual antes de copiar novamente o sumário.'
+                );
+            }
+
             await copyTextToClipboard(
                 summary
             );
+            copied = true;
 
-            setError('');
+            const assessmentId =
+                currentWorkspace
+                    .selectedAssessment?.id ??
+                null;
+
+            if (
+                isFutureGIAECopyDate(
+                    currentLesson.date,
+                    todayISO()
+                )
+            ) {
+                await loadDate(
+                    date,
+                    lessonId,
+                    assessmentId
+                );
+                setSuccess(
+                    'Sumário copiado. Como a aula é futura, mantém-se por submeter no GIAE.'
+                );
+                return;
+            }
+
+            const submitted =
+                await giaeExplicitSubmissionRepository.markSubmitted(
+                    {
+                        lessonId,
+                        expectedUpdatedAt:
+                            currentLesson.updatedAt
+                    }
+                );
+
+            if (
+                submitted.giaeStatus !==
+                'submitted'
+            ) {
+                throw new Error(
+                    'Não foi possível confirmar a submissão desta aula no GIAE.'
+                );
+            }
+
+            const reloaded =
+                await loadDate(
+                    date,
+                    lessonId,
+                    assessmentId
+                );
+
+            if (!reloaded) {
+                const confirmedLessonForm:
+                    LessonFormState = {
+                    ...lessonForm,
+                    giaeStatus: 'submitted'
+                };
+
+                setLessonForm(
+                    confirmedLessonForm
+                );
+                setSavedSignature(
+                    buildEditorSignature(
+                        confirmedLessonForm,
+                        assessmentForm,
+                        students
+                    )
+                );
+            }
+
             setSuccess(
-                'Sumário copiado. O estado no GIAE mantém-se inalterado.'
+                'Sumário copiado e assinalado automaticamente como submetido no GIAE.'
             );
-        } catch {
+
+            await notifySaved();
+        } catch (copyError) {
+            await loadDate(
+                date,
+                lessonId,
+                selectedAssessmentId
+            );
+
+            const message =
+                copyError instanceof Error &&
+                copyError.message.trim()
+                    ? copyError.message
+                    : 'Ocorreu um erro inesperado.';
+
             setError(
-                'Não foi possível copiar o sumário.'
+                copied
+                    ? `O sumário foi copiado, mas não foi assinalado como submetido no GIAE. ${message}`
+                    : `Não foi possível copiar o sumário. ${message}`
             );
             setSuccess('');
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
         }
     }
 
@@ -2188,6 +2335,10 @@ export default function DailyWorkspaceView({
             return;
         }
 
+        const nextSummary =
+            item.suggestedSummary.trim() ||
+            item.content.trim();
+
         setLessonForm({
             ...lessonForm,
             status:
@@ -2198,14 +2349,18 @@ export default function DailyWorkspaceView({
             plannedActivity:
                 item.activity.trim() ||
                 item.content.trim(),
-            summary:
-                item.suggestedSummary.trim() ||
-                item.content.trim(),
+            summary: nextSummary,
             summarySource:
                 'planification',
             planificationItemIds: [
                 item.id
-            ]
+            ],
+            giaeStatus:
+                resolveGIAEStatusAfterSummaryChange(
+                    lessonForm.giaeStatus,
+                    lessonForm.summary,
+                    nextSummary
+                )
         });
     }
 
@@ -2237,7 +2392,13 @@ export default function DailyWorkspaceView({
             summary: previous.summary,
             summarySource: 'manual',
             planificationItemIds: [],
-            notes: previous.notes
+            notes: previous.notes,
+            giaeStatus:
+                resolveGIAEStatusAfterSummaryChange(
+                    lessonForm.giaeStatus,
+                    lessonForm.summary,
+                    previous.summary
+                )
         });
     }
 
@@ -2988,7 +3149,13 @@ export default function DailyWorkspaceView({
                                                                           'planned' &&
                                                                       value.trim()
                                                                           ? 'taught'
-                                                                          : current.status
+                                                                          : current.status,
+                                                                  giaeStatus:
+                                                                      resolveGIAEStatusAfterSummaryChange(
+                                                                          current.giaeStatus,
+                                                                          current.summary,
+                                                                          value
+                                                                      )
                                                               }
                                                             : current
                                                 );
@@ -3049,30 +3216,20 @@ export default function DailyWorkspaceView({
                                                     Copiar
                                                 </button>
 
-                                                <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300">
+                                                <label
+                                                    title="O estado é atualizado automaticamente depois de copiar o sumário."
+                                                    className="flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300"
+                                                >
                                                     <input
                                                         type="checkbox"
                                                         checked={
                                                             lessonForm.giaeStatus ===
                                                             'submitted'
                                                         }
-                                                        onChange={event =>
-                                                            updateLessonForm(
-                                                                'giaeStatus',
-                                                                event
-                                                                    .target
-                                                                    .checked
-                                                                    ? 'submitted'
-                                                                    : 'pending'
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving ||
-                                                            lessonForm.status ===
-                                                                'cancelled' ||
-                                                            !lessonForm.summary.trim()
-                                                        }
-                                                        className="h-4 w-4 accent-cyan-300"
+                                                        disabled
+                                                        readOnly
+                                                        aria-label="Estado de submissão no GIAE"
+                                                        className="h-4 w-4 accent-cyan-300 disabled:opacity-100"
                                                     />
 
                                                     Submetido no
@@ -3239,7 +3396,6 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
-                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -3353,7 +3509,7 @@ export default function DailyWorkspaceView({
                                                     </select>
                                                 </label>
 
-                                                <label className="text-[0.64rem] font-bold text-slate-400">
+                                                <label className="text-[0.64rem] font-bold text-slate-500">
                                                     Tipo
 
                                                     <select
@@ -3373,7 +3529,6 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
-                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -3419,7 +3574,6 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
-                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -3903,7 +4057,6 @@ export default function DailyWorkspaceView({
                                                             .target
                                                             .value
                                                     )
-                                                }
                                                 disabled={
                                                     saving
                                                 }
