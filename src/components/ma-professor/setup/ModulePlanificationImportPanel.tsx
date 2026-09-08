@@ -41,6 +41,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
 
   async function load(file: File) {
     if (saving.current || busy) return
+    if (document && !window.confirm('Substituir o documento e descartar a revisão atual por guardar?')) return
     const token = ++operation.current
     setBusy(true)
     setError('')
