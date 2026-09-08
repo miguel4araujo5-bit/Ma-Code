@@ -1,115 +1,91 @@
 # A1-G2 — QUADRO ATIVO DE DESBLOQUEIO
 
-Atualização: 2026-09-08
+Atualização: 2026-09-08T08:52+01:00
 
-Regra operacional: nenhum agente fica apenas “a aguardar”. Cada bloqueio tem uma ação executável agora. Se essa ação não puder ser feita, o agente comunica ao A1 a causa concreta, evidência e a decisão necessária. Não repetir mensagens genéricas.
+Regra operacional: nenhum agente fica apenas “a aguardar”. Cada pendência tem proprietário, ação executável e critério de saída. Se houver impedimento técnico real, deve ser escalado ao A1 com causa e evidência concreta.
 
 ## FECHADO — A2-G2 — ACESSO / RENOVAÇÃO
 
 Branch: `agent2-g2/access-session-contract-7ec8904`
 HEAD FINAL: `7038930471c80753b40ffde91eb023fc050f0030`
 CI: Build Check #1649 / run `34169554049` = SUCCESS.
-A6-G2: **APTO** no SHA exato para futura combinação controlada.
+A6-G2: **APTO** por SHA exato.
 
-A correção fecha o stale-cache pós-logout e preserva o contrato Base64 canónico + compatibilidade hex legada. As limitações E2E/multi-dispositivo ficam para o candidato global.
+AÇÃO A2: manter congelado. Nenhum novo código salvo finding novo.
 
-AÇÃO A2: manter o HEAD congelado. Nenhum novo código salvo finding novo do A6.
-
-## EM REVISÃO A6 — A3-G2 — HORÁRIO / CLUBE XADREZ
+## FECHADO PARA FUTURA COMBINAÇÃO — A3-G2 — HORÁRIO / CLUBE XADREZ
 
 Branch: `agent3-g2/schedule-pdf-xadrez-344841c`
 BASE: `344841c1fc402e813f9d8658d96fa20b0fefa779`
-HEAD ENTREGUE: `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+HEAD FINAL: `800d91198d7f1b2c2193ebdd89a78425ceb8effd`
+A6-G2: **APTO** para futura combinação controlada, com limitações executáveis diferidas para o candidato combinado.
 
-Estado técnico: **IMPLEMENTADO E CONGELADO; AGUARDA REVISÃO A6**.
+Delta: 1 commit; apenas `src/lib/maPdf/extractPdfText.ts` + `tests/ma-professor/schedule-pdf-column-geometry.test.mjs`.
+Evidência A3: smoke geométrico isolado 6/6 PASS.
 
-Delta confirmado: 1 commit, exatamente 2 ficheiros:
-- `src/lib/maPdf/extractPdfText.ts`
-- `tests/ma-professor/schedule-pdf-column-geometry.test.mjs`
+AÇÃO A3: manter congelado.
+AÇÃO A6: nenhuma revisão isolada adicional; voltar a validar no candidato combinado.
 
-A solução remove o probe junto ao bordo esquerdo e classifica célula→coluna por maior overlap horizontal entre a célula e os intervalos derivados dos centros dos cabeçalhos. O fallback por distância ao centro só é usado quando não existe overlap útil. Empates reais de overlap não são escolhidos silenciosamente.
-
-Evidência A3 disponível: fixture no próprio commit + smoke geométrico isolado **6/6 PASS** para `Clube Xadrez`, `SP`, `Eq Pedag`, `Eq PCE` e aula normal. Não existe ainda suite/build completa/status check no SHA exato.
-
-AÇÃO AGORA — A3:
-- manter `800d9119...` congelado;
-- não fazer mais alterações neste lote salvo finding novo do A6;
-- avançar para o lote PT-PT separado.
-
-AÇÃO AGORA — A6:
-- rever `800d9119...` por SHA exato;
-- verificar algoritmo de overlap/fallback/empates, preservação de `Clube Xadrez` na terça 15:20–16:10, descarte de salas/SP e ausência de regressão noutros PDFs/tabelas;
-- emitir `APTO DE CÓDIGO`, `APTO COM LIMITAÇÕES` ou `BLOQUEADO`;
-- se não houver finding de código, a lacuna de suite/build pode ser validada no candidato combinado, sem novo push apenas para CI.
-
-CONCLUÍDO QUANDO:
-- A6 não identificar finding bloqueante no SHA exato;
-- prova executável proporcional existir no candidato combinado antes de integração.
-
-## PRIORIDADE ATIVA 1 — A3-G2 — TEXTO PT-PT
+## FECHADO PARA FUTURA COMBINAÇÃO — A3-G2 — TEXTO PT-PT
 
 Branch: `agent3-g2/setup-ptpt-copy-344841c`
-BASE inicial: `344841c1fc402e813f9d8658d96fa20b0fefa779`
+BASE: `344841c1fc402e813f9d8658d96fa20b0fefa779`
+HEAD FINAL: `b0e2928a0e80306503a38787f4a46a8acea7fee1`
+A6-G2: **APTO** para futura combinação controlada.
 
-Estado: **AÇÃO A3 AGORA**.
-
-Alterar exclusivamente `src/components/ma-professor/setup/SetupConfirmationStep.tsx`:
+Delta confirmado: 1 commit, 0 behind, 1 ficheiro, apenas 2 alterações:
 - `Revisei os dados apresentados.` → `Revi os dados apresentados.`
 - `Posso criar cópias cifradas online` → `Posso criar cópias de segurança cifradas online`
 
-Não alterar qualquer outro texto, comportamento, layout, lógica, cores ou ficheiro. Não misturar com Xadrez, cores ou PR #23 funcional.
-
-CONCLUÍDO QUANDO:
-- A3 entregar um único HEAD exato com apenas estas duas correções;
-- A1 confirmar delta limpo.
+AÇÃO A3: manter congelado.
 
 ## PRONTO PARA VALIDAÇÃO NO CANDIDATO — A3-G2 — CORES / CTA
 
 Branch: `agent3-g2/setup-action-colors-344841c`
-HEAD congelado: `64e3149336c6097c9777a8feb38209f9bfb37be9`.
+HEAD congelado: `64e3149336c6097c9777a8feb38209f9bfb37be9`
+A6: finding de código anterior corrigido; nenhum novo finding de código. Falta prova executável no SHA isolado.
 
-A6 confirmou que `A6-SETUP-COLORS-NR-01` está corrigido e não encontrou novo finding de código. Falta apenas prova executável no SHA, indisponível nos ambientes A3/A6 por falta de checkout/rede.
-
-DECISÃO A1: esta lacuna não bloqueia mais o trabalho A3. O HEAD permanece congelado e entra no candidato combinado apenas se o candidato executar teste específico + suite/build e o A6 rever o SHA combinado final.
-
-AÇÃO A3: não voltar a este lote salvo finding novo.
-AÇÃO A6: manter a limitação registada e voltar a validar no candidato combinado.
+DECISÃO A1: não reabrir nem fazer push só para CI. Teste específico + suites/build ficam obrigatórios no candidato combinado.
 
 ## PRONTO PARA VALIDAÇÃO NO CANDIDATO — A4-G2 — GIAE
 
 Branch: `agent4-g2/giae-explicit-resubmit-f314a8b`
-HEAD congelado: `ba87e69873a0277a63e84b98bf539038aba0151f`.
-Prova local isolada: **9/9 PASS**.
-A6: revisão de código sem finding bloqueante; parecer atual `VERIFICAÇÃO INCOMPLETA` apenas por ausência de suite/build no SHA exato.
+HEAD congelado: `ba87e69873a0277a63e84b98bf539038aba0151f`
+Prova local isolada: 9/9 PASS.
+A6: sem finding bloqueante de código; validação executável completa diferida para candidato combinado.
 
-DECISÃO A1: A4 não deve fazer novo código nem novo push só para satisfazer CI. Este HEAD fica pronto para inclusão controlada no candidato, onde serão obrigatórios suite MA-Professor, Conquistador, MA-Quadro, build e smokes GIAE proporcionais antes do parecer final A6.
+AÇÃO A4: manter congelado e conservar checklist E2E/smoke: single, bulk, stale, clipboard falhado, pending/falso sucesso, retry e multi-tab/IndexedDB.
 
-AÇÃO A4: congelar HEAD e preparar apenas checklist E2E/smoke para o candidato: single, bulk, stale, clipboard falhado, pending/falso sucesso, retry e multi-tab/IndexedDB.
-AÇÃO A6: manter a limitação registada; o fecho definitivo é no SHA combinado com prova executável.
+## OUTROS LOTES JÁ ELEGÍVEIS / CONGELADOS
 
-## A5-G2
+- PDF-IMPORT: `e4df193d78c5d9523cf7803af30241ab92e8ec6b` — APTO.
+- BACKUP-ATOMIC: `94fd528ac0a38d4eca7b56a83cd160a0616a84df` — APTO.
+- CI-ISOLATION: `745dab64e2355b1e14a36687d60a21e77b6e0f34` — APTO.
+- A4-DAILY-NR-01: `df7098fe510aa79fc72bde035053389045a8d117` — APTO.
 
-Backup/restore permanece congelado/APTO. Na funcionalidade Excel continua apenas análise/planeamento; não iniciar implementação sem contrato A1.
+## PRIORIDADE ATIVA — A1-G2 — CANDIDATO ÚNICO
 
-## PRÓXIMO MARCO A1
+A1 é agora o proprietário da próxima ação.
 
-Quando existirem:
-- parecer A6 sobre Xadrez `800d9119...` sem finding bloqueante;
-- HEAD final limpo do PT-PT;
-
-A1 deve inventariar todos os lotes elegíveis, verificar dependências/sobreposições e preparar o plano de um único candidato combinado. Não integrar duas vezes lotes empilhados. O candidato terá de executar suites/build/smokes completos e regressar ao A6 por SHA exato antes de qualquer pedido de autorização ao utilizador.
+FAZER AGORA — A1:
+1. inventariar dependências e relações de ancestralidade entre todos os lotes elegíveis;
+2. garantir que nenhum PR/lote histórico empilhado é integrado duas vezes;
+3. definir ordem de combinação segura e identificar conflitos de ficheiro antes de criar candidato;
+4. preparar branch de candidato apenas depois dessa verificação;
+5. no candidato executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais aos lotes;
+6. entregar SHA combinado ao A6 para revisão final independente;
+7. só depois pedir autorização explícita do utilizador para qualquer merge em `main`.
 
 ## FILA A6 A PARTIR DE AGORA
 
-1. Xadrez `800d9119...` — revisão imediata de código por SHA exato.
-2. Cores `64e31493...` e GIAE `ba87e698...` — limitações executáveis mantidas para o candidato combinado.
-3. A2 `7038930471...` — fechado/APTO; nenhuma ação.
-4. Candidato único — revisão final completa quando A1 o montar.
+- Não há revisão isolada pendente de A2, Xadrez ou PT-PT.
+- Cores e GIAE mantêm limitações executáveis para o candidato combinado.
+- Próxima revisão material A6: SHA do candidato único, com suites/build/smokes completos e lista de limitações E2E não executadas.
 
 ## PROTEÇÕES
 
 - `main` não é alterada sem autorização explícita do utilizador.
 - nenhum merge é autorizado por este quadro.
 - não criar PR/push apenas para obter CI.
-- não rebasear/reconstruir HEADs já fechados apenas para organização.
+- não rebasear/reconstruir HEADs fechados apenas por organização.
 - qualquer finding novo volta ao proprietário técnico com causa concreta e critério de fecho.
