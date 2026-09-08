@@ -11,7 +11,7 @@ const source = await readFile(
 )
 
 test(
-  'assessment criteria setup derives meaningful unsaved work from the new multi-discipline draft',
+  'assessment criteria setup derives meaningful unsaved work from the multi-discipline draft',
   () => {
     assert.match(source, /hasUnsavedCriteriaDraft/)
     assert.match(source, /form\.scope\s*!==\s*emptyForm\.scope/)
@@ -67,24 +67,31 @@ test(
     assert.match(source, /type="checkbox"/)
     assert.match(
       source,
-      /Este conjunto será aplicado a todas as UFCD das disciplinas selecionadas\./
+      /Este conjunto será aplicado a todas as UFCD das\s+disciplinas selecionadas\./
     )
   }
 )
 
 test(
-  'UFCD customization is secondary and keeps the existing single-assignment module path',
+  'UFCD customization is secondary and consumes the evidence-guarded core API',
   () => {
     assert.match(source, /Personalizar uma UFCD/)
     assert.match(
       source,
-      /Estes critérios substituem os critérios gerais apenas na UFCD selecionada\./
+      /Estes critérios substituem os critérios gerais apenas\s+na UFCD selecionada\./
     )
     assert.match(
       source,
+      /assessmentCriteriaModuleRepository\.createModuleScheme\(/
+    )
+    assert.doesNotMatch(
+      source,
       /maProfessorRepository\.createAssessmentScheme\(/
     )
-    assert.match(source, /scope:\s*'module'/)
+    assert.match(
+      source,
+      /Se esta UFCD já tiver avaliações ou classificações\s+registadas, a personalização será bloqueada para\s+preservar o histórico\./
+    )
     assert.doesNotMatch(source, /name="criteria-scope"/)
     assert.doesNotMatch(source, />\s*Apenas uma UFCD\s*</)
   }
