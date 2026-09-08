@@ -113,6 +113,8 @@ export interface Planification extends AuditFields {
   title: string
   description: string
   active: boolean
+  sourceDocumentName?: string
+  sourcePages?: number[]
 }
 
 export type PlanificationItemStatus =
@@ -127,7 +129,12 @@ export interface PlanificationItem extends AuditFields {
   content: string
   activity: string
   objectives: string
+  resources?: string
+  evaluation?: string
   suggestedSummary: string
+  sourceDocumentName?: string
+  sourcePages?: number[]
+  sourceImportKey?: string
   status: PlanificationItemStatus
   usedLessonId: EntityId | null
   usedAt: ISODateTime | null

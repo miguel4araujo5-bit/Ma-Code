@@ -1335,6 +1335,13 @@ export default function PlanificationWorkspaceView({
 
       <PlanificationPdfImportPanel
         snapshot={snapshot}
+        disabled={
+          busy ||
+          hasPlanificationUnsavedChanges
+        }
+        onImported={
+          handleRefresh
+        }
         onSelectAssignment={
           teachingAssignmentId =>
             handleFiltersChange({

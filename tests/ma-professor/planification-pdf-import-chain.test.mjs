@@ -364,24 +364,28 @@ test(
 )
 
 test(
-  'preview UI keeps persistence disabled and requires explicit assignment review',
+  'persistent import UI keeps explicit confirmation and avoids legacy write paths',
   () => {
     assert.match(
       panelSource,
-      /Persistência desligada/
+      /Importação atómica/
     )
     assert.match(
       panelSource,
-      /Importação final indisponível/
+      /Confirmar a importação\?/
     )
     assert.match(
       panelSource,
-      /Escolher explicitamente…/
+      /Importar planificações confirmadas/
+    )
+    assert.match(
+      panelSource,
+      /Escolha explicitamente…/
     )
     assert.doesNotMatch(
       panelSource,
-      /createPlanification\s*\(|importPlanificationLines\s*\(|onCreatePlanification|onImportLines/,
-      'O painel de preview não pode chamar a persistência existente antes do contrato do AGENTE 1.'
+      /createPlanification\s*\(|importPlanificationLines\s*\(|onCreatePlanification|onImportLines|maProfessorDb\./,
+      'O painel persistente deve usar apenas o adapter do contrato oficial, sem caminhos de escrita legados ou diretos.'
     )
   }
 )
