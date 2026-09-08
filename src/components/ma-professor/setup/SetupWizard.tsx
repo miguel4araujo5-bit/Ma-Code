@@ -14,7 +14,7 @@ import type {
 } from '../types'
 import AssessmentCriteriaSetupStep from './AssessmentCriteriaSetupStep'
 import GroupsSetupStep from './GroupsSetupStep'
-import ModulesSetupStep from './ModulesSetupStep'
+import ModulesSetupStep from './ModulesSetupIntegratedStep'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
 import SchedulePdfImportStep from './SchedulePdfImportStep'
 import SetupConfirmationStep from './SetupConfirmationStep'
