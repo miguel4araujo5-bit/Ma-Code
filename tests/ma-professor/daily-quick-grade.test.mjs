@@ -19,11 +19,21 @@ const sectionSource = await readFile(
   'utf8'
 )
 
-function transpile(source) {
+const dailyWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+function transpile(source, fileName = 'dailyQuickGrade.ts') {
   const output = ts.transpileModule(source, {
+    fileName,
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ES2022
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX
     },
     reportDiagnostics: true
   })
@@ -32,7 +42,11 @@ function transpile(source) {
     item => item.category === ts.DiagnosticCategory.Error
   )
 
-  assert.equal(errors.length, 0)
+  assert.equal(
+    errors.length,
+    0,
+    errors.map(item => item.messageText).join('\n')
+  )
 
   return `data:text/javascript;base64,${Buffer.from(
     output.outputText
@@ -243,6 +257,96 @@ test(
     assert.match(
       sectionSource,
       /lesson\.moduleId !== workspace\.lesson\.moduleId/
+    )
+  }
+)
+
+test(
+  'the main Daily workspace also exposes quick score inputs before a new assessment exists',
+  () => {
+    assert.doesNotThrow(() =>
+      transpile(
+        dailyWorkspaceSource,
+        'DailyWorkspaceView.tsx'
+      )
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /const quickGradeVisible =/[\s\S]*assessmentWorkspace\?\.criteria/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /data-daily-quick-grade-input="true"/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /Nota 0–20/
+    )
+    assert.doesNotMatch(
+      dailyWorkspaceSource,
+      />\s*\+\s*Avaliação\s*</
+    )
+  }
+)
+
+test(
+  'the first score activates one new assessment draft but clearing every new score remains write-free',
+  () => {
+    assert.match(
+      dailyWorkspaceSource,
+      /function activateQuickAssessment\(\)[\s\S]*choice: 'new'/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /if \(normalizedValue\.trim\(\)\) \{\s*activateQuickAssessment\(\)/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /const quickAssessmentHasData =[\s\S]*hasQuickAssessmentData\([\s\S]*students/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /assessmentForm\.choice ===[\s\S]*'new'[\s\S]*quickAssessmentHasData[\s\S]*\? 'new'[\s\S]*: 'none'/
+    )
+  }
+)
+
+test(
+  'the main Daily workspace blocks ambiguous criteria and invalid 0-20 values before persistence',
+  () => {
+    assert.match(
+      dailyWorkspaceSource,
+      /resolveQuickCriterionId\(/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /Selecione o critério da avaliação em Detalhes\./
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /score < 0 \|\|[\s\S]*score > 20/
+    )
+  }
+)
+
+test(
+  'the main Daily workspace keeps advanced assessment metadata collapsed and supports keyboard-only entry',
+  () => {
+    assert.match(
+      dailyWorkspaceSource,
+      /showAssessmentDetails &&[\s\S]*assessmentForm/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /event\.key ===[\s\S]*'Enter'/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /event\.key ===[\s\S]*'ArrowDown'/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /focusNextQuickGrade\(/ 
     )
   }
 )
