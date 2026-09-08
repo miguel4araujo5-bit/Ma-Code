@@ -52,6 +52,7 @@ compile(base + 'setup/ModulePlanificationImportPanel.tsx')
 
 const dom = new JSDOM('', { url: 'https://example.test' })
 globalThis.window = dom.window
+globalThis.navigator = dom.window.navigator
 Object.defineProperty(window, 'indexedDB', { value: globalThis.indexedDB })
 globalThis.DOMParser = dom.window.DOMParser
 globalThis.CustomEvent = dom.window.CustomEvent
