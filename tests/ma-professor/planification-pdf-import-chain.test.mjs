@@ -21,6 +21,15 @@ const parserSource =
     'utf8'
   )
 
+const tableLayoutSource =
+  await readFile(
+    new URL(
+      '../../src/components/ma-professor/planifications/planificationPdfTableLayout.ts',
+      import.meta.url
+    ),
+    'utf8'
+  )
+
 const previewSource =
   await readFile(
     new URL(
@@ -89,9 +98,18 @@ const parserUrl =
     )
   )
 
+const tableLayoutUrl =
+  dataUrl(
+    transpile(
+      tableLayoutSource,
+      'planificationPdfTableLayout.ts'
+    )
+  )
+
 const pdfJsStubUrl =
   dataUrl(`
     export const GlobalWorkerOptions = { workerSrc: '' }
+    export const OPS = { constructPath: 1, stroke: 2 }
     export function getDocument() {
       throw new Error('getDocument is not used by this behavioral extraction-result test')
     }
@@ -128,6 +146,14 @@ const extractorRuntimeSource =
     .replaceAll(
       '"./planificationPdfParser"',
       `"${parserUrl}"`
+    )
+    .replaceAll(
+      "'./planificationPdfTableLayout'",
+      `'${tableLayoutUrl}'`
+    )
+    .replaceAll(
+      '"./planificationPdfTableLayout"',
+      `"${tableLayoutUrl}"`
     )
 
 const previewRuntimeSource =
