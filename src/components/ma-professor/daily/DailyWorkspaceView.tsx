@@ -3396,6 +3396,7 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
+                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -3509,7 +3510,7 @@ export default function DailyWorkspaceView({
                                                     </select>
                                                 </label>
 
-                                                <label className="text-[0.64rem] font-bold text-slate-500">
+                                                <label className="text-[0.64rem] font-bold text-slate-400">
                                                     Tipo
 
                                                     <select
@@ -3529,6 +3530,7 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
+                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -3574,6 +3576,7 @@ export default function DailyWorkspaceView({
                                                                           }
                                                                         : current
                                                             )
+                                                        }
                                                         disabled={
                                                             saving
                                                         }
@@ -4057,6 +4060,7 @@ export default function DailyWorkspaceView({
                                                             .target
                                                             .value
                                                     )
+                                                }
                                                 disabled={
                                                     saving
                                                 }
