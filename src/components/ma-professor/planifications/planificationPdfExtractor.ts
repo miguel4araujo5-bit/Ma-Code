@@ -1,8 +1,10 @@
 import {
   GlobalWorkerOptions,
+  OPS,
   getDocument
 } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { readRuledPlanificationTable, type PdfRuleBox } from './planificationPdfTableLayout'
 
 import type {
   PlanificationPdfCell,
@@ -24,6 +26,7 @@ export interface PlanificationPdfTextItem {
 export interface PlanificationPdfExtractionPage {
   pageNumber: number
   items: PlanificationPdfTextItem[]
+  tableLines?: PlanificationPdfLine[]
 }
 
 const LINE_TOLERANCE = 3
@@ -156,6 +159,7 @@ export function buildPlanificationPdfDocumentFromExtraction(
   const normalizedPages:
     PlanificationPdfPage[] =
     pages.map(page => {
+      if (page.tableLines) return { pageNumber: page.pageNumber, lines: page.tableLines }
       const rows:
         Array<{
           y: number
@@ -291,9 +295,23 @@ export async function extractPlanificationPdf(
           }]
         })
 
+      const operators = await page.getOperatorList()
+      const rules: PdfRuleBox[] = []
+      operators.fnArray.forEach((operator, index) => {
+        if (operator !== OPS.constructPath) return
+        const args = operators.argsArray[index]
+        // PDF.js 6 supplies the axis-aligned path bounds as the third argument.
+        // Only straight horizontal/vertical strokes are candidates.
+        const box = args?.[2]
+        if (args?.[0] === OPS.stroke && box?.length === 4 &&
+            Array.from(box).every(value => typeof value === 'number' && Number.isFinite(value))) {
+          rules.push(Array.from(box) as PdfRuleBox)
+        }
+      })
       pages.push({
         pageNumber,
-        items
+        items,
+        tableLines: readRuledPlanificationTable(items, rules, Boolean(pages[pages.length - 1]?.tableLines)) ?? undefined
       })
     }
   } finally {
@@ -304,6 +322,12 @@ export async function extractPlanificationPdf(
     buildPlanificationPdfDocumentFromExtraction(
       pages
     )
+
+  if (pages.some(page => page.tableLines) && pages.some(page =>
+    !page.tableLines && page.items.some(item => /UFCD|conte[úu]dos|objetivos/i.test(item.str))
+  )) {
+    throw new Error('O PDF contém tabelas com estruturas diferentes que não foi possível associar com segurança. Utilize o Word original ou reveja o PDF.')
+  }
 
   if (document.characterCount === 0) {
     throw new Error(

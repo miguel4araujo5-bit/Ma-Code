@@ -21,6 +21,15 @@ const parserSource =
     'utf8'
   )
 
+const tableLayoutSource =
+  await readFile(
+    new URL(
+      '../../src/components/ma-professor/planifications/planificationPdfTableLayout.ts',
+      import.meta.url
+    ),
+    'utf8'
+  )
+
 const previewSource =
   await readFile(
     new URL(
@@ -89,9 +98,18 @@ const parserUrl =
     )
   )
 
+const tableLayoutUrl =
+  dataUrl(
+    transpile(
+      tableLayoutSource,
+      'planificationPdfTableLayout.ts'
+    )
+  )
+
 const pdfJsStubUrl =
   dataUrl(`
     export const GlobalWorkerOptions = { workerSrc: '' }
+    export const OPS = { constructPath: 1, stroke: 2 }
     export function getDocument() {
       throw new Error('getDocument is not used by this behavioral extraction-result test')
     }
@@ -128,6 +146,14 @@ const extractorRuntimeSource =
     .replaceAll(
       '"./planificationPdfParser"',
       `"${parserUrl}"`
+    )
+    .replaceAll(
+      "'./planificationPdfTableLayout'",
+      `'${tableLayoutUrl}'`
+    )
+    .replaceAll(
+      '"./planificationPdfTableLayout"',
+      `"${tableLayoutUrl}"`
     )
 
 const previewRuntimeSource =
@@ -364,24 +390,28 @@ test(
 )
 
 test(
-  'preview UI keeps persistence disabled and requires explicit assignment review',
+  'persistent import UI keeps explicit confirmation and avoids legacy write paths',
   () => {
     assert.match(
       panelSource,
-      /Persistência desligada/
+      /Importação atómica/
     )
     assert.match(
       panelSource,
-      /Importação final indisponível/
+      /Confirmar a importação\?/
     )
     assert.match(
       panelSource,
-      /Escolher explicitamente…/
+      /Importar planificações confirmadas/
+    )
+    assert.match(
+      panelSource,
+      /Escolha explicitamente…/
     )
     assert.doesNotMatch(
       panelSource,
-      /createPlanification\s*\(|importPlanificationLines\s*\(|onCreatePlanification|onImportLines/,
-      'O painel de preview não pode chamar a persistência existente antes do contrato do AGENTE 1.'
+      /createPlanification\s*\(|importPlanificationLines\s*\(|onCreatePlanification|onImportLines|maProfessorDb\./,
+      'O painel persistente deve usar apenas o adapter do contrato oficial, sem caminhos de escrita legados ou diretos.'
     )
   }
 )

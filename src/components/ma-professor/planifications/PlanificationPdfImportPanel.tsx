@@ -8,15 +8,20 @@ import {
 } from 'react'
 
 import {
+  commitPlanificationPdfImport,
+  loadPlanificationPdfImportDestinations,
+  type PlanificationPdfImportDestination
+} from './planificationPdfImportAdapter'
+import {
   extractPlanificationPdf
 } from './planificationPdfExtractor'
 import {
   parsePlanificationPdfDocument,
-  type ParsedPlanificationPdfDocument
+  type ParsedPlanificationPdfDocument,
+  type ParsedPlanificationPdfSection
 } from './planificationPdfParser'
 import {
-  buildPlanificationPdfPreview,
-  type PlanificationPdfPreviewDestination
+  buildPlanificationPdfPreview
 } from './planificationPdfPreview'
 import type {
   PlanificationWorkspaceSnapshot
@@ -24,29 +29,46 @@ import type {
 
 interface PlanificationPdfImportPanelProps {
   snapshot: PlanificationWorkspaceSnapshot
-  onSelectAssignment: (
+  onSelectAssignment?: (
     teachingAssignmentId: string
   ) => void
+  onImported?: () => void
+  disabled?: boolean
 }
 
-type RowChoice = {
+type ImportMode =
+  | 'create'
+  | 'append'
+  | 'skip'
+
+type RowState = {
   included: boolean
   destinationId: string
+  mode: ImportMode | null
+  expectedStateFingerprint: string
+  content: string
+  objectives: string
+  activity: string
+  resources: string
+  evaluation: string
 }
 
-type RowChoices =
-  Record<string, RowChoice>
+type RowStates =
+  Record<string, RowState>
 
 const selectClass =
-  'w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-300/50 focus:ring-4 focus:ring-violet-300/10'
+  'w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-300/50 focus:ring-4 focus:ring-violet-300/10 disabled:cursor-not-allowed disabled:opacity-50'
+
+const textAreaClass =
+  'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm leading-6 text-white outline-none transition focus:border-violet-300/50 focus:ring-4 focus:ring-violet-300/10 disabled:cursor-not-allowed disabled:opacity-50'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
-    : 'Não foi possível analisar o PDF.'
+    : 'Não foi possível concluir a importação.'
 }
 
-function optionalText(
+function displayText(
   value: string,
   fallback = 'Não identificado com segurança.'
 ) {
@@ -72,9 +94,61 @@ function Detail({
   )
 }
 
+function stateForDestination(
+  previous: RowState | undefined,
+  destination: PlanificationPdfImportDestination | null,
+  section: ParsedPlanificationPdfSection
+): RowState {
+  const sameDestination =
+    Boolean(
+      previous?.destinationId &&
+      destination?.moduleId ===
+        previous.destinationId
+    )
+
+  return {
+    included:
+      previous?.included ?? true,
+    destinationId:
+      destination?.moduleId ?? '',
+    mode:
+      destination
+        ? destination.existingPlanification ===
+          'yes'
+          ? sameDestination &&
+            (
+              previous?.mode === 'append' ||
+              previous?.mode === 'skip'
+            )
+            ? previous.mode
+            : null
+          : 'create'
+        : null,
+    expectedStateFingerprint:
+      destination?.stateFingerprint ?? '',
+    content:
+      previous?.content ??
+      section.contentsText,
+    objectives:
+      previous?.objectives ??
+      section.objectivesText,
+    activity:
+      previous?.activity ??
+      section.methodologyText,
+    resources:
+      previous?.resources ??
+      section.resourcesText,
+    evaluation:
+      previous?.evaluation ??
+      section.evaluationText
+  }
+}
+
 export default function PlanificationPdfImportPanel({
   snapshot,
-  onSelectAssignment
+  onSelectAssignment,
+  onImported,
+  disabled = false
 }: PlanificationPdfImportPanelProps) {
   const inputRef =
     useRef<HTMLInputElement>(null)
@@ -82,111 +156,43 @@ export default function PlanificationPdfImportPanel({
   const [
     parsed,
     setParsed
-  ] = useState<
-    ParsedPlanificationPdfDocument | null
-  >(null)
-
+  ] = useState<ParsedPlanificationPdfDocument | null>(null)
   const [
-    fileName,
-    setFileName
-  ] = useState('')
-
+    file,
+    setFile
+  ] = useState<File | null>(null)
+  const [
+    destinations,
+    setDestinations
+  ] = useState<PlanificationPdfImportDestination[]>([])
+  const [
+    rows,
+    setRows
+  ] = useState<RowStates>({})
   const [
     analyzing,
     setAnalyzing
   ] = useState(false)
-
+  const [
+    importing,
+    setImporting
+  ] = useState(false)
   const [
     dragActive,
     setDragActive
   ] = useState(false)
-
   const [
     error,
     setError
   ] = useState('')
-
   const [
-    confirmedAssignmentId,
-    setConfirmedAssignmentId
+    feedback,
+    setFeedback
   ] = useState('')
-
   const [
-    rowChoices,
-    setRowChoices
-  ] = useState<RowChoices>({})
-
-  const [
-    reviewMessage,
-    setReviewMessage
-  ] = useState('')
-
-  useEffect(() => {
-    if (
-      !parsed &&
-      snapshot.assignmentOptions.length === 1
-    ) {
-      setConfirmedAssignmentId(
-        snapshot.assignmentOptions[0]
-          .assignment.id
-      )
-    }
-  }, [
-    parsed,
-    snapshot.assignmentOptions
-  ])
-
-  const assignmentReady =
-    Boolean(
-      confirmedAssignmentId &&
-      snapshot.selectedAssignment?.id ===
-        confirmedAssignmentId
-    )
-
-  const destinations =
-    useMemo<PlanificationPdfPreviewDestination[]>(
-      () => {
-        if (!assignmentReady) {
-          return []
-        }
-
-        return snapshot.moduleOptions.map(
-          option => {
-            const isCurrentModule =
-              snapshot.selectedModule?.id ===
-              option.module.id
-
-            const existingPlanification =
-              isCurrentModule
-                ? snapshot.planification?.active
-                  ? 'yes' as const
-                  : 'no' as const
-                : 'unknown' as const
-
-            return {
-              moduleId:
-                option.module.id,
-              teachingAssignmentId:
-                confirmedAssignmentId,
-              code:
-                option.module.code,
-              name:
-                option.module.name,
-              label:
-                option.label,
-              existingPlanification
-            }
-          }
-        )
-      },
-      [
-        assignmentReady,
-        confirmedAssignmentId,
-        snapshot.moduleOptions,
-        snapshot.planification,
-        snapshot.selectedModule
-      ]
-    )
+    completed,
+    setCompleted
+  ] = useState(false)
 
   const preview =
     useMemo(
@@ -205,31 +211,44 @@ export default function PlanificationPdfImportPanel({
 
   useEffect(() => {
     if (!preview) {
+      setRows({})
       return
     }
 
-    setRowChoices(current => {
-      const next: RowChoices = {}
+    setRows(current => {
+      const next: RowStates = {}
 
-      for (const row of preview.rows) {
-        const previous = current[row.key]
-        const previousStillValid =
-          previous?.destinationId &&
-          destinations.some(
-            destination =>
-              destination.moduleId ===
-              previous.destinationId
+      preview.rows.forEach(row => {
+        const previous =
+          current[row.key]
+        const previousDestination =
+          previous?.destinationId
+            ? destinations.find(
+                destination =>
+                  destination.moduleId ===
+                  previous.destinationId
+              ) ?? null
+            : null
+        const suggestedDestination =
+          previousDestination ??
+          (
+            row.candidates.length === 1
+              ? destinations.find(
+                  destination =>
+                    destination.moduleId ===
+                    row.candidates[0]
+                      .moduleId
+                ) ?? null
+              : null
           )
 
-        next[row.key] = {
-          included:
-            previous?.included ?? true,
-          destinationId:
-            previousStillValid
-              ? previous.destinationId
-              : row.suggestedDestinationId ?? ''
-        }
-      }
+        next[row.key] =
+          stateForDestination(
+            previous,
+            suggestedDestination,
+            row.section
+          )
+      })
 
       return next
     })
@@ -238,62 +257,61 @@ export default function PlanificationPdfImportPanel({
     preview
   ])
 
-  async function analyzeFile(file: File) {
-    setAnalyzing(true)
-    setError('')
-    setReviewMessage('')
-    setFileName(file.name)
-    setRowChoices({})
+  const busy =
+    analyzing ||
+    importing
 
+  async function analyzeFile(nextFile: File) {
     if (
-      snapshot.assignmentOptions.length > 1
+      !nextFile.name
+        .toLocaleLowerCase('pt-PT')
+        .endsWith('.pdf')
     ) {
-      setConfirmedAssignmentId('')
-    } else if (
-      snapshot.assignmentOptions.length === 1
-    ) {
-      const onlyAssignment =
-        snapshot.assignmentOptions[0]
-          .assignment.id
-
-      setConfirmedAssignmentId(
-        onlyAssignment
-      )
-
-      if (
-        snapshot.selectedAssignment?.id !==
-        onlyAssignment
-      ) {
-        onSelectAssignment(
-          onlyAssignment
-        )
-      }
+      setError('Selecione um ficheiro PDF válido.')
+      return
     }
 
+    setAnalyzing(true)
+    setError('')
+    setFeedback('')
+    setCompleted(false)
+    setFile(nextFile)
+    setParsed(null)
+    setDestinations([])
+    setRows({})
+
     try {
-      const extracted =
-        await extractPlanificationPdf(file)
+      const [
+        extracted,
+        loadedDestinations
+      ] = await Promise.all([
+        extractPlanificationPdf(nextFile),
+        loadPlanificationPdfImportDestinations(
+          snapshot.academicYear.id
+        )
+      ])
+
       const result =
         parsePlanificationPdfDocument(
           extracted,
-          file.name
+          nextFile.name
         )
 
+      setDestinations(loadedDestinations)
       setParsed(result)
 
-      if (result.sections.length === 0) {
+      if (!result.sections.length) {
         setError(
           result.warnings[0] ||
           'Não foi possível identificar UFCD com segurança neste PDF.'
         )
       }
     } catch (analysisError) {
-      setParsed(null)
       setError(
-        getErrorMessage(
-          analysisError
-        )
+        getErrorMessage(analysisError)
       )
+      setParsed(null)
+      setDestinations([])
     } finally {
       setAnalyzing(false)
     }
@@ -302,11 +320,11 @@ export default function PlanificationPdfImportPanel({
   function handleFileChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const file =
+    const nextFile =
       event.target.files?.[0]
 
-    if (file) {
-      void analyzeFile(file)
+    if (nextFile) {
+      void analyzeFile(nextFile)
     }
 
     event.target.value = ''
@@ -318,82 +336,292 @@ export default function PlanificationPdfImportPanel({
     event.preventDefault()
     setDragActive(false)
 
-    const file =
+    if (
+      disabled ||
+      busy
+    ) {
+      return
+    }
+
+    const nextFile =
       event.dataTransfer.files?.[0]
 
-    if (file) {
-      void analyzeFile(file)
+    if (nextFile) {
+      void analyzeFile(nextFile)
     }
   }
 
-  function chooseAssignment(
-    event: ChangeEvent<HTMLSelectElement>
+  function updateRow(
+    key: string,
+    changes: Partial<RowState>
   ) {
-    const assignmentId =
-      event.target.value
+    setRows(current => {
+      const existing =
+        current[key]
 
-    setConfirmedAssignmentId(
-      assignmentId
-    )
-    setReviewMessage('')
+      if (!existing) {
+        return current
+      }
 
-    if (assignmentId) {
-      onSelectAssignment(
-        assignmentId
-      )
-    }
+      return {
+        ...current,
+        [key]: {
+          ...existing,
+          ...changes
+        }
+      }
+    })
+    setError('')
+    setFeedback('')
+    setCompleted(false)
   }
 
-  function validateReview() {
-    if (!preview) {
-      return
+  function changeDestination(
+    key: string,
+    moduleId: string,
+    section: ParsedPlanificationPdfSection
+  ) {
+    const destination =
+      destinations.find(
+        item =>
+          item.moduleId ===
+          moduleId
+      ) ?? null
+
+    setRows(current => ({
+      ...current,
+      [key]:
+        stateForDestination(
+          current[key],
+          destination,
+          section
+        )
+    }))
+    setError('')
+    setFeedback('')
+    setCompleted(false)
+  }
+
+  function validate() {
+    if (
+      !preview ||
+      !file
+    ) {
+      return 'Selecione e analise primeiro um PDF.'
     }
 
-    if (!confirmedAssignmentId) {
-      setReviewMessage(
-        'Confirme primeiro a turma e a disciplina. Nenhum destino foi escolhido automaticamente.'
-      )
-      return
-    }
-
-    if (!assignmentReady) {
-      setReviewMessage(
-        'A carregar as UFCD da turma e disciplina escolhidas. Confirme os destinos quando ficarem disponíveis.'
-      )
-      return
-    }
-
-    const includedRows =
+    const selectedRows =
       preview.rows.filter(
         row =>
-          rowChoices[row.key]
-            ?.included
+          rows[row.key]?.included
       )
 
-    if (includedRows.length === 0) {
-      setReviewMessage(
-        'Selecione pelo menos uma UFCD para a importação.'
-      )
+    if (!selectedRows.length) {
+      return 'Selecione pelo menos uma UFCD para importar.'
+    }
+
+    const writeDestinations =
+      new Set<string>()
+
+    for (
+      let index = 0;
+      index < selectedRows.length;
+      index += 1
+    ) {
+      const row =
+        selectedRows[index]
+      const state =
+        rows[row.key]
+      const label =
+        row.section.code
+          ? `UFCD ${row.section.code}`
+          : `UFCD ${index + 1}`
+
+      if (
+        !state?.destinationId ||
+        !state.expectedStateFingerprint
+      ) {
+        return `${label}: escolha o destino.`
+      }
+
+      const destination =
+        destinations.find(
+          item =>
+            item.moduleId ===
+            state.destinationId
+        )
+
+      if (!destination) {
+        return `${label}: o destino deixou de estar disponível.`
+      }
+
+      if (
+        destination.existingPlanification === 'yes'
+      ) {
+        if (
+          state.mode !== 'append' &&
+          state.mode !== 'skip'
+        ) {
+          return `${label}: escolha explicitamente Acrescentar ou Ignorar.`
+        }
+      } else if (
+        state.mode !== 'create'
+      ) {
+        return `${label}: o modo válido é Criar.`
+      }
+
+      if (
+        state.mode !== 'skip' &&
+        !(
+          state.content.trim() ||
+          state.objectives.trim() ||
+          state.activity.trim() ||
+          state.resources.trim() ||
+          state.evaluation.trim()
+        )
+      ) {
+        return `${label}: não existe conteúdo estruturado para guardar.`
+      }
+
+      if (
+        state.mode !== 'skip'
+      ) {
+        if (
+          writeDestinations.has(
+            state.destinationId
+          )
+        ) {
+          return 'O mesmo destino foi escolhido para mais do que uma secção. Reveja a associação antes de importar.'
+        }
+
+        writeDestinations.add(
+          state.destinationId
+        )
+      }
+    }
+
+    return ''
+  }
+
+  async function commit() {
+    if (
+      disabled ||
+      busy ||
+      completed ||
+      !preview ||
+      !file
+    ) {
       return
     }
 
-    const missingDestination =
-      includedRows.some(
-        row =>
-          !rowChoices[row.key]
-            ?.destinationId
-      )
+    const validationError =
+      validate()
 
-    if (missingDestination) {
-      setReviewMessage(
-        'Existem UFCD incluídas sem destino confirmado. Corrija-as antes de continuar.'
-      )
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    setReviewMessage(
-      'Revisão coerente. A gravação continua bloqueada até o AGENTE 1 fornecer o contrato oficial de persistência.'
-    )
+    if (
+      !window.confirm(
+        'Confirmar a importação? Todas as UFCD deste PDF são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+      )
+    ) {
+      return
+    }
+
+    const confirmedRows =
+      preview.rows.flatMap(
+        (
+          row,
+          index
+        ) => {
+          const state =
+            rows[row.key]
+
+          if (
+            !state?.included ||
+            !state.destinationId ||
+            !state.mode
+          ) {
+            return []
+          }
+
+          const destination =
+            destinations.find(
+              item =>
+                item.moduleId ===
+                state.destinationId
+            )
+
+          if (!destination) {
+            return []
+          }
+
+          return [
+            {
+              section: row.section,
+              sectionOrdinal:
+                index + 1,
+              destination,
+              mode: state.mode,
+              content: state.content,
+              objectives: state.objectives,
+              activity: state.activity,
+              resources: state.resources,
+              evaluation: state.evaluation,
+              expectedStateFingerprint:
+                state.expectedStateFingerprint
+            }
+          ]
+        }
+      )
+
+    setImporting(true)
+    setError('')
+    setFeedback('')
+
+    try {
+      const result =
+        await commitPlanificationPdfImport(
+          file,
+          confirmedRows
+        )
+
+      const count = (
+        action:
+          | 'created'
+          | 'appended'
+          | 'skipped'
+          | 'alreadyImported'
+      ) =>
+        result.results.filter(
+          item =>
+            item.action === action
+        ).length
+
+      setCompleted(true)
+      setFeedback(
+        `Importação concluída. Criadas: ${count('created')}; acrescentadas: ${count('appended')}; ignoradas: ${count('skipped')}; já importadas: ${count('alreadyImported')}.`
+      )
+
+      if (onImported) {
+        onImported()
+      } else if (
+        onSelectAssignment &&
+        snapshot.selectedAssignment
+      ) {
+        onSelectAssignment(
+          snapshot.selectedAssignment.id
+        )
+      }
+    } catch (importError) {
+      setError(
+        getErrorMessage(importError)
+      )
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
@@ -404,15 +632,15 @@ export default function PlanificationPdfImportPanel({
             Importar planificação PDF
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
-            Analisar primeiro. Gravar só depois de confirmar.
+            PDF → UFCD → revisão → importação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            O PDF é analisado localmente. Nenhuma planificação é criada ou substituída durante esta fase de preview.
+            O PDF é analisado localmente. Reveja a turma, disciplina, UFCD e os conteúdos antes da confirmação final. Não são inventados sumários.
           </p>
         </div>
 
-        <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-amber-100">
-          Persistência desligada
+        <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-emerald-100">
+          Importação atómica
         </span>
       </div>
 
@@ -421,13 +649,19 @@ export default function PlanificationPdfImportPanel({
         type="file"
         accept="application/pdf,.pdf"
         onChange={handleFileChange}
+        disabled={
+          disabled ||
+          busy
+        }
         className="hidden"
       />
 
       <div
         onDragEnter={event => {
           event.preventDefault()
-          setDragActive(true)
+          if (!disabled) {
+            setDragActive(true)
+          }
         }}
         onDragOver={event =>
           event.preventDefault()
@@ -446,30 +680,33 @@ export default function PlanificationPdfImportPanel({
         <p className="text-sm font-black text-white">
           {analyzing
             ? 'A analisar o PDF...'
-            : 'Arraste o PDF para aqui'}
+            : 'Arraste o PDF da planificação para aqui'}
         </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          ou selecione manualmente o ficheiro no dispositivo
+          Nesta fase, cada confirmação trata um PDF completo para manter todas as UFCD do documento no mesmo rollback.
         </p>
         <button
           type="button"
           onClick={() =>
             inputRef.current?.click()
           }
-          disabled={analyzing}
+          disabled={
+            disabled ||
+            busy
+          }
           className="mt-4 rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-50 disabled:opacity-50"
         >
           Selecionar PDF
         </button>
       </div>
 
-      {fileName ? (
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
+      {file ? (
+        <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
           <span className="font-black text-white">
             Ficheiro:
           </span>{' '}
-          {fileName}
-        </div>
+          {file.name}
+        </p>
       ) : null}
 
       {error ? (
@@ -481,296 +718,302 @@ export default function PlanificationPdfImportPanel({
         </div>
       ) : null}
 
-      {preview &&
-      preview.rows.length > 0 ? (
-        <div className="mt-6 space-y-5">
-          <label className="block rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4">
-            <span className="mb-2 block text-sm font-black text-cyan-50">
-              Confirmar turma e disciplina
-            </span>
-            <select
-              value={confirmedAssignmentId}
-              onChange={chooseAssignment}
-              className={selectClass}
-            >
-              {snapshot.assignmentOptions.length > 1 ? (
-                <option value="">
-                  Escolher explicitamente…
-                </option>
-              ) : null}
-              {snapshot.assignmentOptions.map(
-                option => (
-                  <option
-                    key={option.assignment.id}
-                    value={option.assignment.id}
-                  >
-                    {option.label}
-                  </option>
-                )
-              )}
-            </select>
-            {confirmedAssignmentId &&
-            !assignmentReady ? (
-              <p className="mt-2 text-xs text-amber-200">
-                A atualizar as UFCD disponíveis para esta turma e disciplina.
-              </p>
-            ) : null}
-          </label>
+      {feedback ? (
+        <div
+          role="status"
+          className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-50"
+        >
+          {feedback}
+        </div>
+      ) : null}
 
-          {preview.warnings.length > 0 ? (
-            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-100">
-                Avisos do documento
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/90">
-                {preview.warnings.map(
-                  warning => (
-                    <li key={warning}>
-                      {warning}
-                    </li>
-                  )
-                )}
-              </ul>
-            </div>
-          ) : null}
-
-          {preview.rows.map(row => {
-            const choice =
-              rowChoices[row.key] ?? {
-                included: true,
-                destinationId: ''
-              }
-            const selectedDestination =
-              destinations.find(
-                destination =>
-                  destination.moduleId ===
-                  choice.destinationId
+      {preview?.rows.map(row => {
+        const state =
+          rows[row.key]
+        const destination =
+          state?.destinationId
+            ? destinations.find(
+                item =>
+                  item.moduleId ===
+                  state.destinationId
               ) ?? null
-            const dynamicWarnings = [
-              ...row.warnings
-            ]
+            : null
+        const warnings = [
+          ...row.warnings
+        ]
 
-            if (
-              selectedDestination &&
-              row.section.code &&
-              selectedDestination.code.trim() !==
-                row.section.code
-            ) {
-              dynamicWarnings.push(
-                `O destino escolhido tem o código ${selectedDestination.code || 'sem código'}, diferente de ${row.section.code}. Confirme esta correção manual.`
-              )
-            }
+        if (
+          destination &&
+          row.section.code &&
+          destination.code.trim() !==
+            row.section.code
+        ) {
+          warnings.push(
+            `O destino selecionado tem o código ${destination.code || 'sem código'}, diferente de ${row.section.code}. Confirme esta correção manual.`
+          )
+        }
 
-            if (
-              selectedDestination
-                ?.existingPlanification ===
-              'yes'
-            ) {
-              dynamicWarnings.push(
-                'Este destino já possui uma planificação ativa. A substituição exigirá confirmação explícita quando a persistência for ligada.'
-              )
-            }
+        if (
+          destination?.existingPlanification ===
+          'yes'
+        ) {
+          warnings.push(
+            'Já existe uma planificação ativa neste destino. Apenas é permitido acrescentar no fim ou ignorar; não existe substituição automática.'
+          )
+        }
 
-            if (
-              selectedDestination
-                ?.existingPlanification ===
-              'unknown'
-            ) {
-              dynamicWarnings.push(
-                'Ainda não foi possível provar se este destino tem uma planificação ativa. A gravação permanece bloqueada.'
-              )
-            }
+        return (
+          <article
+            key={row.key}
+            className="mt-5 rounded-2xl border border-white/10 bg-slate-950/60 p-5"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-black text-violet-100">
+                  UFCD {row.section.code || 'sem código'}
+                </span>
+                <h3 className="mt-3 text-lg font-black text-white">
+                  {displayText(
+                    row.section.name,
+                    'Designação não identificada'
+                  )}
+                </h3>
+              </div>
 
-            const suggested =
-              row.candidates.length === 1
-                ? row.candidates[0]
-                : null
-
-            return (
-              <article
-                key={row.key}
-                className={`rounded-2xl border p-5 ${
-                  choice.included
-                    ? 'border-white/10 bg-slate-950/60'
-                    : 'border-slate-500/10 bg-slate-950/30 opacity-65'
-                }`}
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-black text-violet-100">
-                        UFCD {row.section.code || 'sem código'}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        páginas {row.section.sourcePages.join(', ')}
-                      </span>
-                    </div>
-                    <h3 className="mt-3 text-lg font-black text-white">
-                      {optionalText(
-                        row.section.name,
-                        'Designação não identificada'
-                      )}
-                    </h3>
-                  </div>
-
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={choice.included}
-                      onChange={event =>
-                        setRowChoices(current => ({
-                          ...current,
-                          [row.key]: {
-                            ...choice,
-                            included:
-                              event.target.checked
-                          }
-                        }))
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={
+                    state?.included ?? true
+                  }
+                  disabled={
+                    importing ||
+                    completed
+                  }
+                  onChange={event =>
+                    updateRow(
+                      row.key,
+                      {
+                        included:
+                          event.target.checked
                       }
-                    />
-                    Incluir na importação
-                  </label>
-                </div>
+                    )
+                  }
+                />
+                Incluir
+              </label>
+            </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Detail
-                    label="Código exato"
-                    value={
-                      row.section.code ||
-                      'Não identificado'
-                    }
-                  />
-                  <Detail
-                    label="Duração"
-                    value={
-                      row.section.durationHours === null
-                        ? 'Não identificada'
-                        : `${row.section.durationHours} h`
-                    }
-                  />
-                  <Detail
-                    label="Aulas previstas"
-                    value={
-                      row.section.plannedLessons === null
-                        ? 'Não identificadas'
-                        : String(
-                            row.section.plannedLessons
-                          )
-                    }
-                  />
-                  <Detail
-                    label="Páginas de origem"
-                    value={
-                      row.section.sourcePages.join(', ') ||
-                      'Não identificadas'
-                    }
-                  />
-                </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Detail
+                label="Código exato"
+                value={
+                  row.section.code ||
+                  'Não identificado'
+                }
+              />
+              <Detail
+                label="Duração"
+                value={
+                  row.section.durationHours === null
+                    ? 'Não identificada'
+                    : `${row.section.durationHours} h`
+                }
+              />
+              <Detail
+                label="Aulas previstas"
+                value={
+                  row.section.plannedLessons === null
+                    ? 'Não identificadas'
+                    : String(
+                        row.section.plannedLessons
+                      )
+                }
+              />
+              <Detail
+                label="Páginas"
+                value={
+                  row.section.sourcePages.join(', ') ||
+                  'Não identificadas'
+                }
+              />
+            </div>
 
-                <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                  <Detail
-                    label="Conteúdos"
-                    value={optionalText(
-                      row.section.contentsText
-                    )}
-                  />
-                  <Detail
-                    label="Objetivos / competências"
-                    value={optionalText(
-                      row.section.objectivesText
-                    )}
-                  />
-                  <Detail
-                    label="Metodologias"
-                    value={optionalText(
-                      row.section.methodologyText
-                    )}
-                  />
-                  <Detail
-                    label="Recursos"
-                    value={optionalText(
-                      row.section.resourcesText
-                    )}
-                  />
-                  <Detail
-                    label="Avaliação"
-                    value={optionalText(
-                      row.section.evaluationText
-                    )}
-                  />
-                  <Detail
-                    label="Período"
-                    value={optionalText(
-                      row.section.periodLabel
-                    )}
-                  />
-                </div>
-
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                      Destino sugerido
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-white">
-                      {!confirmedAssignmentId
-                        ? 'Confirme primeiro a turma e disciplina.'
-                        : !assignmentReady
-                          ? 'A carregar os destinos da turma escolhida.'
-                          : suggested
-                            ? suggested.label
-                            : row.candidates.length > 1
-                              ? 'Há vários destinos possíveis; escolha manualmente.'
-                              : 'Não existe correspondência exata nesta turma/disciplina.'}
-                    </p>
-                  </div>
-
-                  <label className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+            {state?.included !== false ? (
+              <>
+                <div className="mt-4 grid gap-4 lg:grid-cols-[2fr_1fr]">
+                  <label>
                     <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
                       Destino confirmado
                     </span>
                     <select
-                      value={choice.destinationId}
+                      value={
+                        state?.destinationId ?? ''
+                      }
                       onChange={event =>
-                        setRowChoices(current => ({
-                          ...current,
-                          [row.key]: {
-                            ...choice,
-                            destinationId:
-                              event.target.value
-                          }
-                        }))
+                        changeDestination(
+                          row.key,
+                          event.target.value,
+                          row.section
+                        )
                       }
                       disabled={
-                        !choice.included ||
-                        !assignmentReady
+                        importing ||
+                        completed
                       }
                       className={selectClass}
                     >
                       <option value="">
-                        Escolher UFCD manualmente…
+                        Escolher turma, disciplina e UFCD…
                       </option>
-                      {destinations.map(
-                        destination => (
-                          <option
-                            key={destination.moduleId}
-                            value={destination.moduleId}
-                          >
-                            {destination.label}
-                          </option>
-                        )
-                      )}
+                      {destinations.map(item => (
+                        <option
+                          key={item.moduleId}
+                          value={item.moduleId}
+                        >
+                          {item.label}
+                          {item.existingPlanification ===
+                          'yes'
+                            ? ' — já tem planificação'
+                            : ''}
+                        </option>
+                      ))}
                     </select>
+                  </label>
+
+                  <label>
+                    <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                      Ação
+                    </span>
+                    {destination?.existingPlanification ===
+                    'yes' ? (
+                      <select
+                        value={
+                          state?.mode ?? ''
+                        }
+                        onChange={event =>
+                          updateRow(
+                            row.key,
+                            {
+                              mode:
+                                (
+                                  event.target.value ||
+                                  null
+                                ) as ImportMode | null
+                            }
+                          )
+                        }
+                        disabled={
+                          importing ||
+                          completed
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">
+                          Escolha explicitamente…
+                        </option>
+                        <option value="append">
+                          Acrescentar no fim
+                        </option>
+                        <option value="skip">
+                          Ignorar esta UFCD
+                        </option>
+                      </select>
+                    ) : (
+                      <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2.5 text-sm font-black text-emerald-100">
+                        {destination
+                          ? 'Criar nova planificação'
+                          : 'A aguardar destino'}
+                      </div>
+                    )}
                   </label>
                 </div>
 
-                {dynamicWarnings.length > 0 ? (
+                {state?.mode !== 'skip' ? (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    {([
+                      [
+                        'Conteúdos',
+                        'content',
+                        state?.content ??
+                          row.section.contentsText,
+                        6
+                      ],
+                      [
+                        'Objetivos / competências',
+                        'objectives',
+                        state?.objectives ??
+                          row.section.objectivesText,
+                        6
+                      ],
+                      [
+                        'Metodologias / atividades',
+                        'activity',
+                        state?.activity ??
+                          row.section.methodologyText,
+                        5
+                      ],
+                      [
+                        'Recursos',
+                        'resources',
+                        state?.resources ??
+                          row.section.resourcesText,
+                        5
+                      ],
+                      [
+                        'Avaliação',
+                        'evaluation',
+                        state?.evaluation ??
+                          row.section.evaluationText,
+                        4
+                      ]
+                    ] as const).map(
+                      ([
+                        label,
+                        field,
+                        value,
+                        rowCount
+                      ]) => (
+                        <label
+                          key={field}
+                          className={
+                            field === 'evaluation'
+                              ? 'lg:col-span-2'
+                              : ''
+                          }
+                        >
+                          <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                            {label}
+                          </span>
+                          <textarea
+                            value={value}
+                            onChange={event =>
+                              updateRow(
+                                row.key,
+                                {
+                                  [field]:
+                                    event.target.value
+                                }
+                              )
+                            }
+                            disabled={
+                              importing ||
+                              completed
+                            }
+                            rows={rowCount}
+                            className={textAreaClass}
+                          />
+                        </label>
+                      )
+                    )}
+                  </div>
+                ) : null}
+
+                {warnings.length ? (
                   <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-100">
-                      Avisos / ambiguidades
-                    </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/90">
+                    <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/90">
                       {Array.from(
-                        new Set(dynamicWarnings)
+                        new Set(warnings)
                       ).map(warning => (
                         <li key={warning}>
                           {warning}
@@ -779,39 +1022,40 @@ export default function PlanificationPdfImportPanel({
                     </ul>
                   </div>
                 ) : null}
-              </article>
-            )
-          })}
+              </>
+            ) : null}
+          </article>
+        )
+      })}
 
-          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={validateReview}
-                className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-50"
-              >
-                Confirmar revisão
-              </button>
-
-              <button
-                type="button"
-                disabled
-                title="Aguarda o contrato oficial de persistência do AGENTE 1."
-                className="rounded-xl border border-slate-400/10 bg-slate-400/[0.05] px-4 py-2.5 text-sm font-black text-slate-500"
-              >
-                Importação final indisponível
-              </button>
+      {preview?.rows.length ? (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/55 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-white">
+                Confirmação final
+              </p>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+                A duração e as aulas previstas são apenas informativas. A importação não altera aulas, sumários existentes, assiduidade, avaliações, GIAE, módulos, horários, carga horária ou progresso.
+              </p>
             </div>
 
-            {reviewMessage ? (
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                {reviewMessage}
-              </p>
-            ) : null}
-
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              Nenhum dado é persistido por este painel. A ligação à criação/substituição de planificações só deve ser implementada depois de o AGENTE 1 fornecer o contrato oficial e o critério de confirmação de substituição.
-            </p>
+            <button
+              type="button"
+              onClick={commit}
+              disabled={
+                disabled ||
+                busy ||
+                completed
+              }
+              className="rounded-xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {importing
+                ? 'A importar…'
+                : completed
+                  ? 'Importação concluída'
+                  : 'Importar planificações confirmadas'}
+            </button>
           </div>
         </div>
       ) : null}
