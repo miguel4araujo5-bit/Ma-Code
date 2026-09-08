@@ -84,17 +84,19 @@ Decisão A1: se a UFCD já tiver avaliação, resultado ou classificação final
 
 Requisito: abrir aula e escrever diretamente `0–20` junto ao aluno; nota válida implica `evaluated`; detalhes avançados recolhidos; zero avaliação vazia; teclado rápido; preservar concorrência e unsaved-work.
 
-**Checkpoint A4 anterior — BLOQUEADO:**
-- HEAD `391346b3c5261203ae78c343facb1a31f7196e41`.
-- A6 finding `A6-DAILY-QUICK-GRADE-NR-01`: criação do assessment e gravação dos resultados não eram atómicas; uma falha intermédia podia deixar assessment vazio persistido.
+**Checkpoint anterior bloqueado:** `391346b3c5261203ae78c343facb1a31f7196e41` — A6 encontrou `A6-DAILY-QUICK-GRADE-NR-01`: criação do assessment e gravação dos resultados não eram atómicas.
 
-**Correção CORE A2 — ENTREGUE / CONGELADA:**
-- branch `agent2/quick-grade-atomic-df7098f`
+**Core A2 de correção:**
 - HEAD `abfa52e21b49f6b52ba2748c9d11ff6d1ab40656`
-- apenas `assessmentAtomicPersistenceRepository.ts` + teste.
-- contrato: `createLessonAssessmentWithResults(...)` envolve criação + resultados na mesma transação.
-- provas A2: teste estrutural 3/3 PASS; compile isolada PASS; harness rollback/retry 2/2 PASS.
-- pedido A6 publicado; não há APTO automático até revisão do SHA e do novo HEAD A4.
+- `assessmentAtomicPersistenceRepository.createLessonAssessmentWithResults(...)` envolve criação + resultados numa só transação.
+- provas A2: estrutural 3/3 PASS; compile isolada PASS; harness rollback/retry 2/2 PASS.
+
+**Correção A4 entregue para revisão:**
+- branch `agent4-g2/daily-quick-grade-atomic-faf6f38`
+- HEAD `8d7ea0dd15434b2ff425d4c1cb7569a8e2599034`
+- base funcional `df7098fe...`; preserva o UX Quick Grade anterior e consome o core A2 no caminho de nova avaliação.
+- delta exclusivo sobre `391346b3...`: `assessmentAtomicPersistenceRepository.ts`, `DailyLessonAssessmentSection.tsx`, teste core, teste de consumo.
+- pedido A6 publicado; suite/build literal ainda não executada neste SHA.
 
 ### 11. A4-DAILY-GIAE-AUTO-01 — copiar sumário assinala automaticamente GIAE
 
@@ -106,31 +108,27 @@ Regra de produto:
 - clipboard fail = zero alteração;
 - stale/submit fail nunca produz falso sucesso.
 
-**Checkpoint A4 preservado mas NÃO integrável:**
+**HEAD A4 atual:**
 - branch `agent4-g2/daily-giae-auto-0cb0bdc`
-- HEAD `885988c1c47fc90b3231ffc36f6644d8b78d0654`
-- contém o comportamento GIAE Auto, mas descende do Quick Grade bloqueado `391346b3...`; A6 determinou que não pode entrar no candidato neste estado.
+- HEAD `9c023277c2b7c954508a7cab2b058f0f12f4f9bf`
+- inclui GIAE Auto no `DailyWorkspaceView`, testes de auto-submissão e o contrato explícito GIAE herdado da linha `ba87e698...`.
 
-**Correção CORE A2 pending-first — ENTREGUE / CONGELADA:**
-- branch `agent2/giae-daily-pending-core-f314a8b`
-- HEAD `bfaf4e5d8dc7133019c186146eb73c5a9e081235`
-- apenas `giaeDailyPersistenceRepository.ts` + teste.
-- `savePendingVersion(...)` usa `expectedUpdatedAt`, guarda a versão e garante `pending`; nunca marca submitted por si; a submissão posterior usa `giaeExplicitSubmissionRepository.markSubmitted(...)` com a versão persistida.
-- provas A2: estrutural 3/3 PASS; compile isolada PASS; harness GIAE 4/4 PASS, incluindo stale zero-write e rollback se pending falhar.
-- pedido A6 publicado.
+**Decisão A1 de composição — opção core existente:**
+- A2 criou a alternativa `bfaf4e5d8dc7133019c186146eb73c5a9e081235` (`giaeDailyPersistenceRepository.savePendingVersion(...)`), mas auditoria posterior mostrou que o caminho real `dailyWorkspaceRepository.saveLesson()` já satisfaz o contrato pending-first de forma mais completa porque guarda o editor inteiro.
+- No HEAD `9c02327...`, `handleCopySummary()` guarda primeiro alterações pendentes via `saveAll`; `saveLesson()` executa `updateLesson()` + eventual `submitted -> pending` na mesma transação; depois o handler relê a versão, confirma o sumário, executa clipboard e só então `markSubmitted({ expectedUpdatedAt: currentLesson.updatedAt })`.
+- **A1 decide NÃO integrar `bfaf4e5...` nesta entrega.** O SHA fica congelado como experiência core alternativo não consumido; não entra apenas por organização.
+- A2 classificou `9c02327...` como sem finding core bloqueante nesta leitura, mas ainda **VERIFICAÇÃO INCOMPLETA** até prova proporcional.
 
-### 12. A4-DAILY-FINAL-SAFE — recomposição final Quick Grade + GIAE Auto
+### 12. A4-DAILY-FINAL-SAFE — composição final Quick Grade + GIAE Auto
 
-**AÇÃO BLOQUEANTE ATUAL: A4.**
+**ÚNICO DESENVOLVIMENTO BLOQUEANTE ATUAL: A4.**
 
-A1 autorizou recomposição controlada, sem apagar/mover checkpoints anteriores:
-- criar branch nova a partir de `885988c1c47fc90b3231ffc36f6644d8b78d0654`;
-- consumir os dois commits core A2 exatos `abfa52e21b49f6b52ba2748c9d11ff6d1ab40656` e `bfaf4e5d8dc7133019c186146eb73c5a9e081235` como deltas, evitando merge histórico das branches A2;
-- Quick Grade novo: usar `assessmentAtomicPersistenceRepository.createLessonAssessmentWithResults(...)` no percurso de criação;
-- GIAE Auto: usar `giaeDailyPersistenceRepository.savePendingVersion(...)` antes da submissão explícita e só marcar submitted se a autorização de cópia continuar válida para a versão persistida;
-- entregar HEAD final + delta + provas dirigidas + pedido A6.
+- merge-base entre `9c023277...` e `8d7ea0dd...` = `391346b3...`.
+- o delta exclusivo de `8d7ea0dd...` toca apenas 4 paths e não colide com `DailyWorkspaceView.tsx` do GIAE Auto.
+- A1 autorizou: criar branch nova a partir de `9c023277...`, integrar o estado `8d7ea0dd...` por merge/cherry-pick controlado, preservar branches anteriores e entregar novo HEAD final.
+- o HEAD final tem de conter simultaneamente Quick Grade atómico + GIAE Auto + contrato explícito GIAE.
 
-Comentário operacional A1 no PR #27: `5588864896`.
+Comentário operacional A1 no PR #27: `5588937439`.
 
 ## Segurança/recuperação A5
 
@@ -140,23 +138,24 @@ Investigação concluída sem encontrar risco atualmente alcançável de perda i
 
 ### A1 — COORDENAÇÃO / PRODUTO / WORKFLOW
 1. manter âmbito/ownership fechados;
-2. acompanhar a recomposição A4 final e impedir reutilização de HEADs bloqueados como candidato;
+2. acompanhar `A4-DAILY-FINAL-SAFE` e impedir uso dos checkpoints bloqueados como final;
 3. após HEAD final A4 + parecer A6, materializar candidato único, verificar ancestralidade/deduplicação, executar MA-Professor + Conquistador + MA-Quadro + build + smokes e entregar SHA ao A6.
 
 ### A2 — CORE / ACESSO / DADOS / PERSISTÊNCIA
 - acesso `703893...` APTO e congelado;
 - critérios `715ecd84...` congelado; prova real final no candidato;
 - Quick Grade atomic core `abfa52e...` entregue/congelado;
-- GIAE pending core `bfaf4e5d...` entregue/congelado;
-- sem novo write salvo finding A6 concreto; responder a questões técnicas da revisão.
+- `bfaf4e5...` congelado como alternativa GIAE não consumida nesta entrega;
+- sem novo write salvo finding A6 concreto.
 
 ### A3 — INTERFACE / UX / PT-PT / VISUAL
 - critérios UX `c3104b...` congelado; sem desenvolvimento pendente;
 - preservar PDF/Xadrez/Cores/PT-PT.
 
 ### A4 — PEDAGOGIA / AULAS / AVALIAÇÕES / GIAE — AÇÃO ATIVA BLOQUEANTE
-- checkpoints `391346b3...` e `885988c1...` preservados, mas NÃO elegíveis como final;
-- **FAZER AGORA:** criar `A4-DAILY-FINAL-SAFE`, consumir `abfa52e...` + `bfaf4e5d...`, corrigir Quick Grade e pending-first GIAE Auto, executar provas e pedir revisão A6.
+- Quick Grade corrigido `8d7ea0dd...` entregue separadamente;
+- GIAE Auto `9c023277...` entregue separadamente;
+- **FAZER AGORA:** criar HEAD final único que combine estes dois estados, executar provas dirigidas e pedir revisão A6.
 - parecer Excel entregue e separado desta entrega.
 
 ### A5 — SEGURANÇA DE DADOS / RECUPERAÇÃO / SNAPSHOTS
@@ -164,12 +163,13 @@ Investigação concluída sem encontrar risco atualmente alcançável de perda i
 - smoke backup/restore no candidato.
 
 ### A6 — REVISÃO INDEPENDENTE / NÃO-REGRESSÃO / RELEASE — AÇÃO ATIVA
-1. rever core A2 `abfa52e21b49f6b52ba2748c9d11ff6d1ab40656` e `bfaf4e5d8dc7133019c186146eb73c5a9e081235`;
-2. critérios core+UX mantêm VERIFICAÇÃO INCOMPLETA até prova executável do candidato;
-3. quando A4 entregar `A4-DAILY-FINAL-SAFE`, rever o SHA integral sem herdar APTO automaticamente dos cores;
-4. revisão final obrigatória do candidato combinado.
+1. rever `8d7ea0dd...` e `9c023277...` como checkpoints;
+2. não gastar gate de release em `bfaf4e5...`, que ficou fora da composição funcional;
+3. quando A4 entregar `A4-DAILY-FINAL-SAFE`, rever o SHA integral sem herdar APTO automaticamente dos checkpoints;
+4. critérios core+UX mantêm VERIFICAÇÃO INCOMPLETA até prova executável do candidato;
+5. revisão final obrigatória do candidato combinado.
 
-Comentário operacional A1 ao A6 no PR #24: `5588867966`.
+Comentário operacional A1 ao A6 no PR #24: `5588941843`.
 
 ## Fila seguinte visível — fora da entrega atual
 
@@ -205,4 +205,4 @@ Fluxo final obrigatório:
 
 ## Estado de fecho neste momento
 
-**Ainda não concluído.** O desenvolvimento core necessário já foi entregue. Falta agora `A4-DAILY-FINAL-SAFE -> A6 do SHA final A4 -> candidato A1 -> testes globais -> A6 final -> aprovação explícita do utilizador`. A `main` permanece protegida em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
+**Ainda não concluído.** Falta `A4-DAILY-FINAL-SAFE -> A6 do SHA final A4 -> candidato A1 -> testes globais -> A6 final -> aprovação explícita do utilizador`. A `main` permanece protegida em `344841c1fc402e813f9d8658d96fa20b0fefa779`.
