@@ -85,9 +85,7 @@ test(
     )
     assert.match(
       transactionBody,
-      /await this\.repository\.createLessonAssessment\(/[
-        Symbol.replace
-      ] ? /never/ : /await this\.repository\.createLessonAssessment\(/
+      /await this\.repository\.createLessonAssessment\(/
     )
     assert.match(
       transactionBody,
