@@ -15,6 +15,11 @@ import {
 } from '../assessments/assessmentRepository';
 
 import {
+    buildQuickAssessmentTitle,
+    resolveQuickCriterionId
+} from '../assessments/dailyQuickGrade';
+
+import {
     createMAProfessorBackup
 } from '../settings/backupRepository';
 
@@ -372,6 +377,39 @@ function buildLessonForm(
     };
 }
 
+function buildQuickAssessmentDefaults(
+    workspace: NonNullable<
+        DailyDateWorkspace['selectedLesson']
+    >
+): Omit<AssessmentFormState, 'choice'> {
+    const criteria =
+        workspace.assessmentWorkspace.criteria;
+
+    const criterionId =
+        resolveQuickCriterionId(
+            criteria,
+            workspace.assessmentWorkspace.assessments.map(
+                item => item.assessment
+            )
+        );
+
+    const criterionName =
+        criteria.find(
+            criterion =>
+                criterion.id === criterionId
+        )?.name;
+
+    return {
+        criterionId,
+        title: buildQuickAssessmentTitle(
+            workspace.context.lessonRow.lesson.date,
+            criterionName
+        ),
+        activityType: 'practical_work',
+        description: ''
+    };
+}
+
 function buildAssessmentForm(
     workspace: NonNullable<
         DailyDateWorkspace['selectedLesson']
@@ -397,12 +435,9 @@ function buildAssessmentForm(
 
     return {
         choice: 'none',
-        criterionId:
-            workspace.assessmentWorkspace
-                .criteria[0]?.id ?? '',
-        title: '',
-        activityType: 'practical_work',
-        description: ''
+        ...buildQuickAssessmentDefaults(
+            workspace
+        )
     };
 }
 
@@ -420,6 +455,19 @@ function buildStudentRows(
                   )
                 : ''
     }));
+}
+
+function hasQuickAssessmentData(
+    rows: StudentEditorRow[]
+) {
+    return rows.some(
+        row =>
+            row.assessmentStatus !==
+                'not_evaluated' ||
+            row.assessmentScoreText.trim() !==
+                '' ||
+            row.assessmentNote.trim() !== ''
+    );
 }
 
 function buildEditorSignature(
@@ -562,6 +610,10 @@ export default function DailyWorkspaceView({
         useRef<() => Promise<boolean>>(
             async () => true
         );
+    const quickGradeInputRefs =
+        useRef<Array<HTMLInputElement | null>>(
+            []
+        );
 
     const hydrate = useCallback(
         (
@@ -573,6 +625,7 @@ export default function DailyWorkspaceView({
             setAssessmentIdToDelete(
                 null
             );
+            quickGradeInputRefs.current = [];
 
             if (
                 !nextWorkspace.selectedLesson
@@ -898,6 +951,14 @@ export default function DailyWorkspaceView({
     const assessmentEnabled =
         assessmentForm !== null &&
         assessmentForm.choice !== 'none';
+
+    const quickGradeVisible =
+        assessmentForm !== null &&
+        (assessmentEnabled ||
+            Boolean(
+                assessmentWorkspace?.criteria
+                    .length
+            ));
 
     const selectedAssessmentId =
         assessmentForm &&
@@ -1371,6 +1432,87 @@ export default function DailyWorkspaceView({
             return false;
         }
 
+        const quickAssessmentHasData =
+            hasQuickAssessmentData(
+                students
+            );
+
+        const effectiveAssessmentMode:
+            'none' | 'new' | 'existing' =
+            assessmentForm.choice ===
+                'none'
+                ? 'none'
+                : assessmentForm.choice ===
+                    'new'
+                  ? quickAssessmentHasData
+                      ? 'new'
+                      : 'none'
+                  : 'existing';
+
+        if (
+            effectiveAssessmentMode !==
+            'none'
+        ) {
+            if (
+                !assessmentForm.criterionId
+            ) {
+                setShowAssessmentDetails(
+                    true
+                );
+                setError(
+                    'Selecione o critério da avaliação em Detalhes.'
+                );
+                setSuccess('');
+                return false;
+            }
+
+            const invalidRow =
+                students.find(row => {
+                    if (
+                        row.assessmentStatus !==
+                        'evaluated'
+                    ) {
+                        return false;
+                    }
+
+                    const raw =
+                        row.assessmentScoreText
+                            .trim()
+                            .replace(',', '.');
+                    const score = Number(raw);
+
+                    return (
+                        raw === '' ||
+                        !Number.isFinite(
+                            score
+                        ) ||
+                        score < 0 ||
+                        score > 20
+                    );
+                });
+
+            if (invalidRow) {
+                setError(
+                    `A classificação de ${invalidRow.student.name} deve estar entre 0 e 20 valores.`
+                );
+                setSuccess('');
+                return false;
+            }
+        }
+
+        const effectiveAssessmentTitle =
+            assessmentForm.title.trim() ||
+            buildQuickAssessmentTitle(
+                selectedLesson.context
+                    .lessonRow.lesson.date,
+                assessmentWorkspace?.criteria.find(
+                    criterion =>
+                        criterion.id ===
+                        assessmentForm
+                            .criterionId
+                )?.name
+            );
+
         savingRef.current = true;
         setSaving(true);
         setError('');
@@ -1458,15 +1600,9 @@ export default function DailyWorkspaceView({
                             ),
                         assessment: {
                             mode:
-                                assessmentForm.choice ===
-                                'none'
-                                    ? 'none'
-                                    : assessmentForm.choice ===
-                                        'new'
-                                      ? 'new'
-                                      : 'existing',
+                                effectiveAssessmentMode,
                             assessmentId:
-                                assessmentForm.choice ===
+                                effectiveAssessmentMode ===
                                 'none'
                                     ? assessmentIdToDelete
                                     : selectedAssessmentId,
@@ -1474,7 +1610,7 @@ export default function DailyWorkspaceView({
                                 assessmentForm
                                     .criterionId,
                             title:
-                                assessmentForm.title,
+                                effectiveAssessmentTitle,
                             activityType:
                                 assessmentForm
                                     .activityType,
@@ -1802,14 +1938,9 @@ export default function DailyWorkspaceView({
 
             setAssessmentForm({
                 choice: 'new',
-                criterionId:
-                    assessmentWorkspace
-                        .criteria[0]?.id ??
-                    '',
-                title: '',
-                activityType:
-                    'practical_work',
-                description: ''
+                ...buildQuickAssessmentDefaults(
+                    selectedLesson
+                )
             });
 
             setStudents(current =>
@@ -1866,14 +1997,9 @@ export default function DailyWorkspaceView({
                         : {
                               choice:
                                   'none' as const,
-                              criterionId:
-                                  assessmentWorkspace
-                                      .criteria[0]
-                                      ?.id ?? '',
-                              title: '',
-                              activityType:
-                                  'practical_work' as AssessmentActivityType,
-                              description: ''
+                              ...buildQuickAssessmentDefaults(
+                                  selectedLesson
+                              )
                           };
 
                 const fallbackStudents =
@@ -1928,14 +2054,9 @@ export default function DailyWorkspaceView({
             const nextAssessmentForm:
                 AssessmentFormState = {
                 choice: 'none',
-                criterionId:
-                    assessmentWorkspace
-                        .criteria[0]?.id ??
-                    '',
-                title: '',
-                activityType:
-                    'practical_work',
-                description: ''
+                ...buildQuickAssessmentDefaults(
+                    selectedLesson
+                )
             };
 
             const nextStudents =
@@ -2196,6 +2317,48 @@ export default function DailyWorkspaceView({
         );
     }
 
+    function activateQuickAssessment() {
+        if (
+            !selectedLesson ||
+            !assessmentForm ||
+            assessmentForm.choice !==
+                'none'
+        ) {
+            return;
+        }
+
+        if (assessmentIdToDelete) {
+            setError(
+                'Guarde primeiro a remoção da avaliação anterior.'
+            );
+            setSuccess('');
+            return;
+        }
+
+        const defaults =
+            buildQuickAssessmentDefaults(
+                selectedLesson
+            );
+
+        setAssessmentForm({
+            ...assessmentForm,
+            choice: 'new',
+            criterionId:
+                assessmentForm.criterionId ||
+                defaults.criterionId,
+            title:
+                assessmentForm.title.trim()
+                    ? assessmentForm.title
+                    : defaults.title
+        });
+
+        if (!defaults.criterionId) {
+            setShowAssessmentDetails(
+                true
+            );
+        }
+    }
+
     function changeScore(
         row: StudentEditorRow,
         value: string
@@ -2219,6 +2382,10 @@ export default function DailyWorkspaceView({
                       .slice(0, 2)}`
                 : integerPart;
 
+        if (normalizedValue.trim()) {
+            activateQuickAssessment();
+        }
+
         updateStudent(
             row.student.id,
             {
@@ -2231,6 +2398,32 @@ export default function DailyWorkspaceView({
                 assessmentScore: null
             }
         );
+    }
+
+    function focusNextQuickGrade(
+        currentIndex: number
+    ) {
+        for (
+            let index = currentIndex + 1;
+            index <
+            quickGradeInputRefs.current
+                .length;
+            index += 1
+        ) {
+            const input =
+                quickGradeInputRefs.current[
+                    index
+                ];
+
+            if (
+                input &&
+                !input.disabled
+            ) {
+                input.focus();
+                input.select();
+                return;
+            }
+        }
     }
 
     return (
@@ -2934,43 +3127,31 @@ export default function DailyWorkspaceView({
                                                 presentes
                                             </button>
 
-                                            {!assessmentEnabled ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        void changeAssessment(
-                                                            'new'
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        saving ||
-                                                        lessonForm.status ===
-                                                            'cancelled' ||
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setShowAssessmentDetails(
+                                                        current =>
+                                                            !current
+                                                    )
+                                                }
+                                                disabled={
+                                                    saving ||
+                                                    (!quickGradeVisible &&
                                                         !assessmentWorkspace
-                                                            ?.criteria
-                                                            .length
-                                                    }
-                                                    className="rounded-lg bg-cyan-300 px-2.5 py-1.5 text-[0.68rem] font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
-                                                >
-                                                    +
-                                                    Avaliação
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setShowAssessmentDetails(
-                                                            current =>
-                                                                !current
-                                                        )
-                                                    }
-                                                    className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-cyan-100"
-                                                >
-                                                    {showAssessmentDetails
-                                                        ? 'Ocultar avaliação'
-                                                        : 'Detalhes da avaliação'}
-                                                </button>
-                                            )}
+                                                            ?.assessments
+                                                            .length)
+                                                }
+                                                className={`rounded-lg border px-2.5 py-1.5 text-[0.68rem] font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                                                    showAssessmentDetails
+                                                        ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
+                                                        : 'border-white/10 bg-white/[0.04] text-slate-300 hover:border-cyan-300/30 hover:text-white'
+                                                }`}
+                                            >
+                                                {showAssessmentDetails
+                                                    ? 'Ocultar avaliação'
+                                                    : 'Detalhes da avaliação'}
+                                            </button>
 
                                             <button
                                                 type="button"
@@ -3004,7 +3185,7 @@ export default function DailyWorkspaceView({
                                         </div>
                                     ) : null}
 
-                                    {assessmentEnabled &&
+                                    {showAssessmentDetails &&
                                     assessmentForm ? (
                                         <div className="border-b border-cyan-300/15 bg-cyan-300/[0.04] px-3 py-2.5">
                                             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.8fr)_auto] md:items-end">
@@ -3092,160 +3273,167 @@ export default function DailyWorkspaceView({
                                                     </select>
                                                 </label>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        void changeAssessment(
-                                                            'none'
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        saving
-                                                    }
-                                                    className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[0.66rem] font-black text-slate-300 transition hover:border-rose-300/30 hover:text-rose-100"
-                                                >
-                                                    {assessmentForm.choice ===
-                                                    'new'
-                                                        ? 'Cancelar'
-                                                        : 'Remover'}
-                                                </button>
+                                                {assessmentForm.choice !==
+                                                'none' ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            void changeAssessment(
+                                                                'none'
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving
+                                                        }
+                                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[0.66rem] font-black text-slate-300 transition hover:border-rose-300/30 hover:text-rose-100"
+                                                    >
+                                                        {assessmentForm.choice ===
+                                                        'new'
+                                                            ? 'Cancelar'
+                                                            : 'Remover'}
+                                                    </button>
+                                                ) : (
+                                                    <span />
+                                                )}
                                             </div>
 
-                                            {showAssessmentDetails ? (
-                                                <div className="mt-2 grid gap-2 rounded-lg border border-white/10 bg-slate-950/60 p-2.5 md:grid-cols-3">
-                                                    <label className="text-[0.64rem] font-bold text-slate-400">
-                                                        Atividade
-                                                        nesta aula
+                                            <div className="mt-2 grid gap-2 rounded-lg border border-white/10 bg-slate-950/60 p-2.5 md:grid-cols-3">
+                                                <label className="text-[0.64rem] font-bold text-slate-400">
+                                                    Atividade
+                                                    nesta aula
 
-                                                        <select
-                                                            value={
-                                                                assessmentForm.choice
-                                                            }
-                                                            onChange={event =>
-                                                                void changeAssessment(
-                                                                    event
-                                                                        .target
-                                                                        .value
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                saving ||
-                                                                loading
-                                                            }
-                                                            className={`${compactInputClassName} mt-1`}
-                                                        >
-                                                            <option value="new">
-                                                                Nova
-                                                                avaliação
-                                                            </option>
+                                                    <select
+                                                        value={
+                                                            assessmentForm.choice
+                                                        }
+                                                        onChange={event =>
+                                                            void changeAssessment(
+                                                                event
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving ||
+                                                            loading
+                                                        }
+                                                        className={`${compactInputClassName} mt-1`}
+                                                    >
+                                                        <option value="none">
+                                                            Sem avaliação
+                                                        </option>
 
-                                                            {assessmentWorkspace?.assessments.map(
-                                                                item => (
-                                                                    <option
-                                                                        key={
-                                                                            item
-                                                                                .assessment
-                                                                                .id
-                                                                        }
-                                                                        value={
-                                                                            item
-                                                                                .assessment
-                                                                                .id
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            item
-                                                                                .assessment
-                                                                                .title
-                                                                        }
-                                                                    </option>
-                                                                )
-                                                            )}
-                                                        </select>
-                                                    </label>
+                                                        <option value="new">
+                                                            Nova
+                                                            avaliação
+                                                        </option>
 
-                                                    <label className="text-[0.64rem] font-bold text-slate-400">
-                                                        Tipo
+                                                        {assessmentWorkspace?.assessments.map(
+                                                            item => (
+                                                                <option
+                                                                    key={
+                                                                        item
+                                                                            .assessment
+                                                                            .id
+                                                                    }
+                                                                    value={
+                                                                        item
+                                                                            .assessment
+                                                                            .id
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        item
+                                                                            .assessment
+                                                                            .title
+                                                                    }
+                                                                </option>
+                                                            )
+                                                        )}
+                                                    </select>
+                                                </label>
 
-                                                        <select
-                                                            value={
-                                                                assessmentForm.activityType
-                                                            }
-                                                            onChange={event =>
-                                                                setAssessmentForm(
-                                                                    current =>
-                                                                        current
-                                                                            ? {
-                                                                                  ...current,
-                                                                                  activityType:
-                                                                                      event
-                                                                                          .target
-                                                                                          .value as AssessmentActivityType
-                                                                              }
-                                                                            : current
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                saving
-                                                            }
-                                                            className={`${compactInputClassName} mt-1`}
-                                                        >
-                                                            {activityTypeOptions.map(
-                                                                type => (
-                                                                    <option
-                                                                        key={
-                                                                            type
-                                                                        }
-                                                                        value={
-                                                                            type
-                                                                        }
-                                                                    >
-                                                                        {getAssessmentActivityTypeLabel(
-                                                                            type
-                                                                        )}
-                                                                    </option>
-                                                                )
-                                                            )}
-                                                        </select>
-                                                    </label>
+                                                <label className="text-[0.64rem] font-bold text-slate-400">
+                                                    Tipo
 
-                                                    <label className="text-[0.64rem] font-bold text-slate-400">
-                                                        Descrição
+                                                    <select
+                                                        value={
+                                                            assessmentForm.activityType
+                                                        }
+                                                        onChange={event =>
+                                                            setAssessmentForm(
+                                                                current =>
+                                                                    current
+                                                                        ? {
+                                                                              ...current,
+                                                                              activityType:
+                                                                                  event
+                                                                                      .target
+                                                                                      .value as AssessmentActivityType
+                                                                          }
+                                                                        : current
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving
+                                                        }
+                                                        className={`${compactInputClassName} mt-1`}
+                                                    >
+                                                        {activityTypeOptions.map(
+                                                            type => (
+                                                                <option
+                                                                    key={
+                                                                        type
+                                                                    }
+                                                                    value={
+                                                                        type
+                                                                    }
+                                                                >
+                                                                    {getAssessmentActivityTypeLabel(
+                                                                        type
+                                                                    )}
+                                                                </option>
+                                                            )
+                                                        )}
+                                                    </select>
+                                                </label>
 
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                assessmentForm.description
-                                                            }
-                                                            onChange={event =>
-                                                                setAssessmentForm(
-                                                                    current =>
-                                                                        current
-                                                                            ? {
-                                                                                  ...current,
-                                                                                  description:
-                                                                                      event
-                                                                                          .target
-                                                                                          .value
-                                                                              }
-                                                                            : current
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                saving
-                                                            }
-                                                            placeholder="Opcional"
-                                                            className={`${compactInputClassName} mt-1`}
-                                                        />
-                                                    </label>
-                                                </div>
-                                            ) : null}
+                                                <label className="text-[0.64rem] font-bold text-slate-400">
+                                                    Descrição
+
+                                                    <input
+                                                        type="text"
+                                                        value={
+                                                            assessmentForm.description
+                                                        }
+                                                        onChange={event =>
+                                                            setAssessmentForm(
+                                                                current =>
+                                                                    current
+                                                                        ? {
+                                                                              ...current,
+                                                                              description:
+                                                                                  event
+                                                                                      .target
+                                                                                      .value
+                                                                          }
+                                                                        : current
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving
+                                                        }
+                                                        placeholder="Opcional"
+                                                        className={`${compactInputClassName} mt-1`}
+                                                    />
+                                                </label>
+                                            </div>
                                         </div>
                                     ) : null}
 
                                     <div
                                         className={`grid shrink-0 items-center gap-1.5 border-b border-white/10 bg-slate-900/80 px-2.5 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.08em] text-slate-500 ${
-                                            assessmentEnabled
+                                            quickGradeVisible
                                                 ? 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem_4.5rem]'
                                                 : 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem]'
                                         }`}
@@ -3262,9 +3450,9 @@ export default function DailyWorkspaceView({
                                             Falta
                                         </span>
 
-                                        {assessmentEnabled ? (
+                                        {quickGradeVisible ? (
                                             <span className="text-center">
-                                                Nota
+                                                Nota 0–20
                                             </span>
                                         ) : null}
                                     </div>
@@ -3297,7 +3485,7 @@ export default function DailyWorkspaceView({
                                                     >
                                                         <div
                                                             className={`grid items-center gap-1.5 px-2.5 py-1.5 ${
-                                                                assessmentEnabled
+                                                                quickGradeVisible
                                                                     ? 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem_4.5rem]'
                                                                     : 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem]'
                                                             }`}
@@ -3374,7 +3562,7 @@ export default function DailyWorkspaceView({
                                                                     : '—'}
                                                             </button>
 
-                                                            {assessmentEnabled ? (
+                                                            {quickGradeVisible ? (
                                                                 row.assessmentStatus ===
                                                                 'absent' ? (
                                                                     <span className="rounded-md border border-rose-300/25 bg-rose-300/10 px-1.5 py-1 text-center text-[0.68rem] font-black text-rose-100">
@@ -3387,6 +3575,13 @@ export default function DailyWorkspaceView({
                                                                     </span>
                                                                 ) : (
                                                                     <input
+                                                                        ref={element => {
+                                                                            quickGradeInputRefs.current[
+                                                                                index
+                                                                            ] =
+                                                                                element;
+                                                                        }}
+                                                                        data-daily-quick-grade-input="true"
                                                                         type="text"
                                                                         inputMode="decimal"
                                                                         value={
@@ -3400,6 +3595,19 @@ export default function DailyWorkspaceView({
                                                                                     .value
                                                                             )
                                                                         }
+                                                                        onKeyDown={event => {
+                                                                            if (
+                                                                                event.key ===
+                                                                                    'Enter' ||
+                                                                                event.key ===
+                                                                                    'ArrowDown'
+                                                                            ) {
+                                                                                event.preventDefault();
+                                                                                focusNextQuickGrade(
+                                                                                    index
+                                                                                );
+                                                                            }
+                                                                        }}
                                                                         disabled={
                                                                             saving ||
                                                                             lessonForm.status ===
