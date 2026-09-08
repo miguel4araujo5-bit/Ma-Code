@@ -9,6 +9,10 @@ import {
   useState
 } from 'react'
 
+import {
+  assessmentAtomicPersistenceRepository
+} from '../assessmentAtomicPersistenceRepository'
+
 import type {
   AssessmentActivityType,
   AssessmentResultStatus,
@@ -822,32 +826,38 @@ const DailyLessonAssessmentSection = forwardRef<
               return
             }
 
-            let assessmentId =
-              draftCreatedAssessmentIdRef.current
-
-            if (!assessmentId) {
-              const assessment =
-                await assessmentRepository.createLessonAssessment({
-                  lessonId: lesson.id,
-                  criterionId: draft.criterionId,
-                  title:
-                    draft.title.trim() ||
-                    buildQuickAssessmentTitle(
-                      lesson.date,
-                      criterion.name
-                    ),
-                  activityType: draft.activityType,
-                  description: draft.description
-                })
-
-              assessmentId = assessment.id
-              draftCreatedAssessmentIdRef.current = assessment.id
+            const assessmentDraft = {
+              lessonId: lesson.id,
+              criterionId: draft.criterionId,
+              title:
+                draft.title.trim() ||
+                buildQuickAssessmentTitle(
+                  lesson.date,
+                  criterion.name
+                ),
+              activityType: draft.activityType,
+              description: draft.description
             }
 
-            await assessmentRepository.saveAssessmentResults(
-              assessmentId,
-              entries
-            )
+            const existingAssessmentId =
+              draftCreatedAssessmentIdRef.current
+
+            if (!existingAssessmentId) {
+              const created =
+                await assessmentAtomicPersistenceRepository
+                  .createLessonAssessmentWithResults(
+                    assessmentDraft,
+                    entries
+                  )
+
+              draftCreatedAssessmentIdRef.current =
+                created.assessment.id
+            } else {
+              await assessmentRepository.saveAssessmentResults(
+                existingAssessmentId,
+                entries
+              )
+            }
 
             draftCreatedAssessmentIdRef.current = null
 
