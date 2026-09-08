@@ -80,15 +80,36 @@ AÇÃO A4: manter congelado e conservar checklist E2E/smoke: single, bulk, stale
 - CI-ISOLATION: `745dab64e2355b1e14a36687d60a21e77b6e0f34` — APTO.
 - A4-DAILY-NR-01: `df7098fe510aa79fc72bde035053389045a8d117` — APTO.
 
+## PENDÊNCIA DE PLANEAMENTO NÃO BLOQUEANTE — A4-G2 — EXCEL AVALIAÇÃO FINAL
+
+O planeamento futuro `A1_EXCEL_UFCD_FINAL_ASSESSMENT_PLANNING.md` já tem contributos A3 (UX/import/mapping) e A5 (privacidade/preservação). Falta o parecer funcional A4 sobre `assessments/**`.
+
+A1 comunicou diretamente no PR #27, comentário `5583952182`.
+
+AÇÃO A4 — apenas análise, sem código/branch funcional:
+- identificar fonte de verdade atual para avaliações, critérios, ponderações, autoavaliação e classificação final;
+- definir proposta calculada vs classificação final confirmada;
+- regras de autoavaliação, arredondamento 0–20 e conflitos;
+- stale entre preview e confirmação;
+- zero writes antes de confirmação explícita;
+- dados mínimos a expor ao exportador Excel sem segunda fonte de verdade;
+- casos insuficientes/ambíguos e testes de aceitação.
+
+CRITÉRIO DE SAÍDA: parecer funcional entregue ao A1, com ambiguidades do código marcadas como decisões pendentes. Depois A1 consolida A3+A4+A5 e envia desenho ao A6 antes de qualquer implementação Excel.
+
+Esta pendência NÃO bloqueia nem entra no candidato combinado atual.
+
 ## PRIORIDADE ATIVA — A1-G2 — CANDIDATO ÚNICO
 
 A1 continua proprietário da composição e não fica bloqueado por trabalho funcional adicional dos agentes.
+
+Pré-árvore Git não publicada já preparada, sem o único ficheiro sobreposto: `64faf2f77023c872e4bba73181aef10e20657c9c`.
 
 FAZER AGORA — A1:
 1. manter o inventário BASE→HEAD e as relações de ancestralidade confirmadas;
 2. garantir que nenhum PR/lote histórico empilhado é integrado duas vezes;
 3. consumir o blob mecânico Cores+PT-PT apenas quando o A3 provar o diff exato;
-4. criar o snapshot candidato com `344841c...` como parent técnico e os blobs finais dos lotes elegíveis;
+4. sobrepor esse blob na pré-árvore `64faf2f...` e criar o snapshot candidato com `344841c...` como parent técnico;
 5. verificar o delta completo e ausência de ficheiros de coordenação;
 6. executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais;
 7. entregar SHA combinado ao A6 para revisão final independente;
@@ -100,6 +121,7 @@ FAZER AGORA — A1:
 - Cores e GIAE mantêm limitações executáveis para o candidato combinado.
 - A micro-tarefa A3 de overlap é apenas mecânica e não requer parecer A6 isolado se o diff provar exatamente as duas substituições sobre o HEAD de Cores.
 - Próxima revisão material A6: SHA do candidato único, com suites/build/smokes completos e lista de limitações E2E não executadas.
+- Para Excel: revisão de desenho apenas depois de A1 consolidar os pareceres A3+A4+A5; sem implementação autorizada.
 
 ## PROTEÇÕES
 
