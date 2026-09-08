@@ -1,3 +1,9 @@
+# SUBSTITUÍDO — PRESERVAR COMO HISTÓRICO
+
+A partir da atualização A1-G2 de 2026-09-08, `AGENT_STATUS.md` é o único resumo operacional dos seis agentes. Este ficheiro deixa de ser quadro ativo e fica preservado apenas como histórico. Não apagar nem continuar a atualizar este conteúdo.
+
+---
+
 # A1-G2 — QUADRO ATIVO DE DESBLOQUEIO
 
 Atualização: 2026-09-08T14:58+01:00
