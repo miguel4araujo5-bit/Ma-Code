@@ -1,6 +1,6 @@
 # A1-G2 — QUADRO ATIVO DE DESBLOQUEIO
 
-Atualização: 2026-09-08T11:34+01:00
+Atualização: 2026-09-08T14:58+01:00
 
 Regra operacional: nenhum agente fica apenas “a aguardar”. Cada pendência tem proprietário, ação executável e critério de saída. Se houver impedimento técnico real, deve ser escalado ao A1 com causa e evidência concreta.
 
@@ -64,6 +64,38 @@ AÇÃO A3:
 
 CRITÉRIO DE SAÍDA: blob final = estado visual integral de Cores + exatamente as duas frases PT-PT. O A1 consumirá apenas esse blob no snapshot; o micro-HEAD não entra como histórico.
 
+## NOVO LOTE PRIORITÁRIO ANTES DO CANDIDATO — CRITÉRIOS SIMPLES POR DISCIPLINA
+
+Requisito do utilizador: o caso normal deve ser `definir critérios → aplicar a uma ou várias disciplinas/associações → todas as UFCD herdam`. A personalização por UFCD deve ser exceção secundária, não uma pergunta obrigatória no início.
+
+Contrato A1: `A1_CRITERIA_SIMPLE_FLOW_20260908.md`.
+
+Código atual confirmado:
+- `scope: subject` já representa os critérios gerais da associação turma+disciplina;
+- `resolveAssessmentScheme()` em `assessments/**` dá precedência a `scope: module` e depois usa `scope: subject`, logo uma personalização de UFCD pode funcionar como override seguro;
+- `createAssessmentScheme()` é atómico apenas para uma associação, portanto seleção múltipla NÃO pode usar várias chamadas sequenciais com risco de write parcial.
+
+AÇÃO A1 — FAZER AGORA:
+1. fornecer contrato batch atómico para aplicar o mesmo conjunto a vários `teachingAssignmentId`;
+2. pré-validar integralmente todas as seleções antes de qualquer write;
+3. qualquer erro => zero writes;
+4. preservar compatibilidade com schemes `subject`/`module` existentes e sem migração.
+
+AÇÃO A3 — após a micro-tarefa Cores+PT-PT:
+1. lote isolado em `AssessmentCriteriaSetupStep.tsx` + testes setup;
+2. colocar nome/critérios/ponderações primeiro;
+3. depois bloco `Aplicar a` com seleção explícita de uma ou várias associações;
+4. texto: `Este conjunto será aplicado a todas as UFCD das disciplinas selecionadas.`;
+5. retirar do percurso normal `Todas as UFCD` / `Apenas uma UFCD`;
+6. ação secundária `Personalizar uma UFCD`, escolhendo associação + UFCD e deixando claro que substitui apenas nessa UFCD;
+7. não alterar `repository.ts`, db ou types partilhados sem contrato A1.
+
+AÇÃO A4 — revisão funcional apenas, sem código: confirmar ausência de ambiguidades/regressões no domínio de avaliações com `subject` geral + `module` override. Pedido publicado no PR #27, comentário `5586272926`.
+
+AÇÃO A6 — aguardar HEAD A1 batch + HEAD A3 UX e rever o lote conjunto por SHA exato antes de entrar no candidato global. Pré-aviso publicado no PR #24, comentário `5586276145`.
+
+CRITÉRIO DE SAÍDA: fluxo simples funcional, multi-seleção atómica, override explícito por UFCD, testes e parecer A6 sem finding bloqueante.
+
 ## PRONTO PARA VALIDAÇÃO NO CANDIDATO — A4-G2 — GIAE
 
 Branch: `agent4-g2/giae-explicit-resubmit-f314a8b`
@@ -101,26 +133,31 @@ Esta pendência NÃO bloqueia nem entra no candidato combinado atual.
 
 ## PRIORIDADE ATIVA — A1-G2 — CANDIDATO ÚNICO
 
-A1 continua proprietário da composição e não fica bloqueado por trabalho funcional adicional dos agentes.
+A1 continua proprietário da composição.
 
 Pré-árvore Git não publicada já preparada, sem o único ficheiro sobreposto: `64faf2f77023c872e4bba73181aef10e20657c9c`.
 
+DECISÃO A1: o commit candidato final fica temporariamente adiado até fechar o novo lote `CRITÉRIOS SIMPLES POR DISCIPLINA`, porque o utilizador pediu esta alteração antes do fecho e ela toca no setup que já integraremos. A pré-árvore permanece apenas como prova/inventário e não é publicada.
+
 FAZER AGORA — A1:
 1. manter o inventário BASE→HEAD e as relações de ancestralidade confirmadas;
-2. garantir que nenhum PR/lote histórico empilhado é integrado duas vezes;
-3. consumir o blob mecânico Cores+PT-PT apenas quando o A3 provar o diff exato;
-4. sobrepor esse blob na pré-árvore `64faf2f...` e criar o snapshot candidato com `344841c...` como parent técnico;
-5. verificar o delta completo e ausência de ficheiros de coordenação;
-6. executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais;
-7. entregar SHA combinado ao A6 para revisão final independente;
-8. só depois pedir autorização explícita do utilizador para qualquer merge em `main`.
+2. fornecer o batch atómico dos critérios;
+3. receber e validar o micro-blob Cores+PT-PT do A3;
+4. receber e validar o novo HEAD UX de critérios do A3;
+5. obter revisão A4 funcional e A6 do lote de critérios;
+6. reconstruir/atualizar a árvore candidata com os estados finais;
+7. verificar delta completo e ausência de ficheiros de coordenação;
+8. executar suites MA-Professor + Conquistador + MA-Quadro, build e smokes proporcionais;
+9. entregar SHA combinado ao A6 para revisão final independente;
+10. só depois pedir autorização explícita do utilizador para qualquer merge em `main`.
 
 ## FILA A6 A PARTIR DE AGORA
 
 - Não repetir revisões isoladas já fechadas.
 - Cores e GIAE mantêm limitações executáveis para o candidato combinado.
 - A micro-tarefa A3 de overlap é apenas mecânica e não requer parecer A6 isolado se o diff provar exatamente as duas substituições sobre o HEAD de Cores.
-- Próxima revisão material A6: SHA do candidato único, com suites/build/smokes completos e lista de limitações E2E não executadas.
+- Rever o novo lote de critérios quando A1 entregar contrato batch + A3 HEAD UX.
+- Depois, próxima revisão material: SHA do candidato único, com suites/build/smokes completos e lista de limitações E2E não executadas.
 - Para Excel: revisão de desenho apenas depois de A1 consolidar os pareceres A3+A4+A5; sem implementação autorizada.
 
 ## PROTEÇÕES
