@@ -4,6 +4,7 @@ import {
   useState
 } from 'react'
 
+import RecurringDutyQuickAdd from '../schedule/RecurringDutyQuickAdd'
 import ScheduleWorkspaceView from '../schedule/ScheduleWorkspaceView'
 import {
   scheduleWorkspaceRepository,
@@ -125,70 +126,78 @@ export function ScheduleProductWorkspace({
   }
 
   return (
-    <ScheduleWorkspaceView
-      snapshot={snapshot}
-      loading={loading}
-      error={error}
-      onRefresh={() => void load()}
-      onFiltersChange={handleFiltersChange}
-      onCreateScheduleSlot={(
-        input: ScheduleSlotDraft
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.createScheduleSlot(
-            input
+    <>
+      <RecurringDutyQuickAdd
+        academicYear={snapshot.academicYear}
+        disabled={loading}
+        onCreated={() => load()}
+      />
+
+      <ScheduleWorkspaceView
+        snapshot={snapshot}
+        loading={loading}
+        error={error}
+        onRefresh={() => void load()}
+        onFiltersChange={handleFiltersChange}
+        onCreateScheduleSlot={(
+          input: ScheduleSlotDraft
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.createScheduleSlot(
+              input
+            )
           )
-        )
-      }
-      onUpdateScheduleSlot={(
-        slotId: EntityId,
-        changes: ScheduleSlotChanges
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.updateScheduleSlot(
-            slotId,
-            changes
+        }
+        onUpdateScheduleSlot={(
+          slotId: EntityId,
+          changes: ScheduleSlotChanges
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.updateScheduleSlot(
+              slotId,
+              changes
+            )
           )
-        )
-      }
-      onDeleteScheduleSlot={(
-        slotId: EntityId
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.deleteScheduleSlot(
-            slotId
+        }
+        onDeleteScheduleSlot={(
+          slotId: EntityId
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.deleteScheduleSlot(
+              slotId
+            )
           )
-        )
-      }
-      onCreateSchoolCalendarEvent={(
-        input: SchoolCalendarEventDraft
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.createSchoolCalendarEvent(
-            input
+        }
+        onCreateSchoolCalendarEvent={(
+          input: SchoolCalendarEventDraft
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.createSchoolCalendarEvent(
+              input
+            )
           )
-        )
-      }
-      onUpdateSchoolCalendarEvent={(
-        eventId: EntityId,
-        changes: SchoolCalendarEventChanges
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.updateSchoolCalendarEvent(
-            eventId,
-            changes
+        }
+        onUpdateSchoolCalendarEvent={(
+          eventId: EntityId,
+          changes: SchoolCalendarEventChanges
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.updateSchoolCalendarEvent(
+              eventId,
+              changes
+            )
           )
-        )
-      }
-      onDeleteSchoolCalendarEvent={(
-        eventId: EntityId
-      ) =>
-        mutate(() =>
-          scheduleWorkspaceRepository.deleteSchoolCalendarEvent(
-            eventId
+        }
+        onDeleteSchoolCalendarEvent={(
+          eventId: EntityId
+        ) =>
+          mutate(() =>
+            scheduleWorkspaceRepository.deleteSchoolCalendarEvent(
+              eventId
+            )
           )
-        )
-      }
-    />
+        }
+      />
+    </>
   )
 }
