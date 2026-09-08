@@ -2,6 +2,7 @@ import {
   maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
+import { giaeExplicitSubmissionRepository } from '../giaeExplicitSubmissionRepository'
 import { lessonRepository } from '../lessons/lessonRepository'
 import type {
   AcademicYear,
@@ -92,6 +93,11 @@ interface GIAEWorkspaceDataSet {
   lessons: Lesson[]
 }
 
+interface CopiedLessonAuthorization {
+  fingerprint: string
+  expectedUpdatedAt: string
+}
+
 const emptyFilters: GIAEWorkspaceFilters = {
   query: '',
   dateFrom: null,
@@ -104,6 +110,23 @@ const emptyFilters: GIAEWorkspaceFilters = {
 
 function now() {
   return new Date().toISOString()
+}
+
+function buildCopiedLessonFingerprint(
+  lesson: Lesson
+) {
+  return JSON.stringify({
+    id: lesson.id,
+    teachingAssignmentId:
+      lesson.teachingAssignmentId,
+    moduleId: lesson.moduleId,
+    date: lesson.date,
+    startTime: lesson.startTime,
+    endTime: lesson.endTime,
+    periodCount: lesson.periodCount,
+    status: lesson.status,
+    summary: lesson.summary.trim()
+  })
 }
 
 function toISODate(date: Date): ISODate {
@@ -574,6 +597,72 @@ export function formatGIAERowsForClipboard(
 }
 
 export class GIAEWorkspaceRepository {
+  private readonly copiedLessonAuthorizations =
+    new Map<EntityId, CopiedLessonAuthorization>()
+
+  recordCopiedLesson(
+    lesson: Lesson
+  ) {
+    this.copiedLessonAuthorizations.set(
+      lesson.id,
+      {
+        fingerprint:
+          buildCopiedLessonFingerprint(
+            lesson
+          ),
+        expectedUpdatedAt:
+          lesson.updatedAt
+      }
+    )
+  }
+
+  recordCopiedLessons(
+    lessons: Lesson[]
+  ) {
+    lessons.forEach(
+      (
+        lesson
+      ) =>
+        this.recordCopiedLesson(
+          lesson
+        )
+    )
+  }
+
+  private assertCopiedVersion(
+    lesson: Lesson
+  ) {
+    const authorization =
+      this.copiedLessonAuthorizations.get(
+        lesson.id
+      )
+
+    if (!authorization) {
+      throw new Error(
+        'Copie este sumário antes de o marcar como submetido no GIAE.'
+      )
+    }
+
+    if (
+      authorization.expectedUpdatedAt !==
+        lesson.updatedAt ||
+      authorization.fingerprint !==
+        buildCopiedLessonFingerprint(
+          lesson
+        )
+    ) {
+      this.copiedLessonAuthorizations.delete(
+        lesson.id
+      )
+
+      throw new Error(
+        'Este sumário foi alterado desde a última cópia. Copie-o novamente antes de o marcar como submetido no GIAE.'
+      )
+    }
+
+    return authorization
+  }
+
   async initialize() {
     await openMAProfessorDatabase()
   }
@@ -752,25 +841,137 @@ export class GIAEWorkspaceRepository {
   async markSubmitted(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAESubmitted(
+    await this.initialize()
+
+    const lesson =
+      await maProfessorDb.lessons.get(
+        lessonId
+      )
+
+    if (!lesson) {
+      throw new Error(
+        'A aula indicada não existe.'
+      )
+    }
+
+    const authorization =
+      this.assertCopiedVersion(
+        lesson
+      )
+
+    const updated =
+      await giaeExplicitSubmissionRepository.markSubmitted({
+        lessonId,
+        expectedUpdatedAt:
+          authorization.expectedUpdatedAt
+      })
+
+    if (updated.giaeStatus !== 'submitted') {
+      throw new Error(
+        'Não foi possível confirmar a submissão desta aula no GIAE.'
+      )
+    }
+
+    this.copiedLessonAuthorizations.delete(
       lessonId
     )
+
+    return updated
   }
 
   async markPending(
     lessonId: EntityId
   ) {
-    return lessonRepository.markGIAEPending(
-      lessonId
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      async () => {
+        const updated =
+          await lessonRepository.markGIAEPending(
+            lessonId
+          )
+
+        this.copiedLessonAuthorizations.delete(
+          lessonId
+        )
+
+        return updated
+      }
     )
   }
 
   async markManySubmitted(
     lessonIds: EntityId[]
   ) {
-    return lessonRepository.markManyGIAESubmitted(
-      lessonIds
+    await this.initialize()
+
+    const uniqueLessonIds =
+      Array.from(
+        new Set(
+          lessonIds
+        )
+      )
+
+    const inputs = []
+
+    for (
+      const lessonId of
+      uniqueLessonIds
+    ) {
+      const lesson =
+        await maProfessorDb.lessons.get(
+          lessonId
+        )
+
+      if (!lesson) {
+        throw new Error(
+          'Uma das aulas indicadas não existe.'
+        )
+      }
+
+      const authorization =
+        this.assertCopiedVersion(
+          lesson
+        )
+
+      inputs.push({
+        lessonId,
+        expectedUpdatedAt:
+          authorization.expectedUpdatedAt
+      })
+    }
+
+    const updated =
+      await giaeExplicitSubmissionRepository.markManySubmitted(
+        inputs
+      )
+
+    if (
+      updated.length !==
+        uniqueLessonIds.length ||
+      updated.some(
+        lesson =>
+          lesson.giaeStatus !==
+            'submitted'
+      )
+    ) {
+      throw new Error(
+        'Não foi possível confirmar a submissão de todas as aulas no GIAE.'
+      )
+    }
+
+    uniqueLessonIds.forEach(
+      (
+        lessonId
+      ) =>
+        this.copiedLessonAuthorizations.delete(
+          lessonId
+        )
     )
+
+    return updated
   }
 }
 
