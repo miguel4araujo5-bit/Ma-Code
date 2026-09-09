@@ -272,7 +272,7 @@ test(
     )
     assert.match(
       dailyWorkspaceSource,
-      /const quickGradeVisible =/[\s\S]*assessmentWorkspace\?\.criteria/
+      /const quickGradeVisible\s*=[\s\S]*assessmentWorkspace\?\.criteria/
     )
     assert.match(
       dailyWorkspaceSource,
@@ -346,7 +346,7 @@ test(
     )
     assert.match(
       dailyWorkspaceSource,
-      /focusNextQuickGrade\(/ 
+      /focusNextQuickGrade\(/
     )
   }
 )
