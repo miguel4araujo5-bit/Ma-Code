@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -36,7 +36,7 @@ jobs:
       - name: Run Conquistador tests
         run: npm run test:conquistador
 
-      - name: Run MA-Professor notification guard
+      - name: Run MA-Professor tests
         run: node --test tests/ma-professor/*.test.mjs
 
       - name: Run MA-Quadro tests
