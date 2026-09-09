@@ -65,6 +65,24 @@ async function assertAssignmentsCanBeRemoved(
   }
 }
 
+async function deleteSetupAssignments(
+  teachingAssignmentIds: EntityId[]
+) {
+  if (teachingAssignmentIds.length === 0) {
+    return
+  }
+
+  for (const id of teachingAssignmentIds) {
+    await maProfessorDb.weeklyScheduleSlots
+      .where('teachingAssignmentId')
+      .equals(id)
+      .delete()
+  }
+
+  await maProfessorDb.teachingAssignments
+    .bulkDelete(teachingAssignmentIds)
+}
+
 export async function removeSubjectAssignmentsFromSetup(
   subjectId: EntityId,
   retainedGroupIds: EntityId[]
@@ -83,7 +101,6 @@ export async function removeSubjectAssignmentsFromSetup(
   const toRemove =
     assignments.filter(
       assignment =>
-        assignment.active &&
         !retained.has(assignment.groupId)
     )
 
@@ -101,15 +118,7 @@ export async function removeSubjectAssignmentsFromSetup(
     maProfessorDb.weeklyScheduleSlots,
     maProfessorDb.teachingAssignments,
     async () => {
-      for (const id of ids) {
-        await maProfessorDb.weeklyScheduleSlots
-          .where('teachingAssignmentId')
-          .equals(id)
-          .delete()
-      }
-
-      await maProfessorDb.teachingAssignments
-        .bulkDelete(ids)
+      await deleteSetupAssignments(ids)
     }
   )
 
@@ -137,9 +146,9 @@ export async function removeSubjectFromSetup(
       .toArray()
 
   const ids =
-    assignments
-      .filter(assignment => assignment.active)
-      .map(assignment => assignment.id)
+    assignments.map(
+      assignment => assignment.id
+    )
 
   await assertAssignmentsCanBeRemoved(ids)
 
@@ -149,18 +158,7 @@ export async function removeSubjectFromSetup(
     maProfessorDb.teachingAssignments,
     maProfessorDb.subjects,
     async () => {
-      for (const id of ids) {
-        await maProfessorDb.weeklyScheduleSlots
-          .where('teachingAssignmentId')
-          .equals(id)
-          .delete()
-      }
-
-      if (ids.length > 0) {
-        await maProfessorDb.teachingAssignments
-          .bulkDelete(ids)
-      }
-
+      await deleteSetupAssignments(ids)
       await maProfessorDb.subjects.delete(subjectId)
     }
   )
