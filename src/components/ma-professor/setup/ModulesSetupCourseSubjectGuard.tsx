@@ -15,7 +15,9 @@ type Props = {
 const legacyCourseSubjectAliases =
   new Set([
     'ap',
-    'tap'
+    'tap',
+    'apoio psicossocial',
+    'tecnico de apoio psicossocial'
   ])
 
 function normalize(value: string) {
@@ -152,11 +154,11 @@ export default function ModulesSetupCourseSubjectGuard({
           </p>
 
           <h2 className="mt-3 text-xl font-black text-white">
-            AP/TAP não será tratado como disciplina
+            AP/TAP/Apoio Psicossocial não será tratado como disciplina
           </h2>
 
           <p className="mt-3 text-sm leading-7 text-amber-50/90">
-            Foi encontrada uma entrada antiga guardada como disciplina com a designação {legacySubjects.map(subject => `“${subject.name}”`).join(', ')}. AP/TAP identifica o curso Técnico de Apoio Psicossocial neste fluxo e não uma disciplina. Por segurança, esta entrada deixou de ser apresentada como disciplina no passo das UFCD/módulos.
+            Foi encontrada uma entrada antiga guardada como disciplina com a designação {legacySubjects.map(subject => `“${subject.name}”`).join(', ')}. AP, TAP e Apoio Psicossocial identificam o curso Técnico de Apoio Psicossocial neste fluxo e não uma disciplina. Por segurança, esta entrada deixou de ser apresentada como disciplina no passo das UFCD/módulos.
           </p>
 
           {affectedGroups.length > 0 ? (
