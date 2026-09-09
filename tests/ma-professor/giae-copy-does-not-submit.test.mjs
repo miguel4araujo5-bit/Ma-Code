@@ -66,7 +66,7 @@ function getFunctionBody(
 }
 
 test(
-  'copying a summary in Daily does not change its GIAE state',
+  'copying the current Daily summary submits only after clipboard success through the explicit version guard',
   () => {
     const copyHandler =
       getFunctionBody(
@@ -75,21 +75,35 @@ test(
         'async function saveAll('
       )
 
-    assert.equal(
-      copyHandler.includes('giaeStatus'),
-      false,
-      'handleCopySummary não pode alterar giaeStatus.'
-    )
+    const clipboardIndex =
+      copyHandler.indexOf('await copyTextToClipboard(')
+    const explicitSubmitIndex =
+      copyHandler.indexOf(
+        'giaeExplicitSubmissionRepository.markSubmitted('
+      )
 
-    assert.equal(
-      copyHandler.includes("'submitted'"),
-      false,
-      'Copiar não pode marcar o sumário como submetido.'
+    assert.notEqual(clipboardIndex, -1)
+    assert.notEqual(explicitSubmitIndex, -1)
+    assert.ok(
+      clipboardIndex < explicitSubmitIndex,
+      'A submissão explícita só pode acontecer depois de a cópia para o clipboard ter sucesso.'
     )
 
     assert.match(
       copyHandler,
-      /estado no GIAE mantém-se inalterado/i
+      /currentLesson\.summary\s*!==\s*summary/
+    )
+    assert.match(
+      copyHandler,
+      /expectedUpdatedAt:\s*currentLesson\.updatedAt/
+    )
+    assert.match(
+      copyHandler,
+      /submitted\.giaeStatus\s*!==\s*['"]submitted['"]/i
+    )
+    assert.match(
+      copyHandler,
+      /Sumário copiado e assinalado automaticamente como submetido no GIAE\./
     )
   }
 )
@@ -129,7 +143,7 @@ test(
 )
 
 test(
-  'an immediate automatic re-submit is ignored after a relevant edit',
+  'an immediate legacy automatic re-submit is ignored after a relevant edit',
   () => {
     const markSubmitted =
       getFunctionBody(
@@ -158,7 +172,7 @@ test(
 )
 
 test(
-  'both Daily and Calendar pass through the central GIAE guard when saving',
+  'Daily and Calendar legacy save paths continue through the central GIAE guard',
   () => {
     assert.match(
       dailyRepositorySource,
@@ -181,13 +195,31 @@ test(
 )
 
 test(
-  'Daily keeps a separate explicit control for the GIAE submitted state',
+  'Daily no longer exposes a manual bypass for the GIAE submitted state',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       dailySource,
-      /updateLessonForm\(\s*'giaeStatus'/
+      /updateLessonForm\(\s*['"]giaeStatus['"]/
     )
 
+    const statusMarker =
+      'aria-label="Estado de submissão no GIAE"'
+    const markerIndex =
+      dailySource.indexOf(statusMarker)
+    const inputStart =
+      dailySource.lastIndexOf('<input', markerIndex)
+    const inputEnd =
+      dailySource.indexOf('/>', markerIndex)
+
+    assert.ok(markerIndex >= 0)
+    assert.ok(inputStart >= 0)
+    assert.ok(inputEnd > markerIndex)
+
+    const statusControl =
+      dailySource.slice(inputStart, inputEnd)
+
+    assert.match(statusControl, /\bdisabled\b/)
+    assert.match(statusControl, /\breadOnly\b/)
     assert.match(
       dailySource,
       /Submetido no\s+GIAE/
@@ -208,7 +240,7 @@ test(
     assert.equal(
       copyHandler.includes('onMarkSubmitted'),
       false,
-      'A ação Copiar do workspace GIAE não pode marcar como submetido.'
+      'A ação Copiar do workspace GIAE continua separada da submissão explícita nesse workspace.'
     )
 
     assert.match(

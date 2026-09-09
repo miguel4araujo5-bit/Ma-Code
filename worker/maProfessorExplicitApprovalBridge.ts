@@ -646,7 +646,10 @@ export class MaProfessorAccessDurableObject {
   private readonly state:
     DurableObjectStateLike
 
-  private readonly existing:
+  private readonly env:
+    MaProfessorAccessEnv
+
+  private existing:
     ExistingMaProfessorAccessDurableObject
 
   private operation:
@@ -658,6 +661,7 @@ export class MaProfessorAccessDurableObject {
     env: MaProfessorAccessEnv
   ) {
     this.state = state
+    this.env = env
 
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
@@ -684,6 +688,14 @@ export class MaProfessorAccessDurableObject {
       )
 
     return response
+  }
+
+  private refreshExisting() {
+    this.existing =
+      new ExistingMaProfessorAccessDurableObject(
+        this.state as never,
+        this.env
+      )
   }
 
   private async handleExplicitApproval(
@@ -949,6 +961,8 @@ export class MaProfessorAccessDurableObject {
       [COMMERCE_STORAGE_KEY]:
         commerceState
     })
+
+    this.refreshExisting()
 
     return json({
       success: true,

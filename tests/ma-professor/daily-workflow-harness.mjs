@@ -67,7 +67,19 @@ const calendarUrl = transpile(`
 
 const dbUrl = transpile(`
   const s=()=>globalThis.__dailyState; const c=structuredClone;
-  export const maProfessorDb={tables:[],lessons:{async get(id){const x=s();return x.lesson.id===id?c(x.lesson):null}},weeklyScheduleSlots:{where(){return {equals(){return {async toArray(){return c(s().scheduleSlots||[])}}}}}},async transaction(_m,_t,callback){s().transactions+=1;return callback()}};
+  const listWhere=(read,key)=>({where(field){return {equals(value){return {async toArray(){return c(read().filter(item=>item[field]===value))}}}}}});
+  export const maProfessorDb={
+    tables:[],
+    lessons:{async get(id){const x=s();return x.lesson.id===id?c(x.lesson):null}},
+    weeklyScheduleSlots:{where(){return {equals(){return {async toArray(){return c(s().scheduleSlots||[])}}}}}},
+    lessonAttendance:listWhere(()=>Object.values(s().attendance),'lessonId'),
+    lessonAssessments:{
+      async get(id){const item=s().assessments.find(v=>v.assessment.id===id);return item?c(item.assessment):undefined},
+      ...listWhere(()=>s().assessments.map(v=>v.assessment),'lessonId')
+    },
+    assessmentResults:listWhere(()=>Object.values(s().results).flatMap(group=>Object.values(group)),'assessmentId'),
+    async transaction(_m,_t,callback){s().transactions+=1;return callback()}
+  };
 `)
 
 const source = await readFile(

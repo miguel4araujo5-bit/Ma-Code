@@ -1,12 +1,17 @@
 import {
   forwardRef,
   type ChangeEvent,
+  type KeyboardEvent,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState
 } from 'react'
+
+import {
+  assessmentAtomicPersistenceRepository
+} from '../assessmentAtomicPersistenceRepository'
 
 import type {
   AssessmentActivityType,
@@ -23,6 +28,13 @@ import {
   type AssessmentResultDraft,
   type LessonAssessmentWorkspace
 } from './assessmentRepository'
+
+import {
+  buildQuickAssessmentTitle,
+  hasQuickGradeData,
+  resolveQuickCriterionId,
+  resolveQuickGradeStatus
+} from './dailyQuickGrade'
 
 type DailyResultStatus =
   | AssessmentResultStatus
@@ -102,7 +114,7 @@ const resultStatusOptions: Array<{
 ]
 
 const fieldClassName =
-  'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 disabled:cursor-wait disabled:opacity-50'
+  'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 disabled:cursor-not-allowed disabled:opacity-50'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -145,7 +157,12 @@ function createDraftState(
   return {
     enabled: false,
     title: '',
-    criterionId: workspace.criteria[0]?.id ?? '',
+    criterionId: resolveQuickCriterionId(
+      workspace.criteria,
+      workspace.assessments.map(
+        item => item.assessment
+      )
+    ),
     activityType: 'practical_work',
     description: '',
     rows: createRowsFromWorkspace(workspace)
@@ -239,6 +256,9 @@ function AssessmentRowsEditor({
   disabled: boolean
   onChange: (rows: DailyAssessmentRow[]) => void
 }) {
+  const scoreInputRefs =
+    useRef<Array<HTMLInputElement | null>>([])
+
   function updateRow(
     studentId: EntityId,
     changes: Partial<
@@ -271,6 +291,41 @@ function AssessmentRowsEditor({
     })
   }
 
+  function changeScore(
+    row: DailyAssessmentRow,
+    value: string
+  ) {
+    updateRow(row.studentId, {
+      score: value,
+      status: resolveQuickGradeStatus(
+        row.status,
+        value
+      )
+    })
+  }
+
+  function focusNextScore(
+    currentIndex: number
+  ) {
+    for (
+      let index = currentIndex + 1;
+      index < scoreInputRefs.current.length;
+      index += 1
+    ) {
+      const input =
+        scoreInputRefs.current[index]
+
+      if (
+        input &&
+        !input.disabled
+      ) {
+        input.focus()
+        input.select()
+        return
+      }
+    }
+  }
+
   if (rows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
@@ -285,111 +340,129 @@ function AssessmentRowsEditor({
         <thead className="bg-slate-950/80 text-[0.65rem] uppercase tracking-[0.1em] text-slate-500">
           <tr>
             <th className="px-4 py-3 font-black">Aluno</th>
+            <th className="px-4 py-3 font-black">Nota 0–20</th>
             <th className="px-4 py-3 font-black">Estado</th>
-            <th className="px-4 py-3 font-black">Classificação</th>
             <th className="px-4 py-3 font-black">Observação</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-white/10">
-          {rows.map(row => (
-            <tr
-              key={row.studentId}
-              className="bg-white/[0.015] align-top"
-            >
-              <td className="px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 min-w-8 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-center text-xs font-black text-slate-400">
-                    {row.studentNumber || '—'}
-                  </span>
+          {rows.map((row, rowIndex) => {
+            const specialStatus =
+              row.status === 'absent' ||
+              row.status === 'exempt'
 
-                  <div>
-                    <p className="text-sm font-black text-white">
-                      {row.studentName}
-                    </p>
+            return (
+              <tr
+                key={row.studentId}
+                className="bg-white/[0.015] align-top"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 min-w-8 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-center text-xs font-black text-slate-400">
+                      {row.studentNumber || '—'}
+                    </span>
 
-                    <div className="mt-1.5">
-                      <StatusBadge status={row.status} />
+                    <div>
+                      <p className="text-sm font-black text-white">
+                        {row.studentName}
+                      </p>
+
+                      <div className="mt-1.5">
+                        <StatusBadge status={row.status} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
+                </td>
 
-              <td className="px-4 py-3">
-                <select
-                  value={row.status}
-                  onChange={(
-                    event: ChangeEvent<HTMLSelectElement>
-                  ) =>
-                    changeStatus(
-                      row,
-                      event.target.value as DailyResultStatus
-                    )
-                  }
-                  disabled={disabled}
-                  className={fieldClassName}
-                >
-                  {resultStatusOptions.map(option => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-
-              <td className="px-4 py-3">
-                {row.status === 'evaluated' ? (
+                <td className="px-4 py-3">
                   <input
+                    ref={element => {
+                      scoreInputRefs.current[rowIndex] = element
+                    }}
+                    data-quick-grade-input="true"
                     type="text"
                     inputMode="decimal"
-                    value={row.score}
+                    value={specialStatus ? '' : row.score}
+                    onChange={(
+                      event: ChangeEvent<HTMLInputElement>
+                    ) =>
+                      changeScore(
+                        row,
+                        event.target.value
+                      )
+                    }
+                    onKeyDown={(
+                      event: KeyboardEvent<HTMLInputElement>
+                    ) => {
+                      if (
+                        event.key === 'Enter' ||
+                        event.key === 'ArrowDown'
+                      ) {
+                        event.preventDefault()
+                        focusNextScore(rowIndex)
+                      }
+                    }}
+                    disabled={
+                      disabled ||
+                      specialStatus
+                    }
+                    placeholder={
+                      row.status === 'absent'
+                        ? 'Falta'
+                        : row.status === 'exempt'
+                          ? 'Dispensado'
+                          : '0–20'
+                    }
+                    aria-label={`Nota de ${row.studentName}`}
+                    className={fieldClassName}
+                  />
+                </td>
+
+                <td className="px-4 py-3">
+                  <select
+                    value={row.status}
+                    onChange={(
+                      event: ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      changeStatus(
+                        row,
+                        event.target.value as DailyResultStatus
+                      )
+                    }
+                    disabled={disabled}
+                    className={fieldClassName}
+                  >
+                    {resultStatusOptions.map(option => (
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+
+                <td className="px-4 py-3">
+                  <input
+                    type="text"
+                    value={row.note}
                     onChange={(
                       event: ChangeEvent<HTMLInputElement>
                     ) =>
                       updateRow(row.studentId, {
-                        score: event.target.value
+                        note: event.target.value
                       })
                     }
                     disabled={disabled}
-                    placeholder="0–20"
+                    placeholder="Opcional"
                     className={fieldClassName}
                   />
-                ) : row.status === 'absent' ? (
-                  <p className="rounded-xl border border-rose-300/15 bg-rose-300/[0.05] px-3 py-2.5 text-xs font-bold text-rose-100/80">
-                    Valor de falta definido nas configurações
-                  </p>
-                ) : row.status === 'exempt' ? (
-                  <p className="rounded-xl border border-violet-300/15 bg-violet-300/[0.05] px-3 py-2.5 text-xs font-bold text-violet-100/80">
-                    Valor de dispensa definido nas configurações
-                  </p>
-                ) : (
-                  <p className="px-1 py-2.5 text-xs text-slate-600">
-                    Não entra no cálculo.
-                  </p>
-                )}
-              </td>
-
-              <td className="px-4 py-3">
-                <input
-                  type="text"
-                  value={row.note}
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
-                    updateRow(row.studentId, {
-                      note: event.target.value
-                    })
-                  }
-                  disabled={disabled}
-                  placeholder="Opcional"
-                  className={fieldClassName}
-                />
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -425,6 +498,9 @@ const DailyLessonAssessmentSection = forwardRef<
     const [draft, setDraft] =
       useState<DraftAssessmentState | null>(null)
 
+    const [detailsOpen, setDetailsOpen] =
+      useState(false)
+
     const [deleting, setDeleting] = useState(false)
 
     const draftCreatedAssessmentIdRef =
@@ -439,6 +515,7 @@ const DailyLessonAssessmentSection = forwardRef<
       setRegisters({})
       setSelectedKey(null)
       setDraft(null)
+      setDetailsOpen(false)
       draftCreatedAssessmentIdRef.current = null
 
       assessmentRepository
@@ -448,10 +525,19 @@ const DailyLessonAssessmentSection = forwardRef<
             return
           }
 
+          const nextDraft =
+            createDraftState(nextWorkspace)
+
           setWorkspace(nextWorkspace)
-          setDraft(createDraftState(nextWorkspace))
+          setDraft(nextDraft)
           setSelectedKey(
-            nextWorkspace.assessments[0]?.assessment.id ?? null
+            nextWorkspace.assessments[0]?.assessment.id ??
+              'new'
+          )
+          setDetailsOpen(
+            nextWorkspace.assessments.length === 0 &&
+              nextWorkspace.criteria.length > 1 &&
+              !nextDraft.criterionId
           )
         })
         .catch(error => {
@@ -553,7 +639,8 @@ const DailyLessonAssessmentSection = forwardRef<
     const hasExistingAssessments =
       Boolean(workspace?.assessments.length)
 
-    const hasDraftAssessment = Boolean(draft?.enabled)
+    const hasDraftAssessment =
+      Boolean(draft?.enabled)
 
     function validatePendingAssessments() {
       for (const state of Object.values(registers)) {
@@ -588,15 +675,9 @@ const DailyLessonAssessmentSection = forwardRef<
         )
       }
 
-      if (!draft.title.trim()) {
-        throw new Error(
-          'Indique o nome da nova atividade de avaliação.'
-        )
-      }
-
       if (!draft.criterionId) {
         throw new Error(
-          'Selecione o critério da nova atividade de avaliação.'
+          'Selecione o critério da avaliação em Detalhes.'
         )
       }
 
@@ -622,7 +703,8 @@ const DailyLessonAssessmentSection = forwardRef<
           }
 
           const hasAssessmentData =
-            hasExistingAssessments || hasDraftAssessment
+            hasExistingAssessments ||
+            hasDraftAssessment
 
           if (
             hasAssessmentData &&
@@ -670,7 +752,10 @@ const DailyLessonAssessmentSection = forwardRef<
           }
 
           if (lesson.moduleId !== workspace.lesson.moduleId) {
-            if (hasExistingAssessments || hasDraftAssessment) {
+            if (
+              hasExistingAssessments ||
+              hasDraftAssessment
+            ) {
               throw new Error(
                 'Não é possível guardar avaliações depois de alterar a UFCD desta aula.'
               )
@@ -698,7 +783,8 @@ const DailyLessonAssessmentSection = forwardRef<
               )
             }
 
-            const entries = validateAndBuildEntries(state.rows)
+            const entries =
+              validateAndBuildEntries(state.rows)
 
             await assessmentRepository.saveAssessmentResults(
               assessmentId,
@@ -716,39 +802,62 @@ const DailyLessonAssessmentSection = forwardRef<
               )
             }
 
-            if (!draft.title.trim()) {
-              throw new Error(
-                'Indique o nome da nova atividade de avaliação.'
-              )
-            }
-
             if (!draft.criterionId) {
               throw new Error(
-                'Selecione o critério da nova atividade de avaliação.'
+                'Selecione o critério da avaliação em Detalhes.'
               )
             }
 
-            let assessmentId =
-              draftCreatedAssessmentIdRef.current
+            const criterion =
+              workspace.criteria.find(
+                item => item.id === draft.criterionId
+              )
 
-            if (!assessmentId) {
-              const assessment =
-                await assessmentRepository.createLessonAssessment({
-                  lessonId: lesson.id,
-                  criterionId: draft.criterionId,
-                  title: draft.title,
-                  activityType: draft.activityType,
-                  description: draft.description
-                })
-
-              assessmentId = assessment.id
-              draftCreatedAssessmentIdRef.current = assessment.id
+            if (!criterion) {
+              throw new Error(
+                'O critério selecionado já não está disponível nesta UFCD.'
+              )
             }
 
-            await assessmentRepository.saveAssessmentResults(
-              assessmentId,
+            const entries =
               validateAndBuildEntries(draft.rows)
-            )
+
+            if (entries.length === 0) {
+              return
+            }
+
+            const assessmentDraft = {
+              lessonId: lesson.id,
+              criterionId: draft.criterionId,
+              title:
+                draft.title.trim() ||
+                buildQuickAssessmentTitle(
+                  lesson.date,
+                  criterion.name
+                ),
+              activityType: draft.activityType,
+              description: draft.description
+            }
+
+            const existingAssessmentId =
+              draftCreatedAssessmentIdRef.current
+
+            if (!existingAssessmentId) {
+              const created =
+                await assessmentAtomicPersistenceRepository
+                  .createLessonAssessmentWithResults(
+                    assessmentDraft,
+                    entries
+                  )
+
+              draftCreatedAssessmentIdRef.current =
+                created.assessment.id
+            } else {
+              await assessmentRepository.saveAssessmentResults(
+                existingAssessmentId,
+                entries
+              )
+            }
 
             draftCreatedAssessmentIdRef.current = null
 
@@ -756,7 +865,16 @@ const DailyLessonAssessmentSection = forwardRef<
               current
                 ? {
                     ...current,
-                    enabled: false
+                    enabled: false,
+                    title: '',
+                    description: '',
+                    rows:
+                      current.rows.map(row => ({
+                        ...row,
+                        status: 'not_evaluated',
+                        score: '',
+                        note: ''
+                      }))
                   }
                 : current
             )
@@ -779,19 +897,28 @@ const DailyLessonAssessmentSection = forwardRef<
     )
 
     function beginDraftAssessment() {
-      if (!draft || disabled || moduleChanged) {
+      if (
+        !workspace ||
+        !draft ||
+        disabled ||
+        moduleChanged
+      ) {
         return
       }
 
-      setDraft(current =>
-        current
-          ? {
-              ...current,
-              enabled: true
-            }
-          : current
-      )
+      if (draft.enabled) {
+        setSelectedKey('new')
+        return
+      }
 
+      const nextDraft =
+        createDraftState(workspace)
+
+      setDraft(nextDraft)
+      setDetailsOpen(
+        workspace.criteria.length > 1 &&
+          !nextDraft.criterionId
+      )
       setSelectedKey('new')
     }
 
@@ -800,10 +927,14 @@ const DailyLessonAssessmentSection = forwardRef<
         return
       }
 
-      setDraft(createDraftState(workspace))
+      const nextDraft =
+        createDraftState(workspace)
 
+      setDraft(nextDraft)
+      setDetailsOpen(false)
       setSelectedKey(
-        workspace.assessments[0]?.assessment.id ?? null
+        workspace.assessments[0]?.assessment.id ??
+          'new'
       )
     }
 
@@ -812,7 +943,9 @@ const DailyLessonAssessmentSection = forwardRef<
         current
           ? {
               ...current,
-              rows
+              rows,
+              enabled:
+                hasQuickGradeData(rows)
             }
           : current
       )
@@ -869,7 +1002,11 @@ const DailyLessonAssessmentSection = forwardRef<
             lessonId
           )
 
+        const nextDraft =
+          createDraftState(nextWorkspace)
+
         setWorkspace(nextWorkspace)
+        setDraft(nextDraft)
 
         setRegisters(current => {
           const next = { ...current }
@@ -879,7 +1016,7 @@ const DailyLessonAssessmentSection = forwardRef<
 
         setSelectedKey(
           nextWorkspace.assessments[0]?.assessment.id ??
-            (draft?.enabled ? 'new' : null)
+            'new'
         )
       } catch (error) {
         setLoadError(getErrorMessage(error))
@@ -917,6 +1054,10 @@ const DailyLessonAssessmentSection = forwardRef<
       workspace.criteria.length > 0 &&
       workspace.students.length > 0
 
+    const draftNeedsCriterion =
+      workspace.criteria.length > 1 &&
+      !draft.criterionId
+
     return (
       <section className="rounded-[1.5rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -926,30 +1067,32 @@ const DailyLessonAssessmentSection = forwardRef<
             </p>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Registe a atividade e a classificação de cada aluno.
-              “Não avaliado” fica fora do cálculo.
+              Escreva diretamente a nota de cada aluno. O estado
+              “Avaliado” é assumido automaticamente quando introduz
+              uma nota.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={beginDraftAssessment}
-            disabled={
-              disabled ||
-              draft.enabled ||
-              !canCreateAssessment
-            }
-            className="rounded-xl border border-amber-200/25 bg-amber-300/10 px-4 py-2.5 text-xs font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            + Nova avaliação
-          </button>
+          {workspace.assessments.length > 0 ? (
+            <button
+              type="button"
+              onClick={beginDraftAssessment}
+              disabled={
+                disabled ||
+                !canCreateAssessment
+              }
+              className="rounded-xl border border-amber-200/25 bg-amber-300/10 px-4 py-2.5 text-xs font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              + Outra avaliação
+            </button>
+          ) : null}
         </div>
 
         {moduleChanged ? (
           <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm leading-6 text-amber-100">
             {hasExistingAssessments || hasDraftAssessment
               ? 'Existem avaliações ligadas à UFCD original. Reponha essa UFCD ou elimine as avaliações antes de guardar a alteração.'
-              : 'Guarde primeiro a aula com a nova UFCD. Depois poderá criar avaliações nessa UFCD.'}
+              : 'Guarde primeiro a aula com a nova UFCD. Depois poderá registar avaliações nessa UFCD.'}
           </div>
         ) : null}
 
@@ -961,7 +1104,7 @@ const DailyLessonAssessmentSection = forwardRef<
 
             <p className="mt-1 text-xs leading-5 text-amber-100/70">
               Configure os critérios desta disciplina ou UFCD antes
-              de criar uma avaliação.
+              de registar classificações.
             </p>
           </div>
         ) : workspace.students.length === 0 ? (
@@ -976,8 +1119,8 @@ const DailyLessonAssessmentSection = forwardRef<
         lessonStatus === 'taught' ? (
           <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-xs leading-5 text-cyan-100/80">
             Esta aula ainda está guardada como planeada. Pode
-            preparar a avaliação agora; tudo será criado depois de
-            a aula ser guardada como dada.
+            preparar as notas agora; a avaliação só será criada
+            quando guardar a aula como dada.
           </div>
         ) : null}
 
@@ -987,7 +1130,7 @@ const DailyLessonAssessmentSection = forwardRef<
           </div>
         ) : null}
 
-        {workspace.assessments.length > 0 || draft.enabled ? (
+        {workspace.assessments.length > 0 ? (
           <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
             {workspace.assessments.map(item => {
               const selected =
@@ -1020,7 +1163,7 @@ const DailyLessonAssessmentSection = forwardRef<
               )
             })}
 
-            {draft.enabled ? (
+            {selectedKey === 'new' || draft.enabled ? (
               <button
                 type="button"
                 onClick={() => setSelectedKey('new')}
@@ -1032,162 +1175,196 @@ const DailyLessonAssessmentSection = forwardRef<
                 }`}
               >
                 <span className="block text-xs font-black">
-                  Nova avaliação
+                  Avaliação rápida
                 </span>
 
                 <span className="mt-1 block text-[0.65rem] opacity-65">
-                  Ainda não guardada
+                  {draft.enabled
+                    ? 'Alterações por guardar'
+                    : 'Ainda não criada'}
                 </span>
               </button>
             ) : null}
           </div>
-        ) : (
-          <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm leading-6 text-slate-500">
-            Esta aula ainda não possui atividades de avaliação. Só
-            precisa de adicionar uma quando existir algo para
-            classificar.
-          </div>
-        )}
+        ) : null}
 
-        {selectedKey === 'new' && draft.enabled ? (
-          <div className="mt-5 space-y-5">
-            <div className="grid gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="mb-2 block text-xs font-bold text-slate-300">
-                  Nome da atividade
-                </span>
-
-                <input
-                  type="text"
-                  value={draft.title}
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
-                    setDraft(current =>
-                      current
-                        ? {
-                            ...current,
-                            title: event.target.value
-                          }
-                        : current
-                    )
-                  }
-                  disabled={disabled || moduleChanged}
-                  placeholder="Ex.: Apresentação do projeto"
-                  className={fieldClassName}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-bold text-slate-300">
-                  Critério
-                </span>
-
-                <select
-                  value={draft.criterionId}
-                  onChange={(
-                    event: ChangeEvent<HTMLSelectElement>
-                  ) =>
-                    setDraft(current =>
-                      current
-                        ? {
-                            ...current,
-                            criterionId: event.target.value
-                          }
-                        : current
-                    )
-                  }
-                  disabled={disabled || moduleChanged}
-                  className={fieldClassName}
-                >
-                  {workspace.criteria.map(criterion => (
-                    <option
-                      key={criterion.id}
-                      value={criterion.id}
-                    >
-                      {criterion.name} · {criterion.weightPercent}%
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-bold text-slate-300">
-                  Tipo de atividade
-                </span>
-
-                <select
-                  value={draft.activityType}
-                  onChange={(
-                    event: ChangeEvent<HTMLSelectElement>
-                  ) =>
-                    setDraft(current =>
-                      current
-                        ? {
-                            ...current,
-                            activityType:
-                              event.target
-                                .value as AssessmentActivityType
-                          }
-                        : current
-                    )
-                  }
-                  disabled={disabled || moduleChanged}
-                  className={fieldClassName}
-                >
-                  {activityTypeOptions.map(activityType => (
-                    <option
-                      key={activityType}
-                      value={activityType}
-                    >
-                      {getAssessmentActivityTypeLabel(activityType)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="mb-2 block text-xs font-bold text-slate-300">
-                  Descrição · opcional
-                </span>
-
-                <textarea
-                  value={draft.description}
-                  onChange={(
-                    event: ChangeEvent<HTMLTextAreaElement>
-                  ) =>
-                    setDraft(current =>
-                      current
-                        ? {
-                            ...current,
-                            description: event.target.value
-                          }
-                        : current
-                    )
-                  }
-                  disabled={disabled || moduleChanged}
-                  rows={2}
-                  className={`${fieldClassName} resize-y`}
-                />
-              </label>
-
-              <div className="flex justify-end sm:col-span-2">
-                <button
-                  type="button"
-                  onClick={cancelDraftAssessment}
-                  disabled={disabled}
-                  className="rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-2 text-xs font-black text-rose-100 transition hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-50"
-                >
-                  Remover nova avaliação
-                </button>
+        {selectedKey === 'new' && canCreateAssessment ? (
+          <div className="mt-5 space-y-4">
+            {draftNeedsCriterion ? (
+              <div className="rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] p-4 text-sm leading-6 text-violet-100">
+                Esta UFCD tem vários critérios ativos. Escolha o
+                critério em “Detalhes” antes de guardar; não será
+                feita uma escolha automática ambígua.
               </div>
-            </div>
+            ) : null}
 
             <AssessmentRowsEditor
               rows={draft.rows}
               disabled={disabled || moduleChanged}
               onChange={updateDraftRows}
             />
+
+            <button
+              type="button"
+              onClick={() =>
+                setDetailsOpen(current => !current)
+              }
+              disabled={disabled}
+              aria-expanded={detailsOpen}
+              className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-black text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100 disabled:opacity-50"
+            >
+              {detailsOpen
+                ? 'Ocultar detalhes'
+                : 'Detalhes'}
+            </button>
+
+            {detailsOpen ? (
+              <div className="grid gap-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="mb-2 block text-xs font-bold text-slate-300">
+                    Nome da atividade · opcional
+                  </span>
+
+                  <input
+                    type="text"
+                    value={draft.title}
+                    onChange={(
+                      event: ChangeEvent<HTMLInputElement>
+                    ) =>
+                      setDraft(current =>
+                        current
+                          ? {
+                              ...current,
+                              title: event.target.value
+                            }
+                          : current
+                      )
+                    }
+                    disabled={disabled || moduleChanged}
+                    placeholder="Gerado automaticamente se ficar vazio"
+                    className={fieldClassName}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-xs font-bold text-slate-300">
+                    Critério
+                  </span>
+
+                  <select
+                    value={draft.criterionId}
+                    onChange={(
+                      event: ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      setDraft(current =>
+                        current
+                          ? {
+                              ...current,
+                              criterionId: event.target.value
+                            }
+                          : current
+                      )
+                    }
+                    disabled={disabled || moduleChanged}
+                    className={fieldClassName}
+                  >
+                    {workspace.criteria.length > 1 ? (
+                      <option value="">
+                        Selecione o critério
+                      </option>
+                    ) : null}
+
+                    {workspace.criteria.map(criterion => (
+                      <option
+                        key={criterion.id}
+                        value={criterion.id}
+                      >
+                        {criterion.name} · {criterion.weightPercent}%
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-xs font-bold text-slate-300">
+                    Tipo de atividade
+                  </span>
+
+                  <select
+                    value={draft.activityType}
+                    onChange={(
+                      event: ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      setDraft(current =>
+                        current
+                          ? {
+                              ...current,
+                              activityType:
+                                event.target.value as AssessmentActivityType
+                            }
+                          : current
+                      )
+                    }
+                    disabled={disabled || moduleChanged}
+                    className={fieldClassName}
+                  >
+                    {activityTypeOptions.map(activityType => (
+                      <option
+                        key={activityType}
+                        value={activityType}
+                      >
+                        {getAssessmentActivityTypeLabel(activityType)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block sm:col-span-2">
+                  <span className="mb-2 block text-xs font-bold text-slate-300">
+                    Descrição · opcional
+                  </span>
+
+                  <textarea
+                    value={draft.description}
+                    onChange={(
+                      event: ChangeEvent<HTMLTextAreaElement>
+                    ) =>
+                      setDraft(current =>
+                        current
+                          ? {
+                              ...current,
+                              description: event.target.value
+                            }
+                          : current
+                      )
+                    }
+                    disabled={disabled || moduleChanged}
+                    rows={2}
+                    className={`${fieldClassName} resize-y`}
+                  />
+                </label>
+
+                {workspace.assessments.length > 0 ? (
+                  <div className="flex justify-end sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={cancelDraftAssessment}
+                      disabled={disabled}
+                      className="rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-2 text-xs font-black text-rose-100 transition hover:bg-rose-300/10 disabled:opacity-50"
+                    >
+                      Cancelar nova avaliação
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!draft.enabled ? (
+              <p className="text-xs leading-5 text-slate-500">
+                Nenhuma avaliação será criada enquanto não introduzir
+                uma nota ou escolher “Faltou”/“Dispensado”.
+              </p>
+            ) : null}
           </div>
         ) : selectedAssessment ? (
           <div className="mt-5 space-y-5">

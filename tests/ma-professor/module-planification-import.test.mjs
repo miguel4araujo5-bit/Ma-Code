@@ -51,8 +51,13 @@ compiled.add(base + 'setup/planificationModuleDocument.ts')
 compile(base + 'setup/ModulePlanificationImportPanel.tsx')
 
 const dom = new JSDOM('', { url: 'https://example.test' })
+const originalNavigatorDescriptor =
+  Object.getOwnPropertyDescriptor(globalThis, 'navigator')
 globalThis.window = dom.window
-globalThis.navigator = dom.window.navigator
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator
+})
 Object.defineProperty(window, 'indexedDB', { value: globalThis.indexedDB })
 globalThis.DOMParser = dom.window.DOMParser
 globalThis.CustomEvent = dom.window.CustomEvent
@@ -63,7 +68,21 @@ const { maProfessorDb } = require(join(output, base, 'db.js'))
 const { readModuleImportState, commitModulePlanificationImport } =
   require(join(output, base, 'setup/modulePlanificationImportRepository.js'))
 
-after(async () => { await maProfessorDb.delete(); dom.window.close(); rmSync(output, { recursive: true, force: true }) })
+after(async () => {
+  await maProfessorDb.delete()
+  dom.window.close()
+  rmSync(output, { recursive: true, force: true })
+
+  if (originalNavigatorDescriptor) {
+    Object.defineProperty(
+      globalThis,
+      'navigator',
+      originalNavigatorDescriptor
+    )
+  } else {
+    delete globalThis.navigator
+  }
+})
 const xmlText = value => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
 const cell = value => '<w:tc><w:p><w:r><w:t>' + xmlText(value) + '</w:t></w:r></w:p></w:tc>'
 const row = values => '<w:tr>' + values.map(cell).join('') + '</w:tr>'

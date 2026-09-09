@@ -244,6 +244,18 @@ function stripLessonNoise(
     .trim()
 }
 
+function looksLikeRoomOrMarker(
+  value: string
+) {
+  const compact =
+    value.replace(/\s+/g, '')
+
+  return (
+    /^(?:SP|TE|Cre|REO)$/i.test(value) ||
+    /^[A-Za-z]{1,5}\d+(?:[./-]\d+)?$/i.test(compact)
+  )
+}
+
 function extractDutyName(value: string) {
   const rawCandidate = clean(value)
   const hasDutyMarker =
@@ -255,7 +267,10 @@ function extractDutyName(value: string) {
 
   if (
     !candidate ||
-    extractGroupName(candidate)
+    extractGroupName(candidate) ||
+    detectWeekday(candidate) ||
+    extractTimeRange(candidate) ||
+    looksLikeRoomOrMarker(candidate)
   ) {
     return ''
   }
@@ -267,6 +282,20 @@ function extractDutyName(value: string) {
   if (
     /^(?:Eq(?:uipa)?\s+|Clube\s+)/i.test(candidate) ||
     /^(?:Trabalho de Escola|Artigo 79|Trabalho Individual|Reunião)$/i.test(candidate)
+  ) {
+    return candidate
+  }
+
+  // Alguns extratores removem a coluna da sala antes de este passo.
+  // Nesse caso o marcador "SP" desaparece e ficam apenas nomes como
+  // "Co PCE". Uma célula de horário com duas ou mais palavras, sem
+  // turma e sem aspeto de sala/marcador, é tratada como cargo para não
+  // perder atividades válidas por depender de uma lista rígida de nomes.
+  if (
+    candidate
+      .split(/\s+/)
+      .filter(Boolean)
+      .length >= 2
   ) {
     return candidate
   }
@@ -976,6 +1005,18 @@ async function importDutyEvents(
   return created
 }
 
+function manualId(prefix: string) {
+  const uuid =
+    globalThis.crypto
+      ?.randomUUID?.()
+
+  return uuid
+    ? `${prefix}-${uuid}`
+    : `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`
+}
+
 export default function SchedulePdfImportStep({
   snapshot,
   onImported,
@@ -1106,6 +1147,50 @@ export default function SchedulePdfImportStep({
       )
     )
 
+    setError('')
+  }
+
+  function addManualLesson() {
+    if (busy) {
+      return
+    }
+
+    setDrafts(
+      current => [
+        ...current,
+        {
+          id: manualId('manual-slot'),
+          included: true,
+          weekday: 1,
+          startTime: '08:30',
+          endTime: '09:20',
+          periodCount: 1,
+          groupName: '',
+          subjectName: ''
+        }
+      ]
+    )
+    setError('')
+  }
+
+  function addManualDuty() {
+    if (busy) {
+      return
+    }
+
+    setDuties(
+      current => [
+        ...current,
+        {
+          id: manualId('manual-duty'),
+          included: true,
+          weekday: 1,
+          startTime: '08:30',
+          endTime: '09:20',
+          name: ''
+        }
+      ]
+    )
     setError('')
   }
 
@@ -1501,8 +1586,28 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Corrija o que estiver errado e desmarque o que não pretende importar. Nenhuma sala é guardada.
+                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada.
               </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={addManualLesson}
+                  className="rounded-xl border border-cyan-300/25 bg-cyan-300/[0.08] px-4 py-2.5 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/[0.14] disabled:opacity-50"
+                >
+                  + Adicionar aula / hora
+                </button>
+
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={addManualDuty}
+                  className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] px-4 py-2.5 text-sm font-black text-violet-100 transition hover:bg-violet-300/[0.14] disabled:opacity-50"
+                >
+                  + Adicionar cargo
+                </button>
+              </div>
             </div>
 
             {drafts.length > 0 ? (
@@ -1800,7 +1905,7 @@ export default function SchedulePdfImportStep({
                                   }
                                 )
                               }
-                              placeholder="Ex.: Eq Pedag"
+                              placeholder="Ex.: Co PCE"
                               className={inputClassName}
                             />
                           </td>

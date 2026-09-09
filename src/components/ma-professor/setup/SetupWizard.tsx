@@ -311,7 +311,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
           </div>
           <div className="min-w-[12rem] rounded-2xl border border-white/10 bg-white/[0.035] p-4">
             <div className="flex items-center justify-between gap-4"><span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span><span className="text-sm font-black text-cyan-100">{completedCount}/{totalSetupSteps}</span></div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} /></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} /></div>
           </div>
         </div>
 
@@ -370,7 +370,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
               <p className="mt-2 font-black text-white">{activeStepDefinition.title}</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">{activeStepDefinition.description}</p>
             </div>
-            {activeStep !== currentProgressStep && isStepUnlocked(currentProgressStep) ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-xs font-bold text-violet-100 transition hover:bg-violet-300/[0.12]">Ir para o passo atual</button> : null}
+            {activeStep !== currentProgressStep && isStepUnlocked(currentProgressStep) ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100">Ir para o passo atual</button> : null}
           </div>
         ) : null}
       </section>

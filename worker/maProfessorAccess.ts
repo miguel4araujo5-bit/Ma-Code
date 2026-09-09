@@ -778,7 +778,7 @@ function toArrayBuffer(
   return copy.buffer
 }
 
-async function hashToken(
+async function digestToken(
   token: string
 ) {
   const encoded =
@@ -787,16 +787,39 @@ async function hashToken(
         token
       )
 
-  const digest =
-    await globalThis
-      .crypto
-      .subtle
-      .digest(
-        'SHA-256',
-        toArrayBuffer(
-          encoded
-        )
+  return globalThis
+    .crypto
+    .subtle
+    .digest(
+      'SHA-256',
+      toArrayBuffer(
+        encoded
       )
+    )
+}
+
+async function hashToken(
+  token: string
+) {
+  const digest =
+    await digestToken(
+      token
+    )
+
+  return bytesToBase64(
+    new Uint8Array(
+      digest
+    )
+  )
+}
+
+async function hashLegacyToken(
+  token: string
+) {
+  const digest =
+    await digestToken(
+      token
+    )
 
   return Array
     .from(
@@ -2524,15 +2547,37 @@ export class MaProfessorAccessDurableObject {
       await this
         .getState()
 
-    const tokenHash =
+    const canonicalTokenHash =
       await hashToken(
         token
       )
 
-    const session =
+    let tokenHash =
+      canonicalTokenHash
+
+    let session =
       state.sessions[
-        tokenHash
+        canonicalTokenHash
       ]
+
+    if (!session) {
+      const legacyTokenHash =
+        await hashLegacyToken(
+          token
+        )
+
+      const legacySession =
+        state.sessions[
+          legacyTokenHash
+        ]
+
+      if (legacySession) {
+        tokenHash =
+          legacyTokenHash
+        session =
+          legacySession
+      }
+    }
 
     if (
       !session ||
