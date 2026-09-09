@@ -126,11 +126,24 @@ export class LessonRepository
           latest.date !== nextDate ||
           latest.moduleId !== nextModuleId
 
+        const leavesTaughtStatus =
+          latest.status === 'taught' &&
+          nextStatus !== 'taught'
+
+        const cancelsLesson =
+          latest.status !== 'cancelled' &&
+          nextStatus === 'cancelled'
+
+        const relatedEvidenceRequired =
+          relatedContextChanged ||
+          leavesTaughtStatus ||
+          cancelsLesson
+
         const [
           attendanceCount,
           assessmentCount
         ] =
-          !relatedContextChanged
+          !relatedEvidenceRequired
             ? [0, 0]
             : await Promise.all([
                 maProfessorDb
@@ -166,6 +179,27 @@ export class LessonRepository
           attendanceCount,
           assessmentCount
         )
+
+        if (
+          cancelsLesson &&
+          (
+            attendanceCount > 0 ||
+            assessmentCount > 0
+          )
+        ) {
+          throw new Error(
+            'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como dada para preservar esses registos.'
+          )
+        }
+
+        if (
+          leavesTaughtStatus &&
+          attendanceCount > 0
+        ) {
+          throw new Error(
+            'Esta aula já possui faltas. Mantenha-a marcada como dada para preservar esses registos.'
+          )
+        }
 
         return super.updateLesson(
           id,
