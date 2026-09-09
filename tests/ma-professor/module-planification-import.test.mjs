@@ -274,13 +274,18 @@ test('React interface selects a document, requires review and imports the course
     Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(courseXml) })], 'area-expressoes.docx')] })
     await act(async () => {
       input.dispatchEvent(new window.Event('change', { bubbles: true }))
-      for (let i = 0; i < 30 && !host.querySelector('select'); i++) await new Promise(resolve => setTimeout(resolve, 10))
+      for (let i = 0; i < 30 && host.querySelectorAll('article').length !== 2; i++) await new Promise(resolve => setTimeout(resolve, 10))
     })
     assert.equal(host.querySelectorAll('article').length, 2)
     assert.match(host.textContent, /Curso indicado no documento:\s*Técnico de Apoio Psicossocial/)
     assert.ok(findButton('Confirmar importação').disabled)
-    const select = host.querySelector('select')
-    await act(async () => { select.value = 's1'; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
+
+    const subjectDestination = [...host.querySelectorAll('label')]
+      .find(label => label.textContent.includes('Disciplina de destino'))
+      ?.querySelector('input')
+    assert.ok(subjectDestination)
+    assert.equal(subjectDestination.value, 'Área de Expressões')
+
     const destination = [...host.querySelectorAll('label')].find(label => label.textContent.trim() === 'A · curso não indicado')
     await click(destination.querySelector('input'))
     for (const article of host.querySelectorAll('article')) {
@@ -296,6 +301,12 @@ test('React interface selects a document, requires review and imports the course
     assert.equal(await maProfessorDb.modules.count(), 2)
     assert.equal(await maProfessorDb.planifications.count(), 2)
     assert.equal((await maProfessorDb.groups.get('g1')).courseName, 'Técnico de Apoio Psicossocial')
+    const importedSubject = (await maProfessorDb.subjects.toArray())
+      .find(subject => subject.name === 'Área de Expressões')
+    assert.ok(importedSubject)
+    const importedAssignment = (await maProfessorDb.teachingAssignments.toArray())
+      .find(assignment => assignment.groupId === 'g1' && assignment.subjectId === importedSubject.id)
+    assert.ok(importedAssignment)
     assert.equal(refreshed, 1)
     assert.match(host.textContent, /Importação concluída/)
   } finally {
