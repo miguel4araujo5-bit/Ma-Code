@@ -106,6 +106,57 @@ const lessonRepositoryUrl = transpile(`
   };
 `)
 
+const explicitSubmissionRepositoryUrl = transpile(`
+  import { maProfessorDb } from '${dbUrl}';
+
+  const s = () => globalThis.__giaeConcurrencyState;
+  const c = structuredClone;
+
+  async function submitOne(input) {
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.lessons,
+      async () => {
+        const state = s();
+        const lesson = c(state.lesson);
+
+        state.giaeReadVersion = lesson.updatedAt;
+        state.resolveGiaeRead();
+
+        await state.releaseGiaePromise;
+
+        if (lesson.updatedAt !== input.expectedUpdatedAt) {
+          throw new Error('stale copied version');
+        }
+
+        const updated = {
+          ...lesson,
+          giaeStatus: 'submitted',
+          giaeSubmittedAt: '2026-09-06T15:00:00.000Z',
+          updatedAt: 'giae-v2'
+        };
+
+        state.lesson = updated;
+        return c(updated);
+      }
+    );
+  }
+
+  export const giaeExplicitSubmissionRepository = {
+    async markSubmitted(input) {
+      return submitOne(input);
+    },
+
+    async markManySubmitted(inputs) {
+      if (inputs.length !== 1) {
+        throw new Error('unexpected test batch');
+      }
+
+      return [await submitOne(inputs[0])];
+    }
+  };
+`)
+
 const source = await readFile(
   new URL(
     '../../src/components/ma-professor/giae/giaeWorkspaceRepository.ts',
@@ -119,6 +170,10 @@ const runtime = `${source
   .replaceAll(
     "'../lessons/lessonRepository'",
     `'${lessonRepositoryUrl}'`
+  )
+  .replaceAll(
+    "'../giaeExplicitSubmissionRepository'",
+    `'${explicitSubmissionRepositoryUrl}'`
   )}
 
 export async function __testSaveSummary(summary) {
