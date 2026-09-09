@@ -12,10 +12,10 @@ const source = await readFile(
 )
 
 function loadDutyParser() {
-  const start = source.indexOf('function normalize(')
+  const start = source.indexOf('const weekdayPatterns:')
   const end = source.indexOf('\nfunction suggestedPeriods(', start)
 
-  assert.ok(start >= 0, 'normalize helper must exist')
+  assert.ok(start >= 0, 'weekday parser constants must exist')
   assert.ok(end > start, 'duty parser helper range must exist')
 
   const typescriptSnippet = [
