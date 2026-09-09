@@ -12,6 +12,8 @@ import {
 interface MAProfessorOperationalAccountStatusProps {
   emails: string[]
   loading?: boolean
+  licenseStatusByEmail?:
+    Record<string, string>
 }
 
 function formatDate(
@@ -115,9 +117,66 @@ function lastContactLabel(
   return 'Ainda sem entrada registada'
 }
 
+function accessNowLabel(
+  status:
+    MAProfessorAccountOperationalStatus,
+  licenseStatus: string
+) {
+  if (
+    licenseStatus ===
+    'revoked'
+  ) {
+    return 'Acesso cortado'
+  }
+
+  if (
+    licenseStatus ===
+    'expired'
+  ) {
+    return 'Licença expirada'
+  }
+
+  if (
+    status.hasActiveSession
+  ) {
+    return `Sessão ativa · ${status.activeSessionCount}`
+  }
+
+  return 'Sem sessão'
+}
+
+function accessNowClassName(
+  status:
+    MAProfessorAccountOperationalStatus,
+  licenseStatus: string
+) {
+  if (
+    licenseStatus ===
+    'revoked'
+  ) {
+    return 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+  }
+
+  if (
+    licenseStatus ===
+    'expired'
+  ) {
+    return 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+  }
+
+  if (
+    status.hasActiveSession
+  ) {
+    return 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+  }
+
+  return 'border-white/10 bg-white/[0.04] text-slate-400'
+}
+
 export default function MAProfessorOperationalAccountStatus({
   emails,
-  loading = false
+  loading = false,
+  licenseStatusByEmail = {}
 }: MAProfessorOperationalAccountStatusProps) {
   const normalizedEmails =
     useMemo(
@@ -261,6 +320,9 @@ export default function MAProfessorOperationalAccountStatus({
                   Conta
                 </th>
                 <th className="px-3 py-3">
+                  Acesso agora
+                </th>
+                <th className="px-3 py-3">
                   Último contacto
                 </th>
                 <th className="px-3 py-3">
@@ -274,40 +336,66 @@ export default function MAProfessorOperationalAccountStatus({
 
             <tbody className="divide-y divide-white/10 bg-slate-950/20">
               {statuses.map(
-                status => (
-                  <tr key={status.email}>
-                    <td className="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-300">
-                      {status.email}
-                    </td>
+                status => {
+                  const licenseStatus =
+                    licenseStatusByEmail[
+                      status.email
+                        .trim()
+                        .toLowerCase()
+                    ] || ''
 
-                    <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-400">
-                      {lastContactLabel(
-                        status
-                      )}
-                    </td>
+                  return (
+                    <tr key={status.email}>
+                      <td className="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-300">
+                        {status.email}
+                      </td>
 
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <span
-                        className={[
-                          'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
-                          readinessClassName(
-                            status
-                          )
-                        ].join(' ')}
-                      >
-                        {readinessLabel(
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <span
+                          className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                            accessNowClassName(
+                              status,
+                              licenseStatus
+                            )
+                          ].join(' ')}
+                        >
+                          {accessNowLabel(
+                            status,
+                            licenseStatus
+                          )}
+                        </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-400">
+                        {lastContactLabel(
                           status
                         )}
-                      </span>
-                    </td>
+                      </td>
 
-                    <td className="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-400">
-                      {setupLabel(
-                        status
-                      )}
-                    </td>
-                  </tr>
-                )
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <span
+                          className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black',
+                            readinessClassName(
+                              status
+                            )
+                          ].join(' ')}
+                        >
+                          {readinessLabel(
+                            status
+                          )}
+                        </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-400">
+                        {setupLabel(
+                          status
+                        )}
+                      </td>
+                    </tr>
+                  )
+                }
               )}
             </tbody>
           </table>

@@ -9,8 +9,9 @@ import {
   resetMAProfessorAccountAccess
 } from '../../../lib/admin/maProfessorAccountAdminApi'
 
-import type {
-  MAProfessorAdminOverview
+import {
+  revokeMAProfessorLicense,
+  type MAProfessorAdminOverview
 } from '../../../lib/admin/maProfessorAdminApi'
 
 import MAProfessorOperationalAccountStatus from './MAProfessorOperationalAccountStatus'
@@ -29,6 +30,11 @@ interface AccountRow {
   licenseStatus: string
   renewals: number
 }
+
+type BusyAction =
+  | 'cut'
+  | 'reset'
+  | null
 
 function getErrorMessage(
   error: unknown
@@ -176,6 +182,20 @@ export default function MAProfessorAccountMaintenance({
       [overview]
     )
 
+  const licenseStatusByEmail =
+    useMemo(
+      () =>
+        Object.fromEntries(
+          users.map(
+            user => [
+              user.email,
+              user.licenseStatus
+            ]
+          )
+        ),
+      [users]
+    )
+
   const [
     selectedEmails,
     setSelectedEmails
@@ -200,6 +220,13 @@ export default function MAProfessorAccountMaintenance({
     busyEmail,
     setBusyEmail
   ] = useState<string | null>(
+    null
+  )
+
+  const [
+    busyAction,
+    setBusyAction
+  ] = useState<BusyAction>(
     null
   )
 
@@ -281,6 +308,53 @@ export default function MAProfessorAccountMaintenance({
     )
   }
 
+  const handleCutAccess =
+    async (
+      email: string
+    ) => {
+      const confirmed =
+        window.confirm(
+          `Cortar o acesso de ${email}?\n\nA licença será revogada e todas as sessões ativas serão terminadas imediatamente. A conta, a password, a configuração e a cópia cifrada dos dados escolares na cloud são preservadas.`
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setFeedback(null)
+      setBusyEmail(email)
+      setBusyAction('cut')
+
+      try {
+        await revokeMAProfessorLicense(
+          email
+        )
+
+        setFeedback({
+          tone:
+            'success',
+          message:
+            'Acesso cortado. A licença foi revogada e as sessões ativas foram terminadas.'
+        })
+
+        await onChanged()
+      } catch (
+        error
+      ) {
+        setFeedback({
+          tone:
+            'error',
+          message:
+            getErrorMessage(
+              error
+            )
+        })
+      } finally {
+        setBusyEmail(null)
+        setBusyAction(null)
+      }
+    }
+
   const handleResetAccess =
     async (
       email: string
@@ -296,6 +370,7 @@ export default function MAProfessorAccountMaintenance({
 
       setFeedback(null)
       setBusyEmail(email)
+      setBusyAction('reset')
 
       try {
         const result =
@@ -332,6 +407,7 @@ export default function MAProfessorAccountMaintenance({
         })
       } finally {
         setBusyEmail(null)
+        setBusyAction(null)
       }
     }
 
@@ -419,11 +495,11 @@ export default function MAProfessorAccountMaintenance({
           </p>
 
           <h2 className="mt-2 text-xl font-black">
-            Estado, reposição e eliminação de contas
+            Estado e manutenção de contas
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Confirme o último acesso e o estado mínimo do onboarding antes de utilizar ações de manutenção. “Repor acesso” preserva a cópia cifrada dos dados escolares; a eliminação remove também os dados cloud associados ao email selecionado.
+            “Cortar acesso” revoga a licença e termina as sessões sem apagar a conta nem os dados. “Repor acesso” reinicia o ciclo de acesso e preserva a cópia cifrada dos dados escolares. “Apagar utilizador” remove também os dados cloud associados ao email selecionado.
           </p>
         </div>
 
@@ -441,6 +517,9 @@ export default function MAProfessorAccountMaintenance({
             user =>
               user.email
           )
+        }
+        licenseStatusByEmail={
+          licenseStatusByEmail
         }
         loading={
           loading
@@ -539,7 +618,7 @@ export default function MAProfessorAccountMaintenance({
                   Renovações
                 </th>
                 <th className="px-4 py-3 text-right">
-                  Ação
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -554,7 +633,22 @@ export default function MAProfessorAccountMaintenance({
 
                   const resetting =
                     busyEmail ===
-                    user.email
+                      user.email &&
+                    busyAction ===
+                      'reset'
+
+                  const cutting =
+                    busyEmail ===
+                      user.email &&
+                    busyAction ===
+                      'cut'
+
+                  const canCutAccess =
+                    Boolean(
+                      user.licenseStatus
+                    ) &&
+                    user.licenseStatus !==
+                      'revoked'
 
                   return (
                     <tr
@@ -606,25 +700,51 @@ export default function MAProfessorAccountMaintenance({
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          disabled={
-                            busy ||
-                            Boolean(
-                              busyEmail
-                            )
-                          }
-                          onClick={() => {
-                            void handleResetAccess(
-                              user.email
-                            )
-                          }}
-                          className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1.5 text-[0.68rem] font-black text-amber-200 transition hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {resetting
-                            ? 'A repor…'
-                            : 'Repor acesso'}
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            disabled={
+                              busy ||
+                              Boolean(
+                                busyEmail
+                              ) ||
+                              !canCutAccess
+                            }
+                            onClick={() => {
+                              void handleCutAccess(
+                                user.email
+                              )
+                            }}
+                            className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-3 py-1.5 text-[0.68rem] font-black text-rose-200 transition hover:bg-rose-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {cutting
+                              ? 'A cortar…'
+                              : user.licenseStatus ===
+                                  'revoked'
+                                ? 'Acesso cortado'
+                                : 'Cortar acesso'}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              busy ||
+                              Boolean(
+                                busyEmail
+                              )
+                            }
+                            onClick={() => {
+                              void handleResetAccess(
+                                user.email
+                              )
+                            }}
+                            className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1.5 text-[0.68rem] font-black text-amber-200 transition hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {resetting
+                              ? 'A repor…'
+                              : 'Repor acesso'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -635,7 +755,16 @@ export default function MAProfessorAccountMaintenance({
         </div>
       )}
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.04] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-rose-200">
+            Cortar acesso
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Revoga a licença e termina imediatamente todas as sessões ativas. Mantém a conta, a password, a configuração e os dados escolares cifrados guardados na cloud.
+          </p>
+        </div>
+
         <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
             Repor acesso
