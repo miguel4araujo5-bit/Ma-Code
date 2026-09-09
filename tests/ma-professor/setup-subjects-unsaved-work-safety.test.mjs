@@ -19,7 +19,15 @@ test(
     assert.match(source, /form\.name\s*!==\s*editingSubject\.name/)
     assert.match(source, /form\.shortName\s*!==\s*editingSubject\.shortName/)
     assert.match(source, /form\.code\s*!==\s*editingSubject\.code/)
-    assert.match(source, /hasNewGroupAssignments/)
+    assert.match(source, /hasGroupAssignmentChanges/)
+    assert.match(
+      source,
+      /form\.groupIds\.length\s*!==\s*persistedEditingGroupIds\.size/
+    )
+    assert.match(
+      source,
+      /form\.groupIds\.some\([\s\S]*persistedEditingGroupIds\.has/
+    )
     assert.match(source, /hasUnsavedSubjectSetupChanges/)
   }
 )
