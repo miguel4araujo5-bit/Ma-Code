@@ -10,6 +10,40 @@ const field = 'w-full rounded-xl border border-white/15 bg-slate-900 p-3 text-sm
 const button = 'rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-40'
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Não foi possível concluir a operação.'
 
+function normalizeSubjectLabel(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('pt-PT')
+}
+
+function automaticSubjectId(
+  snapshot: SetupSnapshot,
+  subjectLabel: string
+) {
+  const normalized =
+    normalizeSubjectLabel(subjectLabel)
+
+  if (!normalized) {
+    return ''
+  }
+
+  const matches =
+    snapshot.subjects.filter(
+      subject =>
+        subject.active &&
+        normalizeSubjectLabel(
+          subject.name
+        ) === normalized
+    )
+
+  return matches.length === 1
+    ? matches[0].id
+    : ''
+}
+
 export default function ModulePlanificationImportPanel({ snapshot, disabled, onActiveChange, onImported }: {
   snapshot: SetupSnapshot
   disabled: boolean
@@ -61,6 +95,12 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
       setDocument(parsed)
       setFingerprint(state.fingerprint)
       setMinutes(state.periodMinutes)
+      setSubjectId(
+        automaticSubjectId(
+          snapshot,
+          parsed.subjectLabel
+        )
+      )
       setRows(parsed.sections.map((section, sectionIndex) => ({
         sectionIndex, selected: true, reviewed: false, code: section.code, name: section.name,
         plannedPeriods: parsed.periodMinutes === state.periodMinutes && section.plannedLessons

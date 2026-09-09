@@ -29,8 +29,35 @@ export interface PlanificationPdfExtractionPage {
   tableLines?: PlanificationPdfLine[]
 }
 
+type PdfMatrix = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]
+
+type PdfOperatorListLike = {
+  fnArray: number[]
+  argsArray: unknown[]
+}
+
 const LINE_TOLERANCE = 3
 const CELL_GAP = 18
+const RULE_TOLERANCE = 1.5
+const MIN_VERTICAL_RULE_LENGTH = 25
+const MIN_HORIZONTAL_RULE_LENGTH = 250
+
+// pdfjs-dist 6.x packs path commands inside constructPath as the
+// DrawOPS numeric protocol. Keeping the tiny protocol local avoids importing
+// an internal pdf.js module while still reading the public operator list.
+const PATH_MOVE_TO = 0
+const PATH_LINE_TO = 1
+const PATH_CURVE_TO = 2
+const PATH_QUADRATIC_CURVE_TO = 3
+const PATH_CLOSE = 4
+const IDENTITY_MATRIX: PdfMatrix = [1, 0, 0, 1, 0, 0]
 
 function normalizeText(value: string) {
   return value
@@ -151,6 +178,395 @@ function buildLine(
     ),
     positionedCells
   }
+}
+
+function toNumericArray(value: unknown) {
+  if (
+    !Array.isArray(value) &&
+    !ArrayBuffer.isView(value)
+  ) {
+    return []
+  }
+
+  try {
+    return Array.from(
+      value as ArrayLike<number>,
+      item => Number(item)
+    )
+  } catch {
+    return []
+  }
+}
+
+function multiplyMatrices(
+  left: PdfMatrix,
+  right: PdfMatrix
+): PdfMatrix {
+  return [
+    left[0] * right[0] + left[2] * right[1],
+    left[1] * right[0] + left[3] * right[1],
+    left[0] * right[2] + left[2] * right[3],
+    left[1] * right[2] + left[3] * right[3],
+    left[0] * right[4] + left[2] * right[5] + left[4],
+    left[1] * right[4] + left[3] * right[5] + left[5]
+  ]
+}
+
+function transformPoint(
+  x: number,
+  y: number,
+  matrix: PdfMatrix
+) {
+  return {
+    x:
+      x * matrix[0] +
+      y * matrix[2] +
+      matrix[4],
+    y:
+      x * matrix[1] +
+      y * matrix[3] +
+      matrix[5]
+  }
+}
+
+function makeRule(
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): PdfRuleBox | null {
+  const values = [
+    start.x,
+    start.y,
+    end.x,
+    end.y
+  ]
+
+  if (!values.every(Number.isFinite)) {
+    return null
+  }
+
+  if (
+    Math.abs(start.x - end.x) <= RULE_TOLERANCE &&
+    Math.abs(start.y - end.y) > MIN_VERTICAL_RULE_LENGTH
+  ) {
+    const x =
+      (start.x + end.x) / 2
+
+    return [
+      x,
+      Math.min(start.y, end.y),
+      x,
+      Math.max(start.y, end.y)
+    ]
+  }
+
+  if (
+    Math.abs(start.y - end.y) <= RULE_TOLERANCE &&
+    Math.abs(start.x - end.x) > MIN_HORIZONTAL_RULE_LENGTH
+  ) {
+    const y =
+      (start.y + end.y) / 2
+
+    return [
+      Math.min(start.x, end.x),
+      y,
+      Math.max(start.x, end.x),
+      y
+    ]
+  }
+
+  return null
+}
+
+function isStrokePaintingOperator(operator: unknown) {
+  const strokeOperators = [
+    OPS.stroke,
+    OPS.closeStroke,
+    OPS.fillStroke,
+    OPS.eoFillStroke,
+    OPS.closeFillStroke,
+    OPS.closeEOFillStroke
+  ].filter(
+    (value): value is number =>
+      typeof value === 'number'
+  )
+
+  return (
+    typeof operator === 'number' &&
+    strokeOperators.includes(operator)
+  )
+}
+
+function getPackedPath(args: unknown[]) {
+  const packedContainer =
+    Array.isArray(args[1])
+      ? args[1]
+      : null
+
+  if (!packedContainer) {
+    return []
+  }
+
+  return toNumericArray(
+    packedContainer[0]
+  )
+}
+
+function readPackedPathRules(
+  path: number[],
+  matrix: PdfMatrix
+) {
+  const rules: PdfRuleBox[] = []
+  let index = 0
+  let current:
+    { x: number; y: number } | null = null
+  let subpathStart:
+    { x: number; y: number } | null = null
+
+  const readPoint = () => {
+    if (index + 1 >= path.length) {
+      return null
+    }
+
+    const x = path[index]
+    const y = path[index + 1]
+    index += 2
+
+    if (
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    ) {
+      return null
+    }
+
+    return transformPoint(
+      x,
+      y,
+      matrix
+    )
+  }
+
+  while (index < path.length) {
+    const command = path[index]
+    index += 1
+
+    if (command === PATH_MOVE_TO) {
+      const point = readPoint()
+
+      if (!point) {
+        break
+      }
+
+      current = point
+      subpathStart = point
+      continue
+    }
+
+    if (command === PATH_LINE_TO) {
+      const point = readPoint()
+
+      if (!point) {
+        break
+      }
+
+      if (current) {
+        const rule =
+          makeRule(
+            current,
+            point
+          )
+
+        if (rule) {
+          rules.push(rule)
+        }
+      }
+
+      current = point
+      continue
+    }
+
+    if (command === PATH_CURVE_TO) {
+      const control1 = readPoint()
+      const control2 = readPoint()
+      const point = readPoint()
+
+      if (
+        !control1 ||
+        !control2 ||
+        !point
+      ) {
+        break
+      }
+
+      current = point
+      continue
+    }
+
+    if (command === PATH_QUADRATIC_CURVE_TO) {
+      const control = readPoint()
+      const point = readPoint()
+
+      if (!control || !point) {
+        break
+      }
+
+      current = point
+      continue
+    }
+
+    if (command === PATH_CLOSE) {
+      if (
+        current &&
+        subpathStart
+      ) {
+        const rule =
+          makeRule(
+            current,
+            subpathStart
+          )
+
+        if (rule) {
+          rules.push(rule)
+        }
+
+        current = subpathStart
+      }
+
+      continue
+    }
+
+    // A command outside the pdf.js 6.x packed path protocol means that
+    // continuing could shift the coordinate cursor and invent geometry.
+    break
+  }
+
+  return rules
+}
+
+function getLegacyStraightRule(
+  value: unknown,
+  matrix: PdfMatrix
+) {
+  const box =
+    toNumericArray(value)
+
+  if (box.length !== 4) {
+    return null
+  }
+
+  return makeRule(
+    transformPoint(
+      box[0],
+      box[1],
+      matrix
+    ),
+    transformPoint(
+      box[2],
+      box[3],
+      matrix
+    )
+  )
+}
+
+/**
+ * Recover the individual ruled-table segments from the public PDF.js
+ * operator list. In pdfjs-dist 6.x constructPath exposes one packed path plus
+ * a bounding box for the entire path. Treating that bounding box as a single
+ * rule loses real table grids and makes text fall back to line proximity.
+ */
+export function extractPlanificationPdfRuleBoxes(
+  operators: PdfOperatorListLike
+): PdfRuleBox[] {
+  const rules: PdfRuleBox[] = []
+  const matrixStack: PdfMatrix[] = []
+  let matrix: PdfMatrix = [
+    ...IDENTITY_MATRIX
+  ]
+
+  for (
+    let index = 0;
+    index < operators.fnArray.length;
+    index += 1
+  ) {
+    const operator =
+      operators.fnArray[index]
+    const rawArgs =
+      operators.argsArray[index]
+    const args =
+      Array.isArray(rawArgs)
+        ? rawArgs
+        : []
+
+    if (operator === OPS.save) {
+      matrixStack.push([
+        ...matrix
+      ])
+      continue
+    }
+
+    if (operator === OPS.restore) {
+      matrix =
+        matrixStack.pop() ??
+        [...IDENTITY_MATRIX]
+      continue
+    }
+
+    if (operator === OPS.transform) {
+      const values =
+        toNumericArray(args)
+
+      if (
+        values.length >= 6 &&
+        values.slice(0, 6)
+          .every(Number.isFinite)
+      ) {
+        matrix =
+          multiplyMatrices(
+            matrix,
+            values.slice(0, 6) as PdfMatrix
+          )
+      }
+
+      continue
+    }
+
+    if (operator !== OPS.constructPath) {
+      continue
+    }
+
+    if (!isStrokePaintingOperator(args[0])) {
+      continue
+    }
+
+    const packedPath =
+      getPackedPath(args)
+
+    const packedRules =
+      readPackedPathRules(
+        packedPath,
+        matrix
+      )
+
+    if (packedRules.length > 0) {
+      rules.push(
+        ...packedRules
+      )
+      continue
+    }
+
+    // Compatibility fallback for older/operator-list variants that expose a
+    // single straight segment directly as constructPath bounds.
+    const legacyRule =
+      getLegacyStraightRule(
+        args[2],
+        matrix
+      )
+
+    if (legacyRule) {
+      rules.push(legacyRule)
+    }
+  }
+
+  return rules
 }
 
 export function buildPlanificationPdfDocumentFromExtraction(
@@ -323,23 +739,26 @@ export async function extractPlanificationPdf(
         reader.releaseLock()
       }
 
-      const operators = await page.getOperatorList()
-      const rules: PdfRuleBox[] = []
-      operators.fnArray.forEach((operator, index) => {
-        if (operator !== OPS.constructPath) return
-        const args = operators.argsArray[index]
-        // PDF.js 6 supplies the axis-aligned path bounds as the third argument.
-        // Only straight horizontal/vertical strokes are candidates.
-        const box = args?.[2]
-        if (args?.[0] === OPS.stroke && box?.length === 4 &&
-            Array.from(box).every(value => typeof value === 'number' && Number.isFinite(value))) {
-          rules.push(Array.from(box) as PdfRuleBox)
-        }
-      })
+      const operators =
+        await page.getOperatorList()
+      const rules =
+        extractPlanificationPdfRuleBoxes(
+          operators
+        )
+
       pages.push({
         pageNumber,
         items,
-        tableLines: readRuledPlanificationTable(items, rules, Boolean(pages[pages.length - 1]?.tableLines)) ?? undefined
+        tableLines:
+          readRuledPlanificationTable(
+            items,
+            rules,
+            Boolean(
+              pages[
+                pages.length - 1
+              ]?.tableLines
+            )
+          ) ?? undefined
       })
     }
   } finally {
