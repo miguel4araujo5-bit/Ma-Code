@@ -9,6 +9,7 @@ export interface ModuleDocument {
   name: string
   sha256: string
   subjectLabel: string
+  courseLabel: string
   periodMinutes: number | null
   sections: ParsedPlanificationPdfSection[]
   warnings: string[]
@@ -33,12 +34,30 @@ function paragraphs(element: Element) {
       .map(t => t.textContent ?? '').join('')).join('\n').trim()
 }
 
+function cleanMetadataValue(value: string) {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
 function metadata(text: string) {
-  const subjectLabel = text.match(/planifica[çc][ãa]o\s+de\s+([^\n]+)/i)?.[1]?.trim() ?? ''
-  const minutes = [...text.matchAll(/\(\s*(\d+)\s*min(?:utos)?\s*\)/gi)]
+  const normalizedText = text.replace(/\r\n/g, '\n')
+  const subjectLabel = cleanMetadataValue(
+    normalizedText.match(
+      /planifica[çc][ãa]o\s+de\s+(.+?)(?=\s+curso profissional\b|\n|$)/i
+    )?.[1] ?? ''
+  )
+  const courseLabel = cleanMetadataValue(
+    normalizedText.match(
+      /curso profissional\s*[–—-]?\s*(.+?)(?=\s+(?:10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b|\n|$)/i
+    )?.[1] ?? ''
+  )
+  const minutes = [...normalizedText.matchAll(/\(\s*(\d+)\s*min(?:utos)?\s*\)/gi)]
     .map(match => Number(match[1]))
   const unique = [...new Set(minutes)]
-  return { subjectLabel, periodMinutes: unique.length === 1 ? unique[0] : null }
+  return {
+    subjectLabel,
+    courseLabel,
+    periodMinutes: unique.length === 1 ? unique[0] : null
+  }
 }
 
 export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {

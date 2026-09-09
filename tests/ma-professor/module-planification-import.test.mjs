@@ -93,6 +93,11 @@ const xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessi
   row(['Avaliação', 'Observação A']) +
   row(['2º Período', 'UFCD 10384 (50 Horas) – Módulo B', 'Conteúdo B', 'Objetivo B', 'Métodos: debate. Uso de: filme.', '30']) +
   row(['Avaliação', 'Observação B']) + '</w:tbl></w:body></w:document>'
+const courseXml = xml.replace(
+  '<w:p><w:r><w:t>PLANIFICAÇÃO DE Disciplina de teste</w:t></w:r></w:p>',
+  '<w:p><w:r><w:t>PLANIFICAÇÃO DE Área de Expressões</w:t></w:r></w:p>' +
+  '<w:p><w:r><w:t>Curso Profissional – Técnico de Apoio Psicossocial 12º ANO</w:t></w:r></w:p>'
+)
 let document
 
 test('DOCX reads all UFCD after evaluation rows, keeps leading zeros, 25h, provenance and discrepancy', async () => {
@@ -112,6 +117,12 @@ test('DOCX reads all UFCD after evaluation rows, keeps leading zeros, 25h, prove
   assert.equal(durationWarning(document.sections[0], 50), '')
   assert.match(durationWarning(document.sections[1], 50), /não correspondem/)
   assert.equal(document.sections[1].plannedLessons, 30)
+})
+
+test('planification metadata keeps Área de Expressões separate from Técnico de Apoio Psicossocial', () => {
+  const parsed = parseModuleDocxXml(courseXml, 'area-expressoes.docx')
+  assert.equal(parsed.subjectLabel, 'Área de Expressões')
+  assert.equal(parsed.courseLabel, 'Técnico de Apoio Psicossocial')
 })
 
 test('malformed, unsupported and duplicate Word sections fail without inventing fields', () => {
@@ -144,7 +155,10 @@ async function seed() {
   await maProfessorDb.open()
   const audit = { createdAt: '2026-01-01', updatedAt: '2026-01-01', active: true, academicYearId: 'year' }
   await maProfessorDb.academicYears.add({ id: 'year', name: 'Test', ...audit })
-  await maProfessorDb.groups.bulkAdd([{ id: 'g1', name: 'A', ...audit }, { id: 'g2', name: 'B', ...audit }])
+  await maProfessorDb.groups.bulkAdd([
+    { id: 'g1', name: 'A', courseName: '', ...audit },
+    { id: 'g2', name: 'B', courseName: '', ...audit }
+  ])
   await maProfessorDb.subjects.add({ id: 's1', name: 'Test', ...audit })
   await maProfessorDb.teachingAssignments.bulkAdd([
     { id: 'a1', groupId: 'g1', subjectId: 's1', ...audit },
@@ -177,18 +191,32 @@ test('creates modules and plans across destinations, preserves original hours an
   await maProfessorDb.open()
   assert.equal(await maProfessorDb.modules.count(), 4)
 })
+
+test('confirmed course corrects only the selected destination group', async () => {
+  await seed()
+  const input = await request(['a1'])
+  input.courseName = 'Técnico de Apoio Psicossocial'
+  assert.deepEqual(await commitModulePlanificationImport(input), { created: 2, skipped: 0 })
+  assert.equal((await maProfessorDb.groups.get('g1')).courseName, 'Técnico de Apoio Psicossocial')
+  assert.equal((await maProfessorDb.groups.get('g2')).courseName, '')
+})
+
 test('reimport preserves existing modules and plans, even after a file rename', async () => {
+  await seed()
+  assert.deepEqual(await commitModulePlanificationImport(await request()), { created: 4, skipped: 0 })
   const before = await maProfessorDb.planificationItems.toArray()
   const input = await request()
-  input.document.name = 'renamed.docx'
+  input.document = { ...input.document, name: 'renamed.docx' }
   assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 4 })
   assert.deepEqual(await maProfessorDb.planificationItems.toArray(), before)
 })
-test('a late destination failure rolls back earlier modules, plans and items', async () => {
+test('a late destination failure rolls back earlier modules, plans, items and course correction', async () => {
   await seed()
   const input = await request(['a1', 'missing'])
+  input.courseName = 'Técnico de Apoio Psicossocial'
   await assert.rejects(commitModulePlanificationImport(input), /destino/)
   for (const table of ['modules', 'planifications', 'planificationItems']) assert.equal(await maProfessorDb[table].count(), 0)
+  assert.equal((await maProfessorDb.groups.get('g1')).courseName, '')
 })
 test('failed item persistence rolls back module and plan creation', async () => {
   await seed()
@@ -219,7 +247,7 @@ test('concurrent confirmations cannot create duplicate records', async () => {
   assert.equal(await maProfessorDb.modules.count(), 4)
 })
 
-test('React interface selects a document, requires review and imports into the selected destination', async () => {
+test('React interface selects a document, requires review and imports the course extracted from the document', async () => {
   await seed()
   globalThis.document = window.document
   globalThis.HTMLElement = window.HTMLElement
@@ -243,16 +271,17 @@ test('React interface selects a document, requires review and imports into the s
     })))
     await click(findButton('Importar PDF ou Word'))
     const input = host.querySelector('input[type=file]')
-    Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(xml) })], 'fixture.docx')] })
+    Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(courseXml) })], 'area-expressoes.docx')] })
     await act(async () => {
       input.dispatchEvent(new window.Event('change', { bubbles: true }))
       for (let i = 0; i < 30 && !host.querySelector('select'); i++) await new Promise(resolve => setTimeout(resolve, 10))
     })
     assert.equal(host.querySelectorAll('article').length, 2)
+    assert.match(host.textContent, /Curso indicado no documento:\s*Técnico de Apoio Psicossocial/)
     assert.ok(findButton('Confirmar importação').disabled)
     const select = host.querySelector('select')
     await act(async () => { select.value = 's1'; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
-    const destination = [...host.querySelectorAll('label')].find(label => label.textContent.trim() === 'A')
+    const destination = [...host.querySelectorAll('label')].find(label => label.textContent.trim() === 'A · curso não indicado')
     await click(destination.querySelector('input'))
     for (const article of host.querySelectorAll('article')) {
       const review = [...article.querySelectorAll('label')].find(label => label.textContent.includes('Revi os dados'))
@@ -266,6 +295,7 @@ test('React interface selects a document, requires review and imports into the s
     })
     assert.equal(await maProfessorDb.modules.count(), 2)
     assert.equal(await maProfessorDb.planifications.count(), 2)
+    assert.equal((await maProfessorDb.groups.get('g1')).courseName, 'Técnico de Apoio Psicossocial')
     assert.equal(refreshed, 1)
     assert.match(host.textContent, /Importação concluída/)
   } finally {
