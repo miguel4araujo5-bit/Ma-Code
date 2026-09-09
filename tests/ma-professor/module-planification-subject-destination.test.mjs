@@ -13,6 +13,9 @@ import test, { after } from 'node:test'
 import ts from 'typescript'
 import 'fake-indexeddb/auto'
 
+const originalWindow = globalThis.window
+globalThis.window = { indexedDB: globalThis.indexedDB }
+
 const root = resolve(new URL('../..', import.meta.url).pathname)
 const cache = join(root, 'node_modules', '.cache')
 mkdirSync(cache, { recursive: true })
@@ -160,6 +163,12 @@ async function editableRequest() {
 after(async () => {
   await maProfessorDb.delete()
   rmSync(output, { recursive: true, force: true })
+
+  if (originalWindow === undefined) {
+    delete globalThis.window
+  } else {
+    globalThis.window = originalWindow
+  }
 })
 
 test('editable destination ignores an unrelated AP subject and creates Área de Expressões atomically', async () => {
