@@ -237,7 +237,10 @@ test(
 test(
   'advanced metadata stays behind Details and title generation preserves the persistent contract',
   () => {
-    assert.match(sectionSource, />\s*Detalhes\s*</)
+    assert.match(
+      sectionSource,
+      /\{detailsOpen[\s\S]*\?\s*['"]Ocultar detalhes['"][\s\S]*:\s*['"]Detalhes['"][\s\S]*\}/
+    )
     assert.match(sectionSource, /buildQuickAssessmentTitle\(/)
     assert.match(sectionSource, /criterionId:\s*draft\.criterionId/)
     assert.match(sectionSource, /activityType:\s*draft\.activityType/)
