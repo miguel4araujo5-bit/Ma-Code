@@ -43,6 +43,7 @@ type Draft = {
   endTime: string
   periodCount: number
   groupName: string
+  courseName: string
   subjectName: string
   subjectConfirmed: boolean
 }
@@ -70,6 +71,11 @@ type ImportedSubjectResolution = {
   subjectName: string
   subjectConfirmed: boolean
 }
+
+type ImportedLessonResolution =
+  ImportedSubjectResolution & {
+    courseName: string
+  }
 
 const weekdays: Array<{
   value: Weekday
@@ -185,6 +191,16 @@ const knownSubjectAliases: Array<{
   }
 ]
 
+const knownCourseAliases: Array<{
+  name: string
+  aliases: string[]
+}> = [
+  {
+    name: 'Técnico de Apoio Psicossocial',
+    aliases: ['AP', 'TAP']
+  }
+]
+
 function normalize(value: string) {
   return value
     .normalize('NFD')
@@ -233,6 +249,45 @@ function resolveImportedSubject(
     subjectConfirmed:
       Boolean(subjectName) &&
       !ambiguousShortLabel
+  }
+}
+
+function resolveImportedLessonContext(
+  value: string
+): ImportedLessonResolution {
+  const subjectTokens: string[] = []
+  let courseName = ''
+
+  for (const token of clean(value).split(/\s+/)) {
+    const compactToken =
+      token.replace(/[._/-]/g, '')
+
+    const course =
+      knownCourseAliases.find(
+        candidate =>
+          candidate.aliases.some(
+            alias =>
+              normalize(alias) ===
+              normalize(compactToken)
+          )
+      )
+
+    if (course) {
+      courseName = courseName || course.name
+      continue
+    }
+
+    subjectTokens.push(token)
+  }
+
+  const subject =
+    resolveImportedSubject(
+      subjectTokens.join(' ')
+    )
+
+  return {
+    ...subject,
+    courseName
   }
 }
 
@@ -578,17 +633,25 @@ function parsePages(
       return false
     }
 
-    const subject =
-      resolveImportedSubject(
+    const lesson =
+      resolveImportedLessonContext(
         extractedSubjectName
       )
+
+    if (
+      !lesson.subjectName &&
+      !lesson.courseName
+    ) {
+      return false
+    }
 
     const key = [
       weekday,
       startTime,
       endTime,
       normalize(groupName),
-      normalize(subject.subjectName)
+      normalize(lesson.courseName),
+      normalize(lesson.subjectName)
     ].join('|')
 
     if (seenLessons.has(key)) {
@@ -611,10 +674,12 @@ function parsePages(
           defaultMinutes
         ),
       groupName,
+      courseName:
+        lesson.courseName,
       subjectName:
-        subject.subjectName,
+        lesson.subjectName,
       subjectConfirmed:
-        subject.subjectConfirmed
+        lesson.subjectConfirmed
     })
 
     return true
@@ -850,6 +915,43 @@ function weekdayLabel(weekday: Weekday) {
 
 function draftLabel(draft: Draft) {
   return `${draft.subjectName.trim()} · ${draft.groupName.trim()}`
+}
+
+function validateDraftCourseConsistency(
+  lessons: Draft[]
+) {
+  const courseByGroup =
+    new Map<string, string>()
+
+  for (const lesson of lessons) {
+    const groupName =
+      clean(lesson.groupName)
+    const courseName =
+      clean(lesson.courseName)
+
+    if (!groupName || !courseName) {
+      continue
+    }
+
+    const groupKey =
+      normalize(groupName)
+    const previous =
+      courseByGroup.get(groupKey)
+
+    if (
+      previous &&
+      normalize(previous) !== normalize(courseName)
+    ) {
+      throw new Error(
+        `A turma ${groupName} aparece associada a dois cursos diferentes: “${previous}” e “${courseName}”. Corrija o curso antes de importar.`
+      )
+    }
+
+    courseByGroup.set(
+      groupKey,
+      courseName
+    )
+  }
 }
 
 function validateDraftConflicts(
@@ -1206,7 +1308,7 @@ export default function SchedulePdfImportStep({
         ).length
 
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação porque a sigla também pode identificar curso, turma ou outro código. ` : ''}Reveja antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
       )
     } catch (readError) {
       setError(errorMessage(readError))
@@ -1270,6 +1372,7 @@ export default function SchedulePdfImportStep({
           endTime: '09:20',
           periodCount: 1,
           groupName: '',
+          courseName: '',
           subjectName: '',
           subjectConfirmed: false
         }
@@ -1359,6 +1462,10 @@ export default function SchedulePdfImportStep({
           academicYearId
         )
 
+      validateDraftCourseConsistency(
+        included
+      )
+
       validateDraftConflicts(
         included,
         includedDuties
@@ -1398,18 +1505,27 @@ export default function SchedulePdfImportStep({
         const groupName =
           clean(draft.groupName)
 
+        const courseName =
+          clean(draft.courseName)
+
         const subjectName =
           clean(draft.subjectName)
 
-        if (!groups.has(normalize(groupName))) {
+        const groupKey =
+          normalize(groupName)
+
+        let group =
+          groups.get(groupKey)
+
+        if (!group) {
           const grade =
             groupName.match(/^\s*(10|11|12)/)?.[1]
 
-          const group =
+          group =
             await maProfessorRepository.createGroup({
               academicYearId,
               name: groupName,
-              courseName: '',
+              courseName,
               gradeLevel:
                 grade
                   ? `${grade}.º ano`
@@ -1418,7 +1534,24 @@ export default function SchedulePdfImportStep({
             })
 
           groups.set(
-            normalize(groupName),
+            groupKey,
+            group
+          )
+        } else if (
+          courseName &&
+          normalize(group.courseName ?? '') !==
+            normalize(courseName)
+        ) {
+          group =
+            await maProfessorRepository.updateGroup(
+              group.id,
+              {
+                courseName
+              }
+            )
+
+          groups.set(
+            groupKey,
             group
           )
         }
@@ -1649,7 +1782,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Siglas curtas ambíguas nunca são criadas automaticamente como disciplinas sem confirmação.
+              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Curso, turma e disciplina são revistos separadamente; AP/TAP é reconhecido como curso Técnico de Apoio Psicossocial e pode ser corrigido antes de guardar.
             </p>
           </div>
 
@@ -1698,7 +1831,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Uma sigla como “AP” fica pendente até indicar qual é a disciplina ou confirmar explicitamente que a sigla é mesmo uma disciplina.
+                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Se aparecer “AP” ou “TAP” junto da aula, essa sigla é colocada no campo Curso, não no campo Disciplina.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1729,7 +1862,7 @@ export default function SchedulePdfImportStep({
                 </h2>
 
                 <div className="overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full min-w-[940px] border-collapse text-left">
+                  <table className="w-full min-w-[1180px] border-collapse text-left">
                     <thead className="bg-white/[0.035] text-xs uppercase tracking-[0.12em] text-slate-500">
                       <tr>
                         <th className="px-3 py-3">Usar</th>
@@ -1738,6 +1871,7 @@ export default function SchedulePdfImportStep({
                         <th className="px-3 py-3">Fim</th>
                         <th className="px-3 py-3">Tempos</th>
                         <th className="px-3 py-3">Turma</th>
+                        <th className="px-3 py-3">Curso</th>
                         <th className="px-3 py-3">Disciplina</th>
                       </tr>
                     </thead>
@@ -1869,6 +2003,24 @@ export default function SchedulePdfImportStep({
                           </td>
 
                           <td className="px-3 py-3">
+                            <input
+                              value={draft.courseName}
+                              disabled={!draft.included}
+                              onChange={event =>
+                                updateDraft(
+                                  draft.id,
+                                  {
+                                    courseName:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              placeholder="Ex.: Técnico de Apoio Psicossocial"
+                              className={inputClassName}
+                            />
+                          </td>
+
+                          <td className="px-3 py-3">
                             <div className="min-w-52">
                               <input
                                 value={draft.subjectName}
@@ -1899,7 +2051,7 @@ export default function SchedulePdfImportStep({
                               !draft.subjectConfirmed ? (
                                 <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-2.5">
                                   <p className="text-xs leading-5 text-amber-100">
-                                    “{draft.subjectName || '—'}” é uma sigla curta ambígua: pode ser curso, turma, código ou disciplina. Corrija o nome ou confirme-a explicitamente.
+                                    “{draft.subjectName || '—'}” ainda não é uma disciplina confirmada. Corrija o nome ou confirme explicitamente. AP/TAP, quando detetado, já foi separado para o campo Curso.
                                   </p>
 
                                   <button
