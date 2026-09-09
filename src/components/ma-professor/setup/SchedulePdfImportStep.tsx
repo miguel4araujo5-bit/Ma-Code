@@ -28,6 +28,7 @@ import type {
 import {
   getDutyDatesForSchool
 } from './schoolDutyDatePolicy'
+import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -425,11 +426,6 @@ function extractDutyName(value: string) {
     return candidate
   }
 
-  // Alguns extratores removem a coluna da sala antes de este passo.
-  // Nesse caso o marcador "SP" desaparece e ficam apenas nomes como
-  // "Co PCE". Uma célula de horário com duas ou mais palavras, sem
-  // turma e sem aspeto de sala/marcador, é tratada como cargo para não
-  // perder atividades válidas por depender de uma lista rígida de nomes.
   if (
     candidate
       .split(/\s+/)
@@ -1831,7 +1827,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Se aparecer “AP” ou “TAP” junto da aula, essa sigla é colocada no campo Curso, não no campo Disciplina.
+                Compare primeiro a vista de horário com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Se aparecer “AP” ou “TAP” junto da aula, essa sigla é colocada no campo Curso, não no campo Disciplina.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1855,10 +1851,20 @@ export default function SchedulePdfImportStep({
               </div>
             </div>
 
+            <div className="mt-5">
+              <ScheduleImportVisualGrid
+                lessons={drafts}
+                duties={duties}
+                disabled={busy}
+                onUpdateLesson={updateDraft}
+                onUpdateDuty={updateDuty}
+              />
+            </div>
+
             {drafts.length > 0 ? (
-              <div className="mt-5">
+              <div className="mt-7">
                 <h2 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-cyan-100">
-                  Aulas
+                  Vista detalhada · aulas
                 </h2>
 
                 <div className="overflow-x-auto rounded-2xl border border-white/10">
@@ -2086,7 +2092,7 @@ export default function SchedulePdfImportStep({
                 <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-black uppercase tracking-[0.14em] text-violet-100">
-                      Cargos / componente não letiva
+                      Vista detalhada · cargos / componente não letiva
                     </h2>
 
                     <p className="mt-1 text-xs leading-5 text-slate-500">
