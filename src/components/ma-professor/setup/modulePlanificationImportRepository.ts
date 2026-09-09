@@ -1,6 +1,12 @@
 import { maProfessorDb, openMAProfessorDatabase } from '../db'
 import { markDashboardDataDirty } from '../dashboard/dashboardRefreshSignal'
-import type { ModuleUnit, Planification, PlanificationItem } from '../types'
+import type {
+  ModuleUnit,
+  Planification,
+  PlanificationItem,
+  Subject,
+  TeachingAssignment
+} from '../types'
 import type { ModuleDocument } from './planificationModuleDocument'
 
 export interface ModuleImportSelection {
@@ -32,10 +38,113 @@ export async function readModuleImportState() {
   }))
 }
 
+async function resolveSubjectAssignments(input: {
+  academicYearId: string
+  subjectName: string
+  groupIds: string[]
+}) {
+  const subjectName = clean(input.subjectName)
+  const groupIds = [...new Set(input.groupIds)]
+
+  if (!subjectName || !groupIds.length) {
+    throw new Error('Indique a disciplina e selecione pelo menos uma turma de destino.')
+  }
+
+  const groups = []
+  for (const groupId of groupIds) {
+    const group = await maProfessorDb.groups.get(groupId)
+    if (
+      !group?.active ||
+      group.academicYearId !== input.academicYearId
+    ) {
+      throw new Error('Uma turma de destino deixou de estar disponível.')
+    }
+    groups.push(group)
+  }
+
+  const sameNameSubjects = (
+    await maProfessorDb.subjects
+      .where('academicYearId')
+      .equals(input.academicYearId)
+      .toArray()
+  ).filter(subject =>
+    subject.active &&
+    normalize(subject.name) === normalize(subjectName)
+  )
+
+  if (sameNameSubjects.length > 1) {
+    throw new Error(
+      `Existem várias disciplinas ativas chamadas “${subjectName}”. Corrija a duplicação antes de importar.`
+    )
+  }
+
+  const timestamp = new Date().toISOString()
+  let subject = sameNameSubjects[0]
+
+  if (!subject) {
+    subject = {
+      id: crypto.randomUUID(),
+      academicYearId: input.academicYearId,
+      name: subjectName,
+      shortName: '',
+      code: '',
+      active: true,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    } satisfies Subject
+
+    await maProfessorDb.subjects.add(subject)
+  }
+
+  const assignmentIds: string[] = []
+
+  for (const group of groups) {
+    const matches = (
+      await maProfessorDb.teachingAssignments
+        .where('groupId')
+        .equals(group.id)
+        .toArray()
+    ).filter(assignment =>
+      assignment.active &&
+      assignment.academicYearId === input.academicYearId &&
+      assignment.subjectId === subject.id
+    )
+
+    if (matches.length > 1) {
+      throw new Error(
+        `A turma “${group.name}” possui várias associações ativas à disciplina “${subject.name}”. Corrija a duplicação antes de importar.`
+      )
+    }
+
+    let assignment = matches[0]
+
+    if (!assignment) {
+      assignment = {
+        id: crypto.randomUUID(),
+        academicYearId: input.academicYearId,
+        groupId: group.id,
+        subjectId: subject.id,
+        displayName: `${subject.shortName.trim() || subject.name} · ${group.name}`,
+        active: true,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      } satisfies TeachingAssignment
+
+      await maProfessorDb.teachingAssignments.add(assignment)
+    }
+
+    assignmentIds.push(assignment.id)
+  }
+
+  return assignmentIds
+}
+
 export async function commitModulePlanificationImport(input: {
   confirmed: true
   academicYearId: string
-  assignmentIds: string[]
+  assignmentIds?: string[]
+  subjectName?: string
+  groupIds?: string[]
   expectedFingerprint: string
   courseName?: string
   document: ModuleDocument
@@ -47,8 +156,30 @@ export async function commitModulePlanificationImport(input: {
   if (!/^[a-f0-9]{64}$/.test(request.document.sha256) || !request.document.name.trim()) {
     throw new Error('O documento de origem não é válido.')
   }
-  const assignments = [...new Set(request.assignmentIds)]
-  if (!assignments.length || !request.selections.length) throw new Error('Selecione UFCD e turmas de destino.')
+
+  const legacyAssignments = [...new Set(request.assignmentIds ?? [])]
+  const requestedGroups = [...new Set(request.groupIds ?? [])]
+  const requestedSubjectName = clean(request.subjectName ?? '')
+  const usesEditableSubjectDestination = Boolean(
+    requestedSubjectName || requestedGroups.length
+  )
+
+  if (
+    legacyAssignments.length &&
+    usesEditableSubjectDestination
+  ) {
+    throw new Error('O destino da importação está ambíguo. Atualize a revisão e tente novamente.')
+  }
+
+  if (
+    !legacyAssignments.length &&
+    (!requestedSubjectName || !requestedGroups.length)
+  ) {
+    throw new Error('Indique a disciplina e selecione pelo menos uma turma de destino.')
+  }
+
+  if (!request.selections.length) throw new Error('Selecione pelo menos uma UFCD para importar.')
+
   const codes = new Set<string>()
   const indices = new Set<number>()
   for (const row of request.selections) {
@@ -61,6 +192,7 @@ export async function commitModulePlanificationImport(input: {
     codes.add(row.code)
     indices.add(row.sectionIndex)
   }
+
   const confirmedCourseName = clean(request.courseName ?? '')
   await openMAProfessorDatabase()
   const result = await maProfessorDb.transaction('rw', tables(), async () => {
@@ -68,9 +200,19 @@ export async function commitModulePlanificationImport(input: {
       throw new Error('Os dados foram alterados após a revisão. Atualize a revisão antes de confirmar novamente.')
     }
     if (!await maProfessorDb.academicYears.get(request.academicYearId)) throw new Error('O ano letivo já não existe.')
+
+    const assignments = legacyAssignments.length
+      ? legacyAssignments
+      : await resolveSubjectAssignments({
+          academicYearId: request.academicYearId,
+          subjectName: requestedSubjectName,
+          groupIds: requestedGroups
+        })
+
     let created = 0
     let skipped = 0
     const updatedGroupIds = new Set<string>()
+
     for (const assignmentId of assignments) {
       const assignment = await maProfessorDb.teachingAssignments.get(assignmentId)
       const group = assignment ? await maProfessorDb.groups.get(assignment.groupId) : null
