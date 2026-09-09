@@ -109,7 +109,18 @@ const tableLayoutUrl =
 const pdfJsStubUrl =
   dataUrl(`
     export const GlobalWorkerOptions = { workerSrc: '' }
-    export const OPS = { constructPath: 1, stroke: 2 }
+    export const OPS = {
+      constructPath: 1,
+      stroke: 2,
+      save: 3,
+      restore: 4,
+      transform: 5,
+      closeStroke: 6,
+      fillStroke: 7,
+      eoFillStroke: 8,
+      closeFillStroke: 9,
+      closeEOFillStroke: 10
+    }
     export function getDocument() {
       throw new Error('getDocument is not used by this behavioral extraction-result test')
     }
@@ -180,6 +191,9 @@ const extractor =
 const parser =
   await import(parserUrl)
 
+const tableLayout =
+  await import(tableLayoutUrl)
+
 const preview =
   await import(
     dataUrl(
@@ -207,6 +221,161 @@ function item(
     height: 10
   }
 }
+
+function appendSegment(path, x1, y1, x2, y2) {
+  path.push(
+    0,
+    x1,
+    y1,
+    1,
+    x2,
+    y2
+  )
+}
+
+test(
+  'packed PDF.js table paths are expanded into real ruled cells before parsing',
+  () => {
+    const path = []
+
+    for (const x of [
+      0,
+      100,
+      200,
+      300,
+      400,
+      500,
+      600
+    ]) {
+      appendSegment(
+        path,
+        x,
+        100,
+        x,
+        700
+      )
+    }
+
+    for (const y of [
+      700,
+      600,
+      100
+    ]) {
+      appendSegment(
+        path,
+        0,
+        y,
+        600,
+        y
+      )
+    }
+
+    const rules =
+      extractor.extractPlanificationPdfRuleBoxes({
+        fnArray: [1],
+        argsArray: [[
+          2,
+          [new Float32Array(path)],
+          // The whole-path bounds are an area. The former extractor tried to
+          // use only this box and therefore lost every table column.
+          new Float32Array([
+            0,
+            100,
+            600,
+            700
+          ])
+        ]]
+      })
+
+    assert.equal(
+      rules.filter(
+        ([x1, , x2]) =>
+          Math.abs(x1 - x2) < 1
+      ).length,
+      7
+    )
+    assert.equal(
+      rules.filter(
+        ([, y1, , y2]) =>
+          Math.abs(y1 - y2) < 1
+      ).length,
+      3
+    )
+
+    const items = [
+      item('Período Letivo', 10, 650, 70),
+      item('UFCD ( Horas )', 110, 650, 70),
+      item('Temas/Conteúdos', 210, 650, 70),
+      item('Objetivos/Competências', 310, 650, 70),
+      item('Estratégias/Metodologias', 410, 650, 70),
+      item('Nº de aulas Previstas (50 min)', 510, 650, 70),
+
+      item('3º Período', 10, 560, 70),
+      item('UFCD 3279', 110, 500, 70),
+      item('(25 Horas)', 110, 470, 70),
+      item('Expressão dramática, corporal, vocal e verbal', 110, 440, 75),
+      item('Expressão dramática e desenvolvimento pessoal', 210, 560, 75),
+      item('Planificar e desenvolver técnicas de animação', 310, 540, 75),
+      item('Métodos: Expositivo e interrogativo.', 410, 520, 75),
+      item('Uso de: Filmes; Textos de apoio.', 410, 490, 75),
+      item('30', 510, 500, 20)
+    ]
+
+    const tableLines =
+      tableLayout.readRuledPlanificationTable(
+        items,
+        rules
+      )
+
+    assert.ok(tableLines)
+
+    const parsed =
+      parser.parsePlanificationPdfDocument(
+        {
+          pageCount: 1,
+          characterCount: 500,
+          pages: [{
+            pageNumber: 3,
+            lines: tableLines
+          }]
+        },
+        'Planificação AE 10D 2425.pdf'
+      )
+
+    assert.equal(
+      parsed.warnings.length,
+      0
+    )
+    assert.equal(
+      parsed.sections.length,
+      1
+    )
+    assert.equal(
+      parsed.sections[0].code,
+      '3279'
+    )
+    assert.equal(
+      parsed.sections[0].durationHours,
+      25
+    )
+    assert.equal(
+      parsed.sections[0].plannedLessons,
+      30
+    )
+    assert.equal(
+      parsed.sections[0].name,
+      'Expressão dramática, corporal, vocal e verbal'
+    )
+    assert.match(
+      parsed.sections[0].methodologyText,
+      /Expositivo e interrogativo/
+    )
+    assert.match(
+      parsed.sections[0].resourcesText,
+      /Filmes/
+    )
+  }
+)
 
 test(
   'extraction result -> parser -> preview preserves exact UFCD codes and separate modules',
