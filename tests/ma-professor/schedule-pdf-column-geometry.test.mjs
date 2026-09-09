@@ -69,10 +69,55 @@ function loadGeometryFunctions() {
   return module.exports
 }
 
+function loadLessonContextFunction() {
+  const start = scheduleSource.indexOf(
+    'const knownSubjectAliases:'
+  )
+  const end = scheduleSource.indexOf(
+    '\nfunction detectWeekday(',
+    start
+  )
+
+  assert.ok(start >= 0)
+  assert.ok(end > start)
+
+  const typescriptSnippet = [
+    'type ImportedSubjectResolution = { subjectName: string; subjectConfirmed: boolean }',
+    'type ImportedLessonResolution = ImportedSubjectResolution & { courseName: string }',
+    scheduleSource.slice(start, end),
+    'export { resolveImportedLessonContext }'
+  ].join('\n\n')
+
+  const javascript = ts.transpileModule(
+    typescriptSnippet,
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020
+      }
+    }
+  ).outputText
+  const module = { exports: {} }
+
+  new Function(
+    'module',
+    'exports',
+    javascript
+  )(
+    module,
+    module.exports
+  )
+
+  return module.exports.resolveImportedLessonContext
+}
+
 const {
   getScheduleColumnAnchorForCell,
   discardTimetableRoomColumns
 } = loadGeometryFunctions()
+
+const resolveImportedLessonContext =
+  loadLessonContextFunction()
 
 const anchors = [
   { kind: 'day', centerX: 100 },
@@ -237,6 +282,56 @@ test(
     assert.match(
       scheduleSource,
       /function extractDutyName\(value: string\)/
+    )
+  }
+)
+
+test(
+  'AP and TAP are course aliases and stay separate from the imported subject',
+  () => {
+    assert.deepEqual(
+      resolveImportedLessonContext('AP AE'),
+      {
+        courseName: 'Técnico de Apoio Psicossocial',
+        subjectName: 'Área de Expressões',
+        subjectConfirmed: true
+      }
+    )
+
+    assert.deepEqual(
+      resolveImportedLessonContext('ASC TAP'),
+      {
+        courseName: 'Técnico de Apoio Psicossocial',
+        subjectName: 'Animação Sociocultural',
+        subjectConfirmed: true
+      }
+    )
+
+    assert.deepEqual(
+      resolveImportedLessonContext('AP'),
+      {
+        courseName: 'Técnico de Apoio Psicossocial',
+        subjectName: '',
+        subjectConfirmed: false
+      }
+    )
+
+    assert.deepEqual(
+      resolveImportedLessonContext('AI'),
+      {
+        courseName: '',
+        subjectName: 'Área de Integração',
+        subjectConfirmed: true
+      }
+    )
+
+    assert.match(
+      scheduleSource,
+      /await maProfessorRepository\.updateGroup\(/
+    )
+    assert.match(
+      scheduleSource,
+      /<th className="px-3 py-3">Curso<\/th>/
     )
   }
 )
