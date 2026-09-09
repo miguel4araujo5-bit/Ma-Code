@@ -134,11 +134,11 @@ test(
 )
 
 test(
-  'legacy AP or TAP subjects are excluded from the UFCD step without mutating persisted data',
+  'legacy TAP course aliases are excluded from the UFCD step without mutating persisted data',
   () => {
     assert.match(
       modulesGuardSource,
-      /'ap'[\s\S]*'tap'/
+      /'ap'[\s\S]*'tap'[\s\S]*'apoio psicossocial'[\s\S]*'tecnico de apoio psicossocial'/
     )
     assert.match(
       modulesGuardSource,
