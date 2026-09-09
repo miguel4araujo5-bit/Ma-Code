@@ -35,6 +35,10 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
   }, [])
 
   function changeOpen(value: boolean) {
+    if (value) {
+      setError('')
+      setMessage('')
+    }
     setOpen(value)
     onActiveChange(value)
   }
@@ -222,6 +226,8 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
             operation.current++
             setDocument(null)
             setRows([])
+            setError('')
+            setMessage('')
             changeOpen(false)
           }}>Cancelar importação</button>
         </fieldset>
