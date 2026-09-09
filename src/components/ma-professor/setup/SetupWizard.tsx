@@ -15,7 +15,7 @@ import type {
 import AssessmentCriteriaPdfImportPanel from './AssessmentCriteriaPdfImportPanel'
 import AssessmentCriteriaSetupStep from './AssessmentCriteriaSetupStep'
 import GroupsSetupStep from './GroupsSetupStep'
-import ModulesSetupStep from './ModulesSetupStep'
+import ModulesSetupCourseSubjectGuard from './ModulesSetupCourseSubjectGuard'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
 import SchedulePdfImportStep from './SchedulePdfImportStep'
 import SetupConfirmationStep from './SetupConfirmationStep'
@@ -287,7 +287,12 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       case 'academic_year': return <AcademicYearSummary snapshot={snapshot} onContinue={() => navigateToStep(currentProgressStep)} />
       case 'groups': return <GroupsSetupStep {...commonProps} />
       case 'subjects': return <SubjectsSetupStep {...commonProps} />
-      case 'modules': return <ModulesSetupStep {...commonProps} />
+      case 'modules': return (
+        <ModulesSetupCourseSubjectGuard
+          {...commonProps}
+          onEditSubjects={() => navigateToStep('subjects')}
+        />
+      )
       case 'weekly_schedule': return <WeeklyScheduleSetupStep {...commonProps} />
       case 'assessment_criteria': return (
         <div className="space-y-6">
