@@ -12,6 +12,7 @@ import {
 import type {
   SetupStepId
 } from '../types'
+import AssessmentCriteriaPdfImportPanel from './AssessmentCriteriaPdfImportPanel'
 import AssessmentCriteriaSetupStep from './AssessmentCriteriaSetupStep'
 import GroupsSetupStep from './GroupsSetupStep'
 import ModulesSetupStep from './ModulesSetupStep'
@@ -288,7 +289,15 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       case 'subjects': return <SubjectsSetupStep {...commonProps} />
       case 'modules': return <ModulesSetupStep {...commonProps} />
       case 'weekly_schedule': return <WeeklyScheduleSetupStep {...commonProps} />
-      case 'assessment_criteria': return <AssessmentCriteriaSetupStep {...commonProps} />
+      case 'assessment_criteria': return (
+        <div className="space-y-6">
+          <AssessmentCriteriaPdfImportPanel
+            snapshot={snapshot}
+            onImported={onSnapshotChange}
+          />
+          <AssessmentCriteriaSetupStep {...commonProps} />
+        </div>
+      )
       case 'planifications': return <PlanificationsSetupStep {...commonProps} />
       case 'students': return <StudentsSetupStep {...commonProps} />
       case 'confirmation': return <SetupConfirmationStep {...commonProps} onEditStep={navigateToStep} />
