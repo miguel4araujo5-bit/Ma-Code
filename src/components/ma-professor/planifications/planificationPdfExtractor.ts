@@ -272,28 +272,56 @@ export async function extractPlanificationPdf(
     ) {
       const page =
         await pdf.getPage(pageNumber)
-      const textContent =
-        await page.getTextContent()
 
-      const items = textContent.items
-        .flatMap(item => {
-          if (
-            !('str' in item) ||
-            !Array.isArray(item.transform)
-          ) {
-            return []
+      // pdfjs-dist 6.1.200 implements getTextContent() with
+      // `for await...of` over a ReadableStream. Safari 26.x exposes
+      // getReader() but not ReadableStream[Symbol.asyncIterator], which
+      // throws "undefined is not a function". Consume the exact same
+      // stream through its reader API so extraction remains equivalent
+      // while working in Safari and the other supported browsers.
+      const reader =
+        page.streamTextContent()
+          .getReader()
+      const items:
+        PlanificationPdfTextItem[] = []
+
+      try {
+        while (true) {
+          const {
+            value,
+            done
+          } = await reader.read()
+
+          if (done) {
+            break
           }
 
-          return [{
-            str: String(item.str ?? ''),
-            transform:
-              item.transform.map(Number),
-            width:
-              Number(item.width ?? 0),
-            height:
-              Number(item.height ?? 0)
-          }]
-        })
+          if (!value) {
+            continue
+          }
+
+          for (const item of value.items) {
+            if (
+              !('str' in item) ||
+              !Array.isArray(item.transform)
+            ) {
+              continue
+            }
+
+            items.push({
+              str: String(item.str ?? ''),
+              transform:
+                item.transform.map(Number),
+              width:
+                Number(item.width ?? 0),
+              height:
+                Number(item.height ?? 0)
+            })
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
 
       const operators = await page.getOperatorList()
       const rules: PdfRuleBox[] = []
