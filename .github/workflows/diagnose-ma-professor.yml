@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   diagnose:
-    name: Capture exact MA-Professor failures
+    name: Capture Quick Grade and concurrency errors
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,28 +29,24 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run failing tests with JUnit report
-        id: failing_tests
+      - name: Capture Quick Grade log
         continue-on-error: true
-        run: >-
-          node --test
-          --test-reporter=junit
-          --test-reporter-destination=ma-professor-failures.xml
-          tests/ma-professor/daily-giae-auto.test.mjs
-          tests/ma-professor/daily-quick-grade.test.mjs
-          tests/ma-professor/giae-concurrency-safety.test.mjs
-          tests/ma-professor/giae-copy-does-not-submit.test.mjs
-          tests/ma-professor/schedule-pdf-duty-completeness.test.mjs
+        run: node --test tests/ma-professor/daily-quick-grade.test.mjs > daily-quick-grade.log 2>&1
 
-      - name: Upload exact failure report
+      - name: Capture GIAE concurrency log
+        continue-on-error: true
+        run: node --test tests/ma-professor/giae-concurrency-safety.test.mjs > giae-concurrency-safety.log 2>&1
+
+      - name: Upload diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ma-professor-failures
-          path: ma-professor-failures.xml
+          name: ma-professor-load-errors
+          path: |
+            daily-quick-grade.log
+            giae-concurrency-safety.log
           if-no-files-found: error
           retention-days: 1
 
-      - name: Preserve failing status
-        if: steps.failing_tests.outcome == 'failure'
+      - name: Preserve diagnostic failure
         run: exit 1
