@@ -91,6 +91,16 @@ function moduleLabel(
     : name
 }
 
+function courseLabel(
+  value: string
+) {
+  const course = value.trim()
+
+  return course
+    ? `Curso ${course}`
+    : 'Curso não indicado'
+}
+
 export async function loadPlanificationPdfImportDestinations(
   academicYearId: string
 ): Promise<PlanificationPdfImportDestination[]> {
@@ -189,7 +199,9 @@ export async function loadPlanificationPdfImportDestinations(
               name:
                 module.name,
               label:
-                `${group.name} · ${
+                `${group.name} · ${courseLabel(
+                  group.courseName
+                )} · ${
                   subject.shortName.trim() ||
                   subject.name
                 } · ${moduleLabel(
