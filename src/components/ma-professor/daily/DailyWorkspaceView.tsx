@@ -953,6 +953,12 @@ export default function DailyWorkspaceView({
         selectedLesson?.context
             .lessonRow ?? null;
 
+    const lessonIsFuture =
+        Boolean(
+            lessonRow &&
+            lessonRow.lesson.date > todayISO()
+        );
+
     const assessmentWorkspace =
         selectedLesson
             ?.assessmentWorkspace ?? null;
@@ -1836,10 +1842,60 @@ export default function DailyWorkspaceView({
             return true;
         }
 
-        return saveAll({
-            reload: false,
-            announce: false
-        });
+        const saved =
+            await saveAll({
+                reload: false,
+                announce: false
+            });
+
+        if (saved) {
+            return true;
+        }
+
+        if (
+            !selectedLesson ||
+            typeof window === 'undefined'
+        ) {
+            return false;
+        }
+
+        const leaveWithoutSaving =
+            window.confirm(
+                'Não foi possível guardar as alterações.\n\nOK — Sair sem guardar\nCancelar — Ficar e corrigir'
+            );
+
+        if (!leaveWithoutSaving) {
+            return false;
+        }
+
+        const lessonId =
+            selectedLesson
+                .context
+                .lessonRow
+                .lesson.id;
+
+        draftWriteEpochRef.current +=
+            1;
+        hadUnsavedChangesRef.current =
+            false;
+        setSavedSignature(
+            currentEditorSignature
+        );
+
+        try {
+            await deleteMAProfessorDailyDraft(
+                accountEmail,
+                academicYearId,
+                lessonId
+            );
+        } catch {
+            // A limpeza auxiliar do rascunho nunca pode voltar a prender a navegação.
+        }
+
+        setError('');
+        setSuccess('');
+
+        return true;
     }
 
     navigationGuardRef.current =
@@ -3039,6 +3095,12 @@ export default function DailyWorkspaceView({
                                     cancelada. Pode
                                     alterar o estado
                                     em “Mais opções”.
+                                </div>
+                            ) : null}
+
+                            {lessonIsFuture ? (
+                                <div className="mb-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-sm font-bold text-amber-100">
+                                    🚨 Esta aula está marcada para uma data futura. Pode registar a avaliação; confirme apenas que está a trabalhar na aula correta.
                                 </div>
                             ) : null}
 
