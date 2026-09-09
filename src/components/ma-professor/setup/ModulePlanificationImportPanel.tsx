@@ -122,11 +122,26 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     setRows(current => current.map((row, i) => i === index ? { ...row, reviewed: false, ...changes } : row))
   }
 
-  function changeCourse(value: string) {
-    setCourseName(value)
+  function invalidateReview() {
     setRows(current => current.map(row => ({ ...row, reviewed: false })))
     setError('')
     setMessage('')
+  }
+
+  function changeCourse(value: string) {
+    setCourseName(value)
+    invalidateReview()
+  }
+
+  function toggleAssignment(assignmentId: string, checked: boolean) {
+    setAssignmentIds(current =>
+      checked
+        ? current.includes(assignmentId)
+          ? current
+          : [...current, assignmentId]
+        : current.filter(id => id !== assignmentId)
+    )
+    invalidateReview()
   }
 
   async function updateReview() {
@@ -210,7 +225,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
             {document.warnings.map((warning, i) => <p key={i} className="text-sm text-amber-200">{warning}</p>)}
             <label className="block text-sm font-bold">Disciplina de destino
               <select className={field + ' mt-2'} value={subjectId}
-                onChange={event => { setSubjectId(event.target.value); setAssignmentIds([]); setRows(current => current.map(row => ({ ...row, reviewed: false }))) }}>
+                onChange={event => { setSubjectId(event.target.value); setAssignmentIds([]); invalidateReview() }}>
                 <option value="">Selecione a disciplina…</option>
                 {snapshot.subjects.filter(s => s.active).map(subject =>
                   <option key={subject.id} value={subject.id}>{subject.name}</option>)}
@@ -229,7 +244,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
                 const group = snapshot.groups.find(item => item.id === assignment.groupId)
                 return <label key={assignment.id} className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={assignmentIds.includes(assignment.id)} onChange={event =>
-                    setAssignmentIds(current => event.target.checked ? [...current, assignment.id] : current.filter(id => id !== assignment.id))} />
+                    toggleAssignment(assignment.id, event.target.checked)} />
                   {group?.name ?? assignment.displayName} · {group?.courseName || 'curso não indicado'}
                 </label>
               })}
