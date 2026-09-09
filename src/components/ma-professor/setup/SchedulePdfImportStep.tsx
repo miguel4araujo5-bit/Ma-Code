@@ -44,6 +44,7 @@ type Draft = {
   periodCount: number
   groupName: string
   subjectName: string
+  subjectConfirmed: boolean
 }
 
 type DutyDraft = {
@@ -63,6 +64,11 @@ type DayColumn = {
 type ParsedProposal = {
   lessons: Draft[]
   duties: DutyDraft[]
+}
+
+type ImportedSubjectResolution = {
+  subjectName: string
+  subjectConfirmed: boolean
 }
 
 const weekdays: Array<{
@@ -137,6 +143,48 @@ const inputClassName =
 const UNSAVED_SCHEDULE_IMPORT_MESSAGE =
   'Existe uma proposta de horário importada por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
 
+const knownSubjectAliases: Array<{
+  name: string
+  aliases: string[]
+}> = [
+  {
+    name: 'Área de Expressões',
+    aliases: ['AE']
+  },
+  {
+    name: 'Animação Sociocultural',
+    aliases: ['ASC']
+  },
+  {
+    name: 'Português',
+    aliases: ['PORT', 'POR']
+  },
+  {
+    name: 'Inglês',
+    aliases: ['ING']
+  },
+  {
+    name: 'Área de Integração',
+    aliases: ['AI']
+  },
+  {
+    name: 'Tecnologias da Informação e Comunicação',
+    aliases: ['TIC']
+  },
+  {
+    name: 'Educação Física',
+    aliases: ['EF']
+  },
+  {
+    name: 'Psicologia',
+    aliases: ['PSI']
+  },
+  {
+    name: 'Sociologia',
+    aliases: ['SOC']
+  }
+]
+
 function normalize(value: string) {
   return value
     .normalize('NFD')
@@ -150,6 +198,42 @@ function clean(value: string) {
   return value
     .trim()
     .replace(/\s+/g, ' ')
+}
+
+function resolveImportedSubject(
+  value: string
+): ImportedSubjectResolution {
+  const subjectName = clean(value)
+  const normalizedSubject = normalize(subjectName)
+
+  for (const knownSubject of knownSubjectAliases) {
+    if (
+      normalize(knownSubject.name) === normalizedSubject ||
+      knownSubject.aliases.some(
+        alias => normalize(alias) === normalizedSubject
+      )
+    ) {
+      return {
+        subjectName: knownSubject.name,
+        subjectConfirmed: true
+      }
+    }
+  }
+
+  const compact =
+    subjectName.replace(/[\s._/-]/g, '')
+
+  const ambiguousShortLabel =
+    compact.length > 0 &&
+    compact.length <= 5 &&
+    /^[A-Z0-9]+$/.test(compact)
+
+  return {
+    subjectName,
+    subjectConfirmed:
+      Boolean(subjectName) &&
+      !ambiguousShortLabel
+  }
 }
 
 function detectWeekday(
@@ -484,22 +568,27 @@ function parsePages(
       return false
     }
 
-    const subjectName =
+    const extractedSubjectName =
       stripLessonNoise(
         cleanedRaw,
         groupName
       )
 
-    if (!subjectName) {
+    if (!extractedSubjectName) {
       return false
     }
+
+    const subject =
+      resolveImportedSubject(
+        extractedSubjectName
+      )
 
     const key = [
       weekday,
       startTime,
       endTime,
       normalize(groupName),
-      normalize(subjectName)
+      normalize(subject.subjectName)
     ].join('|')
 
     if (seenLessons.has(key)) {
@@ -522,7 +611,10 @@ function parsePages(
           defaultMinutes
         ),
       groupName,
-      subjectName
+      subjectName:
+        subject.subjectName,
+      subjectConfirmed:
+        subject.subjectConfirmed
     })
 
     return true
@@ -1046,6 +1138,13 @@ export default function SchedulePdfImportStep({
     [duties]
   )
 
+  const unconfirmedSubjects = useMemo(
+    () => included.filter(
+      draft => !draft.subjectConfirmed
+    ),
+    [included]
+  )
+
   async function handleFileChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -1101,8 +1200,13 @@ export default function SchedulePdfImportStep({
       setDrafts(proposal.lessons)
       setDuties(proposal.duties)
 
+      const pendingSubjectCount =
+        proposal.lessons.filter(
+          lesson => !lesson.subjectConfirmed
+        ).length
+
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. Reveja antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação porque a sigla também pode identificar curso, turma ou outro código. ` : ''}Reveja antes de confirmar.`
       )
     } catch (readError) {
       setError(errorMessage(readError))
@@ -1166,7 +1270,8 @@ export default function SchedulePdfImportStep({
           endTime: '09:20',
           periodCount: 1,
           groupName: '',
-          subjectName: ''
+          subjectName: '',
+          subjectConfirmed: false
         }
       ]
     )
@@ -1205,6 +1310,13 @@ export default function SchedulePdfImportStep({
     ) {
       setError(
         'Mantenha pelo menos um bloco para importar.'
+      )
+      return
+    }
+
+    if (unconfirmedSubjects.length > 0) {
+      setError(
+        'Existem siglas ou nomes de disciplina por confirmar. Corrija a disciplina em cada linha assinalada ou escolha “Confirmar como disciplina”. O MA-Professor não vai criar disciplinas a partir de siglas ambíguas sem confirmação.'
       )
       return
     }
@@ -1537,7 +1649,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação.
+              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Siglas curtas ambíguas nunca são criadas automaticamente como disciplinas sem confirmação.
             </p>
           </div>
 
@@ -1586,7 +1698,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada.
+                Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Uma sigla como “AP” fica pendente até indicar qual é a disciplina ou confirmar explicitamente que a sigla é mesmo uma disciplina.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1634,7 +1746,7 @@ export default function SchedulePdfImportStep({
                       {drafts.map(draft => (
                         <tr
                           key={draft.id}
-                          className="border-t border-white/[0.07]"
+                          className="border-t border-white/[0.07] align-top"
                         >
                           <td className="px-3 py-3">
                             <input
@@ -1757,21 +1869,57 @@ export default function SchedulePdfImportStep({
                           </td>
 
                           <td className="px-3 py-3">
-                            <input
-                              value={draft.subjectName}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    subjectName:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Disciplina"
-                              className={inputClassName}
-                            />
+                            <div className="min-w-52">
+                              <input
+                                value={draft.subjectName}
+                                disabled={!draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      subjectName:
+                                        event.target.value,
+                                      subjectConfirmed:
+                                        Boolean(
+                                          event.target.value.trim()
+                                        )
+                                    }
+                                  )
+                                }
+                                placeholder="Disciplina"
+                                className={
+                                  draft.included &&
+                                  !draft.subjectConfirmed
+                                    ? `${inputClassName} border-amber-300/40 focus:border-amber-300/60 focus:ring-amber-300/10`
+                                    : inputClassName
+                                }
+                              />
+
+                              {draft.included &&
+                              !draft.subjectConfirmed ? (
+                                <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-2.5">
+                                  <p className="text-xs leading-5 text-amber-100">
+                                    “{draft.subjectName || '—'}” é uma sigla curta ambígua: pode ser curso, turma, código ou disciplina. Corrija o nome ou confirme-a explicitamente.
+                                  </p>
+
+                                  <button
+                                    type="button"
+                                    disabled={!draft.subjectName.trim()}
+                                    onClick={() =>
+                                      updateDraft(
+                                        draft.id,
+                                        {
+                                          subjectConfirmed: true
+                                        }
+                                      )
+                                    }
+                                    className="mt-2 rounded-lg border border-amber-300/25 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    Confirmar como disciplina
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1932,13 +2080,16 @@ export default function SchedulePdfImportStep({
                 onClick={applyImport}
                 disabled={
                   busy ||
-                  includedCount === 0
+                  includedCount === 0 ||
+                  unconfirmedSubjects.length > 0
                 }
                 className="rounded-xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-2.5 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy
                   ? 'A aplicar...'
-                  : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
+                  : unconfirmedSubjects.length > 0
+                    ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
+                    : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
               </button>
             </div>
           </>
