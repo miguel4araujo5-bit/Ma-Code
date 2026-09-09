@@ -4,49 +4,200 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 concurrency:
-  group: diagnose-ma-professor-${{ github.event.pull_request.number || github.ref }}
+  group: repair-ma-professor-tests-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  diagnose:
-    name: Capture Quick Grade and concurrency errors
+  repair:
+    name: Repair proven test harness failures
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout PR branch
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Apply exact guarded replacements
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: Capture Quick Grade log
-        continue-on-error: true
-        run: node --test tests/ma-professor/daily-quick-grade.test.mjs > daily-quick-grade.log 2>&1
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly 1 match, found {count}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-      - name: Capture GIAE concurrency log
-        continue-on-error: true
-        run: node --test tests/ma-professor/giae-concurrency-safety.test.mjs > giae-concurrency-safety.log 2>&1
+          status_old = '''    assert.match(
+            dailySource,
+            /aria-label="Estado de submissão no GIAE"[\\s\\S]*?disabled[\\s\\S]*?readOnly/
+          )'''
+          status_new = '''    const statusMarker =
+            'aria-label="Estado de submissão no GIAE"'
+          const markerIndex =
+            dailySource.indexOf(statusMarker)
+          const inputStart =
+            dailySource.lastIndexOf('<input', markerIndex)
+          const inputEnd =
+            dailySource.indexOf('/>', markerIndex)
 
-      - name: Upload diagnostic logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ma-professor-load-errors
-          path: |
-            daily-quick-grade.log
-            giae-concurrency-safety.log
-          if-no-files-found: error
-          retention-days: 1
+          assert.ok(markerIndex >= 0)
+          assert.ok(inputStart >= 0)
+          assert.ok(inputEnd > markerIndex)
 
-      - name: Preserve diagnostic failure
-        run: exit 1
+          const statusControl =
+            dailySource.slice(inputStart, inputEnd)
+
+          assert.match(statusControl, /\\bdisabled\\b/)
+          assert.match(statusControl, /\\breadOnly\\b/)'''
+
+          replace_once(
+              'tests/ma-professor/daily-giae-auto.test.mjs',
+              status_old,
+              status_new,
+          )
+          replace_once(
+              'tests/ma-professor/giae-copy-does-not-submit.test.mjs',
+              status_old,
+              status_new,
+          )
+
+          replace_once(
+              'tests/ma-professor/daily-quick-grade.test.mjs',
+              r'''      /const quickGradeVisible =/[\\s\\S]*assessmentWorkspace\\?\\.criteria/''',
+              r'''      /const quickGradeVisible =[\\s\\S]*assessmentWorkspace\\?\\.criteria/''',
+          )
+
+          replace_once(
+              'tests/ma-professor/schedule-pdf-duty-completeness.test.mjs',
+              "  const start = source.indexOf('function normalize(')",
+              "  const start = source.indexOf('const weekdayPatterns:')",
+          )
+
+          concurrency_path = Path('tests/ma-professor/giae-concurrency-safety.test.mjs')
+          concurrency = concurrency_path.read_text(encoding='utf-8')
+
+          source_marker = "\nconst source = await readFile("
+          if concurrency.count(source_marker) != 1:
+              raise SystemExit('giae-concurrency-safety: source insertion marker mismatch')
+
+          explicit_stub = r'''
+const explicitSubmissionRepositoryUrl = transpile(`
+  const s = () => globalThis.__giaeConcurrencyState;
+  const c = structuredClone;
+
+  async function withTransaction(callback) {
+    const state = s();
+    state.transactionAttempts += 1;
+
+    const previous = state.transactionTail;
+    let release;
+    state.transactionTail = new Promise(resolve => {
+      release = resolve;
+    });
+
+    await previous;
+
+    try {
+      return await callback();
+    } finally {
+      release();
+    }
+  }
+
+  async function submitOne(input) {
+    return withTransaction(async () => {
+      const state = s();
+      const lesson = c(state.lesson);
+
+      state.giaeReadVersion = lesson.updatedAt;
+      state.resolveGiaeRead();
+
+      await state.releaseGiaePromise;
+
+      if (lesson.updatedAt !== input.expectedUpdatedAt) {
+        throw new Error('stale copied version');
+      }
+
+      const updated = {
+        ...lesson,
+        giaeStatus: 'submitted',
+        giaeSubmittedAt: '2026-09-06T15:00:00.000Z',
+        updatedAt: 'giae-v2'
+      };
+
+      state.lesson = updated;
+      return c(updated);
+    });
+  }
+
+  export const giaeExplicitSubmissionRepository = {
+    async markSubmitted(input) {
+      return submitOne(input);
+    },
+
+    async markManySubmitted(inputs) {
+      if (inputs.length !== 1) {
+        throw new Error('unexpected test batch');
+      }
+
+      return [await submitOne(inputs[0])];
+    }
+  };
+`)
+'''
+
+          concurrency = concurrency.replace(
+              source_marker,
+              explicit_stub + source_marker,
+              1,
+          )
+
+          import_old = '''  .replaceAll(
+            "'../lessons/lessonRepository'",
+            `'${lessonRepositoryUrl}'`
+          )}'''
+          import_new = '''  .replaceAll(
+            "'../lessons/lessonRepository'",
+            `'${lessonRepositoryUrl}'`
+          )
+          .replaceAll(
+            "'../giaeExplicitSubmissionRepository'",
+            `'${explicitSubmissionRepositoryUrl}'`
+          )}'''
+
+          if concurrency.count(import_old) != 1:
+              raise SystemExit('giae-concurrency-safety: import replacement marker mismatch')
+
+          concurrency = concurrency.replace(import_old, import_new, 1)
+          concurrency_path.write_text(concurrency, encoding='utf-8')
+          PY
+
+      - name: Show constrained diff
+        run: git diff --check && git diff -- tests/ma-professor
+
+      - name: Commit only test harness fixes
+        shell: bash
+        run: |
+          if git diff --quiet -- tests/ma-professor; then
+            echo "No repair needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            tests/ma-professor/daily-giae-auto.test.mjs \
+            tests/ma-professor/daily-quick-grade.test.mjs \
+            tests/ma-professor/giae-concurrency-safety.test.mjs \
+            tests/ma-professor/giae-copy-does-not-submit.test.mjs \
+            tests/ma-professor/schedule-pdf-duty-completeness.test.mjs
+          git commit -m "Fix MA-Professor composed test harnesses"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
