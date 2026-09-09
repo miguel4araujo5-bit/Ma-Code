@@ -1,0 +1,106 @@
+name: Diagnose MA-Professor
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: diagnose-ma-professor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Isolate changed MA-Professor tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: access-renewal-safety
+        if: always()
+        run: node --test tests/ma-professor/access-renewal-safety.test.mjs
+
+      - name: access-session-contract
+        if: always()
+        run: node --test tests/ma-professor/access-session-contract.test.mjs
+
+      - name: access-session-revocation-contract
+        if: always()
+        run: node --test tests/ma-professor/access-session-revocation-contract.test.mjs
+
+      - name: assessment-atomic-persistence-contract
+        if: always()
+        run: node --test tests/ma-professor/assessment-atomic-persistence-contract.test.mjs
+
+      - name: assessment-criteria-batch-contract
+        if: always()
+        run: node --test tests/ma-professor/assessment-criteria-batch-contract.test.mjs
+
+      - name: assessment-criteria-module-evidence-guard
+        if: always()
+        run: node --test tests/ma-professor/assessment-criteria-module-evidence-guard.test.mjs
+
+      - name: backup-integrity
+        if: always()
+        run: node --test tests/ma-professor/backup-integrity.test.mjs
+
+      - name: daily-giae-auto
+        if: always()
+        run: node --test tests/ma-professor/daily-giae-auto.test.mjs
+
+      - name: daily-pedagogical-workflow
+        if: always()
+        run: node --test tests/ma-professor/daily-pedagogical-workflow.test.mjs
+
+      - name: daily-quick-grade-atomic-consumption
+        if: always()
+        run: node --test tests/ma-professor/daily-quick-grade-atomic-consumption.test.mjs
+
+      - name: daily-quick-grade
+        if: always()
+        run: node --test tests/ma-professor/daily-quick-grade.test.mjs
+
+      - name: giae-concurrency-safety
+        if: always()
+        run: node --test tests/ma-professor/giae-concurrency-safety.test.mjs
+
+      - name: giae-copy-does-not-submit
+        if: always()
+        run: node --test tests/ma-professor/giae-copy-does-not-submit.test.mjs
+
+      - name: giae-copy-version-guard
+        if: always()
+        run: node --test tests/ma-professor/giae-copy-version-guard.test.mjs
+
+      - name: giae-explicit-resubmission-contract
+        if: always()
+        run: node --test tests/ma-professor/giae-explicit-resubmission-contract.test.mjs
+
+      - name: schedule-pdf-column-geometry
+        if: always()
+        run: node --test tests/ma-professor/schedule-pdf-column-geometry.test.mjs
+
+      - name: schedule-pdf-duty-completeness
+        if: always()
+        run: node --test tests/ma-professor/schedule-pdf-duty-completeness.test.mjs
+
+      - name: setup-action-color-coding
+        if: always()
+        run: node --test tests/ma-professor/setup-action-color-coding.test.mjs
+
+      - name: setup-assessment-criteria-unsaved-work-safety
+        if: always()
+        run: node --test tests/ma-professor/setup-assessment-criteria-unsaved-work-safety.test.mjs
