@@ -202,10 +202,24 @@ test(
       /updateLessonForm\(\s*['"]giaeStatus['"]/
     )
 
-    assert.match(
-      dailySource,
-      /aria-label="Estado de submissão no GIAE"[\s\S]*?disabled[\s\S]*?readOnly/
-    )
+    const statusMarker =
+      'aria-label="Estado de submissão no GIAE"'
+    const markerIndex =
+      dailySource.indexOf(statusMarker)
+    const inputStart =
+      dailySource.lastIndexOf('<input', markerIndex)
+    const inputEnd =
+      dailySource.indexOf('/>', markerIndex)
+
+    assert.ok(markerIndex >= 0)
+    assert.ok(inputStart >= 0)
+    assert.ok(inputEnd > markerIndex)
+
+    const statusControl =
+      dailySource.slice(inputStart, inputEnd)
+
+    assert.match(statusControl, /\bdisabled\b/)
+    assert.match(statusControl, /\breadOnly\b/)
     assert.match(
       dailySource,
       /Submetido no\s+GIAE/
