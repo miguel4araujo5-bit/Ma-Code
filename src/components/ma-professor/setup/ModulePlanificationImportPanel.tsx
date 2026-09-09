@@ -54,6 +54,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
   const [document, setDocument] = useState<ModuleDocument | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [subjectId, setSubjectId] = useState('')
+  const [courseName, setCourseName] = useState('')
   const [assignmentIds, setAssignmentIds] = useState<string[]>([])
   const [fingerprint, setFingerprint] = useState('')
   const [minutes, setMinutes] = useState(50)
@@ -87,6 +88,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     setDocument(null)
     setRows([])
     setSubjectId('')
+    setCourseName('')
     setAssignmentIds([])
     try {
       const parsed = await readModuleDocument(file)
@@ -101,6 +103,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
           parsed.subjectLabel
         )
       )
+      setCourseName(parsed.courseLabel)
       setRows(parsed.sections.map((section, sectionIndex) => ({
         sectionIndex, selected: true, reviewed: false, code: section.code, name: section.name,
         plannedPeriods: parsed.periodMinutes === state.periodMinutes && section.plannedLessons
@@ -117,6 +120,28 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
 
   function edit(index: number, changes: Partial<Row>) {
     setRows(current => current.map((row, i) => i === index ? { ...row, reviewed: false, ...changes } : row))
+  }
+
+  function invalidateReview() {
+    setRows(current => current.map(row => ({ ...row, reviewed: false })))
+    setError('')
+    setMessage('')
+  }
+
+  function changeCourse(value: string) {
+    setCourseName(value)
+    invalidateReview()
+  }
+
+  function toggleAssignment(assignmentId: string, checked: boolean) {
+    setAssignmentIds(current =>
+      checked
+        ? current.includes(assignmentId)
+          ? current
+          : [...current, assignmentId]
+        : current.filter(id => id !== assignmentId)
+    )
+    invalidateReview()
   }
 
   async function updateReview() {
@@ -141,7 +166,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
       setError('Selecione as turmas e confirme a revisão de cada UFCD.')
       return
     }
-    if (!window.confirm('Criar as UFCD e planificações nos destinos selecionados? Os módulos já existentes serão preservados e ignorados.')) return
+    if (!window.confirm('Criar as UFCD e planificações nos destinos selecionados? O curso confirmado será aplicado às turmas selecionadas. Os módulos já existentes serão preservados e ignorados.')) return
     saving.current = true
     setBusy(true)
     setError('')
@@ -149,11 +174,12 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     try {
       const result = await commitModulePlanificationImport({
         confirmed: true, academicYearId: snapshot.academicYear.id, assignmentIds,
-        document, selections, expectedFingerprint: fingerprint
+        courseName, document, selections, expectedFingerprint: fingerprint
       })
       committed = true
       setDocument(null)
       setRows([])
+      setCourseName('')
       changeOpen(false)
       setMessage(`Importação concluída: ${result.created} UFCD com planificação criadas; ${result.skipped} existentes preservadas.`)
       await onImported()
@@ -168,7 +194,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
   return (
     <section className="rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white xl:col-span-2">
       <h2 className="text-xl font-black">Importar planificação</h2>
-      <p className="mt-2 text-sm text-slate-300">Crie as UFCD/módulos e as respetivas planificações a partir de um PDF ou Word.</p>
+      <p className="mt-2 text-sm text-slate-300">Crie as UFCD/módulos e as respetivas planificações a partir de um PDF ou Word, revendo separadamente disciplina, curso e turmas de destino.</p>
       {!open ? <button className={button + ' mt-4'} disabled={disabled || busy} onClick={() => changeOpen(true)}>
         Importar PDF ou Word
       </button> : <>
@@ -192,22 +218,36 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
           </div>
           {document && <>
             <p className="break-words font-bold">{document.name}</p>
-            <p className="text-sm text-slate-300">Disciplina indicada no documento: {document.subjectLabel || 'não identificada'}</p>
+            <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-sm text-slate-300 sm:grid-cols-2">
+              <p><span className="font-bold text-white">Disciplina indicada no documento:</span> {document.subjectLabel || 'não identificada'}</p>
+              <p><span className="font-bold text-white">Curso indicado no documento:</span> {document.courseLabel || 'não identificado'}</p>
+            </div>
             {document.warnings.map((warning, i) => <p key={i} className="text-sm text-amber-200">{warning}</p>)}
             <label className="block text-sm font-bold">Disciplina de destino
               <select className={field + ' mt-2'} value={subjectId}
-                onChange={event => { setSubjectId(event.target.value); setAssignmentIds([]) }}>
+                onChange={event => { setSubjectId(event.target.value); setAssignmentIds([]); invalidateReview() }}>
                 <option value="">Selecione a disciplina…</option>
                 {snapshot.subjects.filter(s => s.active).map(subject =>
                   <option key={subject.id} value={subject.id}>{subject.name}</option>)}
               </select>
             </label>
+            <label className="block text-sm font-bold">Curso de destino
+              <input className={field + ' mt-2'} value={courseName}
+                onChange={event => changeCourse(event.target.value)}
+                placeholder="Ex.: Técnico de Apoio Psicossocial" />
+              <span className="mt-1 block text-xs font-normal leading-5 text-slate-400">
+                Pode corrigir este valor antes de importar. O curso confirmado é guardado nas turmas selecionadas; deixe vazio quando não se aplicar um curso.
+              </span>
+            </label>
             <div className="flex flex-wrap gap-4">
-              {assignments.map(assignment => <label key={assignment.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={assignmentIds.includes(assignment.id)} onChange={event =>
-                  setAssignmentIds(current => event.target.checked ? [...current, assignment.id] : current.filter(id => id !== assignment.id))} />
-                {snapshot.groups.find(group => group.id === assignment.groupId)?.name ?? assignment.displayName}
-              </label>)}
+              {assignments.map(assignment => {
+                const group = snapshot.groups.find(item => item.id === assignment.groupId)
+                return <label key={assignment.id} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={assignmentIds.includes(assignment.id)} onChange={event =>
+                    toggleAssignment(assignment.id, event.target.checked)} />
+                  {group?.name ?? assignment.displayName} · {group?.courseName || 'curso não indicado'}
+                </label>
+              })}
             </div>
             <p className="text-sm text-slate-300">Os tempos a criar têm {minutes} minutos. Confirme os valores antes de guardar. UFCD já existentes no destino serão ignoradas, incluindo a respetiva planificação.</p>
             {rows.map((row, index) => {
@@ -231,8 +271,12 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
                 {assignmentIds.map(id => {
                   const existing = snapshot.modules.filter(module => module.teachingAssignmentId === id && module.code.trim() === row.code.trim())
                   const assignment = assignments.find(a => a.id === id)
+                  const group = snapshot.groups.find(g => g.id === assignment?.groupId)
+                  const currentCourse = group?.courseName?.trim() || 'não indicado'
+                  const confirmedCourse = courseName.trim()
+                  const courseChange = confirmedCourse && normalizeSubjectLabel(currentCourse) !== normalizeSubjectLabel(confirmedCourse)
                   return <p key={id} className="text-sm text-cyan-100">
-                    {snapshot.groups.find(g => g.id === assignment?.groupId)?.name}: {existing.length ? 'Já existe — preservar e ignorar' : 'Criar módulo e planificação'}
+                    {group?.name}: {courseChange ? `curso “${currentCourse}” → “${confirmedCourse}”; ` : ''}{existing.length ? 'Já existe — preservar e ignorar' : 'Criar módulo e planificação'}
                   </p>
                 })}
                 <details><summary className="cursor-pointer text-sm font-bold">Rever conteúdos e planificação</summary>
@@ -250,7 +294,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
                     </label>)}
                 </details>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={row.reviewed} disabled={!row.selected}
-                  onChange={event => edit(index, { reviewed: event.target.checked })} />Revi os dados e confirmo os tempos desta UFCD.</label>
+                  onChange={event => edit(index, { reviewed: event.target.checked })} />Revi os dados, o destino e os tempos desta UFCD.</label>
               </article>
             })}
             <div className="flex flex-wrap gap-3">
@@ -266,6 +310,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
             operation.current++
             setDocument(null)
             setRows([])
+            setCourseName('')
             setError('')
             setMessage('')
             changeOpen(false)

@@ -12,6 +12,7 @@ export interface ModuleImportSelection {
 }
 
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-PT')
+const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 const tables = () => [
   maProfessorDb.academicYears, maProfessorDb.groups, maProfessorDb.subjects,
   maProfessorDb.teachingAssignments, maProfessorDb.modules,
@@ -36,6 +37,7 @@ export async function commitModulePlanificationImport(input: {
   academicYearId: string
   assignmentIds: string[]
   expectedFingerprint: string
+  courseName?: string
   document: ModuleDocument
   selections: ModuleImportSelection[]
 }) {
@@ -59,6 +61,7 @@ export async function commitModulePlanificationImport(input: {
     codes.add(row.code)
     indices.add(row.sectionIndex)
   }
+  const confirmedCourseName = clean(request.courseName ?? '')
   await openMAProfessorDatabase()
   const result = await maProfessorDb.transaction('rw', tables(), async () => {
     if (await state() !== request.expectedFingerprint) {
@@ -67,6 +70,7 @@ export async function commitModulePlanificationImport(input: {
     if (!await maProfessorDb.academicYears.get(request.academicYearId)) throw new Error('O ano letivo já não existe.')
     let created = 0
     let skipped = 0
+    const updatedGroupIds = new Set<string>()
     for (const assignmentId of assignments) {
       const assignment = await maProfessorDb.teachingAssignments.get(assignmentId)
       const group = assignment ? await maProfessorDb.groups.get(assignment.groupId) : null
@@ -75,6 +79,17 @@ export async function commitModulePlanificationImport(input: {
           !group?.active || !subject?.active ||
           group.academicYearId !== request.academicYearId || subject.academicYearId !== request.academicYearId) {
         throw new Error('Uma turma ou disciplina de destino deixou de estar disponível.')
+      }
+      if (
+        confirmedCourseName &&
+        !updatedGroupIds.has(group.id) &&
+        normalize(group.courseName ?? '') !== normalize(confirmedCourseName)
+      ) {
+        await maProfessorDb.groups.update(group.id, {
+          courseName: confirmedCourseName,
+          updatedAt: new Date().toISOString()
+        })
+        updatedGroupIds.add(group.id)
       }
       const existing = await maProfessorDb.modules.where('teachingAssignmentId').equals(assignmentId).toArray()
       let order = Math.max(0, ...existing.map(module => module.order)) + 1
