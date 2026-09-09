@@ -54,8 +54,9 @@ const lessonUrl = transpile(`
 `)
 
 const temporalSafetyUrl = transpile(`
-  export function isFutureLessonDate(){return false}
-  export function resolveLessonStatusForDate(_date,status){return status}
+  const s=()=>globalThis.__dailyState;
+  export function isFutureLessonDate(){return Boolean(s()?.futureLesson)}
+  export function resolveLessonStatusForDate(_date,status){return isFutureLessonDate()&&status==='taught'?'planned':status}
 `)
 
 const calendarUrl = transpile(`
@@ -104,6 +105,7 @@ export function resetDailyState() {
     version: 1,
     transactions: 0,
     nextAssessment: 0,
+    futureLesson: false,
     lesson: {id:'lesson-1',academicYearId:'year-1',teachingAssignmentId:'assignment-1',date:'2026-09-07',origin:'extra',scheduleSlotId:null,status:'planned',startTime:'09:00',endTime:'10:00',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending',updatedAt:'v1'},
     scheduleSlots: [],
     students: [{id:'student-1',groupId:'group-1',number:1,name:'Ana'},{id:'student-2',groupId:'group-1',number:2,name:'Bruno'}],
@@ -122,8 +124,8 @@ export function studentDrafts({brunoAbsent=false,anaScore=null,assessment=false}
   ]
 }
 
-export function lessonDraft({summary='Exploração dos conteúdos da aula.',students=studentDrafts(),assessment=null}={}) {
-  return {lessonId:'lesson-1',status:'taught',startTime:'09:00',endTime:'10:00',periodCount:1,countTowardProgress:true,plannedActivity:'Atividade prevista.',summary,summarySource:'manual',planificationItemIds:[],notes:'Nota pedagógica.',giaeStatus:'pending',students,assessment:assessment||{mode:'none',assessmentId:null,criterionId:'criterion-1',title:'',activityType:'practical_work',description:''}}
+export function lessonDraft({summary='Exploração dos conteúdos da aula.',students=studentDrafts(),assessment=null,status='taught'}={}) {
+  return {lessonId:'lesson-1',status,startTime:'09:00',endTime:'10:00',periodCount:1,countTowardProgress:true,plannedActivity:'Atividade prevista.',summary,summarySource:'manual',planificationItemIds:[],notes:'Nota pedagógica.',giaeStatus:'pending',students,assessment:assessment||{mode:'none',assessmentId:null,criterionId:'criterion-1',title:'',activityType:'practical_work',description:''}}
 }
 
 export function loadLesson(repository) {

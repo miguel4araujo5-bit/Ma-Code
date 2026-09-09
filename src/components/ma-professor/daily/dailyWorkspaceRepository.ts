@@ -565,7 +565,7 @@ function buildAssessmentEntries(
   )
 }
 
-function hasFutureAttendanceOrAssessmentInput(
+function hasFutureAttendanceInput(
   input: DailyLessonSaveDraft
 ) {
   return input.students.some(
@@ -577,13 +577,6 @@ function hasFutureAttendanceOrAssessmentInput(
       ) ||
       Boolean(
         row.attendanceNote.trim()
-      ) ||
-      row.assessmentStatus !==
-        'not_evaluated' ||
-      row.assessmentScore !==
-        null ||
-      Boolean(
-        row.assessmentNote.trim()
       )
   )
 }
@@ -696,7 +689,7 @@ async function getCurrentRelatedRecordVersion(
       ? lessonAssessments.find(
           item =>
             item.id ===
-            assessmentId
+              assessmentId
         ) ?? null
       : null
 
@@ -1030,22 +1023,12 @@ export class DailyWorkspaceRepository {
 
     if (
       futurePreparation &&
-      input.assessment.mode !==
-        'none'
-    ) {
-      throw new Error(
-        'Uma aula futura ainda não pode receber avaliações. Guarde apenas o sumário, a atividade e a planificação.'
-      )
-    }
-
-    if (
-      futurePreparation &&
-      hasFutureAttendanceOrAssessmentInput(
+      hasFutureAttendanceInput(
         input
       )
     ) {
       throw new Error(
-        'Uma aula futura ainda não pode receber faltas ou classificações. Guarde apenas o sumário, a atividade e a planificação.'
+        'Uma aula futura ainda não pode receber faltas. Pode registar a avaliação, o sumário, a atividade e a planificação.'
       )
     }
 
@@ -1124,11 +1107,11 @@ export class DailyWorkspaceRepository {
         .mode !== 'none'
     ) {
       if (
-        effectiveStatus !==
-        'taught'
+        effectiveStatus ===
+        'cancelled'
       ) {
         throw new Error(
-          'A avaliação só pode ser guardada numa aula marcada como dada.'
+          'Não é possível guardar uma avaliação numa aula cancelada.'
         )
       }
 
@@ -1159,8 +1142,8 @@ export class DailyWorkspaceRepository {
     }
 
     if (
-      effectiveStatus !==
-      'taught'
+      effectiveStatus ===
+      'cancelled'
     ) {
       const [
         attendance,
@@ -1329,52 +1312,39 @@ export class DailyWorkspaceRepository {
         }
 
         if (
-          updated.status !==
+          updated.status ===
           'taught'
         ) {
-          if (
-            assessmentToDeleteId
-          ) {
-            await assessmentRepository.deleteLessonAssessment(
-              assessmentToDeleteId
+          const attendanceEntries:
+            AttendanceEntryDraft[] =
+            input.students.map(
+              row => ({
+                studentId:
+                  row.studentId,
+                status:
+                  row.attendanceStatus,
+                code:
+                  row.attendanceStatus ===
+                  'absent'
+                    ? row.attendanceCode ||
+                      'F'
+                    : '',
+                note:
+                  row.attendanceNote
+              })
             )
-          }
 
-          return buildDailySaveResult(
-            updated,
-            null
+          await attendanceRepository.saveLessonAttendance(
+            updated.id,
+            attendanceEntries,
+            {
+              fillMissingAsPresent:
+                true,
+              synchronizeRecoveries:
+                true
+            }
           )
         }
-
-        const attendanceEntries:
-          AttendanceEntryDraft[] =
-          input.students.map(
-            row => ({
-              studentId:
-                row.studentId,
-              status:
-                row.attendanceStatus,
-              code:
-                row.attendanceStatus ===
-                'absent'
-                  ? row.attendanceCode ||
-                    'F'
-                  : '',
-              note:
-                row.attendanceNote
-            })
-          )
-
-        await attendanceRepository.saveLessonAttendance(
-          updated.id,
-          attendanceEntries,
-          {
-            fillMissingAsPresent:
-              true,
-            synchronizeRecoveries:
-              true
-          }
-        )
 
         if (
           input.assessment
@@ -1391,6 +1361,15 @@ export class DailyWorkspaceRepository {
           return buildDailySaveResult(
             updated,
             null
+          )
+        }
+
+        if (
+          updated.status ===
+          'cancelled'
+        ) {
+          throw new Error(
+            'Não é possível guardar uma avaliação numa aula cancelada.'
           )
         }
 
