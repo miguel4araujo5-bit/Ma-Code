@@ -202,10 +202,12 @@ test('confirmed course corrects only the selected destination group', async () =
 })
 
 test('reimport preserves existing modules and plans, even after a file rename', async () => {
+  await seed()
+  assert.deepEqual(await commitModulePlanificationImport(await request()), { created: 4, skipped: 0 })
   const before = await maProfessorDb.planificationItems.toArray()
   const input = await request()
-  input.document.name = 'renamed.docx'
-  assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 2 })
+  input.document = { ...input.document, name: 'renamed.docx' }
+  assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 4 })
   assert.deepEqual(await maProfessorDb.planificationItems.toArray(), before)
 })
 test('a late destination failure rolls back earlier modules, plans, items and course correction', async () => {
@@ -245,7 +247,7 @@ test('concurrent confirmations cannot create duplicate records', async () => {
   assert.equal(await maProfessorDb.modules.count(), 4)
 })
 
-test('React interface selects a document, requires review and imports into the selected destination', async () => {
+test('React interface selects a document, requires review and imports the course extracted from the document', async () => {
   await seed()
   globalThis.document = window.document
   globalThis.HTMLElement = window.HTMLElement
@@ -269,22 +271,16 @@ test('React interface selects a document, requires review and imports into the s
     })))
     await click(findButton('Importar PDF ou Word'))
     const input = host.querySelector('input[type=file]')
-    Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(xml) })], 'fixture.docx')] })
+    Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(courseXml) })], 'area-expressoes.docx')] })
     await act(async () => {
       input.dispatchEvent(new window.Event('change', { bubbles: true }))
       for (let i = 0; i < 30 && !host.querySelector('select'); i++) await new Promise(resolve => setTimeout(resolve, 10))
     })
     assert.equal(host.querySelectorAll('article').length, 2)
-    assert.match(host.textContent, /Curso indicado no documento:/)
+    assert.match(host.textContent, /Curso indicado no documento:\s*Técnico de Apoio Psicossocial/)
     assert.ok(findButton('Confirmar importação').disabled)
     const select = host.querySelector('select')
     await act(async () => { select.value = 's1'; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
-    const courseLabel = [...host.querySelectorAll('label')].find(label => label.textContent.includes('Curso de destino'))
-    const courseInput = courseLabel.querySelector('input')
-    await act(async () => {
-      courseInput.value = 'Técnico de Apoio Psicossocial'
-      courseInput.dispatchEvent(new window.Event('input', { bubbles: true }))
-    })
     const destination = [...host.querySelectorAll('label')].find(label => label.textContent.trim() === 'A · curso não indicado')
     await click(destination.querySelector('input'))
     for (const article of host.querySelectorAll('article')) {
