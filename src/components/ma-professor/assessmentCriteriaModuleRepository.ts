@@ -490,13 +490,15 @@ export class AssessmentCriteriaModuleRepository {
 
     await maProfessorDb.transaction(
       'rw',
-      maProfessorDb.teachingAssignments,
-      maProfessorDb.modules,
-      maProfessorDb.lessonAssessments,
-      maProfessorDb.assessmentResults,
-      maProfessorDb.moduleFinalGrades,
-      maProfessorDb.assessmentSchemes,
-      maProfessorDb.assessmentCriteria,
+      [
+        maProfessorDb.teachingAssignments,
+        maProfessorDb.modules,
+        maProfessorDb.lessonAssessments,
+        maProfessorDb.assessmentResults,
+        maProfessorDb.moduleFinalGrades,
+        maProfessorDb.assessmentSchemes,
+        maProfessorDb.assessmentCriteria
+      ],
       async () => {
         const [
           currentAssignment,
