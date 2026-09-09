@@ -16,6 +16,10 @@ import type {
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
+import {
+  removeSubjectAssignmentsFromSetup,
+  removeSubjectFromSetup
+} from './subjectSetupCorrectionRepository'
 
 type SubjectsSetupStepProps = {
   snapshot: SetupSnapshot
@@ -207,10 +211,13 @@ export default function SubjectsSetupStep({
         new Set<EntityId>()
       : new Set<EntityId>()
 
-  const hasNewGroupAssignments =
+  const hasGroupAssignmentChanges =
     Boolean(editingSubject) &&
-    form.groupIds.some(
-      groupId => !persistedEditingGroupIds.has(groupId)
+    (
+      form.groupIds.length !== persistedEditingGroupIds.size ||
+      form.groupIds.some(
+        groupId => !persistedEditingGroupIds.has(groupId)
+      )
     )
 
   const hasDirtySubjectEdit =
@@ -219,7 +226,7 @@ export default function SubjectsSetupStep({
       form.name !== editingSubject.name ||
       form.shortName !== editingSubject.shortName ||
       form.code !== editingSubject.code ||
-      hasNewGroupAssignments
+      hasGroupAssignmentChanges
     )
 
   const hasUnsavedSubjectSetupChanges =
@@ -335,15 +342,6 @@ export default function SubjectsSetupStep({
   }
 
   function toggleGroup(groupId: EntityId) {
-    const existingAssignments = editingSubjectId
-      ? assignmentsBySubject.get(editingSubjectId) ??
-        new Set<EntityId>()
-      : new Set<EntityId>()
-
-    if (existingAssignments.has(groupId)) {
-      return
-    }
-
     setForm(current => ({
       ...current,
       groupIds: current.groupIds.includes(groupId)
@@ -415,6 +413,46 @@ export default function SubjectsSetupStep({
     }
   }
 
+  async function handleRemoveSubject() {
+    if (!editingSubjectId || busy) {
+      return
+    }
+
+    const subjectName =
+      editingSubject?.name ??
+      form.name
+
+    if (
+      !window.confirm(
+        `Eliminar a disciplina “${subjectName}” desta configuração?\n\nSerão removidas as associações às turmas e os blocos do horário semanal que pertencem apenas a essas associações. Se já existirem módulos, planificações, avaliações ou aulas, a operação será bloqueada e esses dados serão preservados.`
+      )
+    ) {
+      return
+    }
+
+    setBusy(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await removeSubjectFromSetup(
+        editingSubjectId
+      )
+
+      await refreshSnapshot()
+      resetForm()
+      setSuccess(
+        'Disciplina removida da configuração.'
+      )
+    } catch (removeError) {
+      setError(
+        getErrorMessage(removeError)
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -434,7 +472,7 @@ export default function SubjectsSetupStep({
 
     if (form.groupIds.length === 0) {
       setError(
-        'Selecione pelo menos uma turma para esta disciplina.'
+        'Selecione pelo menos uma turma para esta disciplina. Se pretende remover a disciplina por completo, utilize “Eliminar disciplina”.'
       )
 
       return
@@ -456,6 +494,11 @@ export default function SubjectsSetupStep({
             }
           )
 
+        await removeSubjectAssignmentsFromSetup(
+          updatedSubject.id,
+          form.groupIds
+        )
+
         await createMissingAssignments(
           updatedSubject.id,
           form.groupIds,
@@ -464,7 +507,7 @@ export default function SubjectsSetupStep({
         )
 
         setSuccess(
-          'Disciplina atualizada.'
+          'Disciplina e associações atualizadas.'
         )
       } else {
         const subject =
@@ -572,7 +615,7 @@ export default function SubjectsSetupStep({
         </h2>
 
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-          Crie cada disciplina apenas uma vez. Depois selecione todas as turmas onde a leciona.
+          Crie cada disciplina apenas uma vez. Depois selecione todas as turmas onde a leciona. Pode corrigir associações criadas pela importação do horário enquanto ainda não existirem dados pedagógicos dependentes.
         </p>
 
         {!editingSubjectId ? (
@@ -721,6 +764,12 @@ export default function SubjectsSetupStep({
                   Em que turmas leciona esta disciplina?
                 </legend>
 
+                {editingSubjectId ? (
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Pode retirar uma turma já guardada. O respetivo bloco do horário semanal importado também será retirado. Se já houver módulos, planificações, avaliações ou aulas, o MA-Professor bloqueia a remoção para proteger os dados.
+                  </p>
+                ) : null}
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   {activeGroups.map(group => {
                     const existingAssignment =
@@ -745,14 +794,10 @@ export default function SubjectsSetupStep({
                           selected
                             ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-50'
                             : 'border-white/10 bg-slate-900/70 text-slate-400 hover:border-cyan-300/25'
-                        } ${
-                          existingAssignment
-                            ? 'cursor-default'
-                            : ''
                         }`}
                         title={
                           existingAssignment
-                            ? 'Associação já guardada'
+                            ? 'Clique para retirar esta associação da configuração'
                             : undefined
                         }
                       >
@@ -774,11 +819,11 @@ export default function SubjectsSetupStep({
               </div>
             ) : null}
 
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="submit"
                 disabled={busy}
-                className="flex-1 rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50"
+                className="min-w-48 flex-1 rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50"
               >
                 {busy
                   ? 'A guardar...'
@@ -788,14 +833,27 @@ export default function SubjectsSetupStep({
               </button>
 
               {editingSubjectId ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={requestResetForm}
-                  className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300"
-                >
-                  Cancelar
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void handleRemoveSubject()
+                    }
+                    className="rounded-xl border border-rose-300/25 bg-rose-300/[0.06] px-4 py-3 text-sm font-bold text-rose-200 transition hover:bg-rose-300/[0.12] disabled:opacity-50"
+                  >
+                    Eliminar disciplina
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={requestResetForm}
+                    className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300"
+                  >
+                    Cancelar
+                  </button>
+                </>
               ) : null}
             </div>
           </form>
