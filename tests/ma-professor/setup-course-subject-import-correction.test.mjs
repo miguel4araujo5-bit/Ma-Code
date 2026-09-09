@@ -29,6 +29,24 @@ const correctionSource =
     'utf8'
   )
 
+const modulesGuardSource =
+  await readFile(
+    new URL(
+      '../../src/components/ma-professor/setup/ModulesSetupCourseSubjectGuard.tsx',
+      import.meta.url
+    ),
+    'utf8'
+  )
+
+const setupWizardSource =
+  await readFile(
+    new URL(
+      '../../src/components/ma-professor/setup/SetupWizard.tsx',
+      import.meta.url
+    ),
+    'utf8'
+  )
+
 test(
   'schedule import never silently persists ambiguous short labels as subjects',
   () => {
@@ -111,6 +129,54 @@ test(
     assert.match(
       correctionSource,
       /não os apaga automaticamente/
+    )
+  }
+)
+
+test(
+  'legacy AP or TAP subjects are excluded from the UFCD step without mutating persisted data',
+  () => {
+    assert.match(
+      modulesGuardSource,
+      /'ap'[\s\S]*'tap'/
+    )
+    assert.match(
+      modulesGuardSource,
+      /subjects:[\s\S]*!legacySubjectIds\.has/
+    )
+    assert.match(
+      modulesGuardSource,
+      /teachingAssignments:[\s\S]*!legacySubjectIds\.has/
+    )
+    assert.match(
+      modulesGuardSource,
+      /modules:[\s\S]*!legacyAssignmentIds\.has/
+    )
+    assert.match(
+      modulesGuardSource,
+      /Nenhum dado foi apagado, convertido ou reassociado automaticamente/
+    )
+    assert.doesNotMatch(
+      modulesGuardSource,
+      /maProfessorDb|createSubject|updateSubject|removeSubjectFromSetup/
+    )
+  }
+)
+
+test(
+  'the UFCD step uses the legacy course-subject guard and offers explicit correction in Subjects',
+  () => {
+    assert.match(
+      setupWizardSource,
+      /ModulesSetupCourseSubjectGuard/
+    )
+    assert.match(
+      setupWizardSource,
+      /case 'modules':[\s\S]*ModulesSetupCourseSubjectGuard[\s\S]*navigateToStep\('subjects'\)/
+    )
+    assert.doesNotMatch(
+      setupWizardSource,
+      /case 'modules':\s*return <ModulesSetupStep/
     )
   }
 )
