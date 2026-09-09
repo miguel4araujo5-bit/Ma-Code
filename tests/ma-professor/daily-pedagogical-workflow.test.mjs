@@ -215,6 +215,207 @@ test(
 )
 
 test(
+  'future planned lesson can persist assessment results without attendance or GIAE side effects',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    state.futureLesson = true
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    const saved =
+      await repository.saveLesson(
+        lessonDraft({
+          summary: '',
+          status: 'taught',
+          students:
+            studentDrafts({
+              anaScore: 17,
+              assessment: true
+            }),
+          assessment: {
+            mode: 'new',
+            assessmentId: null,
+            criterionId:
+              'criterion-1',
+            title:
+              'Avaliação preparada antecipadamente',
+            activityType:
+              'practical_work',
+            description:
+              'Registo de avaliação sem antecipar a aula.'
+          }
+        })
+      )
+
+    assert.equal(
+      state.lesson.status,
+      'planned'
+    )
+    assert.equal(
+      state.lesson.giaeStatus,
+      'pending'
+    )
+    assert.deepEqual(
+      state.attendance,
+      {}
+    )
+    assert.ok(saved.assessmentId)
+    assert.equal(
+      state.assessments.length,
+      1
+    )
+    assert.equal(
+      state.results[saved.assessmentId]['student-1'].score,
+      17
+    )
+  }
+)
+
+test(
+  'planned lesson on a non-future date can persist assessment before summary is recorded',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    const saved =
+      await repository.saveLesson(
+        lessonDraft({
+          summary: '',
+          status: 'planned',
+          students:
+            studentDrafts({
+              anaScore: 16,
+              assessment: true
+            }),
+          assessment: {
+            mode: 'new',
+            assessmentId: null,
+            criterionId:
+              'criterion-1',
+            title:
+              'Avaliação antes do sumário',
+            activityType:
+              'practical_work',
+            description: ''
+          }
+        })
+      )
+
+    assert.equal(
+      state.lesson.status,
+      'planned'
+    )
+    assert.deepEqual(
+      state.attendance,
+      {}
+    )
+    assert.ok(saved.assessmentId)
+    assert.equal(
+      state.results[saved.assessmentId]['student-1'].score,
+      16
+    )
+  }
+)
+
+test(
+  'future attendance remains blocked while future assessment is allowed',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    state.futureLesson = true
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    await assert.rejects(
+      () =>
+        repository.saveLesson(
+          lessonDraft({
+            summary: '',
+            status: 'planned',
+            students:
+              studentDrafts({
+                brunoAbsent: true
+              })
+          })
+        ),
+      /aula futura ainda não pode receber faltas/i
+    )
+
+    assert.deepEqual(
+      state.attendance,
+      {}
+    )
+    assert.equal(
+      state.lesson.status,
+      'planned'
+    )
+  }
+)
+
+test(
+  'cancelled lesson remains protected from assessment persistence',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    await assert.rejects(
+      () =>
+        repository.saveLesson(
+          lessonDraft({
+            summary: '',
+            status: 'cancelled',
+            students:
+              studentDrafts({
+                anaScore: 15,
+                assessment: true
+              }),
+            assessment: {
+              mode: 'new',
+              assessmentId: null,
+              criterionId:
+                'criterion-1',
+              title:
+                'Não deve guardar',
+              activityType:
+                'practical_work',
+              description: ''
+            }
+          })
+        ),
+      /aula cancelada/i
+    )
+
+    assert.equal(
+      state.assessments.length,
+      0
+    )
+    assert.deepEqual(
+      state.results,
+      {}
+    )
+  }
+)
+
+test(
   'a stale second repository cannot overwrite a newer lesson',
   { concurrency: false },
   async () => {
@@ -509,7 +710,7 @@ test(
 )
 
 test(
-  'internal date and lesson navigation saves dirty data before loading the target',
+  'internal date and lesson navigation saves dirty data before loading the target and offers explicit discard if save fails',
   () => {
     const saveGuard =
       getSection(
@@ -520,7 +721,19 @@ test(
 
     assert.match(
       saveGuard,
-      /return saveAll\(\{[\s\S]*reload:\s*false,[\s\S]*announce:\s*false/
+      /const saved =[\s\S]*await saveAll\(\{[\s\S]*reload:\s*false,[\s\S]*announce:\s*false/
+    )
+    assert.match(
+      saveGuard,
+      /Sair sem guardar/i
+    )
+    assert.match(
+      saveGuard,
+      /Ficar e corrigir/i
+    )
+    assert.match(
+      saveGuard,
+      /deleteMAProfessorDailyDraft\(/s
     )
 
     const changeDate =
@@ -543,11 +756,29 @@ test(
     assert.ok(loadPosition >= 0)
     assert.ok(
       savePosition < loadPosition,
-      'A navegação tem de guardar antes de carregar o destino.'
+      'A navegação tem de tentar guardar antes de carregar o destino.'
     )
     assert.match(
       changeDate,
       /!\(await saveBeforeNavigation\(\)\)/
+    )
+  }
+)
+
+test(
+  'future lesson warning is visible without disabling assessment inputs',
+  () => {
+    assert.match(
+      dailyViewSource,
+      /Esta aula está marcada para uma data futura\. Pode registar a avaliação; confirme apenas que está a trabalhar na aula correta\./
+    )
+    assert.match(
+      dailyViewSource,
+      /lessonRow\.lesson\.date > todayISO\(\)/
+    )
+    assert.doesNotMatch(
+      dailyViewSource,
+      /lessonRow\.lesson\.date > todayISO\(\)[\s\S]{0,500}disabled=/
     )
   }
 )

@@ -219,7 +219,7 @@ test(
 )
 
 test(
-  'Daily future preparation rejects GIAE attendance and assessment input before persistence',
+  'Daily future preparation keeps GIAE and attendance blocked but no longer blocks assessment',
   () => {
     const saveStart =
       dailyRepositorySource.indexOf(
@@ -250,11 +250,11 @@ test(
     )
     assert.match(
       saveBody,
-      /futurePreparation &&[\s\S]*input\.assessment\.mode !==[\s\S]*'none'[\s\S]*aula futura ainda não pode receber avaliações/i
+      /futurePreparation &&[\s\S]*hasFutureAttendanceInput\([\s\S]*aula futura ainda não pode receber faltas/i
     )
-    assert.match(
+    assert.doesNotMatch(
       saveBody,
-      /futurePreparation &&[\s\S]*hasFutureAttendanceOrAssessmentInput\([\s\S]*aula futura ainda não pode receber faltas ou classificações/i
+      /futurePreparation &&[\s\S]{0,160}input\.assessment\.mode !==[\s\S]{0,160}'none'/s
     )
     assert.match(
       saveBody,
@@ -264,40 +264,50 @@ test(
 )
 
 test(
-  'Daily only persists attendance and assessments after the normalized lesson is actually taught',
+  'Daily persists attendance only for taught lessons while assessment can continue for planned lessons',
   () => {
-    const updatedStatusGuard =
+    const taughtAttendanceGuard =
       dailyRepositorySource.indexOf(
-        "updated.status !==\n          'taught'"
+        "updated.status ===\n          'taught'"
       )
     const attendanceSave =
       dailyRepositorySource.indexOf(
         'attendanceRepository.saveLessonAttendance(',
-        updatedStatusGuard
+        taughtAttendanceGuard
+      )
+    const assessmentMode =
+      dailyRepositorySource.indexOf(
+        "input.assessment\n            .mode === 'none'",
+        attendanceSave
       )
     const assessmentCreate =
       dailyRepositorySource.indexOf(
         'assessmentRepository.createLessonAssessment(',
-        attendanceSave
+        assessmentMode
       )
 
     assert.ok(
-      updatedStatusGuard >= 0,
-      'Deve existir saída antecipada quando a aula normalizada não está dada.'
+      taughtAttendanceGuard >= 0,
+      'A assiduidade deve continuar condicionada a aula dada.'
     )
     assert.ok(
-      attendanceSave > updatedStatusGuard,
-      'A assiduidade só deve ser guardada depois da verificação do estado efetivo.'
+      attendanceSave > taughtAttendanceGuard,
+      'A assiduidade só deve ser guardada dentro da verificação de aula dada.'
     )
     assert.ok(
-      assessmentCreate > attendanceSave,
-      'A avaliação deve ficar atrás da mesma barreira de estado efetivo.'
+      assessmentMode > attendanceSave &&
+      assessmentCreate > assessmentMode,
+      'A avaliação deve continuar depois do bloco de assiduidade, também para aulas planeadas.'
+    )
+    assert.match(
+      dailyRepositorySource,
+      /effectiveStatus ===[\s\S]*'cancelled'[\s\S]*Não é possível guardar uma avaliação numa aula cancelada/i
     )
   }
 )
 
 test(
-  'attendance and assessment repositories already require a taught lesson',
+  'attendance still requires taught while assessment repositories allow planned and protect cancelled lessons',
   () => {
     assert.match(
       attendanceRepositorySource,
@@ -306,7 +316,19 @@ test(
 
     assert.match(
       assessmentRepositorySource,
-      /async createLessonAssessment\([\s\S]*context\.lesson\.status !==[\s\S]*'taught'[\s\S]*avaliação só pode ser registada depois de a aula ser marcada como dada/i
+      /async createLessonAssessment\([\s\S]*context\.lesson\.status ===[\s\S]*'cancelled'[\s\S]*Não é possível registar uma avaliação numa aula cancelada/i
+    )
+    assert.match(
+      assessmentRepositorySource,
+      /async updateLessonAssessment\([\s\S]*lesson\.status ===[\s\S]*'cancelled'[\s\S]*Não é possível alterar uma avaliação de uma aula cancelada/i
+    )
+    assert.match(
+      assessmentRepositorySource,
+      /async saveAssessmentResults\([\s\S]*lesson\.status ===[\s\S]*'cancelled'[\s\S]*Não é possível guardar classificações numa aula cancelada/i
+    )
+    assert.doesNotMatch(
+      assessmentRepositorySource,
+      /lesson\.status !==[\s\S]{0,80}'taught'[\s\S]{0,160}avaliação só pode/i
     )
   }
 )
