@@ -92,9 +92,10 @@ function moduleLabel(
 }
 
 function courseLabel(
-  value: string
+  value: string | null | undefined
 ) {
-  const course = value.trim()
+  const course =
+    (value ?? '').trim()
 
   return course
     ? `Curso ${course}`
