@@ -1011,11 +1011,11 @@ export class AssessmentRepository {
       )
 
     if (
-      context.lesson.status !==
-      'taught'
+      context.lesson.status ===
+      'cancelled'
     ) {
       throw new Error(
-        'A avaliação só pode ser registada depois de a aula ser marcada como dada.'
+        'Não é possível registar uma avaliação numa aula cancelada.'
       )
     }
 
@@ -1118,11 +1118,11 @@ export class AssessmentRepository {
       )
 
     if (
-      lesson.status !==
-      'taught'
+      lesson.status ===
+      'cancelled'
     ) {
       throw new Error(
-        'A avaliação só pode ser alterada enquanto a aula estiver marcada como dada.'
+        'Não é possível alterar uma avaliação de uma aula cancelada.'
       )
     }
 
@@ -1432,11 +1432,11 @@ export class AssessmentRepository {
       )
 
     if (
-      lesson.status !==
-      'taught'
+      lesson.status ===
+      'cancelled'
     ) {
       throw new Error(
-        'As classificações só podem ser guardadas numa aula marcada como dada.'
+        'Não é possível guardar classificações numa aula cancelada.'
       )
     }
 
