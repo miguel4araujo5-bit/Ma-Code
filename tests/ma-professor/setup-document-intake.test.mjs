@@ -49,7 +49,7 @@ test(
 )
 
 test(
-  'document intake cross-checks repeated subject and course context instead of trusting one file blindly',
+  'document intake cross-checks repeated context without treating different disciplines as a conflict',
   () => {
     assert.match(
       intakeSource,
@@ -64,6 +64,10 @@ test(
       /confirmada por \$\{confirmations\} documentos/
     )
     assert.match(
+      intakeSource,
+      /vários valores encontrados/
+    )
+    assert.doesNotMatch(
       intakeSource,
       /foram encontrados valores diferentes/
     )
