@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 
 import './index.css'
+import './components/ma-professor/setup/scheduleImportReview.css'
 
 const App = lazy(() => import('./pages/App'))
 
