@@ -28,6 +28,12 @@ import type {
 import {
   getDutyDatesForSchool
 } from './schoolDutyDatePolicy'
+import {
+  extractScheduleGridAnalysisFromPdf
+} from './schedulePdfGeometryExtractor'
+import {
+  interpretScheduleGridDocument
+} from './scheduleGridSemanticInterpretation'
 import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
@@ -1268,30 +1274,95 @@ export default function SchedulePdfImportStep({
     setFileName(file.name)
 
     try {
-      const extracted =
-        await extractTextFromPdf(
-          {
-            id: `ma-professor-schedule-${Date.now()}`,
-            file
-          },
-          setProgress
-        )
-
       const settings =
         await maProfessorRepository.getSettings()
+      let proposal: ParsedProposal | null = null
+      let geometryCapturedBlocks = false
+      let unknownBlockCount = 0
+      let usedDocumentLegend = false
 
-      const proposal =
-        parsePages(
-          extracted.pages,
-          settings.defaultPeriodMinutes
-        )
+      try {
+        const analysis =
+          await extractScheduleGridAnalysisFromPdf(
+            file,
+            setProgress
+          )
+
+        geometryCapturedBlocks =
+          analysis.grid.blocks.length > 0
+
+        if (geometryCapturedBlocks) {
+          const interpreted =
+            interpretScheduleGridDocument(
+              analysis.grid,
+              analysis.sourcePages,
+              settings.defaultPeriodMinutes
+            )
+
+          proposal = {
+            lessons: interpreted.lessons.map(
+              lesson => ({
+                id: `geometry-${lesson.sourceBlockId}`,
+                included: lesson.included,
+                weekday: lesson.weekday as Weekday,
+                startTime: lesson.startTime,
+                endTime: lesson.endTime,
+                periodCount: lesson.periodCount,
+                groupName: lesson.groupName,
+                courseName: lesson.courseName,
+                subjectName: lesson.subjectName,
+                subjectConfirmed: lesson.subjectConfirmed
+              })
+            ),
+            duties: interpreted.duties.map(
+              duty => ({
+                id: `geometry-${duty.sourceBlockId}`,
+                included: duty.included,
+                weekday: duty.weekday as Weekday,
+                startTime: duty.startTime,
+                endTime: duty.endTime,
+                name: duty.name
+              })
+            )
+          }
+          unknownBlockCount =
+            interpreted.unknownBlocks.length
+          usedDocumentLegend =
+            interpreted.legend.length > 0
+        }
+      } catch {
+        // A captura geométrica é específica do horário. Se não conseguir
+        // reconstruir este formato, preservamos o parser anterior como fallback.
+      }
+
+      if (!proposal && !geometryCapturedBlocks) {
+        const extracted =
+          await extractTextFromPdf(
+            {
+              id: `ma-professor-schedule-${Date.now()}`,
+              file
+            },
+            setProgress
+          )
+
+        proposal =
+          parsePages(
+            extracted.pages,
+            settings.defaultPeriodMinutes
+          )
+      }
 
       if (
-        proposal.lessons.length === 0 &&
-        proposal.duties.length === 0
+        !proposal ||
+        (
+          proposal.lessons.length === 0 &&
+          proposal.duties.length === 0
+        )
       ) {
         throw new Error(
-          'Foi possível ler o PDF, mas não reconhecer automaticamente blocos do horário com segurança. Pode continuar com a configuração manual sem perder nada.'
+          geometryCapturedBlocks
+            ? 'A grelha do horário foi capturada, mas os blocos ficaram por identificar. O MA-Professor não os classificou à força como aulas ou cargos. Pode continuar com a configuração manual sem perder nada.'
+            : 'Foi possível ler o PDF, mas não reconhecer automaticamente blocos do horário com segurança. Pode continuar com a configuração manual sem perder nada.'
         )
       }
 
@@ -1302,9 +1373,17 @@ export default function SchedulePdfImportStep({
         proposal.lessons.filter(
           lesson => !lesson.subjectConfirmed
         ).length
+      const unknownMessage =
+        unknownBlockCount > 0
+          ? ` ${unknownBlockCount} bloco${unknownBlockCount === 1 ? '' : 's'} foi${unknownBlockCount === 1 ? '' : 'ram'} capturado${unknownBlockCount === 1 ? '' : 's'}, mas ficou${unknownBlockCount === 1 ? '' : 'aram'} por identificar e não foi${unknownBlockCount === 1 ? '' : 'ram'} classificado${unknownBlockCount === 1 ? '' : 's'} automaticamente.`
+          : ''
+      const legendMessage =
+        usedDocumentLegend
+          ? ' A legenda do próprio PDF foi usada para resolver as siglas.'
+          : ''
 
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação.` : ''}${legendMessage}${unknownMessage}`
       )
     } catch (readError) {
       setError(errorMessage(readError))

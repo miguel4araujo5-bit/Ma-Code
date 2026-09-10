@@ -136,7 +136,7 @@ function slotKey(value) {
 }
 
 test(
-  'shadow geometry contains every slot already recognised by the legacy parser and keeps additional uncertain cells instead of dropping them',
+  'geometry contains every slot already recognised by the legacy parser and keeps additional uncertain cells instead of dropping them',
   () => {
     const legacy = parseLegacyPages(
       [
@@ -217,20 +217,23 @@ test(
 )
 
 test(
-  'shadow capture never changes the legacy import parser or persistence contract',
+  'geometry is now the primary import path while the legacy parser remains a compatibility fallback',
   () => {
-    assert.doesNotMatch(
-      scheduleSource,
-      /schedulePdfGeometryExtractor/
-    )
-    assert.doesNotMatch(
-      scheduleSource,
-      /reconstructScheduleGridDocument/
-    )
-
     assert.match(
       scheduleSource,
-      /const proposal =\s*parsePages\(/
+      /extractScheduleGridAnalysisFromPdf/
+    )
+    assert.match(
+      scheduleSource,
+      /interpretScheduleGridDocument/
+    )
+    assert.match(
+      scheduleSource,
+      /if \(!proposal && !geometryCapturedBlocks\) \{[\s\S]*parsePages\(/
+    )
+    assert.match(
+      scheduleSource,
+      /geometryCapturedBlocks\s*=\s*analysis\.grid\.blocks\.length > 0/
     )
   }
 )
