@@ -101,6 +101,23 @@ test(
 )
 
 test(
+  'multi-document intake stays mounted while the timetable specialist is being reviewed',
+  () => {
+    const intakePosition =
+      wizardSource.indexOf('<SetupDocumentIntakePanel')
+    const schedulePosition =
+      wizardSource.indexOf('{showScheduleImport ? (')
+
+    assert.ok(intakePosition >= 0)
+    assert.ok(schedulePosition > intakePosition)
+    assert.doesNotMatch(
+      wizardSource,
+      /if \(showScheduleImport\) \{\s*return <SchedulePdfImportStep/
+    )
+  }
+)
+
+test(
   'classification remains separate from persistence and routes to existing specialist review screens',
   () => {
     assert.match(
