@@ -5,6 +5,9 @@ import {
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import {
+  preserveScheduleGridCells
+} from './scheduleGridCellPreservation'
+import {
   reconstructScheduleGridDocument,
   type ScheduleGeometryPageInput,
   type ScheduleGeometryTextItem,
@@ -211,10 +214,18 @@ export async function extractScheduleGridAnalysisFromPdf(
       )
     }
 
-    return {
-      grid: reconstructScheduleGridDocument(
+    const reconstructed =
+      reconstructScheduleGridDocument(
         pages
-      ),
+      )
+    const grid =
+      preserveScheduleGridCells(
+        reconstructed,
+        pages
+      )
+
+    return {
+      grid,
       sourcePages: pages.map(page => ({
         pageNumber: page.pageNumber,
         items: page.items.map(item => ({ ...item }))
