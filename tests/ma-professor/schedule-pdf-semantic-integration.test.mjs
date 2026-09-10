@@ -10,6 +10,14 @@ const source = await readFile(
   'utf8'
 )
 
+const semanticSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/scheduleGridSemanticInterpretation.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const sharedExtractor = await readFile(
   new URL(
     '../../src/lib/maPdf/extractPdfText.ts',
@@ -19,43 +27,43 @@ const sharedExtractor = await readFile(
 )
 
 test(
-  'schedule import prefers neutral geometry and semantic interpretation before the legacy parser',
+  'schedule import keeps the proven legacy parser as the production path while geometry returns to shadow mode',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       source,
-      /extractScheduleGridAnalysisFromPdf\(\s*file,\s*setProgress\s*\)/s
+      /extractScheduleGridAnalysisFromPdf|interpretScheduleGridDocument/
     )
     assert.match(
       source,
-      /interpretScheduleGridDocument\(\s*analysis\.grid,\s*analysis\.sourcePages,\s*settings\.defaultPeriodMinutes\s*\)/s
+      /extractTextFromPdf\(\s*\{[\s\S]*file[\s\S]*\},\s*setProgress\s*\)/
     )
     assert.match(
       source,
-      /if \(!proposal && !geometryCapturedBlocks\) \{[\s\S]*extractTextFromPdf/
+      /const proposal\s*=\s*parsePages\(\s*extracted\.pages,\s*settings\.defaultPeriodMinutes\s*\)/s
     )
   }
 )
 
 test(
-  'captured but unresolved geometry blocks are reported instead of being forced through the legacy duty heuristic',
+  'the experimental semantic layer still preserves unknown as a first-class result without driving production import',
   () => {
     assert.match(
-      source,
-      /unknownBlockCount\s*=\s*interpreted\.unknownBlocks\.length/
+      semanticSource,
+      /unknownBlocks:\s*ScheduleSemanticUnknown\[\]/
     )
     assert.match(
-      source,
-      /ficou\$\{unknownBlockCount === 1 \? '' : 'aram'\} por identificar/
+      semanticSource,
+      /unknownBlocks\.push\(/
     )
     assert.match(
-      source,
-      /não os classificou à força como aulas ou cargos/
+      semanticSource,
+      /não há evidência suficiente para o classificar automaticamente como aula ou cargo/
     )
   }
 )
 
 test(
-  'the shared MA-PDF extractor remains untouched by the new schedule-specific integration contract',
+  'the shared MA-PDF extractor remains untouched by schedule shadow experiments',
   () => {
     assert.match(sharedExtractor, /function extractCompactTimetableLesson/)
     assert.match(sharedExtractor, /export async function extractTextFromPdf/)
