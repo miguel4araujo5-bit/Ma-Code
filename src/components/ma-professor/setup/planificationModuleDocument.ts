@@ -28,26 +28,45 @@ function line(values: string[]): PlanificationPdfLine {
   }
 }
 
+function paragraphText(element: Element) {
+  return Array.from(element.getElementsByTagNameNS(WORD_NS, 't'))
+    .map(t => t.textContent ?? '')
+    .join('')
+    .trim()
+}
+
 function paragraphs(element: Element) {
   return Array.from(element.getElementsByTagNameNS(WORD_NS, 'p'))
-    .map(p => Array.from(p.getElementsByTagNameNS(WORD_NS, 't'))
-      .map(t => t.textContent ?? '').join('')).join('\n').trim()
+    .map(paragraphText)
+    .join('\n')
+    .trim()
 }
 
 function cleanMetadataValue(value: string) {
-  return value.trim().replace(/\s+/g, ' ')
+  return value
+    .trim()
+    .replace(/^[:–—-]+\s*/, '')
+    .replace(/\s+/g, ' ')
 }
 
 function metadata(text: string) {
   const normalizedText = text.replace(/\r\n/g, '\n')
-  const subjectLabel = cleanMetadataValue(
+  const explicitDiscipline = cleanMetadataValue(
     normalizedText.match(
-      /planifica[çc][ãa]o\s+de\s+(.+?)(?=\s+curso profissional\b|\n|$)/i
+      /\bdisciplina\s*:\s*(.+?)(?=\s+(?:n[.ºo]*\s*(?:aulas|horas)|tema|professor(?:a)?)\s*:|\n|$)/i
     )?.[1] ?? ''
   )
+  const subjectFromTitle = cleanMetadataValue(
+    normalizedText.match(
+      /planifica[çc][ãa]o\s+de\s+(.+?)(?=\s+curso profissional\b|\s*[-–—]\s*(?:10|11|12)\s*[.ºo°]*\s*ano\b|\n|$)/i
+    )?.[1] ?? ''
+  )
+  const subjectLabel =
+    explicitDiscipline ||
+    subjectFromTitle
   const courseLabel = cleanMetadataValue(
     normalizedText.match(
-      /curso profissional\s*[–—-]?\s*(.+?)(?=\s+(?:10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b|\n|$)/i
+      /curso profissional\s*[:–—-]?\s*(.+?)(?=\s+(?:10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b|\s+disciplina\s*:|\n|$)/i
     )?.[1] ?? ''
   )
   const minutes = [...normalizedText.matchAll(/\(\s*(\d+)\s*min(?:utos)?\s*\)/gi)]
@@ -60,10 +79,45 @@ function metadata(text: string) {
   }
 }
 
-export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {
+function parseWordDom(xml: string) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('O documento Word contém uma estrutura não suportada.')
   const dom = new DOMParser().parseFromString(xml, 'application/xml')
   if (dom.getElementsByTagName('parsererror').length) throw new Error('Não foi possível ler o documento Word.')
+  return dom
+}
+
+function genericWordLines(dom: Document) {
+  const result: PlanificationPdfLine[] = []
+
+  for (const paragraph of Array.from(
+    dom.getElementsByTagNameNS(WORD_NS, 'p')
+  )) {
+    const value = paragraphText(paragraph)
+    if (value) {
+      result.push(line([value]))
+    }
+  }
+
+  for (const table of Array.from(
+    dom.getElementsByTagNameNS(WORD_NS, 'tbl')
+  )) {
+    for (const row of Array.from(table.children)
+      .filter(element => element.localName === 'tr')) {
+      const cells = Array.from(row.children)
+        .filter(element => element.localName === 'tc')
+        .map(paragraphs)
+
+      if (cells.some(Boolean)) {
+        result.push(line(cells))
+      }
+    }
+  }
+
+  return result
+}
+
+export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {
+  const dom = parseWordDom(xml)
   const text = paragraphs(dom.documentElement)
   const lines = [line(headers)]
   let found = 0
@@ -82,7 +136,7 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
       }
     }
   }
-  if (!found) throw new Error('Não foram encontradas UFCD nas tabelas deste Word.')
+  if (!found) throw new Error('Não foram encontradas UFCD estruturadas nas tabelas deste Word.')
   const parsed = parsePlanificationPdfDocument({
     pages: [{ pageNumber: 1, lines }], pageCount: 1, characterCount: text.length
   }, name)
@@ -92,6 +146,51 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
     // DOCX table order is not a reliable printed page number.
     sections: parsed.sections.map(section => ({ ...section, sourcePages: [] })),
     warnings: [...parsed.warnings, 'Word: a origem é identificada pelo ficheiro e pela UFCD; a paginação não é inferida.']
+  }
+}
+
+async function parseModuleStyleWord(
+  xml: string,
+  name: string,
+  sha256: string
+): Promise<ModuleDocument | null> {
+  const dom = parseWordDom(xml)
+  const text = paragraphs(dom.documentElement)
+  const lines = genericWordLines(dom)
+  const {
+    parseModuleStylePlanificationPdfDocument
+  } = await import(
+    '../planifications/moduleStylePlanificationPdfParser'
+  )
+  const parsed =
+    parseModuleStylePlanificationPdfDocument(
+      {
+        pages: [{
+          pageNumber: 1,
+          lines
+        }],
+        pageCount: 1,
+        characterCount: text.length
+      },
+      name
+    )
+
+  if (parsed.sections.length === 0) {
+    return null
+  }
+
+  return {
+    name,
+    sha256,
+    ...metadata(text),
+    sections: parsed.sections.map(section => ({
+      ...section,
+      sourcePages: []
+    })),
+    warnings: [
+      ...parsed.warnings,
+      'Word: a origem é identificada pelo ficheiro e pelo módulo; a paginação não é inferida.'
+    ]
   }
 }
 
@@ -109,18 +208,70 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
       }
     })
     if (!archive['word/document.xml']) throw new Error('O ficheiro não é um documento Word válido.')
-    return { ...parseModuleDocxXml(strFromU8(archive['word/document.xml']), file.name), sha256 }
+    const xml = strFromU8(archive['word/document.xml'])
+
+    try {
+      return {
+        ...parseModuleDocxXml(xml, file.name),
+        sha256
+      }
+    } catch (failure) {
+      if (
+        !(failure instanceof Error) ||
+        !failure.message.includes('Não foram encontradas UFCD estruturadas')
+      ) {
+        throw failure
+      }
+
+      const moduleDocument =
+        await parseModuleStyleWord(
+          xml,
+          file.name,
+          sha256
+        )
+
+      if (moduleDocument) {
+        return moduleDocument
+      }
+
+      throw new Error(
+        'Não foram encontradas UFCD ou módulos estruturados nas tabelas deste Word.'
+      )
+    }
   }
   if (!/\.pdf$/i.test(file.name)) throw new Error('Selecione um PDF ou um Word (.docx).')
   const { extractPlanificationPdf } = await import('../planifications/planificationPdfExtractor')
   const document = await extractPlanificationPdf(file)
-  const parsed = parsePlanificationPdfDocument(document, file.name)
-  if (!parsed.sections.length) throw new Error('Não foram encontradas UFCD com texto legível neste PDF.')
+  const standardParsed = parsePlanificationPdfDocument(document, file.name)
+  let parsed = standardParsed
+
+  if (standardParsed.sections.length === 0) {
+    const {
+      parseModuleStylePlanificationPdfDocument
+    } = await import(
+      '../planifications/moduleStylePlanificationPdfParser'
+    )
+
+    parsed = parseModuleStylePlanificationPdfDocument(
+      document,
+      file.name
+    )
+  }
+
+  if (!parsed.sections.length) throw new Error('Não foram encontradas UFCD ou módulos com texto legível neste PDF.')
   const text = document.pages.flatMap(page => page.lines.map(row => row.text)).join('\n')
   return {
     name: file.name, sha256, ...metadata(text), sections: parsed.sections,
-    warnings: [...parsed.warnings,
-      'O PDF pode dividir palavras entre linhas. Reveja as designações e os textos extraídos; pode corrigi-los antes de importar.']
+    warnings: [
+      ...standardParsed.warnings.filter(warning =>
+        standardParsed.sections.length > 0 ||
+        !warning.includes('nenhuma UFCD')
+      ),
+      ...(standardParsed.sections.length > 0
+        ? []
+        : parsed.warnings),
+      'O PDF pode dividir palavras entre linhas. Reveja as designações e os textos extraídos; pode corrigi-los antes de importar.'
+    ]
   }
 }
 

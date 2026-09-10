@@ -102,6 +102,28 @@ test(
 )
 
 test(
+  'setup areas stay navigable even when earlier areas are incomplete',
+  () => {
+    assert.match(
+      wizardSource,
+      /function isStepUnlocked\(_stepId: SetupStepId\) \{\s*return true\s*\}/
+    )
+    assert.match(
+      wizardSource,
+      /Pode abrir qualquer área, saltar o que ainda não tem e voltar mais tarde\./
+    )
+    assert.doesNotMatch(
+      wizardSource,
+      /disabled=\{!unlocked\}/
+    )
+    assert.doesNotMatch(
+      wizardSource,
+      /cursor-not-allowed border-white\/\[0\.06\]/
+    )
+  }
+)
+
+test(
   'repository setup progression follows the same sequence as the wizard',
   () => {
     const match = repositorySource.match(

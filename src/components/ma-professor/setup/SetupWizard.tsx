@@ -19,12 +19,13 @@ import ModulesSetupCourseSubjectGuard from './ModulesSetupCourseSubjectGuard'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
 import SchedulePdfImportStep from './SchedulePdfImportStep'
 import SetupConfirmationStep from './SetupConfirmationStep'
+import SetupDocumentIntakePanel from './SetupDocumentIntakePanel'
 import StudentsSetupStep from './StudentsSetupStep'
 import SubjectsSetupStep from './SubjectsSetupStep'
 import WeeklyScheduleSetupStep from './WeeklyScheduleSetupStep'
-import {
-  isSBentoSchoolName
-} from './schoolDutyDatePolicy'
+import type {
+  SetupImportDocumentKind
+} from './setupDocumentClassifier'
 import {
   getMAProfessorSetupReadiness,
   hasCompleteScheduleCoverage,
@@ -43,6 +44,16 @@ type SetupStepDefinition = {
   title: string
   shortTitle: string
   description: string
+}
+
+type IntakeKind = Exclude<
+  SetupImportDocumentKind,
+  'unknown'
+>
+
+type QueuedDocument = {
+  kind: IntakeKind
+  file: File
 }
 
 const setupSteps: SetupStepDefinition[] = [
@@ -117,16 +128,6 @@ function getInitialStep(snapshot: SetupSnapshot): SetupStepId {
   return getFirstIncompleteStep(snapshot)
 }
 
-function shouldOfferScheduleImport(snapshot: SetupSnapshot) {
-  return (
-    !snapshot.academicYear.setupCompletedAt &&
-    snapshot.groups.length === 0 &&
-    snapshot.subjects.length === 0 &&
-    snapshot.teachingAssignments.length === 0 &&
-    snapshot.weeklyScheduleSlots.length === 0
-  )
-}
-
 async function reconcileImportedScheduleProgress(
   snapshot: SetupSnapshot
 ) {
@@ -186,41 +187,139 @@ function AcademicYearSummary({ snapshot, onContinue }: { snapshot: SetupSnapshot
   )
 }
 
+function findButtonByText(value: string) {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button')
+  ).find(button =>
+    button.textContent?.trim() === value
+  ) ?? null
+}
+
+function attachFileToInput(
+  input: HTMLInputElement,
+  file: File
+) {
+  const transfer = new DataTransfer()
+  transfer.items.add(file)
+  input.files = transfer.files
+  input.dispatchEvent(
+    new Event('change', { bubbles: true })
+  )
+}
+
 export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }: SetupWizardProps) {
   const [activeStep, setActiveStep] = useState<SetupStepId>(() => getInitialStep(snapshot))
   const [showScheduleImport, setShowScheduleImport] = useState(false)
+  const [queuedDocument, setQueuedDocument] =
+    useState<QueuedDocument | null>(null)
 
   useEffect(() => {
-    let disposed = false
-
-    if (!shouldOfferScheduleImport(snapshot)) {
-      setShowScheduleImport(false)
-      return () => {
-        disposed = true
-      }
+    if (!queuedDocument) {
+      return
     }
 
-    void maProfessorRepository
-      .getTeacherProfile()
-      .then(profile => {
-        if (disposed) return
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 30
 
-        setShowScheduleImport(
-          isSBentoSchoolName(
-            profile?.schoolName ?? ''
-          )
-        )
-      })
-      .catch(() => {
-        if (!disposed) {
-          setShowScheduleImport(false)
+    const tryHandoff = () => {
+      if (cancelled || !queuedDocument) {
+        return true
+      }
+
+      attempts += 1
+
+      if (queuedDocument.kind === 'schedule') {
+        if (!showScheduleImport) {
+          return false
         }
-      })
+
+        const input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept="application/pdf,.pdf"]'
+        )
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      if (
+        queuedDocument.kind === 'criteria' &&
+        activeStep === 'assessment_criteria'
+      ) {
+        let input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept="application/pdf,.pdf"]'
+        )
+
+        if (!input) {
+          findButtonByText('Importar PDF')?.click()
+          input = document.querySelector<HTMLInputElement>(
+            'input[type="file"][accept="application/pdf,.pdf"]'
+          )
+        }
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      if (
+        queuedDocument.kind === 'planification' &&
+        activeStep === 'modules'
+      ) {
+        let input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept=".pdf,.docx"]'
+        )
+
+        if (!input) {
+          findButtonByText('Importar PDF ou Word')?.click()
+          input = document.querySelector<HTMLInputElement>(
+            'input[type="file"][accept=".pdf,.docx"]'
+          )
+        }
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      return false
+    }
+
+    if (tryHandoff()) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      if (
+        tryHandoff() ||
+        attempts >= maxAttempts
+      ) {
+        window.clearInterval(interval)
+      }
+    }, 75)
 
     return () => {
-      disposed = true
+      cancelled = true
+      window.clearInterval(interval)
     }
-  }, [snapshot.academicYear.id])
+  }, [
+    activeStep,
+    queuedDocument,
+    showScheduleImport
+  ])
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
@@ -243,18 +342,31 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
   const completedCount = completedSetupSteps + 1
   const completionPercent = Math.round((completedCount / totalSetupSteps) * 100)
 
-  function isStepUnlocked(stepId: SetupStepId) {
-    if (stepId === 'academic_year') return true
-    const stepIndex = setupSteps.findIndex(step => step.id === stepId)
-    if (stepIndex <= 0) return true
-    const previousStep = setupSteps[stepIndex - 1]
-    return completedSteps.has(stepId) || completedSteps.has(previousStep.id) || currentProgressStep === stepId
+  function isStepUnlocked(_stepId: SetupStepId) {
+    return true
   }
 
   function navigateToStep(stepId: SetupStepId) {
-    if (!isStepUnlocked(stepId)) return
     setActiveStep(stepId)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handleOpenDocument(
+    kind: IntakeKind,
+    file: File
+  ) {
+    setQueuedDocument({ kind, file })
+
+    if (kind === 'schedule') {
+      setShowScheduleImport(true)
+      return
+    }
+
+    navigateToStep(
+      kind === 'criteria'
+        ? 'assessment_criteria'
+        : 'modules'
+    )
   }
 
   async function handleStepCompleted(nextSnapshot: SetupSnapshot) {
@@ -275,6 +387,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       await reconcileImportedScheduleProgress(nextSnapshot)
 
     onSnapshotChange(preparedSnapshot)
+    setQueuedDocument(null)
     setShowScheduleImport(false)
     setActiveStep(getFirstIncompleteStep(preparedSnapshot))
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -310,23 +423,24 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
     }
   }
 
-  if (showScheduleImport) {
-    return <SchedulePdfImportStep snapshot={snapshot} onImported={handleScheduleImported} onContinueWithoutPdf={() => setShowScheduleImport(false)} />
-  }
-
   return (
     <div className="mx-auto max-w-[100rem]">
       <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-6 lg:p-7">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Configuração · Ensino profissional / secundário</p>
-            <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Vamos preparar primeiro o necessário para trabalhar.</h1>
+            <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Prepare o essencial e complete o resto quando quiser.</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">Ano letivo ativo: {snapshot.academicYear.name}</p>
           </div>
           <div className="min-w-[12rem] rounded-2xl border border-white/10 bg-white/[0.035] p-4">
             <div className="flex items-center justify-between gap-4"><span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span><span className="text-sm font-black text-cyan-100">{completedCount}/{totalSetupSteps}</span></div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} /></div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.055] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100">Configuração flexível</p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">Pode abrir qualquer área, saltar o que ainda não tem e voltar mais tarde. Uma informação em falta deixa uma pendência; não bloqueia os restantes passos.</p>
         </div>
 
         {readiness.operationalReady && !readiness.fullSetupCompleted ? (
@@ -354,9 +468,9 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
 
         <div className="mt-6 lg:hidden">
           <label className="block">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Passo apresentado</span>
+            <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Área apresentada</span>
             <select value={activeStep === 'academic_year' ? currentProgressStep : activeStep} onChange={(event: ChangeEvent<HTMLSelectElement>) => navigateToStep(event.target.value as SetupStepId)} className={selectClassName}>
-              {setupSteps.map(step => <option key={step.id} value={step.id} disabled={!isStepUnlocked(step.id)}>{step.number}. {step.title}{completedSteps.has(step.id) ? ' — concluído' : ''}</option>)}
+              {setupSteps.map(step => <option key={step.id} value={step.id}>{step.number}. {step.title}{completedSteps.has(step.id) ? ' — concluído' : ' — por completar'}</option>)}
             </select>
           </label>
         </div>
@@ -365,9 +479,8 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
           {setupSteps.map(step => {
             const completed = completedSteps.has(step.id)
             const active = activeStep === step.id
-            const unlocked = isStepUnlocked(step.id)
             return (
-              <button key={step.id} type="button" disabled={!unlocked} onClick={() => navigateToStep(step.id)} className={`min-w-0 rounded-2xl border p-3 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/[0.09] shadow-lg shadow-cyan-950/15' : completed ? 'border-emerald-300/20 bg-emerald-300/[0.05] hover:border-emerald-300/35' : unlocked ? 'border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]' : 'cursor-not-allowed border-white/[0.06] bg-white/[0.015] opacity-40'}`}>
+              <button key={step.id} type="button" onClick={() => navigateToStep(step.id)} className={`min-w-0 rounded-2xl border p-3 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/[0.09] shadow-lg shadow-cyan-950/15' : completed ? 'border-emerald-300/20 bg-emerald-300/[0.05] hover:border-emerald-300/35' : 'border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]'}`}>
                 <div className="flex items-center gap-2">
                   <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${active ? 'border-cyan-300/35 bg-cyan-300/15 text-cyan-50' : completed ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-400'}`}>{completed ? '✓' : step.number}</span>
                   <span className="truncate text-xs font-black text-white">{step.shortTitle}</span>
@@ -377,20 +490,47 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
           })}
         </div>
 
-        {activeStep !== 'academic_year' ? (
+        {!showScheduleImport && activeStep !== 'academic_year' ? (
           <div className="mt-5 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Passo {activeStepDefinition.number} de {totalSetupSteps}</p>
               <p className="mt-2 font-black text-white">{activeStepDefinition.title}</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">{activeStepDefinition.description}</p>
             </div>
-            {activeStep !== currentProgressStep && isStepUnlocked(currentProgressStep) ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100">Ir para o passo atual</button> : null}
+            {activeStep !== currentProgressStep ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100">Ir para o passo atual</button> : null}
           </div>
         ) : null}
       </section>
 
-      <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
-      <p className="mt-6 text-center text-xs leading-6 text-slate-500">O estado “Pronto para trabalhar” desbloqueia as aulas; a configuração pedagógica pode continuar sem perder dados.</p>
+      <div className="mt-6">
+        <SetupDocumentIntakePanel
+          onOpenDocument={handleOpenDocument}
+        />
+      </div>
+
+      {queuedDocument ? (
+        <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 text-sm leading-6 text-amber-50">
+          <span className="font-black">Documento preparado:</span>{' '}
+          {queuedDocument.file.name}. O MA-Professor está a encaminhá-lo para o importador especializado correspondente.
+        </div>
+      ) : null}
+
+      {showScheduleImport ? (
+        <div className="mt-6">
+          <SchedulePdfImportStep
+            snapshot={snapshot}
+            onImported={handleScheduleImported}
+            onContinueWithoutPdf={() => {
+              setShowScheduleImport(false)
+              setQueuedDocument(null)
+            }}
+          />
+        </div>
+      ) : (
+        <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
+      )}
+
+      <p className="mt-6 text-center text-xs leading-6 text-slate-500">Pode saltar qualquer área e regressar depois. O MA-Professor apenas impede guardar dados estruturalmente inválidos; uma pendência não bloqueia o resto da configuração.</p>
     </div>
   )
 }
