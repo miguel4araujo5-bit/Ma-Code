@@ -19,8 +19,8 @@ export function resolveGIAEStatusAfterSummaryChange(
 }
 
 export function isFutureGIAECopyDate(
-    lessonDate: ISODate,
-    today: ISODate
+    _lessonDate: ISODate,
+    _today: ISODate
 ) {
-    return lessonDate > today;
+    return false;
 }
