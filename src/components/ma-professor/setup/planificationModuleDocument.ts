@@ -10,6 +10,8 @@ export interface ModuleDocument {
   sha256: string
   subjectLabel: string
   courseLabel: string
+  gradeLabel: string
+  groupLabel: string
   periodMinutes: number | null
   sections: ParsedPlanificationPdfSection[]
   warnings: string[]
@@ -49,7 +51,15 @@ function cleanMetadataValue(value: string) {
     .replace(/\s+/g, ' ')
 }
 
-function metadata(text: string) {
+function canonicalGroup(grade: string, letter: string) {
+  return `${grade}.º ${letter.toLocaleUpperCase('pt-PT')}`
+}
+
+function canonicalGrade(grade: string) {
+  return `${grade}.º ano`
+}
+
+function metadata(text: string, fileName = '') {
   const normalizedText = text.replace(/\r\n/g, '\n')
   const explicitDiscipline = cleanMetadataValue(
     normalizedText.match(
@@ -69,12 +79,31 @@ function metadata(text: string) {
       /curso profissional\s*[:–—-]?\s*(.+?)(?=\s+(?:10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b|\s+disciplina\s*:|\n|$)/i
     )?.[1] ?? ''
   )
+  const explicitGroup = normalizedText.match(
+    /\bturma\s*[:–—-]?\s*(10|11|12)\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])\b/i
+  )
+  const fileGroup = fileName.match(
+    /(?:^|[^0-9A-Za-z])(10|11|12)\s*[-–—._ ]?\s*([A-Za-z])(?=$|[^0-9A-Za-z])/i
+  )
+  const groupMatch = explicitGroup || fileGroup
+  const gradeMatch = normalizedText.match(
+    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b/i
+  )
+  const grade = groupMatch?.[1] || gradeMatch?.[1] || ''
+  const groupLabel = groupMatch
+    ? canonicalGroup(groupMatch[1], groupMatch[2])
+    : ''
+  const gradeLabel = grade
+    ? canonicalGrade(grade)
+    : ''
   const minutes = [...normalizedText.matchAll(/\(\s*(\d+)\s*min(?:utos)?\s*\)/gi)]
     .map(match => Number(match[1]))
   const unique = [...new Set(minutes)]
   return {
     subjectLabel,
     courseLabel,
+    gradeLabel,
+    groupLabel,
     periodMinutes: unique.length === 1 ? unique[0] : null
   }
 }
@@ -142,7 +171,7 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
   }, name)
   if (parsed.sections.length !== found) throw new Error('Existem códigos repetidos ou secções ambíguas. Reveja o documento.')
   return {
-    name, ...metadata(text),
+    name, ...metadata(text, name),
     // DOCX table order is not a reliable printed page number.
     sections: parsed.sections.map(section => ({ ...section, sourcePages: [] })),
     warnings: [...parsed.warnings, 'Word: a origem é identificada pelo ficheiro e pela UFCD; a paginação não é inferida.']
@@ -182,7 +211,7 @@ async function parseModuleStyleWord(
   return {
     name,
     sha256,
-    ...metadata(text),
+    ...metadata(text, name),
     sections: parsed.sections.map(section => ({
       ...section,
       sourcePages: []
@@ -261,7 +290,7 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
   if (!parsed.sections.length) throw new Error('Não foram encontradas UFCD ou módulos com texto legível neste PDF.')
   const text = document.pages.flatMap(page => page.lines.map(row => row.text)).join('\n')
   return {
-    name: file.name, sha256, ...metadata(text), sections: parsed.sections,
+    name: file.name, sha256, ...metadata(text, file.name), sections: parsed.sections,
     warnings: [
       ...standardParsed.warnings.filter(warning =>
         standardParsed.sections.length > 0 ||

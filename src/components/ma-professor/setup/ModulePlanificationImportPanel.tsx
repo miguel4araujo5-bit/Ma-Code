@@ -6,9 +6,18 @@ import {
 } from './modulePlanificationImportRepository'
 
 type Row = ModuleImportSelection & { selected: boolean }
+type Props = {
+  snapshot: SetupSnapshot
+  disabled: boolean
+  onActiveChange: (active: boolean) => void
+  onImported: () => Promise<unknown>
+  guided?: boolean
+}
+
 const field = 'w-full rounded-xl border border-white/15 bg-slate-900 p-3 text-sm text-white'
 const button = 'rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-40'
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Não foi possível concluir a operação.'
+const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(value.trim())
 
 function normalizeSubjectLabel(value: string) {
   return value
@@ -45,13 +54,121 @@ function assignedGroupIdsForSubject(
     .map(assignment => assignment.groupId)
 }
 
-export default function ModulePlanificationImportPanel({ snapshot, disabled, onActiveChange, onImported }: {
-  snapshot: SetupSnapshot
-  disabled: boolean
-  onActiveChange: (active: boolean) => void
-  onImported: () => Promise<unknown>
-}) {
-  const [open, setOpen] = useState(false)
+function gradeNumber(value: string) {
+  return value.match(/\b(10|11|12)\b/)?.[1] ?? ''
+}
+
+function suggestedGroupIdsForDocument(
+  snapshot: SetupSnapshot,
+  subjectId: string,
+  document: ModuleDocument
+) {
+  const assignmentGroupIds = assignedGroupIdsForSubject(
+    snapshot,
+    subjectId
+  )
+  const groups = assignmentGroupIds
+    .map(groupId => snapshot.groups.find(group =>
+      group.active && group.id === groupId
+    ))
+    .filter((group): group is SetupSnapshot['groups'][number] => Boolean(group))
+
+  if (groups.length <= 1) {
+    return groups.map(group => group.id)
+  }
+
+  if (document.groupLabel) {
+    const exact = groups.filter(group =>
+      normalizeSubjectLabel(group.name) ===
+      normalizeSubjectLabel(document.groupLabel)
+    )
+
+    return exact.length === 1
+      ? [exact[0].id]
+      : []
+  }
+
+  let candidates = groups
+  const documentGrade = gradeNumber(document.gradeLabel)
+
+  if (documentGrade) {
+    const gradeMatches = candidates.filter(group =>
+      gradeNumber(group.gradeLevel) === documentGrade ||
+      gradeNumber(group.name) === documentGrade
+    )
+
+    if (gradeMatches.length > 0) {
+      candidates = gradeMatches
+    }
+  }
+
+  if (document.courseLabel) {
+    const courseMatches = candidates.filter(group =>
+      normalizeSubjectLabel(group.courseName) ===
+      normalizeSubjectLabel(document.courseLabel)
+    )
+
+    if (courseMatches.length > 0) {
+      candidates = courseMatches
+    }
+  }
+
+  return candidates.length === 1
+    ? [candidates[0].id]
+    : []
+}
+
+function plannedPeriodsForSection(
+  document: ModuleDocument,
+  section: ModuleDocument['sections'][number],
+  periodMinutes: number
+) {
+  if (
+    document.periodMinutes === periodMinutes &&
+    section.plannedLessons
+  ) {
+    return section.plannedLessons
+  }
+
+  if (
+    section.durationHours &&
+    Number.isInteger(
+      section.durationHours * 60 / periodMinutes
+    )
+  ) {
+    return section.durationHours * 60 / periodMinutes
+  }
+
+  return 0
+}
+
+function rowIsReady(
+  row: Pick<Row, 'code' | 'name' | 'plannedPeriods'>,
+  section: ModuleDocument['sections'][number]
+) {
+  return (
+    validModuleCode(row.code) &&
+    Boolean(row.name.trim()) &&
+    Number.isInteger(row.plannedPeriods) &&
+    row.plannedPeriods > 0 &&
+    Boolean(section.contentsText.trim())
+  )
+}
+
+function curricularUnitLabel(code: string) {
+  return /^\d{3,6}$/.test(code.trim())
+    ? 'UFCD'
+    : 'Módulo'
+}
+
+export default function ModulePlanificationImportPanel({
+  snapshot,
+  disabled,
+  onActiveChange,
+  onImported,
+  guided = false
+}: Props) {
+  const [open, setOpen] = useState(guided)
   const [document, setDocument] = useState<ModuleDocument | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [subjectName, setSubjectName] = useState('')
@@ -62,6 +179,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [showAllDetails, setShowAllDetails] = useState(false)
   const operation = useRef(0)
   const saving = useRef(false)
   const mounted = useRef(true)
@@ -85,6 +203,34 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     ? matchingSubjects[0]
     : null
 
+  const destinationGroups = useMemo(() => {
+    if (!matchedSubject) return activeGroups
+
+    const assigned = new Set(
+      assignedGroupIdsForSubject(snapshot, matchedSubject.id)
+    )
+
+    return activeGroups.filter(group => assigned.has(group.id))
+  }, [activeGroups, matchedSubject, snapshot])
+
+  const selectedRows = useMemo(
+    () => rows.filter(row => row.selected),
+    [rows]
+  )
+  const readyRows = useMemo(
+    () => selectedRows.filter(row => row.reviewed),
+    [selectedRows]
+  )
+  const pendingRows = useMemo(
+    () => selectedRows.filter(row => !row.reviewed),
+    [selectedRows]
+  )
+  const destinationReady = Boolean(
+    subjectName.trim() &&
+    matchingSubjects.length <= 1 &&
+    groupIds.length > 0
+  )
+
   function changeOpen(value: boolean) {
     if (value) {
       setError('')
@@ -106,6 +252,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     setSubjectName('')
     setCourseName('')
     setGroupIds([])
+    setShowAllDetails(false)
     try {
       const parsed = await readModuleDocument(file)
       const state = await readModuleImportState()
@@ -115,24 +262,43 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
         snapshot,
         parsed.subjectLabel
       )
+      const suggestedGroupIds = exactMatches.length === 1
+        ? suggestedGroupIdsForDocument(
+            snapshot,
+            exactMatches[0].id,
+            parsed
+          )
+        : []
+
+      const nextRows = parsed.sections.map((section, sectionIndex) => {
+        const row = {
+          sectionIndex,
+          selected: true,
+          reviewed: false,
+          code: section.code,
+          name: section.name,
+          plannedPeriods: plannedPeriodsForSection(
+            parsed,
+            section,
+            state.periodMinutes
+          )
+        }
+
+        return {
+          ...row,
+          reviewed: guided && rowIsReady(row, section)
+        }
+      })
 
       setDocument(parsed)
       setFingerprint(state.fingerprint)
       setMinutes(state.periodMinutes)
       setSubjectName(parsed.subjectLabel)
-      setCourseName(parsed.courseLabel)
-      setGroupIds(
-        exactMatches.length === 1
-          ? assignedGroupIdsForSubject(snapshot, exactMatches[0].id)
-          : []
-      )
-      setRows(parsed.sections.map((section, sectionIndex) => ({
-        sectionIndex, selected: true, reviewed: false, code: section.code, name: section.name,
-        plannedPeriods: parsed.periodMinutes === state.periodMinutes && section.plannedLessons
-          ? section.plannedLessons
-          : section.durationHours && Number.isInteger(section.durationHours * 60 / state.periodMinutes)
-            ? section.durationHours * 60 / state.periodMinutes : 0
-      })))
+      // No modo guiado o curso serve para resolver o destino, mas nunca
+      // substitui automaticamente um curso já guardado na turma.
+      setCourseName(guided ? '' : parsed.courseLabel)
+      setGroupIds(suggestedGroupIds)
+      setRows(nextRows)
     } catch (failure) {
       if (mounted.current && token === operation.current) setError(errorText(failure))
     } finally {
@@ -141,17 +307,31 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
   }
 
   function edit(index: number, changes: Partial<Row>) {
-    setRows(current => current.map((row, i) => i === index ? { ...row, reviewed: false, ...changes } : row))
+    setRows(current => current.map((row, i) => {
+      if (i !== index) return row
+
+      if (
+        guided &&
+        Object.keys(changes).every(key => key === 'selected')
+      ) {
+        return { ...row, ...changes }
+      }
+
+      return { ...row, reviewed: false, ...changes }
+    }))
   }
 
   function invalidateReview() {
-    setRows(current => current.map(row => ({ ...row, reviewed: false })))
+    if (!guided) {
+      setRows(current => current.map(row => ({ ...row, reviewed: false })))
+    }
     setError('')
     setMessage('')
   }
 
   function changeSubject(value: string) {
     setSubjectName(value)
+    setGroupIds([])
     invalidateReview()
   }
 
@@ -181,7 +361,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
       setMinutes(state.periodMinutes)
       setRows(current => current.map(row => ({ ...row, reviewed: false })))
       setError('')
-      setMessage('Destinos atualizados. Reveja novamente as UFCD selecionadas.')
+      setMessage('Destinos atualizados. Reveja novamente as UFCD/módulos selecionados.')
     } catch (failure) { setError(errorText(failure)) }
     finally { setBusy(false) }
   }
@@ -201,11 +381,11 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
     }
 
     if (!selections.length || !groupIds.length || selections.some(row => !row.reviewed)) {
-      setError('Selecione as turmas e confirme a revisão de cada UFCD.')
+      setError('Selecione o destino e reveja apenas as UFCD/módulos ainda assinalados como pendentes.')
       return
     }
 
-    if (!window.confirm('Criar as UFCD e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. O curso confirmado será aplicado às turmas selecionadas. Os módulos já existentes serão preservados e ignorados.')) return
+    if (!window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. Os módulos já existentes serão preservados e ignorados.')) return
 
     saving.current = true
     setBusy(true)
@@ -228,14 +408,237 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
       setSubjectName('')
       setCourseName('')
       setGroupIds([])
+      setShowAllDetails(false)
       changeOpen(false)
-      setMessage(`Importação concluída: ${result.created} UFCD com planificação criadas; ${result.skipped} existentes preservadas.`)
+      setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados; ${result.skipped} existentes preservados.`)
       await onImported()
     } catch (failure) {
       setError(committed
         ? 'Os dados foram guardados, mas a lista não foi atualizada. Recarregue a página para os consultar.'
         : errorText(failure))
     } finally { saving.current = false; setBusy(false) }
+  }
+
+  function clearImport() {
+    if (document && !window.confirm('Descartar esta revisão sem importar?')) return
+    operation.current++
+    setDocument(null)
+    setRows([])
+    setSubjectName('')
+    setCourseName('')
+    setGroupIds([])
+    setShowAllDetails(false)
+    setError('')
+    setMessage('')
+    changeOpen(false)
+  }
+
+  if (guided) {
+    return (
+      <section className="rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black">Adicionar planificação</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Um documento de cada vez. Mostramos apenas o que precisa de confirmação.</p>
+          </div>
+          {!open ? (
+            <button className={button} disabled={disabled || busy} onClick={() => changeOpen(true)}>
+              Adicionar outra planificação
+            </button>
+          ) : null}
+        </div>
+
+        {open ? (
+          <fieldset disabled={busy} className="mt-5 space-y-4">
+            {!document ? (
+              <div
+                className="rounded-2xl border-2 border-dashed border-cyan-300/25 bg-cyan-300/[0.025] p-5 text-center"
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => {
+                  event.preventDefault()
+                  if (event.dataTransfer.files.length !== 1) {
+                    setError('Adicione uma planificação de cada vez.')
+                    return
+                  }
+                  const file = event.dataTransfer.files[0]
+                  if (file) void load(file)
+                }}
+              >
+                <label className="block cursor-pointer text-sm font-black text-white">
+                  Arraste a planificação ou selecione PDF/Word
+                  <input
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="mt-3 block w-full text-sm font-normal text-slate-400"
+                    onChange={event => {
+                      const file = event.currentTarget.files?.[0]
+                      event.currentTarget.value = ''
+                      if (file) void load(file)
+                    }}
+                  />
+                </label>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                  <p className="break-words font-black text-white">{document.name}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                    <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-300">
+                      {document.subjectLabel || 'Disciplina por confirmar'}
+                    </span>
+                    {document.groupLabel ? (
+                      <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-300">{document.groupLabel}</span>
+                    ) : document.gradeLabel ? (
+                      <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-300">{document.gradeLabel}</span>
+                    ) : null}
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-emerald-100">
+                      {readyRows.length} prontas
+                    </span>
+                    {pendingRows.length > 0 ? (
+                      <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.07] px-3 py-1.5 text-amber-100">
+                        {pendingRows.length} por rever
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {destinationReady && matchedSubject ? (
+                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4 text-sm">
+                    <p className="font-black text-emerald-100">✓ Destino reconhecido</p>
+                    <p className="mt-1 text-slate-300">
+                      {matchedSubject.name} · {groupIds.map(id => snapshot.groups.find(group => group.id === id)?.name).filter(Boolean).join(', ')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4">
+                    <p className="text-sm font-black text-amber-100">Confirme apenas o destino</p>
+                    <label className="mt-3 block text-xs font-bold text-slate-300">
+                      Disciplina
+                      <input
+                        className={field + ' mt-2'}
+                        value={subjectName}
+                        onChange={event => changeSubject(event.target.value)}
+                        placeholder="Ex.: Área de Expressões"
+                      />
+                    </label>
+                    <div className="mt-3">
+                      <p className="text-xs font-bold text-slate-300">Turma</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {destinationGroups.map(group => (
+                          <label key={group.id} className={`cursor-pointer rounded-xl border px-3 py-2 text-sm ${groupIds.includes(group.id) ? 'border-cyan-300/30 bg-cyan-300/[0.08] text-cyan-100' : 'border-white/10 bg-white/[0.03] text-slate-300'}`}>
+                            <input
+                              type="checkbox"
+                              className="mr-2"
+                              checked={groupIds.includes(group.id)}
+                              onChange={event => toggleGroup(group.id, event.target.checked)}
+                            />
+                            {group.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {rows.map((row, index) => {
+                    const source = document.sections[row.sectionIndex]
+                    const warning = durationWarning(source, document.periodMinutes)
+                    const expanded = showAllDetails || (row.selected && !row.reviewed)
+                    const unitLabel = curricularUnitLabel(row.code || source.code)
+
+                    return (
+                      <article key={row.sectionIndex} className={`rounded-2xl border p-4 ${row.reviewed ? 'border-white/10 bg-white/[0.025]' : 'border-amber-300/20 bg-amber-300/[0.045]'}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <label className="flex min-w-0 items-center gap-2 font-bold text-white">
+                            <input type="checkbox" checked={row.selected} onChange={event => edit(index, { selected: event.target.checked })} />
+                            <span className="truncate">{unitLabel} {row.code || '—'} — {row.name || source.name || 'designação por confirmar'}</span>
+                          </label>
+                          <span className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-black ${row.reviewed ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100' : 'border-amber-300/20 bg-amber-300/[0.07] text-amber-100'}`}>
+                            {row.reviewed ? `${row.plannedPeriods} tempos · pronto` : 'Rever'}
+                          </span>
+                        </div>
+
+                        {expanded ? (
+                          <div className="mt-4 space-y-3">
+                            {warning ? <p className="text-xs leading-5 text-amber-100">{warning}</p> : null}
+                            {source.warnings.map((text, warningIndex) => <p key={warningIndex} className="text-xs leading-5 text-amber-100">{text}</p>)}
+                            <div className="grid gap-3 sm:grid-cols-[110px_1fr_140px]">
+                              <label className="text-xs font-bold text-slate-300">Código<input className={field + ' mt-1'} value={row.code} onChange={event => edit(index, { code: event.target.value })} /></label>
+                              <label className="text-xs font-bold text-slate-300">Designação<input className={field + ' mt-1'} value={row.name} onChange={event => edit(index, { name: event.target.value })} /></label>
+                              <label className="text-xs font-bold text-slate-300">Tempos de {minutes} min<input className={field + ' mt-1'} type="number" min="1" step="1" value={row.plannedPeriods || ''} onChange={event => edit(index, { plannedPeriods: Number(event.target.value) })} /></label>
+                            </div>
+
+                            {showAllDetails ? (
+                              <details>
+                                <summary className="cursor-pointer text-xs font-bold text-slate-300">Conteúdos e planificação</summary>
+                                {[['Período', source.periodLabel], ['Conteúdos', source.contentsText], ['Objetivos', source.objectivesText], ['Metodologias', source.methodologyText], ['Recursos', source.resourcesText], ['Avaliação', source.evaluationText]]
+                                  .map(([label, value], fieldIndex) => <label key={label} className="mt-3 block text-xs font-bold text-slate-300">{label}
+                                    <textarea className={field + ' mt-1 min-h-24 font-normal'} value={value}
+                                      onChange={event => {
+                                        const keys = ['periodLabel', 'contentsText', 'objectivesText', 'methodologyText', 'resourcesText', 'evaluationText'] as const
+                                        const text = event.target.value
+                                        setDocument(current => current ? { ...current, sections: current.sections.map((section, sectionIndex) =>
+                                          sectionIndex === row.sectionIndex ? { ...section, [keys[fieldIndex]]: text } : section) } : current)
+                                        edit(index, { reviewed: false })
+                                      }} />
+                                  </label>)}
+                              </details>
+                            ) : null}
+
+                            {!row.reviewed && rowIsReady(row, source) ? (
+                              <button
+                                type="button"
+                                onClick={() => setRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, reviewed: true } : item))}
+                                className="rounded-xl border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-2 text-xs font-black text-emerald-100"
+                              >
+                                Confirmar esta correção
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+
+                {document.warnings.length > 0 && showAllDetails ? (
+                  <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100/80">
+                    {document.warnings.map((warning, index) => <p key={index}>• {warning}</p>)}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDetails(value => !value)}
+                    className="text-xs font-bold text-slate-400 underline decoration-slate-700 underline-offset-4"
+                  >
+                    {showAllDetails ? 'Ocultar detalhes' : 'Editar detalhes'}
+                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-slate-300" onClick={clearImport}>Cancelar</button>
+                    <button
+                      type="button"
+                      className={button}
+                      onClick={() => void save()}
+                      disabled={!destinationReady || !selectedRows.length || pendingRows.length > 0}
+                    >
+                      Importar {selectedRows.length} {selectedRows.length === 1 ? 'planificação' : 'planificações'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </fieldset>
+        ) : null}
+
+        {disabled && !open ? <p className="mt-3 text-sm text-amber-200">Guarde ou limpe o rascunho manual antes de importar.</p> : null}
+        {busy ? <p role="status" className="mt-3 text-sm">A processar a planificação…</p> : null}
+        {message ? <p role="status" className="mt-3 text-sm text-emerald-200">{message}</p> : null}
+        {error ? <p role="alert" className="mt-3 text-sm text-rose-200">{error}</p> : null}
+      </section>
+    )
   }
 
   return (
@@ -391,18 +794,7 @@ export default function ModulePlanificationImportPanel({ snapshot, disabled, onA
               <button className="rounded-xl border border-white/20 px-4 py-3 text-sm" onClick={() => void updateReview()}>Atualizar revisão</button>
             </div>
           </>}
-          <button className="text-sm underline" onClick={() => {
-            if (document && !window.confirm('Descartar esta revisão sem importar?')) return
-            operation.current++
-            setDocument(null)
-            setRows([])
-            setSubjectName('')
-            setCourseName('')
-            setGroupIds([])
-            setError('')
-            setMessage('')
-            changeOpen(false)
-          }}>Cancelar importação</button>
+          <button className="text-sm underline" onClick={clearImport}>Cancelar importação</button>
         </fieldset>
       </>}
       {disabled && !open && <p className="mt-3 text-sm text-amber-200">Guarde ou limpe o rascunho manual antes de importar.</p>}

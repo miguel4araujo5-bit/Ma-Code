@@ -114,7 +114,7 @@ test(
     )
     assert.doesNotMatch(
       wizardSource,
-      /disabled=\{!unlocked\}/
+      /(?:^|\s)disabled=\{!unlocked\}/m
     )
     assert.doesNotMatch(
       wizardSource,

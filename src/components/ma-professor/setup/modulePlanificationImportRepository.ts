@@ -19,6 +19,8 @@ export interface ModuleImportSelection {
 
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-PT')
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
+const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(clean(value))
+const moduleKindLabel = (code: string) => /^\d{3,6}$/.test(clean(code)) ? 'UFCD' : 'Módulo'
 const tables = () => [
   maProfessorDb.academicYears, maProfessorDb.groups, maProfessorDb.subjects,
   maProfessorDb.teachingAssignments, maProfessorDb.modules,
@@ -151,7 +153,6 @@ export async function commitModulePlanificationImport(input: {
   selections: ModuleImportSelection[]
 }) {
   if (input.confirmed !== true) throw new Error('Confirme a importação antes de guardar.')
-  // Freeze the payload before any asynchronous work.
   const request = structuredClone(input)
   if (!/^[a-f0-9]{64}$/.test(request.document.sha256) || !request.document.name.trim()) {
     throw new Error('O documento de origem não é válido.')
@@ -178,18 +179,21 @@ export async function commitModulePlanificationImport(input: {
     throw new Error('Indique a disciplina e selecione pelo menos uma turma de destino.')
   }
 
-  if (!request.selections.length) throw new Error('Selecione pelo menos uma UFCD para importar.')
+  if (!request.selections.length) throw new Error('Selecione pelo menos uma UFCD ou módulo para importar.')
 
   const codes = new Set<string>()
   const indices = new Set<number>()
   for (const row of request.selections) {
+    const code = clean(row.code)
     if (!Number.isInteger(row.sectionIndex) || !request.document.sections[row.sectionIndex] ||
-        !row.reviewed || !row.name.trim() || !/^\d{3,6}$/.test(row.code) ||
+        !row.reviewed || !row.name.trim() || !validModuleCode(code) ||
         !Number.isInteger(row.plannedPeriods) || row.plannedPeriods <= 0) {
-      throw new Error('Reveja o código, designação e tempos de cada UFCD selecionada.')
+      throw new Error('Reveja o código, designação e tempos de cada UFCD ou módulo selecionado.')
     }
-    if (codes.has(row.code) || indices.has(row.sectionIndex)) throw new Error('A seleção contém UFCD repetidas.')
-    codes.add(row.code)
+    const normalizedCode = normalize(code)
+    if (codes.has(normalizedCode) || indices.has(row.sectionIndex)) throw new Error('A seleção contém entradas repetidas de UFCD ou módulos.')
+    row.code = code
+    codes.add(normalizedCode)
     indices.add(row.sectionIndex)
   }
 
@@ -246,7 +250,7 @@ export async function commitModulePlanificationImport(input: {
           throw new Error('Já existe um módulo com esta designação e outro código. Resolva a correspondência antes de importar.')
         }
         const source = request.document.sections[row.sectionIndex]
-        if (!source.contentsText.trim()) throw new Error('Uma UFCD selecionada não contém conteúdos de planificação.')
+        if (!source.contentsText.trim()) throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos de planificação.')
         const timestamp = new Date().toISOString()
         const audit = { createdAt: timestamp, updatedAt: timestamp }
         const module: ModuleUnit = {
@@ -255,10 +259,11 @@ export async function commitModulePlanificationImport(input: {
           plannedPeriods: row.plannedPeriods, order: order++,
           plannedStartDate: null, plannedEndDate: null, active: true, ...audit
         }
+        const kind = moduleKindLabel(row.code)
         const planification: Planification = {
           id: crypto.randomUUID(), academicYearId: request.academicYearId,
           teachingAssignmentId: assignmentId, moduleId: module.id, active: true,
-          title: `Planificação — UFCD ${row.code} · ${row.name.trim()}`,
+          title: `Planificação — ${kind} ${row.code} · ${row.name.trim()}`,
           description: [
             source.periodLabel,
             source.durationHours !== null ? `Duração no documento: ${source.durationHours} horas.` : '',
