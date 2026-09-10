@@ -17,6 +17,10 @@ type DayRoomPair = {
   rightBoundary: number
 }
 
+function itemCenterX(item: ScheduleGeometryTextItem) {
+  return item.x + Math.max(0, item.width) / 2
+}
+
 function itemCenterY(item: ScheduleGeometryTextItem) {
   return item.y + Math.max(0, item.height) / 2
 }
@@ -153,13 +157,13 @@ function rowItems(
 ) {
   return sourceItems.filter(item => {
     const centerY = itemCenterY(item)
-    const anchorX = item.x
+    const centerX = itemCenterX(item)
 
     return (
       centerY <= row.upperBoundaryY + Math.max(1, item.height * 0.6) &&
       centerY > row.lowerBoundaryY - Math.max(1, item.height * 0.6) &&
-      anchorX >= minimumGridX &&
-      anchorX < maximumGridX
+      centerX >= minimumGridX &&
+      centerX < maximumGridX
     )
   })
 }
@@ -202,14 +206,16 @@ function rebuildPageBlocks(
 
     for (const pair of pairs) {
       const pairItems = itemsInRow.filter(item => {
-        const anchorX = item.x
-        return anchorX >= pair.leftBoundary && anchorX < pair.rightBoundary
+        const centerX = itemCenterX(item)
+        return centerX >= pair.leftBoundary && centerX < pair.rightBoundary
       })
 
       if (pairItems.length === 0) continue
 
       const roomBoundary = pair.room?.leftBoundary ?? Number.POSITIVE_INFINITY
-      const activityItems = pairItems.filter(item => item.x < roomBoundary)
+      const activityItems = pairItems.filter(
+        item => item.x < roomBoundary
+      )
       const roomItems = pair.room
         ? pairItems.filter(item => item.x >= roomBoundary)
         : []
