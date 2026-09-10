@@ -26,6 +26,14 @@ const planificationPanelSource = await readFile(
   'utf8'
 )
 
+const guidedCriteriaSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/GuidedAssessmentCriteriaImportPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'the former multi-document classifier remains isolated and is no longer the default onboarding UI',
   () => {
@@ -72,7 +80,7 @@ test(
     )
     assert.match(
       wizardSource,
-      /guidedStage === 'criteria'[\s\S]*?<AssessmentCriteriaPdfImportPanel/
+      /guidedStage === 'criteria'[\s\S]*?<GuidedAssessmentCriteriaImportPanel/
     )
     assert.doesNotMatch(
       wizardSource,
@@ -97,6 +105,22 @@ test(
 )
 
 test(
+  'guided criteria accepts PDF or Word and keeps detailed criteria editing collapsed by default when the proposal is valid',
+  () => {
+    assert.match(
+      guidedCriteriaSource,
+      /accept="application\/pdf,\.pdf,\.docx,application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document"/
+    )
+    assert.match(guidedCriteriaSource, /readAssessmentCriteriaDocument\(file\)/)
+    assert.match(guidedCriteriaSource, /parseAssessmentCriteriaPdfDocument\(document, file\.name\)/)
+    assert.match(guidedCriteriaSource, /setShowDetails\(!completeRows \|\| Math\.abs\(total - 100\) > 0\.001\)/)
+    assert.match(guidedCriteriaSource, /Editar critérios/)
+    assert.match(guidedCriteriaSource, /assessmentCriteriaBatchRepository\.createSubjectSchemes/)
+    assert.doesNotMatch(guidedCriteriaSource, /readModuleDocument|planificationModuleDocument/)
+  }
+)
+
+test(
   'each confirmed stage refreshes the persisted setup snapshot before the next document family is resolved',
   () => {
     assert.match(
@@ -108,16 +132,20 @@ test(
       /handleGuidedScheduleImported[\s\S]*?reconcileImportedScheduleProgress[\s\S]*?setGuidedStage\('planifications'\)/
     )
     assert.match(wizardSource, /onImported=\{refreshSnapshot\}/)
-    assert.match(wizardSource, /onImported=\{onSnapshotChange\}/)
+    assert.match(
+      wizardSource,
+      /<GuidedAssessmentCriteriaImportPanel[\s\S]*?onImported=\{onSnapshotChange\}/
+    )
   }
 )
 
 test(
-  'manual nine-step setup remains available only as an explicit advanced path',
+  'manual nine-step setup and the detailed PDF criteria importer remain available only as an explicit advanced path',
   () => {
     assert.match(wizardSource, /if \(!advancedMode\)/)
     assert.match(wizardSource, /Configuração avançada · Ensino profissional \/ secundário/)
     assert.match(wizardSource, /ModulesSetupCourseSubjectGuard/)
+    assert.match(wizardSource, /AssessmentCriteriaPdfImportPanel/)
     assert.match(wizardSource, /AssessmentCriteriaSetupStep/)
     assert.match(wizardSource, /StudentsSetupStep/)
     assert.match(wizardSource, /SetupConfirmationStep/)
