@@ -45,7 +45,7 @@ function evaluateCommonJs(source) {
 
 function loadLegacyParser() {
   const start = scheduleSource.indexOf(
-    'const knownSubjectAliases:'
+    'const weekdayPatterns:'
   )
   const end = scheduleSource.indexOf(
     '\nfunction shortName(',
