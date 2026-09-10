@@ -19,122 +19,123 @@ const wizardSource = await readFile(
 )
 
 test(
-  'initial setup accepts several documents in one selection and keeps type correction editable',
+  'the former multi-document classifier remains isolated and is no longer the default onboarding UI',
   () => {
     assert.match(
       intakeSource,
       /type="file"[\s\S]*?multiple[\s\S]*?accept="application\/pdf,\.pdf,\.docx/
     )
-    assert.match(
-      intakeSource,
-      /Horário · planificações · critérios de avaliação/
-    )
-    assert.match(
-      intakeSource,
-      /<option value="schedule">Horário<\/option>/
-    )
-    assert.match(
-      intakeSource,
-      /<option value="planification">Planificação<\/option>/
-    )
-    assert.match(
-      intakeSource,
-      /<option value="criteria">Critérios de avaliação<\/option>/
-    )
-    assert.match(
-      intakeSource,
-      /Tipo corrigido manualmente pelo professor/
-    )
-  }
-)
-
-test(
-  'document intake cross-checks repeated context without treating different disciplines as a conflict',
-  () => {
-    assert.match(
-      intakeSource,
-      /agreementLabel\([\s\S]*?'Disciplina'/
-    )
-    assert.match(
-      intakeSource,
-      /agreementLabel\([\s\S]*?'Curso'/
-    )
-    assert.match(
-      intakeSource,
-      /confirmada por \$\{confirmations\} documentos/
-    )
-    assert.match(
-      intakeSource,
-      /vários valores encontrados/
-    )
-    assert.doesNotMatch(
-      intakeSource,
-      /foram encontrados valores diferentes/
-    )
-  }
-)
-
-test(
-  'one selected document is handed to the specialized importer without a second file selection',
-  () => {
-    assert.match(
-      wizardSource,
-      /function attachFileToInput\([\s\S]*?new DataTransfer\(\)[\s\S]*?transfer\.items\.add\(file\)[\s\S]*?input\.files = transfer\.files[\s\S]*?dispatchEvent/
-    )
-    assert.match(
-      wizardSource,
-      /queuedDocument\.kind === 'schedule'/
-    )
-    assert.match(
-      wizardSource,
-      /queuedDocument\.kind === 'criteria'/
-    )
-    assert.match(
-      wizardSource,
-      /queuedDocument\.kind === 'planification'/
-    )
-    assert.match(
-      wizardSource,
-      /findButtonByText\('Importar PDF'\)/
-    )
-    assert.match(
-      wizardSource,
-      /findButtonByText\('Importar PDF ou Word'\)/
-    )
-  }
-)
-
-test(
-  'multi-document intake stays mounted while the timetable specialist is being reviewed',
-  () => {
-    const intakePosition =
-      wizardSource.indexOf('<SetupDocumentIntakePanel')
-    const schedulePosition =
-      wizardSource.indexOf('{showScheduleImport ? (')
-
-    assert.ok(intakePosition >= 0)
-    assert.ok(schedulePosition > intakePosition)
     assert.doesNotMatch(
       wizardSource,
-      /if \(showScheduleImport\) \{\s*return <SchedulePdfImportStep/
+      /SetupDocumentIntakePanel/
+    )
+    assert.doesNotMatch(
+      wizardSource,
+      /Dê ao MA-Professor os documentos que já utiliza/
     )
   }
 )
 
 test(
-  'classification remains separate from persistence and routes to existing specialist review screens',
+  'initial onboarding asks for schedule then planifications then criteria instead of exposing nine tasks at once',
   () => {
     assert.match(
-      intakeSource,
-      /Nesta etapa os documentos são classificados e cruzados; cada importador continua a validar a estrutura específica antes de guardar dados\./
+      wizardSource,
+      /type GuidedStage =[\s\S]*?'schedule'[\s\S]*?'planifications'[\s\S]*?'criteria'[\s\S]*?'ready'/
     )
     assert.match(
       wizardSource,
-      /kind === 'criteria'[\s\S]*?'assessment_criteria'[\s\S]*?: 'modules'/
+      /number: 1, label: 'Horário'/
     )
     assert.match(
       wizardSource,
-      /kind === 'schedule'[\s\S]*?setShowScheduleImport\(true\)/
+      /number: 2, label: 'Planificações'/
+    )
+    assert.match(
+      wizardSource,
+      /number: 3, label: 'Critérios'/
+    )
+    assert.match(
+      wizardSource,
+      /Vamos preparar o essencial, um passo de cada vez\./
+    )
+    assert.match(
+      wizardSource,
+      /Configuração avançada \/ editar manualmente/
+    )
+  }
+)
+
+test(
+  'guided onboarding uses the specialist importers directly and no longer hands files through the DOM',
+  () => {
+    assert.match(
+      wizardSource,
+      /guidedStage === 'schedule'[\s\S]*?<SchedulePdfImportStep/
+    )
+    assert.match(
+      wizardSource,
+      /guidedStage === 'planifications'[\s\S]*?<ModulePlanificationImportPanel/
+    )
+    assert.match(
+      wizardSource,
+      /guidedStage === 'criteria'[\s\S]*?<AssessmentCriteriaPdfImportPanel/
+    )
+    assert.doesNotMatch(
+      wizardSource,
+      /new DataTransfer\(\)|querySelector<HTMLInputElement>|attachFileToInput|queuedDocument|findButtonByText/
+    )
+  }
+)
+
+test(
+  'each confirmed stage refreshes the persisted setup snapshot before the next document family is resolved',
+  () => {
+    assert.match(
+      wizardSource,
+      /async function refreshSnapshot\([\s\S]*?maProfessorRepository\.getSetupSnapshot/
+    )
+    assert.match(
+      wizardSource,
+      /handleGuidedScheduleImported[\s\S]*?reconcileImportedScheduleProgress[\s\S]*?setGuidedStage\('planifications'\)/
+    )
+    assert.match(
+      wizardSource,
+      /onImported=\{refreshSnapshot\}/
+    )
+    assert.match(
+      wizardSource,
+      /onImported=\{onSnapshotChange\}/
+    )
+  }
+)
+
+test(
+  'manual nine-step setup remains available only as an explicit advanced path',
+  () => {
+    assert.match(
+      wizardSource,
+      /if \(!advancedMode\)/
+    )
+    assert.match(
+      wizardSource,
+      /Configuração avançada · Ensino profissional \/ secundário/
+    )
+    assert.match(
+      wizardSource,
+      /ModulesSetupCourseSubjectGuard/
+    )
+    assert.match(
+      wizardSource,
+      /AssessmentCriteriaSetupStep/
+    )
+    assert.match(
+      wizardSource,
+      /StudentsSetupStep/
+    )
+    assert.match(
+      wizardSource,
+      /SetupConfirmationStep/
     )
   }
 )
