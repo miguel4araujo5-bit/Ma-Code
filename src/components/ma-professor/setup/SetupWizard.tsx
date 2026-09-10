@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -186,11 +187,139 @@ function AcademicYearSummary({ snapshot, onContinue }: { snapshot: SetupSnapshot
   )
 }
 
+function findButtonByText(value: string) {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button')
+  ).find(button =>
+    button.textContent?.trim() === value
+  ) ?? null
+}
+
+function attachFileToInput(
+  input: HTMLInputElement,
+  file: File
+) {
+  const transfer = new DataTransfer()
+  transfer.items.add(file)
+  input.files = transfer.files
+  input.dispatchEvent(
+    new Event('change', { bubbles: true })
+  )
+}
+
 export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }: SetupWizardProps) {
   const [activeStep, setActiveStep] = useState<SetupStepId>(() => getInitialStep(snapshot))
   const [showScheduleImport, setShowScheduleImport] = useState(false)
   const [queuedDocument, setQueuedDocument] =
     useState<QueuedDocument | null>(null)
+
+  useEffect(() => {
+    if (!queuedDocument) {
+      return
+    }
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 30
+
+    const tryHandoff = () => {
+      if (cancelled || !queuedDocument) {
+        return true
+      }
+
+      attempts += 1
+
+      if (queuedDocument.kind === 'schedule') {
+        if (!showScheduleImport) {
+          return false
+        }
+
+        const input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept="application/pdf,.pdf"]'
+        )
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      if (
+        queuedDocument.kind === 'criteria' &&
+        activeStep === 'assessment_criteria'
+      ) {
+        let input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept="application/pdf,.pdf"]'
+        )
+
+        if (!input) {
+          findButtonByText('Importar PDF')?.click()
+          input = document.querySelector<HTMLInputElement>(
+            'input[type="file"][accept="application/pdf,.pdf"]'
+          )
+        }
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      if (
+        queuedDocument.kind === 'planification' &&
+        activeStep === 'modules'
+      ) {
+        let input = document.querySelector<HTMLInputElement>(
+          'input[type="file"][accept=".pdf,.docx"]'
+        )
+
+        if (!input) {
+          findButtonByText('Importar PDF ou Word')?.click()
+          input = document.querySelector<HTMLInputElement>(
+            'input[type="file"][accept=".pdf,.docx"]'
+          )
+        }
+
+        if (!input) {
+          return false
+        }
+
+        attachFileToInput(input, queuedDocument.file)
+        setQueuedDocument(null)
+        return true
+      }
+
+      return false
+    }
+
+    if (tryHandoff()) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      if (
+        tryHandoff() ||
+        attempts >= maxAttempts
+      ) {
+        window.clearInterval(interval)
+      }
+    }, 75)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [
+    activeStep,
+    queuedDocument,
+    showScheduleImport
+  ])
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
@@ -375,7 +504,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
               <p className="mt-2 font-black text-white">{activeStepDefinition.title}</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">{activeStepDefinition.description}</p>
             </div>
-            {activeStep !== currentProgressStep ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100">Ir para a próxima pendência</button> : null}
+            {activeStep !== currentProgressStep ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100">Ir para o passo atual</button> : null}
           </div>
         ) : null}
       </section>
@@ -389,7 +518,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       {queuedDocument ? (
         <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 text-sm leading-6 text-amber-50">
           <span className="font-black">Documento preparado:</span>{' '}
-          {queuedDocument.file.name}. Está aberto o importador especializado correspondente; este continua responsável pela revisão antes de guardar.
+          {queuedDocument.file.name}. O MA-Professor está a encaminhá-lo para o importador especializado correspondente.
         </div>
       ) : null}
 
