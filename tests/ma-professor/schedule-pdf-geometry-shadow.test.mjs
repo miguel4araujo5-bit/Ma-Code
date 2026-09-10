@@ -217,23 +217,19 @@ test(
 )
 
 test(
-  'geometry is now the primary import path while the legacy parser remains a compatibility fallback',
+  'geometry remains shadow-only until it proves parity with the production parser',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       scheduleSource,
-      /extractScheduleGridAnalysisFromPdf/
+      /extractScheduleGridAnalysisFromPdf|interpretScheduleGridDocument/
     )
     assert.match(
       scheduleSource,
-      /interpretScheduleGridDocument/
+      /extractTextFromPdf\(/
     )
     assert.match(
       scheduleSource,
-      /if \(!proposal && !geometryCapturedBlocks\) \{[\s\S]*parsePages\(/
-    )
-    assert.match(
-      scheduleSource,
-      /geometryCapturedBlocks\s*=\s*analysis\.grid\.blocks\.length > 0/
+      /parsePages\(\s*extracted\.pages,\s*settings\.defaultPeriodMinutes\s*\)/s
     )
   }
 )
