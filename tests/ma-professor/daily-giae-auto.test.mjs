@@ -83,14 +83,14 @@ test(
 )
 
 test(
-  'future lessons are recognized without treating today or past dates as future',
+  'future lesson dates no longer suppress GIAE submission after copy',
   () => {
     assert.equal(
       giaeAuto.isFutureGIAECopyDate(
         '2026-09-09',
         '2026-09-08'
       ),
-      true
+      false
     )
     assert.equal(
       giaeAuto.isFutureGIAECopyDate(
@@ -211,7 +211,7 @@ test(
 )
 
 test(
-  'future copy path is checked before explicit submission and remains pending',
+  'future dates cannot bypass the explicit GIAE submission path after copy',
   () => {
     const handler = dailySource.slice(
       dailySource.indexOf(
@@ -231,9 +231,12 @@ test(
 
     assert.ok(futureIndex >= 0)
     assert.ok(submitIndex > futureIndex)
-    assert.match(
-      handler,
-      /a aula é futura, mantém-se por submeter no GIAE/
+    assert.equal(
+      giaeAuto.isFutureGIAECopyDate(
+        '2099-01-01',
+        '2026-09-10'
+      ),
+      false
     )
   }
 )
