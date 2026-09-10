@@ -117,6 +117,10 @@ test(
     assert.equal(monday.rawActivityText, '10.ºD_AP . AEXP')
     assert.equal(monday.rawRoomText, 'SP')
     assert.doesNotMatch(monday.rawActivityText, /\bSP\b/)
+    assert.deepEqual(
+      monday.sourceItems.map(sourceItem => sourceItem.text),
+      ['10.ºD_AP . AEXP', 'SP']
+    )
 
     const tuesdayLater = document.blocks.find(
       block => block.weekday === 2 && block.startTime === '10:20'
@@ -126,6 +130,10 @@ test(
     assert.match(tuesdayLater.rawActivityText, /AEXP/)
     assert.equal(tuesdayLater.rawRoomText, 'REO')
     assert.doesNotMatch(tuesdayLater.rawActivityText, /\bREO\b/)
+    assert.deepEqual(
+      tuesdayLater.sourceItems.map(sourceItem => sourceItem.text),
+      ['12.ºD_AP', '. AEXP', 'REO']
+    )
   }
 )
 
@@ -157,7 +165,74 @@ test(
       assert.equal(block.rawActivityToken, '')
       assert.equal(block.groupName, undefined)
       assert.equal(block.subjectName, undefined)
+      assert.ok(block.sourceItems.length > 0)
     }
+  }
+)
+
+test(
+  'current professional timetable shape keeps all nine time rows and representative occupied cells without interpreting their codes',
+  () => {
+    const times = [
+      ['08:30–09:20', 650],
+      ['09:25–10:15', 600],
+      ['10:30–11:20', 550],
+      ['11:25–12:15', 500],
+      ['12:20–13:10', 450],
+      ['13:20–14:10', 400],
+      ['14:15–15:05', 350],
+      ['15:15–16:05', 300],
+      ['16:10–17:00', 250]
+    ]
+
+    const document = reconstructScheduleGridDocument([
+      {
+        pageNumber: 1,
+        items: [
+          ...headerItems(),
+          ...times.map(([time, y]) => item(time, 10, y, 70)),
+          item('11.ºE_AP . AS', 100, 650, 58),
+          item('REO', 184, 650, 22),
+          item('12.ºD_AP . PAP', 270, 600, 66),
+          item('REO', 364, 600, 22),
+          item('12.ºD_AP . AEXP', 450, 550, 72),
+          item('A2.10', 544, 550, 28),
+          item('10.ºD_AIS . AEXP', 630, 500, 74),
+          item('REO', 724, 500, 22),
+          item('Eq Pedag', 810, 400, 54),
+          item('SP', 904, 400, 18),
+          item('Co PCE', 270, 300, 46),
+          item('SP', 364, 300, 18)
+        ]
+      }
+    ])
+
+    assert.equal(document.timeRows.length, 9)
+    assert.equal(document.blocks.length, 6)
+    assert.deepEqual(
+      document.blocks.map(block => block.rawActivityText),
+      [
+        '11.ºE_AP . AS',
+        '12.ºD_AP . PAP',
+        '12.ºD_AP . AEXP',
+        '10.ºD_AIS . AEXP',
+        'Eq Pedag',
+        'Co PCE'
+      ]
+    )
+    assert.deepEqual(
+      document.blocks.map(block => block.rawRoomText),
+      ['REO', 'REO', 'A2.10', 'REO', 'SP', 'SP']
+    )
+    assert.ok(
+      document.blocks.every(block => block.type === 'unknown')
+    )
+    assert.ok(
+      document.blocks.every(block =>
+        !block.rawActivityText.includes(block.rawRoomText) ||
+        !block.rawRoomText
+      )
+    )
   }
 )
 
