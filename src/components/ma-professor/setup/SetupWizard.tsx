@@ -14,6 +14,7 @@ import type {
 import AssessmentCriteriaPdfImportPanel from './AssessmentCriteriaPdfImportPanel'
 import AssessmentCriteriaSetupStep from './AssessmentCriteriaSetupStep'
 import GroupsSetupStep from './GroupsSetupStep'
+import GuidedAssessmentCriteriaImportPanel from './GuidedAssessmentCriteriaImportPanel'
 import ModulePlanificationImportPanel from './ModulePlanificationImportPanel'
 import ModulesSetupCourseSubjectGuard from './ModulesSetupCourseSubjectGuard'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
@@ -547,12 +548,12 @@ export default function SetupWizard({
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">3 · Critérios</p>
               <h2 className="mt-2 text-xl font-black">Por fim, adicione os critérios que já tiver.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                As disciplinas e UFCD/módulos já preparados tornam a correspondência mais segura. As ponderações vêm sempre do documento; o MA-Professor não assume 60/20/20 nem outro modelo por defeito.
+                As disciplinas e UFCD/módulos já preparados tornam a correspondência mais segura. Pode usar PDF ou Word; as ponderações vêm sempre do documento e nunca são inventadas.
               </p>
               <p className="mt-3 text-xs font-bold text-slate-500">Conjuntos atualmente configurados: {activeSchemeCount}</p>
             </section>
 
-            <AssessmentCriteriaPdfImportPanel
+            <GuidedAssessmentCriteriaImportPanel
               snapshot={snapshot}
               onImported={onSnapshotChange}
             />
