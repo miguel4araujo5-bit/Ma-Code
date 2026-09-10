@@ -11,9 +11,17 @@ const source = await readFile(
   'utf8'
 )
 
-function loadClassifier() {
-  const javascript = ts.transpileModule(
-    source,
+const resolverSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/setupDocumentInterpretationResolver.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+function transpile(value) {
+  return ts.transpileModule(
+    value,
     {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -21,7 +29,25 @@ function loadClassifier() {
       }
     }
   ).outputText
+}
+
+function loadResolver() {
   const module = { exports: {} }
+  new Function(
+    'module',
+    'exports',
+    transpile(resolverSource)
+  )(
+    module,
+    module.exports
+  )
+  return module.exports
+}
+
+function loadClassifier() {
+  const javascript = transpile(source)
+  const module = { exports: {} }
+  const resolver = loadResolver()
 
   new Function(
     'module',
@@ -32,6 +58,10 @@ function loadClassifier() {
     module,
     module.exports,
     request => {
+      if (request.includes('setupDocumentInterpretationResolver')) {
+        return resolver
+      }
+
       if (request.includes('planificationPdfParser')) {
         return {
           parsePlanificationPdfDocument(document) {
@@ -235,6 +265,57 @@ test(
     assert.equal(result.kind, 'criteria')
     assert.equal(result.summary.criteriaWeightTotal, 100)
     assert.equal(result.summary.scheduleTimeRanges, 0)
+  }
+)
+
+test(
+  'strong criteria structure overrides a misleading timetable filename',
+  () => {
+    const result = classify(
+      documentWith(
+        [
+          'CRITÉRIOS DE AVALIAÇÃO - Área de Expressões',
+          'Domínio Ponderação Indicadores',
+          'Desempenho 60%',
+          'Raciocínio e comunicação 20%',
+          'Competências transversais 20%'
+        ],
+        {
+          __criteriaCandidates: criteria([60, 20, 20])
+        }
+      ),
+      'horario_criterios.pdf'
+    )
+
+    assert.equal(result.kind, 'criteria')
+    assert.notEqual(result.confidence, 'low')
+  }
+)
+
+test(
+  'criteria that do not total 100 can be recognised but never receive high confidence',
+  () => {
+    const result = classify(
+      documentWith(
+        [
+          'CRITÉRIOS DE AVALIAÇÃO',
+          'Domínio Ponderação',
+          'Conhecimentos 60%',
+          'Atitudes 25%'
+        ],
+        {
+          __criteriaCandidates: criteria([60, 25])
+        }
+      ),
+      'criterios_incompletos.pdf'
+    )
+
+    assert.equal(result.kind, 'criteria')
+    assert.equal(result.confidence, 'medium')
+    assert.match(
+      result.warnings.join(' '),
+      /85%/
+    )
   }
 )
 
