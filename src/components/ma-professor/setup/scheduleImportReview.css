@@ -1,0 +1,18 @@
+/*
+ * The weekly visual grid is the primary review surface for imported schedules.
+ * ScheduleImportVisualGrid already exposes the same editable fields as the
+ * legacy bulk tables. Keep the legacy markup available for now, but do not
+ * duplicate it visually underneath the grid.
+ *
+ * Scope these selectors to siblings of the schedule-review grid so no other
+ * MA-Code table can be affected.
+ */
+section[aria-label='Revisão visual do horário importado']
+  ~ div:has(> h2 + div > table[class*='min-w-[1180px]']) {
+  display: none;
+}
+
+section[aria-label='Revisão visual do horário importado']
+  ~ div:has(> div + div > table[class*='min-w-[720px]']) {
+  display: none;
+}
