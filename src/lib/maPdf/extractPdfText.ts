@@ -29,6 +29,7 @@ export type ExtractedPdfCell = {
   text: string
   x: number
   width: number
+  requiresReview?: boolean
 }
 
 export type ExtractedPdfLine = {
@@ -309,23 +310,17 @@ function splitItemsIntoPositionedCells(
 
 function extractCompactTimetableLesson(value: string) {
   const match = value.match(
-    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*([A-Za-z])(?:\s*[_-]\s*|\s*\.\s*|\s+)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_-]*)/i
+    /^\s*(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*([A-Za-z])(?=$|[\s_.:;|/-])/i
   )
 
   if (!match) {
     return null
   }
 
-  const subjectCode =
-    match[3]
-      .replace(/[_-]+$/g, '')
-      .trim()
-
-  if (!subjectCode) {
-    return null
-  }
-
-  return `${match[1]}.º ${match[2].toLocaleUpperCase('pt-PT')} ${subjectCode.toLocaleUpperCase('pt-PT')}`
+  // Normalizar apenas a turma: tudo o que se segue pode conter curso e
+  // disciplina. Reduzir ao primeiro token transformava «AP . AEXP» em «AP».
+  const suffix = value.slice(match[0].length).trimEnd()
+  return `${match[1]}.º ${match[2].toLocaleUpperCase('pt-PT')}${suffix}`
 }
 
 function isWeekdayHeader(value: string) {
@@ -466,7 +461,8 @@ function mergeScheduleDayCells(
   return {
     text: compactLesson ?? text,
     x: left,
-    width: Math.max(0, right - left)
+    width: Math.max(0, right - left),
+    ...(cells.some(cell => cell.requiresReview) ? { requiresReview: true } : {})
   }
 }
 
@@ -524,6 +520,24 @@ function discardTimetableRoomColumns(
     anchor => anchor.kind === 'day'
   )
 
+  // Alguns PDFs já entregam atividade e sala num único TextItem. Recolher
+  // atividades observadas com uma sala fisicamente separada permite resolver
+  // esses fragmentos sem uma lista fechada de nomes de salas ou disciplinas.
+  const separatedActivities = new Map<string, number>()
+  for (const line of lines) {
+    if (!hasTimeRange(line.text)) continue
+    const cells = (line.positionedCells ?? []).filter(cell => !hasTimeRange(cell.text))
+    for (const day of dayAnchors) {
+      const room = anchors[anchors.indexOf(day) + 1]
+      if (room?.kind !== 'room') continue
+      if (!cells.some(cell => getScheduleColumnAnchorForCell(cell, anchors) === room)) continue
+      const activity = mergeScheduleDayCells(
+        cells.filter(cell => getScheduleColumnAnchorForCell(cell, anchors) === day)
+      )
+      if (activity) separatedActivities.set(activity.text, activity.width)
+    }
+  }
+
   return lines.map(line => {
     const positionedCells = line.positionedCells ?? []
 
@@ -569,8 +583,36 @@ function discardTimetableRoomColumns(
         continue
       }
 
+      let activityCell = cell
+      const room = anchors[anchors.indexOf(matchedAnchor) + 1]
+      const hasSeparateRoom = room?.kind === 'room' && positionedCells.some(other =>
+        other !== cell && getScheduleColumnAnchorForCell(other, anchors) === room
+      )
+      if (
+        room?.kind === 'room' &&
+        !hasSeparateRoom &&
+        cell.x < matchedAnchor.centerX &&
+        cell.x + cell.width >= room.centerX
+      ) {
+        const text = extractCompactTimetableLesson(cell.text) ?? cell.text
+        const prefixes = [...separatedActivities.keys()].filter(activity => {
+          const width = separatedActivities.get(activity)!
+          return text.startsWith(`${activity} `) &&
+            cell.x + width < room.centerX && width < cell.width
+        }).sort((left, right) => right.length - left.length)
+        const prefix = prefixes[0]
+        activityCell = prefix
+          ? {
+              ...cell,
+              text: prefix,
+              width: separatedActivities.get(prefix)!,
+              requiresReview: true
+            }
+          : { ...cell, requiresReview: true }
+      }
+
       const dayCells = cellsByDay.get(dayIndex) ?? []
-      dayCells.push(cell)
+      dayCells.push(activityCell)
       cellsByDay.set(dayIndex, dayCells)
     }
 
@@ -678,6 +720,16 @@ function groupItemsIntoLines(
       ) / currentLine.items.length
   }
 
+  // As subcolunas de sala são estreitas: o intervalo entre dois fragmentos
+  // de texto pode ser menor do que o limiar usado para juntar palavras.
+  // Preservar cada posição até separar as colunas evita fundir AEXP + REO
+  // e também cabeçalhos como «Segunda» + «Sala». Texto e células de exportação
+  // continuam a usar a reconstrução genérica, sem perda de conteúdo.
+  const hasScheduleColumns = lineGroups.some(group =>
+    group.items.filter(item => isWeekdayHeader(item.text)).length >= 2 &&
+    group.items.filter(item => isRoomHeader(item.text)).length >= 2
+  )
+
   return lineGroups
     .map(group => {
       const text = joinItemsAsText(group.items)
@@ -685,9 +737,13 @@ function groupItemsIntoLines(
         group.items
       )
       const cells = rawPositionedCells.map(cell => cell.text)
-      const positionedCells = prepareSchedulePositionedCells(
-        rawPositionedCells
-      )
+      const positionedCells = hasScheduleColumns
+        ? group.items.map(item => ({
+            text: item.text,
+            x: item.x,
+            width: item.width
+          }))
+        : prepareSchedulePositionedCells(rawPositionedCells)
 
       return {
         text,
