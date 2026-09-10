@@ -8,7 +8,6 @@ import {
 import {
   extractTextFromPdf,
   type ExtractedPdfCell,
-  type ExtractedPdfLine,
   type ExtractedPdfPage
 } from '../../../lib/maPdf/extractPdfText'
 import {
@@ -218,10 +217,19 @@ function clean(value: string) {
 }
 
 function resolveImportedSubject(
-  value: string
+  value: string,
+  legend?: Map<string, string>
 ): ImportedSubjectResolution {
   const subjectName = clean(value)
   const normalizedSubject = normalize(subjectName)
+  const legendName = legend?.get(normalizedSubject)
+
+  if (legend?.has(normalizedSubject)) {
+    return {
+      subjectName: legendName || subjectName,
+      subjectConfirmed: Boolean(legendName)
+    }
+  }
 
   for (const knownSubject of knownSubjectAliases) {
     if (
@@ -242,7 +250,6 @@ function resolveImportedSubject(
 
   const ambiguousShortLabel =
     compact.length > 0 &&
-    compact.length <= 5 &&
     /^[A-Z0-9]+$/.test(compact)
 
   return {
@@ -254,8 +261,27 @@ function resolveImportedSubject(
 }
 
 function resolveImportedLessonContext(
-  value: string
+  value: string,
+  legend?: Map<string, string>
 ): ImportedLessonResolution {
+  // No horário, «12.ºD_AP . AEXP» identifica o curso depois de «_»
+  // e a disciplina depois do separador. Preservar também cursos desconhecidos.
+  const explicitCourse = clean(value).match(
+    /^[_-]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_-]*)(?:\s*[.·|:;]\s*|\s+|$)(.*)$/u
+  )
+
+  if (explicitCourse) {
+    const code = explicitCourse[1]
+    const course = knownCourseAliases.find(candidate =>
+      candidate.aliases.some(alias => normalize(alias) === normalize(code))
+    )
+
+    return {
+      ...resolveImportedSubject(explicitCourse[2], legend),
+      courseName: course?.name ?? code
+    }
+  }
+
   const subjectTokens: string[] = []
   let courseName = ''
 
@@ -283,7 +309,8 @@ function resolveImportedLessonContext(
 
   const subject =
     resolveImportedSubject(
-      subjectTokens.join(' ')
+      subjectTokens.join(' '),
+      legend
     )
 
   return {
@@ -333,7 +360,7 @@ function extractTimeRange(value: string) {
 
 function extractGroupName(value: string) {
   const match = value.match(
-    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])\b/i
+    /\b(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])(?=$|[\s_.:;|/-])/i
   )
 
   return match
@@ -343,7 +370,8 @@ function extractGroupName(value: string) {
 
 function stripLessonNoise(
   value: string,
-  groupName: string
+  groupName: string,
+  preserveActivity = false
 ) {
   let result = value
 
@@ -355,12 +383,14 @@ function stripLessonNoise(
 
     result = result.replace(
       new RegExp(
-        `\\b${grade}\\s*(?:\\.?\\s*[ºo°])?\\s*[-–—.]?\\s*${letter}\\b`,
+        `\\b${grade}\\s*(?:\\.?\\s*[ºo°])?\\s*[-–—.]?\\s*${letter}(?=$|[\\s_.:;|/-])`,
         'i'
       ),
       ' '
     )
   }
+
+  if (preserveActivity) return clean(result)
 
   return result
     .replace(
@@ -576,25 +606,36 @@ function resolveColumnWeekday(
   return null
 }
 
-function rawCellText(
-  line: ExtractedPdfLine,
-  index: number,
-  fallback: string
-) {
-  if (
-    line.cells.length ===
-      (line.positionedCells?.length ?? 0)
-  ) {
-    return line.cells[index] ?? fallback
-  }
-
-  return fallback
-}
-
 function parsePages(
   pages: ExtractedPdfPage[],
   defaultMinutes: number
 ): ParsedProposal {
+  const legend = new Map<string, string>()
+  const conflictingCodes = new Set<string>()
+
+  for (const page of pages) {
+    let inLegend = false
+    for (const line of page.lines) {
+      if (normalize(line.text).includes('atividades do professor')) {
+        inLegend = true
+        continue
+      }
+      if (/^(?:o diretor|a diretora)\b/.test(normalize(line.text))) {
+        inLegend = false
+      }
+      if (!inLegend) continue
+      const entry = clean(line.text).match(/^(.{1,48}?)\s*[-–—]\s*(.{2,})$/u)
+      if (!entry) continue
+      const code = normalize(entry[1])
+      const label = clean(entry[2])
+      if (legend.has(code) && normalize(legend.get(code)!) !== normalize(label)) {
+        conflictingCodes.add(code)
+      }
+      legend.set(code, label)
+    }
+  }
+  for (const code of conflictingCodes) legend.set(code, '')
+
   const lessons: Draft[] = []
   const duties: DutyDraft[] = []
   const seenLessons = new Set<string>()
@@ -607,7 +648,9 @@ function parsePages(
     weekday: Weekday,
     startTime: string,
     endTime: string,
-    raw: string
+    raw: string,
+    requiresReview = false,
+    preserveActivity = false
   ) {
     const cleanedRaw =
       clean(raw)
@@ -622,7 +665,8 @@ function parsePages(
     const extractedSubjectName =
       stripLessonNoise(
         cleanedRaw,
-        groupName
+        groupName,
+        preserveActivity
       )
 
     if (!extractedSubjectName) {
@@ -631,7 +675,8 @@ function parsePages(
 
     const lesson =
       resolveImportedLessonContext(
-        extractedSubjectName
+        extractedSubjectName,
+        legend
       )
 
     if (
@@ -675,7 +720,7 @@ function parsePages(
       subjectName:
         lesson.subjectName,
       subjectConfirmed:
-        lesson.subjectConfirmed
+        lesson.subjectConfirmed && !requiresReview
     })
 
     return true
@@ -772,19 +817,14 @@ function parsePages(
             continue
           }
 
-          const originalText =
-            rawCellText(
-              line,
-              index,
-              cell.text
-            )
-
+          // Só a célula já separada da sala pode definir a atividade.
+          // Os índices de line.cells pertencem à extração bruta original.
           if (
             addDuty(
               weekday,
               time.startTime,
               time.endTime,
-              originalText
+              cell.text
             )
           ) {
             addedFromColumns = true
@@ -811,7 +851,9 @@ function parsePages(
               weekday,
               time.startTime,
               time.endTime,
-              content
+              content,
+              cell.requiresReview,
+              true
             )
           ) {
             addedFromColumns = true
