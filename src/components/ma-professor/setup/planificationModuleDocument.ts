@@ -79,10 +79,45 @@ function metadata(text: string) {
   }
 }
 
-export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {
+function parseWordDom(xml: string) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('O documento Word contém uma estrutura não suportada.')
   const dom = new DOMParser().parseFromString(xml, 'application/xml')
   if (dom.getElementsByTagName('parsererror').length) throw new Error('Não foi possível ler o documento Word.')
+  return dom
+}
+
+function genericWordLines(dom: Document) {
+  const result: PlanificationPdfLine[] = []
+
+  for (const paragraph of Array.from(
+    dom.getElementsByTagNameNS(WORD_NS, 'p')
+  )) {
+    const value = paragraphText(paragraph)
+    if (value) {
+      result.push(line([value]))
+    }
+  }
+
+  for (const table of Array.from(
+    dom.getElementsByTagNameNS(WORD_NS, 'tbl')
+  )) {
+    for (const row of Array.from(table.children)
+      .filter(element => element.localName === 'tr')) {
+      const cells = Array.from(row.children)
+        .filter(element => element.localName === 'tc')
+        .map(paragraphs)
+
+      if (cells.some(Boolean)) {
+        result.push(line(cells))
+      }
+    }
+  }
+
+  return result
+}
+
+export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {
+  const dom = parseWordDom(xml)
   const text = paragraphs(dom.documentElement)
   const lines = [line(headers)]
   let found = 0
@@ -101,7 +136,7 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
       }
     }
   }
-  if (!found) throw new Error('Não foram encontradas UFCD estruturadas nas tabelas deste Word. Planificações Word organizadas apenas por módulos ficam para a próxima família do importador.')
+  if (!found) throw new Error('Não foram encontradas UFCD estruturadas nas tabelas deste Word.')
   const parsed = parsePlanificationPdfDocument({
     pages: [{ pageNumber: 1, lines }], pageCount: 1, characterCount: text.length
   }, name)
@@ -111,6 +146,51 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
     // DOCX table order is not a reliable printed page number.
     sections: parsed.sections.map(section => ({ ...section, sourcePages: [] })),
     warnings: [...parsed.warnings, 'Word: a origem é identificada pelo ficheiro e pela UFCD; a paginação não é inferida.']
+  }
+}
+
+async function parseModuleStyleWord(
+  xml: string,
+  name: string,
+  sha256: string
+): Promise<ModuleDocument | null> {
+  const dom = parseWordDom(xml)
+  const text = paragraphs(dom.documentElement)
+  const lines = genericWordLines(dom)
+  const {
+    parseModuleStylePlanificationPdfDocument
+  } = await import(
+    '../planifications/moduleStylePlanificationPdfParser'
+  )
+  const parsed =
+    parseModuleStylePlanificationPdfDocument(
+      {
+        pages: [{
+          pageNumber: 1,
+          lines
+        }],
+        pageCount: 1,
+        characterCount: text.length
+      },
+      name
+    )
+
+  if (parsed.sections.length === 0) {
+    return null
+  }
+
+  return {
+    name,
+    sha256,
+    ...metadata(text),
+    sections: parsed.sections.map(section => ({
+      ...section,
+      sourcePages: []
+    })),
+    warnings: [
+      ...parsed.warnings,
+      'Word: a origem é identificada pelo ficheiro e pelo módulo; a paginação não é inferida.'
+    ]
   }
 }
 
@@ -128,7 +208,36 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
       }
     })
     if (!archive['word/document.xml']) throw new Error('O ficheiro não é um documento Word válido.')
-    return { ...parseModuleDocxXml(strFromU8(archive['word/document.xml']), file.name), sha256 }
+    const xml = strFromU8(archive['word/document.xml'])
+
+    try {
+      return {
+        ...parseModuleDocxXml(xml, file.name),
+        sha256
+      }
+    } catch (failure) {
+      if (
+        !(failure instanceof Error) ||
+        !failure.message.includes('Não foram encontradas UFCD estruturadas')
+      ) {
+        throw failure
+      }
+
+      const moduleDocument =
+        await parseModuleStyleWord(
+          xml,
+          file.name,
+          sha256
+        )
+
+      if (moduleDocument) {
+        return moduleDocument
+      }
+
+      throw new Error(
+        'Não foram encontradas UFCD ou módulos estruturados nas tabelas deste Word.'
+      )
+    }
   }
   if (!/\.pdf$/i.test(file.name)) throw new Error('Selecione um PDF ou um Word (.docx).')
   const { extractPlanificationPdf } = await import('../planifications/planificationPdfExtractor')
