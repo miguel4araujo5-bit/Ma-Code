@@ -32,15 +32,19 @@ const importStepSource = await readFile(
 )
 
 test(
-  'schedule review no longer renders the two legacy bulk tables underneath the visual grid',
+  'schedule review does not display the two legacy bulk tables underneath the visual grid',
   () => {
     assert.match(
       mainSource,
       /scheduleImportReview\.css/
     )
     assert.match(
+      importStepSource,
+      /<div className="mt-5">\s*<ScheduleImportVisualGrid/
+    )
+    assert.match(
       reviewCss,
-      /Revisão visual do horário importado/
+      /div:has\(> section\[aria-label='Revisão visual do horário importado'\]\)/
     )
     assert.match(
       reviewCss,
@@ -52,7 +56,7 @@ test(
     )
     assert.match(
       reviewCss,
-      /display:\s*none/
+      /display:\s*none/g
     )
   }
 )
@@ -85,7 +89,7 @@ test(
 )
 
 test(
-  'compact review CSS is scoped to the schedule visual grid and cannot hide unrelated tables',
+  'compact review CSS is scoped to the schedule visual-grid wrapper and cannot hide unrelated tables',
   () => {
     const selectors = reviewCss
       .split('{')
@@ -97,7 +101,7 @@ test(
     for (const selector of selectors) {
       assert.match(
         selector,
-        /section\[aria-label='Revisão visual do horário importado'\]/
+        /^div:has\(> section\[aria-label='Revisão visual do horário importado'\]\)/
       )
     }
   }
