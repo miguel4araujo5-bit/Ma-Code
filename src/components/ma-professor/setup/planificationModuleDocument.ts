@@ -1,8 +1,5 @@
 import { strFromU8, unzipSync } from 'fflate'
 import {
-  parseModuleStylePlanificationPdfDocument
-} from '../planifications/moduleStylePlanificationPdfParser'
-import {
   parsePlanificationPdfDocument,
   type ParsedPlanificationPdfSection,
   type PlanificationPdfLine
@@ -82,36 +79,6 @@ function metadata(text: string) {
   }
 }
 
-function genericWordLines(dom: Document) {
-  const result: PlanificationPdfLine[] = []
-
-  for (const paragraph of Array.from(
-    dom.getElementsByTagNameNS(WORD_NS, 'p')
-  )) {
-    const value = paragraphText(paragraph)
-    if (value) {
-      result.push(line([value]))
-    }
-  }
-
-  for (const table of Array.from(
-    dom.getElementsByTagNameNS(WORD_NS, 'tbl')
-  )) {
-    for (const row of Array.from(table.children)
-      .filter(element => element.localName === 'tr')) {
-      const cells = Array.from(row.children)
-        .filter(element => element.localName === 'tc')
-        .map(paragraphs)
-
-      if (cells.some(Boolean)) {
-        result.push(line(cells))
-      }
-    }
-  }
-
-  return result
-}
-
 export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocument, 'sha256'> {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('O documento Word contém uma estrutura não suportada.')
   const dom = new DOMParser().parseFromString(xml, 'application/xml')
@@ -134,51 +101,16 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
       }
     }
   }
-
-  if (found > 0) {
-    const parsed = parsePlanificationPdfDocument({
-      pages: [{ pageNumber: 1, lines }], pageCount: 1, characterCount: text.length
-    }, name)
-    if (parsed.sections.length !== found) throw new Error('Existem códigos repetidos ou secções ambíguas. Reveja o documento.')
-    return {
-      name, ...metadata(text),
-      // DOCX table order is not a reliable printed page number.
-      sections: parsed.sections.map(section => ({ ...section, sourcePages: [] })),
-      warnings: [...parsed.warnings, 'Word: a origem é identificada pelo ficheiro e pela UFCD; a paginação não é inferida.']
-    }
-  }
-
-  const genericLines = genericWordLines(dom)
-  const moduleParsed =
-    parseModuleStylePlanificationPdfDocument(
-      {
-        pages: [{
-          pageNumber: 1,
-          lines: genericLines
-        }],
-        pageCount: 1,
-        characterCount: text.length
-      },
-      name
-    )
-
-  if (moduleParsed.sections.length === 0) {
-    throw new Error(
-      'Não foram encontradas UFCD ou módulos estruturados nas tabelas deste Word.'
-    )
-  }
-
+  if (!found) throw new Error('Não foram encontradas UFCD estruturadas nas tabelas deste Word. Planificações Word organizadas apenas por módulos ficam para a próxima família do importador.')
+  const parsed = parsePlanificationPdfDocument({
+    pages: [{ pageNumber: 1, lines }], pageCount: 1, characterCount: text.length
+  }, name)
+  if (parsed.sections.length !== found) throw new Error('Existem códigos repetidos ou secções ambíguas. Reveja o documento.')
   return {
-    name,
-    ...metadata(text),
-    sections: moduleParsed.sections.map(section => ({
-      ...section,
-      sourcePages: []
-    })),
-    warnings: [
-      ...moduleParsed.warnings,
-      'Word: a origem é identificada pelo ficheiro e pelo módulo; a paginação não é inferida.'
-    ]
+    name, ...metadata(text),
+    // DOCX table order is not a reliable printed page number.
+    sections: parsed.sections.map(section => ({ ...section, sourcePages: [] })),
+    warnings: [...parsed.warnings, 'Word: a origem é identificada pelo ficheiro e pela UFCD; a paginação não é inferida.']
   }
 }
 
@@ -202,12 +134,21 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
   const { extractPlanificationPdf } = await import('../planifications/planificationPdfExtractor')
   const document = await extractPlanificationPdf(file)
   const standardParsed = parsePlanificationPdfDocument(document, file.name)
-  const parsed = standardParsed.sections.length > 0
-    ? standardParsed
-    : parseModuleStylePlanificationPdfDocument(
-        document,
-        file.name
-      )
+  let parsed = standardParsed
+
+  if (standardParsed.sections.length === 0) {
+    const {
+      parseModuleStylePlanificationPdfDocument
+    } = await import(
+      '../planifications/moduleStylePlanificationPdfParser'
+    )
+
+    parsed = parseModuleStylePlanificationPdfDocument(
+      document,
+      file.name
+    )
+  }
+
   if (!parsed.sections.length) throw new Error('Não foram encontradas UFCD ou módulos com texto legível neste PDF.')
   const text = document.pages.flatMap(page => page.lines.map(row => row.text)).join('\n')
   return {
