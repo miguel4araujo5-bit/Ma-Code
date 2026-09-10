@@ -91,13 +91,14 @@ test(
 test(
   'compact review CSS is scoped to the schedule visual-grid wrapper and cannot hide unrelated tables',
   () => {
-    const selectors = reviewCss
+    const cssWithoutComments = reviewCss.replace(/\/\*[\s\S]*?\*\//g, '')
+    const selectors = cssWithoutComments
       .split('{')
       .slice(0, -1)
       .map(part => part.split('}').at(-1)?.trim() ?? '')
       .filter(Boolean)
 
-    assert.ok(selectors.length >= 2)
+    assert.equal(selectors.length, 2)
     for (const selector of selectors) {
       assert.match(
         selector,
