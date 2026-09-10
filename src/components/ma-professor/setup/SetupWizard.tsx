@@ -70,7 +70,10 @@ const selectClassName =
 
 function formatDate(value: string) {
   const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) return value || '—'
+
+  if (!year || !month || !day) {
+    return value || '—'
+  }
 
   return new Intl.DateTimeFormat('pt-PT', {
     day: '2-digit',
@@ -79,9 +82,7 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day))
 }
 
-function getEffectiveCompletedSteps(
-  snapshot: SetupSnapshot
-) {
+function getEffectiveCompletedSteps(snapshot: SetupSnapshot) {
   const completed = new Set<SetupStepId>(
     snapshot.progress?.completedSteps ?? []
   )
@@ -95,58 +96,46 @@ function getEffectiveCompletedSteps(
   return completed
 }
 
-function getFirstIncompleteStep(
-  snapshot: SetupSnapshot
-): SetupStepId {
+function getFirstIncompleteStep(snapshot: SetupSnapshot): SetupStepId {
   const completedSteps = getEffectiveCompletedSteps(snapshot)
 
-  return (
-    setupSteps.find(
-      step => !completedSteps.has(step.id)
-    )?.id ?? 'confirmation'
-  )
+  return setupSteps.find(step =>
+    !completedSteps.has(step.id)
+  )?.id ?? 'confirmation'
 }
 
-async function reconcileImportedScheduleProgress(
-  snapshot: SetupSnapshot
-) {
+async function reconcileImportedScheduleProgress(snapshot: SetupSnapshot) {
   if (!hasCompleteScheduleCoverage(snapshot)) {
     return snapshot
   }
 
-  const persistedCompleted = new Set<SetupStepId>(
+  const completed = new Set<SetupStepId>(
     snapshot.progress?.completedSteps ?? []
   )
   let changed = false
 
   for (const step of importedScheduleSteps) {
-    if (persistedCompleted.has(step)) continue
+    if (completed.has(step)) continue
 
     await maProfessorRepository.completeSetupStep(
       snapshot.academicYear.id,
       step
     )
-    persistedCompleted.add(step)
+    completed.add(step)
     changed = true
   }
 
   return changed
-    ? maProfessorRepository.getSetupSnapshot(
-        snapshot.academicYear.id
-      )
+    ? maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
     : snapshot
 }
 
 function activeAssignmentIds(snapshot: SetupSnapshot) {
   const activeGroupIds = new Set(
-    snapshot.groups
-      .filter(group => group.active)
-      .map(group => group.id)
+    snapshot.groups.filter(group => group.active).map(group => group.id)
   )
   const activeSubjectIds = new Set(
-    snapshot.subjects
-      .filter(subject => subject.active)
-      .map(subject => subject.id)
+    snapshot.subjects.filter(subject => subject.active).map(subject => subject.id)
   )
 
   return snapshot.teachingAssignments
@@ -162,7 +151,7 @@ function hasPlanificationCoverage(snapshot: SetupSnapshot) {
   const assignments = activeAssignmentIds(snapshot)
   if (assignments.length === 0) return false
 
-  const activeModules = snapshot.modules.filter(module => module.active)
+  const modules = snapshot.modules.filter(module => module.active)
   const planifiedModuleIds = new Set(
     snapshot.planifications
       .filter(planification => planification.active)
@@ -170,13 +159,13 @@ function hasPlanificationCoverage(snapshot: SetupSnapshot) {
   )
 
   return assignments.every(assignmentId => {
-    const modules = activeModules.filter(
+    const assignmentModules = modules.filter(
       module => module.teachingAssignmentId === assignmentId
     )
 
     return (
-      modules.length > 0 &&
-      modules.every(module => planifiedModuleIds.has(module.id))
+      assignmentModules.length > 0 &&
+      assignmentModules.every(module => planifiedModuleIds.has(module.id))
     )
   })
 }
@@ -185,34 +174,32 @@ function hasCriteriaCoverage(snapshot: SetupSnapshot) {
   const assignments = activeAssignmentIds(snapshot)
   if (assignments.length === 0) return false
 
-  const activeCriterionSchemeIds = new Set(
+  const schemesWithCriteria = new Set(
     snapshot.assessmentCriteria
       .filter(criterion => criterion.active)
       .map(criterion => criterion.schemeId)
   )
-  const activeSchemes = snapshot.assessmentSchemes.filter(
-    scheme =>
-      scheme.active &&
-      activeCriterionSchemeIds.has(scheme.id)
+  const schemes = snapshot.assessmentSchemes.filter(scheme =>
+    scheme.active && schemesWithCriteria.has(scheme.id)
   )
-  const activeModules = snapshot.modules.filter(module => module.active)
+  const modules = snapshot.modules.filter(module => module.active)
 
   return assignments.every(assignmentId => {
-    const hasSubjectScheme = activeSchemes.some(scheme =>
+    if (schemes.some(scheme =>
       scheme.teachingAssignmentId === assignmentId &&
       scheme.scope === 'subject'
-    )
+    )) {
+      return true
+    }
 
-    if (hasSubjectScheme) return true
-
-    const modules = activeModules.filter(
+    const assignmentModules = modules.filter(
       module => module.teachingAssignmentId === assignmentId
     )
 
     return (
-      modules.length > 0 &&
-      modules.every(module =>
-        activeSchemes.some(scheme =>
+      assignmentModules.length > 0 &&
+      assignmentModules.every(module =>
+        schemes.some(scheme =>
           scheme.teachingAssignmentId === assignmentId &&
           scheme.scope === 'module' &&
           scheme.moduleId === module.id
@@ -222,44 +209,11 @@ function hasCriteriaCoverage(snapshot: SetupSnapshot) {
   })
 }
 
-function getInitialGuidedStage(
-  snapshot: SetupSnapshot
-): GuidedStage {
+function getInitialGuidedStage(snapshot: SetupSnapshot): GuidedStage {
   if (!hasCompleteScheduleCoverage(snapshot)) return 'schedule'
   if (!hasPlanificationCoverage(snapshot)) return 'planifications'
   if (!hasCriteriaCoverage(snapshot)) return 'criteria'
   return 'ready'
-}
-
-function AcademicYearSummary({
-  snapshot,
-  onContinue
-}: {
-  snapshot: SetupSnapshot
-  onContinue: () => void
-}) {
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_0.85fr]">
-      <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Contexto automático</p>
-        <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Ano letivo</h2>
-        <p className="mt-3 text-sm leading-7 text-slate-400">O MA-Professor mantém os dados separados por ano letivo, mas não precisa de preencher esta informação durante a configuração inicial.</p>
-        <div className="mt-7 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-200">Ano ativo</p>
-          <p className="mt-3 text-2xl font-black text-white">{snapshot.academicYear.name}</p>
-          <p className="mt-3 text-sm leading-7 text-slate-300">{formatDate(snapshot.academicYear.startDate)} a {formatDate(snapshot.academicYear.endDate)}</p>
-        </div>
-      </section>
-      <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-xl shadow-black/15 sm:p-6">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Informação</p>
-        <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-          <p className="font-black text-white">Não precisa de alterar nada aqui.</p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">Mais tarde poderá alternar entre anos letivos existentes no menu principal, sem misturar os respetivos dados.</p>
-        </div>
-        <button type="button" onClick={onContinue} className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-5 py-3.5 text-sm font-black text-white transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.09]">Voltar à configuração</button>
-      </section>
-    </div>
-  )
 }
 
 function GuidedProgress({
@@ -283,6 +237,7 @@ function GuidedProgress({
     <div className="grid gap-2 sm:grid-cols-3">
       {steps.map(step => {
         const active = stage === step.id
+
         return (
           <div
             key={step.id}
@@ -310,6 +265,31 @@ function GuidedProgress({
         )
       })}
     </div>
+  )
+}
+
+function AcademicYearSummary({
+  snapshot,
+  onContinue
+}: {
+  snapshot: SetupSnapshot
+  onContinue: () => void
+}) {
+  return (
+    <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-6 text-white">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Contexto automático</p>
+      <h2 className="mt-3 text-2xl font-black">Ano letivo {snapshot.academicYear.name}</h2>
+      <p className="mt-3 text-sm leading-7 text-slate-400">
+        {formatDate(snapshot.academicYear.startDate)} a {formatDate(snapshot.academicYear.endDate)}. Não precisa de alterar este contexto no assistente inicial.
+      </p>
+      <button
+        type="button"
+        onClick={onContinue}
+        className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-bold"
+      >
+        Voltar à configuração
+      </button>
+    </section>
   )
 }
 
@@ -341,8 +321,11 @@ export default function SetupWizard({
   const planificationsReady = hasPlanificationCoverage(snapshot)
   const criteriaReady = hasCriteriaCoverage(snapshot)
   const currentProgressStep = getFirstIncompleteStep(snapshot)
-  const activeStepDefinition = setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
-  const completedSetupSteps = setupSteps.filter(step => completedSteps.has(step.id)).length
+  const activeStepDefinition =
+    setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
+  const completedSetupSteps = setupSteps.filter(
+    step => completedSteps.has(step.id)
+  ).length
   const totalSetupSteps = setupSteps.length + 1
   const completedCount = completedSetupSteps + 1
   const completionPercent = Math.round((completedCount / totalSetupSteps) * 100)
@@ -370,6 +353,7 @@ export default function SetupWizard({
     )
 
     onSnapshotChange(preparedSnapshot)
+
     if (
       preparedSnapshot.academicYear.setupCompletedAt ||
       preparedSnapshot.progress?.completedAt
@@ -382,9 +366,7 @@ export default function SetupWizard({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  async function handleGuidedScheduleImported(
-    nextSnapshot: SetupSnapshot
-  ) {
+  async function handleGuidedScheduleImported(nextSnapshot: SetupSnapshot) {
     const preparedSnapshot = await reconcileImportedScheduleProgress(
       nextSnapshot
     )
@@ -394,9 +376,7 @@ export default function SetupWizard({
   }
 
   function openDaily() {
-    window.dispatchEvent(
-      new Event(MA_PROFESSOR_OPEN_DAILY_EVENT)
-    )
+    window.dispatchEvent(new Event(MA_PROFESSOR_OPEN_DAILY_EVENT))
   }
 
   const commonProps = {
@@ -431,7 +411,9 @@ export default function SetupWizard({
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={async nextSnapshot => {
-                const prepared = await reconcileImportedScheduleProgress(nextSnapshot)
+                const prepared = await reconcileImportedScheduleProgress(
+                  nextSnapshot
+                )
                 onSnapshotChange(prepared)
               }}
               onContinueWithoutPdf={() => undefined}
@@ -467,8 +449,12 @@ export default function SetupWizard({
 
   if (!advancedMode) {
     const activeModuleCount = snapshot.modules.filter(module => module.active).length
-    const activePlanificationCount = snapshot.planifications.filter(planification => planification.active).length
-    const activeSchemeCount = snapshot.assessmentSchemes.filter(scheme => scheme.active).length
+    const activePlanificationCount = snapshot.planifications.filter(
+      planification => planification.active
+    ).length
+    const activeSchemeCount = snapshot.assessmentSchemes.filter(
+      scheme => scheme.active
+    ).length
 
     return (
       <div className="mx-auto max-w-[100rem]">
@@ -482,7 +468,6 @@ export default function SetupWizard({
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
             Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas. Pode saltar qualquer etapa e voltar mais tarde.
           </p>
-
           <div className="mt-6">
             <GuidedProgress
               stage={guidedStage}
@@ -512,7 +497,7 @@ export default function SetupWizard({
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">2 · Planificações</p>
               <h2 className="mt-2 text-xl font-black">Agora já conhecemos a estrutura do seu horário.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Adicione uma planificação de cada vez. O MA-Professor tenta reconhecer a disciplina e criar as respetivas UFCD/módulos e planificações. Só abra os detalhes quando precisar de corrigir alguma coisa.
+                Adicione uma planificação de cada vez. O MA-Professor tenta reconhecer a disciplina e o destino; só abre os detalhes que realmente precisam de correção.
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{snapshot.subjects.filter(subject => subject.active).length} disciplinas</span>
@@ -526,6 +511,7 @@ export default function SetupWizard({
               disabled={false}
               onActiveChange={() => undefined}
               onImported={refreshSnapshot}
+              guided
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
@@ -561,7 +547,7 @@ export default function SetupWizard({
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">3 · Critérios</p>
               <h2 className="mt-2 text-xl font-black">Por fim, adicione os critérios que já tiver.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Como as disciplinas e UFCD/módulos já foram preparados nos passos anteriores, a correspondência é mais segura. As ponderações têm sempre de vir do documento; o MA-Professor não assume 60/20/20 nem outro modelo por defeito.
+                As disciplinas e UFCD/módulos já preparados tornam a correspondência mais segura. As ponderações vêm sempre do documento; o MA-Professor não assume 60/20/20 nem outro modelo por defeito.
               </p>
               <p className="mt-3 text-xs font-bold text-slate-500">Conjuntos atualmente configurados: {activeSchemeCount}</p>
             </section>
@@ -601,13 +587,16 @@ export default function SetupWizard({
         {guidedStage === 'ready' ? (
           <section className="mt-6 rounded-[2rem] border border-emerald-300/20 bg-slate-950/75 p-6 text-white shadow-2xl shadow-black/20 sm:p-8">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">Preparação concluída por agora</p>
-            <h2 className="mt-3 text-2xl font-black">{readiness.operationalReady ? 'Já pode começar a trabalhar.' : 'Pode continuar depois sem perder o que já configurou.'}</h2>
+            <h2 className="mt-3 text-2xl font-black">
+              {readiness.operationalReady
+                ? 'Já pode começar a trabalhar.'
+                : 'Pode continuar depois sem perder o que já configurou.'}
+            </h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Horário</p><p className="mt-2 font-black">{scheduleReady ? '✓ Preparado' : '◌ Pendente'}</p></div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Planificações</p><p className="mt-2 font-black">{planificationsReady ? '✓ Preparadas' : '◌ Por completar'}</p></div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Critérios</p><p className="mt-2 font-black">{criteriaReady ? '✓ Configurados' : '◌ Por completar'}</p></div>
             </div>
-
             <div className="mt-6 flex flex-wrap gap-3">
               {readiness.operationalReady ? (
                 <button
@@ -655,8 +644,13 @@ export default function SetupWizard({
           </div>
           <div className="flex flex-col items-end gap-3">
             <div className="min-w-[12rem] rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-              <div className="flex items-center justify-between gap-4"><span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span><span className="text-sm font-black text-cyan-100">{completedCount}/{totalSetupSteps}</span></div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} /></div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Configuração completa</span>
+                <span className="text-sm font-black text-cyan-100">{completedCount}/{totalSetupSteps}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${completionPercent}%` }} />
+              </div>
             </div>
             <button
               type="button"
@@ -691,8 +685,16 @@ export default function SetupWizard({
         <div className="mt-6 lg:hidden">
           <label className="block">
             <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Área apresentada</span>
-            <select value={activeStep === 'academic_year' ? currentProgressStep : activeStep} onChange={(event: ChangeEvent<HTMLSelectElement>) => navigateToStep(event.target.value as SetupStepId)} className={selectClassName}>
-              {setupSteps.map(step => <option key={step.id} value={step.id}>{step.number}. {step.title}{completedSteps.has(step.id) ? ' — concluído' : ' — por completar'}</option>)}
+            <select
+              value={activeStep === 'academic_year' ? currentProgressStep : activeStep}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => navigateToStep(event.target.value as SetupStepId)}
+              className={selectClassName}
+            >
+              {setupSteps.map(step => (
+                <option key={step.id} value={step.id}>
+                  {step.number}. {step.title}{completedSteps.has(step.id) ? ' — concluído' : ' — por completar'}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -701,10 +703,32 @@ export default function SetupWizard({
           {setupSteps.map(step => {
             const completed = completedSteps.has(step.id)
             const active = activeStep === step.id
+            const unlocked = isStepUnlocked(step.id)
+
             return (
-              <button key={step.id} type="button" onClick={() => navigateToStep(step.id)} className={`min-w-0 rounded-2xl border p-3 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/[0.09]' : completed ? 'border-emerald-300/20 bg-emerald-300/[0.05]' : 'border-white/10 bg-white/[0.025]'}`}>
+              <button
+                key={step.id}
+                type="button"
+                aria-disabled={!unlocked}
+                onClick={() => navigateToStep(step.id)}
+                className={`min-w-0 rounded-2xl border p-3 text-left transition ${
+                  active
+                    ? 'border-cyan-300/40 bg-cyan-300/[0.09]'
+                    : completed
+                      ? 'border-emerald-300/20 bg-emerald-300/[0.05]'
+                      : 'border-white/10 bg-white/[0.025]'
+                }`}
+              >
                 <div className="flex items-center gap-2">
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${active ? 'border-cyan-300/35 bg-cyan-300/15 text-cyan-50' : completed ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-400'}`}>{completed ? '✓' : step.number}</span>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${
+                    active
+                      ? 'border-cyan-300/35 bg-cyan-300/15 text-cyan-50'
+                      : completed
+                        ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                        : 'border-white/10 bg-white/[0.035] text-slate-400'
+                  }`}>
+                    {completed ? '✓' : step.number}
+                  </span>
                   <span className="truncate text-xs font-black text-white">{step.shortTitle}</span>
                 </div>
               </button>
@@ -719,14 +743,24 @@ export default function SetupWizard({
               <p className="mt-2 font-black text-white">{activeStepDefinition.title}</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">{activeStepDefinition.description}</p>
             </div>
-            {activeStep !== currentProgressStep ? <button type="button" onClick={() => navigateToStep(currentProgressStep)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300">Ir para o passo atual</button> : null}
+            {activeStep !== currentProgressStep ? (
+              <button
+                type="button"
+                onClick={() => navigateToStep(currentProgressStep)}
+                className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300"
+              >
+                Ir para o passo atual
+              </button>
+            ) : null}
           </div>
         ) : null}
       </section>
 
       <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
 
-      <p className="mt-6 text-center text-xs leading-6 text-slate-500">A configuração avançada permanece disponível para correções e exceções. O assistente simples é o percurso recomendado para o primeiro arranque.</p>
+      <p className="mt-6 text-center text-xs leading-6 text-slate-500">
+        A configuração avançada permanece disponível para correções e exceções. O assistente simples é o percurso recomendado para o primeiro arranque.
+      </p>
     </div>
   )
 }
