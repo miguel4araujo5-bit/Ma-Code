@@ -423,13 +423,6 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
     }
   }
 
-  if (showScheduleImport) {
-    return <SchedulePdfImportStep snapshot={snapshot} onImported={handleScheduleImported} onContinueWithoutPdf={() => {
-      setShowScheduleImport(false)
-      setQueuedDocument(null)
-    }} />
-  }
-
   return (
     <div className="mx-auto max-w-[100rem]">
       <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-6 lg:p-7">
@@ -497,7 +490,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
           })}
         </div>
 
-        {activeStep !== 'academic_year' ? (
+        {!showScheduleImport && activeStep !== 'academic_year' ? (
           <div className="mt-5 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Passo {activeStepDefinition.number} de {totalSetupSteps}</p>
@@ -522,7 +515,21 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
         </div>
       ) : null}
 
-      <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
+      {showScheduleImport ? (
+        <div className="mt-6">
+          <SchedulePdfImportStep
+            snapshot={snapshot}
+            onImported={handleScheduleImported}
+            onContinueWithoutPdf={() => {
+              setShowScheduleImport(false)
+              setQueuedDocument(null)
+            }}
+          />
+        </div>
+      ) : (
+        <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
+      )}
+
       <p className="mt-6 text-center text-xs leading-6 text-slate-500">Pode saltar qualquer área e regressar depois. O MA-Professor apenas impede guardar dados estruturalmente inválidos; uma pendência não bloqueia o resto da configuração.</p>
     </div>
   )
