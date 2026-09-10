@@ -5,6 +5,10 @@ import {
 import {
   parseAssessmentCriteriaPdfDocument
 } from './assessmentCriteriaPdfParser'
+import {
+  resolveSetupDocumentInterpretation,
+  type SetupInterpretationProposal
+} from './setupDocumentInterpretationResolver'
 
 export type SetupImportDocumentKind =
   | 'schedule'
@@ -158,52 +162,13 @@ function filenameEvidence(
   }
 }
 
-function chooseKind(
-  scores: Record<CandidateKind, number>
-) {
-  const ranked = (
-    Object.entries(scores) as Array<
-      [CandidateKind, number]
-    >
-  ).sort((left, right) => right[1] - left[1])
-
-  const [bestKind, bestScore] = ranked[0]
-  const secondScore = ranked[1]?.[1] ?? 0
-  const margin = bestScore - secondScore
-
-  if (bestScore < 6) {
-    return {
-      kind: 'unknown' as const,
-      confidence: 'low' as const
-    }
-  }
-
-  if (bestScore >= 12 && margin >= 4) {
-    return {
-      kind: bestKind,
-      confidence: 'high' as const
-    }
-  }
-
-  if (bestScore >= 8 && margin >= 2) {
-    return {
-      kind: bestKind,
-      confidence: 'medium' as const
-    }
-  }
-
-  return {
-    kind: 'unknown' as const,
-    confidence: 'low' as const
-  }
-}
-
 export function classifySetupPdfDocument(
   document: PlanificationPdfDocument,
   fileName: string
 ): SetupDocumentClassification {
   const text = documentText(document)
   const normalizedText = normalize(text)
+  const normalizedFileName = normalize(fileName)
   const planification =
     parsePlanificationPdfDocument(
       document,
@@ -267,9 +232,17 @@ export function classifySetupPdfDocument(
     )
   }
 
+  const scheduleExplicit =
+    /\bhorario\b/.test(normalizedText) ||
+    /\bhorario\b/.test(normalizedFileName)
+
   if (/\bhorario\b/.test(normalizedText)) {
     scores.schedule += 4
   }
+
+  const planificationExplicit =
+    /\bplanificac(?:ao|oes)\b/.test(normalizedText) ||
+    /\bplanificac(?:ao|oes)\b/.test(normalizedFileName)
 
   if (/\bplanificac(?:ao|oes)\b/.test(normalizedText)) {
     scores.planification += 7
@@ -285,19 +258,26 @@ export function classifySetupPdfDocument(
     )
   }
 
-  if (
+  const hasPlanificationColumns =
     /\b(?:temas?|conteudos?)\b/.test(normalizedText) &&
     /\b(?:objetivos?|competencias?)\b/.test(normalizedText)
-  ) {
+
+  if (hasPlanificationColumns) {
     scores.planification += 3
   }
 
-  if (/\b(?:ufcd|modulo)\b/.test(normalizedText)) {
+  const hasCurricularUnitMarker =
+    /\b(?:ufcd|modulo)\b/.test(normalizedText)
+
+  if (hasCurricularUnitMarker) {
     scores.planification += 2
   }
 
   const knownWeightTotal =
     criteriaWeightTotal(criteria.candidates)
+  const criteriaExplicit =
+    /\bcriterios?\s+de\s+avaliacao\b/.test(normalizedText) ||
+    /\bcriterios?\b/.test(normalizedFileName)
 
   if (/\bcriterios?\s+de\s+avaliacao\b/.test(normalizedText)) {
     scores.criteria += 8
@@ -323,27 +303,159 @@ export function classifySetupPdfDocument(
     )
   }
 
-  if (/\bponderacao\b/.test(normalizedText)) {
+  const hasWeightHeader =
+    /\bponderacao\b/.test(normalizedText)
+  const hasDomainHeader =
+    /\bdominios?\b/.test(normalizedText)
+
+  if (hasWeightHeader) {
     scores.criteria += 2
   }
 
-  if (/\bdominios?\b/.test(normalizedText)) {
+  if (hasDomainHeader) {
     scores.criteria += 2
   }
 
-  const selected = chooseKind(scores)
+  const scheduleStructural =
+    scheduleWeekdays >= 3 &&
+    scheduleTimeRanges >= 3
+  const planificationStructural =
+    planification.sections.length > 0 ||
+    (
+      hasPlanificationColumns &&
+      hasCurricularUnitMarker
+    )
+  const criteriaStructural =
+    criteria.candidates.length >= 2 &&
+    (
+      knownWeightTotal !== null ||
+      hasWeightHeader ||
+      hasDomainHeader ||
+      criteriaExplicit
+    )
+
+  const criteriaConsistent =
+    criteriaStructural &&
+    knownWeightTotal !== null &&
+    Math.abs(knownWeightTotal - 100) <= 0.001
+
+  const scheduleNegative: string[] = []
+  const planificationNegative: string[] = []
+  const criteriaNegative: string[] = []
+
+  if (
+    criteriaStructural &&
+    criteriaConsistent &&
+    !scheduleExplicit
+  ) {
+    scheduleNegative.push(
+      'O documento contém uma matriz de critérios coerente, o que reduz a hipótese de ser um horário.'
+    )
+  }
+
+  if (
+    planificationStructural &&
+    planificationExplicit &&
+    !scheduleExplicit
+  ) {
+    scheduleNegative.push(
+      'O documento contém estrutura explícita de planificação, o que reduz a hipótese de ser um horário.'
+    )
+  }
+
+  if (
+    scheduleStructural &&
+    !planificationExplicit
+  ) {
+    planificationNegative.push(
+      'A grelha semanal de dias e intervalos é mais consistente com um horário do que com uma planificação.'
+    )
+  }
+
+  if (
+    criteriaStructural &&
+    criteriaConsistent &&
+    criteriaExplicit &&
+    !planificationExplicit
+  ) {
+    planificationNegative.push(
+      'A relação domínio-ponderação fecha em 100%, o que favorece critérios de avaliação.'
+    )
+  }
+
+  if (
+    scheduleStructural &&
+    !criteriaExplicit
+  ) {
+    criteriaNegative.push(
+      'A estrutura tempo × dia é mais consistente com um horário do que com critérios de avaliação.'
+    )
+  }
+
+  if (
+    criteria.candidates.length === 0 &&
+    /\b\d{1,3}\s*%/.test(normalizedText)
+  ) {
+    criteriaNegative.push(
+      'Existem percentagens, mas o parser não encontrou uma relação estrutural segura entre critérios e ponderações.'
+    )
+  }
+
+  if (
+    knownWeightTotal !== null &&
+    Math.abs(knownWeightTotal - 100) > 0.001
+  ) {
+    criteriaNegative.push(
+      `As ponderações reconhecidas totalizam ${knownWeightTotal}%, por isso a interpretação exige revisão.`
+    )
+  }
+
+  const proposals: SetupInterpretationProposal[] = [
+    {
+      kind: 'schedule',
+      baseScore: scores.schedule,
+      structuralEvidence: scheduleStructural,
+      explicitEvidence: scheduleExplicit,
+      internallyConsistent: scheduleStructural,
+      negativeEvidence: scheduleNegative,
+      evidence: evidence.schedule
+    },
+    {
+      kind: 'planification',
+      baseScore: scores.planification,
+      structuralEvidence: planificationStructural,
+      explicitEvidence: planificationExplicit,
+      internallyConsistent:
+        planification.sections.length > 0,
+      negativeEvidence: planificationNegative,
+      evidence: evidence.planification
+    },
+    {
+      kind: 'criteria',
+      baseScore: scores.criteria,
+      structuralEvidence: criteriaStructural,
+      explicitEvidence: criteriaExplicit,
+      internallyConsistent: criteriaConsistent,
+      negativeEvidence: criteriaNegative,
+      evidence: evidence.criteria
+    }
+  ]
+
+  const selected =
+    resolveSetupDocumentInterpretation(
+      proposals
+    )
+
   const selectedEvidence =
     selected.kind === 'unknown'
-      ? [
-          'Os sinais encontrados não permitem escolher um importador com segurança.'
-        ]
-      : evidence[selected.kind]
+      ? selected.evidence
+      : selected.evidence.length > 0
+        ? selected.evidence
+        : evidence[selected.kind]
 
-  const warnings = selected.kind === 'unknown'
-    ? [
-        'Escolha manualmente o tipo de documento antes de o usar na configuração.'
-      ]
-    : []
+  const warnings = [
+    ...selected.warnings
+  ]
 
   if (
     selected.kind === 'criteria' &&
@@ -358,8 +470,8 @@ export function classifySetupPdfDocument(
   return {
     kind: selected.kind,
     confidence: selected.confidence,
-    evidence: selectedEvidence,
-    warnings,
+    evidence: unique(selectedEvidence),
+    warnings: unique(warnings),
     scores: {
       schedule: scores.schedule,
       planification: scores.planification,
