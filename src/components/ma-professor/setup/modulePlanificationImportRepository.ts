@@ -191,7 +191,7 @@ export async function commitModulePlanificationImport(input: {
       throw new Error('Reveja o código, designação e tempos de cada UFCD ou módulo selecionado.')
     }
     const normalizedCode = normalize(code)
-    if (codes.has(normalizedCode) || indices.has(row.sectionIndex)) throw new Error('A seleção contém UFCD ou módulos repetidos.')
+    if (codes.has(normalizedCode) || indices.has(row.sectionIndex)) throw new Error('A seleção contém entradas repetidas de UFCD ou módulos.')
     row.code = code
     codes.add(normalizedCode)
     indices.add(row.sectionIndex)
