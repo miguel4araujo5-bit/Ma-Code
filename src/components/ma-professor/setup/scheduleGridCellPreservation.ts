@@ -214,10 +214,10 @@ function rebuildPageBlocks(
 
       const roomBoundary = pair.room?.leftBoundary ?? Number.POSITIVE_INFINITY
       const activityItems = pairItems.filter(
-        item => itemCenterX(item) < roomBoundary
+        item => item.x < roomBoundary
       )
       const roomItems = pair.room
-        ? pairItems.filter(item => itemCenterX(item) >= roomBoundary)
+        ? pairItems.filter(item => item.x >= roomBoundary)
         : []
       const rawActivityText = joinPreservingRows(activityItems).trim()
       const rawRoomText = joinPreservingRows(roomItems).trim()
