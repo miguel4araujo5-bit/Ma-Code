@@ -10,6 +10,7 @@ type BodyColumnKind =
   | 'contents'
   | 'objectives'
   | 'strategies'
+  | 'descriptors'
   | 'resources'
   | 'lessons'
 
@@ -173,6 +174,13 @@ function bodyHeaderKind(value: string): BodyColumnKind | null {
     normalized.includes('estrategias/metodologias')
   ) {
     return 'strategies'
+  }
+
+  if (
+    normalized.includes('descritores') &&
+    normalized.includes('perfil')
+  ) {
+    return 'descriptors'
   }
 
   if (normalized === 'recursos') {
@@ -530,10 +538,7 @@ export function parseModuleStylePlanificationPdfDocument(
 
       if (
         !activeCode ||
-        looksLikeDecoration(line.text) ||
-        positionedCells(line).some(cell =>
-          bodyHeaderKind(cell.text) !== null
-        )
+        looksLikeDecoration(line.text)
       ) {
         continue
       }
@@ -544,6 +549,14 @@ export function parseModuleStylePlanificationPdfDocument(
       const topic = topicFromHeader(line.text)
       if (topic && !module.name) {
         module.name = topic
+      }
+
+      if (
+        positionedCells(line).some(cell =>
+          bodyHeaderKind(cell.text) !== null
+        )
+      ) {
+        continue
       }
 
       if (pageAnchors.length >= 2) {
