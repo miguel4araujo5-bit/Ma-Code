@@ -83,6 +83,7 @@ export interface ScheduleImportBlock {
   rawActivityToken: string
   sourcePage: number
   sourceBounds: ScheduleSourceBounds
+  sourceItems: ScheduleGeometryTextItem[]
   type: ScheduleImportBlockType
   groupName?: string
   courseCode?: string
@@ -457,10 +458,48 @@ function columnForItem(
   item: ScheduleGeometryTextItem,
   columns: ScheduleGridColumn[]
 ) {
+  if (columns.length === 0) return null
+
+  const itemLeft = item.x
+  const itemRight = item.x + Math.max(0, item.width)
+  let bestColumn: ScheduleGridColumn | null = null
+  let bestOverlap = 0
+  let uniqueBest = true
+
+  for (const column of columns) {
+    const overlap = Math.max(
+      0,
+      Math.min(itemRight, column.rightBoundary) -
+      Math.max(itemLeft, column.leftBoundary)
+    )
+
+    if (overlap > bestOverlap + 0.001) {
+      bestColumn = column
+      bestOverlap = overlap
+      uniqueBest = true
+      continue
+    }
+
+    if (
+      overlap > 0 &&
+      Math.abs(overlap - bestOverlap) <= 0.001
+    ) {
+      uniqueBest = false
+    }
+  }
+
+  if (bestOverlap > 0) {
+    return uniqueBest
+      ? bestColumn
+      : null
+  }
+
   const center = itemCenterX(item)
 
   return columns.find(
-    column => center >= column.leftBoundary && center < column.rightBoundary
+    column =>
+      center >= column.leftBoundary &&
+      center < column.rightBoundary
   ) ?? null
 }
 
@@ -472,6 +511,7 @@ function itemsForTimeRow(
   if (columns.length === 0) return []
 
   const minimumGridX = Math.min(...columns.map(column => column.leftBoundary))
+  const maximumGridX = Math.max(...columns.map(column => column.rightBoundary))
 
   return items.filter(item => {
     const centerX = itemCenterX(item)
@@ -479,7 +519,8 @@ function itemsForTimeRow(
     return (
       item.y <= row.upperBoundaryY &&
       item.y > row.lowerBoundaryY &&
-      centerX >= minimumGridX
+      centerX >= minimumGridX &&
+      centerX < maximumGridX
     )
   })
 }
@@ -564,6 +605,7 @@ function buildBlocks(
         rawActivityToken: '',
         sourcePage: pageNumber,
         sourceBounds: sourceBounds(allSourceItems),
+        sourceItems: allSourceItems.map(item => ({ ...item })),
         type: 'unknown',
         included: true,
         confidence: {
