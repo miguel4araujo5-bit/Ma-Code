@@ -1,6 +1,5 @@
 import {
   type ChangeEvent,
-  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -19,12 +18,13 @@ import ModulesSetupCourseSubjectGuard from './ModulesSetupCourseSubjectGuard'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
 import SchedulePdfImportStep from './SchedulePdfImportStep'
 import SetupConfirmationStep from './SetupConfirmationStep'
+import SetupDocumentIntakePanel from './SetupDocumentIntakePanel'
 import StudentsSetupStep from './StudentsSetupStep'
 import SubjectsSetupStep from './SubjectsSetupStep'
 import WeeklyScheduleSetupStep from './WeeklyScheduleSetupStep'
-import {
-  isSBentoSchoolName
-} from './schoolDutyDatePolicy'
+import type {
+  SetupImportDocumentKind
+} from './setupDocumentClassifier'
 import {
   getMAProfessorSetupReadiness,
   hasCompleteScheduleCoverage,
@@ -43,6 +43,16 @@ type SetupStepDefinition = {
   title: string
   shortTitle: string
   description: string
+}
+
+type IntakeKind = Exclude<
+  SetupImportDocumentKind,
+  'unknown'
+>
+
+type QueuedDocument = {
+  kind: IntakeKind
+  file: File
 }
 
 const setupSteps: SetupStepDefinition[] = [
@@ -117,16 +127,6 @@ function getInitialStep(snapshot: SetupSnapshot): SetupStepId {
   return getFirstIncompleteStep(snapshot)
 }
 
-function shouldOfferScheduleImport(snapshot: SetupSnapshot) {
-  return (
-    !snapshot.academicYear.setupCompletedAt &&
-    snapshot.groups.length === 0 &&
-    snapshot.subjects.length === 0 &&
-    snapshot.teachingAssignments.length === 0 &&
-    snapshot.weeklyScheduleSlots.length === 0
-  )
-}
-
 async function reconcileImportedScheduleProgress(
   snapshot: SetupSnapshot
 ) {
@@ -189,38 +189,8 @@ function AcademicYearSummary({ snapshot, onContinue }: { snapshot: SetupSnapshot
 export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }: SetupWizardProps) {
   const [activeStep, setActiveStep] = useState<SetupStepId>(() => getInitialStep(snapshot))
   const [showScheduleImport, setShowScheduleImport] = useState(false)
-
-  useEffect(() => {
-    let disposed = false
-
-    if (!shouldOfferScheduleImport(snapshot)) {
-      setShowScheduleImport(false)
-      return () => {
-        disposed = true
-      }
-    }
-
-    void maProfessorRepository
-      .getTeacherProfile()
-      .then(profile => {
-        if (disposed) return
-
-        setShowScheduleImport(
-          isSBentoSchoolName(
-            profile?.schoolName ?? ''
-          )
-        )
-      })
-      .catch(() => {
-        if (!disposed) {
-          setShowScheduleImport(false)
-        }
-      })
-
-    return () => {
-      disposed = true
-    }
-  }, [snapshot.academicYear.id])
+  const [queuedDocument, setQueuedDocument] =
+    useState<QueuedDocument | null>(null)
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
@@ -252,6 +222,24 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function handleOpenDocument(
+    kind: IntakeKind,
+    file: File
+  ) {
+    setQueuedDocument({ kind, file })
+
+    if (kind === 'schedule') {
+      setShowScheduleImport(true)
+      return
+    }
+
+    navigateToStep(
+      kind === 'criteria'
+        ? 'assessment_criteria'
+        : 'modules'
+    )
+  }
+
   async function handleStepCompleted(nextSnapshot: SetupSnapshot) {
     const preparedSnapshot =
       await reconcileImportedScheduleProgress(nextSnapshot)
@@ -270,6 +258,7 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
       await reconcileImportedScheduleProgress(nextSnapshot)
 
     onSnapshotChange(preparedSnapshot)
+    setQueuedDocument(null)
     setShowScheduleImport(false)
     setActiveStep(getFirstIncompleteStep(preparedSnapshot))
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -306,7 +295,10 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
   }
 
   if (showScheduleImport) {
-    return <SchedulePdfImportStep snapshot={snapshot} onImported={handleScheduleImported} onContinueWithoutPdf={() => setShowScheduleImport(false)} />
+    return <SchedulePdfImportStep snapshot={snapshot} onImported={handleScheduleImported} onContinueWithoutPdf={() => {
+      setShowScheduleImport(false)
+      setQueuedDocument(null)
+    }} />
   }
 
   return (
@@ -387,6 +379,19 @@ export default function SetupWizard({ snapshot, onSnapshotChange, onCompleted }:
           </div>
         ) : null}
       </section>
+
+      <div className="mt-6">
+        <SetupDocumentIntakePanel
+          onOpenDocument={handleOpenDocument}
+        />
+      </div>
+
+      {queuedDocument ? (
+        <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 text-sm leading-6 text-amber-50">
+          <span className="font-black">Documento preparado:</span>{' '}
+          {queuedDocument.file.name}. Está aberto o importador especializado correspondente; este continua responsável pela revisão antes de guardar.
+        </div>
+      ) : null}
 
       <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
       <p className="mt-6 text-center text-xs leading-6 text-slate-500">Pode saltar qualquer área e regressar depois. O MA-Professor apenas impede guardar dados estruturalmente inválidos; uma pendência não bloqueia o resto da configuração.</p>
