@@ -25,6 +25,11 @@ type PdfTextContentChunkLike = {
   items?: unknown
 }
 
+export type ScheduleGridPdfAnalysis = {
+  grid: ScheduleGridDocument
+  sourcePages: ScheduleGeometryPageInput[]
+}
+
 function finiteNumber(
   value: unknown,
   fallback = 0
@@ -130,10 +135,10 @@ async function readPdfTextItems(
   return items
 }
 
-export async function extractScheduleGridFromPdf(
+export async function extractScheduleGridAnalysisFromPdf(
   file: File,
   onProgress: (message: string) => void = () => {}
-): Promise<ScheduleGridDocument> {
+): Promise<ScheduleGridPdfAnalysis> {
   if (
     file.type !== 'application/pdf' &&
     !file.name.toLocaleLowerCase('pt-PT').endsWith('.pdf')
@@ -206,9 +211,15 @@ export async function extractScheduleGridFromPdf(
       )
     }
 
-    return reconstructScheduleGridDocument(
-      pages
-    )
+    return {
+      grid: reconstructScheduleGridDocument(
+        pages
+      ),
+      sourcePages: pages.map(page => ({
+        pageNumber: page.pageNumber,
+        items: page.items.map(item => ({ ...item }))
+      }))
+    }
   } finally {
     try {
       await loadingTask.destroy()
@@ -217,4 +228,17 @@ export async function extractScheduleGridFromPdf(
       // o resultado ou o erro principal.
     }
   }
+}
+
+export async function extractScheduleGridFromPdf(
+  file: File,
+  onProgress: (message: string) => void = () => {}
+): Promise<ScheduleGridDocument> {
+  const analysis =
+    await extractScheduleGridAnalysisFromPdf(
+      file,
+      onProgress
+    )
+
+  return analysis.grid
 }
