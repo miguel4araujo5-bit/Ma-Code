@@ -18,6 +18,14 @@ const wizardSource = await readFile(
   'utf8'
 )
 
+const planificationPanelSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/ModulePlanificationImportPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'the former multi-document classifier remains isolated and is no longer the default onboarding UI',
   () => {
@@ -43,26 +51,11 @@ test(
       wizardSource,
       /type GuidedStage =[\s\S]*?'schedule'[\s\S]*?'planifications'[\s\S]*?'criteria'[\s\S]*?'ready'/
     )
-    assert.match(
-      wizardSource,
-      /number: 1, label: 'Horário'/
-    )
-    assert.match(
-      wizardSource,
-      /number: 2, label: 'Planificações'/
-    )
-    assert.match(
-      wizardSource,
-      /number: 3, label: 'Critérios'/
-    )
-    assert.match(
-      wizardSource,
-      /Vamos preparar o essencial, um passo de cada vez\./
-    )
-    assert.match(
-      wizardSource,
-      /Configuração avançada \/ editar manualmente/
-    )
+    assert.match(wizardSource, /number: 1, label: 'Horário'/)
+    assert.match(wizardSource, /number: 2, label: 'Planificações'/)
+    assert.match(wizardSource, /number: 3, label: 'Critérios'/)
+    assert.match(wizardSource, /Vamos preparar o essencial, um passo de cada vez\./)
+    assert.match(wizardSource, /Configuração avançada \/ editar manualmente/)
   }
 )
 
@@ -75,7 +68,7 @@ test(
     )
     assert.match(
       wizardSource,
-      /guidedStage === 'planifications'[\s\S]*?<ModulePlanificationImportPanel/
+      /guidedStage === 'planifications'[\s\S]*?<ModulePlanificationImportPanel[\s\S]*?guided/
     )
     assert.match(
       wizardSource,
@@ -85,6 +78,21 @@ test(
       wizardSource,
       /new DataTransfer\(\)|querySelector<HTMLInputElement>|attachFileToInput|queuedDocument|findButtonByText/
     )
+  }
+)
+
+test(
+  'guided planification review shows a compact proposal and expands only pending rows or explicit details',
+  () => {
+    assert.match(planificationPanelSource, /guided = false/)
+    assert.match(planificationPanelSource, /readyRows\.length} prontas/)
+    assert.match(planificationPanelSource, /pendingRows\.length} por rever/)
+    assert.match(
+      planificationPanelSource,
+      /const expanded = showAllDetails \|\| \(row\.selected && !row\.reviewed\)/
+    )
+    assert.match(planificationPanelSource, /Editar detalhes/)
+    assert.match(planificationPanelSource, /Confirmar esta correção/)
   }
 )
 
@@ -99,43 +107,19 @@ test(
       wizardSource,
       /handleGuidedScheduleImported[\s\S]*?reconcileImportedScheduleProgress[\s\S]*?setGuidedStage\('planifications'\)/
     )
-    assert.match(
-      wizardSource,
-      /onImported=\{refreshSnapshot\}/
-    )
-    assert.match(
-      wizardSource,
-      /onImported=\{onSnapshotChange\}/
-    )
+    assert.match(wizardSource, /onImported=\{refreshSnapshot\}/)
+    assert.match(wizardSource, /onImported=\{onSnapshotChange\}/)
   }
 )
 
 test(
   'manual nine-step setup remains available only as an explicit advanced path',
   () => {
-    assert.match(
-      wizardSource,
-      /if \(!advancedMode\)/
-    )
-    assert.match(
-      wizardSource,
-      /Configuração avançada · Ensino profissional \/ secundário/
-    )
-    assert.match(
-      wizardSource,
-      /ModulesSetupCourseSubjectGuard/
-    )
-    assert.match(
-      wizardSource,
-      /AssessmentCriteriaSetupStep/
-    )
-    assert.match(
-      wizardSource,
-      /StudentsSetupStep/
-    )
-    assert.match(
-      wizardSource,
-      /SetupConfirmationStep/
-    )
+    assert.match(wizardSource, /if \(!advancedMode\)/)
+    assert.match(wizardSource, /Configuração avançada · Ensino profissional \/ secundário/)
+    assert.match(wizardSource, /ModulesSetupCourseSubjectGuard/)
+    assert.match(wizardSource, /AssessmentCriteriaSetupStep/)
+    assert.match(wizardSource, /StudentsSetupStep/)
+    assert.match(wizardSource, /SetupConfirmationStep/)
   }
 )
