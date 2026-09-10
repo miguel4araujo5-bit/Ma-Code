@@ -241,19 +241,30 @@ function agreementLabel(
     return null
   }
 
-  if (uniqueValues.length === 1) {
-    const confirmations = values.filter(
-      value =>
-        normalize(value) ===
-        normalize(uniqueValues[0])
+  const confirmationsFor = (value: string) =>
+    values.filter(
+      current =>
+        normalize(current) === normalize(value)
     ).length
+
+  if (uniqueValues.length === 1) {
+    const confirmations =
+      confirmationsFor(uniqueValues[0])
 
     return confirmations >= 2
       ? `✓ ${label} confirmada por ${confirmations} documentos: ${uniqueValues[0]}`
       : `${label}: ${uniqueValues[0]}`
   }
 
-  return `⚠ ${label}: foram encontrados valores diferentes — ${uniqueValues.join(' · ')}`
+  const describedValues = uniqueValues.map(value => {
+    const confirmations = confirmationsFor(value)
+
+    return confirmations >= 2
+      ? `${value} ✓ ${confirmations} documentos`
+      : value
+  })
+
+  return `${label}: vários valores encontrados — ${describedValues.join(' · ')}`
 }
 
 export default function SetupDocumentIntakePanel({
