@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SetupSnapshot } from '../repository'
+import PlanificationScheduleGrid from './PlanificationScheduleGrid'
+import {
+  matchingPlanificationSubjects, normalizePlanificationLabel as normalizeSubjectLabel,
+  planificationDestinations, resolvePlanificationDestination
+} from './planificationDestination'
 import { readModuleDocument, durationWarning, type ModuleDocument } from './planificationModuleDocument'
 import {
   commitModulePlanificationImport, readModuleImportState, type ModuleImportSelection
@@ -19,103 +24,8 @@ const button = 'rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-9
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Não foi possível concluir a operação.'
 const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(value.trim())
 
-function normalizeSubjectLabel(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLocaleLowerCase('pt-PT')
-}
-
-function findMatchingSubjects(
-  snapshot: SetupSnapshot,
-  subjectName: string
-) {
-  const normalized = normalizeSubjectLabel(subjectName)
-
-  if (!normalized) return []
-
-  return snapshot.subjects.filter(subject =>
-    subject.active &&
-    normalizeSubjectLabel(subject.name) === normalized
-  )
-}
-
-function assignedGroupIdsForSubject(
-  snapshot: SetupSnapshot,
-  subjectId: string
-) {
-  return snapshot.teachingAssignments
-    .filter(assignment =>
-      assignment.active &&
-      assignment.subjectId === subjectId
-    )
-    .map(assignment => assignment.groupId)
-}
-
-function gradeNumber(value: string) {
-  return value.match(/\b(10|11|12)\b/)?.[1] ?? ''
-}
-
-function suggestedGroupIdsForDocument(
-  snapshot: SetupSnapshot,
-  subjectId: string,
-  document: ModuleDocument
-) {
-  const assignmentGroupIds = assignedGroupIdsForSubject(
-    snapshot,
-    subjectId
-  )
-  const groups = assignmentGroupIds
-    .map(groupId => snapshot.groups.find(group =>
-      group.active && group.id === groupId
-    ))
-    .filter((group): group is SetupSnapshot['groups'][number] => Boolean(group))
-
-  if (groups.length <= 1) {
-    return groups.map(group => group.id)
-  }
-
-  if (document.groupLabel) {
-    const exact = groups.filter(group =>
-      normalizeSubjectLabel(group.name) ===
-      normalizeSubjectLabel(document.groupLabel)
-    )
-
-    return exact.length === 1
-      ? [exact[0].id]
-      : []
-  }
-
-  let candidates = groups
-  const documentGrade = gradeNumber(document.gradeLabel)
-
-  if (documentGrade) {
-    const gradeMatches = candidates.filter(group =>
-      gradeNumber(group.gradeLevel) === documentGrade ||
-      gradeNumber(group.name) === documentGrade
-    )
-
-    if (gradeMatches.length > 0) {
-      candidates = gradeMatches
-    }
-  }
-
-  if (document.courseLabel) {
-    const courseMatches = candidates.filter(group =>
-      normalizeSubjectLabel(group.courseName) ===
-      normalizeSubjectLabel(document.courseLabel)
-    )
-
-    if (courseMatches.length > 0) {
-      candidates = courseMatches
-    }
-  }
-
-  return candidates.length === 1
-    ? [candidates[0].id]
-    : []
+function findMatchingSubjects(snapshot: SetupSnapshot, subjectName: string) {
+  return matchingPlanificationSubjects(snapshot, subjectName)
 }
 
 function plannedPeriodsForSection(
@@ -174,6 +84,9 @@ export default function ModulePlanificationImportPanel({
   const [subjectName, setSubjectName] = useState('')
   const [courseName, setCourseName] = useState('')
   const [groupIds, setGroupIds] = useState<string[]>([])
+  const [targetAssignmentId, setTargetAssignmentId] = useState('')
+  const [destinationWarnings, setDestinationWarnings] = useState<string[]>([])
+  const [editingDestination, setEditingDestination] = useState(false)
   const [fingerprint, setFingerprint] = useState('')
   const [minutes, setMinutes] = useState(50)
   const [busy, setBusy] = useState(false)
@@ -203,16 +116,6 @@ export default function ModulePlanificationImportPanel({
     ? matchingSubjects[0]
     : null
 
-  const destinationGroups = useMemo(() => {
-    if (!matchedSubject) return activeGroups
-
-    const assigned = new Set(
-      assignedGroupIdsForSubject(snapshot, matchedSubject.id)
-    )
-
-    return activeGroups.filter(group => assigned.has(group.id))
-  }, [activeGroups, matchedSubject, snapshot])
-
   const selectedRows = useMemo(
     () => rows.filter(row => row.selected),
     [rows]
@@ -225,11 +128,26 @@ export default function ModulePlanificationImportPanel({
     () => selectedRows.filter(row => !row.reviewed),
     [selectedRows]
   )
-  const destinationReady = Boolean(
-    subjectName.trim() &&
-    matchingSubjects.length <= 1 &&
-    groupIds.length > 0
-  )
+  const availableDestinations = useMemo(() => planificationDestinations(snapshot), [snapshot])
+  const destinationReady = guided
+    ? availableDestinations.some(item => item.assignment.id === targetAssignmentId)
+    : Boolean(subjectName.trim() && matchingSubjects.length <= 1 && groupIds.length > 0)
+
+  function applyDestination(parsed: ModuleDocument, assignmentId?: string) {
+    const resolved = resolvePlanificationDestination(snapshot, parsed, assignmentId)
+    setTargetAssignmentId(resolved.destination?.assignment.id ?? '')
+    if (guided) setSubjectName(resolved.destination?.subject.name ?? parsed.subjectLabel)
+    else setSubjectName(parsed.subjectLabel)
+    setGroupIds(resolved.destination ? [resolved.destination.group.id] : [])
+    setDestinationWarnings(resolved.warnings)
+    setEditingDestination(false)
+  }
+
+  function selectDestination(assignmentId: string) {
+    if (!document || busy || saving.current) return
+    applyDestination(document, assignmentId)
+    invalidateReview()
+  }
 
   function changeOpen(value: boolean) {
     if (value) {
@@ -240,8 +158,8 @@ export default function ModulePlanificationImportPanel({
     onActiveChange(value)
   }
 
-  async function load(file: File) {
-    if (saving.current || busy) return
+  async function load(file: File, assignmentId?: string) {
+    if (saving.current || busy || disabled) return
     if (document && !window.confirm('Substituir o documento e descartar a revisão atual por guardar?')) return
     const token = ++operation.current
     setBusy(true)
@@ -252,23 +170,14 @@ export default function ModulePlanificationImportPanel({
     setSubjectName('')
     setCourseName('')
     setGroupIds([])
+    setTargetAssignmentId('')
+    setDestinationWarnings([])
+    setEditingDestination(false)
     setShowAllDetails(false)
     try {
       const parsed = await readModuleDocument(file)
       const state = await readModuleImportState()
       if (!mounted.current || token !== operation.current) return
-
-      const exactMatches = findMatchingSubjects(
-        snapshot,
-        parsed.subjectLabel
-      )
-      const suggestedGroupIds = exactMatches.length === 1
-        ? suggestedGroupIdsForDocument(
-            snapshot,
-            exactMatches[0].id,
-            parsed
-          )
-        : []
 
       const nextRows = parsed.sections.map((section, sectionIndex) => {
         const row = {
@@ -293,11 +202,10 @@ export default function ModulePlanificationImportPanel({
       setDocument(parsed)
       setFingerprint(state.fingerprint)
       setMinutes(state.periodMinutes)
-      setSubjectName(parsed.subjectLabel)
+      applyDestination(parsed, assignmentId)
       // No modo guiado o curso serve para resolver o destino, mas nunca
       // substitui automaticamente um curso já guardado na turma.
       setCourseName(guided ? '' : parsed.courseLabel)
-      setGroupIds(suggestedGroupIds)
       setRows(nextRows)
     } catch (failure) {
       if (mounted.current && token === operation.current) setError(errorText(failure))
@@ -375,17 +283,17 @@ export default function ModulePlanificationImportPanel({
       return
     }
 
-    if (matchingSubjects.length > 1) {
+    if (!guided && matchingSubjects.length > 1) {
       setError(`Existem várias disciplinas ativas chamadas “${subjectName.trim()}”. Corrija a duplicação antes de importar.`)
       return
     }
 
-    if (!selections.length || !groupIds.length || selections.some(row => !row.reviewed)) {
+    if (!destinationReady || !selections.length || !groupIds.length || selections.some(row => !row.reviewed)) {
       setError('Selecione o destino e reveja apenas as UFCD/módulos ainda assinalados como pendentes.')
       return
     }
 
-    if (!window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. Os módulos já existentes serão preservados e ignorados.')) return
+    if (!guided && !window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. Os módulos já existentes serão preservados e ignorados.')) return
 
     saving.current = true
     setBusy(true)
@@ -395,9 +303,9 @@ export default function ModulePlanificationImportPanel({
       const result = await commitModulePlanificationImport({
         confirmed: true,
         academicYearId: snapshot.academicYear.id,
-        subjectName,
-        groupIds,
-        courseName,
+        ...(guided
+          ? { assignmentIds: [targetAssignmentId] }
+          : { subjectName: matchedSubject?.name ?? subjectName, groupIds, courseName }),
         document,
         selections,
         expectedFingerprint: fingerprint
@@ -408,6 +316,9 @@ export default function ModulePlanificationImportPanel({
       setSubjectName('')
       setCourseName('')
       setGroupIds([])
+      setTargetAssignmentId('')
+      setDestinationWarnings([])
+      setEditingDestination(false)
       setShowAllDetails(false)
       changeOpen(false)
       setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados; ${result.skipped} existentes preservados.`)
@@ -427,6 +338,9 @@ export default function ModulePlanificationImportPanel({
     setSubjectName('')
     setCourseName('')
     setGroupIds([])
+    setTargetAssignmentId('')
+    setDestinationWarnings([])
+    setEditingDestination(false)
     setShowAllDetails(false)
     setError('')
     setMessage('')
@@ -439,7 +353,7 @@ export default function ModulePlanificationImportPanel({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-black">Adicionar planificação</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Um documento de cada vez. Mostramos apenas o que precisa de confirmação.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Cada disciplina e turma tem a sua planificação. Os critérios de avaliação são tratados no passo seguinte.</p>
           </div>
           {!open ? (
             <button className={button} disabled={disabled || busy} onClick={() => changeOpen(true)}>
@@ -448,8 +362,19 @@ export default function ModulePlanificationImportPanel({
           ) : null}
         </div>
 
+        <PlanificationScheduleGrid
+          snapshot={snapshot}
+          disabled={disabled || busy}
+          selectedAssignmentIds={targetAssignmentId ? [targetAssignmentId] : []}
+          needsReview={destinationWarnings.length > 0}
+          hasDocument={Boolean(document)}
+          onSelect={selectDestination}
+          onFile={(file, assignmentId) => { changeOpen(true); void load(file, assignmentId) }}
+          onError={setError}
+        />
+
         {open ? (
-          <fieldset disabled={busy} className="mt-5 space-y-4">
+          <fieldset disabled={busy || disabled} className="mt-5 space-y-4">
             {!document ? (
               <div
                 className="rounded-2xl border-2 border-dashed border-cyan-300/25 bg-cyan-300/[0.025] p-5 text-center"
@@ -502,43 +427,27 @@ export default function ModulePlanificationImportPanel({
                   </div>
                 </div>
 
-                {destinationReady && matchedSubject ? (
-                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4 text-sm">
-                    <p className="font-black text-emerald-100">✓ Destino reconhecido</p>
-                    <p className="mt-1 text-slate-300">
-                      {matchedSubject.name} · {groupIds.map(id => snapshot.groups.find(group => group.id === id)?.name).filter(Boolean).join(', ')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4">
-                    <p className="text-sm font-black text-amber-100">Confirme apenas o destino</p>
+                <div className={`rounded-2xl border p-4 text-sm ${destinationReady && !destinationWarnings.length ? 'border-emerald-300/20 bg-emerald-300/[0.055]' : 'border-amber-300/20 bg-amber-300/[0.055]'}`}>
+                  <p className={`font-black ${destinationWarnings.length || !destinationReady ? 'text-amber-100' : 'text-emerald-100'}`}>
+                    {destinationReady ? (destinationWarnings.length ? 'Destino a rever' : '✓ Destino da planificação') : 'Destino por associar'}
+                  </p>
+                  {destinationReady ? <p className="mt-1 text-slate-300">{availableDestinations.find(item => item.assignment.id === targetAssignmentId)?.label}</p> : null}
+                  {destinationWarnings.map(warning => <p key={warning} className="mt-2 text-xs leading-5 text-amber-100">{warning}</p>)}
+                  {destinationReady && destinationWarnings.length ? <p className="mt-2 text-xs text-slate-400">Pode manter este destino e importar, ou corrigir a associação.</p> : null}
+                  <button type="button" onClick={() => setEditingDestination(value => !value)} className="mt-3 text-xs font-bold text-cyan-200 underline underline-offset-4">
+                    {editingDestination ? 'Fechar escolha de destino' : 'Corrigir destino'}
+                  </button>
+                  {editingDestination || !destinationReady ? (
                     <label className="mt-3 block text-xs font-bold text-slate-300">
-                      Disciplina
-                      <input
-                        className={field + ' mt-2'}
-                        value={subjectName}
-                        onChange={event => changeSubject(event.target.value)}
-                        placeholder="Ex.: Área de Expressões"
-                      />
+                      Disciplina e turma
+                      <select className={field + ' mt-2'} value={targetAssignmentId}
+                        onChange={event => selectDestination(event.target.value)}>
+                        <option value="" disabled>Escolher no horário ou nesta lista</option>
+                        {availableDestinations.map(item => <option key={item.assignment.id} value={item.assignment.id}>{item.label}</option>)}
+                      </select>
                     </label>
-                    <div className="mt-3">
-                      <p className="text-xs font-bold text-slate-300">Turma</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {destinationGroups.map(group => (
-                          <label key={group.id} className={`cursor-pointer rounded-xl border px-3 py-2 text-sm ${groupIds.includes(group.id) ? 'border-cyan-300/30 bg-cyan-300/[0.08] text-cyan-100' : 'border-white/10 bg-white/[0.03] text-slate-300'}`}>
-                            <input
-                              type="checkbox"
-                              className="mr-2"
-                              checked={groupIds.includes(group.id)}
-                              onChange={event => toggleGroup(group.id, event.target.checked)}
-                            />
-                            {group.name}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  ) : null}
+                </div>
 
                 <div className="space-y-2">
                   {rows.map((row, index) => {
