@@ -214,6 +214,11 @@ export default function GuidedAssessmentCriteriaImportPanel({
     return candidates
   }, [assignments, detectedGrade, detectedGroup, detectedSubject])
 
+  const destinationOptions =
+    destinationCandidates.length > 0
+      ? destinationCandidates
+      : assignments
+
   const includedRows = useMemo(
     () => rows.filter(row => row.included),
     [rows]
@@ -524,8 +529,13 @@ export default function GuidedAssessmentCriteriaImportPanel({
             ) : (
               <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
                 <p className="text-sm font-black text-amber-100">Confirme onde aplicar</p>
+                {destinationCandidates.length === 0 && assignments.length > 0 ? (
+                  <p className="mt-2 text-xs leading-5 text-amber-100/80">
+                    Não foi possível reconhecer automaticamente o destino. Escolha abaixo a turma e a disciplina onde pretende aplicar estes critérios.
+                  </p>
+                ) : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {destinationCandidates.map(item => (
+                  {destinationOptions.map(item => (
                     <label
                       key={item.assignment.id}
                       className={`cursor-pointer rounded-xl border p-3 text-sm ${
@@ -544,9 +554,9 @@ export default function GuidedAssessmentCriteriaImportPanel({
                     </label>
                   ))}
                 </div>
-                {destinationCandidates.length === 0 ? (
+                {assignments.length === 0 ? (
                   <p className="mt-3 text-xs leading-5 text-amber-100/80">
-                    Não encontramos uma disciplina ativa com correspondência segura. Pode tratar este caso na configuração avançada.
+                    Ainda não existem combinações de turma e disciplina ativas disponíveis. Adicione primeiro a turma e a disciplina para poder aplicar estes critérios.
                   </p>
                 ) : null}
               </div>
