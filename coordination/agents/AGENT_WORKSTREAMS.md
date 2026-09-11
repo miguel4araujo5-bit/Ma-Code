@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Permitir selecionar várias turma/disciplina logo na primeira revisão da importação guiada de critérios | `work/f103-criteria-multi-destination-first-pass` | `src/components/ma-professor/setup/GuidedAssessmentCriteriaImportPanel.tsx`; `tests/ma-professor/guided-criteria-multi-destination-first-pass.test.mjs` | EM CURSO — destinos reconhecidos ficam pré-selecionados mas a multi-seleção aparece imediatamente; mantém aplicação batch segura e o fluxo para adicionar outro critério ou seguir em frente | `dd8db68d0d82de4e4bf94e03632a54bfa259a0a2` | 2026-09-11 |
+| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | `main` | 2026-09-11 |
 
 ## Regras de utilização
 
