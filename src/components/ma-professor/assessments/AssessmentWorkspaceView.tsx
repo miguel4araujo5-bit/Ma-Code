@@ -26,6 +26,10 @@ import {
   type SaveModuleFinalGradeInput
 } from './assessmentWorkspaceRepository'
 
+import UfcdFinalGradeGrid, {
+  type UfcdFinalGradeDraft
+} from './UfcdFinalGradeGrid'
+
 interface AssessmentWorkspaceViewProps {
   snapshot: AssessmentWorkspaceSnapshot
   loading?: boolean
@@ -42,8 +46,8 @@ interface AssessmentWorkspaceViewProps {
   ) => Promise<void> | void
 }
 
-interface GradeDraft {
-  finalGrade: string
+interface GradeDraft
+  extends UfcdFinalGradeDraft {
   note: string
 }
 
@@ -105,10 +109,8 @@ function formatScore(
   return new Intl.NumberFormat(
     'pt-PT',
     {
-      minimumFractionDigits:
-        0,
-      maximumFractionDigits:
-        2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
     }
   ).format(
     value
@@ -116,8 +118,7 @@ function formatScore(
 }
 
 function getSubjectLabel(
-  snapshot:
-    AssessmentWorkspaceSnapshot
+  snapshot: AssessmentWorkspaceSnapshot
 ) {
   const subject =
     snapshot.selectedSubject
@@ -135,14 +136,11 @@ function getSubjectLabel(
 }
 
 function buildGradeDrafts(
-  snapshot:
-    AssessmentWorkspaceSnapshot
+  snapshot: AssessmentWorkspaceSnapshot
 ): GradeDrafts {
   return Object.fromEntries(
     snapshot.studentRows.map(
-      (
-        row
-      ) => {
+      row => {
         const confirmedGrade =
           row.gradeSummary
             .confirmedFinalGrade
@@ -150,6 +148,11 @@ function buildGradeDrafts(
         const suggestedGrade =
           row.gradeSummary
             .suggestedGrade
+
+        const selfAssessmentGrade =
+          row.finalGradeRecord
+            ?.selfAssessmentGrade ??
+          null
 
         return [
           row.student.id,
@@ -166,6 +169,19 @@ function buildGradeDrafts(
                       suggestedGrade
                     )
                   : '',
+
+            selfAssessmentGrade:
+              selfAssessmentGrade ===
+              null
+                ? ''
+                : String(
+                    selfAssessmentGrade
+                  ),
+
+            usesAcs:
+              row.finalGradeRecord
+                ?.usesAcs ??
+              false,
 
             note:
               row.finalGradeRecord
@@ -308,7 +324,7 @@ export default function AssessmentWorkspaceView({
     return (
       !hasAssessmentUnsavedChanges ||
       window.confirm(
-        'Existem classificações ou observações por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+        'Existem classificações, autoavaliações ou observações por guardar. Se continuar, essas alterações serão perdidas. Pretende continuar?'
       )
     )
   }
@@ -316,18 +332,15 @@ export default function AssessmentWorkspaceView({
   useMAProfessorUnsavedWorkspaceProtection(
     hasAssessmentUnsavedChanges,
     rootRef,
-    'Existem classificações ou observações por guardar. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
+    'Existem classificações, autoavaliações ou observações por guardar. Se sair deste ecrã, essas alterações serão perdidas. Pretende continuar?'
   )
 
   function updateGradeDraft(
     studentId: EntityId,
-    changes:
-      Partial<GradeDraft>
+    changes: Partial<GradeDraft>
   ) {
     setGradeDrafts(
-      (
-        current
-      ) => ({
+      current => ({
         ...current,
 
         [studentId]: {
@@ -336,6 +349,18 @@ export default function AssessmentWorkspaceView({
               studentId
             ]?.finalGrade ??
             '',
+
+          selfAssessmentGrade:
+            current[
+              studentId
+            ]?.selfAssessmentGrade ??
+            '',
+
+          usesAcs:
+            current[
+              studentId
+            ]?.usesAcs ??
+            false,
 
           note:
             current[
@@ -350,8 +375,7 @@ export default function AssessmentWorkspaceView({
   }
 
   function handleAssignmentChange(
-    event:
-      ChangeEvent<HTMLSelectElement>
+    event: ChangeEvent<HTMLSelectElement>
   ) {
     if (
       !confirmDiscardUnsavedChanges()
@@ -370,15 +394,12 @@ export default function AssessmentWorkspaceView({
       teachingAssignmentId:
         event.target.value ||
         null,
-
-      moduleId:
-        null
+      moduleId: null
     })
   }
 
   function handleModuleChange(
-    event:
-      ChangeEvent<HTMLSelectElement>
+    event: ChangeEvent<HTMLSelectElement>
   ) {
     if (
       !confirmDiscardUnsavedChanges()
@@ -397,7 +418,6 @@ export default function AssessmentWorkspaceView({
       teachingAssignmentId:
         snapshot.filters
           .teachingAssignmentId,
-
       moduleId:
         event.target.value ||
         null
@@ -464,16 +484,18 @@ export default function AssessmentWorkspaceView({
         studentId
       ] ?? {
         finalGrade: '',
+        selfAssessmentGrade: '',
+        usesAcs: false,
         note: ''
       }
 
-    const normalizedValue =
+    const normalizedFinalValue =
       draft.finalGrade.trim()
 
     const finalGrade =
-      normalizedValue
+      normalizedFinalValue
         ? Number(
-            normalizedValue
+            normalizedFinalValue
           )
         : null
 
@@ -497,6 +519,36 @@ export default function AssessmentWorkspaceView({
       return
     }
 
+    const normalizedSelfAssessmentValue =
+      draft.selfAssessmentGrade.trim()
+
+    const selfAssessmentGrade =
+      normalizedSelfAssessmentValue
+        ? Number(
+            normalizedSelfAssessmentValue
+          )
+        : null
+
+    if (
+      selfAssessmentGrade !==
+        null &&
+      (
+        !Number.isInteger(
+          selfAssessmentGrade
+        ) ||
+        selfAssessmentGrade < 0 ||
+        selfAssessmentGrade > 20
+      )
+    ) {
+      setFeedback({
+        tone: 'error',
+        message:
+          `A autoavaliação de ${studentName} deve ser um número inteiro entre 0 e 20 valores.`
+      })
+
+      return
+    }
+
     setSavingStudentId(
       studentId
     )
@@ -510,6 +562,9 @@ export default function AssessmentWorkspaceView({
         moduleId,
         studentId,
         finalGrade,
+        selfAssessmentGrade,
+        usesAcs:
+          draft.usesAcs,
         note:
           draft.note
       })
@@ -519,8 +574,8 @@ export default function AssessmentWorkspaceView({
         message:
           finalGrade ===
           null
-            ? `A classificação final de ${studentName} foi removida.`
-            : `A classificação final de ${studentName} foi guardada.`
+            ? `A avaliação final de ${studentName} foi atualizada.`
+            : `A avaliação final de ${studentName} foi guardada.`
       })
     } catch (
       saveError
@@ -530,7 +585,7 @@ export default function AssessmentWorkspaceView({
         message:
           saveError instanceof Error
             ? saveError.message
-            : 'Não foi possível guardar a classificação final.'
+            : 'Não foi possível guardar a avaliação final.'
       })
     } finally {
       setSavingStudentId(
@@ -546,9 +601,7 @@ export default function AssessmentWorkspaceView({
 
   const moduleLabel =
     snapshot.moduleOptions.find(
-      (
-        option
-      ) =>
+      option =>
         option.module.id ===
         snapshot.selectedModule
           ?.id
@@ -633,9 +686,7 @@ export default function AssessmentWorkspaceView({
               ) : null}
 
               {snapshot.assignmentOptions.map(
-                (
-                  option
-                ) => (
+                option => (
                   <option
                     key={
                       option.assignment.id
@@ -680,9 +731,7 @@ export default function AssessmentWorkspaceView({
               ) : null}
 
               {snapshot.moduleOptions.map(
-                (
-                  option
-                ) => (
+                option => (
                   <option
                     key={
                       option.module.id
@@ -742,7 +791,7 @@ export default function AssessmentWorkspaceView({
 
       {hasAssessmentUnsavedChanges ? (
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm font-bold text-amber-100">
-          Existem classificações ou observações por guardar.
+          Existem classificações, autoavaliações ou observações por guardar.
         </div>
       ) : null}
 
@@ -849,9 +898,7 @@ export default function AssessmentWorkspaceView({
             ) : (
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {snapshot.criteria.map(
-                  (
-                    criterion
-                  ) => (
+                  criterion => (
                     <article
                       key={
                         criterion.id
@@ -918,9 +965,7 @@ export default function AssessmentWorkspaceView({
             ) : (
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
                 {snapshot.activities.map(
-                  (
-                    activity
-                  ) => (
+                  activity => (
                     <article
                       key={
                         activity.assessment.id
@@ -960,7 +1005,6 @@ export default function AssessmentWorkspaceView({
                           <p className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                             Média
                           </p>
-
                           <p className="mt-1 text-sm font-black text-white">
                             {formatScore(
                               activity.average
@@ -972,7 +1016,6 @@ export default function AssessmentWorkspaceView({
                           <p className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                             Avaliados
                           </p>
-
                           <p className="mt-1 text-sm font-black text-cyan-100">
                             {activity.evaluatedCount}
                           </p>
@@ -982,7 +1025,6 @@ export default function AssessmentWorkspaceView({
                           <p className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                             Faltas
                           </p>
-
                           <p className="mt-1 text-sm font-black text-rose-100">
                             {activity.absentCount}
                           </p>
@@ -992,7 +1034,6 @@ export default function AssessmentWorkspaceView({
                           <p className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                             Dispensados
                           </p>
-
                           <p className="mt-1 text-sm font-black text-violet-100">
                             {activity.exemptCount}
                           </p>
@@ -1021,6 +1062,33 @@ export default function AssessmentWorkspaceView({
             )}
           </section>
 
+          <UfcdFinalGradeGrid
+            snapshot={
+              snapshot
+            }
+            gradeDrafts={
+              gradeDrafts
+            }
+            loading={
+              loading
+            }
+            savingStudentId={
+              savingStudentId
+            }
+            onDraftChange={(
+              studentId,
+              changes
+            ) =>
+              updateGradeDraft(
+                studentId,
+                changes
+              )
+            }
+            onSaveStudent={
+              saveFinalGrade
+            }
+          />
+
           <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
@@ -1046,14 +1114,14 @@ export default function AssessmentWorkspaceView({
             ) : (
               <div className="mt-5 space-y-4">
                 {snapshot.studentRows.map(
-                  (
-                    row
-                  ) => {
+                  row => {
                     const draft =
                       gradeDrafts[
                         row.student.id
                       ] ?? {
                         finalGrade: '',
+                        selfAssessmentGrade: '',
+                        usesAcs: false,
                         note: ''
                       }
 
@@ -1121,9 +1189,7 @@ export default function AssessmentWorkspaceView({
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                           {row.gradeSummary.criteria.map(
-                            (
-                              criterion
-                            ) => (
+                            criterion => (
                               <div
                                 key={
                                   criterion.criterionId
@@ -1179,10 +1245,7 @@ export default function AssessmentWorkspaceView({
                               value={
                                 draft.finalGrade
                               }
-                              onChange={(
-                                event:
-                                  ChangeEvent<HTMLInputElement>
-                              ) =>
+                              onChange={event =>
                                 updateGradeDraft(
                                   row.student.id,
                                   {
@@ -1210,10 +1273,7 @@ export default function AssessmentWorkspaceView({
                               value={
                                 draft.note
                               }
-                              onChange={(
-                                event:
-                                  ChangeEvent<HTMLInputElement>
-                              ) =>
+                              onChange={event =>
                                 updateGradeDraft(
                                   row.student.id,
                                   {

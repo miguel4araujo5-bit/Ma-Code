@@ -199,6 +199,8 @@ export function exportGradesCsv(
       'UFCD/Módulo',
       'Média calculada',
       'Nota sugerida',
+      'ACS',
+      'Autoavaliação',
       'Nota final',
       'Confirmada em',
       'Nota'
@@ -213,6 +215,8 @@ export function exportGradesCsv(
         [module?.code, module?.name].filter(Boolean).join(' · '),
         grade.calculatedAverage,
         grade.suggestedGrade,
+        grade.usesAcs ? 'Sim' : 'Não',
+        grade.selfAssessmentGrade,
         grade.finalGrade,
         grade.confirmedAt,
         grade.note
