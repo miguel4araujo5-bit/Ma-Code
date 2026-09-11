@@ -777,6 +777,7 @@ export async function commitScheduleImportAtomically(
               name:
                 groupName,
               courseName,
+                courseName,
               gradeLevel:
                 grade
                   ? `${grade}.º ano`
@@ -1046,7 +1047,8 @@ export async function commitScheduleImportAtomically(
             getDutyDatesForSchool(
               academicYear,
               duty.weekday,
-              schoolName
+              schoolName,
+              eventRows
             )
           ) {
             const key =
