@@ -1,0 +1,169 @@
+name: Agent 102 Daily Criteria Grid Final
+
+on:
+  push:
+    branches:
+      - work/agent-102-daily-criteria-grid
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/agent-102-daily-criteria-grid
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Load isolated patch generator
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/miguel4araujo5-bit/Ma-Code/4a18ef880169995c3b040a182d2bd79a53be8445/scripts/agent-102-daily-criteria-grid-v3.mjs \
+            -o /tmp/agent-102-daily-criteria-grid.mjs
+
+      - name: Repair generator and target only the Alunos section
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises'
+          const path = '/tmp/agent-102-daily-criteria-grid.mjs'
+          let source = await readFile(path, 'utf8')
+
+          source = source.replace(
+            "    const criteriaGridMinWidth =\n        `${18 + criteria.length * 5.5}rem`;",
+            "    const criteriaGridMinWidth =\n        (18 + criteria.length * 5.5) + 'rem';"
+          )
+          source = source.replace(
+            "                            `A classificação de ${row.student.name} em “${criterion.name}” deve estar entre 0 e 20 valores.`",
+            "                            'A classificação de ' + row.student.name + ' em “' + criterion.name + '” deve estar entre 0 e 20 valores.'"
+          )
+          source = source.replace(
+            "  `const inputClassName =`,\n  'opções antigas de avaliação'",
+            "  ``,\n  'opções antigas de avaliação'"
+          )
+          source = source.replace(
+            "}\n\nfunction buildEditorSignature(`,\n  'construção do estado da grelha'",
+            "}\n\n`,\n  'construção do estado da grelha'"
+          )
+
+          const genericStudentStart =
+            '  `                                <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">`,'
+          const studentStartIndex = source.lastIndexOf(genericStudentStart)
+          if (studentStartIndex < 0) {
+            throw new Error('Não foi possível localizar o marcador genérico da secção Alunos.')
+          }
+          const uniqueStudentStart = [
+            '  `                                <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">',
+            '                                    <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">',
+            '                                        <div className="min-w-0">',
+            '                                            <div className="flex flex-wrap items-center gap-2">',
+            '                                                <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-cyan-300">',
+            '                                                    Alunos`,'
+          ].join('\n')
+          source =
+            source.slice(0, studentStartIndex) +
+            uniqueStudentStart +
+            source.slice(studentStartIndex + genericStudentStart.length)
+
+          await writeFile(path, source)
+          NODE
+          node --check /tmp/agent-102-daily-criteria-grid.mjs
+
+      - name: Apply criteria-grid implementation
+        run: node /tmp/agent-102-daily-criteria-grid.mjs
+
+      - name: Restore two-column Daily wrapper
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises'
+          const path = 'src/components/ma-professor/daily/DailyWorkspaceView.tsx'
+          let source = await readFile(path, 'utf8')
+          const advancedMarker = '\n                            {showAdvanced ? ('
+          const advancedIndex = source.indexOf(advancedMarker)
+          if (advancedIndex < 0) {
+            throw new Error('Não foi possível localizar as opções avançadas do Daily.')
+          }
+          const sectionMarker = '                                </section>'
+          const sectionIndex = source.lastIndexOf(sectionMarker, advancedIndex)
+          if (sectionIndex < 0) {
+            throw new Error('Não foi possível localizar o fim da grelha antes das opções avançadas.')
+          }
+          const insertionIndex = sectionIndex + sectionMarker.length
+          const between = source.slice(insertionIndex, advancedIndex)
+          if (!between.includes('</div>')) {
+            source =
+              source.slice(0, insertionIndex) +
+              '\n                            </div>' +
+              source.slice(insertionIndex)
+          }
+          await writeFile(path, source)
+          NODE
+
+      - name: Verify Daily TSX syntax
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises'
+          import ts from 'typescript'
+          const path = 'src/components/ma-professor/daily/DailyWorkspaceView.tsx'
+          const source = await readFile(path, 'utf8')
+          const result = ts.transpileModule(source, {
+            fileName: path,
+            compilerOptions: {
+              module: ts.ModuleKind.ESNext,
+              target: ts.ScriptTarget.ES2022,
+              jsx: ts.JsxEmit.ReactJSX
+            },
+            reportDiagnostics: true
+          })
+          const errors = (result.diagnostics || []).filter(
+            item => item.category === ts.DiagnosticCategory.Error
+          )
+          if (errors.length) {
+            for (const error of errors) {
+              console.error(ts.flattenDiagnosticMessageText(error.messageText, '\n'))
+            }
+            process.exit(1)
+          }
+          NODE
+
+      - name: Run Daily regression suite
+        run: >-
+          node --test
+          tests/ma-professor/daily-criteria-grid.test.mjs
+          tests/ma-professor/daily-quick-grade.test.mjs
+          tests/ma-professor/daily-giae-auto.test.mjs
+          tests/ma-professor/future-lesson-temporal-safety.test.mjs
+          tests/ma-professor/daily-crash-draft-recovery.test.mjs
+          tests/ma-professor/daily-pedagogical-workflow.test.mjs
+          tests/ma-professor/lesson-grade-calculation.test.mjs
+          tests/ma-professor/ufcd-final-grade-grid.test.mjs
+          tests/ma-professor/ufcd-final-grade-grid-persistence.test.mjs
+
+      - name: Build application
+        run: npm run build
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/ma-professor/daily/DailyWorkspaceView.tsx \
+            src/components/ma-professor/daily/dailyDraftStorage.ts \
+            tests/ma-professor/daily-quick-grade.test.mjs \
+            tests/ma-professor/daily-giae-auto.test.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(ma-professor): simplify daily criteria grading"
+          git push origin HEAD:work/agent-102-daily-criteria-grid
