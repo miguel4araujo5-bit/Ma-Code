@@ -58,6 +58,30 @@ const academicYear = {
   endDate: '2027-06-30'
 }
 
+function calendarEvent({
+  id,
+  scope = 'all',
+  startDate,
+  endDate = startDate,
+  blocksLessons = true
+}) {
+  return {
+    id,
+    academicYearId: academicYear.id,
+    type: 'school_break',
+    scope,
+    groupId: null,
+    teachingAssignmentId: null,
+    title: id,
+    description: '',
+    startDate,
+    endDate,
+    blocksLessons,
+    createdAt: '2026-09-01T00:00:00.000Z',
+    updatedAt: '2026-09-01T00:00:00.000Z'
+  }
+}
+
 test(
   'recognizes the S. Bento school without treating unrelated schools as the preset',
   () => {
@@ -146,6 +170,117 @@ test(
     assert.equal(
       mondays.includes('2027-06-14'),
       true
+    )
+  }
+)
+
+test(
+  'configured all-school blockers remove duties for any school without hardcoded dates',
+  () => {
+    const events = [
+      calendarEvent({
+        id: 'autumn-break',
+        startDate: '2026-10-05',
+        endDate: '2026-10-09'
+      }),
+      calendarEvent({
+        id: 'christmas-break',
+        startDate: '2026-12-21',
+        endDate: '2027-01-01'
+      })
+    ]
+
+    const mondays =
+      getDutyDatesForSchool(
+        academicYear,
+        1,
+        'Escola Secundária Exemplo',
+        events
+      )
+
+    assert.equal(
+      mondays.includes('2026-09-28'),
+      true
+    )
+    assert.equal(
+      mondays.includes('2026-10-05'),
+      false
+    )
+    assert.equal(
+      mondays.includes('2026-12-21'),
+      false
+    )
+    assert.equal(
+      mondays.includes('2026-12-28'),
+      false
+    )
+    assert.equal(
+      mondays.includes('2027-01-04'),
+      true
+    )
+  }
+)
+
+test(
+  'only all-school blocking events suppress a teacher duty',
+  () => {
+    const events = [
+      calendarEvent({
+        id: 'group-only',
+        scope: 'group',
+        startDate: '2026-10-12'
+      }),
+      calendarEvent({
+        id: 'informative-only',
+        startDate: '2026-10-19',
+        blocksLessons: false
+      })
+    ]
+
+    const mondays =
+      getDutyDatesForSchool(
+        academicYear,
+        1,
+        'Escola Secundária Exemplo',
+        events
+      )
+
+    assert.equal(
+      mondays.includes('2026-10-12'),
+      true
+    )
+    assert.equal(
+      mondays.includes('2026-10-19'),
+      true
+    )
+  }
+)
+
+test(
+  'configured blockers also take precedence inside the existing S. Bento preset',
+  () => {
+    const events = [
+      calendarEvent({
+        id: 'local-closure',
+        startDate: '2026-11-09'
+      })
+    ]
+
+    const mondays =
+      getDutyDatesForSchool(
+        academicYear,
+        1,
+        'Agrupamento de Escolas de S. Bento, Vizela',
+        events
+      )
+
+    assert.equal(
+      mondays.includes('2026-11-02'),
+      true
+    )
+    assert.equal(
+      mondays.includes('2026-11-09'),
+      false
     )
   }
 )
