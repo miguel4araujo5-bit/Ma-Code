@@ -274,7 +274,7 @@ async function resolveSubjectAssignments(input: {
 
     if (matches.length > 1) {
       throw new Error(
-        `Existem várias associações ativas da turma “${group.name}” à disciplina “${subject.name}”. Corrija a duplicação antes de importar.`
+        `A turma “${group.name}” possui várias associações ativas à disciplina “${subject.name}”. Corrija a duplicação antes de importar.`
       )
     }
 
