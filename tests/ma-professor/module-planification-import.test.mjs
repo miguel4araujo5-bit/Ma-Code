@@ -84,12 +84,13 @@ after(async () => {
   }
 })
 const xmlText = value => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-const cell = value => '<w:tc><w:p><w:r><w:t>' + xmlText(value) + '</w:t></w:r></w:p></w:tc>'
+const paragraph = value => '<w:p><w:r><w:t>' + xmlText(value) + '</w:t></w:r></w:p>'
+const cell = value => '<w:tc>' + value.split('\n').map(paragraph).join('') + '</w:tc>'
 const row = values => '<w:tr>' + values.map(cell).join('') + '</w:tr>'
 const xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
   '<w:p><w:r><w:t>PLANIFICAÇÃO DE Disciplina de teste</w:t></w:r></w:p><w:tbl>' +
   row(['Período Letivo', 'UFCD (Horas)', 'Temas/Conteúdos', 'Objetivos/Competências', 'Estratégias/Metodologias', 'Nº de aulas Previstas (50 min)']) +
-  row(['1º Período', 'UFCD 0349 (25h) – Módulo A', 'Conteúdo A', 'Objetivo A', 'Métodos: ativo. Uso de: livro.', '30']) +
+  row(['1º Período', 'UFCD 0349 (25h) – Módulo A', 'Conteúdo A 1\nConteúdo A 2', 'Objetivo A 1\nObjetivo A 2', 'Métodos: ativo.\nUso de: livro.', '30']) +
   row(['Avaliação', 'Observação A']) +
   row(['2º Período', 'UFCD 10384 (50 Horas) – Módulo B', 'Conteúdo B', 'Objetivo B', 'Métodos: debate. Uso de: filme.', '30']) +
   row(['Avaliação', 'Observação B']) + '</w:tbl></w:body></w:document>'
@@ -100,7 +101,7 @@ const courseXml = xml.replace(
 )
 let document
 
-test('DOCX reads all UFCD after evaluation rows, keeps leading zeros, 25h, provenance and discrepancy', async () => {
+test('DOCX reads all UFCD after evaluation rows, keeps paragraph order, leading zeros, 25h, provenance and discrepancy', async () => {
   const bytes = zipSync({ 'word/document.xml': strToU8(xml) })
   document = await readModuleDocument(new File([bytes], 'fixture.docx'))
   assert.equal(document.sections.length, 2)
@@ -109,6 +110,8 @@ test('DOCX reads all UFCD after evaluation rows, keeps leading zeros, 25h, prove
   assert.equal(document.sections[0].durationHours, 25)
   assert.equal(document.sections[0].periodLabel, '1º Período')
   assert.equal(document.sections[1].periodLabel, '2º Período')
+  assert.equal(document.sections[0].contentsText, 'Conteúdo A 1\nConteúdo A 2')
+  assert.equal(document.sections[0].objectivesText, 'Objetivo A 1\nObjetivo A 2')
   assert.equal(document.sections[0].evaluationText, 'Observação A')
   assert.equal(document.sections[1].evaluationText, 'Observação B')
   assert.equal(document.sections[0].resourcesText, 'livro.')
@@ -174,16 +177,25 @@ async function request(ids = ['a1', 'a2']) {
     }))
   }
 }
-test('creates modules and plans across destinations, preserves original hours and leaves teaching evidence untouched', async () => {
+test('creates modules and plans across destinations, preserving each content point in document order', async () => {
   await seed()
   assert.equal(await maProfessorDb.modules.count(), 0)
   const result = await commitModulePlanificationImport(await request())
   assert.deepEqual(result, { created: 4, skipped: 0 })
   assert.equal(await maProfessorDb.planifications.count(), 4)
   const items = await maProfessorDb.planificationItems.toArray()
-  assert.equal(items.length, 4)
+  assert.equal(items.length, 6)
   assert.ok(items.every(item => item.suggestedSummary === '' && item.usedAt === null))
   const modules = await maProfessorDb.modules.toArray()
+  const moduleA = modules.find(module => module.teachingAssignmentId === 'a1' && module.code === '0349')
+  const planificationA = (await maProfessorDb.planifications.toArray())
+    .find(planification => planification.moduleId === moduleA.id)
+  const sequence = items
+    .filter(item => item.planificationId === planificationA.id)
+    .sort((left, right) => left.order - right.order)
+  assert.deepEqual(sequence.map(item => item.content), ['Conteúdo A 1', 'Conteúdo A 2'])
+  assert.deepEqual(sequence.map(item => item.order), [1, 2])
+  assert.ok(sequence.every(item => item.objectives === 'Objetivo A 1\nObjetivo A 2'))
   assert.ok(modules.filter(m => m.code === '10384').every(m => m.plannedPeriods === 60))
   assert.ok((await maProfessorDb.planifications.toArray()).some(p => p.description.includes('Aulas previstas no documento: 30')))
   for (const table of ['lessons', 'lessonAttendance', 'assessmentResults', 'setupProgress']) assert.equal(await maProfessorDb[table].count(), 0)
@@ -210,6 +222,80 @@ test('reimport preserves existing modules and plans, even after a file rename', 
   assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 4 })
   assert.deepEqual(await maProfessorDb.planificationItems.toArray(), before)
 })
+
+test('reimport repairs one untouched legacy aggregate into ordered pending points', async () => {
+  await seed()
+  const source = document.sections[0]
+  const timestamp = '2026-01-02'
+  await maProfessorDb.modules.add({
+    id: 'legacy-module', academicYearId: 'year', teachingAssignmentId: 'a1',
+    code: '0349', name: 'Módulo A', plannedPeriods: 30, order: 1,
+    plannedStartDate: null, plannedEndDate: null, active: true,
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  await maProfessorDb.planifications.add({
+    id: 'legacy-plan', academicYearId: 'year', teachingAssignmentId: 'a1', moduleId: 'legacy-module',
+    active: true, title: 'Legacy', description: '', sourceDocumentName: document.name, sourcePages: [],
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  await maProfessorDb.planificationItems.add({
+    id: 'legacy-item', planificationId: 'legacy-plan', order: 1,
+    content: source.contentsText.replaceAll('\n', ' '), objectives: source.objectivesText,
+    activity: source.methodologyText, resources: source.resourcesText,
+    evaluation: source.evaluationText, suggestedSummary: '', status: 'planned',
+    usedLessonId: null, usedAt: null, sourceDocumentName: document.name, sourcePages: [],
+    sourceImportKey: `module-plan-v1:${document.sha256}:0:a1`,
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  const input = await request(['a1'])
+  input.selections = [input.selections[0]]
+  input.expectedFingerprint = (await readModuleImportState()).fingerprint
+  assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 1 })
+  const repaired = (await maProfessorDb.planificationItems.where('planificationId').equals('legacy-plan').toArray())
+    .sort((left, right) => left.order - right.order)
+  assert.deepEqual(repaired.map(item => item.content), ['Conteúdo A 1', 'Conteúdo A 2'])
+  assert.deepEqual(repaired.map(item => item.status), ['planned', 'planned'])
+  assert.equal(repaired[0].id, 'legacy-item')
+})
+
+test('reimport preserves a used legacy aggregate and restores only the next pending points', async () => {
+  await seed()
+  const source = document.sections[0]
+  const timestamp = '2026-01-02'
+  await maProfessorDb.modules.add({
+    id: 'legacy-module', academicYearId: 'year', teachingAssignmentId: 'a1',
+    code: '0349', name: 'Módulo A', plannedPeriods: 30, order: 1,
+    plannedStartDate: null, plannedEndDate: null, active: true,
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  await maProfessorDb.planifications.add({
+    id: 'legacy-plan', academicYearId: 'year', teachingAssignmentId: 'a1', moduleId: 'legacy-module',
+    active: true, title: 'Legacy', description: '', sourceDocumentName: document.name, sourcePages: [],
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  const legacyContent = source.contentsText.replaceAll('\n', ' ')
+  await maProfessorDb.planificationItems.add({
+    id: 'legacy-item', planificationId: 'legacy-plan', order: 1,
+    content: legacyContent, objectives: source.objectivesText,
+    activity: source.methodologyText, resources: source.resourcesText,
+    evaluation: source.evaluationText, suggestedSummary: '', status: 'used',
+    usedLessonId: 'historic-lesson', usedAt: timestamp, sourceDocumentName: document.name, sourcePages: [],
+    sourceImportKey: `module-plan-v1:${document.sha256}:0:a1`,
+    createdAt: timestamp, updatedAt: timestamp
+  })
+  const input = await request(['a1'])
+  input.selections = [input.selections[0]]
+  input.expectedFingerprint = (await readModuleImportState()).fingerprint
+  assert.deepEqual(await commitModulePlanificationImport(input), { created: 0, skipped: 1 })
+  const repaired = (await maProfessorDb.planificationItems.where('planificationId').equals('legacy-plan').toArray())
+    .sort((left, right) => left.order - right.order)
+  assert.equal(repaired[0].id, 'legacy-item')
+  assert.equal(repaired[0].content, legacyContent)
+  assert.equal(repaired[0].status, 'used')
+  assert.deepEqual(repaired.slice(1).map(item => item.content), ['Conteúdo A 2'])
+  assert.ok(repaired.slice(1).every(item => item.status === 'planned' && item.usedLessonId === null))
+})
+
 test('a late destination failure rolls back earlier modules, plans, items and course correction', async () => {
   await seed()
   const input = await request(['a1', 'missing'])
