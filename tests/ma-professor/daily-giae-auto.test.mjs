@@ -286,7 +286,7 @@ test(
 )
 
 test(
-  'Quick Grade remains present in the same Daily workspace',
+  'criterion grading remains present in the same Daily workspace',
   () => {
     assert.match(
       dailySource,
@@ -294,7 +294,7 @@ test(
     )
     assert.match(
       dailySource,
-      /Nota 0–20/
+      /data-criterion-id=/
     )
     assert.match(
       dailySource,

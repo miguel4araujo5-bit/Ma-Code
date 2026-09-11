@@ -265,7 +265,7 @@ test(
 )
 
 test(
-  'the main Daily workspace also exposes quick score inputs before a new assessment exists',
+  'the main Daily workspace exposes one score input per configured criterion',
   () => {
     assert.doesNotThrow(() =>
       transpile(
@@ -275,70 +275,70 @@ test(
     )
     assert.match(
       dailyWorkspaceSource,
-      /const quickGradeVisible\s*=[\s\S]*assessmentWorkspace\?\.criteria/
-    )
-    assert.match(
-      dailyWorkspaceSource,
       /data-daily-quick-grade-input="true"/
     )
     assert.match(
       dailyWorkspaceSource,
-      /Nota 0–20/
+      /data-criterion-id=/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /criteria\.map\(/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /calculateDailyCriteriaAverage\(/
+    )
+  }
+)
+
+test(
+  'missing daily criterion scores start at ten but remain write-free until the professor saves or edits',
+  () => {
+    assert.match(
+      dailyWorkspaceSource,
+      /: '10'/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /hasCriteriaDefaultsToSave/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /const hasPendingSave =[\s\S]*hasCriteriaDefaultsToSave/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /async function saveBeforeNavigation\(\) \{[\s\S]*if \(!hasUnsavedChanges\)/
+    )
+  }
+)
+
+test(
+  'daily assessment bureaucracy is replaced by one optional activity field',
+  () => {
+    assert.doesNotMatch(
+      dailyWorkspaceSource,
+      /Detalhes da avaliação/
     )
     assert.doesNotMatch(
       dailyWorkspaceSource,
-      />\s*\+\s*Avaliação\s*</
+      /Atividade nesta aula/
+    )
+    assert.doesNotMatch(
+      dailyWorkspaceSource,
+      /A lista tem[\s\S]*deslocamento próprio/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /Atividade avaliada · opcional/
     )
   }
 )
 
 test(
-  'the first score activates one new assessment draft but clearing every new score remains write-free',
+  'keyboard-only entry remains available across criterion score cells',
   () => {
-    assert.match(
-      dailyWorkspaceSource,
-      /function activateQuickAssessment\(\)[\s\S]*choice: 'new'/
-    )
-    assert.match(
-      dailyWorkspaceSource,
-      /if \(normalizedValue\.trim\(\)\) \{\s*activateQuickAssessment\(\)/
-    )
-    assert.match(
-      dailyWorkspaceSource,
-      /const quickAssessmentHasData =[\s\S]*hasQuickAssessmentData\([\s\S]*students/
-    )
-    assert.match(
-      dailyWorkspaceSource,
-      /assessmentForm\.choice ===[\s\S]*'new'[\s\S]*quickAssessmentHasData[\s\S]*\? 'new'[\s\S]*: 'none'/
-    )
-  }
-)
-
-test(
-  'the main Daily workspace blocks ambiguous criteria and invalid 0-20 values before persistence',
-  () => {
-    assert.match(
-      dailyWorkspaceSource,
-      /resolveQuickCriterionId\(/
-    )
-    assert.match(
-      dailyWorkspaceSource,
-      /Selecione o critério da avaliação em Detalhes\./
-    )
-    assert.match(
-      dailyWorkspaceSource,
-      /score < 0 \|\|[\s\S]*score > 20/
-    )
-  }
-)
-
-test(
-  'the main Daily workspace keeps advanced assessment metadata collapsed and supports keyboard-only entry',
-  () => {
-    assert.match(
-      dailyWorkspaceSource,
-      /showAssessmentDetails &&[\s\S]*assessmentForm/
-    )
     assert.match(
       dailyWorkspaceSource,
       /event\.key ===[\s\S]*'Enter'/
