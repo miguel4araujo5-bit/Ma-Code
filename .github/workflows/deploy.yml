@@ -91,7 +91,7 @@ jobs:
             fi
 
             case "$file" in
-              .github/workflows/*|package.json|vite.config.*|tsconfig*.json|worker/*|migrations/*|scripts/*|src/main.tsx|src/index.css|src/lib/*|src/types/*|src/data/*)
+              .github/workflows/*|package.json|package-lock.json|vite.config.*|tsconfig*.json|worker/*|migrations/*|scripts/*|src/main.tsx|src/index.css|src/lib/*|src/types/*|src/data/*)
                 all=true
                 continue
                 ;;
@@ -140,10 +140,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         if: steps.gate.outputs.skip != 'true'
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run Conquistador tests
         if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.conquistador == 'true'
@@ -236,10 +238,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build project
         if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
