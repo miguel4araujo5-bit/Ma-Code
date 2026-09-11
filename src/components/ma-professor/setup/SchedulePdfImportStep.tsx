@@ -451,16 +451,7 @@ function extractDutyName(value: string) {
 
   if (
     /^(?:Eq(?:uipa)?\s+|Clube\s+)/i.test(candidate) ||
-    /^(?:Trabalho de Escola|Artigo 79|Trabalho Individual|Reunião)$/i.test(candidate)
-  ) {
-    return candidate
-  }
-
-  if (
-    candidate
-      .split(/\s+/)
-      .filter(Boolean)
-      .length >= 2
+    /^(?:Co\s+PCE|Trabalho de Escola|Artigo 79|Trabalho Individual|Reunião)$/i.test(candidate)
   ) {
     return candidate
   }
