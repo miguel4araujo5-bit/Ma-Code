@@ -31,26 +31,12 @@ jobs:
       contents: read
 
     steps:
-      - name: Skip duplicate post-merge validation
-        id: gate
-        shell: bash
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout repository
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
       - name: Detect affected products
-        if: steps.gate.outputs.skip != 'true'
         id: scope
         shell: bash
         env:
@@ -136,7 +122,6 @@ jobs:
           echo "conquistador=$conquistador" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -144,19 +129,18 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        if: steps.gate.outputs.skip != 'true'
         run: npm ci --no-audit --no-fund
 
       - name: Run Conquistador tests
-        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.conquistador == 'true'
+        if: steps.scope.outputs.conquistador == 'true'
         run: npm run test:conquistador
 
       - name: Run MA-Professor tests
-        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.professor == 'true'
-        run: node --test tests/ma-professor/*.test.mjs
+        if: steps.scope.outputs.professor == 'true'
+        run: npm run test:ma-professor
 
       - name: Run MA-Quadro tests
-        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.quadro == 'true'
+        if: steps.scope.outputs.quadro == 'true'
         run: npm run test:ma-quadro
 
   build:
@@ -168,26 +152,12 @@ jobs:
       contents: read
 
     steps:
-      - name: Skip duplicate post-merge validation
-        id: gate
-        shell: bash
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout repository
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
       - name: Detect whether build is needed
-        if: steps.gate.outputs.skip != 'true'
         id: build_scope
         shell: bash
         env:
@@ -234,7 +204,7 @@ jobs:
           echo "build=$build" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
+        if: steps.build_scope.outputs.build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -242,9 +212,9 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
+        if: steps.build_scope.outputs.build == 'true'
         run: npm ci --no-audit --no-fund
 
       - name: Build project
-        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
+        if: steps.build_scope.outputs.build == 'true'
         run: npm run build
