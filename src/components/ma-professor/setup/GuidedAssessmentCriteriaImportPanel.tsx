@@ -27,7 +27,9 @@ import {
 import {
   readAssessmentCriteriaDocument
 } from './assessmentCriteriaDocumentReader'
-import { resolveAssessmentCriteriaDestinations } from './assessmentCriteriaDestinations'
+import {
+  resolveAssessmentCriteriaDestinations
+} from './assessmentCriteriaDestinations'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -86,6 +88,7 @@ function rowsFromParsed(
 function criteriaStateFingerprint(snapshot: SetupSnapshot) {
   const ordered = <T extends { id: string }>(items: T[]) =>
     [...items].sort((left, right) => left.id.localeCompare(right.id))
+
   return JSON.stringify({
     academicYearId: snapshot.academicYear.id,
     groups: ordered(snapshot.groups),
@@ -108,24 +111,28 @@ export default function GuidedAssessmentCriteriaImportPanel({
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [parsed, setParsed] = useState<ParsedAssessmentCriteriaPdfDocument | null>(null)
+  const operation = useRef(false)
+  const mounted = useRef(true)
+
+  const [parsed, setParsed] =
+    useState<ParsedAssessmentCriteriaPdfDocument | null>(null)
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState<ImportRow[]>([])
   const [assignmentIds, setAssignmentIds] = useState<EntityId[]>([])
   const [sourceFingerprint, setSourceFingerprint] = useState('')
   const [showDetails, setShowDetails] = useState(false)
-  const [showDestinations, setShowDestinations] = useState(false)
-  const operation = useRef(false)
-  const mounted = useRef(true)
-
-  useEffect(() => {
-    mounted.current = true
-    return () => { mounted.current = false }
-  }, [])
+  const [showAllDestinations, setShowAllDestinations] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   const hasProposal = Boolean(parsed || fileName || rows.length)
 
@@ -136,36 +143,56 @@ export default function GuidedAssessmentCriteriaImportPanel({
   )
 
   const detectedSubject = parsed?.metadata.subject?.value ?? ''
+
   const destinationResolution = useMemo(
-    () => resolveAssessmentCriteriaDestinations(snapshot, detectedSubject),
+    () =>
+      resolveAssessmentCriteriaDestinations(
+        snapshot,
+        detectedSubject
+      ),
     [snapshot, detectedSubject]
   )
+
   const assignments = destinationResolution.available
   const destinationCandidates = destinationResolution.candidates
-  const destinationOptions =
-    destinationCandidates.length > 0
-      ? destinationCandidates
-      : assignments
-  const selectedDestinations = assignments.filter(item => assignmentIds.includes(item.assignment.id))
+  const visibleDestinations =
+    showAllDestinations || destinationCandidates.length === 0
+      ? assignments
+      : destinationCandidates
+
+  const selectedDestinations = assignments.filter(item =>
+    assignmentIds.includes(item.assignment.id)
+  )
 
   const includedRows = useMemo(
     () => rows.filter(row => row.included),
     [rows]
   )
+
   const totalWeight = useMemo(
-    () => includedRows.reduce((total, row) => {
-      const value = Number(row.weightPercent.replace(',', '.'))
-      return total + (Number.isFinite(value) ? value : 0)
-    }, 0),
+    () =>
+      includedRows.reduce((total, row) => {
+        const value = Number(row.weightPercent.replace(',', '.'))
+        return total + (Number.isFinite(value) ? value : 0)
+      }, 0),
     [includedRows]
   )
+
   const rowsReady = useMemo(
-    () => includedRows.length > 0 && includedRows.every(row => {
-      const weight = Number(row.weightPercent.replace(',', '.'))
-      return Boolean(clean(row.name)) && Number.isFinite(weight) && weight > 0 && weight <= 100
-    }),
+    () =>
+      includedRows.length > 0 &&
+      includedRows.every(row => {
+        const weight = Number(row.weightPercent.replace(',', '.'))
+        return (
+          Boolean(clean(row.name)) &&
+          Number.isFinite(weight) &&
+          weight > 0 &&
+          weight <= 100
+        )
+      }),
     [includedRows]
   )
+
   const proposalReady =
     rowsReady &&
     Math.abs(totalWeight - 100) <= 0.001 &&
@@ -179,15 +206,18 @@ export default function GuidedAssessmentCriteriaImportPanel({
     setAssignmentIds([])
     setSourceFingerprint('')
     setShowDetails(false)
-    setShowDestinations(false)
+    setShowAllDestinations(false)
     setDragActive(false)
   }
 
   async function analyzeFile(file: File) {
     if (operation.current) return
+
     if (
       hasProposal &&
-      !window.confirm('Substituir a proposta atual e perder as correções ainda não importadas?')
+      !window.confirm(
+        'Substituir a proposta atual e perder as correções ainda não importadas?'
+      )
     ) {
       return
     }
@@ -202,33 +232,41 @@ export default function GuidedAssessmentCriteriaImportPanel({
       const result = parseAssessmentCriteriaPdfDocument(document, file.name)
       const nextRows = rowsFromParsed(result)
       const destinations = resolveAssessmentCriteriaDestinations(
-        snapshot, result.metadata.subject?.value ?? ''
+        snapshot,
+        result.metadata.subject?.value ?? ''
       )
+
       if (!mounted.current) return
 
       const total = nextRows.reduce((sum, row) => {
         const value = Number(row.weightPercent.replace(',', '.'))
         return sum + (Number.isFinite(value) ? value : 0)
       }, 0)
+
       const completeRows =
         nextRows.length > 0 &&
         nextRows.every(row => {
           const weight = Number(row.weightPercent.replace(',', '.'))
-          return Boolean(clean(row.name)) && Number.isFinite(weight) && weight > 0 && weight <= 100
+          return (
+            Boolean(clean(row.name)) &&
+            Number.isFinite(weight) &&
+            weight > 0 &&
+            weight <= 100
+          )
         })
 
       setParsed(result)
       setFileName(file.name)
       setRows(nextRows)
       setAssignmentIds(destinations.suggestedAssignmentIds)
-      setShowDestinations(false)
       setSourceFingerprint(criteriaStateFingerprint(snapshot))
       setShowDetails(!completeRows || Math.abs(total - 100) > 0.001)
+      setShowAllDestinations(false)
 
       if (result.candidates.length === 0) {
         setError(
           result.warnings[0] ||
-          'Não foi possível identificar critérios com segurança.'
+            'Não foi possível identificar critérios com segurança.'
         )
       }
     } catch (analysisError) {
@@ -250,17 +288,21 @@ export default function GuidedAssessmentCriteriaImportPanel({
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragActive(false)
+
     if (operation.current) return
+
     if (event.dataTransfer.files.length !== 1) {
       setError('Adicione um documento de critérios de cada vez.')
       return
     }
+
     const file = event.dataTransfer.files?.[0]
     if (file) void analyzeFile(file)
   }
 
   function toggleAssignment(id: EntityId) {
     if (operation.current) return
+
     setAssignmentIds(current =>
       current.includes(id)
         ? current.filter(item => item !== id)
@@ -269,13 +311,31 @@ export default function GuidedAssessmentCriteriaImportPanel({
     setError('')
   }
 
+  function selectRecommendedDestinations() {
+    if (operation.current) return
+
+    setAssignmentIds(
+      destinationCandidates.map(item => item.assignment.id)
+    )
+    setError('')
+  }
+
+  function clearDestinations() {
+    if (operation.current) return
+    setAssignmentIds([])
+    setError('')
+  }
+
   function updateRow(id: string, changes: Partial<ImportRow>) {
     if (operation.current) return
-    setRows(current => current.map(row =>
-      row.id === id
-        ? { ...row, ...changes }
-        : row
-    ))
+
+    setRows(current =>
+      current.map(row =>
+        row.id === id
+          ? { ...row, ...changes }
+          : row
+      )
+    )
     setError('')
   }
 
@@ -283,18 +343,25 @@ export default function GuidedAssessmentCriteriaImportPanel({
     if (!rowsReady || includedRows.length === 0) {
       throw new Error('Reveja os critérios assinalados antes de importar.')
     }
+
     if (Math.abs(totalWeight - 100) > 0.001) {
-      throw new Error(`Os critérios devem totalizar 100%. O total atual é ${totalWeight.toLocaleString('pt-PT')}%.`)
+      throw new Error(
+        `Os critérios devem totalizar 100%. O total atual é ${totalWeight.toLocaleString('pt-PT')}%.`
+      )
     }
 
     const names = new Set<string>()
+
     return includedRows.map((row, index) => {
       const name = clean(row.name)
       const key = normalize(name)
+
       if (names.has(key)) {
         throw new Error(`O critério “${name}” está repetido.`)
       }
+
       names.add(key)
+
       return {
         name,
         description: row.description,
@@ -320,30 +387,52 @@ export default function GuidedAssessmentCriteriaImportPanel({
       )
 
       if (criteriaStateFingerprint(current) !== sourceFingerprint) {
-        throw new Error('A configuração mudou desde a análise. Analise novamente o documento antes de importar.')
+        throw new Error(
+          'A configuração mudou desde a análise. Analise novamente o documento antes de importar.'
+        )
       }
 
       if (assignmentIds.length === 0) {
-        throw new Error('Confirme pelo menos um destino para estes critérios.')
+        throw new Error(
+          'Confirme pelo menos uma turma e disciplina para estes critérios.'
+        )
       }
 
       for (const assignmentId of assignmentIds) {
         const assignment = current.teachingAssignments.find(item =>
           item.id === assignmentId && item.active
         )
-        const group = current.groups.find(item => item.id === assignment?.groupId && item.active && item.academicYearId === current.academicYear.id)
-        const subject = current.subjects.find(item => item.id === assignment?.subjectId && item.active && item.academicYearId === current.academicYear.id)
+        const group = current.groups.find(item =>
+          item.id === assignment?.groupId &&
+          item.active &&
+          item.academicYearId === current.academicYear.id
+        )
+        const subject = current.subjects.find(item =>
+          item.id === assignment?.subjectId &&
+          item.active &&
+          item.academicYearId === current.academicYear.id
+        )
+
         if (!assignment || !group || !subject) {
-          throw new Error('Um dos destinos selecionados deixou de estar disponível.')
+          throw new Error(
+            'Um dos destinos selecionados deixou de estar disponível.'
+          )
         }
-        if (current.assessmentSchemes.some(scheme =>
-          scheme.active &&
-          scheme.scope === 'subject' &&
-          scheme.teachingAssignmentId === assignmentId
-        )) {
-          throw new Error('Um dos destinos selecionados já possui critérios gerais. Nada foi substituído.')
+
+        if (
+          current.assessmentSchemes.some(scheme =>
+            scheme.active &&
+            scheme.scope === 'subject' &&
+            scheme.teachingAssignmentId === assignmentId
+          )
+        ) {
+          throw new Error(
+            'Um dos destinos selecionados já possui critérios gerais. Nada foi substituído.'
+          )
         }
       }
+
+      const destinationCount = assignmentIds.length
 
       await assessmentCriteriaBatchRepository.createSubjectSchemes({
         academicYearId: snapshot.academicYear.id,
@@ -356,9 +445,13 @@ export default function GuidedAssessmentCriteriaImportPanel({
       const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
         snapshot.academicYear.id
       )
+
       if (!mounted.current) return
+
       clearProposal()
-      setFeedback('Critérios importados com sucesso.')
+      setFeedback(
+        `Critérios aplicados com sucesso a ${destinationCount} ${destinationCount === 1 ? 'turma/disciplina' : 'turmas/disciplinas'}. Pode adicionar outro critério ou seguir em frente.`
+      )
       onImported(nextSnapshot)
     } catch (commitError) {
       if (mounted.current) setError(errorMessage(commitError))
@@ -375,7 +468,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
           <div>
             <h2 className="text-xl font-black">Adicionar critérios</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Adicione um PDF ou Word. Mostramos primeiro apenas o resultado e o destino proposto.
+              Adicione um PDF ou Word. Reveja os critérios e escolha logo uma ou várias turmas/disciplinas onde os pretende aplicar.
             </p>
           </div>
         </div>
@@ -390,6 +483,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
               onChange={handleFileChange}
               className="hidden"
             />
+
             <div
               onDragEnter={event => {
                 event.preventDefault()
@@ -407,8 +501,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
                   : 'border-cyan-300/20 bg-cyan-300/[0.025]'
               }`}
             >
-              <p className="font-black">Arraste os critérios ou selecione um ficheiro</p>
-              <p className="mt-1 text-sm text-slate-500">PDF ou Word (.docx), um documento de cada vez</p>
+              <p className="font-black">
+                Arraste os critérios ou selecione um ficheiro
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                PDF ou Word (.docx), um documento de cada vez
+              </p>
               <button
                 type="button"
                 disabled={busy}
@@ -428,51 +526,157 @@ export default function GuidedAssessmentCriteriaImportPanel({
                   {detectedSubject || 'Disciplina por confirmar'}
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-slate-300">
-                  {includedRows.length} {includedRows.length === 1 ? 'critério' : 'critérios'}
+                  {includedRows.length}{' '}
+                  {includedRows.length === 1 ? 'critério' : 'critérios'}
                 </span>
-                <span className={`rounded-full border px-3 py-1.5 ${
-                  Math.abs(totalWeight - 100) <= 0.001
-                    ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100'
-                    : 'border-amber-300/20 bg-amber-300/[0.07] text-amber-100'
-                }`}>
+                <span
+                  className={`rounded-full border px-3 py-1.5 ${
+                    Math.abs(totalWeight - 100) <= 0.001
+                      ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100'
+                      : 'border-amber-300/20 bg-amber-300/[0.07] text-amber-100'
+                  }`}
+                >
                   Total {totalWeight.toLocaleString('pt-PT')}%
                 </span>
               </div>
             </div>
 
-            <div className={`rounded-2xl border p-4 text-sm ${selectedDestinations.length && destinationResolution.confidence === 'high' ? 'border-emerald-300/20 bg-emerald-300/[0.055]' : 'border-amber-300/20 bg-amber-300/[0.05]'}`}>
-              <p className={`font-black ${selectedDestinations.length && destinationResolution.confidence === 'high' ? 'text-emerald-100' : 'text-amber-100'}`}>
-                {selectedDestinations.length
-                  ? (destinationResolution.confidence === 'high' ? '✓ Disciplina e turmas reconhecidas' : 'Associação a rever')
-                  : 'Destino por associar'}
-              </p>
-              {selectedDestinations.length ? <>
-                <p className="mt-1 font-bold text-slate-200">{[...new Set(selectedDestinations.map(item => item.subject.name))].join(' · ')}</p>
-                <p className="mt-1 text-slate-300">{selectedDestinations.map(item => item.group.name).join(', ')}</p>
-                <p className="mt-2 text-xs text-slate-400">Critérios comuns à disciplina, aplicáveis aos vários anos e turmas selecionados.</p>
-              </> : null}
-              {destinationResolution.confidence === 'medium' ? <p className="mt-2 text-xs text-amber-100">Correspondência provável pela sigla. Pode corrigir a associação ou aplicar os critérios aos destinos propostos.</p> : null}
-              {destinationResolution.preservedCount > 0 ? <p className="mt-2 text-xs text-slate-400">{destinationResolution.preservedCount} {destinationResolution.preservedCount === 1 ? 'turma já tem critérios gerais; serão preservados.' : 'turmas já têm critérios gerais; serão preservados.'}</p> : null}
-              {destinationResolution.preservedCount > 0 && !destinationCandidates.length ? <p className="mt-2 text-xs text-slate-400">Os destinos reconhecidos já estão configurados. Pode continuar para o passo seguinte.</p> : null}
-              <button type="button" disabled={busy} onClick={() => setShowDestinations(value => !value)} className="mt-3 text-xs font-bold text-cyan-200 underline underline-offset-4">
-                {showDestinations ? 'Fechar escolha de destinos' : 'Corrigir associação'}
-              </button>
-              {showDestinations || !assignmentIds.length ? <>
-                {destinationCandidates.length === 0 && assignments.length > 0 && !destinationResolution.preservedCount ? (
-                  <p className="mt-2 text-xs leading-5 text-amber-100/80">
-                    Não foi possível reconhecer automaticamente o destino. Escolha abaixo a turma e a disciplina onde pretende aplicar estes critérios.
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.045] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-cyan-100">
+                    Aplicar a
                   </p>
-                ) : null}
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {(showDestinations ? assignments : destinationOptions).map(item => (
-                    <label key={item.assignment.id} className={`cursor-pointer rounded-xl border p-3 text-sm ${assignmentIds.includes(item.assignment.id) ? 'border-cyan-300/30 bg-cyan-300/[0.08]' : 'border-white/10 bg-white/[0.025]'}`}>
-                      <input type="checkbox" disabled={busy} className="mr-2" checked={assignmentIds.includes(item.assignment.id)} onChange={() => toggleAssignment(item.assignment.id)} />
-                      {item.label}
-                    </label>
-                  ))}
+                  <p className="mt-1 text-sm leading-6 text-slate-300">
+                    Selecione uma ou várias turmas/disciplinas. O destino reconhecido é apenas uma proposta e pode ser alterado já aqui.
+                  </p>
                 </div>
-                {assignments.length === 0 ? <p className="mt-3 text-xs leading-5 text-amber-100/80">Não existem destinos ativos disponíveis sem critérios gerais. Os conjuntos já guardados são preservados.</p> : null}
-              </> : null}
+
+                <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.08] px-3 py-1.5 text-xs font-black text-cyan-100">
+                  {assignmentIds.length} selecionada{assignmentIds.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              {destinationResolution.confidence === 'high' &&
+              destinationCandidates.length > 0 ? (
+                <p className="mt-3 text-xs leading-5 text-emerald-100">
+                  ✓ Disciplina reconhecida: {destinationResolution.subjectName}. Todas as turmas elegíveis desta disciplina aparecem abaixo e podem ser selecionadas ou desmarcadas.
+                </p>
+              ) : null}
+
+              {destinationResolution.confidence === 'medium' ? (
+                <p className="mt-3 text-xs leading-5 text-amber-100">
+                  Correspondência provável pela sigla. Confirme os destinos antes de aplicar.
+                </p>
+              ) : null}
+
+              {selectedDestinations.length > 0 ? (
+                <p className="mt-3 text-xs font-bold text-slate-200">
+                  {selectedDestinations.map(item => item.group.name).join(', ')}
+                </p>
+              ) : null}
+
+              {destinationResolution.preservedCount > 0 ? (
+                <p className="mt-3 text-xs leading-5 text-slate-400">
+                  {destinationResolution.preservedCount}{' '}
+                  {destinationResolution.preservedCount === 1
+                    ? 'turma já tem critérios gerais e será preservada.'
+                    : 'turmas já têm critérios gerais e serão preservadas.'}
+                </p>
+              ) : null}
+
+              {destinationResolution.preservedCount > 0 &&
+              destinationCandidates.length === 0 ? (
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Os destinos reconhecidos já estão configurados. Pode continuar para o passo seguinte.
+                </p>
+              ) : null}
+
+              {destinationCandidates.length > 1 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={selectRecommendedDestinations}
+                    className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-2 text-xs font-bold text-cyan-100 disabled:opacity-50"
+                  >
+                    Selecionar todas as turmas desta disciplina
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || assignmentIds.length === 0}
+                    onClick={clearDestinations}
+                    className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-bold text-slate-300 disabled:opacity-50"
+                  >
+                    Limpar seleção
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {visibleDestinations.map(item => {
+                  const selected = assignmentIds.includes(item.assignment.id)
+                  const recommended = destinationCandidates.some(
+                    candidate =>
+                      candidate.assignment.id === item.assignment.id
+                  )
+
+                  return (
+                    <label
+                      key={item.assignment.id}
+                      className={`cursor-pointer rounded-xl border p-3 text-sm transition ${
+                        selected
+                          ? 'border-cyan-300/35 bg-cyan-300/[0.09]'
+                          : 'border-white/10 bg-white/[0.025] hover:border-cyan-300/20'
+                      }`}
+                    >
+                      <span className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          disabled={busy}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-cyan-300"
+                          checked={selected}
+                          onChange={() =>
+                            toggleAssignment(item.assignment.id)
+                          }
+                        />
+                        <span>
+                          <span className="font-bold text-slate-100">
+                            {item.label}
+                          </span>
+                          {recommended ? (
+                            <span className="mt-1 block text-[0.68rem] font-bold text-emerald-200">
+                              Correspondência sugerida
+                            </span>
+                          ) : null}
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              {visibleDestinations.length === 0 ? (
+                <p className="mt-3 text-xs leading-5 text-amber-100/80">
+                  Não existem destinos ativos disponíveis sem critérios gerais.
+                </p>
+              ) : null}
+
+              {destinationCandidates.length > 0 &&
+              assignments.length > destinationCandidates.length ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    setShowAllDestinations(value => !value)
+                  }
+                  className="mt-3 text-xs font-bold text-cyan-200 underline underline-offset-4"
+                >
+                  {showAllDestinations
+                    ? 'Mostrar apenas esta disciplina'
+                    : 'Mostrar todas as disciplinas e turmas'}
+                </button>
+              ) : null}
             </div>
 
             {parsed.warnings.length > 0 ? (
@@ -502,16 +706,26 @@ export default function GuidedAssessmentCriteriaImportPanel({
               {showDetails ? (
                 <div className="mt-4 space-y-3">
                   {rows.map((row, index) => (
-                    <article key={row.id} className="rounded-xl border border-white/10 bg-slate-950/45 p-3">
+                    <article
+                      key={row.id}
+                      className="rounded-xl border border-white/10 bg-slate-950/45 p-3"
+                    >
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={row.included}
                           disabled={busy}
-                          onChange={event => updateRow(row.id, { included: event.target.checked })}
+                          onChange={event =>
+                            updateRow(row.id, {
+                              included: event.target.checked
+                            })
+                          }
                         />
-                        <span className="text-xs font-black text-slate-400">Critério {index + 1}</span>
+                        <span className="text-xs font-black text-slate-400">
+                          Critério {index + 1}
+                        </span>
                       </div>
+
                       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_9rem]">
                         <label className="text-xs font-bold text-slate-300">
                           Nome
@@ -519,9 +733,14 @@ export default function GuidedAssessmentCriteriaImportPanel({
                             className={`${inputClassName} mt-1`}
                             value={row.name}
                             disabled={!row.included || busy}
-                            onChange={event => updateRow(row.id, { name: event.target.value })}
+                            onChange={event =>
+                              updateRow(row.id, {
+                                name: event.target.value
+                              })
+                            }
                           />
                         </label>
+
                         <label className="text-xs font-bold text-slate-300">
                           Peso (%)
                           <input
@@ -532,20 +751,35 @@ export default function GuidedAssessmentCriteriaImportPanel({
                             step="0.01"
                             value={row.weightPercent}
                             disabled={!row.included || busy}
-                            onChange={event => updateRow(row.id, { weightPercent: event.target.value })}
+                            onChange={event =>
+                              updateRow(row.id, {
+                                weightPercent: event.target.value
+                              })
+                            }
                           />
                         </label>
                       </div>
+
                       <label className="mt-3 block text-xs font-bold text-slate-300">
                         Descrição / estrutura preservada
-                        <textarea className={`${inputClassName} mt-1 min-h-24`} value={row.description}
+                        <textarea
+                          className={`${inputClassName} mt-1 min-h-24`}
+                          value={row.description}
                           disabled={!row.included || busy}
-                          onChange={event => updateRow(row.id, { description: event.target.value })} />
+                          onChange={event =>
+                            updateRow(row.id, {
+                              description: event.target.value
+                            })
+                          }
+                        />
                       </label>
+
                       {row.warnings.length > 0 ? (
                         <div className="mt-2 text-xs leading-5 text-amber-100/80">
                           {row.warnings.map((warning, warningIndex) => (
-                            <p key={`${warning}-${warningIndex}`}>• {warning}</p>
+                            <p key={`${warning}-${warningIndex}`}>
+                              • {warning}
+                            </p>
                           ))}
                         </div>
                       ) : null}
@@ -554,7 +788,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-slate-400">
-                  {includedRows.map(row => `${row.name} ${row.weightPercent || '—'}%`).join(' · ') || 'Nenhum critério válido encontrado.'}
+                  {includedRows
+                    .map(row =>
+                      `${row.name} ${row.weightPercent || '—'}%`
+                    )
+                    .join(' · ') ||
+                    'Nenhum critério válido encontrado.'}
                 </p>
               )}
             </div>
@@ -564,7 +803,10 @@ export default function GuidedAssessmentCriteriaImportPanel({
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  if (!hasProposal || window.confirm('Descartar esta proposta?')) {
+                  if (
+                    !hasProposal ||
+                    window.confirm('Descartar esta proposta?')
+                  ) {
                     clearProposal()
                     setError('')
                   }
@@ -573,6 +815,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
               >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 disabled={busy || !proposalReady}
@@ -586,13 +829,34 @@ export default function GuidedAssessmentCriteriaImportPanel({
         )}
 
         {error ? (
-          <div role="alert" className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.07] p-3 text-sm leading-6 text-rose-100">
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.07] p-3 text-sm leading-6 text-rose-100"
+          >
             {error}
           </div>
         ) : null}
+
         {feedback ? (
-          <div role="status" className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-3 text-sm leading-6 text-emerald-100">
-            {feedback}
+          <div
+            role="status"
+            className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-emerald-100"
+          >
+            <p className="font-bold">{feedback}</p>
+            <p className="mt-1 text-xs text-emerald-100/75">
+              Para continuar neste passo, adicione outro documento. Para avançar, use “Concluir por agora” logo abaixo.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setFeedback('')
+                inputRef.current?.click()
+              }}
+              className="mt-3 rounded-xl border border-emerald-200/25 bg-emerald-200/[0.08] px-3 py-2 text-xs font-black text-emerald-50 disabled:opacity-50"
+            >
+              Adicionar outro critério
+            </button>
           </div>
         ) : null}
       </section>
