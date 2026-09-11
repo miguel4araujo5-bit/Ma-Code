@@ -7,6 +7,7 @@ export type ScheduleImportUnresolvedDraft = {
   weekday: Weekday
   startTime: string
   endTime: string
+  periodCount: number
   rawText: string
   reason: string
 }
@@ -66,7 +67,7 @@ export default function ScheduleImportUnresolvedReview({
                   {block.rawText || 'Conteúdo não identificado'}
                 </p>
                 <p className="mt-1 text-xs font-bold text-amber-100/80">
-                  {weekdayLabels[block.weekday]} · {block.startTime}–{block.endTime}
+                  {weekdayLabels[block.weekday]} · {block.startTime}–{block.endTime} · {block.periodCount} tempo{block.periodCount === 1 ? '' : 's'}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-slate-400">
                   {block.reason}
