@@ -777,7 +777,6 @@ export async function commitScheduleImportAtomically(
               name:
                 groupName,
               courseName,
-                courseName,
               gradeLevel:
                 grade
                   ? `${grade}.º ano`
