@@ -208,7 +208,8 @@ export default function ModulePlanificationImportPanel({
       setCourseName(guided ? '' : parsed.courseLabel)
       setRows(nextRows)
     } catch (failure) {
-      if (mounted.current && token === operation.current) setError(errorText(failure))
+      if (mounted.current && token !== operation.current) return
+      setError(errorText(failure))
     } finally {
       if (mounted.current && token === operation.current) setBusy(false)
     }
@@ -349,7 +350,7 @@ export default function ModulePlanificationImportPanel({
 
   if (guided) {
     return (
-      <section className="rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
+      <section className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-black">Adicionar planificação</h2>
@@ -374,7 +375,7 @@ export default function ModulePlanificationImportPanel({
         />
 
         {open ? (
-          <fieldset disabled={busy || disabled} className="mt-5 space-y-4">
+          <fieldset disabled={busy || disabled} className="mt-5 min-w-0 max-w-full space-y-4">
             {!document ? (
               <div
                 className="rounded-2xl border-2 border-dashed border-cyan-300/25 bg-cyan-300/[0.025] p-5 text-center"
@@ -449,7 +450,7 @@ export default function ModulePlanificationImportPanel({
                   ) : null}
                 </div>
 
-                <div className="space-y-2">
+                <div className="min-w-0 max-w-full space-y-2">
                   {rows.map((row, index) => {
                     const source = document.sections[row.sectionIndex]
                     const warning = durationWarning(source, document.periodMinutes)
@@ -457,11 +458,11 @@ export default function ModulePlanificationImportPanel({
                     const unitLabel = curricularUnitLabel(row.code || source.code)
 
                     return (
-                      <article key={row.sectionIndex} className={`rounded-2xl border p-4 ${row.reviewed ? 'border-white/10 bg-white/[0.025]' : 'border-amber-300/20 bg-amber-300/[0.045]'}`}>
+                      <article key={row.sectionIndex} className={`min-w-0 max-w-full overflow-hidden rounded-2xl border p-4 ${row.reviewed ? 'border-white/10 bg-white/[0.025]' : 'border-amber-300/20 bg-amber-300/[0.045]'}`}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <label className="flex min-w-0 items-center gap-2 font-bold text-white">
+                          <label className="flex min-w-0 flex-1 items-center gap-2 font-bold text-white">
                             <input type="checkbox" checked={row.selected} onChange={event => edit(index, { selected: event.target.checked })} />
-                            <span className="truncate">{unitLabel} {row.code || '—'} — {row.name || source.name || 'designação por confirmar'}</span>
+                            <span className="block min-w-0 flex-1 truncate">{unitLabel} {row.code || '—'} — {row.name || source.name || 'designação por confirmar'}</span>
                           </label>
                           <span className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-black ${row.reviewed ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100' : 'border-amber-300/20 bg-amber-300/[0.07] text-amber-100'}`}>
                             {row.reviewed ? `${row.plannedPeriods} tempos · pronto` : 'Rever'}
@@ -517,7 +518,7 @@ export default function ModulePlanificationImportPanel({
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => setShowAllDetails(value => !value)}
@@ -525,7 +526,7 @@ export default function ModulePlanificationImportPanel({
                   >
                     {showAllDetails ? 'Ocultar detalhes' : 'Editar detalhes'}
                   </button>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
                     <button type="button" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-slate-300" onClick={clearImport}>Cancelar</button>
                     <button
                       type="button"
