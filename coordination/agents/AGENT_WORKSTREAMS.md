@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | `main` | 2026-09-11 |
+| F102 | Corrigir rotação silenciosa da senha de ativação MA-Professor | `work/f102-fix-activation-credential-rotation` | `worker/maProfessorExplicitApprovalBridge.ts`; `src/components/admin/ma-professor/MAProfessorAdminAccountDetail.tsx`; testes MA-Professor associados | EM CURSO | `650f9066d98a61926462c2c48905a58284eea27d` | 2026-09-11 |
 
 ## Regras de utilização
 
