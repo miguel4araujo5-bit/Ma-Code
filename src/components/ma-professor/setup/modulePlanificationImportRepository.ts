@@ -51,13 +51,9 @@ function sourceImportKey(
   sha256: string,
   sectionIndex: number,
   assignmentId: string,
-  pointOrder?: number
+  pointOrder: number
 ) {
-  const base = `module-plan-v2:${sha256}:${sectionIndex}:${assignmentId}`
-
-  return pointOrder === undefined
-    ? base
-    : `${base}:${pointOrder}`
+  return `module-plan-v2:${sha256}:${sectionIndex}:${assignmentId}:${pointOrder}`
 }
 
 function buildPlanificationItems(input: {
@@ -146,9 +142,6 @@ async function repairLegacyImportedPlanification(input: {
 
   if (
     item.sourceImportKey !== legacyImportKey ||
-    item.status !== 'planned' ||
-    item.usedLessonId !== null ||
-    item.usedAt !== null ||
     Boolean(item.suggestedSummary.trim()) ||
     normalize(item.content) !== normalize(input.source.contentsText)
   ) {
@@ -156,35 +149,85 @@ async function repairLegacyImportedPlanification(input: {
   }
 
   const timestamp = new Date().toISOString()
-  const replacements = points.map(
-    (
-      content,
-      index
-    ): PlanificationItem => ({
-      ...item,
-      id: index === 0
-        ? item.id
-        : crypto.randomUUID(),
-      order: index + 1,
-      content,
-      sourceImportKey: sourceImportKey(
-        input.documentSha256,
-        input.sectionIndex,
-        input.assignmentId,
-        index + 1
-      ),
-      createdAt: index === 0
-        ? item.createdAt
-        : timestamp,
-      updatedAt: timestamp
-    })
-  )
 
-  await maProfessorDb.planificationItems.bulkPut(
-    replacements
-  )
+  if (
+    item.status === 'planned' &&
+    item.usedLessonId === null &&
+    item.usedAt === null
+  ) {
+    const replacements = points.map(
+      (
+        content,
+        index
+      ): PlanificationItem => ({
+        ...item,
+        id: index === 0
+          ? item.id
+          : crypto.randomUUID(),
+        order: index + 1,
+        content,
+        sourceImportKey: sourceImportKey(
+          input.documentSha256,
+          input.sectionIndex,
+          input.assignmentId,
+          index + 1
+        ),
+        createdAt: index === 0
+          ? item.createdAt
+          : timestamp,
+        updatedAt: timestamp
+      })
+    )
 
-  return true
+    await maProfessorDb.planificationItems.bulkPut(
+      replacements
+    )
+
+    return true
+  }
+
+  if (
+    item.status === 'used' &&
+    item.usedLessonId !== null &&
+    item.usedAt !== null
+  ) {
+    const remainingItems = points
+      .slice(1)
+      .map(
+        (
+          content,
+          index
+        ): PlanificationItem => ({
+          ...item,
+          id: crypto.randomUUID(),
+          order: index + 2,
+          content,
+          status: 'planned',
+          usedLessonId: null,
+          usedAt: null,
+          sourceImportKey: sourceImportKey(
+            input.documentSha256,
+            input.sectionIndex,
+            input.assignmentId,
+            index + 2
+          ),
+          createdAt: timestamp,
+          updatedAt: timestamp
+        })
+      )
+
+    if (!remainingItems.length) {
+      return false
+    }
+
+    await maProfessorDb.planificationItems.bulkAdd(
+      remainingItems
+    )
+
+    return true
+  }
+
+  return false
 }
 
 async function state() {
