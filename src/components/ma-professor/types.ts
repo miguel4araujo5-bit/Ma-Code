@@ -300,6 +300,8 @@ export interface ModuleFinalGrade extends AuditFields {
   studentId: EntityId
   calculatedAverage: Score
   suggestedGrade: Score
+  selfAssessmentGrade?: Score | null
+  usesAcs?: boolean
   finalGrade: Score | null
   confirmedAt: ISODateTime | null
   note: string
