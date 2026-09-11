@@ -136,7 +136,7 @@ function slotKey(value) {
 }
 
 test(
-  'geometry contains every slot already recognised by the legacy parser and keeps additional uncertain cells instead of dropping them',
+  'geometry contains every safely recognised production slot and keeps additional uncertain cells instead of dropping them',
   () => {
     const legacy = parseLegacyPages(
       [
@@ -195,12 +195,16 @@ test(
       captured.blocks.map(slotKey)
     )
 
-    assert.equal(legacyItems.length, 3)
+    assert.equal(legacyItems.length, 2)
+    assert.deepEqual(
+      legacy.duties.map(duty => duty.name),
+      ['Co PCE']
+    )
 
     for (const item of legacyItems) {
       assert.ok(
         capturedSlots.has(slotKey(item)),
-        `neutral capture lost legacy slot ${slotKey(item)}`
+        `neutral capture lost production slot ${slotKey(item)}`
       )
     }
 
@@ -213,6 +217,17 @@ test(
     assert.equal(additional.rawActivityText, 'AEXP')
     assert.equal(additional.rawRoomText, 'Lab1')
     assert.equal(additional.type, 'unknown')
+
+    const ambiguousActivity = captured.blocks.find(
+      block => block.weekday === 5
+    )
+    assert.ok(ambiguousActivity)
+    assert.equal(
+      ambiguousActivity.rawActivityText,
+      'Projeto Individual'
+    )
+    assert.equal(ambiguousActivity.rawRoomText, 'REO')
+    assert.equal(ambiguousActivity.type, 'unknown')
   }
 )
 
