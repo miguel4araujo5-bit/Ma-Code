@@ -11,9 +11,6 @@ import {
   type ExtractedPdfPage
 } from '../../../lib/maPdf/extractPdfText'
 import {
-  calendarRepository
-} from '../calendar/calendarRepository'
-import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
 import {
@@ -21,12 +18,12 @@ import {
   type SetupSnapshot
 } from '../repository'
 import type {
-  AcademicYear,
   Weekday
 } from '../types'
 import {
-  getDutyDatesForSchool
-} from './schoolDutyDatePolicy'
+  commitScheduleImportAtomically,
+  readScheduleImportFingerprint
+} from './scheduleImportAtomicRepository'
 import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
@@ -148,6 +145,9 @@ const inputClassName =
 
 const UNSAVED_SCHEDULE_IMPORT_MESSAGE =
   'Existe uma proposta de horário importada por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
+
+const MAX_SCHEDULE_PDF_BYTES =
+  20 * 1024 * 1024
 
 const knownSubjectAliases: Array<{
   name: string
@@ -931,312 +931,6 @@ function errorMessage(error: unknown) {
     : 'Ocorreu um erro inesperado.'
 }
 
-function timeRangesOverlap(
-  firstStart: string,
-  firstEnd: string,
-  secondStart: string,
-  secondEnd: string
-) {
-  return (
-    firstStart < secondEnd &&
-    secondStart < firstEnd
-  )
-}
-
-function weekdayLabel(weekday: Weekday) {
-  return (
-    weekdays.find(
-      day => day.value === weekday
-    )?.label ?? 'Dia'
-  )
-}
-
-function draftLabel(draft: Draft) {
-  return `${draft.subjectName.trim()} · ${draft.groupName.trim()}`
-}
-
-function validateDraftCourseConsistency(
-  lessons: Draft[]
-) {
-  const courseByGroup =
-    new Map<string, string>()
-
-  for (const lesson of lessons) {
-    const groupName =
-      clean(lesson.groupName)
-    const courseName =
-      clean(lesson.courseName)
-
-    if (!groupName || !courseName) {
-      continue
-    }
-
-    const groupKey =
-      normalize(groupName)
-    const previous =
-      courseByGroup.get(groupKey)
-
-    if (
-      previous &&
-      normalize(previous) !== normalize(courseName)
-    ) {
-      throw new Error(
-        `A turma ${groupName} aparece associada a dois cursos diferentes: “${previous}” e “${courseName}”. Corrija o curso antes de importar.`
-      )
-    }
-
-    courseByGroup.set(
-      groupKey,
-      courseName
-    )
-  }
-}
-
-function validateDraftConflicts(
-  lessons: Draft[],
-  duties: DutyDraft[]
-) {
-  const rows = [
-    ...lessons.map(
-      lesson => ({
-        weekday: lesson.weekday,
-        startTime: lesson.startTime,
-        endTime: lesson.endTime,
-        label: draftLabel(lesson)
-      })
-    ),
-    ...duties.map(
-      duty => ({
-        weekday: duty.weekday,
-        startTime: duty.startTime,
-        endTime: duty.endTime,
-        label: duty.name
-      })
-    )
-  ]
-
-  for (
-    let firstIndex = 0;
-    firstIndex < rows.length;
-    firstIndex += 1
-  ) {
-    for (
-      let secondIndex = firstIndex + 1;
-      secondIndex < rows.length;
-      secondIndex += 1
-    ) {
-      const first = rows[firstIndex]
-      const second = rows[secondIndex]
-
-      if (
-        first.weekday === second.weekday &&
-        timeRangesOverlap(
-          first.startTime,
-          first.endTime,
-          second.startTime,
-          second.endTime
-        )
-      ) {
-        throw new Error(
-          `Há dois blocos sobrepostos na proposta: ${first.label} e ${second.label}, à ${weekdayLabel(first.weekday)}, entre ${first.startTime} e ${first.endTime}. Corrija ou desmarque um deles antes de importar.`
-        )
-      }
-    }
-  }
-}
-
-function isSameExistingLesson(
-  draft: Draft,
-  slot: SetupSnapshot['weeklyScheduleSlots'][number],
-  snapshot: SetupSnapshot
-) {
-  if (
-    slot.weekday !== draft.weekday ||
-    slot.startTime !== draft.startTime ||
-    slot.endTime !== draft.endTime
-  ) {
-    return false
-  }
-
-  const assignment =
-    snapshot.teachingAssignments.find(
-      item => item.id === slot.teachingAssignmentId
-    )
-
-  const group =
-    assignment
-      ? snapshot.groups.find(
-          item => item.id === assignment.groupId
-        )
-      : null
-
-  const subject =
-    assignment
-      ? snapshot.subjects.find(
-          item => item.id === assignment.subjectId
-        )
-      : null
-
-  return Boolean(
-    group &&
-    subject &&
-    normalize(group.name) === normalize(draft.groupName) &&
-    normalize(subject.name) === normalize(draft.subjectName)
-  )
-}
-
-function validateExistingScheduleConflicts(
-  lessons: Draft[],
-  duties: DutyDraft[],
-  snapshot: SetupSnapshot
-) {
-  const activeSlots =
-    snapshot.weeklyScheduleSlots.filter(
-      slot => slot.active
-    )
-
-  for (const draft of lessons) {
-    for (const slot of activeSlots) {
-      if (
-        slot.weekday !== draft.weekday ||
-        !timeRangesOverlap(
-          slot.startTime,
-          slot.endTime,
-          draft.startTime,
-          draft.endTime
-        )
-      ) {
-        continue
-      }
-
-      if (
-        isSameExistingLesson(
-          draft,
-          slot,
-          snapshot
-        )
-      ) {
-        continue
-      }
-
-      const assignment =
-        snapshot.teachingAssignments.find(
-          item => item.id === slot.teachingAssignmentId
-        )
-
-      throw new Error(
-        `O bloco ${draftLabel(draft)} sobrepõe-se a ${assignment?.displayName ?? 'uma aula já existente'}, à ${weekdayLabel(draft.weekday)}, das ${slot.startTime} às ${slot.endTime}. Corrija o horário antes de importar.`
-      )
-    }
-  }
-
-  for (const duty of duties) {
-    const conflict =
-      activeSlots.find(
-        slot =>
-          slot.weekday === duty.weekday &&
-          timeRangesOverlap(
-            slot.startTime,
-            slot.endTime,
-            duty.startTime,
-            duty.endTime
-          )
-      )
-
-    if (conflict) {
-      throw new Error(
-        `O cargo ${duty.name} sobrepõe-se a uma aula já existente, à ${weekdayLabel(duty.weekday)}, das ${duty.startTime} às ${duty.endTime}. Corrija o horário antes de importar.`
-      )
-    }
-  }
-}
-
-function dutyEventTitle(
-  duty: DutyDraft
-) {
-  return `Cargo · ${clean(duty.name)} · ${duty.startTime}–${duty.endTime}`
-}
-
-function dutyEventKey(
-  title: string,
-  date: string
-) {
-  return `${normalize(title)}|${date}`
-}
-
-async function importDutyEvents(
-  academicYear: AcademicYear,
-  duties: DutyDraft[],
-  schoolName: string
-) {
-  if (duties.length === 0) {
-    return 0
-  }
-
-  const existingEvents =
-    await calendarRepository.listEvents({
-      academicYearId: academicYear.id
-    })
-
-  const existingKeys =
-    new Set(
-      existingEvents
-        .filter(
-          event =>
-            event.type === 'school_activity' &&
-            event.scope === 'all'
-        )
-        .map(
-          event =>
-            dutyEventKey(
-              event.title,
-              event.startDate
-            )
-        )
-    )
-
-  let created = 0
-
-  for (const duty of duties) {
-    const title =
-      dutyEventTitle(duty)
-
-    for (
-      const date of getDutyDatesForSchool(
-        academicYear,
-        duty.weekday,
-        schoolName
-      )
-    ) {
-      const key =
-        dutyEventKey(
-          title,
-          date
-        )
-
-      if (existingKeys.has(key)) {
-        continue
-      }
-
-      await calendarRepository.createEvent({
-        academicYearId: academicYear.id,
-        type: 'school_activity',
-        scope: 'all',
-        title,
-        description: '',
-        startDate: date,
-        endDate: date,
-        blocksLessons: false
-      })
-
-      existingKeys.add(key)
-      created += 1
-    }
-  }
-
-  return created
-}
-
 function manualId(prefix: string) {
   const uuid =
     globalThis.crypto
@@ -1257,6 +951,7 @@ export default function SchedulePdfImportStep({
   const [fileName, setFileName] = useState('')
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [duties, setDuties] = useState<DutyDraft[]>([])
+  const [expectedFingerprint, setExpectedFingerprint] = useState('')
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -1264,35 +959,10 @@ export default function SchedulePdfImportStep({
   const rootRef =
     useRef<HTMLDivElement>(null)
 
-  const canUseSavedSchedule = snapshot.weeklyScheduleSlots.some(slot => slot.active)
-
-  function clearProposal() {
-    setDrafts([])
-    setDuties([])
-    setFileName('')
-    setProgress('')
-    setError('')
-  }
-
-  async function useSavedSchedule() {
-    if (busy) return
-
-    setBusy(true)
-    setError('')
-
-    try {
-      const current = await maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
-      if (!current.weeklyScheduleSlots.some(slot => slot.active)) {
-        throw new Error('O horário guardado já não está disponível. Pode ignorar a proposta e continuar com a configuração manual.')
-      }
-      await onImported(current)
-      clearProposal()
-    } catch (readError) {
-      setError(errorMessage(readError))
-    } finally {
-      setBusy(false)
-    }
-  }
+  const canUseSavedSchedule =
+    snapshot.weeklyScheduleSlots.some(
+      slot => slot.active
+    )
 
   const included = useMemo(
     () => drafts.filter(
@@ -1315,10 +985,71 @@ export default function SchedulePdfImportStep({
     [included]
   )
 
+  const hasProposal =
+    drafts.length > 0 ||
+    duties.length > 0
+
+  const includedCount =
+    included.length +
+    includedDuties.length
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasProposal,
+    rootRef,
+    UNSAVED_SCHEDULE_IMPORT_MESSAGE
+  )
+
+  function clearProposal() {
+    setDrafts([])
+    setDuties([])
+    setExpectedFingerprint('')
+    setFileName('')
+    setProgress('')
+    setError('')
+  }
+
+  async function useSavedSchedule() {
+    if (busy) return
+
+    setBusy(true)
+    setError('')
+
+    try {
+      const current =
+        await maProfessorRepository
+          .getSetupSnapshot(
+            snapshot.academicYear.id
+          )
+
+      if (
+        !current
+          .weeklyScheduleSlots
+          .some(
+            slot => slot.active
+          )
+      ) {
+        throw new Error(
+          'O horário guardado já não está disponível. Pode ignorar a proposta e continuar com a configuração manual.'
+        )
+      }
+
+      await onImported(current)
+      clearProposal()
+    } catch (readError) {
+      setError(
+        errorMessage(readError)
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleFileChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const file = event.target.files?.[0]
+    const file =
+      event.target.files?.[0]
+
     event.target.value = ''
 
     if (!file) {
@@ -1327,9 +1058,23 @@ export default function SchedulePdfImportStep({
 
     if (
       file.type !== 'application/pdf' &&
-      !file.name.toLocaleLowerCase('pt-PT').endsWith('.pdf')
+      !file.name
+        .toLocaleLowerCase('pt-PT')
+        .endsWith('.pdf')
     ) {
-      setError('Selecione um ficheiro PDF.')
+      setError(
+        'Selecione um ficheiro PDF.'
+      )
+      return
+    }
+
+    if (
+      file.size >
+        MAX_SCHEDULE_PDF_BYTES
+    ) {
+      setError(
+        'O PDF do horário ultrapassa o limite de 20 MB. Reduza o ficheiro antes de voltar a importar.'
+      )
       return
     }
 
@@ -1337,20 +1082,23 @@ export default function SchedulePdfImportStep({
     setError('')
     setDrafts([])
     setDuties([])
+    setExpectedFingerprint('')
     setFileName(file.name)
 
     try {
       const extracted =
         await extractTextFromPdf(
           {
-            id: `ma-professor-schedule-${Date.now()}`,
+            id:
+              `ma-professor-schedule-${Date.now()}`,
             file
           },
           setProgress
         )
 
       const settings =
-        await maProfessorRepository.getSettings()
+        await maProfessorRepository
+          .getSettings()
 
       const proposal =
         parsePages(
@@ -1367,19 +1115,30 @@ export default function SchedulePdfImportStep({
         )
       }
 
+      const fingerprint =
+        await readScheduleImportFingerprint(
+          snapshot.academicYear.id
+        )
+
       setDrafts(proposal.lessons)
       setDuties(proposal.duties)
+      setExpectedFingerprint(
+        fingerprint
+      )
 
       const pendingSubjectCount =
         proposal.lessons.filter(
-          lesson => !lesson.subjectConfirmed
+          lesson =>
+            !lesson.subjectConfirmed
         ).length
 
       setProgress(
         `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
       )
     } catch (readError) {
-      setError(errorMessage(readError))
+      setError(
+        errorMessage(readError)
+      )
       setProgress('')
     } finally {
       setBusy(false)
@@ -1433,7 +1192,8 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('manual-slot'),
+          id:
+            manualId('manual-slot'),
           included: true,
           weekday: 1,
           startTime: '08:30',
@@ -1446,6 +1206,7 @@ export default function SchedulePdfImportStep({
         }
       ]
     )
+
     setError('')
   }
 
@@ -1458,7 +1219,8 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('manual-duty'),
+          id:
+            manualId('manual-duty'),
           included: true,
           weekday: 1,
           startTime: '08:30',
@@ -1467,6 +1229,7 @@ export default function SchedulePdfImportStep({
         }
       ]
     )
+
     setError('')
   }
 
@@ -1485,337 +1248,71 @@ export default function SchedulePdfImportStep({
       return
     }
 
-    if (unconfirmedSubjects.length > 0) {
+    if (
+      unconfirmedSubjects.length > 0
+    ) {
       setError(
         'Existem siglas ou nomes de disciplina por confirmar. Corrija a disciplina em cada linha assinalada ou escolha “Confirmar como disciplina”. O MA-Professor não vai criar disciplinas a partir de siglas ambíguas sem confirmação.'
       )
       return
     }
 
-    if (
-      included.some(
-        draft =>
-          !draft.groupName.trim() ||
-          !draft.subjectName.trim() ||
-          !draft.startTime ||
-          !draft.endTime ||
-          draft.startTime >= draft.endTime ||
-          !Number.isInteger(draft.periodCount) ||
-          draft.periodCount <= 0
-      ) ||
-      includedDuties.some(
-        duty =>
-          !duty.name.trim() ||
-          !duty.startTime ||
-          !duty.endTime ||
-          duty.startTime >= duty.endTime
-      )
-    ) {
+    if (!expectedFingerprint) {
       setError(
-        'Reveja os blocos: existem dados em falta ou horas inválidas.'
+        'O estado de segurança desta proposta já não está disponível. Volte a selecionar o PDF antes de confirmar.'
       )
       return
     }
 
     setBusy(true)
     setError('')
-    setProgress('A validar a proposta...')
+    setProgress(
+      'A validar e guardar a proposta numa única operação...'
+    )
 
     try {
       const academicYearId =
         snapshot.academicYear.id
 
-      let current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      validateDraftCourseConsistency(
-        included
-      )
-
-      validateDraftConflicts(
-        included,
-        includedDuties
-      )
-
-      validateExistingScheduleConflicts(
-        included,
-        includedDuties,
-        current
-      )
-
-      setProgress(
-        'A guardar a configuração confirmada...'
-      )
-
-      const groups =
-        new Map(
-          current.groups.map(
-            group => [
-              normalize(group.name),
-              group
-            ]
-          )
-        )
-
-      const subjects =
-        new Map(
-          current.subjects.map(
-            subject => [
-              normalize(subject.name),
-              subject
-            ]
-          )
-        )
-
-      for (const draft of included) {
-        const groupName =
-          clean(draft.groupName)
-
-        const courseName =
-          clean(draft.courseName)
-
-        const subjectName =
-          clean(draft.subjectName)
-
-        const groupKey =
-          normalize(groupName)
-
-        let group =
-          groups.get(groupKey)
-
-        if (!group) {
-          const grade =
-            groupName.match(/^\s*(10|11|12)/)?.[1]
-
-          group =
-            await maProfessorRepository.createGroup({
-              academicYearId,
-              name: groupName,
-              courseName,
-              gradeLevel:
-                grade
-                  ? `${grade}.º ano`
-                  : '',
-              active: true
-            })
-
-          groups.set(
-            groupKey,
-            group
-          )
-        } else if (
-          courseName &&
-          normalize(group.courseName ?? '') !==
-            normalize(courseName)
-        ) {
-          group =
-            await maProfessorRepository.updateGroup(
-              group.id,
-              {
-                courseName
-              }
-            )
-
-          groups.set(
-            groupKey,
-            group
-          )
-        }
-
-        if (!subjects.has(normalize(subjectName))) {
-          const subject =
-            await maProfessorRepository.createSubject({
-              academicYearId,
-              name: subjectName,
-              shortName:
-                shortName(subjectName),
-              code: '',
-              active: true
-            })
-
-          subjects.set(
-            normalize(subjectName),
-            subject
-          )
-        }
-      }
-
-      current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      const assignments =
-        new Map(
-          current.teachingAssignments.map(
-            assignment => [
-              `${assignment.groupId}|${assignment.subjectId}`,
-              assignment
-            ]
-          )
-        )
-
-      const resolved: Array<{
-        draft: Draft
-        assignmentId: string
-      }> = []
-
-      for (const draft of included) {
-        const group =
-          groups.get(
-            normalize(
-              clean(draft.groupName)
-            )
-          )
-
-        const subject =
-          subjects.get(
-            normalize(
-              clean(draft.subjectName)
-            )
-          )
-
-        if (!group || !subject) {
-          throw new Error(
-            'Não foi possível associar uma turma ou disciplina importada.'
-          )
-        }
-
-        const pair =
-          `${group.id}|${subject.id}`
-
-        let assignment =
-          assignments.get(pair)
-
-        if (!assignment) {
-          assignment =
-            await maProfessorRepository.createTeachingAssignment({
-              academicYearId,
-              groupId: group.id,
-              subjectId: subject.id,
-              displayName:
-                `${subject.shortName || subject.name} · ${group.name}`,
-              active: true
-            })
-
-          assignments.set(
-            pair,
-            assignment
-          )
-        }
-
-        resolved.push({
-          draft,
-          assignmentId: assignment.id
-        })
-      }
-
-      current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      const existingSlots =
-        new Set(
-          current.weeklyScheduleSlots.map(
-            slot => [
-              slot.teachingAssignmentId,
-              slot.weekday,
-              slot.startTime,
-              slot.endTime
-            ].join('|')
-          )
-        )
-
-      for (const {
-        draft,
-        assignmentId
-      } of resolved) {
-        const key = [
-          assignmentId,
-          draft.weekday,
-          draft.startTime,
-          draft.endTime
-        ].join('|')
-
-        if (existingSlots.has(key)) {
-          continue
-        }
-
-        await maProfessorRepository.createWeeklyScheduleSlot({
+      const result =
+        await commitScheduleImportAtomically({
           academicYearId,
-          teachingAssignmentId: assignmentId,
-          weekday: draft.weekday,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-          periodCount: draft.periodCount,
-          validFrom:
-            snapshot.academicYear.startDate,
-          validUntil:
-            snapshot.academicYear.endDate,
-          active: true
+          expectedFingerprint,
+          lessons:
+            included,
+          duties:
+            includedDuties
         })
 
-        existingSlots.add(key)
-      }
-
-      let schoolName = ''
-
-      if (includedDuties.length > 0) {
-        const profile =
-          await maProfessorRepository.getTeacherProfile()
-
-        schoolName =
-          profile?.schoolName?.trim() ??
-          ''
-
-        if (!schoolName) {
-          throw new Error(
-            'Não foi possível identificar a escola do professor. Confirme a escola antes de programar os cargos no calendário.'
-          )
-        }
-      }
-
-      const createdDuties =
-        await importDutyEvents(
-          snapshot.academicYear,
-          includedDuties,
-          schoolName
-        )
+      const courseNotice =
+        result.preservedCourseConflicts > 0
+          ? ` ${result.preservedCourseConflicts} turma${result.preservedCourseConflicts === 1 ? '' : 's'} manteve${result.preservedCourseConflicts === 1 ? '' : 'ram'} o curso já confirmado, em vez de aceitar automaticamente um valor diferente do PDF.`
+          : ''
 
       setProgress(
-        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'} e ${createdDuties} ocorrência${createdDuties === 1 ? '' : 's'} de cargos programada${createdDuties === 1 ? '' : 's'}.`
+        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'}; ${result.createdSlots} novo${result.createdSlots === 1 ? '' : 's'} bloco${result.createdSlots === 1 ? '' : 's'} criado${result.createdSlots === 1 ? '' : 's'} e ${result.createdDutyOccurrences} ocorrência${result.createdDutyOccurrences === 1 ? '' : 's'} de cargos programada${result.createdDutyOccurrences === 1 ? '' : 's'}.${courseNotice}`
       )
 
       await onImported(
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
+        await maProfessorRepository
+          .getSetupSnapshot(
+            academicYearId
+          )
       )
-      // In detailed setup the panel stays mounted after importing.
-      // A saved proposal must no longer block navigation as unsaved work.
+
       setDrafts([])
       setDuties([])
+      setExpectedFingerprint('')
       setFileName('')
     } catch (submitError) {
-      setError(errorMessage(submitError))
+      setError(
+        errorMessage(submitError)
+      )
       setProgress('')
     } finally {
       setBusy(false)
     }
   }
-
-  const hasProposal =
-    drafts.length > 0 ||
-    duties.length > 0
-
-  useMAProfessorUnsavedWorkspaceProtection(
-    hasProposal,
-    rootRef,
-    UNSAVED_SCHEDULE_IMPORT_MESSAGE
-  )
 
   function requestContinueWithoutPdf() {
     if (busy) return
@@ -1834,15 +1331,9 @@ export default function SchedulePdfImportStep({
       return
     }
 
-    // The detailed wizard keeps this panel mounted and its callback is a no-op.
-    // Discard locally so the proposal, error and navigation guard really close.
     clearProposal()
     onContinueWithoutPdf()
   }
-
-  const includedCount =
-    included.length +
-    includedDuties.length
 
   return (
     <div
@@ -1861,7 +1352,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Curso, turma e disciplina são revistos separadamente; AP/TAP é reconhecido como curso Técnico de Apoio Psicossocial e pode ser corrigido antes de guardar.
+              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. A gravação confirmada é feita como uma única operação: se houver um erro, nenhuma parte nova do horário fica gravada. Um curso já confirmado numa turma também não é substituído automaticamente por uma inferência diferente do PDF.
             </p>
           </div>
 
@@ -1874,8 +1365,11 @@ export default function SchedulePdfImportStep({
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
             <p className="max-w-3xl text-sm leading-6 text-slate-300">
               Já existe um horário guardado. Pode utilizá-lo para continuar a configuração.
-              {hasProposal ? ' A proposta deste PDF será descartada e os dados guardados serão mantidos.' : ''}
+              {hasProposal
+                ? ' A proposta deste PDF será descartada e os dados guardados serão mantidos.'
+                : ''}
             </p>
+
             {!hasProposal ? (
               <button
                 type="button"
@@ -1900,7 +1394,7 @@ export default function SchedulePdfImportStep({
 
               <span className="mt-2 text-sm leading-6 text-slate-500">
                 {fileName ||
-                  'PDF com texto selecionável. Se for uma digitalização, o fluxo manual continua disponível.'}
+                  'PDF com texto selecionável, até 20 MB. Se for uma digitalização, o fluxo manual continua disponível.'}
               </span>
 
               <input
@@ -1929,7 +1423,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Compare primeiro a vista de horário com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Se aparecer “AP” ou “TAP” junto da aula, essa sigla é colocada no campo Curso, não no campo Disciplina.
+                Compare a vista com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Curso, turma e disciplina continuam editáveis antes da confirmação; a base só é alterada no commit final.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1963,365 +1457,15 @@ export default function SchedulePdfImportStep({
               />
             </div>
 
-            {drafts.length > 0 ? (
-              <div className="mt-7">
-                <h2 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-cyan-100">
-                  Vista detalhada · aulas
-                </h2>
+            {unconfirmedSubjects.length > 0 ? (
+              <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+                <p className="text-sm font-black text-amber-100">
+                  Existem {unconfirmedSubjects.length} disciplina{unconfirmedSubjects.length === 1 ? '' : 's'} por confirmar.
+                </p>
 
-                <div className="overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full min-w-[1180px] border-collapse text-left">
-                    <thead className="bg-white/[0.035] text-xs uppercase tracking-[0.12em] text-slate-500">
-                      <tr>
-                        <th className="px-3 py-3">Usar</th>
-                        <th className="px-3 py-3">Dia</th>
-                        <th className="px-3 py-3">Início</th>
-                        <th className="px-3 py-3">Fim</th>
-                        <th className="px-3 py-3">Tempos</th>
-                        <th className="px-3 py-3">Turma</th>
-                        <th className="px-3 py-3">Curso</th>
-                        <th className="px-3 py-3">Disciplina</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {drafts.map(draft => (
-                        <tr
-                          key={draft.id}
-                          className="border-t border-white/[0.07] align-top"
-                        >
-                          <td className="px-3 py-3">
-                            <input
-                              type="checkbox"
-                              checked={draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    included:
-                                      event.target.checked
-                                  }
-                                )
-                              }
-                              className="h-4 w-4 accent-cyan-300"
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <select
-                              value={draft.weekday}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    weekday:
-                                      Number(event.target.value) as Weekday
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            >
-                              {weekdays.map(day => (
-                                <option
-                                  key={day.value}
-                                  value={day.value}
-                                >
-                                  {day.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={draft.startTime}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    startTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={draft.endTime}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    endTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="number"
-                              min={1}
-                              max={12}
-                              value={draft.periodCount}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    periodCount:
-                                      Math.max(
-                                        1,
-                                        Number(event.target.value) || 1
-                                      )
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              value={draft.groupName}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    groupName:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Ex.: 10.º D"
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              value={draft.courseName}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    courseName:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Ex.: Técnico de Apoio Psicossocial"
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <div className="min-w-52">
-                              <input
-                                value={draft.subjectName}
-                                disabled={!draft.included}
-                                onChange={event =>
-                                  updateDraft(
-                                    draft.id,
-                                    {
-                                      subjectName:
-                                        event.target.value,
-                                      subjectConfirmed:
-                                        Boolean(
-                                          event.target.value.trim()
-                                        )
-                                    }
-                                  )
-                                }
-                                placeholder="Disciplina"
-                                className={
-                                  draft.included &&
-                                  !draft.subjectConfirmed
-                                    ? `${inputClassName} border-amber-300/40 focus:border-amber-300/60 focus:ring-amber-300/10`
-                                    : inputClassName
-                                }
-                              />
-
-                              {draft.included &&
-                              !draft.subjectConfirmed ? (
-                                <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-2.5">
-                                  <p className="text-xs leading-5 text-amber-100">
-                                    “{draft.subjectName || '—'}” ainda não é uma disciplina confirmada. Corrija o nome ou confirme explicitamente. AP/TAP, quando detetado, já foi separado para o campo Curso.
-                                  </p>
-
-                                  <button
-                                    type="button"
-                                    disabled={!draft.subjectName.trim()}
-                                    onClick={() =>
-                                      updateDraft(
-                                        draft.id,
-                                        {
-                                          subjectConfirmed: true
-                                        }
-                                      )
-                                    }
-                                    className="mt-2 rounded-lg border border-amber-300/25 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    Confirmar como disciplina
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
-
-            {duties.length > 0 ? (
-              <div className="mt-6">
-                <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-black uppercase tracking-[0.14em] text-violet-100">
-                      Vista detalhada · cargos / componente não letiva
-                    </h2>
-
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      O MA-Professor programa as ocorrências no calendário. O sumário de cada ocorrência pode ser escrito antecipadamente ou no próprio dia.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-2xl border border-violet-300/15">
-                  <table className="w-full min-w-[720px] border-collapse text-left">
-                    <thead className="bg-violet-300/[0.04] text-xs uppercase tracking-[0.12em] text-slate-500">
-                      <tr>
-                        <th className="px-3 py-3">Usar</th>
-                        <th className="px-3 py-3">Dia</th>
-                        <th className="px-3 py-3">Início</th>
-                        <th className="px-3 py-3">Fim</th>
-                        <th className="px-3 py-3">Cargo / atividade</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {duties.map(duty => (
-                        <tr
-                          key={duty.id}
-                          className="border-t border-white/[0.07]"
-                        >
-                          <td className="px-3 py-3">
-                            <input
-                              type="checkbox"
-                              checked={duty.included}
-                              onChange={event =>
-                                updateDuty(
-                                  duty.id,
-                                  {
-                                    included:
-                                      event.target.checked
-                                  }
-                                )
-                              }
-                              className="h-4 w-4 accent-violet-300"
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <select
-                              value={duty.weekday}
-                              disabled={!duty.included}
-                              onChange={event =>
-                                updateDuty(
-                                  duty.id,
-                                  {
-                                    weekday:
-                                      Number(event.target.value) as Weekday
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            >
-                              {weekdays.map(day => (
-                                <option
-                                  key={day.value}
-                                  value={day.value}
-                                >
-                                  {day.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={duty.startTime}
-                              disabled={!duty.included}
-                              onChange={event =>
-                                updateDuty(
-                                  duty.id,
-                                  {
-                                    startTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={duty.endTime}
-                              disabled={!duty.included}
-                              onChange={event =>
-                                updateDuty(
-                                  duty.id,
-                                  {
-                                    endTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              value={duty.name}
-                              disabled={!duty.included}
-                              onChange={event =>
-                                updateDuty(
-                                  duty.id,
-                                  {
-                                    name:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Ex.: Co PCE"
-                              className={inputClassName}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="mt-1 text-xs leading-5 text-amber-100/75">
+                  Utilize a grelha visual para corrigir o nome ou escolha “Confirmar como disciplina”. O MA-Professor não cria automaticamente uma disciplina a partir de uma sigla ambígua.
+                </p>
               </div>
             ) : null}
 
@@ -2336,6 +1480,7 @@ export default function SchedulePdfImportStep({
                   Usar horário guardado
                 </button>
               ) : null}
+
               <button
                 type="button"
                 onClick={requestContinueWithoutPdf}

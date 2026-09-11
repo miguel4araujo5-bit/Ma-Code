@@ -19,6 +19,22 @@ const scheduleSource = await readFile(
   'utf8'
 )
 
+const atomicImportSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/scheduleImportAtomicRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const visualGridSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/ScheduleImportVisualGrid.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 function loadGeometryFunctions() {
   const normalizeStart = extractorSource.indexOf(
     'function normalizeComparableText('
@@ -327,11 +343,23 @@ test(
 
     assert.match(
       scheduleSource,
-      /await maProfessorRepository\.updateGroup\(/
+      /commitScheduleImportAtomically\(/
     )
     assert.match(
-      scheduleSource,
-      /<th className="px-3 py-3">Curso<\/th>/
+      atomicImportSource,
+      /courseName/
+    )
+    assert.match(
+      atomicImportSource,
+      /existingCourse/
+    )
+    assert.match(
+      visualGridSource,
+      />\s*Curso\s*</
+    )
+    assert.match(
+      visualGridSource,
+      /courseName/
     )
   }
 )
