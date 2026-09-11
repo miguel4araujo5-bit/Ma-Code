@@ -100,6 +100,8 @@ export interface SaveModuleFinalGradeInput {
   moduleId: EntityId
   studentId: EntityId
   finalGrade: Score | null
+  selfAssessmentGrade?: Score | null
+  usesAcs?: boolean
   note?: string
 }
 
@@ -225,6 +227,26 @@ function validateFinalGrade(
   ) {
     throw new Error(
       'A classificação final deve ser um número inteiro entre 0 e 20 valores.'
+    )
+  }
+
+  return value
+}
+
+function validateSelfAssessmentGrade(
+  value: Score
+) {
+  if (
+    !Number.isInteger(
+      value
+    ) ||
+    value <
+      MIN_SCORE ||
+    value >
+      MAX_SCORE
+  ) {
+    throw new Error(
+      'A autoavaliação deve ser um número inteiro entre 0 e 20 valores.'
     )
   }
 
@@ -1879,9 +1901,44 @@ export class AssessmentWorkspaceRepository {
         )[0] ??
       null
 
+    const selfAssessmentGrade =
+      input.selfAssessmentGrade ===
+      undefined
+        ? existing
+            ?.selfAssessmentGrade ??
+          null
+        : input.selfAssessmentGrade ===
+            null
+          ? null
+          : validateSelfAssessmentGrade(
+              input.selfAssessmentGrade
+            )
+
+    const usesAcs =
+      input.usesAcs ===
+      undefined
+        ? existing
+            ?.usesAcs ??
+          false
+        : input.usesAcs
+
+    const note =
+      input.note ===
+      undefined
+        ? existing
+            ?.note ??
+          ''
+        : normalizeMultilineText(
+            input.note
+          )
+
     if (
       finalGrade ===
         null &&
+      selfAssessmentGrade ===
+        null &&
+      !usesAcs &&
+      !note &&
       !existing
     ) {
       return null
@@ -1889,6 +1946,17 @@ export class AssessmentWorkspaceRepository {
 
     const timestamp =
       now()
+
+    const confirmedAt =
+      finalGrade ===
+      null
+        ? null
+        : existing
+              ?.finalGrade ===
+            finalGrade &&
+          existing.confirmedAt
+          ? existing.confirmedAt
+          : timestamp
 
     const record:
       ModuleFinalGrade = {
@@ -1922,18 +1990,15 @@ export class AssessmentWorkspaceRepository {
           ?.suggestedGrade ??
         0,
 
+      selfAssessmentGrade,
+
+      usesAcs,
+
       finalGrade,
 
-      confirmedAt:
-        finalGrade ===
-        null
-          ? null
-          : timestamp,
+      confirmedAt,
 
-      note:
-        normalizeMultilineText(
-          input.note
-        ),
+      note,
 
       createdAt:
         existing?.createdAt ??
