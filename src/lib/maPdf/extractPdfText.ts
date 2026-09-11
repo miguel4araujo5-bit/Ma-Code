@@ -330,7 +330,19 @@ function isWeekdayHeader(value: string) {
 }
 
 function isRoomHeader(value: string) {
-  return normalizeComparableText(value) === 'sala'
+  const normalized =
+    normalizeComparableText(value)
+
+  return [
+    'sala',
+    'sala n.º',
+    'sala nº',
+    'sala n°',
+    'sl.',
+    'sl',
+    'espaco',
+    'local'
+  ].includes(normalized)
 }
 
 function getCellCenter(
