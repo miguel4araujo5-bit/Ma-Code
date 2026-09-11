@@ -131,7 +131,7 @@ function createPlanificationItem(input: {
   timestamp: string
 }) : PlanificationItem {
   return {
-    id: crypto.randomUUID(),
+    id: `${input.planificationId}-summary-${String(input.order).padStart(4, '0')}-${crypto.randomUUID()}`,
     planificationId: input.planificationId,
     order: input.order,
     content: input.point.kind === 'content' ? input.point.text : '',
@@ -265,6 +265,10 @@ async function repairLegacyImportedPlanification(input: {
   const pendingSequence = sequence.filter(point =>
     !consumed.has(normalize(point.text))
   )
+  const maxUsedOrder = usedItems.reduce(
+    (maximum, item) => Math.max(maximum, item.order),
+    0
+  )
 
   const timestamp = new Date().toISOString()
   const replacements = pendingSequence.map((point, index) =>
@@ -272,7 +276,7 @@ async function repairLegacyImportedPlanification(input: {
       planificationId: planification.id,
       source: input.source,
       point,
-      order: index + 1,
+      order: maxUsedOrder + index + 1,
       documentName: input.documentName,
       documentSha256: input.documentSha256,
       sectionIndex: input.sectionIndex,
