@@ -367,7 +367,7 @@ function extractTimeRange(value: string) {
 
 function extractGroupName(value: string) {
   const match = value.match(
-    /\b(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z][A-Za-z0-9]{0,2})(?=$|[\s_.:;|/-])/i
+    /^\s*(?:(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?|[2-6][ªa])\s+)?(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z][A-Za-z0-9]{0,2})(?=$|[\s_.:;|/-])/i
   )
 
   return match
