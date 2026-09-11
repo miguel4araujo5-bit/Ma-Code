@@ -17,6 +17,11 @@ export interface ModuleImportSelection {
   reviewed: boolean
 }
 
+type PlanificationSummaryPoint = {
+  kind: 'content' | 'objective'
+  text: string
+}
+
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-PT')
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(clean(value))
@@ -26,25 +31,83 @@ const tables = () => [
   maProfessorDb.teachingAssignments, maProfessorDb.modules,
   maProfessorDb.planifications, maProfessorDb.planificationItems, maProfessorDb.settings
 ]
+const BULLET_MARKER = /^[•●○▪◦·]\s*/
+const BULLET_ANYWHERE = /[•●○▪◦·]/
 
-function splitPlanificationPoints(value: string) {
+function dedupePoints(values: string[]) {
   const seen = new Set<string>()
 
-  return value
+  return values.filter(value => {
+    const key = normalize(value)
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function splitPlanificationPoints(value: string) {
+  const normalized = value
     .replace(/\r\n/g, '\n')
+    .trim()
+
+  if (!normalized) return []
+
+  const hasBullets = BULLET_ANYWHERE.test(normalized)
+
+  if (!hasBullets) {
+    return dedupePoints(
+      normalized
+        .split('\n')
+        .map(clean)
+        .filter(Boolean)
+    )
+  }
+
+  const lines = normalized
+    .replace(/([•●○▪◦·])\s*/g, '\n$1 ')
     .split('\n')
-    .map(clean)
+    .map(line => line.trim())
     .filter(Boolean)
-    .filter(point => {
-      const key = normalize(point)
 
-      if (seen.has(key)) {
-        return false
-      }
+  const points: string[] = []
+  let current = ''
 
-      seen.add(key)
-      return true
-    })
+  for (const line of lines) {
+    if (BULLET_MARKER.test(line)) {
+      if (current) points.push(clean(current))
+      current = line.replace(BULLET_MARKER, '').trim()
+      continue
+    }
+
+    current = current
+      ? `${current} ${line}`
+      : line
+  }
+
+  if (current) points.push(clean(current))
+
+  return dedupePoints(points)
+}
+
+function buildSummarySequence(
+  contentsText: string,
+  objectivesText: string
+): PlanificationSummaryPoint[] {
+  const contents = splitPlanificationPoints(contentsText)
+  const objectives = splitPlanificationPoints(objectivesText)
+  const sequence: PlanificationSummaryPoint[] = []
+  const count = Math.max(contents.length, objectives.length)
+
+  for (let index = 0; index < count; index++) {
+    if (contents[index]) {
+      sequence.push({ kind: 'content', text: contents[index] })
+    }
+    if (objectives[index]) {
+      sequence.push({ kind: 'objective', text: objectives[index] })
+    }
+  }
+
+  return sequence
 }
 
 function sourceImportKey(
@@ -53,7 +116,44 @@ function sourceImportKey(
   assignmentId: string,
   pointOrder: number
 ) {
-  return `module-plan-v2:${sha256}:${sectionIndex}:${assignmentId}:${pointOrder}`
+  return `module-plan-v3:${sha256}:${sectionIndex}:${assignmentId}:${pointOrder}`
+}
+
+function createPlanificationItem(input: {
+  planificationId: string
+  source: ModuleDocument['sections'][number]
+  point: PlanificationSummaryPoint
+  order: number
+  documentName: string
+  documentSha256: string
+  sectionIndex: number
+  assignmentId: string
+  timestamp: string
+}) : PlanificationItem {
+  return {
+    id: crypto.randomUUID(),
+    planificationId: input.planificationId,
+    order: input.order,
+    content: input.point.kind === 'content' ? input.point.text : '',
+    objectives: input.point.kind === 'objective' ? input.point.text : '',
+    activity: input.source.methodologyText,
+    resources: input.source.resourcesText,
+    evaluation: input.source.evaluationText,
+    suggestedSummary: input.point.text,
+    status: 'planned',
+    usedLessonId: null,
+    usedAt: null,
+    sourceDocumentName: input.documentName,
+    sourcePages: input.source.sourcePages,
+    sourceImportKey: sourceImportKey(
+      input.documentSha256,
+      input.sectionIndex,
+      input.assignmentId,
+      input.order
+    ),
+    createdAt: input.timestamp,
+    updatedAt: input.timestamp
+  }
 }
 
 function buildPlanificationItems(input: {
@@ -65,55 +165,45 @@ function buildPlanificationItems(input: {
   assignmentId: string
   timestamp: string
 }) {
-  const points = splitPlanificationPoints(
-    input.source.contentsText
-  )
-
-  return points.map(
-    (
-      content,
-      index
-    ): PlanificationItem => ({
-      id: crypto.randomUUID(),
-      planificationId: input.planificationId,
-      order: index + 1,
-      content,
-      objectives: input.source.objectivesText,
-      activity: input.source.methodologyText,
-      resources: input.source.resourcesText,
-      evaluation: input.source.evaluationText,
-      suggestedSummary: '',
-      status: 'planned',
-      usedLessonId: null,
-      usedAt: null,
-      sourceDocumentName: input.documentName,
-      sourcePages: input.source.sourcePages,
-      sourceImportKey: sourceImportKey(
-        input.documentSha256,
-        input.sectionIndex,
-        input.assignmentId,
-        index + 1
-      ),
-      createdAt: input.timestamp,
-      updatedAt: input.timestamp
+  return buildSummarySequence(
+    input.source.contentsText,
+    input.source.objectivesText
+  ).map((point, index) =>
+    createPlanificationItem({
+      ...input,
+      point,
+      order: index + 1
     })
   )
+}
+
+function isModuleImportItem(item: PlanificationItem) {
+  return Boolean(
+    item.sourceImportKey &&
+    /^module-plan-v[12]:/.test(item.sourceImportKey)
+  )
+}
+
+function itemSummaryText(item: PlanificationItem) {
+  return item.suggestedSummary.trim() ||
+    item.content.trim() ||
+    item.objectives.trim()
 }
 
 async function repairLegacyImportedPlanification(input: {
   module: ModuleUnit
   source: ModuleDocument['sections'][number]
+  documentName: string
   documentSha256: string
   sectionIndex: number
   assignmentId: string
 }) {
-  const points = splitPlanificationPoints(
-    input.source.contentsText
+  const sequence = buildSummarySequence(
+    input.source.contentsText,
+    input.source.objectivesText
   )
 
-  if (points.length <= 1) {
-    return false
-  }
+  if (sequence.length <= 1) return false
 
   const activePlanifications = (
     await maProfessorDb.planifications
@@ -122,9 +212,7 @@ async function repairLegacyImportedPlanification(input: {
       .toArray()
   ).filter(planification => planification.active)
 
-  if (activePlanifications.length !== 1) {
-    return false
-  }
+  if (activePlanifications.length !== 1) return false
 
   const planification = activePlanifications[0]
   const items = await maProfessorDb.planificationItems
@@ -132,102 +220,78 @@ async function repairLegacyImportedPlanification(input: {
     .equals(planification.id)
     .toArray()
 
-  if (items.length !== 1) {
-    return false
-  }
+  if (!items.length || !items.every(isModuleImportItem)) return false
 
-  const item = items[0]
-  const legacyImportKey =
-    `module-plan-v1:${input.documentSha256}:${input.sectionIndex}:${input.assignmentId}`
+  const legacyAggregate =
+    items.length === 1 &&
+    items[0].sourceImportKey?.startsWith('module-plan-v1:') &&
+    normalize(items[0].content) === normalize(input.source.contentsText) &&
+    normalize(items[0].objectives) === normalize(input.source.objectivesText)
 
-  if (
-    item.sourceImportKey !== legacyImportKey ||
-    Boolean(item.suggestedSummary.trim()) ||
-    normalize(item.content) !== normalize(input.source.contentsText)
-  ) {
-    return false
-  }
+  const contentPoints = splitPlanificationPoints(input.source.contentsText)
+  const v2ContentItems =
+    items.every(item => item.sourceImportKey?.startsWith('module-plan-v2:')) &&
+    items.length === contentPoints.length &&
+    items.every(item => !item.suggestedSummary.trim()) &&
+    items.every(item => normalize(item.objectives) === normalize(input.source.objectivesText)) &&
+    items.every(item => contentPoints.some(point => normalize(point) === normalize(item.content)))
 
-  const timestamp = new Date().toISOString()
+  if (!legacyAggregate && !v2ContentItems) return false
 
-  if (
-    item.status === 'planned' &&
-    item.usedLessonId === null &&
-    item.usedAt === null
-  ) {
-    const replacements = points.map(
-      (
-        content,
-        index
-      ): PlanificationItem => ({
-        ...item,
-        id: index === 0
-          ? item.id
-          : crypto.randomUUID(),
-        order: index + 1,
-        content,
-        sourceImportKey: sourceImportKey(
-          input.documentSha256,
-          input.sectionIndex,
-          input.assignmentId,
-          index + 1
-        ),
-        createdAt: index === 0
-          ? item.createdAt
-          : timestamp,
-        updatedAt: timestamp
-      })
-    )
-
-    await maProfessorDb.planificationItems.bulkPut(
-      replacements
-    )
-
-    return true
-  }
-
-  if (
+  const usedItems = items.filter(item =>
     item.status === 'used' &&
     item.usedLessonId !== null &&
     item.usedAt !== null
-  ) {
-    const remainingItems = points
-      .slice(1)
-      .map(
-        (
-          content,
-          index
-        ): PlanificationItem => ({
-          ...item,
-          id: crypto.randomUUID(),
-          order: index + 2,
-          content,
-          status: 'planned',
-          usedLessonId: null,
-          usedAt: null,
-          sourceImportKey: sourceImportKey(
-            input.documentSha256,
-            input.sectionIndex,
-            input.assignmentId,
-            index + 2
-          ),
-          createdAt: timestamp,
-          updatedAt: timestamp
-        })
-      )
+  )
+  const plannedItems = items.filter(item =>
+    item.status === 'planned' &&
+    item.usedLessonId === null &&
+    item.usedAt === null
+  )
 
-    if (!remainingItems.length) {
-      return false
-    }
+  if (usedItems.length + plannedItems.length !== items.length) return false
 
-    await maProfessorDb.planificationItems.bulkAdd(
-      remainingItems
-    )
+  const consumed = new Set<string>()
 
-    return true
+  if (legacyAggregate && usedItems.length === 1 && sequence[0]) {
+    consumed.add(normalize(sequence[0].text))
+  } else {
+    usedItems.forEach(item => {
+      const text = itemSummaryText(item)
+      if (text) consumed.add(normalize(text))
+    })
   }
 
-  return false
+  const pendingSequence = sequence.filter(point =>
+    !consumed.has(normalize(point.text))
+  )
+
+  const timestamp = new Date().toISOString()
+  const replacements = pendingSequence.map((point, index) =>
+    createPlanificationItem({
+      planificationId: planification.id,
+      source: input.source,
+      point,
+      order: index + 1,
+      documentName: input.documentName,
+      documentSha256: input.documentSha256,
+      sectionIndex: input.sectionIndex,
+      assignmentId: input.assignmentId,
+      timestamp
+    })
+  )
+
+  if (plannedItems.length) {
+    await maProfessorDb.planificationItems.bulkDelete(
+      plannedItems.map(item => item.id)
+    )
+  }
+
+  if (replacements.length) {
+    await maProfessorDb.planificationItems.bulkAdd(replacements)
+  }
+
+  return plannedItems.length > 0 || replacements.length > 0
 }
 
 async function state() {
@@ -449,10 +513,11 @@ export async function commitModulePlanificationImport(input: {
         if (sameCode.length > 1) throw new Error('Existem módulos ambíguos com o mesmo código no destino.')
         if (sameCode.length) {
           if (
-            source.contentsText.trim() &&
+            (source.contentsText.trim() || source.objectivesText.trim()) &&
             await repairLegacyImportedPlanification({
               module: sameCode[0],
               source,
+              documentName: request.document.name,
               documentSha256: request.document.sha256,
               sectionIndex: row.sectionIndex,
               assignmentId
@@ -466,7 +531,9 @@ export async function commitModulePlanificationImport(input: {
         if (existing.some(module => normalize(module.name) === normalize(row.name))) {
           throw new Error('Já existe um módulo com esta designação e outro código. Resolva a correspondência antes de importar.')
         }
-        if (!source.contentsText.trim()) throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos de planificação.')
+        if (!source.contentsText.trim() && !source.objectivesText.trim()) {
+          throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos nem objetivos de planificação.')
+        }
         const timestamp = new Date().toISOString()
         const audit = { createdAt: timestamp, updatedAt: timestamp }
         const module: ModuleUnit = {
@@ -498,7 +565,7 @@ export async function commitModulePlanificationImport(input: {
           assignmentId,
           timestamp
         })
-        if (!items.length) throw new Error('Uma UFCD ou módulo selecionado não contém pontos de conteúdo válidos.')
+        if (!items.length) throw new Error('Uma UFCD ou módulo selecionado não contém pontos de planificação válidos.')
         await maProfessorDb.modules.add(module)
         await maProfessorDb.planifications.add(planification)
         await maProfessorDb.planificationItems.bulkAdd(items)
