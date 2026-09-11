@@ -12,7 +12,7 @@ const typesSource = await readFile(
 
 const repositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts',
+    '../../src/components/ma-professor/assessments/assessmentWorkspaceRepositoryBase.ts',
     import.meta.url
   ),
   'utf8'
