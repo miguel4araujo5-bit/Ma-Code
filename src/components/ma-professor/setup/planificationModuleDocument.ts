@@ -60,7 +60,7 @@ function canonicalGrade(grade: string) {
 }
 
 function metadata(text: string, fileName = '') {
-  const normalizedText = text.replace(/\r\n/g, '\n')
+  const normalizedText = text.normalize('NFC').replace(/\r\n/g, '\n')
   const explicitDiscipline = cleanMetadataValue(
     normalizedText.match(
       /\bdisciplina\s*:\s*(.+?)(?=\s+(?:n[.ºo]*\s*(?:aulas|horas)|tema|professor(?:a)?)\s*:|\n|$)/i
@@ -68,7 +68,7 @@ function metadata(text: string, fileName = '') {
   )
   const subjectFromTitle = cleanMetadataValue(
     normalizedText.match(
-      /planifica[çc][ãa]o\s+de\s+(.+?)(?=\s+curso profissional\b|\s*[-–—]\s*(?:10|11|12)\s*[.ºo°]*\s*ano\b|\n|$)/i
+      /planifica[çc][ãa]o\s+de\s+(.+?)(?=\s+curso profissional\b|\s*[-–—]\s*(?:1[0-2]|[1-9])\s*[.ºo°]*\s*ano\b|\n|$)/i
     )?.[1] ?? ''
   )
   const subjectLabel =
@@ -76,20 +76,24 @@ function metadata(text: string, fileName = '') {
     subjectFromTitle
   const courseLabel = cleanMetadataValue(
     normalizedText.match(
-      /curso profissional\s*[:–—-]?\s*(.+?)(?=\s+(?:10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b|\s+disciplina\s*:|\n|$)/i
+      /curso profissional\s*[:–—-]?\s*(.+?)(?=\s+(?:1[0-2]|[1-9])\s*(?:\.?\s*[ºo°])?\s*ano\b|\s+disciplina\s*:|\n|$)/i
     )?.[1] ?? ''
   )
   const explicitGroup = normalizedText.match(
-    /\bturma\s*[:–—-]?\s*(10|11|12)\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])\b/i
+    /\bturma\s*[:–—-]?\s*(1[0-2]|[1-9])\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])\b/i
   )
-  const fileGroup = fileName.match(
-    /(?:^|[^0-9A-Za-z])(10|11|12)\s*[-–—._ ]?\s*([A-Za-z])(?=$|[^0-9A-Za-z])/i
+  const normalizedFileName = fileName.normalize('NFC')
+  const fileGroup = normalizedFileName.match(
+    /(?:^|[^0-9A-Za-z])(1[0-2]|[1-9])\s*(?:\.?\s*[º°])?\s*[-–—._ ]?\s*([A-Za-z])(?=$|[^0-9A-Za-z])/i
   )
   const groupMatch = explicitGroup || fileGroup
   const gradeMatch = normalizedText.match(
-    /\b(10|11|12)\s*(?:\.?\s*[ºo°])?\s*ano\b/i
+    /\b(1[0-2]|[1-9])\s*(?:\.?\s*[ºo°])?\s*ano\b/i
   )
-  const grade = groupMatch?.[1] || gradeMatch?.[1] || ''
+  const fileGrade = normalizedFileName.match(
+    /(?:^|[^0-9A-Za-z])(1[0-2]|[1-9])\s*(?:\.?\s*[ºo°])?\s*ano\b/i
+  )
+  const grade = groupMatch?.[1] || gradeMatch?.[1] || fileGrade?.[1] || ''
   const groupLabel = groupMatch
     ? canonicalGroup(groupMatch[1], groupMatch[2])
     : ''
