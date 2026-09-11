@@ -65,6 +65,12 @@ test('group parser accepts one to three alphanumeric characters starting with a 
   assert.equal(extractGroupName('12.º CT2 Área de Expressões'), '12.º CT2')
 })
 
+test('group parser preserves the explicit-day fallback without scanning arbitrary interior text', () => {
+  assert.equal(extractGroupName('Segunda 12.º D AEXP'), '12.º D')
+  assert.equal(extractGroupName('2ª 10.º TI1 AEXP'), '10.º TI1')
+  assert.equal(extractGroupName('texto 11.º AB Matemática'), '')
+})
+
 test('group parser rejects unsafe or overlong codes instead of partially matching them', () => {
   assert.equal(extractGroupName('10.º 1A Matemática'), '')
   assert.equal(extractGroupName('10.º ABCD Matemática'), '')
@@ -90,7 +96,8 @@ test('shared PDF normalizer preserves the complete multi-character group code', 
   )
 })
 
-test('shared PDF normalizer does not truncate overlong group candidates', () => {
+test('shared PDF normalizer does not truncate unsafe or overlong group candidates', () => {
+  assert.equal(extractCompactTimetableLesson('10.º 1A Matemática'), null)
   assert.equal(extractCompactTimetableLesson('10.º ABCD Matemática'), null)
   assert.equal(extractCompactTimetableLesson('10.º TI12 Matemática'), null)
 })
