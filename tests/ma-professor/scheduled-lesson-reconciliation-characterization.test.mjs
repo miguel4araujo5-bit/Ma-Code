@@ -34,6 +34,14 @@ const lessonRepositorySource = await readFile(
   'utf8'
 )
 
+const reconciliationRepositorySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/lessons/scheduledLessonReconciliationRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dailyPreparationSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
@@ -91,23 +99,27 @@ test(
 )
 
 test(
-  'calendar wrapper reconciles only the visible today-or-future slice and reloads only when persistence changed',
+  'calendar reconciles the visible historical slice without deleting existing lessons and keeps normal reconciliation for today or future',
   () => {
     assert.match(
       calendarWrapperSource,
-      /maxDate\([\s\S]*displayStartDate[\s\S]*academicYear\.startDate[\s\S]*todayISO\(\)/
+      /dateFrom < today/
     )
     assert.match(
       calendarWrapperSource,
-      /minDate\([\s\S]*displayEndDate[\s\S]*academicYear\.endDate/
+      /historicalDateTo/
     )
     assert.match(
       calendarWrapperSource,
-      /scheduledLessonReconciliationRepository\.reconcile\(/
+      /preserveExistingLessons:\s*true/
     )
     assert.match(
       calendarWrapperSource,
-      /deletedLessonIds\.length === 0[\s\S]*createdLessonIds\.length === 0[\s\S]*return initialSnapshot/
+      /currentDateFrom[\s\S]*scheduledLessonReconciliationRepository\.reconcile\(\{[\s\S]*dateFrom:\s*currentDateFrom/[\s\S]*dateTo/
+    )
+    assert.match(
+      calendarWrapperSource,
+      /if \(!changed\)[\s\S]*return initialSnapshot/
     )
     assert.match(
       calendarWrapperSource,
@@ -117,11 +129,33 @@ test(
 )
 
 test(
-  'Daily initial preparation no longer calls the add-only generator directly',
+  'historical reconciliation protects every existing scheduled lesson in the requested range while still allowing genuinely missing occurrences to be planned',
+  () => {
+    assert.match(
+      reconciliationRepositorySource,
+      /preserveExistingLessons\?: boolean/
+    )
+    assert.match(
+      reconciliationRepositorySource,
+      /if \([\s\S]*input\.preserveExistingLessons[\s\S]*lesson\.origin ===[\s\S]*'scheduled'[\s\S]*lesson\.date >=[\s\S]*input\.dateFrom[\s\S]*lesson\.date <=[\s\S]*input\.dateTo[\s\S]*relatedLessonIds\.add/
+    )
+    assert.match(
+      reconciliationRepositorySource,
+      /planScheduledLessonReconciliation\(\{[\s\S]*relatedLessonIds/
+    )
+  }
+)
+
+test(
+  'Daily initial preparation uses the same preserve-history policy for past dates and no longer calls the add-only generator directly',
   () => {
     assert.match(
       dailyPreparationSource,
       /scheduledLessonReconciliationRepository\.reconcile\(/
+    )
+    assert.match(
+      dailyPreparationSource,
+      /preserveExistingLessons:[\s\S]*date < todayISO\(\)/
     )
     assert.doesNotMatch(
       dailyPreparationSource,
