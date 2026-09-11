@@ -24,6 +24,7 @@ concurrency:
 jobs:
   tests:
     name: Validate tests
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Merge pull request #') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -33,6 +34,92 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect affected products
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(mktemp)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            printf '%s\n' '__ALL__' > "$files"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            git fetch --no-tags --depth=1 origin "$base"
+            git diff --name-only "$base" HEAD > "$files"
+          else
+            before="${{ github.event.before }}"
+            if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+              git diff-tree --no-commit-id --name-only -r HEAD > "$files"
+            else
+              git fetch --no-tags --depth=1 origin "$before" || true
+              git diff --name-only "$before" HEAD > "$files"
+            fi
+          fi
+
+          echo 'Changed files:'
+          cat "$files"
+
+          all=false
+          professor=false
+          quadro=false
+          conquistador=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            if [[ "$file" == '__ALL__' ]]; then
+              all=true
+              continue
+            fi
+
+            case "$file" in
+              .github/workflows/*|package.json|vite.config.*|tsconfig*.json|worker/*|migrations/*|scripts/*|src/main.tsx|src/index.css|src/lib/*|src/types/*|src/data/*)
+                all=true
+                continue
+                ;;
+            esac
+
+            matched=false
+
+            case "$file" in
+              *ma-professor*|*MAProfessor*|*maProfessor*|tests/ma-professor/*)
+                professor=true
+                matched=true
+                ;;
+            esac
+
+            case "$file" in
+              *ma-quadro*|*MAQuadro*|*maQuadro*|tests/ma-quadro/*)
+                quadro=true
+                matched=true
+                ;;
+            esac
+
+            case "$file" in
+              *conquistador*|*Conquistador*|tests/conquistador/*)
+                conquistador=true
+                matched=true
+                ;;
+            esac
+
+            if [[ "$matched" == false ]]; then
+              all=true
+            fi
+          done < "$files"
+
+          if [[ "$all" == true ]]; then
+            professor=true
+            quadro=true
+            conquistador=true
+          fi
+
+          echo "professor=$professor" >> "$GITHUB_OUTPUT"
+          echo "quadro=$quadro" >> "$GITHUB_OUTPUT"
+          echo "conquistador=$conquistador" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -43,16 +130,20 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run Conquistador tests
+        if: steps.scope.outputs.conquistador == 'true'
         run: npm run test:conquistador
 
       - name: Run MA-Professor tests
+        if: steps.scope.outputs.professor == 'true'
         run: node --test tests/ma-professor/*.test.mjs
 
       - name: Run MA-Quadro tests
+        if: steps.scope.outputs.quadro == 'true'
         run: npm run test:ma-quadro
 
   build:
     name: Validate build
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Merge pull request #') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -62,14 +153,64 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect whether build is needed
+        id: build_scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(mktemp)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            printf '%s\n' '__BUILD__' > "$files"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            git fetch --no-tags --depth=1 origin "$base"
+            git diff --name-only "$base" HEAD > "$files"
+          else
+            before="${{ github.event.before }}"
+            if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+              git diff-tree --no-commit-id --name-only -r HEAD > "$files"
+            else
+              git fetch --no-tags --depth=1 origin "$before" || true
+              git diff --name-only "$before" HEAD > "$files"
+            fi
+          fi
+
+          build=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            if [[ "$file" == '__BUILD__' ]]; then
+              build=true
+              break
+            fi
+
+            case "$file" in
+              tests/*|coordination/*|docs/*|*.md|public/jogos/conquistador/*|public/conquistador/*)
+                ;;
+              *)
+                build=true
+                break
+                ;;
+            esac
+          done < "$files"
+
+          echo "build=$build" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
+        if: steps.build_scope.outputs.build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install dependencies
+        if: steps.build_scope.outputs.build == 'true'
         run: npm install --no-audit --no-fund
 
       - name: Build project
+        if: steps.build_scope.outputs.build == 'true'
         run: npm run build
