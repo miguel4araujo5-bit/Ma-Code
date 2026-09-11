@@ -115,7 +115,7 @@ test(
     )
     assert.match(
       calendarWrapperSource,
-      /currentDateFrom[\s\S]*scheduledLessonReconciliationRepository\.reconcile\(\{[\s\S]*dateFrom:\s*currentDateFrom/[\s\S]*dateTo/
+      /currentDateFrom[\s\S]*scheduledLessonReconciliationRepository\.reconcile\(\{[\s\S]*dateFrom:\s*currentDateFrom,[\s\S]*dateTo/
     )
     assert.match(
       calendarWrapperSource,
