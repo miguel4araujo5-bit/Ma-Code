@@ -209,14 +209,16 @@ function isDraftDirty(
 function getFinalGradeBands(
   values: number[]
 ) {
-  const bands = [
+  return [
     {
       label: '1–6',
       count:
         values.filter(
           value =>
+            value >=
+              1 &&
             value <=
-            6
+              6
         ).length
     },
     {
@@ -264,8 +266,6 @@ function getFinalGradeBands(
         ).length
     }
   ]
-
-  return bands
 }
 
 export default function UfcdFinalGradeGrid({
@@ -314,22 +314,28 @@ export default function UfcdFinalGradeGrid({
     confirmedGrades.length ===
       snapshot.studentRows.length
 
+  const confirmedDates =
+    snapshot.studentRows
+      .flatMap(
+        row =>
+          row.finalGradeRecord
+            ?.confirmedAt
+            ? [
+                row.finalGradeRecord
+                  .confirmedAt
+              ]
+            : []
+      )
+      .sort()
+
   const latestConfirmedAt =
-    allConfirmed
-      ? snapshot.studentRows
-          .flatMap(
-            row =>
-              row.finalGradeRecord
-                ?.confirmedAt
-                ? [
-                    row.finalGradeRecord
-                      .confirmedAt
-                  ]
-                : []
-          )
-          .sort()
-          .at(-1) ??
-        null
+    allConfirmed &&
+    confirmedDates.length >
+      0
+      ? confirmedDates[
+          confirmedDates.length -
+            1
+        ]
       : null
 
   return (
@@ -393,7 +399,7 @@ export default function UfcdFinalGradeGrid({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="min-w-[1050px] w-full border-collapse text-left text-xs">
+            <table className="w-full min-w-[1050px] border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-white/10 bg-slate-900/80">
                   <th className="w-20 border-r border-white/10 px-3 py-3 text-center font-black text-slate-300">
