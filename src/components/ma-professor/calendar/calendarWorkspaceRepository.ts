@@ -16,9 +16,9 @@ import type {
 
 export * from './calendarWorkspaceRepositoryBase'
 
-function todayISO(): ISODate {
-  const date = new Date()
-
+function formatLocalISODate(
+  date: Date
+): ISODate {
   return [
     String(
       date.getFullYear()
@@ -30,6 +30,37 @@ function todayISO(): ISODate {
       date.getDate()
     ).padStart(2, '0')
   ].join('-')
+}
+
+function todayISO(): ISODate {
+  return formatLocalISODate(
+    new Date()
+  )
+}
+
+function previousDate(
+  value: ISODate
+): ISODate {
+  const [
+    year,
+    month,
+    day
+  ] = value.split('-').map(Number)
+
+  const date =
+    new Date(
+      year,
+      month - 1,
+      day
+    )
+
+  date.setDate(
+    date.getDate() - 1
+  )
+
+  return formatLocalISODate(
+    date
+  )
 }
 
 function maxDate(
@@ -73,8 +104,7 @@ export class CalendarWorkspaceRepository
     const dateFrom =
       maxDate(
         initialSnapshot.displayStartDate,
-        initialSnapshot.academicYear.startDate,
-        todayISO()
+        initialSnapshot.academicYear.startDate
       )
 
     const dateTo =
@@ -87,17 +117,65 @@ export class CalendarWorkspaceRepository
       return initialSnapshot
     }
 
-    const reconciliation =
-      await scheduledLessonReconciliationRepository.reconcile({
-        academicYearId,
+    const today =
+      todayISO()
+
+    let changed =
+      false
+
+    if (dateFrom < today) {
+      const historicalDateTo =
+        minDate(
+          dateTo,
+          previousDate(today)
+        )
+
+      if (
+        dateFrom <=
+        historicalDateTo
+      ) {
+        const historicalReconciliation =
+          await scheduledLessonReconciliationRepository.reconcile({
+            academicYearId,
+            dateFrom,
+            dateTo:
+              historicalDateTo,
+            preserveExistingLessons:
+              true
+          })
+
+        changed =
+          changed ||
+          historicalReconciliation.createdLessonIds.length > 0 ||
+          historicalReconciliation.deletedLessonIds.length > 0
+      }
+    }
+
+    const currentDateFrom =
+      maxDate(
         dateFrom,
-        dateTo
-      })
+        today
+      )
 
     if (
-      reconciliation.deletedLessonIds.length === 0 &&
-      reconciliation.createdLessonIds.length === 0
+      currentDateFrom <=
+      dateTo
     ) {
+      const reconciliation =
+        await scheduledLessonReconciliationRepository.reconcile({
+          academicYearId,
+          dateFrom:
+            currentDateFrom,
+          dateTo
+        })
+
+      changed =
+        changed ||
+        reconciliation.createdLessonIds.length > 0 ||
+        reconciliation.deletedLessonIds.length > 0
+    }
+
+    if (!changed) {
       return initialSnapshot
     }
 
