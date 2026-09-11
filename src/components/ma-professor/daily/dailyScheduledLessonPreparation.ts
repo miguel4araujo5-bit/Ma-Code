@@ -24,6 +24,22 @@ import type {
 const preparedSBentoYears =
   new Set<EntityId>()
 
+function todayISO(): ISODate {
+  const date = new Date()
+
+  return [
+    String(
+      date.getFullYear()
+    ).padStart(4, '0'),
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0'),
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+  ].join('-')
+}
+
 export interface DailyScheduledLessonPreparationResult {
   moduleBoundaryWarnings:
     ModuleBoundaryWarning[]
@@ -96,7 +112,9 @@ export async function ensureDailyScheduledLessonsForDate(
   await scheduledLessonReconciliationRepository.reconcile({
     academicYearId,
     dateFrom: date,
-    dateTo: date
+    dateTo: date,
+    preserveExistingLessons:
+      date < todayISO()
   })
 
   return readModuleBoundaryWarnings(
