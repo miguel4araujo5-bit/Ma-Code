@@ -66,6 +66,13 @@ test('schedule duty parser accepts duty marker but rejects room and lesson noise
   assert.equal(extractDutyName('12.º D AP'), '')
 })
 
+test('multiword lesson names are not promoted to duties without positive duty evidence', () => {
+  assert.equal(extractDutyName('Matemática A'), '')
+  assert.equal(extractDutyName('Física e Química A'), '')
+  assert.equal(extractDutyName('Técnicas de Expressão'), '')
+  assert.equal(extractDutyName('Laboratório de Competências Sociais'), '')
+})
+
 test('schedule import preview exposes manual additions for missing lessons/hours and duties', () => {
   assert.match(source, /function addManualLesson\(/)
   assert.match(source, /function addManualDuty\(/)
