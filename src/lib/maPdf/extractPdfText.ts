@@ -310,7 +310,7 @@ function splitItemsIntoPositionedCells(
 
 function extractCompactTimetableLesson(value: string) {
   const match = value.match(
-    /^\s*(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*([A-Za-z])(?=$|[\s_.:;|/-])/i
+    /^\s*(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*([A-Za-z][A-Za-z0-9]{0,2})(?=$|[\s_.:;|/-])/i
   )
 
   if (!match) {
