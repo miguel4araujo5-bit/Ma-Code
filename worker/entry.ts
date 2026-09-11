@@ -22,7 +22,7 @@ import {
 } from './maProfessorAccess'
 import {
   MaProfessorAccessDurableObject
-} from './maProfessorExplicitApprovalBridge'
+} from './maProfessorActivationCredentialGuardBridge'
 import {
   handleMAProfessorAccountAdminApiRequest,
   isMAProfessorAccountAdminApiPath
