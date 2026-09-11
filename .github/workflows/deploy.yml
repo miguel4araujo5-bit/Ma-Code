@@ -4,9 +4,17 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'coordination/**'
+      - 'docs/**'
+      - '**/*.md'
   push:
     branches:
       - main
+    paths-ignore:
+      - 'coordination/**'
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
@@ -14,9 +22,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Validate build
+  tests:
+    name: Validate tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     permissions:
       contents: read
@@ -41,6 +50,26 @@ jobs:
 
       - name: Run MA-Quadro tests
         run: npm run test:ma-quadro
+
+  build:
+    name: Validate build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
 
       - name: Build project
         run: npm run build
