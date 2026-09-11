@@ -56,6 +56,91 @@ function assertTranspiles(
   )
 }
 
+function getSection(
+  source,
+  startMarker,
+  endMarker
+) {
+  const start = source.indexOf(
+    startMarker
+  )
+  const end = source.indexOf(
+    endMarker,
+    start
+  )
+
+  assert.notEqual(
+    start,
+    -1,
+    `Não foi encontrado ${startMarker}`
+  )
+  assert.notEqual(
+    end,
+    -1,
+    `Não foi encontrado ${endMarker}`
+  )
+
+  return source.slice(
+    start,
+    end
+  )
+}
+
+async function loadScoreHelpers() {
+  const source = [
+    getSection(
+      repositorySource,
+      'const DAILY_SCORE_PATTERN =',
+      '\n\nexport interface DailyCriteriaGridSnapshot'
+    ),
+    getSection(
+      repositorySource,
+      'function roundScore(',
+      '\n\nfunction isDailyGridAssessment('
+    ),
+    getSection(
+      repositorySource,
+      'export function normalizeDailyCriterionScoreInput(',
+      '\n\nexport function calculateDailyCriteriaAverage('
+    )
+  ].join('\n\n')
+
+  const output = ts.transpileModule(
+    source,
+    {
+      compilerOptions: {
+        module:
+          ts.ModuleKind.ESNext,
+        target:
+          ts.ScriptTarget.ES2022
+      },
+      reportDiagnostics: true
+    }
+  )
+
+  const errors =
+    (output.diagnostics || [])
+      .filter(
+        item =>
+          item.category ===
+          ts.DiagnosticCategory.Error
+      )
+
+  assert.equal(
+    errors.length,
+    0,
+    errors
+      .map(item => item.messageText)
+      .join('\n')
+  )
+
+  return import(
+    `data:text/javascript;base64,${Buffer.from(
+      output.outputText
+    ).toString('base64')}`
+  )
+}
+
 test(
   'criteria grid repository and Daily workspace transpile',
   () => {
@@ -67,6 +152,85 @@ test(
       dailyWorkspaceSource,
       'DailyWorkspaceView.tsx'
     )
+  }
+)
+
+test(
+  'daily score input normalizes decimal comma without silently repairing invalid text',
+  async () => {
+    const helpers =
+      await loadScoreHelpers()
+
+    assert.equal(
+      helpers.normalizeDailyCriterionScoreInput(
+        '17,5'
+      ),
+      '17.5'
+    )
+    assert.equal(
+      helpers.normalizeDailyCriterionScoreInput(
+        '-1'
+      ),
+      '-1'
+    )
+    assert.equal(
+      helpers.normalizeDailyCriterionScoreInput(
+        '1a5'
+      ),
+      '1a5'
+    )
+    assert.equal(
+      helpers.normalizeDailyCriterionScoreInput(
+        '1..5'
+      ),
+      '1..5'
+    )
+  }
+)
+
+test(
+  'daily score parser accepts only explicit 0-20 decimal values with at most two decimal places',
+  async () => {
+    const helpers =
+      await loadScoreHelpers()
+
+    assert.equal(
+      helpers.parseDailyCriterionScore(
+        '0'
+      ),
+      0
+    )
+    assert.equal(
+      helpers.parseDailyCriterionScore(
+        '17,5'
+      ),
+      17.5
+    )
+    assert.equal(
+      helpers.parseDailyCriterionScore(
+        '20.00'
+      ),
+      20
+    )
+
+    for (const value of [
+      '',
+      '-1',
+      '21',
+      '1a5',
+      '1..5',
+      '1e1',
+      '+10',
+      '10.123'
+    ]) {
+      assert.throws(
+        () =>
+          helpers.parseDailyCriterionScore(
+            value
+          ),
+        /entre 0 e 20 valores/
+      )
+    }
   }
 )
 

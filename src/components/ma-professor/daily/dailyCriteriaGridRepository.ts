@@ -18,6 +18,9 @@ import type {
 const DAILY_GRID_MARKER =
   'Registo diário'
 
+const DAILY_SCORE_PATTERN =
+  /^\d+(?:\.\d{1,2})?$/
+
 export interface DailyCriteriaGridSnapshot {
   criteria: AssessmentCriterion[]
   scoresByStudentId: Record<
@@ -98,23 +101,7 @@ function findDailyGridAssessment(
 export function normalizeDailyCriterionScoreInput(
   value: string
 ) {
-  const cleanedValue = value
-    .replace(',', '.')
-    .replace(
-      /[^0-9.]/g,
-      ''
-    )
-
-  const [
-    integerPart = '',
-    ...decimalParts
-  ] = cleanedValue.split('.')
-
-  return decimalParts.length > 0
-    ? `${integerPart}.${decimalParts
-        .join('')
-        .slice(0, 2)}`
-    : integerPart
+  return value.replace(',', '.')
 }
 
 export function parseDailyCriterionScore(
@@ -123,11 +110,20 @@ export function parseDailyCriterionScore(
   const normalized =
     value.trim().replace(',', '.')
 
+  if (
+    !DAILY_SCORE_PATTERN.test(
+      normalized
+    )
+  ) {
+    throw new Error(
+      'A classificação deve estar entre 0 e 20 valores.'
+    )
+  }
+
   const score =
     Number(normalized)
 
   if (
-    normalized === '' ||
     !Number.isFinite(score) ||
     score < 0 ||
     score > 20
