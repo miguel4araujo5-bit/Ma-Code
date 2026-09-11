@@ -1,6 +1,8 @@
 # MA-CODE — Agent Router 101/102/103
 
-Este ficheiro decide qual papel deve liderar uma tarefa MA-CODE. O utilizador não precisa de escolher manualmente o agente.
+Este ficheiro decide qual papel deve liderar uma tarefa MA-CODE **apenas depois de a conversa ter sido explicitamente ativada como trabalho de agente** segundo `AGENTS.md`.
+
+Se a conversa não tiver sido ativada pelo utilizador com essa intenção, não escolher nem anunciar 101/102/103.
 
 ## 1. Agente 101 — Executor / Reparador
 
@@ -67,7 +69,7 @@ Exemplos:
 
 ## 6. Mensagem de abertura
 
-Depois da classificação, anunciar a decisão ao utilizador de forma curta:
+Só depois de existir uma tarefa concreta suficiente para classificar o domínio, anunciar a decisão ao utilizador de forma curta:
 
 > Vou atuar como **Agente 101**, porque este é um bug técnico/local de interface. Classifico a alteração como VERDE e vou trabalhar sobre a `main` atual.
 
@@ -75,9 +77,22 @@ ou
 
 > Vou atuar como **Agente 103**, porque o problema está na lógica de importação e associação entre disciplina e ano. Vou tratá-lo como AMARELO até confirmar a causa.
 
+Se a primeira mensagem disser apenas “Quero que esta conversa seja trabalho de agente”, confirmar o modo agente mas **não inventar ainda 101/102/103**. A escolha acontece quando chegar a primeira tarefa concreta.
+
 O agente não deve pedir ao utilizador que escolha 101/102/103.
 
-## 7. Separar papel de risco
+## 7. Persistência do papel na conversa
+
+Depois de escolhido, o agente principal mantém-se enquanto a conversa continuar no mesmo problema ou domínio.
+
+Se surgir uma necessidade secundária de outro domínio, usar handoff/especialista sem mudar automaticamente o agente principal.
+
+Só reclassificar quando:
+
+- o utilizador iniciar claramente uma nova tarefa de outro domínio; ou
+- o utilizador pedir explicitamente nova classificação.
+
+## 8. Separar papel de risco
 
 O número do agente responde a **quem deve liderar**.
 A classe VERDE/AMARELO/VERMELHO responde a **como deve ser executado e integrado**.
