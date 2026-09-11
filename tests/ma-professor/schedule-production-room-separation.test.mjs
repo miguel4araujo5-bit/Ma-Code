@@ -64,6 +64,7 @@ test('real 2026 PDF text produces 22 lessons, 3 duties and no room-derived subje
   const { proposal, extracted } = await importItems(fixtures[0])
   assert.equal(proposal.lessons.length, 22)
   assert.equal(proposal.duties.length, 3)
+  assert.equal(proposal.unresolved.length, 0)
   assert.deepEqual(countSubjects(proposal.lessons), {
     'Animação Sociocultural': 8,
     'Área de Expressões': 13,
@@ -96,6 +97,7 @@ test('real 2025 layout splits merged headers and repeated teaching/room text wit
   const { proposal, extracted } = await importItems(fixtures[1])
   assert.equal(proposal.lessons.length, 21)
   assert.equal(proposal.duties.length, 4)
+  assert.equal(proposal.unresolved.length, 0)
   assert.deepEqual([...new Set(proposal.lessons.map(lesson => lesson.subjectName))].sort(), ['A', 'P'])
   assert.ok(proposal.lessons.every(lesson => !lesson.subjectConfirmed))
   const header = extracted.pages[0].lines.find(line => line.text.startsWith('Tempos'))
