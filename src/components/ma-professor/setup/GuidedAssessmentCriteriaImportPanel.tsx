@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   type DragEvent,
+  useEffect,
   useMemo,
   useRef,
   useState
@@ -26,6 +27,7 @@ import {
 import {
   readAssessmentCriteriaDocument
 } from './assessmentCriteriaDocumentReader'
+import { resolveAssessmentCriteriaDestinations } from './assessmentCriteriaDestinations'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -56,10 +58,6 @@ function normalize(value: string) {
     .toLocaleLowerCase('pt-PT')
 }
 
-function gradeNumber(value: string) {
-  return value.match(/\b(10|11|12)\b/)?.[1] ?? ''
-}
-
 function rowsFromParsed(
   parsed: ParsedAssessmentCriteriaPdfDocument
 ): ImportRow[] {
@@ -86,16 +84,15 @@ function rowsFromParsed(
 }
 
 function criteriaStateFingerprint(snapshot: SetupSnapshot) {
+  const ordered = <T extends { id: string }>(items: T[]) =>
+    [...items].sort((left, right) => left.id.localeCompare(right.id))
   return JSON.stringify({
-    assignments: snapshot.teachingAssignments
-      .map(item => [item.id, item.groupId, item.subjectId, item.active, item.updatedAt])
-      .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
-    schemes: snapshot.assessmentSchemes
-      .map(item => [item.id, item.teachingAssignmentId, item.scope, item.active, item.updatedAt])
-      .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
-    criteria: snapshot.assessmentCriteria
-      .map(item => [item.id, item.schemeId, item.active, item.updatedAt])
-      .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+    academicYearId: snapshot.academicYear.id,
+    groups: ordered(snapshot.groups),
+    subjects: ordered(snapshot.subjects),
+    assignments: ordered(snapshot.teachingAssignments),
+    schemes: ordered(snapshot.assessmentSchemes),
+    criteria: ordered(snapshot.assessmentCriteria)
   })
 }
 
@@ -117,6 +114,14 @@ export default function GuidedAssessmentCriteriaImportPanel({
   const [assignmentIds, setAssignmentIds] = useState<EntityId[]>([])
   const [sourceFingerprint, setSourceFingerprint] = useState('')
   const [showDetails, setShowDetails] = useState(false)
+  const [showDestinations, setShowDestinations] = useState(false)
+  const operation = useRef(false)
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   const [busy, setBusy] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
@@ -130,89 +135,18 @@ export default function GuidedAssessmentCriteriaImportPanel({
     'Existe uma proposta de critérios por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
   )
 
-  const groupById = useMemo(
-    () => new Map(snapshot.groups.map(group => [group.id, group])),
-    [snapshot.groups]
-  )
-  const subjectById = useMemo(
-    () => new Map(snapshot.subjects.map(subject => [subject.id, subject])),
-    [snapshot.subjects]
-  )
-  const blockedAssignments = useMemo(
-    () => new Set(
-      snapshot.assessmentSchemes
-        .filter(scheme => scheme.active && scheme.scope === 'subject')
-        .map(scheme => scheme.teachingAssignmentId)
-    ),
-    [snapshot.assessmentSchemes]
-  )
-  const assignments = useMemo(
-    () => snapshot.teachingAssignments
-      .filter(assignment => assignment.active)
-      .map(assignment => {
-        const group = groupById.get(assignment.groupId)
-        const subject = subjectById.get(assignment.subjectId)
-        const subjectLabel =
-          subject?.shortName.trim() ||
-          subject?.name ||
-          assignment.displayName
-
-        return {
-          assignment,
-          group,
-          subject,
-          label: `${group?.name ?? 'Turma'} · ${subjectLabel}`
-        }
-      })
-      .filter(item => !blockedAssignments.has(item.assignment.id))
-      .sort((left, right) =>
-        left.label.localeCompare(right.label, 'pt-PT', {
-          numeric: true,
-          sensitivity: 'base'
-        })
-      ),
-    [
-      blockedAssignments,
-      groupById,
-      snapshot.teachingAssignments,
-      subjectById
-    ]
-  )
-
   const detectedSubject = parsed?.metadata.subject?.value ?? ''
-  const detectedGroup = parsed?.metadata.group?.value ?? ''
-  const detectedGrade = parsed?.metadata.grade?.value ?? ''
-
-  const destinationCandidates = useMemo(() => {
-    const subjectKey = normalize(detectedSubject)
-    let candidates = subjectKey
-      ? assignments.filter(item =>
-          Boolean(item.subject) && (
-            normalize(item.subject?.name ?? '') === subjectKey ||
-            normalize(item.subject?.shortName ?? '') === subjectKey
-          )
-        )
+  const destinationResolution = useMemo(
+    () => resolveAssessmentCriteriaDestinations(snapshot, detectedSubject),
+    [snapshot, detectedSubject]
+  )
+  const assignments = destinationResolution.available
+  const destinationCandidates = destinationResolution.candidates
+  const destinationOptions =
+    destinationCandidates.length > 0
+      ? destinationCandidates
       : assignments
-
-    if (detectedGroup) {
-      const groupKey = normalize(detectedGroup)
-      const matches = candidates.filter(item =>
-        normalize(item.group?.name ?? '') === groupKey
-      )
-      if (matches.length > 0) candidates = matches
-    } else if (detectedGrade) {
-      const grade = gradeNumber(detectedGrade)
-      const matches = grade
-        ? candidates.filter(item =>
-            gradeNumber(item.group?.gradeLevel ?? '') === grade ||
-            gradeNumber(item.group?.name ?? '') === grade
-          )
-        : []
-      if (matches.length > 0) candidates = matches
-    }
-
-    return candidates
-  }, [assignments, detectedGrade, detectedGroup, detectedSubject])
+  const selectedDestinations = assignments.filter(item => assignmentIds.includes(item.assignment.id))
 
   const includedRows = useMemo(
     () => rows.filter(row => row.included),
@@ -235,7 +169,8 @@ export default function GuidedAssessmentCriteriaImportPanel({
   const proposalReady =
     rowsReady &&
     Math.abs(totalWeight - 100) <= 0.001 &&
-    assignmentIds.length > 0
+    assignmentIds.length > 0 &&
+    selectedDestinations.length === assignmentIds.length
 
   function clearProposal() {
     setParsed(null)
@@ -244,10 +179,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
     setAssignmentIds([])
     setSourceFingerprint('')
     setShowDetails(false)
+    setShowDestinations(false)
     setDragActive(false)
   }
 
   async function analyzeFile(file: File) {
+    if (operation.current) return
     if (
       hasProposal &&
       !window.confirm('Substituir a proposta atual e perder as correções ainda não importadas?')
@@ -255,6 +192,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
       return
     }
 
+    operation.current = true
     setBusy(true)
     setError('')
     setFeedback('')
@@ -263,30 +201,10 @@ export default function GuidedAssessmentCriteriaImportPanel({
       const document = await readAssessmentCriteriaDocument(file)
       const result = parseAssessmentCriteriaPdfDocument(document, file.name)
       const nextRows = rowsFromParsed(result)
-      const subjectKey = normalize(result.metadata.subject?.value ?? '')
-      let candidates = subjectKey
-        ? assignments.filter(item =>
-            Boolean(item.subject) && (
-              normalize(item.subject?.name ?? '') === subjectKey ||
-              normalize(item.subject?.shortName ?? '') === subjectKey
-            )
-          )
-        : assignments
-      const groupKey = normalize(result.metadata.group?.value ?? '')
-      const grade = gradeNumber(result.metadata.grade?.value ?? '')
-
-      if (groupKey) {
-        const matches = candidates.filter(item =>
-          normalize(item.group?.name ?? '') === groupKey
-        )
-        if (matches.length > 0) candidates = matches
-      } else if (grade) {
-        const matches = candidates.filter(item =>
-          gradeNumber(item.group?.gradeLevel ?? '') === grade ||
-          gradeNumber(item.group?.name ?? '') === grade
-        )
-        if (matches.length > 0) candidates = matches
-      }
+      const destinations = resolveAssessmentCriteriaDestinations(
+        snapshot, result.metadata.subject?.value ?? ''
+      )
+      if (!mounted.current) return
 
       const total = nextRows.reduce((sum, row) => {
         const value = Number(row.weightPercent.replace(',', '.'))
@@ -302,11 +220,8 @@ export default function GuidedAssessmentCriteriaImportPanel({
       setParsed(result)
       setFileName(file.name)
       setRows(nextRows)
-      setAssignmentIds(
-        candidates.length === 1
-          ? [candidates[0].assignment.id]
-          : []
-      )
+      setAssignmentIds(destinations.suggestedAssignmentIds)
+      setShowDestinations(false)
       setSourceFingerprint(criteriaStateFingerprint(snapshot))
       setShowDetails(!completeRows || Math.abs(total - 100) > 0.001)
 
@@ -317,10 +232,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
         )
       }
     } catch (analysisError) {
+      if (!mounted.current) return
       clearProposal()
       setError(errorMessage(analysisError))
     } finally {
-      setBusy(false)
+      operation.current = false
+      if (mounted.current) setBusy(false)
     }
   }
 
@@ -333,12 +250,17 @@ export default function GuidedAssessmentCriteriaImportPanel({
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragActive(false)
-    if (busy) return
+    if (operation.current) return
+    if (event.dataTransfer.files.length !== 1) {
+      setError('Adicione um documento de critérios de cada vez.')
+      return
+    }
     const file = event.dataTransfer.files?.[0]
     if (file) void analyzeFile(file)
   }
 
   function toggleAssignment(id: EntityId) {
+    if (operation.current) return
     setAssignmentIds(current =>
       current.includes(id)
         ? current.filter(item => item !== id)
@@ -348,6 +270,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
   }
 
   function updateRow(id: string, changes: Partial<ImportRow>) {
+    if (operation.current) return
     setRows(current => current.map(row =>
       row.id === id
         ? { ...row, ...changes }
@@ -383,8 +306,9 @@ export default function GuidedAssessmentCriteriaImportPanel({
   }
 
   async function commitImport() {
-    if (!parsed || busy) return
+    if (!parsed || operation.current) return
 
+    operation.current = true
     setBusy(true)
     setError('')
     setFeedback('')
@@ -407,7 +331,9 @@ export default function GuidedAssessmentCriteriaImportPanel({
         const assignment = current.teachingAssignments.find(item =>
           item.id === assignmentId && item.active
         )
-        if (!assignment) {
+        const group = current.groups.find(item => item.id === assignment?.groupId && item.active && item.academicYearId === current.academicYear.id)
+        const subject = current.subjects.find(item => item.id === assignment?.subjectId && item.active && item.academicYearId === current.academicYear.id)
+        if (!assignment || !group || !subject) {
           throw new Error('Um dos destinos selecionados deixou de estar disponível.')
         }
         if (current.assessmentSchemes.some(scheme =>
@@ -417,10 +343,6 @@ export default function GuidedAssessmentCriteriaImportPanel({
         )) {
           throw new Error('Um dos destinos selecionados já possui critérios gerais. Nada foi substituído.')
         }
-      }
-
-      if (!window.confirm('Aplicar estes critérios aos destinos selecionados? Critérios existentes não serão substituídos.')) {
-        return
       }
 
       await assessmentCriteriaBatchRepository.createSubjectSchemes({
@@ -434,13 +356,15 @@ export default function GuidedAssessmentCriteriaImportPanel({
       const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
         snapshot.academicYear.id
       )
+      if (!mounted.current) return
       clearProposal()
       setFeedback('Critérios importados com sucesso.')
       onImported(nextSnapshot)
     } catch (commitError) {
-      setError(errorMessage(commitError))
+      if (mounted.current) setError(errorMessage(commitError))
     } finally {
-      setBusy(false)
+      operation.current = false
+      if (mounted.current) setBusy(false)
     }
   }
 
@@ -516,41 +440,40 @@ export default function GuidedAssessmentCriteriaImportPanel({
               </div>
             </div>
 
-            {destinationCandidates.length === 1 && assignmentIds.length === 1 ? (
-              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4 text-sm">
-                <p className="font-black text-emerald-100">✓ Destino reconhecido</p>
-                <p className="mt-1 text-slate-300">{destinationCandidates[0].label}</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
-                <p className="text-sm font-black text-amber-100">Confirme onde aplicar</p>
+            <div className={`rounded-2xl border p-4 text-sm ${selectedDestinations.length && destinationResolution.confidence === 'high' ? 'border-emerald-300/20 bg-emerald-300/[0.055]' : 'border-amber-300/20 bg-amber-300/[0.05]'}`}>
+              <p className={`font-black ${selectedDestinations.length && destinationResolution.confidence === 'high' ? 'text-emerald-100' : 'text-amber-100'}`}>
+                {selectedDestinations.length
+                  ? (destinationResolution.confidence === 'high' ? '✓ Disciplina e turmas reconhecidas' : 'Associação a rever')
+                  : 'Destino por associar'}
+              </p>
+              {selectedDestinations.length ? <>
+                <p className="mt-1 font-bold text-slate-200">{[...new Set(selectedDestinations.map(item => item.subject.name))].join(' · ')}</p>
+                <p className="mt-1 text-slate-300">{selectedDestinations.map(item => item.group.name).join(', ')}</p>
+                <p className="mt-2 text-xs text-slate-400">Critérios comuns à disciplina, aplicáveis aos vários anos e turmas selecionados.</p>
+              </> : null}
+              {destinationResolution.confidence === 'medium' ? <p className="mt-2 text-xs text-amber-100">Correspondência provável pela sigla. Pode corrigir a associação ou aplicar os critérios aos destinos propostos.</p> : null}
+              {destinationResolution.preservedCount > 0 ? <p className="mt-2 text-xs text-slate-400">{destinationResolution.preservedCount} {destinationResolution.preservedCount === 1 ? 'turma já tem critérios gerais; serão preservados.' : 'turmas já têm critérios gerais; serão preservados.'}</p> : null}
+              {destinationResolution.preservedCount > 0 && !destinationCandidates.length ? <p className="mt-2 text-xs text-slate-400">Os destinos reconhecidos já estão configurados. Pode continuar para o passo seguinte.</p> : null}
+              <button type="button" disabled={busy} onClick={() => setShowDestinations(value => !value)} className="mt-3 text-xs font-bold text-cyan-200 underline underline-offset-4">
+                {showDestinations ? 'Fechar escolha de destinos' : 'Corrigir associação'}
+              </button>
+              {showDestinations || !assignmentIds.length ? <>
+                {destinationCandidates.length === 0 && assignments.length > 0 && !destinationResolution.preservedCount ? (
+                  <p className="mt-2 text-xs leading-5 text-amber-100/80">
+                    Não foi possível reconhecer automaticamente o destino. Escolha abaixo a turma e a disciplina onde pretende aplicar estes critérios.
+                  </p>
+                ) : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {destinationCandidates.map(item => (
-                    <label
-                      key={item.assignment.id}
-                      className={`cursor-pointer rounded-xl border p-3 text-sm ${
-                        assignmentIds.includes(item.assignment.id)
-                          ? 'border-cyan-300/30 bg-cyan-300/[0.08]'
-                          : 'border-white/10 bg-white/[0.025]'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={assignmentIds.includes(item.assignment.id)}
-                        onChange={() => toggleAssignment(item.assignment.id)}
-                      />
+                  {(showDestinations ? assignments : destinationOptions).map(item => (
+                    <label key={item.assignment.id} className={`cursor-pointer rounded-xl border p-3 text-sm ${assignmentIds.includes(item.assignment.id) ? 'border-cyan-300/30 bg-cyan-300/[0.08]' : 'border-white/10 bg-white/[0.025]'}`}>
+                      <input type="checkbox" disabled={busy} className="mr-2" checked={assignmentIds.includes(item.assignment.id)} onChange={() => toggleAssignment(item.assignment.id)} />
                       {item.label}
                     </label>
                   ))}
                 </div>
-                {destinationCandidates.length === 0 ? (
-                  <p className="mt-3 text-xs leading-5 text-amber-100/80">
-                    Não encontramos uma disciplina ativa com correspondência segura. Pode tratar este caso na configuração avançada.
-                  </p>
-                ) : null}
-              </div>
-            )}
+                {assignments.length === 0 ? <p className="mt-3 text-xs leading-5 text-amber-100/80">Não existem destinos ativos disponíveis sem critérios gerais. Os conjuntos já guardados são preservados.</p> : null}
+              </> : null}
+            </div>
 
             {parsed.warnings.length > 0 ? (
               <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100/80">
@@ -584,6 +507,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
                         <input
                           type="checkbox"
                           checked={row.included}
+                          disabled={busy}
                           onChange={event => updateRow(row.id, { included: event.target.checked })}
                         />
                         <span className="text-xs font-black text-slate-400">Critério {index + 1}</span>
@@ -612,6 +536,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
                           />
                         </label>
                       </div>
+                      <label className="mt-3 block text-xs font-bold text-slate-300">
+                        Descrição / estrutura preservada
+                        <textarea className={`${inputClassName} mt-1 min-h-24`} value={row.description}
+                          disabled={!row.included || busy}
+                          onChange={event => updateRow(row.id, { description: event.target.value })} />
+                      </label>
                       {row.warnings.length > 0 ? (
                         <div className="mt-2 text-xs leading-5 text-amber-100/80">
                           {row.warnings.map((warning, warningIndex) => (
