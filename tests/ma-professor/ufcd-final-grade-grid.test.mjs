@@ -95,7 +95,11 @@ test(
     )
     assert.match(
       workspaceSource,
-      /selfAssessmentGrade:\s*draft\.selfAssessmentGrade/
+      /const selfAssessmentGrade\s*=/
+    )
+    assert.match(
+      workspaceSource,
+      /selfAssessmentGrade,\s*usesAcs:/
     )
     assert.match(
       workspaceSource,
