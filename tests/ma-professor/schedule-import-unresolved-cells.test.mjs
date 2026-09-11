@@ -11,6 +11,14 @@ const scheduleSource = await readFile(
   'utf8'
 )
 
+const reviewSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/ScheduleImportUnresolvedReview.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 function loadParser() {
   const start = scheduleSource.indexOf('const weekdayPatterns:')
   const end = scheduleSource.indexOf('\nfunction shortName(', start)
@@ -45,6 +53,7 @@ function loadParser() {
       weekday: Weekday
       startTime: string
       endTime: string
+      periodCount: number
       rawText: string
       reason: string
     }
@@ -147,22 +156,25 @@ test('an occupied cell that is neither a safe lesson nor a safe duty becomes unr
       weekday: proposal.unresolved[0].weekday,
       startTime: proposal.unresolved[0].startTime,
       endTime: proposal.unresolved[0].endTime,
+      periodCount: proposal.unresolved[0].periodCount,
       rawText: proposal.unresolved[0].rawText
     },
     {
       weekday: 5,
       startTime: '08:30',
       endTime: '09:20',
+      periodCount: 1,
       rawText: 'Projeto Individual'
     }
   )
 })
 
 test('unresolved cells require an explicit Aula, Cargo or Ignorar decision before import', () => {
-  assert.match(scheduleSource, /Blocos por resolver/)
-  assert.match(scheduleSource, /Tratar como aula/)
-  assert.match(scheduleSource, /Tratar como cargo/)
-  assert.match(scheduleSource, /Ignorar este bloco/)
+  assert.match(reviewSource, /Blocos por resolver/)
+  assert.match(reviewSource, /Tratar como aula/)
+  assert.match(reviewSource, /Tratar como cargo/)
+  assert.match(reviewSource, /Ignorar este bloco/)
   assert.match(scheduleSource, /unresolved\.length > 0/)
   assert.match(scheduleSource, /setUnresolved\(/)
+  assert.match(scheduleSource, /periodCount: block\.periodCount/)
 })
