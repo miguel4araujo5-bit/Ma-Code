@@ -71,6 +71,6 @@ test('schedule import preview exposes manual additions for missing lessons/hours
   assert.match(source, /function addManualDuty\(/)
   assert.match(source, /\+ Adicionar aula \/ hora/)
   assert.match(source, /\+ Adicionar cargo/)
-  assert.match(source, /id: manualId\('manual-slot'\)/)
-  assert.match(source, /id: manualId\('manual-duty'\)/)
+  assert.match(source, /id:\s*manualId\(\s*'manual-slot'\s*\)/)
+  assert.match(source, /id:\s*manualId\(\s*'manual-duty'\s*\)/)
 })
