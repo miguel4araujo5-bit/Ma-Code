@@ -31,24 +31,130 @@ jobs:
       contents: read
 
     steps:
+      - name: Skip duplicate post-merge validation
+        id: gate
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect affected products
+        if: steps.gate.outputs.skip != 'true'
+        id: scope
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          files="$(mktemp)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            printf '%s\n' '__ALL__' > "$files"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            git diff --name-only "$PR_BASE_SHA" HEAD > "$files"
+          else
+            if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+              git diff-tree --no-commit-id --name-only -r HEAD > "$files"
+            else
+              git fetch --no-tags --depth=1 origin "$PUSH_BEFORE_SHA" || true
+              git diff --name-only "$PUSH_BEFORE_SHA" HEAD > "$files"
+            fi
+          fi
+
+          echo 'Changed files:'
+          cat "$files"
+
+          all=false
+          professor=false
+          quadro=false
+          conquistador=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            if [[ "$file" == '__ALL__' ]]; then
+              all=true
+              continue
+            fi
+
+            case "$file" in
+              .github/workflows/*|package.json|vite.config.*|tsconfig*.json|worker/*|migrations/*|scripts/*|src/main.tsx|src/index.css|src/lib/*|src/types/*|src/data/*)
+                all=true
+                continue
+                ;;
+            esac
+
+            matched=false
+
+            case "$file" in
+              *ma-professor*|*MAProfessor*|*maProfessor*|tests/ma-professor/*)
+                professor=true
+                matched=true
+                ;;
+            esac
+
+            case "$file" in
+              *ma-quadro*|*MAQuadro*|*maQuadro*|tests/ma-quadro/*)
+                quadro=true
+                matched=true
+                ;;
+            esac
+
+            case "$file" in
+              *conquistador*|*Conquistador*|tests/conquistador/*)
+                conquistador=true
+                matched=true
+                ;;
+            esac
+
+            if [[ "$matched" == false ]]; then
+              all=true
+            fi
+          done < "$files"
+
+          if [[ "$all" == true ]]; then
+            professor=true
+            quadro=true
+            conquistador=true
+          fi
+
+          echo "professor=$professor" >> "$GITHUB_OUTPUT"
+          echo "quadro=$quadro" >> "$GITHUB_OUTPUT"
+          echo "conquistador=$conquistador" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
         run: npm install --no-audit --no-fund
 
       - name: Run Conquistador tests
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.conquistador == 'true'
         run: npm run test:conquistador
 
       - name: Run MA-Professor tests
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.professor == 'true'
         run: node --test tests/ma-professor/*.test.mjs
 
       - name: Run MA-Quadro tests
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.quadro == 'true'
         run: npm run test:ma-quadro
 
   build:
@@ -60,16 +166,81 @@ jobs:
       contents: read
 
     steps:
+      - name: Skip duplicate post-merge validation
+        id: gate
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect whether build is needed
+        if: steps.gate.outputs.skip != 'true'
+        id: build_scope
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          files="$(mktemp)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            printf '%s\n' '__BUILD__' > "$files"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            git diff --name-only "$PR_BASE_SHA" HEAD > "$files"
+          else
+            if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+              git diff-tree --no-commit-id --name-only -r HEAD > "$files"
+            else
+              git fetch --no-tags --depth=1 origin "$PUSH_BEFORE_SHA" || true
+              git diff --name-only "$PUSH_BEFORE_SHA" HEAD > "$files"
+            fi
+          fi
+
+          build=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            if [[ "$file" == '__BUILD__' ]]; then
+              build=true
+              break
+            fi
+
+            case "$file" in
+              tests/*|coordination/*|docs/*|*.md|public/jogos/conquistador/*|public/conquistador/*)
+                ;;
+              *)
+                build=true
+                break
+                ;;
+            esac
+          done < "$files"
+
+          echo "build=$build" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         run: npm install --no-audit --no-fund
 
       - name: Build project
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         run: npm run build
