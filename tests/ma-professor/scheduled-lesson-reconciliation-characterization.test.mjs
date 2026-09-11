@@ -34,6 +34,14 @@ const lessonRepositorySource = await readFile(
   'utf8'
 )
 
+const reconciliationRepositorySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/lessons/scheduledLessonReconciliationRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dailyPreparationSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
@@ -91,23 +99,31 @@ test(
 )
 
 test(
-  'calendar wrapper reconciles only the visible today-or-future slice and reloads only when persistence changed',
+  'calendar reconciles visible historical dates in preserve mode and current or future dates normally',
   () => {
-    assert.match(
-      calendarWrapperSource,
-      /maxDate\([\s\S]*displayStartDate[\s\S]*academicYear\.startDate[\s\S]*todayISO\(\)/
+    assert.equal(
+      calendarWrapperSource.includes(
+        'if (dateFrom < today)'
+      ),
+      true
     )
-    assert.match(
-      calendarWrapperSource,
-      /minDate\([\s\S]*displayEndDate[\s\S]*academicYear\.endDate/
+    assert.equal(
+      calendarWrapperSource.includes(
+        'historicalDateTo'
+      ),
+      true
     )
-    assert.match(
-      calendarWrapperSource,
-      /scheduledLessonReconciliationRepository\.reconcile\(/
+    assert.equal(
+      calendarWrapperSource.includes(
+        'preserveExistingLessons:'
+      ),
+      true
     )
-    assert.match(
-      calendarWrapperSource,
-      /deletedLessonIds\.length === 0[\s\S]*createdLessonIds\.length === 0[\s\S]*return initialSnapshot/
+    assert.equal(
+      calendarWrapperSource.includes(
+        'const currentDateFrom ='
+      ),
+      true
     )
     assert.match(
       calendarWrapperSource,
@@ -117,11 +133,59 @@ test(
 )
 
 test(
-  'Daily initial preparation no longer calls the add-only generator directly',
+  'historical reconciliation protects existing scheduled lessons in the requested range',
+  () => {
+    assert.equal(
+      reconciliationRepositorySource.includes(
+        'preserveExistingLessons?: boolean'
+      ),
+      true
+    )
+    assert.equal(
+      reconciliationRepositorySource.includes(
+        'input.preserveExistingLessons'
+      ),
+      true
+    )
+    assert.equal(
+      reconciliationRepositorySource.includes(
+        "lesson.origin ==="
+      ),
+      true
+    )
+    assert.equal(
+      reconciliationRepositorySource.includes(
+        "'scheduled'"
+      ),
+      true
+    )
+    assert.equal(
+      reconciliationRepositorySource.includes(
+        'relatedLessonIds.add('
+      ),
+      true
+    )
+  }
+)
+
+test(
+  'Daily initial preparation uses preserve-history reconciliation for past dates',
   () => {
     assert.match(
       dailyPreparationSource,
       /scheduledLessonReconciliationRepository\.reconcile\(/
+    )
+    assert.equal(
+      dailyPreparationSource.includes(
+        'preserveExistingLessons:'
+      ),
+      true
+    )
+    assert.equal(
+      dailyPreparationSource.includes(
+        'date < todayISO()'
+      ),
+      true
     )
     assert.doesNotMatch(
       dailyPreparationSource,
