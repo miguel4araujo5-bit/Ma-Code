@@ -6,27 +6,36 @@ import {
 } from 'react'
 
 import {
-  extractTextFromPdf,
-  type ExtractedPdfCell,
-  type ExtractedPdfPage
+  extractTextFromPdf
 } from '../../../lib/maPdf/extractPdfText'
-import {
-  calendarRepository
-} from '../calendar/calendarRepository'
+
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
+
 import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
+
 import type {
-  AcademicYear,
   Weekday
 } from '../types'
+
 import {
-  getDutyDatesForSchool
-} from './schoolDutyDatePolicy'
+  commitScheduleImport,
+  readScheduleImportState
+} from './scheduleImportRepository'
+
+import {
+  extractScheduleGroupName,
+  normalizeScheduleText,
+  parseSchedulePdfPages,
+  type ScheduleDutyDraft as DutyDraft,
+  type ScheduleLessonDraft as Draft,
+  type ScheduleUnresolvedDraft as UnresolvedDraft
+} from './schedulePdfParser'
+
 import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
@@ -35,47 +44,8 @@ type Props = {
   onContinueWithoutPdf: () => void
 }
 
-type Draft = {
-  id: string
-  included: boolean
-  weekday: Weekday
-  startTime: string
-  endTime: string
-  periodCount: number
-  groupName: string
-  courseName: string
-  subjectName: string
-  subjectConfirmed: boolean
-}
-
-type DutyDraft = {
-  id: string
-  included: boolean
-  weekday: Weekday
-  startTime: string
-  endTime: string
-  name: string
-}
-
-type DayColumn = {
-  weekday: Weekday
-  centerX: number
-}
-
-type ParsedProposal = {
-  lessons: Draft[]
-  duties: DutyDraft[]
-}
-
-type ImportedSubjectResolution = {
-  subjectName: string
-  subjectConfirmed: boolean
-}
-
-type ImportedLessonResolution =
-  ImportedSubjectResolution & {
-    courseName: string
-  }
+const MAX_SCHEDULE_PDF_BYTES =
+  20 * 1024 * 1024
 
 const weekdays: Array<{
   value: Weekday
@@ -90,382 +60,32 @@ const weekdays: Array<{
   { value: 7, label: 'Dom' }
 ]
 
-const weekdayPatterns: Array<{
-  value: Weekday
-  patterns: RegExp[]
-}> = [
-  {
-    value: 1,
-    patterns: [
-      /\bsegunda(?:-feira)?\b/i,
-      /(?:^|[^0-9a-z])2(?:a|ª)(?=$|[^0-9a-z])/i
-    ]
-  },
-  {
-    value: 2,
-    patterns: [
-      /\bterca(?:-feira)?\b/i,
-      /(?:^|[^0-9a-z])3(?:a|ª)(?=$|[^0-9a-z])/i
-    ]
-  },
-  {
-    value: 3,
-    patterns: [
-      /\bquarta(?:-feira)?\b/i,
-      /(?:^|[^0-9a-z])4(?:a|ª)(?=$|[^0-9a-z])/i
-    ]
-  },
-  {
-    value: 4,
-    patterns: [
-      /\bquinta(?:-feira)?\b/i,
-      /(?:^|[^0-9a-z])5(?:a|ª)(?=$|[^0-9a-z])/i
-    ]
-  },
-  {
-    value: 5,
-    patterns: [
-      /\bsexta(?:-feira)?\b/i,
-      /(?:^|[^0-9a-z])6(?:a|ª)(?=$|[^0-9a-z])/i
-    ]
-  },
-  {
-    value: 6,
-    patterns: [
-      /\bsabado\b/i
-    ]
-  },
-  {
-    value: 7,
-    patterns: [
-      /\bdomingo\b/i
-    ]
-  }
-]
-
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
 
 const UNSAVED_SCHEDULE_IMPORT_MESSAGE =
   'Existe uma proposta de horário importada por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
 
-const knownSubjectAliases: Array<{
-  name: string
-  aliases: string[]
-}> = [
-  {
-    name: 'Área de Expressões',
-    aliases: ['AE']
-  },
-  {
-    name: 'Animação Sociocultural',
-    aliases: ['ASC']
-  },
-  {
-    name: 'Português',
-    aliases: ['PORT', 'POR']
-  },
-  {
-    name: 'Inglês',
-    aliases: ['ING']
-  },
-  {
-    name: 'Área de Integração',
-    aliases: ['AI']
-  },
-  {
-    name: 'Tecnologias da Informação e Comunicação',
-    aliases: ['TIC']
-  },
-  {
-    name: 'Educação Física',
-    aliases: ['EF']
-  },
-  {
-    name: 'Psicologia',
-    aliases: ['PSI']
-  },
-  {
-    name: 'Sociologia',
-    aliases: ['SOC']
-  }
-]
-
-const knownCourseAliases: Array<{
-  name: string
-  aliases: string[]
-}> = [
-  {
-    name: 'Técnico de Apoio Psicossocial',
-    aliases: ['AP', 'TAP']
-  }
-]
-
-function normalize(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-PT')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function clean(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-}
-
-function resolveImportedSubject(
-  value: string,
-  legend?: Map<string, string>
-): ImportedSubjectResolution {
-  const subjectName = clean(value)
-  const normalizedSubject = normalize(subjectName)
-  const legendName = legend?.get(normalizedSubject)
-
-  if (legend?.has(normalizedSubject)) {
-    return {
-      subjectName: legendName || subjectName,
-      subjectConfirmed: Boolean(legendName)
-    }
-  }
-
-  for (const knownSubject of knownSubjectAliases) {
-    if (
-      normalize(knownSubject.name) === normalizedSubject ||
-      knownSubject.aliases.some(
-        alias => normalize(alias) === normalizedSubject
-      )
-    ) {
-      return {
-        subjectName: knownSubject.name,
-        subjectConfirmed: true
-      }
-    }
-  }
-
-  const compact =
-    subjectName.replace(/[\s._/-]/g, '')
-
-  const ambiguousShortLabel =
-    compact.length > 0 &&
-    /^[A-Z0-9]+$/.test(compact)
-
-  return {
-    subjectName,
-    subjectConfirmed:
-      Boolean(subjectName) &&
-      !ambiguousShortLabel
-  }
-}
-
-function resolveImportedLessonContext(
-  value: string,
-  legend?: Map<string, string>
-): ImportedLessonResolution {
-  // No horário, «12.ºD_AP . AEXP» identifica o curso depois de «_»
-  // e a disciplina depois do separador. Preservar também cursos desconhecidos.
-  const explicitCourse = clean(value).match(
-    /^[_-]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_-]*)(?:\s*[.·|:;]\s*|\s+|$)(.*)$/u
-  )
-
-  if (explicitCourse) {
-    const code = explicitCourse[1]
-    const course = knownCourseAliases.find(candidate =>
-      candidate.aliases.some(alias => normalize(alias) === normalize(code))
-    )
-
-    return {
-      ...resolveImportedSubject(explicitCourse[2], legend),
-      courseName: course?.name ?? code
-    }
-  }
-
-  const subjectTokens: string[] = []
-  let courseName = ''
-
-  for (const token of clean(value).split(/\s+/)) {
-    const compactToken =
-      token.replace(/[._/-]/g, '')
-
-    const course =
-      knownCourseAliases.find(
-        candidate =>
-          candidate.aliases.some(
-            alias =>
-              normalize(alias) ===
-              normalize(compactToken)
-          )
-      )
-
-    if (course) {
-      courseName = courseName || course.name
-      continue
-    }
-
-    subjectTokens.push(token)
-  }
-
-  const subject =
-    resolveImportedSubject(
-      subjectTokens.join(' '),
-      legend
-    )
-
-  return {
-    ...subject,
-    courseName
-  }
-}
-
-function detectWeekday(
-  value: string
-): Weekday | null {
-  const candidate = normalize(value)
-
-  for (const weekday of weekdayPatterns) {
-    if (
-      weekday.patterns.some(
-        pattern => pattern.test(candidate)
-      )
-    ) {
-      return weekday.value
-    }
-  }
-
-  return null
-}
-
-function extractTimeRange(value: string) {
-  const normalized =
-    value.replace(/[hH.]/g, ':')
-  const match = normalized.match(
-    /\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:-|–|—|a|as|às?)\s*([01]?\d|2[0-3]):([0-5]\d)\b/i
-  )
-
-  if (!match) {
-    return null
-  }
-
-  return {
-    startTime:
-      `${match[1].padStart(2, '0')}:${match[2]}`,
-    endTime:
-      `${match[3].padStart(2, '0')}:${match[4]}`,
-    matchedText:
-      match[0]
-  }
-}
-
-function extractGroupName(value: string) {
-  const match = value.match(
-    /\b(10|11|12|[1-9])\s*(?:\.?\s*[ºo°])?\s*[-–—.]?\s*([A-Za-z])(?=$|[\s_.:;|/-])/i
-  )
-
-  return match
-    ? `${match[1]}.º ${match[2].toLocaleUpperCase('pt-PT')}`
-    : ''
-}
-
-function stripLessonNoise(
-  value: string,
-  groupName: string,
-  preserveActivity = false
+function errorMessage(
+  error: unknown
 ) {
-  let result = value
-
-  if (groupName) {
-    const [grade, letter] =
-      groupName
-        .replace('.º', '')
-        .split(/\s+/)
-
-    result = result.replace(
-      new RegExp(
-        `\\b${grade}\\s*(?:\\.?\\s*[ºo°])?\\s*[-–—.]?\\s*${letter}(?=$|[\\s_.:;|/-])`,
-        'i'
-      ),
-      ' '
-    )
-  }
-
-  if (preserveActivity) return clean(result)
-
-  return result
-    .replace(
-      /\b(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?\b/gi,
-      ' '
-    )
-    .replace(
-      /\b[2-6][ªa]\b/gi,
-      ' '
-    )
-    .replace(
-      /\b(?:sala|lab(?:orat[oó]rio)?|oficina|pavilh[aã]o)\s*[\w./-]+\b/gi,
-      ' '
-    )
-    .replace(
-      /\b(?:turno|grupo)\s*\d+\b/gi,
-      ' '
-    )
-    .replace(/[|•·]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return error instanceof Error
+    ? error.message
+    : 'Ocorreu um erro inesperado.'
 }
 
-function looksLikeRoomOrMarker(
-  value: string
+function manualId(
+  prefix: string
 ) {
-  const compact =
-    value.replace(/\s+/g, '')
+  const uuid =
+    globalThis.crypto
+      ?.randomUUID?.()
 
-  return (
-    /^(?:SP|TE|Cre|REO)$/i.test(value) ||
-    /^[A-Za-z]{1,5}\d+(?:[./-]\d+)?$/i.test(compact)
-  )
-}
-
-function extractDutyName(value: string) {
-  const rawCandidate = clean(value)
-  const hasDutyMarker =
-    /\s+(?:SP|TE|Cre)$/i.test(rawCandidate)
-
-  const candidate = rawCandidate
-    .replace(/\s+(?:SP|TE|Cre)$/i, '')
-    .trim()
-
-  if (
-    !candidate ||
-    extractGroupName(candidate) ||
-    detectWeekday(candidate) ||
-    extractTimeRange(candidate) ||
-    looksLikeRoomOrMarker(candidate)
-  ) {
-    return ''
-  }
-
-  if (hasDutyMarker) {
-    return candidate
-  }
-
-  if (
-    /^(?:Eq(?:uipa)?\s+|Clube\s+)/i.test(candidate) ||
-    /^(?:Trabalho de Escola|Artigo 79|Trabalho Individual|Reunião)$/i.test(candidate)
-  ) {
-    return candidate
-  }
-
-  if (
-    candidate
-      .split(/\s+/)
-      .filter(Boolean)
-      .length >= 2
-  ) {
-    return candidate
-  }
-
-  return ''
+  return uuid
+    ? `${prefix}-${uuid}`
+    : `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`
 }
 
 function suggestedPeriods(
@@ -473,22 +93,22 @@ function suggestedPeriods(
   endTime: string,
   defaultMinutes: number
 ) {
-  const [sh, sm] =
+  const [startHour, startMinute] =
     startTime
       .split(':')
       .map(Number)
 
-  const [eh, em] =
+  const [endHour, endMinute] =
     endTime
       .split(':')
       .map(Number)
 
   const duration =
-    eh * 60 +
-    em -
+    endHour * 60 +
+    endMinute -
     (
-      sh * 60 +
-      sm
+      startHour * 60 +
+      startMinute
     )
 
   return duration > 0 &&
@@ -503,750 +123,16 @@ function suggestedPeriods(
     : 1
 }
 
-function getCellCenter(
-  cell: ExtractedPdfCell
+function weekdayLabel(
+  weekday: Weekday
 ) {
-  return (
-    cell.x +
-    cell.width / 2
-  )
-}
-
-function detectDayColumns(
-  cells: ExtractedPdfCell[]
-) {
-  const detected =
-    new Map<Weekday, DayColumn>()
-
-  for (const cell of cells) {
-    const weekday =
-      detectWeekday(cell.text)
-
-    if (
-      !weekday ||
-      detected.has(weekday)
-    ) {
-      continue
-    }
-
-    detected.set(
-      weekday,
-      {
-        weekday,
-        centerX:
-          getCellCenter(cell)
-      }
-    )
-  }
-
-  return Array.from(
-    detected.values()
-  ).sort(
-    (left, right) =>
-      left.centerX -
-      right.centerX
-  )
-}
-
-function resolveColumnWeekday(
-  cell: ExtractedPdfCell,
-  columns: DayColumn[]
-): Weekday | null {
-  if (columns.length < 2) {
-    return null
-  }
-
-  const centerX =
-    getCellCenter(cell)
-
-  for (
-    let index = 0;
-    index < columns.length;
-    index += 1
-  ) {
-    const current =
-      columns[index]
-    const previous =
-      columns[index - 1]
-    const next =
-      columns[index + 1]
-
-    const lowerBound =
-      previous
-        ? (
-            previous.centerX +
-            current.centerX
-          ) / 2
-        : current.centerX -
-          (
-            next.centerX -
-            current.centerX
-          ) / 2
-
-    const upperBound =
-      next
-        ? (
-            current.centerX +
-            next.centerX
-          ) / 2
-        : current.centerX +
-          (
-            current.centerX -
-            previous.centerX
-          ) / 2
-
-    if (
-      centerX >= lowerBound &&
-      centerX < upperBound
-    ) {
-      return current.weekday
-    }
-  }
-
-  return null
-}
-
-function parsePages(
-  pages: ExtractedPdfPage[],
-  defaultMinutes: number
-): ParsedProposal {
-  const legend = new Map<string, string>()
-  const conflictingCodes = new Set<string>()
-
-  for (const page of pages) {
-    let inLegend = false
-    for (const line of page.lines) {
-      if (normalize(line.text).includes('atividades do professor')) {
-        inLegend = true
-        continue
-      }
-      if (/^(?:o diretor|a diretora)\b/.test(normalize(line.text))) {
-        inLegend = false
-      }
-      if (!inLegend) continue
-      const entry = clean(line.text).match(/^(.{1,48}?)\s*[-–—]\s*(.{2,})$/u)
-      if (!entry) continue
-      const code = normalize(entry[1])
-      const label = clean(entry[2])
-      if (legend.has(code) && normalize(legend.get(code)!) !== normalize(label)) {
-        conflictingCodes.add(code)
-      }
-      legend.set(code, label)
-    }
-  }
-  for (const code of conflictingCodes) legend.set(code, '')
-
-  const lessons: Draft[] = []
-  const duties: DutyDraft[] = []
-  const seenLessons = new Set<string>()
-  const seenDuties = new Set<string>()
-
-  let lessonSequence = 0
-  let dutySequence = 0
-
-  function addLesson(
-    weekday: Weekday,
-    startTime: string,
-    endTime: string,
-    raw: string,
-    requiresReview = false,
-    preserveActivity = false
-  ) {
-    const cleanedRaw =
-      clean(raw)
-
-    const groupName =
-      extractGroupName(cleanedRaw)
-
-    if (!groupName) {
-      return false
-    }
-
-    const extractedSubjectName =
-      stripLessonNoise(
-        cleanedRaw,
-        groupName,
-        preserveActivity
-      )
-
-    if (!extractedSubjectName) {
-      return false
-    }
-
-    const lesson =
-      resolveImportedLessonContext(
-        extractedSubjectName,
-        legend
-      )
-
-    if (
-      !lesson.subjectName &&
-      !lesson.courseName
-    ) {
-      return false
-    }
-
-    const key = [
-      weekday,
-      startTime,
-      endTime,
-      normalize(groupName),
-      normalize(lesson.courseName),
-      normalize(lesson.subjectName)
-    ].join('|')
-
-    if (seenLessons.has(key)) {
-      return false
-    }
-
-    seenLessons.add(key)
-
-    lessons.push({
-      id:
-        `pdf-slot-${lessonSequence += 1}`,
-      included: true,
-      weekday,
-      startTime,
-      endTime,
-      periodCount:
-        suggestedPeriods(
-          startTime,
-          endTime,
-          defaultMinutes
-        ),
-      groupName,
-      courseName:
-        lesson.courseName,
-      subjectName:
-        lesson.subjectName,
-      subjectConfirmed:
-        lesson.subjectConfirmed && !requiresReview
-    })
-
-    return true
-  }
-
-  function addDuty(
-    weekday: Weekday,
-    startTime: string,
-    endTime: string,
-    raw: string
-  ) {
-    const name =
-      extractDutyName(raw)
-
-    if (!name) {
-      return false
-    }
-
-    const key = [
-      weekday,
-      startTime,
-      endTime,
-      normalize(name)
-    ].join('|')
-
-    if (seenDuties.has(key)) {
-      return false
-    }
-
-    seenDuties.add(key)
-
-    duties.push({
-      id:
-        `pdf-duty-${dutySequence += 1}`,
-      included: true,
-      weekday,
-      startTime,
-      endTime,
-      name
-    })
-
-    return true
-  }
-
-  for (const page of pages) {
-    let dayColumns: DayColumn[] = []
-
-    for (const line of page.lines) {
-      const positionedCells =
-        line.positionedCells ?? []
-
-      const detectedColumns =
-        detectDayColumns(positionedCells)
-
-      if (detectedColumns.length >= 2) {
-        dayColumns = detectedColumns
-        continue
-      }
-
-      const time =
-        extractTimeRange(line.text)
-
-      if (!time) {
-        continue
-      }
-
-      let addedFromColumns = false
-
-      if (
-        dayColumns.length >= 2 &&
-        positionedCells.length > 0
-      ) {
-        for (
-          let index = 0;
-          index < positionedCells.length;
-          index += 1
-        ) {
-          const cell =
-            positionedCells[index]
-
-          if (
-            extractTimeRange(cell.text)
-          ) {
-            continue
-          }
-
-          const weekday =
-            resolveColumnWeekday(
-              cell,
-              dayColumns
-            )
-
-          if (!weekday) {
-            continue
-          }
-
-          // Só a célula já separada da sala pode definir a atividade.
-          // Os índices de line.cells pertencem à extração bruta original.
-          if (
-            addDuty(
-              weekday,
-              time.startTime,
-              time.endTime,
-              cell.text
-            )
-          ) {
-            addedFromColumns = true
-            continue
-          }
-
-          const content =
-            clean(
-              cell.text.replace(
-                time.matchedText,
-                ' '
-              )
-            )
-
-          if (
-            !content ||
-            detectWeekday(content)
-          ) {
-            continue
-          }
-
-          if (
-            addLesson(
-              weekday,
-              time.startTime,
-              time.endTime,
-              content,
-              cell.requiresReview,
-              true
-            )
-          ) {
-            addedFromColumns = true
-          }
-        }
-      }
-
-      if (!addedFromColumns) {
-        const explicitDay =
-          detectWeekday(line.text)
-
-        if (!explicitDay) {
-          continue
-        }
-
-        const raw =
-          line.text.replace(
-            time.matchedText,
-            ' '
-          )
-
-        if (
-          !addDuty(
-            explicitDay,
-            time.startTime,
-            time.endTime,
-            raw
-          )
-        ) {
-          addLesson(
-            explicitDay,
-            time.startTime,
-            time.endTime,
-            raw
-          )
-        }
-      }
-    }
-  }
-
-  return {
-    lessons,
-    duties
-  }
-}
-
-function shortName(name: string) {
-  const words =
-    clean(name)
-      .split(/\s+/)
-
-  if (words.length <= 2) {
-    return name.slice(0, 24)
-  }
-
-  const initials =
-    words
-      .filter(
-        word => word.length > 2
-      )
-      .map(
-        word =>
-          word[0]?.toLocaleUpperCase(
-            'pt-PT'
-          ) ?? ''
-      )
-      .join('')
-
-  return (initials || name).slice(0, 24)
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : 'Ocorreu um erro inesperado.'
-}
-
-function timeRangesOverlap(
-  firstStart: string,
-  firstEnd: string,
-  secondStart: string,
-  secondEnd: string
-) {
-  return (
-    firstStart < secondEnd &&
-    secondStart < firstEnd
-  )
-}
-
-function weekdayLabel(weekday: Weekday) {
   return (
     weekdays.find(
-      day => day.value === weekday
-    )?.label ?? 'Dia'
+      day =>
+        day.value === weekday
+    )?.label ??
+    'Dia'
   )
-}
-
-function draftLabel(draft: Draft) {
-  return `${draft.subjectName.trim()} · ${draft.groupName.trim()}`
-}
-
-function validateDraftCourseConsistency(
-  lessons: Draft[]
-) {
-  const courseByGroup =
-    new Map<string, string>()
-
-  for (const lesson of lessons) {
-    const groupName =
-      clean(lesson.groupName)
-    const courseName =
-      clean(lesson.courseName)
-
-    if (!groupName || !courseName) {
-      continue
-    }
-
-    const groupKey =
-      normalize(groupName)
-    const previous =
-      courseByGroup.get(groupKey)
-
-    if (
-      previous &&
-      normalize(previous) !== normalize(courseName)
-    ) {
-      throw new Error(
-        `A turma ${groupName} aparece associada a dois cursos diferentes: “${previous}” e “${courseName}”. Corrija o curso antes de importar.`
-      )
-    }
-
-    courseByGroup.set(
-      groupKey,
-      courseName
-    )
-  }
-}
-
-function validateDraftConflicts(
-  lessons: Draft[],
-  duties: DutyDraft[]
-) {
-  const rows = [
-    ...lessons.map(
-      lesson => ({
-        weekday: lesson.weekday,
-        startTime: lesson.startTime,
-        endTime: lesson.endTime,
-        label: draftLabel(lesson)
-      })
-    ),
-    ...duties.map(
-      duty => ({
-        weekday: duty.weekday,
-        startTime: duty.startTime,
-        endTime: duty.endTime,
-        label: duty.name
-      })
-    )
-  ]
-
-  for (
-    let firstIndex = 0;
-    firstIndex < rows.length;
-    firstIndex += 1
-  ) {
-    for (
-      let secondIndex = firstIndex + 1;
-      secondIndex < rows.length;
-      secondIndex += 1
-    ) {
-      const first = rows[firstIndex]
-      const second = rows[secondIndex]
-
-      if (
-        first.weekday === second.weekday &&
-        timeRangesOverlap(
-          first.startTime,
-          first.endTime,
-          second.startTime,
-          second.endTime
-        )
-      ) {
-        throw new Error(
-          `Há dois blocos sobrepostos na proposta: ${first.label} e ${second.label}, à ${weekdayLabel(first.weekday)}, entre ${first.startTime} e ${first.endTime}. Corrija ou desmarque um deles antes de importar.`
-        )
-      }
-    }
-  }
-}
-
-function isSameExistingLesson(
-  draft: Draft,
-  slot: SetupSnapshot['weeklyScheduleSlots'][number],
-  snapshot: SetupSnapshot
-) {
-  if (
-    slot.weekday !== draft.weekday ||
-    slot.startTime !== draft.startTime ||
-    slot.endTime !== draft.endTime
-  ) {
-    return false
-  }
-
-  const assignment =
-    snapshot.teachingAssignments.find(
-      item => item.id === slot.teachingAssignmentId
-    )
-
-  const group =
-    assignment
-      ? snapshot.groups.find(
-          item => item.id === assignment.groupId
-        )
-      : null
-
-  const subject =
-    assignment
-      ? snapshot.subjects.find(
-          item => item.id === assignment.subjectId
-        )
-      : null
-
-  return Boolean(
-    group &&
-    subject &&
-    normalize(group.name) === normalize(draft.groupName) &&
-    normalize(subject.name) === normalize(draft.subjectName)
-  )
-}
-
-function validateExistingScheduleConflicts(
-  lessons: Draft[],
-  duties: DutyDraft[],
-  snapshot: SetupSnapshot
-) {
-  const activeSlots =
-    snapshot.weeklyScheduleSlots.filter(
-      slot => slot.active
-    )
-
-  for (const draft of lessons) {
-    for (const slot of activeSlots) {
-      if (
-        slot.weekday !== draft.weekday ||
-        !timeRangesOverlap(
-          slot.startTime,
-          slot.endTime,
-          draft.startTime,
-          draft.endTime
-        )
-      ) {
-        continue
-      }
-
-      if (
-        isSameExistingLesson(
-          draft,
-          slot,
-          snapshot
-        )
-      ) {
-        continue
-      }
-
-      const assignment =
-        snapshot.teachingAssignments.find(
-          item => item.id === slot.teachingAssignmentId
-        )
-
-      throw new Error(
-        `O bloco ${draftLabel(draft)} sobrepõe-se a ${assignment?.displayName ?? 'uma aula já existente'}, à ${weekdayLabel(draft.weekday)}, das ${slot.startTime} às ${slot.endTime}. Corrija o horário antes de importar.`
-      )
-    }
-  }
-
-  for (const duty of duties) {
-    const conflict =
-      activeSlots.find(
-        slot =>
-          slot.weekday === duty.weekday &&
-          timeRangesOverlap(
-            slot.startTime,
-            slot.endTime,
-            duty.startTime,
-            duty.endTime
-          )
-      )
-
-    if (conflict) {
-      throw new Error(
-        `O cargo ${duty.name} sobrepõe-se a uma aula já existente, à ${weekdayLabel(duty.weekday)}, das ${duty.startTime} às ${duty.endTime}. Corrija o horário antes de importar.`
-      )
-    }
-  }
-}
-
-function dutyEventTitle(
-  duty: DutyDraft
-) {
-  return `Cargo · ${clean(duty.name)} · ${duty.startTime}–${duty.endTime}`
-}
-
-function dutyEventKey(
-  title: string,
-  date: string
-) {
-  return `${normalize(title)}|${date}`
-}
-
-async function importDutyEvents(
-  academicYear: AcademicYear,
-  duties: DutyDraft[],
-  schoolName: string
-) {
-  if (duties.length === 0) {
-    return 0
-  }
-
-  const existingEvents =
-    await calendarRepository.listEvents({
-      academicYearId: academicYear.id
-    })
-
-  const existingKeys =
-    new Set(
-      existingEvents
-        .filter(
-          event =>
-            event.type === 'school_activity' &&
-            event.scope === 'all'
-        )
-        .map(
-          event =>
-            dutyEventKey(
-              event.title,
-              event.startDate
-            )
-        )
-    )
-
-  let created = 0
-
-  for (const duty of duties) {
-    const title =
-      dutyEventTitle(duty)
-
-    for (
-      const date of getDutyDatesForSchool(
-        academicYear,
-        duty.weekday,
-        schoolName
-      )
-    ) {
-      const key =
-        dutyEventKey(
-          title,
-          date
-        )
-
-      if (existingKeys.has(key)) {
-        continue
-      }
-
-      await calendarRepository.createEvent({
-        academicYearId: academicYear.id,
-        type: 'school_activity',
-        scope: 'all',
-        title,
-        description: '',
-        startDate: date,
-        endDate: date,
-        blocksLessons: false
-      })
-
-      existingKeys.add(key)
-      created += 1
-    }
-  }
-
-  return created
-}
-
-function manualId(prefix: string) {
-  const uuid =
-    globalThis.crypto
-      ?.randomUUID?.()
-
-  return uuid
-    ? `${prefix}-${uuid}`
-    : `${prefix}-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 10)}`
 }
 
 export default function SchedulePdfImportStep({
@@ -1254,71 +140,233 @@ export default function SchedulePdfImportStep({
   onImported,
   onContinueWithoutPdf
 }: Props) {
-  const [fileName, setFileName] = useState('')
-  const [drafts, setDrafts] = useState<Draft[]>([])
-  const [duties, setDuties] = useState<DutyDraft[]>([])
-  const [progress, setProgress] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [
+    fileName,
+    setFileName
+  ] =
+    useState('')
+
+  const [
+    drafts,
+    setDrafts
+  ] =
+    useState<Draft[]>([])
+
+  const [
+    duties,
+    setDuties
+  ] =
+    useState<DutyDraft[]>([])
+
+  const [
+    unresolved,
+    setUnresolved
+  ] =
+    useState<UnresolvedDraft[]>([])
+
+  const [
+    expectedFingerprint,
+    setExpectedFingerprint
+  ] =
+    useState('')
+
+  const [
+    defaultPeriodMinutes,
+    setDefaultPeriodMinutes
+  ] =
+    useState(50)
+
+  const [
+    progress,
+    setProgress
+  ] =
+    useState('')
+
+  const [
+    error,
+    setError
+  ] =
+    useState('')
+
+  const [
+    busy,
+    setBusy
+  ] =
+    useState(false)
 
   const rootRef =
-    useRef<HTMLDivElement>(null)
+    useRef<HTMLDivElement>(
+      null
+    )
 
-  const canUseSavedSchedule = snapshot.weeklyScheduleSlots.some(slot => slot.active)
+  const canUseSavedSchedule =
+    snapshot.weeklyScheduleSlots.some(
+      slot => slot.active
+    )
+
+  const included =
+    useMemo(
+      () =>
+        drafts.filter(
+          draft =>
+            draft.included
+        ),
+      [drafts]
+    )
+
+  const includedDuties =
+    useMemo(
+      () =>
+        duties.filter(
+          duty =>
+            duty.included
+        ),
+      [duties]
+    )
+
+  const unconfirmedSubjects =
+    useMemo(
+      () =>
+        included.filter(
+          draft =>
+            !draft.subjectConfirmed
+        ),
+      [included]
+    )
+
+  const courseConflicts =
+    useMemo(
+      () => {
+        const conflicts =
+          new Map<string, string>()
+
+        for (const draft of included) {
+          const importedCourse =
+            draft.courseName.trim()
+
+          if (!importedCourse) {
+            continue
+          }
+
+          const existingGroup =
+            snapshot.groups.find(
+              group =>
+                normalizeScheduleText(
+                  group.name
+                ) ===
+                  normalizeScheduleText(
+                    draft.groupName
+                  )
+            )
+
+          const existingCourse =
+            existingGroup
+              ?.courseName
+              ?.trim() ??
+            ''
+
+          if (
+            existingGroup &&
+            existingCourse &&
+            normalizeScheduleText(
+              existingCourse
+            ) !==
+              normalizeScheduleText(
+                importedCourse
+              )
+          ) {
+            conflicts.set(
+              draft.id,
+              existingCourse
+            )
+          }
+        }
+
+        return conflicts
+      },
+      [
+        included,
+        snapshot.groups
+      ]
+    )
+
+  const hasProposal =
+    drafts.length > 0 ||
+    duties.length > 0 ||
+    unresolved.length > 0
+
+  const includedCount =
+    included.length +
+    includedDuties.length
+
+  useMAProfessorUnsavedWorkspaceProtection(
+    hasProposal,
+    rootRef,
+    UNSAVED_SCHEDULE_IMPORT_MESSAGE
+  )
 
   function clearProposal() {
     setDrafts([])
     setDuties([])
+    setUnresolved([])
+    setExpectedFingerprint('')
     setFileName('')
     setProgress('')
     setError('')
   }
 
   async function useSavedSchedule() {
-    if (busy) return
+    if (busy) {
+      return
+    }
 
     setBusy(true)
     setError('')
 
     try {
-      const current = await maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
-      if (!current.weeklyScheduleSlots.some(slot => slot.active)) {
-        throw new Error('O horário guardado já não está disponível. Pode ignorar a proposta e continuar com a configuração manual.')
+      const current =
+        await maProfessorRepository
+          .getSetupSnapshot(
+            snapshot.academicYear.id
+          )
+
+      if (
+        !current
+          .weeklyScheduleSlots
+          .some(
+            slot => slot.active
+          )
+      ) {
+        throw new Error(
+          'O horário guardado já não está disponível. Pode ignorar a proposta e continuar com a configuração manual.'
+        )
       }
-      await onImported(current)
+
+      await onImported(
+        current
+      )
+
       clearProposal()
-    } catch (readError) {
-      setError(errorMessage(readError))
+    } catch (
+      readError
+    ) {
+      setError(
+        errorMessage(
+          readError
+        )
+      )
     } finally {
       setBusy(false)
     }
   }
 
-  const included = useMemo(
-    () => drafts.filter(
-      draft => draft.included
-    ),
-    [drafts]
-  )
-
-  const includedDuties = useMemo(
-    () => duties.filter(
-      duty => duty.included
-    ),
-    [duties]
-  )
-
-  const unconfirmedSubjects = useMemo(
-    () => included.filter(
-      draft => !draft.subjectConfirmed
-    ),
-    [included]
-  )
-
   async function handleFileChange(
-    event: ChangeEvent<HTMLInputElement>
+    event:
+      ChangeEvent<HTMLInputElement>
   ) {
-    const file = event.target.files?.[0]
+    const file =
+      event.target.files?.[0]
+
     event.target.value = ''
 
     if (!file) {
@@ -1326,10 +374,27 @@ export default function SchedulePdfImportStep({
     }
 
     if (
-      file.type !== 'application/pdf' &&
-      !file.name.toLocaleLowerCase('pt-PT').endsWith('.pdf')
+      file.type !==
+        'application/pdf' &&
+      !file.name
+        .toLocaleLowerCase(
+          'pt-PT'
+        )
+        .endsWith('.pdf')
     ) {
-      setError('Selecione um ficheiro PDF.')
+      setError(
+        'Selecione um ficheiro PDF.'
+      )
+      return
+    }
+
+    if (
+      file.size >
+      MAX_SCHEDULE_PDF_BYTES
+    ) {
+      setError(
+        'O PDF do horário ultrapassa o limite de 20 MB. Reduza o ficheiro antes de voltar a importar.'
+      )
       return
     }
 
@@ -1337,49 +402,88 @@ export default function SchedulePdfImportStep({
     setError('')
     setDrafts([])
     setDuties([])
+    setUnresolved([])
+    setExpectedFingerprint('')
     setFileName(file.name)
 
     try {
       const extracted =
         await extractTextFromPdf(
           {
-            id: `ma-professor-schedule-${Date.now()}`,
+            id:
+              `ma-professor-schedule-${Date.now()}`,
             file
           },
           setProgress
         )
 
-      const settings =
-        await maProfessorRepository.getSettings()
+      const [
+        settings,
+        importState
+      ] =
+        await Promise.all([
+          maProfessorRepository
+            .getSettings(),
+          readScheduleImportState()
+        ])
+
+      setDefaultPeriodMinutes(
+        settings.defaultPeriodMinutes
+      )
 
       const proposal =
-        parsePages(
+        parseSchedulePdfPages(
           extracted.pages,
           settings.defaultPeriodMinutes
         )
 
       if (
-        proposal.lessons.length === 0 &&
-        proposal.duties.length === 0
+        proposal.lessons.length ===
+          0 &&
+        proposal.duties.length ===
+          0 &&
+        proposal.unresolved.length ===
+          0
       ) {
         throw new Error(
           'Foi possível ler o PDF, mas não reconhecer automaticamente blocos do horário com segurança. Pode continuar com a configuração manual sem perder nada.'
         )
       }
 
-      setDrafts(proposal.lessons)
-      setDuties(proposal.duties)
+      setDrafts(
+        proposal.lessons
+      )
+      setDuties(
+        proposal.duties
+      )
+      setUnresolved(
+        proposal.unresolved
+      )
+      setExpectedFingerprint(
+        importState.fingerprint
+      )
 
       const pendingSubjectCount =
         proposal.lessons.filter(
-          lesson => !lesson.subjectConfirmed
+          lesson =>
+            !lesson.subjectConfirmed
         ).length
 
+      const foundCount =
+        proposal.lessons.length +
+        proposal.duties.length
+
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} reconhecido${foundCount === 1 ? '' : 's'}. ${proposal.unresolved.length > 0 ? `${proposal.unresolved.length} elemento${proposal.unresolved.length === 1 ? '' : 's'} ficou${proposal.unresolved.length === 1 ? '' : 'aram'} por rever; nada será descartado silenciosamente. ` : ''}${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada.`
       )
-    } catch (readError) {
-      setError(errorMessage(readError))
+    } catch (
+      readError
+    ) {
+      setError(
+        errorMessage(
+          readError
+        )
+      )
       setProgress('')
     } finally {
       setBusy(false)
@@ -1388,18 +492,20 @@ export default function SchedulePdfImportStep({
 
   function updateDraft(
     id: string,
-    changes: Partial<Draft>
+    changes:
+      Partial<Draft>
   ) {
     setDrafts(
-      current => current.map(
-        draft =>
-          draft.id === id
-            ? {
-                ...draft,
-                ...changes
-              }
-            : draft
-      )
+      current =>
+        current.map(
+          draft =>
+            draft.id === id
+              ? {
+                  ...draft,
+                  ...changes
+                }
+              : draft
+        )
     )
 
     setError('')
@@ -1407,18 +513,20 @@ export default function SchedulePdfImportStep({
 
   function updateDuty(
     id: string,
-    changes: Partial<DutyDraft>
+    changes:
+      Partial<DutyDraft>
   ) {
     setDuties(
-      current => current.map(
-        duty =>
-          duty.id === id
-            ? {
-                ...duty,
-                ...changes
-              }
-            : duty
-      )
+      current =>
+        current.map(
+          duty =>
+            duty.id === id
+              ? {
+                  ...duty,
+                  ...changes
+                }
+              : duty
+        )
     )
 
     setError('')
@@ -1433,19 +541,32 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('manual-slot'),
-          included: true,
-          weekday: 1,
-          startTime: '08:30',
-          endTime: '09:20',
-          periodCount: 1,
-          groupName: '',
-          courseName: '',
-          subjectName: '',
-          subjectConfirmed: false
+          id:
+            manualId(
+              'manual-slot'
+            ),
+          included:
+            true,
+          weekday:
+            1,
+          startTime:
+            '08:30',
+          endTime:
+            '09:20',
+          periodCount:
+            1,
+          groupName:
+            '',
+          courseName:
+            '',
+          subjectName:
+            '',
+          subjectConfirmed:
+            false
         }
       ]
     )
+
     setError('')
   }
 
@@ -1458,20 +579,127 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('manual-duty'),
-          included: true,
-          weekday: 1,
-          startTime: '08:30',
-          endTime: '09:20',
-          name: ''
+          id:
+            manualId(
+              'manual-duty'
+            ),
+          included:
+            true,
+          weekday:
+            1,
+          startTime:
+            '08:30',
+          endTime:
+            '09:20',
+          name:
+            ''
         }
       ]
     )
+
     setError('')
+  }
+
+  function removeUnresolved(
+    id: string
+  ) {
+    setUnresolved(
+      current =>
+        current.filter(
+          item => item.id !== id
+        )
+    )
+
+    setError('')
+  }
+
+  function resolveAsLesson(
+    item: UnresolvedDraft
+  ) {
+    const groupName =
+      extractScheduleGroupName(
+        item.rawText
+      )
+
+    setDrafts(
+      current => [
+        ...current,
+        {
+          id:
+            manualId(
+              'review-slot'
+            ),
+          included:
+            true,
+          weekday:
+            item.weekday,
+          startTime:
+            item.startTime,
+          endTime:
+            item.endTime,
+          periodCount:
+            suggestedPeriods(
+              item.startTime,
+              item.endTime,
+              defaultPeriodMinutes
+            ),
+          groupName,
+          courseName:
+            '',
+          subjectName:
+            item.rawText,
+          subjectConfirmed:
+            false
+        }
+      ]
+    )
+
+    removeUnresolved(
+      item.id
+    )
+  }
+
+  function resolveAsDuty(
+    item: UnresolvedDraft
+  ) {
+    setDuties(
+      current => [
+        ...current,
+        {
+          id:
+            manualId(
+              'review-duty'
+            ),
+          included:
+            true,
+          weekday:
+            item.weekday,
+          startTime:
+            item.startTime,
+          endTime:
+            item.endTime,
+          name:
+            item.rawText
+        }
+      ]
+    )
+
+    removeUnresolved(
+      item.id
+    )
   }
 
   async function applyImport() {
     if (busy) {
+      return
+    }
+
+    if (
+      unresolved.length > 0
+    ) {
+      setError(
+        'Existem elementos por rever. Classifique cada um como aula, cargo ou ignore-o explicitamente antes de guardar.'
+      )
       return
     }
 
@@ -1485,340 +713,85 @@ export default function SchedulePdfImportStep({
       return
     }
 
-    if (unconfirmedSubjects.length > 0) {
+    if (
+      unconfirmedSubjects.length > 0
+    ) {
       setError(
         'Existem siglas ou nomes de disciplina por confirmar. Corrija a disciplina em cada linha assinalada ou escolha “Confirmar como disciplina”. O MA-Professor não vai criar disciplinas a partir de siglas ambíguas sem confirmação.'
       )
       return
     }
 
-    if (
-      included.some(
-        draft =>
-          !draft.groupName.trim() ||
-          !draft.subjectName.trim() ||
-          !draft.startTime ||
-          !draft.endTime ||
-          draft.startTime >= draft.endTime ||
-          !Number.isInteger(draft.periodCount) ||
-          draft.periodCount <= 0
-      ) ||
-      includedDuties.some(
-        duty =>
-          !duty.name.trim() ||
-          !duty.startTime ||
-          !duty.endTime ||
-          duty.startTime >= duty.endTime
-      )
-    ) {
+    if (!expectedFingerprint) {
       setError(
-        'Reveja os blocos: existem dados em falta ou horas inválidas.'
+        'O estado de segurança desta proposta já não está disponível. Volte a selecionar o PDF antes de confirmar.'
       )
       return
     }
 
     setBusy(true)
     setError('')
-    setProgress('A validar a proposta...')
+    setProgress(
+      'A validar e guardar a proposta numa única operação...'
+    )
 
     try {
       const academicYearId =
         snapshot.academicYear.id
 
-      let current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      validateDraftCourseConsistency(
-        included
-      )
-
-      validateDraftConflicts(
-        included,
-        includedDuties
-      )
-
-      validateExistingScheduleConflicts(
-        included,
-        includedDuties,
-        current
-      )
-
-      setProgress(
-        'A guardar a configuração confirmada...'
-      )
-
-      const groups =
-        new Map(
-          current.groups.map(
-            group => [
-              normalize(group.name),
-              group
-            ]
-          )
-        )
-
-      const subjects =
-        new Map(
-          current.subjects.map(
-            subject => [
-              normalize(subject.name),
-              subject
-            ]
-          )
-        )
-
-      for (const draft of included) {
-        const groupName =
-          clean(draft.groupName)
-
-        const courseName =
-          clean(draft.courseName)
-
-        const subjectName =
-          clean(draft.subjectName)
-
-        const groupKey =
-          normalize(groupName)
-
-        let group =
-          groups.get(groupKey)
-
-        if (!group) {
-          const grade =
-            groupName.match(/^\s*(10|11|12)/)?.[1]
-
-          group =
-            await maProfessorRepository.createGroup({
-              academicYearId,
-              name: groupName,
-              courseName,
-              gradeLevel:
-                grade
-                  ? `${grade}.º ano`
-                  : '',
-              active: true
-            })
-
-          groups.set(
-            groupKey,
-            group
-          )
-        } else if (
-          courseName &&
-          normalize(group.courseName ?? '') !==
-            normalize(courseName)
-        ) {
-          group =
-            await maProfessorRepository.updateGroup(
-              group.id,
-              {
-                courseName
-              }
-            )
-
-          groups.set(
-            groupKey,
-            group
-          )
-        }
-
-        if (!subjects.has(normalize(subjectName))) {
-          const subject =
-            await maProfessorRepository.createSubject({
-              academicYearId,
-              name: subjectName,
-              shortName:
-                shortName(subjectName),
-              code: '',
-              active: true
-            })
-
-          subjects.set(
-            normalize(subjectName),
-            subject
-          )
-        }
-      }
-
-      current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      const assignments =
-        new Map(
-          current.teachingAssignments.map(
-            assignment => [
-              `${assignment.groupId}|${assignment.subjectId}`,
-              assignment
-            ]
-          )
-        )
-
-      const resolved: Array<{
-        draft: Draft
-        assignmentId: string
-      }> = []
-
-      for (const draft of included) {
-        const group =
-          groups.get(
-            normalize(
-              clean(draft.groupName)
-            )
-          )
-
-        const subject =
-          subjects.get(
-            normalize(
-              clean(draft.subjectName)
-            )
-          )
-
-        if (!group || !subject) {
-          throw new Error(
-            'Não foi possível associar uma turma ou disciplina importada.'
-          )
-        }
-
-        const pair =
-          `${group.id}|${subject.id}`
-
-        let assignment =
-          assignments.get(pair)
-
-        if (!assignment) {
-          assignment =
-            await maProfessorRepository.createTeachingAssignment({
-              academicYearId,
-              groupId: group.id,
-              subjectId: subject.id,
-              displayName:
-                `${subject.shortName || subject.name} · ${group.name}`,
-              active: true
-            })
-
-          assignments.set(
-            pair,
-            assignment
-          )
-        }
-
-        resolved.push({
-          draft,
-          assignmentId: assignment.id
-        })
-      }
-
-      current =
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
-
-      const existingSlots =
-        new Set(
-          current.weeklyScheduleSlots.map(
-            slot => [
-              slot.teachingAssignmentId,
-              slot.weekday,
-              slot.startTime,
-              slot.endTime
-            ].join('|')
-          )
-        )
-
-      for (const {
-        draft,
-        assignmentId
-      } of resolved) {
-        const key = [
-          assignmentId,
-          draft.weekday,
-          draft.startTime,
-          draft.endTime
-        ].join('|')
-
-        if (existingSlots.has(key)) {
-          continue
-        }
-
-        await maProfessorRepository.createWeeklyScheduleSlot({
+      const result =
+        await commitScheduleImport({
+          confirmed:
+            true,
           academicYearId,
-          teachingAssignmentId: assignmentId,
-          weekday: draft.weekday,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-          periodCount: draft.periodCount,
-          validFrom:
-            snapshot.academicYear.startDate,
-          validUntil:
-            snapshot.academicYear.endDate,
-          active: true
+          expectedFingerprint,
+          lessons:
+            included,
+          duties:
+            includedDuties
         })
 
-        existingSlots.add(key)
-      }
-
-      let schoolName = ''
-
-      if (includedDuties.length > 0) {
-        const profile =
-          await maProfessorRepository.getTeacherProfile()
-
-        schoolName =
-          profile?.schoolName?.trim() ??
-          ''
-
-        if (!schoolName) {
-          throw new Error(
-            'Não foi possível identificar a escola do professor. Confirme a escola antes de programar os cargos no calendário.'
-          )
-        }
-      }
-
-      const createdDuties =
-        await importDutyEvents(
-          snapshot.academicYear,
-          includedDuties,
-          schoolName
-        )
+      const courseNotice =
+        result.preservedCourses > 0
+          ? ` ${result.preservedCourses} conflito${result.preservedCourses === 1 ? '' : 's'} de curso foi${result.preservedCourses === 1 ? '' : 'ram'} resolvido${result.preservedCourses === 1 ? '' : 's'} mantendo o curso que já estava confirmado no MA-Professor.`
+          : ''
 
       setProgress(
-        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'} e ${createdDuties} ocorrência${createdDuties === 1 ? '' : 's'} de cargos programada${createdDuties === 1 ? '' : 's'}.`
+        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'}; ${result.createdSlots} novo${result.createdSlots === 1 ? '' : 's'} bloco${result.createdSlots === 1 ? '' : 's'} de horário criado${result.createdSlots === 1 ? '' : 's'} e ${result.createdDutyOccurrences} ocorrência${result.createdDutyOccurrences === 1 ? '' : 's'} de cargos programada${result.createdDutyOccurrences === 1 ? '' : 's'}.${courseNotice}`
       )
 
       await onImported(
-        await maProfessorRepository.getSetupSnapshot(
-          academicYearId
-        )
+        await maProfessorRepository
+          .getSetupSnapshot(
+            academicYearId
+          )
       )
-      // In detailed setup the panel stays mounted after importing.
-      // A saved proposal must no longer block navigation as unsaved work.
+
+      // O painel pode permanecer montado no setup detalhado. Depois de um
+      // commit bem-sucedido já não existe proposta pendente a proteger.
       setDrafts([])
       setDuties([])
+      setUnresolved([])
+      setExpectedFingerprint('')
       setFileName('')
-    } catch (submitError) {
-      setError(errorMessage(submitError))
+    } catch (
+      submitError
+    ) {
+      setError(
+        errorMessage(
+          submitError
+        )
+      )
       setProgress('')
     } finally {
       setBusy(false)
     }
   }
 
-  const hasProposal =
-    drafts.length > 0 ||
-    duties.length > 0
-
-  useMAProfessorUnsavedWorkspaceProtection(
-    hasProposal,
-    rootRef,
-    UNSAVED_SCHEDULE_IMPORT_MESSAGE
-  )
-
   function requestContinueWithoutPdf() {
-    if (busy) return
+    if (busy) {
+      return
+    }
 
     if (!hasProposal) {
       clearProposal()
@@ -1834,15 +807,9 @@ export default function SchedulePdfImportStep({
       return
     }
 
-    // The detailed wizard keeps this panel mounted and its callback is a no-op.
-    // Discard locally so the proposal, error and navigation guard really close.
     clearProposal()
     onContinueWithoutPdf()
   }
-
-  const includedCount =
-    included.length +
-    includedDuties.length
 
   return (
     <div
@@ -1861,7 +828,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Curso, turma e disciplina são revistos separadamente; AP/TAP é reconhecido como curso Técnico de Apoio Psicossocial e pode ser corrigido antes de guardar.
+              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. Um elemento ambíguo fica visível para revisão em vez de desaparecer. Curso, turma e disciplina continuam editáveis antes de guardar.
             </p>
           </div>
 
@@ -1874,8 +841,11 @@ export default function SchedulePdfImportStep({
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
             <p className="max-w-3xl text-sm leading-6 text-slate-300">
               Já existe um horário guardado. Pode utilizá-lo para continuar a configuração.
-              {hasProposal ? ' A proposta deste PDF será descartada e os dados guardados serão mantidos.' : ''}
+              {hasProposal
+                ? ' A proposta deste PDF será descartada e os dados guardados serão mantidos.'
+                : ''}
             </p>
+
             {!hasProposal ? (
               <button
                 type="button"
@@ -1900,7 +870,7 @@ export default function SchedulePdfImportStep({
 
               <span className="mt-2 text-sm leading-6 text-slate-500">
                 {fileName ||
-                  'PDF com texto selecionável. Se for uma digitalização, o fluxo manual continua disponível.'}
+                  'PDF com texto selecionável, até 20 MB. Se for uma digitalização, o fluxo manual continua disponível.'}
               </span>
 
               <input
@@ -1929,7 +899,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Compare primeiro a vista de horário com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Nenhuma sala é guardada. Se aparecer “AP” ou “TAP” junto da aula, essa sigla é colocada no campo Curso, não no campo Disciplina.
+                Compare a vista com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Um curso que já exista na turma nunca é substituído silenciosamente por uma inferência do PDF.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1953,15 +923,98 @@ export default function SchedulePdfImportStep({
               </div>
             </div>
 
-            <div className="mt-5">
-              <ScheduleImportVisualGrid
-                lessons={drafts}
-                duties={duties}
-                disabled={busy}
-                onUpdateLesson={updateDraft}
-                onUpdateDuty={updateDuty}
-              />
-            </div>
+            {unresolved.length > 0 ? (
+              <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/[0.055] p-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+                    Elementos por rever
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-amber-50/80">
+                    Estes blocos foram encontrados no PDF, mas o MA-Professor não conseguiu classificá-los com segurança. Nada será apagado automaticamente. Escolha o que cada elemento representa ou ignore-o explicitamente.
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {unresolved.map(item => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-amber-300/15 bg-slate-950/55 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            {weekdayLabel(item.weekday)} · {item.startTime}–{item.endTime}
+                          </p>
+
+                          <p className="mt-1 text-sm text-amber-100">
+                            {item.rawText}
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-500">
+                            {item.reason}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              resolveAsLesson(
+                                item
+                              )
+                            }
+                            className="rounded-lg border border-cyan-300/25 bg-cyan-300/[0.08] px-3 py-2 text-xs font-black text-cyan-100 disabled:opacity-50"
+                          >
+                            Tratar como aula
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              resolveAsDuty(
+                                item
+                              )
+                            }
+                            className="rounded-lg border border-violet-300/25 bg-violet-300/[0.08] px-3 py-2 text-xs font-black text-violet-100 disabled:opacity-50"
+                          >
+                            Tratar como cargo
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              removeUnresolved(
+                                item.id
+                              )
+                            }
+                            className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-black text-slate-300 disabled:opacity-50"
+                          >
+                            Ignorar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {drafts.length > 0 ||
+            duties.length > 0 ? (
+              <div className="mt-5">
+                <ScheduleImportVisualGrid
+                  lessons={drafts}
+                  duties={duties}
+                  disabled={busy}
+                  onUpdateLesson={updateDraft}
+                  onUpdateDuty={updateDuty}
+                />
+              </div>
+            ) : null}
 
             {drafts.length > 0 ? (
               <div className="mt-7">
@@ -1985,204 +1038,232 @@ export default function SchedulePdfImportStep({
                     </thead>
 
                     <tbody>
-                      {drafts.map(draft => (
-                        <tr
-                          key={draft.id}
-                          className="border-t border-white/[0.07] align-top"
-                        >
-                          <td className="px-3 py-3">
-                            <input
-                              type="checkbox"
-                              checked={draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    included:
-                                      event.target.checked
-                                  }
-                                )
-                              }
-                              className="h-4 w-4 accent-cyan-300"
-                            />
-                          </td>
+                      {drafts.map(draft => {
+                        const existingCourse =
+                          courseConflicts.get(
+                            draft.id
+                          )
 
-                          <td className="px-3 py-3">
-                            <select
-                              value={draft.weekday}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    weekday:
-                                      Number(event.target.value) as Weekday
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            >
-                              {weekdays.map(day => (
-                                <option
-                                  key={day.value}
-                                  value={day.value}
-                                >
-                                  {day.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={draft.startTime}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    startTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="time"
-                              value={draft.endTime}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    endTime:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              type="number"
-                              min={1}
-                              max={12}
-                              value={draft.periodCount}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    periodCount:
-                                      Math.max(
-                                        1,
-                                        Number(event.target.value) || 1
-                                      )
-                                  }
-                                )
-                              }
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              value={draft.groupName}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    groupName:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Ex.: 10.º D"
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <input
-                              value={draft.courseName}
-                              disabled={!draft.included}
-                              onChange={event =>
-                                updateDraft(
-                                  draft.id,
-                                  {
-                                    courseName:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              placeholder="Ex.: Técnico de Apoio Psicossocial"
-                              className={inputClassName}
-                            />
-                          </td>
-
-                          <td className="px-3 py-3">
-                            <div className="min-w-52">
+                        return (
+                          <tr
+                            key={draft.id}
+                            className="border-t border-white/[0.07] align-top"
+                          >
+                            <td className="px-3 py-3">
                               <input
-                                value={draft.subjectName}
+                                type="checkbox"
+                                checked={draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      included:
+                                        event.target.checked
+                                    }
+                                  )
+                                }
+                                className="h-4 w-4 accent-cyan-300"
+                              />
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <select
+                                value={draft.weekday}
                                 disabled={!draft.included}
                                 onChange={event =>
                                   updateDraft(
                                     draft.id,
                                     {
-                                      subjectName:
-                                        event.target.value,
-                                      subjectConfirmed:
-                                        Boolean(
-                                          event.target.value.trim()
+                                      weekday:
+                                        Number(
+                                          event.target.value
+                                        ) as Weekday
+                                    }
+                                  )
+                                }
+                                className={inputClassName}
+                              >
+                                {weekdays.map(day => (
+                                  <option
+                                    key={day.value}
+                                    value={day.value}
+                                  >
+                                    {day.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <input
+                                type="time"
+                                value={draft.startTime}
+                                disabled={!draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      startTime:
+                                        event.target.value
+                                    }
+                                  )
+                                }
+                                className={inputClassName}
+                              />
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <input
+                                type="time"
+                                value={draft.endTime}
+                                disabled={!draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      endTime:
+                                        event.target.value
+                                    }
+                                  )
+                                }
+                                className={inputClassName}
+                              />
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <input
+                                type="number"
+                                min={1}
+                                max={12}
+                                value={draft.periodCount}
+                                disabled={!draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      periodCount:
+                                        Math.max(
+                                          1,
+                                          Number(
+                                            event.target.value
+                                          ) || 1
                                         )
                                     }
                                   )
                                 }
-                                placeholder="Disciplina"
-                                className={
-                                  draft.included &&
-                                  !draft.subjectConfirmed
-                                    ? `${inputClassName} border-amber-300/40 focus:border-amber-300/60 focus:ring-amber-300/10`
-                                    : inputClassName
-                                }
+                                className={inputClassName}
                               />
+                            </td>
 
-                              {draft.included &&
-                              !draft.subjectConfirmed ? (
-                                <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-2.5">
-                                  <p className="text-xs leading-5 text-amber-100">
-                                    “{draft.subjectName || '—'}” ainda não é uma disciplina confirmada. Corrija o nome ou confirme explicitamente. AP/TAP, quando detetado, já foi separado para o campo Curso.
-                                  </p>
-
-                                  <button
-                                    type="button"
-                                    disabled={!draft.subjectName.trim()}
-                                    onClick={() =>
-                                      updateDraft(
-                                        draft.id,
-                                        {
-                                          subjectConfirmed: true
-                                        }
-                                      )
+                            <td className="px-3 py-3">
+                              <input
+                                value={draft.groupName}
+                                disabled={!draft.included}
+                                onChange={event =>
+                                  updateDraft(
+                                    draft.id,
+                                    {
+                                      groupName:
+                                        event.target.value
                                     }
-                                    className="mt-2 rounded-lg border border-amber-300/25 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    Confirmar como disciplina
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                  )
+                                }
+                                placeholder="Ex.: 10.º D"
+                                className={inputClassName}
+                              />
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <div className="min-w-60">
+                                <input
+                                  value={draft.courseName}
+                                  disabled={!draft.included}
+                                  onChange={event =>
+                                    updateDraft(
+                                      draft.id,
+                                      {
+                                        courseName:
+                                          event.target.value
+                                      }
+                                    )
+                                  }
+                                  placeholder="Ex.: Técnico de Apoio Psicossocial"
+                                  className={
+                                    existingCourse
+                                      ? `${inputClassName} border-amber-300/40`
+                                      : inputClassName
+                                  }
+                                />
+
+                                {existingCourse ? (
+                                  <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2 text-[0.68rem] leading-4 text-amber-100">
+                                    Esta turma já tem o curso “{existingCourse}”. Por segurança, esse valor será mantido; o PDF não o substitui automaticamente.
+                                  </p>
+                                ) : null}
+                              </div>
+                            </td>
+
+                            <td className="px-3 py-3">
+                              <div className="min-w-52">
+                                <input
+                                  value={draft.subjectName}
+                                  disabled={!draft.included}
+                                  onChange={event =>
+                                    updateDraft(
+                                      draft.id,
+                                      {
+                                        subjectName:
+                                          event.target.value,
+                                        subjectConfirmed:
+                                          Boolean(
+                                            event.target.value.trim()
+                                          )
+                                      }
+                                    )
+                                  }
+                                  placeholder="Disciplina"
+                                  className={
+                                    draft.included &&
+                                    !draft.subjectConfirmed
+                                      ? `${inputClassName} border-amber-300/40 focus:border-amber-300/60 focus:ring-amber-300/10`
+                                      : inputClassName
+                                  }
+                                />
+
+                                {draft.included &&
+                                !draft.subjectConfirmed ? (
+                                  <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-2.5">
+                                    <p className="text-xs leading-5 text-amber-100">
+                                      “{draft.subjectName || '—'}” ainda não é uma disciplina confirmada. Corrija o nome ou confirme explicitamente.
+                                    </p>
+
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        !draft
+                                          .subjectName
+                                          .trim()
+                                      }
+                                      onClick={() =>
+                                        updateDraft(
+                                          draft.id,
+                                          {
+                                            subjectConfirmed:
+                                              true
+                                          }
+                                        )
+                                      }
+                                      className="mt-2 rounded-lg border border-amber-300/25 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      Confirmar como disciplina
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -2247,7 +1328,9 @@ export default function SchedulePdfImportStep({
                                   duty.id,
                                   {
                                     weekday:
-                                      Number(event.target.value) as Weekday
+                                      Number(
+                                        event.target.value
+                                      ) as Weekday
                                   }
                                 )
                               }
@@ -2336,6 +1419,7 @@ export default function SchedulePdfImportStep({
                   Usar horário guardado
                 </button>
               ) : null}
+
               <button
                 type="button"
                 onClick={requestContinueWithoutPdf}
@@ -2351,15 +1435,18 @@ export default function SchedulePdfImportStep({
                 disabled={
                   busy ||
                   includedCount === 0 ||
+                  unresolved.length > 0 ||
                   unconfirmedSubjects.length > 0
                 }
                 className="rounded-xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-2.5 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy
                   ? 'A aplicar...'
-                  : unconfirmedSubjects.length > 0
-                    ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
-                    : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
+                  : unresolved.length > 0
+                    ? `Rever ${unresolved.length} elemento${unresolved.length === 1 ? '' : 's'} primeiro`
+                    : unconfirmedSubjects.length > 0
+                      ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
+                      : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
               </button>
             </div>
           </>
