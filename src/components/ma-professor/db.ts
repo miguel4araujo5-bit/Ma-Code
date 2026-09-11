@@ -43,6 +43,233 @@ export const MA_PROFESSOR_DATABASE_VERSION =
 export const MA_PROFESSOR_DEFAULT_SETTINGS_ID =
   'default'
 
+export interface MAProfessorStorageStatus {
+  persisted: boolean | null
+  usage: number | null
+  quota: number | null
+}
+
+let persistentStorageRequest:
+  Promise<boolean | null> | null =
+  null
+
+function readErrorName(
+  error: unknown
+) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    typeof (
+      error as { name?: unknown }
+    ).name === 'string'
+  ) {
+    return (
+      error as { name: string }
+    ).name
+  }
+
+  return ''
+}
+
+function readNestedError(
+  error: unknown,
+  key: 'inner' | 'cause'
+) {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !(key in error)
+  ) {
+    return null
+  }
+
+  return (
+    error as Record<
+      'inner' | 'cause',
+      unknown
+    >
+  )[key]
+}
+
+export function isMAProfessorStorageQuotaError(
+  error: unknown,
+  depth = 0
+): boolean {
+  if (
+    depth > 4 ||
+    !error
+  ) {
+    return false
+  }
+
+  const name =
+    readErrorName(error)
+
+  if (
+    name === 'QuotaExceededError' ||
+    name === 'QuotaExceededErrorError'
+  ) {
+    return true
+  }
+
+  const inner =
+    readNestedError(
+      error,
+      'inner'
+    )
+
+  if (
+    inner &&
+    isMAProfessorStorageQuotaError(
+      inner,
+      depth + 1
+    )
+  ) {
+    return true
+  }
+
+  const cause =
+    readNestedError(
+      error,
+      'cause'
+    )
+
+  return Boolean(
+    cause &&
+    isMAProfessorStorageQuotaError(
+      cause,
+      depth + 1
+    )
+  )
+}
+
+export function normalizeMAProfessorStorageError(
+  error: unknown
+) {
+  if (
+    isMAProfessorStorageQuotaError(
+      error
+    )
+  ) {
+    return new Error(
+      'O armazenamento local disponível para o MA-Professor ficou sem espaço. Os dados já guardados não devem ser apagados. Exporte uma cópia de segurança antes de libertar espaço no browser ou no dispositivo.'
+    )
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error(
+        'Não foi possível aceder ao armazenamento local do MA-Professor.'
+      )
+}
+
+export async function requestPersistentMAProfessorStorage(): Promise<
+  boolean | null
+> {
+  if (
+    typeof navigator === 'undefined' ||
+    !navigator.storage ||
+    typeof navigator.storage.persist !==
+      'function'
+  ) {
+    return null
+  }
+
+  if (!persistentStorageRequest) {
+    persistentStorageRequest =
+      (async () => {
+        try {
+          if (
+            typeof navigator.storage
+              .persisted ===
+              'function' &&
+            await navigator.storage
+              .persisted()
+          ) {
+            return true
+          }
+
+          return await navigator.storage
+            .persist()
+        } catch {
+          return null
+        }
+      })()
+  }
+
+  return persistentStorageRequest
+}
+
+export async function getMAProfessorStorageStatus(): Promise<
+  MAProfessorStorageStatus
+> {
+  if (
+    typeof navigator === 'undefined' ||
+    !navigator.storage
+  ) {
+    return {
+      persisted: null,
+      usage: null,
+      quota: null
+    }
+  }
+
+  let persisted:
+    boolean | null = null
+  let usage:
+    number | null = null
+  let quota:
+    number | null = null
+
+  try {
+    if (
+      typeof navigator.storage
+        .persisted ===
+        'function'
+    ) {
+      persisted =
+        await navigator.storage
+          .persisted()
+    }
+  } catch {
+    persisted = null
+  }
+
+  try {
+    if (
+      typeof navigator.storage
+        .estimate ===
+        'function'
+    ) {
+      const estimate =
+        await navigator.storage
+          .estimate()
+
+      usage =
+        typeof estimate.usage ===
+          'number'
+          ? estimate.usage
+          : null
+
+      quota =
+        typeof estimate.quota ===
+          'number'
+          ? estimate.quota
+          : null
+    }
+  } catch {
+    usage = null
+    quota = null
+  }
+
+  return {
+    persisted,
+    usage,
+    quota
+  }
+}
+
 export function createDefaultMAProfessorSettings(
   timestamp = new Date().toISOString()
 ): MAProfessorSettings {
@@ -349,8 +576,18 @@ export async function openMAProfessorDatabase() {
   if (
     !maProfessorDb.isOpen()
   ) {
-    await maProfessorDb.open()
+    try {
+      await maProfessorDb.open()
+    } catch (
+      error
+    ) {
+      throw normalizeMAProfessorStorageError(
+        error
+      )
+    }
   }
+
+  await requestPersistentMAProfessorStorage()
 
   return maProfessorDb
 }
@@ -381,9 +618,17 @@ export async function ensureDefaultMAProfessorSettings() {
   const defaultSettings =
     createDefaultMAProfessorSettings()
 
-  await database.settings.put(
-    defaultSettings
-  )
+  try {
+    await database.settings.put(
+      defaultSettings
+    )
+  } catch (
+    error
+  ) {
+    throw normalizeMAProfessorStorageError(
+      error
+    )
+  }
 
   return defaultSettings
 }
