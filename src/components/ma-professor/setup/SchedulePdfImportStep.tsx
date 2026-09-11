@@ -31,7 +31,7 @@ import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
   snapshot: SetupSnapshot
-  onImported: (snapshot: SetupSnapshot) => void
+  onImported: (snapshot: SetupSnapshot) => void | Promise<void>
   onContinueWithoutPdf: () => void
 }
 
@@ -1264,6 +1264,36 @@ export default function SchedulePdfImportStep({
   const rootRef =
     useRef<HTMLDivElement>(null)
 
+  const canUseSavedSchedule = snapshot.weeklyScheduleSlots.some(slot => slot.active)
+
+  function clearProposal() {
+    setDrafts([])
+    setDuties([])
+    setFileName('')
+    setProgress('')
+    setError('')
+  }
+
+  async function useSavedSchedule() {
+    if (busy) return
+
+    setBusy(true)
+    setError('')
+
+    try {
+      const current = await maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
+      if (!current.weeklyScheduleSlots.some(slot => slot.active)) {
+        throw new Error('O horário guardado já não está disponível. Pode ignorar a proposta e continuar com a configuração manual.')
+      }
+      await onImported(current)
+      clearProposal()
+    } catch (readError) {
+      setError(errorMessage(readError))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const included = useMemo(
     () => drafts.filter(
       draft => draft.included
@@ -1759,11 +1789,16 @@ export default function SchedulePdfImportStep({
         `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'} e ${createdDuties} ocorrência${createdDuties === 1 ? '' : 's'} de cargos programada${createdDuties === 1 ? '' : 's'}.`
       )
 
-      onImported(
+      await onImported(
         await maProfessorRepository.getSetupSnapshot(
           academicYearId
         )
       )
+      // In detailed setup the panel stays mounted after importing.
+      // A saved proposal must no longer block navigation as unsaved work.
+      setDrafts([])
+      setDuties([])
+      setFileName('')
     } catch (submitError) {
       setError(errorMessage(submitError))
       setProgress('')
@@ -1783,7 +1818,10 @@ export default function SchedulePdfImportStep({
   )
 
   function requestContinueWithoutPdf() {
+    if (busy) return
+
     if (!hasProposal) {
+      clearProposal()
       onContinueWithoutPdf()
       return
     }
@@ -1796,6 +1834,9 @@ export default function SchedulePdfImportStep({
       return
     }
 
+    // The detailed wizard keeps this panel mounted and its callback is a no-op.
+    // Discard locally so the proposal, error and navigation guard really close.
+    clearProposal()
     onContinueWithoutPdf()
   }
 
@@ -1828,6 +1869,25 @@ export default function SchedulePdfImportStep({
             Leitura local · sem envio do PDF
           </div>
         </div>
+
+        {canUseSavedSchedule ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
+            <p className="max-w-3xl text-sm leading-6 text-slate-300">
+              Já existe um horário guardado. Pode utilizá-lo para continuar a configuração.
+              {hasProposal ? ' A proposta deste PDF será descartada e os dados guardados serão mantidos.' : ''}
+            </p>
+            {!hasProposal ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={useSavedSchedule}
+                className="rounded-xl border border-cyan-300/30 bg-cyan-300/15 px-4 py-2.5 text-sm font-bold text-cyan-50 disabled:opacity-50"
+              >
+                Usar horário guardado
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {!hasProposal ? (
           <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -2266,6 +2326,16 @@ export default function SchedulePdfImportStep({
             ) : null}
 
             <div className="mt-5 flex flex-wrap justify-end gap-3">
+              {canUseSavedSchedule ? (
+                <button
+                  type="button"
+                  onClick={useSavedSchedule}
+                  disabled={busy}
+                  className="rounded-xl border border-cyan-300/30 bg-cyan-300/15 px-4 py-2.5 text-sm font-bold text-cyan-50 disabled:opacity-50"
+                >
+                  Usar horário guardado
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={requestContinueWithoutPdf}
