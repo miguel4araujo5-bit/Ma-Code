@@ -208,8 +208,7 @@ export default function ModulePlanificationImportPanel({
       setCourseName(guided ? '' : parsed.courseLabel)
       setRows(nextRows)
     } catch (failure) {
-      if (mounted.current && token !== operation.current) return
-      setError(errorText(failure))
+      if (mounted.current && token === operation.current) setError(errorText(failure))
     } finally {
       if (mounted.current && token === operation.current) setBusy(false)
     }
