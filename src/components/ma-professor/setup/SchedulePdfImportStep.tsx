@@ -24,6 +24,9 @@ import {
   commitScheduleImportAtomically,
   readScheduleImportFingerprint
 } from './scheduleImportAtomicRepository'
+import ScheduleImportUnresolvedReview, {
+  type ScheduleImportUnresolvedDraft
+} from './ScheduleImportUnresolvedReview'
 import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
 
 type Props = {
@@ -54,6 +57,9 @@ type DutyDraft = {
   name: string
 }
 
+type UnresolvedDraft =
+  ScheduleImportUnresolvedDraft
+
 type DayColumn = {
   weekday: Weekday
   centerX: number
@@ -62,6 +68,7 @@ type DayColumn = {
 type ParsedProposal = {
   lessons: Draft[]
   duties: DutyDraft[]
+  unresolved: UnresolvedDraft[]
 }
 
 type ImportedSubjectResolution = {
@@ -629,11 +636,14 @@ function parsePages(
 
   const lessons: Draft[] = []
   const duties: DutyDraft[] = []
+  const unresolved: UnresolvedDraft[] = []
   const seenLessons = new Set<string>()
   const seenDuties = new Set<string>()
+  const seenUnresolved = new Set<string>()
 
   let lessonSequence = 0
   let dutySequence = 0
+  let unresolvedSequence = 0
 
   function addLesson(
     weekday: Weekday,
@@ -756,6 +766,48 @@ function parsePages(
     return true
   }
 
+  function addUnresolved(
+    weekday: Weekday,
+    startTime: string,
+    endTime: string,
+    raw: string
+  ) {
+    const rawText = clean(raw)
+
+    if (
+      !rawText ||
+      detectWeekday(rawText) ||
+      looksLikeRoomOrMarker(rawText)
+    ) {
+      return false
+    }
+
+    const key = [
+      weekday,
+      startTime,
+      endTime,
+      normalize(rawText)
+    ].join('|')
+
+    if (seenUnresolved.has(key)) {
+      return false
+    }
+
+    seenUnresolved.add(key)
+    unresolved.push({
+      id:
+        `pdf-unresolved-${unresolvedSequence += 1}`,
+      weekday,
+      startTime,
+      endTime,
+      rawText,
+      reason:
+        'A célula estava ocupada no PDF, mas não existem dados suficientes para a classificar automaticamente como aula ou cargo.'
+    })
+
+    return true
+  }
+
   for (const page of pages) {
     let dayColumns: DayColumn[] = []
 
@@ -848,6 +900,18 @@ function parsePages(
             )
           ) {
             addedFromColumns = true
+            continue
+          }
+
+          if (
+            addUnresolved(
+              weekday,
+              time.startTime,
+              time.endTime,
+              content
+            )
+          ) {
+            addedFromColumns = true
           }
         }
       }
@@ -861,9 +925,11 @@ function parsePages(
         }
 
         const raw =
-          line.text.replace(
-            time.matchedText,
-            ' '
+          clean(
+            line.text.replace(
+              time.matchedText,
+              ' '
+            )
           )
 
         if (
@@ -872,9 +938,15 @@ function parsePages(
             time.startTime,
             time.endTime,
             raw
+          ) &&
+          !addLesson(
+            explicitDay,
+            time.startTime,
+            time.endTime,
+            raw
           )
         ) {
-          addLesson(
+          addUnresolved(
             explicitDay,
             time.startTime,
             time.endTime,
@@ -887,7 +959,8 @@ function parsePages(
 
   return {
     lessons,
-    duties
+    duties,
+    unresolved
   }
 }
 
@@ -942,6 +1015,7 @@ export default function SchedulePdfImportStep({
   const [fileName, setFileName] = useState('')
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [duties, setDuties] = useState<DutyDraft[]>([])
+  const [unresolved, setUnresolved] = useState<UnresolvedDraft[]>([])
   const [expectedFingerprint, setExpectedFingerprint] = useState('')
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
@@ -978,7 +1052,8 @@ export default function SchedulePdfImportStep({
 
   const hasProposal =
     drafts.length > 0 ||
-    duties.length > 0
+    duties.length > 0 ||
+    unresolved.length > 0
 
   const includedCount =
     included.length +
@@ -993,6 +1068,7 @@ export default function SchedulePdfImportStep({
   function clearProposal() {
     setDrafts([])
     setDuties([])
+    setUnresolved([])
     setExpectedFingerprint('')
     setFileName('')
     setProgress('')
@@ -1073,6 +1149,7 @@ export default function SchedulePdfImportStep({
     setError('')
     setDrafts([])
     setDuties([])
+    setUnresolved([])
     setExpectedFingerprint('')
     setFileName(file.name)
 
@@ -1099,7 +1176,8 @@ export default function SchedulePdfImportStep({
 
       if (
         proposal.lessons.length === 0 &&
-        proposal.duties.length === 0
+        proposal.duties.length === 0 &&
+        proposal.unresolved.length === 0
       ) {
         throw new Error(
           'Foi possível ler o PDF, mas não reconhecer automaticamente blocos do horário com segurança. Pode continuar com a configuração manual sem perder nada.'
@@ -1113,6 +1191,7 @@ export default function SchedulePdfImportStep({
 
       setDrafts(proposal.lessons)
       setDuties(proposal.duties)
+      setUnresolved(proposal.unresolved)
       setExpectedFingerprint(
         fingerprint
       )
@@ -1122,9 +1201,11 @@ export default function SchedulePdfImportStep({
           lesson =>
             !lesson.subjectConfirmed
         ).length
+      const unresolvedCount =
+        proposal.unresolved.length
 
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'} e ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} encontrado${proposal.lessons.length + proposal.duties.length === 1 ? '' : 's'}. ${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
+        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'}, ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} e ${unresolvedCount} bloco${unresolvedCount === 1 ? '' : 's'} por resolver encontrado${proposal.lessons.length + proposal.duties.length + unresolvedCount === 1 ? '' : 's'}. ${unresolvedCount > 0 ? 'Os blocos por resolver têm de ser classificados como aula, cargo ou ignorados explicitamente. ' : ''}${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
       )
     } catch (readError) {
       setError(
@@ -1171,6 +1252,101 @@ export default function SchedulePdfImportStep({
       )
     )
 
+    setError('')
+  }
+
+  function resolveUnresolvedAsLesson(id: string) {
+    const block =
+      unresolved.find(
+        candidate => candidate.id === id
+      )
+
+    if (!block || busy) {
+      return
+    }
+
+    const groupName =
+      extractGroupName(block.rawText)
+    const subjectSource =
+      groupName
+        ? stripLessonNoise(
+            block.rawText,
+            groupName,
+            true
+          )
+        : block.rawText
+    const lesson =
+      resolveImportedLessonContext(
+        subjectSource
+      )
+
+    setDrafts(
+      current => [
+        ...current,
+        {
+          id: manualId('resolved-slot'),
+          included: true,
+          weekday: block.weekday,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          periodCount: 1,
+          groupName,
+          courseName: lesson.courseName,
+          subjectName:
+            lesson.subjectName || block.rawText,
+          subjectConfirmed: false
+        }
+      ]
+    )
+    setUnresolved(
+      current => current.filter(
+        candidate => candidate.id !== id
+      )
+    )
+    setError('')
+  }
+
+  function resolveUnresolvedAsDuty(id: string) {
+    const block =
+      unresolved.find(
+        candidate => candidate.id === id
+      )
+
+    if (!block || busy) {
+      return
+    }
+
+    setDuties(
+      current => [
+        ...current,
+        {
+          id: manualId('resolved-duty'),
+          included: true,
+          weekday: block.weekday,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          name: block.rawText
+        }
+      ]
+    )
+    setUnresolved(
+      current => current.filter(
+        candidate => candidate.id !== id
+      )
+    )
+    setError('')
+  }
+
+  function ignoreUnresolved(id: string) {
+    if (busy) {
+      return
+    }
+
+    setUnresolved(
+      current => current.filter(
+        candidate => candidate.id !== id
+      )
+    )
     setError('')
   }
 
@@ -1226,6 +1402,13 @@ export default function SchedulePdfImportStep({
 
   async function applyImport() {
     if (busy) {
+      return
+    }
+
+    if (unresolved.length > 0) {
+      setError(
+        'Existem blocos ocupados do horário por resolver. Classifique cada um como aula ou cargo, ou escolha explicitamente Ignorar, antes de confirmar a importação.'
+      )
       return
     }
 
@@ -1293,6 +1476,7 @@ export default function SchedulePdfImportStep({
 
       setDrafts([])
       setDuties([])
+      setUnresolved([])
       setExpectedFingerprint('')
       setFileName('')
     } catch (submitError) {
@@ -1448,6 +1632,14 @@ export default function SchedulePdfImportStep({
               />
             </div>
 
+            <ScheduleImportUnresolvedReview
+              unresolved={unresolved}
+              disabled={busy}
+              onAsLesson={resolveUnresolvedAsLesson}
+              onAsDuty={resolveUnresolvedAsDuty}
+              onIgnore={ignoreUnresolved}
+            />
+
             {unconfirmedSubjects.length > 0 ? (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
                 <p className="text-sm font-black text-amber-100">
@@ -1486,6 +1678,7 @@ export default function SchedulePdfImportStep({
                 onClick={applyImport}
                 disabled={
                   busy ||
+                  unresolved.length > 0 ||
                   includedCount === 0 ||
                   unconfirmedSubjects.length > 0
                 }
@@ -1493,9 +1686,11 @@ export default function SchedulePdfImportStep({
               >
                 {busy
                   ? 'A aplicar...'
-                  : unconfirmedSubjects.length > 0
-                    ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
-                    : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
+                  : unresolved.length > 0
+                    ? `Resolver ${unresolved.length} bloco${unresolved.length === 1 ? '' : 's'} primeiro`
+                    : unconfirmedSubjects.length > 0
+                      ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
+                      : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
               </button>
             </div>
           </>
