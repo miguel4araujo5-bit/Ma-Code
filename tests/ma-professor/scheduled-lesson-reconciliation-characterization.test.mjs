@@ -34,14 +34,6 @@ const lessonRepositorySource = await readFile(
   'utf8'
 )
 
-const reconciliationRepositorySource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/lessons/scheduledLessonReconciliationRepository.ts',
-    import.meta.url
-  ),
-  'utf8'
-)
-
 const dailyPreparationSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyScheduledLessonPreparation.ts',
@@ -78,113 +70,62 @@ function getSection(
 test(
   'calendar keeps the former workspace implementation intact behind a small reconciliation wrapper',
   () => {
-    assert.ok(
-      calendarWrapperSource.includes(
-        'extends BaseCalendarWorkspaceRepository'
-      )
+    assert.match(
+      calendarWrapperSource,
+      /extends BaseCalendarWorkspaceRepository/
     )
-    assert.ok(
-      calendarWrapperSource.includes(
-        "export * from './calendarWorkspaceRepositoryBase'"
-      )
+    assert.match(
+      calendarWrapperSource,
+      /export \* from '\.\/calendarWorkspaceRepositoryBase'/
     )
-    assert.ok(
-      calendarBaseSource.includes(
-        'export class CalendarWorkspaceRepository'
-      )
+
+    assert.match(
+      calendarBaseSource,
+      /export class CalendarWorkspaceRepository/
     )
-    assert.ok(
-      calendarBaseSource.includes(
-        'lessonRepository.listLessons('
-      )
+    assert.match(
+      calendarBaseSource,
+      /lessonRepository\.listLessons\(/
     )
   }
 )
 
 test(
-  'calendar reconciles past dates in preserve mode and keeps normal reconciliation for today or future',
+  'calendar wrapper reconciles only the visible today-or-future slice and reloads only when persistence changed',
   () => {
-    assert.ok(
-      calendarWrapperSource.includes(
-        'if (dateFrom < today)'
-      )
+    assert.match(
+      calendarWrapperSource,
+      /maxDate\([\s\S]*displayStartDate[\s\S]*academicYear\.startDate[\s\S]*todayISO\(\)/
     )
-    assert.ok(
-      calendarWrapperSource.includes(
-        'historicalDateTo'
-      )
+    assert.match(
+      calendarWrapperSource,
+      /minDate\([\s\S]*displayEndDate[\s\S]*academicYear\.endDate/
     )
-    assert.ok(
-      calendarWrapperSource.includes(
-        'preserveExistingLessons:'
-      )
+    assert.match(
+      calendarWrapperSource,
+      /scheduledLessonReconciliationRepository\.reconcile\(/
     )
-    assert.ok(
-      calendarWrapperSource.includes(
-        'const currentDateFrom ='
-      )
+    assert.match(
+      calendarWrapperSource,
+      /deletedLessonIds\.length === 0[\s\S]*createdLessonIds\.length === 0[\s\S]*return initialSnapshot/
     )
-    assert.ok(
-      calendarWrapperSource.includes(
-        'if (!changed)'
-      )
+    assert.match(
+      calendarWrapperSource,
+      /return super\.getWorkspace\(/
     )
   }
 )
 
 test(
-  'historical reconciliation can protect existing scheduled lessons while still planning missing occurrences',
+  'Daily initial preparation no longer calls the add-only generator directly',
   () => {
-    assert.ok(
-      reconciliationRepositorySource.includes(
-        'preserveExistingLessons?: boolean'
-      )
+    assert.match(
+      dailyPreparationSource,
+      /scheduledLessonReconciliationRepository\.reconcile\(/
     )
-    assert.ok(
-      reconciliationRepositorySource.includes(
-        'input.preserveExistingLessons'
-      )
-    )
-    assert.ok(
-      reconciliationRepositorySource.includes(
-        "lesson.origin ===\n              'scheduled'"
-      )
-    )
-    assert.ok(
-      reconciliationRepositorySource.includes(
-        'relatedLessonIds.add('
-      )
-    )
-    assert.ok(
-      reconciliationRepositorySource.includes(
-        'planScheduledLessonReconciliation({'
-      )
-    )
-  }
-)
-
-test(
-  'Daily initial preparation uses preserve-history policy for past dates and no longer calls the add-only generator directly',
-  () => {
-    assert.ok(
-      dailyPreparationSource.includes(
-        'scheduledLessonReconciliationRepository.reconcile({'
-      )
-    )
-    assert.ok(
-      dailyPreparationSource.includes(
-        'preserveExistingLessons:'
-      )
-    )
-    assert.ok(
-      dailyPreparationSource.includes(
-        'date < todayISO()'
-      )
-    )
-    assert.ok(
-      !dailyPreparationSource.includes(
-        'lessonRepository.generateScheduledLessons'
-      )
+    assert.doesNotMatch(
+      dailyPreparationSource,
+      /lessonRepository\.generateScheduledLessons/
     )
   }
 )
