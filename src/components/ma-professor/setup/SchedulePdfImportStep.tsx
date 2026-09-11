@@ -774,11 +774,7 @@ function parsePages(
   ) {
     const rawText = clean(raw)
 
-    if (
-      !rawText ||
-      detectWeekday(rawText) ||
-      looksLikeRoomOrMarker(rawText)
-    ) {
+    if (!rawText) {
       return false
     }
 
@@ -800,6 +796,12 @@ function parsePages(
       weekday,
       startTime,
       endTime,
+      periodCount:
+        suggestedPeriods(
+          startTime,
+          endTime,
+          defaultMinutes
+        ),
       rawText,
       reason:
         'A célula estava ocupada no PDF, mas não existem dados suficientes para a classificar automaticamente como aula ou cargo.'
@@ -950,7 +952,10 @@ function parsePages(
             explicitDay,
             time.startTime,
             time.endTime,
-            raw
+            stripLessonNoise(
+              raw,
+              ''
+            )
           )
         }
       }
@@ -1289,7 +1294,7 @@ export default function SchedulePdfImportStep({
           weekday: block.weekday,
           startTime: block.startTime,
           endTime: block.endTime,
-          periodCount: 1,
+          periodCount: block.periodCount,
           groupName,
           courseName: lesson.courseName,
           subjectName:
