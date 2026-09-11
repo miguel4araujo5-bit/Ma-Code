@@ -18,6 +18,7 @@ export interface ScheduledLessonReconciliationInput {
   academicYearId: EntityId
   dateFrom: ISODate
   dateTo: ISODate
+  preserveExistingLessons?: boolean
 }
 
 export interface ScheduledLessonReconciliationResult {
@@ -255,6 +256,27 @@ export class ScheduledLessonReconciliationRepository {
         }
       }
     )
+
+    if (
+      input.preserveExistingLessons
+    ) {
+      lessons.forEach(
+        lesson => {
+          if (
+            lesson.origin ===
+              'scheduled' &&
+            lesson.date >=
+              input.dateFrom &&
+            lesson.date <=
+              input.dateTo
+          ) {
+            relatedLessonIds.add(
+              lesson.id
+            )
+          }
+        }
+      )
+    }
 
     const plan =
       planScheduledLessonReconciliation({
