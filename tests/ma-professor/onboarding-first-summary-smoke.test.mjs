@@ -318,7 +318,8 @@ test(
       {
         academicYearId: 'year-1',
         dateFrom: smoke.date,
-        dateTo: smoke.date
+        dateTo: smoke.date,
+        preserveExistingLessons: true
       }
     )
     assert.equal(
