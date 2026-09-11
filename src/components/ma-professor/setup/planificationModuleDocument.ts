@@ -37,11 +37,25 @@ function paragraphText(element: Element) {
     .trim()
 }
 
-function paragraphs(element: Element) {
+function paragraphLines(element: Element) {
   return Array.from(element.getElementsByTagNameNS(WORD_NS, 'p'))
     .map(paragraphText)
+    .filter(Boolean)
+}
+
+function paragraphs(element: Element) {
+  return paragraphLines(element)
     .join('\n')
     .trim()
+}
+
+function expandedStructuredRowLines(cells: Element[]) {
+  const valuesByCell = cells.map(paragraphLines)
+  const rowCount = Math.max(1, ...valuesByCell.map(values => values.length))
+
+  return Array.from({ length: rowCount }, (_, rowIndex) =>
+    line(valuesByCell.map(values => values[rowIndex] ?? ''))
+  )
 }
 
 function cleanMetadataValue(value: string) {
@@ -156,7 +170,8 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
   let found = 0
   for (const table of Array.from(dom.getElementsByTagNameNS(WORD_NS, 'tbl'))) {
     for (const row of Array.from(table.children).filter(el => el.localName === 'tr')) {
-      const cells = Array.from(row.children).filter(el => el.localName === 'tc').map(paragraphs)
+      const cellElements = Array.from(row.children).filter(el => el.localName === 'tc')
+      const cells = cellElements.map(paragraphs)
       if (cells.some(c => /temas\s*\/\s*conte[úu]dos/i.test(c))) continue
       if (/^avalia[çc][ãa]o$/i.test(cells[0]?.trim() ?? '')) {
         lines.push(line(cells))
@@ -164,7 +179,7 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
         if (cells.length !== 6 || !/\bUFCD\s*\d{3,6}\b/i.test(cells[1])) {
           throw new Error('A tabela de UFCD não tem as seis colunas esperadas. Reveja o documento antes de importar.')
         }
-        lines.push(line(cells))
+        lines.push(...expandedStructuredRowLines(cellElements))
         found++
       }
     }
