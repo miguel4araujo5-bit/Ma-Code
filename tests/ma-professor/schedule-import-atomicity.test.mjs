@@ -106,21 +106,48 @@ test(
 test(
   'existing non-empty course is preserved when the PDF proposes a different course',
   () => {
-    assert.match(
-      atomic,
-      /existingCourse && normalize\(existingCourse\) !== normalize\(courseName\)/
+    const conflictStart = atomic.indexOf(
+      'if ( existingCourse && normalize(existingCourse) !== normalize(courseName) ) {'
     )
+    const fillBlankStart = atomic.indexOf(
+      '} else if (!existingCourse) {',
+      conflictStart
+    )
+
+    assert.ok(conflictStart >= 0)
+    assert.ok(fillBlankStart > conflictStart)
+
+    const conflictBranch =
+      atomic.slice(
+        conflictStart,
+        fillBlankStart
+      )
+
     assert.match(
-      atomic,
+      conflictBranch,
       /preservedCourseConflicts \+= 1/
     )
-    assert.match(
-      atomic,
-      /else if \(!existingCourse\)/
-    )
     assert.doesNotMatch(
-      atomic,
-      /existingCourse && normalize\(existingCourse\) !== normalize\(courseName\)[\s\S]{0,300}courseName, updatedAt/
+      conflictBranch,
+      /groups \.put\(|courseName, updatedAt/
+    )
+
+    const fillBlankBranch =
+      atomic.slice(
+        fillBlankStart,
+        atomic.indexOf(
+          'let subject =',
+          fillBlankStart
+        )
+      )
+
+    assert.match(
+      fillBlankBranch,
+      /courseName/
+    )
+    assert.match(
+      fillBlankBranch,
+      /groups \.put\(/
     )
   }
 )
