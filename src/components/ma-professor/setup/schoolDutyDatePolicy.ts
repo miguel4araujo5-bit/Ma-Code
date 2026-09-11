@@ -1,6 +1,7 @@
 import type {
   AcademicYear,
   ISODate,
+  SchoolCalendarEvent,
   Weekday
 } from '../types'
 
@@ -137,10 +138,24 @@ function usesSBento2026_2027Preset(
   )
 }
 
+function isBlockedByConfiguredCalendar(
+  date: ISODate,
+  events: SchoolCalendarEvent[]
+) {
+  return events.some(
+    event =>
+      event.scope === 'all' &&
+      event.blocksLessons &&
+      date >= event.startDate &&
+      date <= event.endDate
+  )
+}
+
 export function getDutyDatesForSchool(
   academicYear: AcademicYear,
   weekday: Weekday,
-  schoolName: string
+  schoolName: string,
+  calendarEvents: SchoolCalendarEvent[] = []
 ) {
   const useSBentoPreset =
     usesSBento2026_2027Preset(
@@ -176,16 +191,22 @@ export function getDutyDatesForSchool(
     while (current <= end) {
       const isoDate =
         toISODate(current)
+      const blockedByPreset =
+        useSBentoPreset &&
+        S_BENTO_2026_2027_CLOSED_DATES.has(
+          isoDate
+        )
+      const blockedByCalendar =
+        isBlockedByConfiguredCalendar(
+          isoDate,
+          calendarEvents
+        )
 
       if (
         getWeekday(current) ===
           weekday &&
-        !(
-          useSBentoPreset &&
-          S_BENTO_2026_2027_CLOSED_DATES.has(
-            isoDate
-          )
-        )
+        !blockedByPreset &&
+        !blockedByCalendar
       ) {
         result.push(
           isoDate

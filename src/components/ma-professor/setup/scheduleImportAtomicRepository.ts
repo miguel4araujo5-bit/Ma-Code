@@ -1046,7 +1046,8 @@ export async function commitScheduleImportAtomically(
             getDutyDatesForSchool(
               academicYear,
               duty.weekday,
-              schoolName
+              schoolName,
+              eventRows
             )
           ) {
             const key =
