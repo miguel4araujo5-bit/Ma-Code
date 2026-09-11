@@ -24,7 +24,6 @@ concurrency:
 jobs:
   tests:
     name: Validate tests
-    if: ${{ github.event_name != 'push' || ! startsWith(github.event.head_commit.message, 'Merge pull request #') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -32,14 +31,31 @@ jobs:
       contents: read
 
     steps:
+      - name: Skip duplicate post-merge validation
+        id: gate
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
       - name: Detect affected products
+        if: steps.gate.outputs.skip != 'true'
         id: scope
         shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           files="$(mktemp)"
@@ -47,16 +63,14 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             printf '%s\n' '__ALL__' > "$files"
           elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            git fetch --no-tags --depth=1 origin "$base"
-            git diff --name-only "$base" HEAD > "$files"
+            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            git diff --name-only "$PR_BASE_SHA" HEAD > "$files"
           else
-            before="${{ github.event.before }}"
-            if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+            if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
               git diff-tree --no-commit-id --name-only -r HEAD > "$files"
             else
-              git fetch --no-tags --depth=1 origin "$before" || true
-              git diff --name-only "$before" HEAD > "$files"
+              git fetch --no-tags --depth=1 origin "$PUSH_BEFORE_SHA" || true
+              git diff --name-only "$PUSH_BEFORE_SHA" HEAD > "$files"
             fi
           fi
 
@@ -122,28 +136,29 @@ jobs:
           echo "conquistador=$conquistador" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
         run: npm install --no-audit --no-fund
 
       - name: Run Conquistador tests
-        if: steps.scope.outputs.conquistador == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.conquistador == 'true'
         run: npm run test:conquistador
 
       - name: Run MA-Professor tests
-        if: steps.scope.outputs.professor == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.professor == 'true'
         run: node --test tests/ma-professor/*.test.mjs
 
       - name: Run MA-Quadro tests
-        if: steps.scope.outputs.quadro == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.scope.outputs.quadro == 'true'
         run: npm run test:ma-quadro
 
   build:
     name: Validate build
-    if: ${{ github.event_name != 'push' || ! startsWith(github.event.head_commit.message, 'Merge pull request #') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -151,14 +166,31 @@ jobs:
       contents: read
 
     steps:
+      - name: Skip duplicate post-merge validation
+        id: gate
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == "Merge pull request #"* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
       - name: Detect whether build is needed
+        if: steps.gate.outputs.skip != 'true'
         id: build_scope
         shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           files="$(mktemp)"
@@ -166,16 +198,14 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             printf '%s\n' '__BUILD__' > "$files"
           elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            git fetch --no-tags --depth=1 origin "$base"
-            git diff --name-only "$base" HEAD > "$files"
+            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            git diff --name-only "$PR_BASE_SHA" HEAD > "$files"
           else
-            before="${{ github.event.before }}"
-            if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+            if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
               git diff-tree --no-commit-id --name-only -r HEAD > "$files"
             else
-              git fetch --no-tags --depth=1 origin "$before" || true
-              git diff --name-only "$before" HEAD > "$files"
+              git fetch --no-tags --depth=1 origin "$PUSH_BEFORE_SHA" || true
+              git diff --name-only "$PUSH_BEFORE_SHA" HEAD > "$files"
             fi
           fi
 
@@ -202,15 +232,15 @@ jobs:
           echo "build=$build" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        if: steps.build_scope.outputs.build == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install dependencies
-        if: steps.build_scope.outputs.build == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         run: npm install --no-audit --no-fund
 
       - name: Build project
-        if: steps.build_scope.outputs.build == 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.build_scope.outputs.build == 'true'
         run: npm run build
