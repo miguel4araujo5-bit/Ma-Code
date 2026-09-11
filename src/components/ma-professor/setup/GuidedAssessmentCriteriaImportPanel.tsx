@@ -580,8 +580,8 @@ export default function GuidedAssessmentCriteriaImportPanel({
                 <p className="mt-3 text-xs leading-5 text-slate-400">
                   {destinationResolution.preservedCount}{' '}
                   {destinationResolution.preservedCount === 1
-                    ? 'turma já possui critérios gerais e será preservada.'
-                    : 'turmas já possuem critérios gerais e serão preservadas.'}
+                    ? 'turma já tem critérios gerais e será preservada.'
+                    : 'turmas já têm critérios gerais e serão preservadas.'}
                 </p>
               ) : null}
 
