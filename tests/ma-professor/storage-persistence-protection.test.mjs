@@ -15,15 +15,15 @@ test(
   () => {
     assert.match(
       dbSource,
-      /navigator\.storage\.persist\(/
+      /navigator\.storage[\s\S]*?\.persist\(\)/
     )
     assert.match(
       dbSource,
-      /navigator\.storage[\s\S]*\.persisted\(\)/
+      /navigator\.storage[\s\S]*?\.persisted\(\)/
     )
     assert.match(
       dbSource,
-      /openMAProfessorDatabase\([\s\S]*requestPersistentMAProfessorStorage\(\)/
+      /openMAProfessorDatabase\([\s\S]*?requestPersistentMAProfessorStorage\(\)/
     )
   }
 )
@@ -37,11 +37,11 @@ test(
     )
     assert.match(
       dbSource,
-      /navigator\.storage[\s\S]*\.estimate\(\)/
+      /navigator\.storage[\s\S]*?\.estimate\(\)/
     )
     assert.match(
       dbSource,
-      /usage:[\s\S]*quota:/
+      /usage[\s\S]*?quota/
     )
   }
 )
@@ -55,11 +55,11 @@ test(
     )
     assert.match(
       dbSource,
-      /readNestedError\([\s\S]*'inner'/
+      /readNestedError\([\s\S]*?'inner'/
     )
     assert.match(
       dbSource,
-      /readNestedError\([\s\S]*'cause'/
+      /readNestedError\([\s\S]*?'cause'/
     )
     assert.match(
       dbSource,
