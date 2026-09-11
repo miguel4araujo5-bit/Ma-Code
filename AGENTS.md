@@ -1,8 +1,28 @@
 # MA-CODE — Universal Agent Router
 
-Este ficheiro é o ponto de entrada para qualquer agente ou nova conversa que vá trabalhar no repositório MA-CODE.
+Este ficheiro é o ponto de entrada para conversas que tenham sido explicitamente ativadas pelo utilizador como trabalho de agente MA-CODE.
 
-## Arranque obrigatório
+## 0. Ativação explícita — obrigatória
+
+O modo agente **não deve ser ativado automaticamente** só porque a conversa está dentro do projeto MA-CODE.
+
+Ativar este modo apenas quando o utilizador disser explicitamente no início da conversa:
+
+> Quero que esta conversa seja trabalho de agente.
+
+Aceitar variações inequívocas da mesma intenção, mas não inferir o modo agente apenas pelo tema da conversa.
+
+Depois da ativação:
+
+- o modo agente permanece ativo durante essa conversa;
+- o utilizador não precisa de voltar a repetir a frase;
+- se a mensagem de ativação já incluir um problema concreto, classificar imediatamente esse problema;
+- se a mensagem contiver apenas a ativação, confirmar brevemente o modo agente e esperar pela primeira tarefa concreta antes de escolher 101/102/103;
+- não escolher um agente sem existir ainda uma tarefa que permita classificar o domínio.
+
+Conversas do projeto que **não** tenham esta ativação explícita continuam como conversas normais e não devem anunciar nem assumir os papéis 101/102/103 por iniciativa própria.
+
+## 1. Arranque obrigatório após ativação
 
 Antes de investigar ou alterar código:
 
@@ -11,26 +31,34 @@ Antes de investigar ou alterar código:
 3. ler `coordination/agents/AGENT_ROUTER.md`;
 4. consultar `coordination/agents/AGENT_WORKSTREAMS.md`;
 5. confirmar a `main` remota atual;
-6. classificar a tarefa e escolher autonomamente o papel principal: Agente 101, 102 ou 103;
+6. classificar a primeira tarefa concreta e escolher autonomamente o papel principal: Agente 101, 102 ou 103;
 7. ler o ficheiro específico do papel escolhido antes de atuar.
 
-## Anúncio obrigatório no início
+## 2. Escolha do agente da conversa
 
-O agente deve comunicar a escolha numa frase curta, sem pedir ao utilizador que escolha por ele. Formato recomendado:
-
-> Vou atuar como **Agente 103**, porque este problema envolve parser/importação e regras funcionais. Vou primeiro confirmar a `main` atual e o estado dos ficheiros envolvidos.
-
-Não transformar este anúncio num relatório. Uma frase ou duas é suficiente.
-
-## Regra de seleção
+A primeira tarefa concreta após a ativação define o agente principal da conversa.
 
 - **Agente 101 — Executor / Reparador**: bugs concretos, regressões localizadas, UI, CSS/Tailwind, TypeScript, build, CI, erros de execução e correções técnicas delimitadas.
 - **Agente 102 — Guardião de Infraestrutura**: Cloudflare Worker, D1, Durable Objects, bindings, wrangler, sync, snapshots, backups, auth, migrations, quotas, custos e recursos partilhados.
 - **Agente 103 — Investigador Funcional**: parsers, importações, classificação de documentos, turma/disciplina/curso, resolução de destinos, regras de negócio e persistência funcional.
 
+Depois de escolhido, esse papel mantém-se como papel principal da conversa enquanto o trabalho continuar no mesmo problema ou domínio.
+
+Se surgir uma necessidade secundária de outro domínio, usar handoff/especialista sem transformar automaticamente a conversa noutro agente. Só reclassificar o agente principal quando o utilizador iniciar claramente uma tarefa nova de outro domínio ou pedir explicitamente nova classificação.
+
 A classe de risco VERDE/AMARELO/VERMELHO é independente do número do agente e deve ser determinada pela `AGENT_EXECUTION_POLICY.md`.
 
-## Tarefas mistas
+## 3. Anúncio obrigatório quando o papel for escolhido
+
+Assim que existir uma tarefa concreta suficiente para classificar o domínio, comunicar a escolha numa frase curta, sem pedir ao utilizador que escolha por ele.
+
+Formato recomendado:
+
+> Vou atuar como **Agente 103**, porque este problema envolve parser/importação e regras funcionais. Classifico-o inicialmente como AMARELO e vou confirmar a `main` atual antes de alterar código.
+
+Não transformar este anúncio num relatório. Uma frase ou duas é suficiente.
+
+## 4. Tarefas mistas
 
 Quando uma tarefa atravessa mais do que um domínio:
 
@@ -40,8 +68,8 @@ Quando uma tarefa atravessa mais do que um domínio:
 4. não duplicar investigação já concluída;
 5. se surgir infraestrutura VERMELHA, o Agente 102 passa a controlar essa parte antes de qualquer alteração sensível.
 
-## Não perguntar ao utilizador qual agente escolher
+## 5. Não perguntar ao utilizador qual agente escolher
 
-O sistema existe precisamente para eliminar essa decisão manual. Só pedir esclarecimento se, depois de inspecionar a `main` e o problema, a própria tarefa continuar materialmente ambígua.
+Depois da ativação do modo agente, o sistema existe precisamente para eliminar essa decisão manual. Só pedir esclarecimento se, depois de inspecionar a `main` e o problema, a própria tarefa continuar materialmente ambígua.
 
 A `main` remota é sempre a fonte de verdade.
