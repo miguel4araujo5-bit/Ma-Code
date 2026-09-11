@@ -11,13 +11,12 @@ import {
 } from '../access/AccessGate';
 
 import {
-    getAssessmentActivityTypeLabel
-} from '../assessments/assessmentRepository';
-
-import {
-    buildQuickAssessmentTitle,
-    resolveQuickCriterionId
-} from '../assessments/dailyQuickGrade';
+    calculateDailyCriteriaAverage,
+    dailyCriteriaGridRepository,
+    normalizeDailyCriterionScoreInput,
+    parseDailyCriterionScore,
+    type DailyCriteriaGridSnapshot
+} from './dailyCriteriaGridRepository';
 
 import {
     giaeExplicitSubmissionRepository
@@ -32,7 +31,6 @@ import {
 } from '../settings/csvExport';
 
 import type {
-    AssessmentActivityType,
     EntityId,
     GIAEStatus,
     ISODate,
@@ -55,7 +53,6 @@ import {
 
 import {
     dailyWorkspaceRepository,
-    type DailyAssessmentStatus,
     type DailyDateWorkspace,
     type DailyStudentRow
 } from './dailyWorkspaceRepository';
@@ -85,52 +82,29 @@ interface LessonFormState {
 }
 
 interface AssessmentFormState {
-    choice: 'none' | 'new' | EntityId;
-    criterionId: EntityId;
-    title: string;
-    activityType: AssessmentActivityType;
+    choice: 'none';
+    criterionId: '';
+    title: '';
+    activityType: 'other';
     description: string;
 }
 
 interface StudentEditorRow extends DailyStudentRow {
     assessmentScoreText: string;
+    criterionScores: Record<
+        EntityId,
+        string
+    >;
+    criterionScorePersisted: Record<
+        EntityId,
+        boolean
+    >;
 }
 
 interface SaveOptions {
     reload?: boolean;
     announce?: boolean;
 }
-
-const activityTypeOptions: AssessmentActivityType[] = [
-    'participation',
-    'practical_work',
-    'presentation',
-    'written_work',
-    'test',
-    'other'
-];
-
-const assessmentStatusOptions: Array<{
-    value: DailyAssessmentStatus;
-    label: string;
-}> = [
-    {
-        value: 'not_evaluated',
-        label: 'Não avaliado'
-    },
-    {
-        value: 'evaluated',
-        label: 'Avaliado'
-    },
-    {
-        value: 'absent',
-        label: 'Faltou'
-    },
-    {
-        value: 'exempt',
-        label: 'Dispensado'
-    }
-];
 
 const inputClassName =
     'w-full min-w-0 rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45';
@@ -386,97 +360,77 @@ function buildLessonForm(
     };
 }
 
-function buildQuickAssessmentDefaults(
-    workspace: NonNullable<
-        DailyDateWorkspace['selectedLesson']
-    >
-): Omit<AssessmentFormState, 'choice'> {
-    const criteria =
-        workspace.assessmentWorkspace.criteria;
-
-    const criterionId =
-        resolveQuickCriterionId(
-            criteria,
-            workspace.assessmentWorkspace.assessments.map(
-                item => item.assessment
-            )
-        );
-
-    const criterionName =
-        criteria.find(
-            criterion =>
-                criterion.id === criterionId
-        )?.name;
-
-    return {
-        criterionId,
-        title: buildQuickAssessmentTitle(
-            workspace.context.lessonRow.lesson.date,
-            criterionName
-        ),
-        activityType: 'practical_work',
-        description: ''
-    };
-}
-
 function buildAssessmentForm(
-    workspace: NonNullable<
+    _workspace: NonNullable<
         DailyDateWorkspace['selectedLesson']
-    >
+    >,
+    criteriaGrid:
+        DailyCriteriaGridSnapshot | null
 ): AssessmentFormState {
-    if (workspace.selectedAssessment) {
-        return {
-            choice:
-                workspace.selectedAssessment.id,
-            criterionId:
-                workspace.selectedAssessment
-                    .criterionId,
-            title:
-                workspace.selectedAssessment.title,
-            activityType:
-                workspace.selectedAssessment
-                    .activityType,
-            description:
-                workspace.selectedAssessment
-                    .description
-        };
-    }
-
     return {
         choice: 'none',
-        ...buildQuickAssessmentDefaults(
-            workspace
-        )
+        criterionId: '',
+        title: '',
+        activityType: 'other',
+        description:
+            criteriaGrid?.activity ?? ''
     };
 }
 
 function buildStudentRows(
-    rows: DailyStudentRow[]
+    rows: DailyStudentRow[],
+    criteriaGrid:
+        DailyCriteriaGridSnapshot | null
 ): StudentEditorRow[] {
-    return rows.map(row => ({
-        ...row,
-        assessmentScoreText:
-            row.assessmentStatus ===
-                'evaluated' &&
-            row.assessmentScore !== null
-                ? String(
-                      row.assessmentScore
-                  )
-                : ''
-    }));
-}
+    const criteria =
+        criteriaGrid?.criteria ?? [];
 
-function hasQuickAssessmentData(
-    rows: StudentEditorRow[]
-) {
-    return rows.some(
-        row =>
-            row.assessmentStatus !==
-                'not_evaluated' ||
-            row.assessmentScoreText.trim() !==
-                '' ||
-            row.assessmentNote.trim() !== ''
-    );
+    return rows.map(row => {
+        const persistedScores =
+            criteriaGrid
+                ?.scoresByStudentId[
+                    row.student.id
+                ] ?? {};
+
+        const criterionScores =
+            Object.fromEntries(
+                criteria.map(criterion => [
+                    criterion.id,
+                    Object.prototype.hasOwnProperty.call(
+                        persistedScores,
+                        criterion.id
+                    )
+                        ? String(
+                              persistedScores[
+                                  criterion.id
+                              ]
+                          )
+                        : '10'
+                ])
+            );
+
+        const criterionScorePersisted =
+            Object.fromEntries(
+                criteria.map(criterion => [
+                    criterion.id,
+                    Object.prototype.hasOwnProperty.call(
+                        persistedScores,
+                        criterion.id
+                    )
+                ])
+            );
+
+        return {
+            ...row,
+            assessmentStatus:
+                'not_evaluated',
+            assessmentScore: null,
+            assessmentNote: '',
+            assessmentScoreText: '',
+            criterionScores,
+            criterionScorePersisted
+        };
+    });
 }
 
 function buildEditorSignature(
@@ -509,7 +463,9 @@ function buildEditorSignature(
             assessmentScoreText:
                 row.assessmentScoreText,
             assessmentNote:
-                row.assessmentNote
+                row.assessmentNote,
+            criterionScores:
+                row.criterionScores
         }))
     });
 }
@@ -627,7 +583,9 @@ export default function DailyWorkspaceView({
     const hydrate = useCallback(
         (
             nextWorkspace:
-                DailyDateWorkspace
+                DailyDateWorkspace,
+            nextCriteriaGrid:
+                DailyCriteriaGridSnapshot | null
         ) => {
             setWorkspace(nextWorkspace);
             setDate(nextWorkspace.date);
@@ -653,13 +611,15 @@ export default function DailyWorkspaceView({
 
             const nextAssessmentForm =
                 buildAssessmentForm(
-                    nextWorkspace.selectedLesson
+                    nextWorkspace.selectedLesson,
+                    nextCriteriaGrid
                 );
 
             const nextStudents =
                 buildStudentRows(
                     nextWorkspace
-                        .selectedLesson.students
+                        .selectedLesson.students,
+                    nextCriteriaGrid
                 );
 
             setLessonForm(
@@ -688,6 +648,8 @@ export default function DailyWorkspaceView({
             async (
                 nextWorkspace:
                     DailyDateWorkspace,
+                nextCriteriaGrid:
+                    DailyCriteriaGridSnapshot | null,
                 requestId: number
             ) => {
                 const nextSelectedLesson =
@@ -713,13 +675,15 @@ export default function DailyWorkspaceView({
 
                 const nextAssessmentForm =
                     buildAssessmentForm(
-                        nextSelectedLesson
+                        nextSelectedLesson,
+                        nextCriteriaGrid
                     );
 
                 const nextStudents =
                     buildStudentRows(
                         nextSelectedLesson
-                            .students
+                            .students,
+                        nextCriteriaGrid
                     );
 
                 const baseSavedSignature =
@@ -790,14 +754,13 @@ export default function DailyWorkspaceView({
                                     stored.attendanceCode,
                                 attendanceNote:
                                     stored.attendanceNote,
-                                assessmentStatus:
-                                    stored.assessmentStatus,
-                                assessmentScore:
-                                    null,
-                                assessmentScoreText:
-                                    stored.assessmentScoreText,
-                                assessmentNote:
-                                    stored.assessmentNote
+                                criterionScores:
+                                    stored.criterionScores
+                                        ? {
+                                              ...row.criterionScores,
+                                              ...stored.criterionScores
+                                          }
+                                        : row.criterionScores
                             };
                         }
                     );
@@ -813,7 +776,9 @@ export default function DailyWorkspaceView({
 
                 const restoredAssessmentForm:
                     AssessmentFormState = {
-                    ...draft.assessment
+                    ...nextAssessmentForm,
+                    description:
+                        draft.assessment.description
                 };
 
                 const reconstructedSignature =
@@ -840,7 +805,7 @@ export default function DailyWorkspaceView({
                     restoredStudents
                 );
                 setAssessmentIdToDelete(
-                    draft.assessmentIdToDelete
+                    null
                 );
                 setSavedSignature(
                     baseSavedSignature
@@ -888,10 +853,32 @@ export default function DailyWorkspaceView({
                     return false;
                 }
 
-                hydrate(nextWorkspace);
+                const nextCriteriaGrid =
+                    nextWorkspace.selectedLesson
+                        ? await dailyCriteriaGridRepository.getLessonGrid(
+                              nextWorkspace
+                                  .selectedLesson
+                                  .context
+                                  .lessonRow
+                                  .lesson.id
+                          )
+                        : null;
+
+                if (
+                    requestId !==
+                    loadRequestRef.current
+                ) {
+                    return false;
+                }
+
+                hydrate(
+                    nextWorkspace,
+                    nextCriteriaGrid
+                );
 
                 await restoreDailyDraft(
                     nextWorkspace,
+                    nextCriteriaGrid,
                     requestId
                 );
 
@@ -963,26 +950,50 @@ export default function DailyWorkspaceView({
         selectedLesson
             ?.assessmentWorkspace ?? null;
 
-    const assessmentEnabled =
-        assessmentForm !== null &&
-        assessmentForm.choice !== 'none';
+    const criteria =
+        assessmentWorkspace?.criteria ?? [];
 
-    const quickGradeVisible =
-        assessmentForm !== null &&
-        (assessmentEnabled ||
-            Boolean(
-                assessmentWorkspace?.criteria
-                    .length
-            ));
+    const criteriaGridTemplate =
+        useMemo(
+            () =>
+                [
+                    '2.25rem',
+                    'minmax(8rem, 1fr)',
+                    '3.75rem',
+                    ...criteria.map(
+                        () =>
+                            'minmax(4.4rem, 5.5rem)'
+                    ),
+                    '4.75rem'
+                ].join(' '),
+            [criteria]
+        );
 
-    const selectedAssessmentId =
-        assessmentForm &&
-        assessmentForm.choice !==
-            'none' &&
-        assessmentForm.choice !==
-            'new'
-            ? assessmentForm.choice
-            : null;
+    const criteriaGridMinWidth =
+        (18 + criteria.length * 5.5) + 'rem';
+
+    const hasCriteriaDefaultsToSave =
+        Boolean(
+            lessonForm &&
+                lessonForm.status !==
+                    'cancelled' &&
+                criteria.length > 0 &&
+                students.some(
+                    row =>
+                        row.attendanceStatus ===
+                            'present' &&
+                        criteria.some(
+                            criterion =>
+                                !row
+                                    .criterionScorePersisted[
+                                    criterion.id
+                                ]
+                        )
+                )
+        );
+
+    const selectedAssessmentId:
+        EntityId | null = null;
 
     const presentCount = useMemo(
         () =>
@@ -1019,6 +1030,10 @@ export default function DailyWorkspaceView({
                     savedSignature
         );
 
+    const hasPendingSave =
+        hasUnsavedChanges ||
+        hasCriteriaDefaultsToSave;
+
     const persistCurrentDailyDraft =
         useCallback(
             async () => {
@@ -1054,7 +1069,8 @@ export default function DailyWorkspaceView({
                             savedSignature,
                         draftSignature:
                             currentEditorSignature,
-                        assessmentIdToDelete,
+                        assessmentIdToDelete:
+                            null,
                         lesson: {
                             ...lessonForm,
                             planificationItemIds: [
@@ -1077,11 +1093,14 @@ export default function DailyWorkspaceView({
                                     attendanceNote:
                                         row.attendanceNote,
                                     assessmentStatus:
-                                        row.assessmentStatus,
+                                        'not_evaluated',
                                     assessmentScoreText:
-                                        row.assessmentScoreText,
+                                        '',
                                     assessmentNote:
-                                        row.assessmentNote
+                                        '',
+                                    criterionScores: {
+                                        ...row.criterionScores
+                                    }
                                 })
                             )
                     });
@@ -1108,7 +1127,6 @@ export default function DailyWorkspaceView({
                 accountEmail,
                 academicYearId,
                 assessmentForm,
-                assessmentIdToDelete,
                 currentEditorSignature,
                 date,
                 lessonForm,
@@ -1556,9 +1574,7 @@ export default function DailyWorkspaceView({
             setError(
                 'O número de tempos deve ser um número inteiro superior a zero.'
             );
-
             setSuccess('');
-
             return false;
         }
 
@@ -1579,92 +1595,39 @@ export default function DailyWorkspaceView({
             setError(
                 'Escreva o sumário antes de guardar faltas nesta aula.'
             );
-
             setSuccess('');
-
             return false;
         }
 
-        const quickAssessmentHasData =
-            hasQuickAssessmentData(
-                students
-            );
-
-        const effectiveAssessmentMode:
-            'none' | 'new' | 'existing' =
-            assessmentForm.choice ===
-                'none'
-                ? 'none'
-                : assessmentForm.choice ===
-                    'new'
-                  ? quickAssessmentHasData
-                      ? 'new'
-                      : 'none'
-                  : 'existing';
-
         if (
-            effectiveAssessmentMode !==
-            'none'
+            effectiveStatus !==
+            'cancelled'
         ) {
-            if (
-                !assessmentForm.criterionId
-            ) {
-                setShowAssessmentDetails(
-                    true
-                );
-                setError(
-                    'Selecione o critério da avaliação em Detalhes.'
-                );
-                setSuccess('');
-                return false;
-            }
+            for (const row of students) {
+                if (
+                    row.attendanceStatus ===
+                    'absent'
+                ) {
+                    continue;
+                }
 
-            const invalidRow =
-                students.find(row => {
-                    if (
-                        row.assessmentStatus !==
-                        'evaluated'
-                    ) {
+                for (const criterion of criteria) {
+                    try {
+                        parseDailyCriterionScore(
+                            row.criterionScores[
+                                criterion.id
+                            ] ?? ''
+                        );
+                    } catch {
+                        setError(
+                            'A classificação de ' + row.student.name + ' em “' + criterion.name + '” deve estar entre 0 e 20 valores.'
+                        );
+                        setSuccess('');
                         return false;
                     }
-
-                    const raw =
-                        row.assessmentScoreText
-                            .trim()
-                            .replace(',', '.');
-                    const score = Number(raw);
-
-                    return (
-                        raw === '' ||
-                        !Number.isFinite(
-                            score
-                        ) ||
-                        score < 0 ||
-                        score > 20
-                    );
-                });
-
-            if (invalidRow) {
-                setError(
-                    `A classificação de ${invalidRow.student.name} deve estar entre 0 e 20 valores.`
-                );
-                setSuccess('');
-                return false;
+                }
             }
         }
-
-        const effectiveAssessmentTitle =
-            assessmentForm.title.trim() ||
-            buildQuickAssessmentTitle(
-                selectedLesson.context
-                    .lessonRow.lesson.date,
-                assessmentWorkspace?.criteria.find(
-                    criterion =>
-                        criterion.id ===
-                        assessmentForm
-                            .criterionId
-                )?.name
-            );
 
         savingRef.current = true;
         setSaving(true);
@@ -1674,13 +1637,15 @@ export default function DailyWorkspaceView({
             setSuccess('');
         }
 
-        try {
-            const lessonId =
-                selectedLesson
-                    .context
-                    .lessonRow
-                    .lesson.id;
+        const lessonId =
+            selectedLesson
+                .context
+                .lessonRow
+                .lesson.id;
 
+        let lessonPersisted = false;
+
+        try {
             const result =
                 await dailyWorkspaceRepository.saveLesson(
                     {
@@ -1713,66 +1678,92 @@ export default function DailyWorkspaceView({
                                 .giaeStatus,
                         students:
                             students.map(
-                                row => {
-                                    const normalizedScore =
-                                        Number(
-                                            row.assessmentScoreText.replace(
-                                                ',',
-                                                '.'
-                                            )
-                                        );
-
-                                    return {
-                                        studentId:
-                                            row
-                                                .student
-                                                .id,
-                                        attendanceStatus:
-                                            row
-                                                .attendanceStatus,
-                                        attendanceCode:
-                                            row
-                                                .attendanceCode,
-                                        attendanceNote:
-                                            row
-                                                .attendanceNote,
-                                        assessmentStatus:
-                                            row
-                                                .assessmentStatus,
-                                        assessmentScore:
-                                            row.assessmentStatus ===
-                                                'evaluated' &&
-                                            row.assessmentScoreText.trim()
-                                                ? normalizedScore
-                                                : null,
-                                        assessmentNote:
-                                            row
-                                                .assessmentNote
-                                    };
-                                }
+                                row => ({
+                                    studentId:
+                                        row.student.id,
+                                    attendanceStatus:
+                                        row.attendanceStatus,
+                                    attendanceCode:
+                                        row.attendanceCode,
+                                    attendanceNote:
+                                        row.attendanceNote,
+                                    assessmentStatus:
+                                        'not_evaluated',
+                                    assessmentScore:
+                                        null,
+                                    assessmentNote:
+                                        ''
+                                })
                             ),
                         assessment: {
-                            mode:
-                                effectiveAssessmentMode,
-                            assessmentId:
-                                effectiveAssessmentMode ===
-                                'none'
-                                    ? assessmentIdToDelete
-                                    : selectedAssessmentId,
-                            criterionId:
-                                assessmentForm
-                                    .criterionId,
-                            title:
-                                effectiveAssessmentTitle,
-                            activityType:
-                                assessmentForm
-                                    .activityType,
-                            description:
-                                assessmentForm
-                                    .description
+                            mode: 'none',
+                            assessmentId: null,
+                            criterionId: '',
+                            title: '',
+                            activityType: 'other',
+                            description: ''
                         }
                     }
                 );
+
+            lessonPersisted = true;
+
+            if (
+                effectiveStatus !==
+                    'cancelled' &&
+                criteria.length > 0
+            ) {
+                await dailyCriteriaGridRepository.saveLessonGrid(
+                    {
+                        lesson:
+                            result.lesson,
+                        summary:
+                            lessonForm.summary,
+                        activity:
+                            assessmentForm.description,
+                        rows:
+                            students.map(
+                                row => ({
+                                    studentId:
+                                        row.student.id,
+                                    attendanceStatus:
+                                        row.attendanceStatus,
+                                    scores: {
+                                        ...row.criterionScores
+                                    }
+                                })
+                            )
+                    }
+                );
+
+                await dailyWorkspaceRepository.getLessonWorkspace(
+                    academicYearId,
+                    lessonId
+                );
+            }
+
+            const persistedStudents =
+                students.map(
+                    row => ({
+                        ...row,
+                        criterionScorePersisted:
+                            Object.fromEntries(
+                                criteria.map(
+                                    criterion => [
+                                        criterion.id,
+                                        effectiveStatus !==
+                                            'cancelled' &&
+                                        row.attendanceStatus ===
+                                            'present'
+                                    ]
+                                )
+                            )
+                    })
+                );
+
+            setStudents(
+                persistedStudents
+            );
 
             draftWriteEpochRef.current +=
                 1;
@@ -1791,15 +1782,13 @@ export default function DailyWorkspaceView({
                 const reloaded =
                     await loadDate(
                         date,
-                        result.lesson.id,
-                        result.assessmentId
+                        result.lesson.id
                     );
 
                 if (!reloaded) {
                     setSavedSignature(
                         currentEditorSignature
                     );
-
                     setSuccess(
                         'Os dados foram guardados. Atualize a página se a aula não refletir imediatamente as alterações.'
                     );
@@ -1824,6 +1813,17 @@ export default function DailyWorkspaceView({
 
             return true;
         } catch (saveError) {
+            if (lessonPersisted) {
+                try {
+                    await dailyWorkspaceRepository.getLessonWorkspace(
+                        academicYearId,
+                        lessonId
+                    );
+                } catch {
+                    // Mantém o erro original da gravação.
+                }
+            }
+
             setError(
                 dailyWorkspaceRepository.describeError(
                     saveError
@@ -1996,7 +1996,10 @@ export default function DailyWorkspaceView({
                             assessmentScoreText:
                                 row.assessmentScoreText,
                             assessmentNote:
-                                row.assessmentNote
+                                row.assessmentNote,
+                            criterionScores: {
+                                ...row.criterionScores
+                            }
                         }))
                 },
                 recoveryNote:
@@ -2097,284 +2100,6 @@ export default function DailyWorkspaceView({
         );
     }
 
-    async function changeAssessment(
-        choice: string
-    ) {
-        if (
-            !selectedLesson ||
-            !assessmentWorkspace ||
-            savingRef.current
-        ) {
-            return;
-        }
-
-        if (
-            choice ===
-            assessmentForm?.choice
-        ) {
-            return;
-        }
-
-        if (choice === 'new') {
-            if (assessmentIdToDelete) {
-                setError(
-                    'Guarde primeiro a remoção da avaliação anterior.'
-                );
-
-                setSuccess('');
-
-                return;
-            }
-
-            if (
-                hasUnsavedChanges &&
-                assessmentForm?.choice !==
-                    'none' &&
-                !(await saveBeforeNavigation())
-            ) {
-                return;
-            }
-
-            setAssessmentIdToDelete(
-                null
-            );
-
-            setAssessmentForm({
-                choice: 'new',
-                ...buildQuickAssessmentDefaults(
-                    selectedLesson
-                )
-            });
-
-            setStudents(current =>
-                current.map(row => ({
-                    ...row,
-                    assessmentStatus:
-                        row.attendanceStatus ===
-                        'absent'
-                            ? 'absent'
-                            : 'not_evaluated',
-                    assessmentScore: null,
-                    assessmentScoreText:
-                        '',
-                    assessmentNote: ''
-                }))
-            );
-
-            setShowAssessmentDetails(
-                true
-            );
-
-            return;
-        }
-
-        if (choice === 'none') {
-            if (
-                assessmentForm?.choice ===
-                'new'
-            ) {
-                const attendanceByStudent =
-                    new Map(
-                        students.map(row => [
-                            row.student.id,
-                            {
-                                attendanceStatus:
-                                    row
-                                        .attendanceStatus,
-                                attendanceCode:
-                                    row
-                                        .attendanceCode,
-                                attendanceNote:
-                                    row
-                                        .attendanceNote
-                            }
-                        ])
-                    );
-
-                const fallbackAssessmentForm =
-                    selectedLesson
-                        .selectedAssessment
-                        ? buildAssessmentForm(
-                              selectedLesson
-                          )
-                        : {
-                              choice:
-                                  'none' as const,
-                              ...buildQuickAssessmentDefaults(
-                                  selectedLesson
-                              )
-                          };
-
-                const fallbackStudents =
-                    buildStudentRows(
-                        selectedLesson.students
-                    ).map(row => ({
-                        ...row,
-                        ...(attendanceByStudent.get(
-                            row.student.id
-                        ) ?? {})
-                    }));
-
-                setAssessmentIdToDelete(
-                    null
-                );
-
-                setAssessmentForm(
-                    fallbackAssessmentForm
-                );
-
-                setStudents(
-                    fallbackStudents
-                );
-
-                setShowAssessmentDetails(
-                    false
-                );
-
-                return;
-            }
-
-            const assessmentId =
-                assessmentForm &&
-                assessmentForm.choice !==
-                    'none' &&
-                assessmentForm.choice !==
-                    'new'
-                    ? assessmentForm.choice
-                    : selectedLesson
-                          .selectedAssessment
-                          ?.id ?? null;
-
-            if (
-                assessmentId &&
-                !window.confirm(
-                    'Pretende remover esta avaliação e todas as classificações associadas?'
-                )
-            ) {
-                return;
-            }
-
-            const nextAssessmentForm:
-                AssessmentFormState = {
-                choice: 'none',
-                ...buildQuickAssessmentDefaults(
-                    selectedLesson
-                )
-            };
-
-            const nextStudents =
-                students.map(row => ({
-                    ...row,
-                    assessmentStatus:
-                        'not_evaluated' as const,
-                    assessmentScore: null,
-                    assessmentScoreText:
-                        '',
-                    assessmentNote: ''
-                }));
-
-            setAssessmentIdToDelete(
-                assessmentId
-            );
-
-            setAssessmentForm(
-                nextAssessmentForm
-            );
-
-            setStudents(nextStudents);
-
-            setShowAssessmentDetails(
-                false
-            );
-
-            setSuccess('');
-
-            if (assessmentId) {
-                setError('');
-            }
-
-            return;
-        }
-
-        if (
-            hasUnsavedChanges &&
-            !(await saveBeforeNavigation())
-        ) {
-            return;
-        }
-
-        setAssessmentIdToDelete(
-            null
-        );
-
-        setLoading(true);
-        setError('');
-        setSuccess('');
-
-        try {
-            const nextSelectedLesson =
-                await dailyWorkspaceRepository.getLessonWorkspace(
-                    academicYearId,
-                    selectedLesson
-                        .context
-                        .lessonRow
-                        .lesson.id,
-                    choice
-                );
-
-            const nextLessonForm =
-                buildLessonForm(
-                    nextSelectedLesson
-                );
-
-            const nextAssessmentForm =
-                buildAssessmentForm(
-                    nextSelectedLesson
-                );
-
-            const nextStudents =
-                buildStudentRows(
-                    nextSelectedLesson.students
-                );
-
-            setWorkspace(current =>
-                current
-                    ? {
-                          ...current,
-                          selectedLesson:
-                              nextSelectedLesson
-                      }
-                    : current
-            );
-
-            setLessonForm(
-                nextLessonForm
-            );
-
-            setAssessmentForm(
-                nextAssessmentForm
-            );
-
-            setStudents(nextStudents);
-
-            setSavedSignature(
-                buildEditorSignature(
-                    nextLessonForm,
-                    nextAssessmentForm,
-                    nextStudents
-                )
-            );
-        } catch (loadError) {
-            setError(
-                dailyWorkspaceRepository.describeError(
-                    loadError
-                )
-            );
-        } finally {
-            setLoading(false);
-        }
-    }
-
     function useNextPlanificationItem() {
         if (
             !selectedLesson ||
@@ -2465,25 +2190,7 @@ export default function DailyWorkspaceView({
                 attendanceStatus:
                     'present',
                 attendanceCode: '',
-                attendanceNote: '',
-                assessmentStatus:
-                    assessmentEnabled &&
-                    row.assessmentStatus ===
-                        'absent'
-                        ? 'not_evaluated'
-                        : row.assessmentStatus,
-                assessmentScore:
-                    assessmentEnabled &&
-                    row.assessmentStatus ===
-                        'absent'
-                        ? null
-                        : row.assessmentScore,
-                assessmentScoreText:
-                    assessmentEnabled &&
-                    row.assessmentStatus ===
-                        'absent'
-                        ? ''
-                        : row.assessmentScoreText
+                attendanceNote: ''
             }))
         );
     }
@@ -2510,109 +2217,29 @@ export default function DailyWorkspaceView({
                 attendanceNote:
                     willBeAbsent
                         ? row.attendanceNote
-                        : '',
-                assessmentStatus:
-                    assessmentEnabled &&
-                    willBeAbsent
-                        ? 'absent'
-                        : assessmentEnabled &&
-                            row.assessmentStatus ===
-                                'absent'
-                          ? 'not_evaluated'
-                          : row.assessmentStatus,
-                assessmentScore:
-                    assessmentEnabled &&
-                    willBeAbsent
-                        ? null
-                        : row.assessmentScore,
-                assessmentScoreText:
-                    assessmentEnabled &&
-                    willBeAbsent
-                        ? ''
-                        : row.assessmentScoreText
+                        : ''
             }
         );
     }
 
-    function activateQuickAssessment() {
-        if (
-            !selectedLesson ||
-            !assessmentForm ||
-            assessmentForm.choice !==
-                'none'
-        ) {
-            return;
-        }
-
-        if (assessmentIdToDelete) {
-            setError(
-                'Guarde primeiro a remoção da avaliação anterior.'
-            );
-            setSuccess('');
-            return;
-        }
-
-        const defaults =
-            buildQuickAssessmentDefaults(
-                selectedLesson
-            );
-
-        setAssessmentForm({
-            ...assessmentForm,
-            choice: 'new',
-            criterionId:
-                assessmentForm.criterionId ||
-                defaults.criterionId,
-            title:
-                assessmentForm.title.trim()
-                    ? assessmentForm.title
-                    : defaults.title
-        });
-
-        if (!defaults.criterionId) {
-            setShowAssessmentDetails(
-                true
-            );
-        }
-    }
-
-    function changeScore(
+    function changeCriterionScore(
         row: StudentEditorRow,
+        criterionId: EntityId,
         value: string
     ) {
-        const cleanedValue = value
-            .replace(',', '.')
-            .replace(
-                /[^0-9.]/g,
-                ''
-            );
-
-        const [
-            integerPart = '',
-            ...decimalParts
-        ] = cleanedValue.split('.');
-
         const normalizedValue =
-            decimalParts.length > 0
-                ? `${integerPart}.${decimalParts
-                      .join('')
-                      .slice(0, 2)}`
-                : integerPart;
-
-        if (normalizedValue.trim()) {
-            activateQuickAssessment();
-        }
+            normalizeDailyCriterionScoreInput(
+                value
+            );
 
         updateStudent(
             row.student.id,
             {
-                assessmentScoreText:
-                    normalizedValue,
-                assessmentStatus:
-                    normalizedValue.trim()
-                        ? 'evaluated'
-                        : 'not_evaluated',
-                assessmentScore: null
+                criterionScores: {
+                    ...row.criterionScores,
+                    [criterionId]:
+                        normalizedValue
+                }
             }
         );
     }
@@ -3356,10 +2983,8 @@ export default function DailyWorkspaceView({
                                                 }
                                                 disabled={
                                                     saving ||
-                                                    (!quickGradeVisible &&
-                                                        !assessmentWorkspace
-                                                            ?.assessments
-                                                            .length)
+                                                    criteria.length ===
+                                                        0
                                                 }
                                                 className={`rounded-lg border px-2.5 py-1.5 text-[0.68rem] font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
                                                     showAssessmentDetails
@@ -3368,8 +2993,8 @@ export default function DailyWorkspaceView({
                                                 }`}
                                             >
                                                 {showAssessmentDetails
-                                                    ? 'Ocultar avaliação'
-                                                    : 'Detalhes da avaliação'}
+                                                    ? 'Ocultar atividade'
+                                                    : 'Atividade'}
                                             </button>
 
                                             <button
@@ -3389,9 +3014,8 @@ export default function DailyWorkspaceView({
                                         </div>
                                     </div>
 
-                                    {!assessmentWorkspace
-                                        ?.criteria
-                                        .length ? (
+                                    {criteria.length ===
+                                    0 ? (
                                         <div className="border-b border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
                                             Ainda não
                                             existem
@@ -3407,579 +3031,303 @@ export default function DailyWorkspaceView({
                                     {showAssessmentDetails &&
                                     assessmentForm ? (
                                         <div className="border-b border-cyan-300/15 bg-cyan-300/[0.04] px-3 py-2.5">
-                                            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.8fr)_auto] md:items-end">
-                                                <label className="text-[0.66rem] font-bold text-slate-400">
-                                                    Avaliação
+                                            <label className="block text-[0.66rem] font-bold text-slate-400">
+                                                Atividade avaliada · opcional
 
-                                                    <input
-                                                        type="text"
-                                                        value={
-                                                            assessmentForm.title
-                                                        }
-                                                        onChange={event =>
-                                                            setAssessmentForm(
-                                                                current =>
-                                                                    current
-                                                                        ? {
-                                                                              ...current,
-                                                                              title:
-                                                                                  event
-                                                                                      .target
-                                                                                      .value
-                                                                          }
-                                                                        : current
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving
-                                                        }
-                                                        placeholder="Nome da atividade"
-                                                        className={`${compactInputClassName} mt-1`}
-                                                    />
-                                                </label>
-
-                                                <label className="text-[0.66rem] font-bold text-slate-400">
-                                                    Critério
-
-                                                    <select
-                                                        value={
-                                                            assessmentForm.criterionId
-                                                        }
-                                                        onChange={event =>
-                                                            setAssessmentForm(
-                                                                current =>
-                                                                    current
-                                                                        ? {
-                                                                              ...current,
-                                                                              criterionId:
-                                                                                  event
-                                                                                      .target
-                                                                                      .value
-                                                                          }
-                                                                        : current
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving
-                                                        }
-                                                        className={`${compactInputClassName} mt-1`}
-                                                    >
-                                                        <option value="">
-                                                            Selecione…
-                                                        </option>
-
-                                                        {assessmentWorkspace?.criteria.map(
-                                                            criterion => (
-                                                                <option
-                                                                    key={
-                                                                        criterion.id
-                                                                    }
-                                                                    value={
-                                                                        criterion.id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        criterion.name
-                                                                    }{' '}
-                                                                    ·{' '}
-                                                                    {
-                                                                        criterion.weightPercent
-                                                                    }
-                                                                    %
-                                                                </option>
-                                                            )
-                                                        )}
-                                                    </select>
-                                                </label>
-
-                                                {assessmentForm.choice !==
-                                                'none' ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            void changeAssessment(
-                                                                'none'
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving
-                                                        }
-                                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[0.66rem] font-black text-slate-300 transition hover:border-rose-300/30 hover:text-rose-100"
-                                                    >
-                                                        {assessmentForm.choice ===
-                                                        'new'
-                                                            ? 'Cancelar'
-                                                            : 'Remover'}
-                                                    </button>
-                                                ) : (
-                                                    <span />
-                                                )}
-                                            </div>
-
-                                            <div className="mt-2 grid gap-2 rounded-lg border border-white/10 bg-slate-950/60 p-2.5 md:grid-cols-3">
-                                                <label className="text-[0.64rem] font-bold text-slate-400">
-                                                    Atividade
-                                                    nesta aula
-
-                                                    <select
-                                                        value={
-                                                            assessmentForm.choice
-                                                        }
-                                                        onChange={event =>
-                                                            void changeAssessment(
-                                                                event
-                                                                    .target
-                                                                    .value
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving ||
-                                                            loading
-                                                        }
-                                                        className={`${compactInputClassName} mt-1`}
-                                                    >
-                                                        <option value="none">
-                                                            Sem avaliação
-                                                        </option>
-
-                                                        <option value="new">
-                                                            Nova
-                                                            avaliação
-                                                        </option>
-
-                                                        {assessmentWorkspace?.assessments.map(
-                                                            item => (
-                                                                <option
-                                                                    key={
-                                                                        item
-                                                                            .assessment
-                                                                            .id
-                                                                    }
-                                                                    value={
-                                                                        item
-                                                                            .assessment
-                                                                            .id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        item
-                                                                            .assessment
-                                                                            .title
-                                                                    }
-                                                                </option>
-                                                            )
-                                                        )}
-                                                    </select>
-                                                </label>
-
-                                                <label className="text-[0.64rem] font-bold text-slate-400">
-                                                    Tipo
-
-                                                    <select
-                                                        value={
-                                                            assessmentForm.activityType
-                                                        }
-                                                        onChange={event =>
-                                                            setAssessmentForm(
-                                                                current =>
-                                                                    current
-                                                                        ? {
-                                                                              ...current,
-                                                                              activityType:
-                                                                                  event
-                                                                                      .target
-                                                                                      .value as AssessmentActivityType
-                                                                          }
-                                                                        : current
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving
-                                                        }
-                                                        className={`${compactInputClassName} mt-1`}
-                                                    >
-                                                        {activityTypeOptions.map(
-                                                            type => (
-                                                                <option
-                                                                    key={
-                                                                        type
-                                                                    }
-                                                                    value={
-                                                                        type
-                                                                    }
-                                                                >
-                                                                    {getAssessmentActivityTypeLabel(
-                                                                        type
-                                                                    )}
-                                                                </option>
-                                                            )
-                                                        )}
-                                                    </select>
-                                                </label>
-
-                                                <label className="text-[0.64rem] font-bold text-slate-400">
-                                                    Descrição
-
-                                                    <input
-                                                        type="text"
-                                                        value={
-                                                            assessmentForm.description
-                                                        }
-                                                        onChange={event =>
-                                                            setAssessmentForm(
-                                                                current =>
-                                                                    current
-                                                                        ? {
-                                                                              ...current,
-                                                                              description:
-                                                                                  event
-                                                                                      .target
-                                                                                      .value
-                                                                          }
-                                                                        : current
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            saving
-                                                        }
-                                                        placeholder="Opcional"
-                                                        className={`${compactInputClassName} mt-1`}
-                                                    />
-                                                </label>
-                                            </div>
+                                                <input
+                                                    type="text"
+                                                    value={
+                                                        assessmentForm.description
+                                                    }
+                                                    onChange={event =>
+                                                        setAssessmentForm(
+                                                            current =>
+                                                                current
+                                                                    ? {
+                                                                          ...current,
+                                                                          description:
+                                                                              event
+                                                                                  .target
+                                                                                  .value
+                                                                      }
+                                                                    : current
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        saving
+                                                    }
+                                                    placeholder="Se ficar vazio, usa o sumário da aula"
+                                                    className={`${compactInputClassName} mt-1`}
+                                                />
+                                            </label>
                                         </div>
                                     ) : null}
 
-                                    <div
-                                        className={`grid shrink-0 items-center gap-1.5 border-b border-white/10 bg-slate-900/80 px-2.5 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.08em] text-slate-500 ${
-                                            quickGradeVisible
-                                                ? 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem_4.5rem]'
-                                                : 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem]'
-                                        }`}
-                                    >
-                                        <span className="text-center">
-                                            N.º
-                                        </span>
-
-                                        <span>
-                                            Aluno
-                                        </span>
-
-                                        <span className="text-center">
-                                            Falta
-                                        </span>
-
-                                        {quickGradeVisible ? (
+                                    <div className="min-h-0 flex-1 overflow-auto">
+                                        <div
+                                            className="sticky top-0 z-10 grid items-center gap-1.5 border-b border-white/10 bg-slate-900/95 px-2.5 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.08em] text-slate-500"
+                                            style={{
+                                                gridTemplateColumns:
+                                                    criteriaGridTemplate,
+                                                minWidth:
+                                                    criteriaGridMinWidth
+                                            }}
+                                        >
                                             <span className="text-center">
-                                                Nota 0–20
+                                                N.º
                                             </span>
-                                        ) : null}
-                                    </div>
 
-                                    <div className="min-h-0 flex-1 divide-y divide-white/10 overflow-y-auto">
-                                        {students.map(
-                                            (
-                                                row,
-                                                index
-                                            ) => {
-                                                const absencePercent =
-                                                    row
-                                                        .absenceSummary
-                                                        ?.absencePercent ??
-                                                    null;
+                                            <span>
+                                                Aluno
+                                            </span>
 
-                                                const hasAbsenceWarning =
-                                                    absencePercent !==
-                                                        null &&
-                                                    absencePercent >=
-                                                        10;
+                                            <span className="text-center">
+                                                Falta
+                                            </span>
 
-                                                return (
-                                                    <div
+                                            {criteria.map(
+                                                criterion => (
+                                                    <span
                                                         key={
-                                                            row
-                                                                .student
-                                                                .id
+                                                            criterion.id
                                                         }
+                                                        title={`${criterion.name} · ${criterion.weightPercent}%`}
+                                                        className="min-w-0 text-center"
                                                     >
+                                                        <span className="block truncate">
+                                                            {
+                                                                criterion.name
+                                                            }
+                                                        </span>
+                                                        <span className="block text-[0.52rem] font-semibold normal-case tracking-normal text-slate-600">
+                                                            {
+                                                                criterion.weightPercent
+                                                            }
+                                                            %
+                                                        </span>
+                                                    </span>
+                                                )
+                                            )}
+
+                                            <span className="text-center">
+                                                Média
+                                            </span>
+                                        </div>
+
+                                        <div className="divide-y divide-white/10">
+                                            {students.map(
+                                                (
+                                                    row,
+                                                    index
+                                                ) => {
+                                                    const absencePercent =
+                                                        row
+                                                            .absenceSummary
+                                                            ?.absencePercent ??
+                                                        null;
+
+                                                    const hasAbsenceWarning =
+                                                        absencePercent !==
+                                                            null &&
+                                                        absencePercent >=
+                                                            10;
+
+                                                    return (
                                                         <div
-                                                            className={`grid items-center gap-1.5 px-2.5 py-1.5 ${
-                                                                quickGradeVisible
-                                                                    ? 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem_4.5rem]'
-                                                                    : 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem]'
-                                                            }`}
-                                                        >
-                                                            <span className="text-center text-xs font-black text-slate-500">
-                                                                {row
+                                                            key={
+                                                                row
                                                                     .student
-                                                                    .number ||
-                                                                    index +
-                                                                        1}
-                                                            </span>
+                                                                    .id
+                                                            }
+                                                        >
+                                                            <div
+                                                                className="grid items-center gap-1.5 px-2.5 py-1.5"
+                                                                style={{
+                                                                    gridTemplateColumns:
+                                                                        criteriaGridTemplate,
+                                                                    minWidth:
+                                                                        criteriaGridMinWidth
+                                                                }}
+                                                            >
+                                                                <span className="text-center text-xs font-black text-slate-500">
+                                                                    {row
+                                                                        .student
+                                                                        .number ||
+                                                                        index +
+                                                                            1}
+                                                                </span>
 
-                                                            <div className="min-w-0">
-                                                                <p className="truncate text-xs font-black text-white">
-                                                                    {
-                                                                        row
-                                                                            .student
-                                                                            .name
-                                                                    }
-                                                                </p>
-
-                                                                {(hasAbsenceWarning ||
-                                                                    row.provisionalAverage !==
-                                                                        null) && (
-                                                                    <p className="truncate text-[0.58rem] font-semibold text-slate-500">
-                                                                        {row.provisionalAverage !==
-                                                                        null
-                                                                            ? `Média ${formatScore(
-                                                                                  row.provisionalAverage
-                                                                              )}`
-                                                                            : ''}
-
-                                                                        {row.provisionalAverage !==
-                                                                            null &&
-                                                                        hasAbsenceWarning
-                                                                            ? ' · '
-                                                                            : ''}
-
-                                                                        {hasAbsenceWarning
-                                                                            ? `Faltas ${formatPercent(
-                                                                                  absencePercent
-                                                                              )}`
-                                                                            : ''}
+                                                                <div className="min-w-0">
+                                                                    <p className="truncate text-xs font-black text-white">
+                                                                        {
+                                                                            row
+                                                                                .student
+                                                                                .name
+                                                                        }
                                                                     </p>
+
+                                                                    {(hasAbsenceWarning ||
+                                                                        row.provisionalAverage !==
+                                                                            null) && (
+                                                                        <p className="truncate text-[0.58rem] font-semibold text-slate-500">
+                                                                            {row.provisionalAverage !==
+                                                                            null
+                                                                                ? `Média UFCD ${formatScore(
+                                                                                      row.provisionalAverage
+                                                                                  )}`
+                                                                                : ''}
+
+                                                                            {row.provisionalAverage !==
+                                                                                null &&
+                                                                            hasAbsenceWarning
+                                                                                ? ' · '
+                                                                                : ''}
+
+                                                                            {hasAbsenceWarning
+                                                                                ? `Faltas ${formatPercent(
+                                                                                      absencePercent
+                                                                                  )}`
+                                                                                : ''}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        toggleAttendance(
+                                                                            row
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        saving ||
+                                                                        lessonForm.status ===
+                                                                            'cancelled'
+                                                                    }
+                                                                    aria-pressed={
+                                                                        row.attendanceStatus ===
+                                                                        'absent'
+                                                                    }
+                                                                    className={`rounded-md border px-1.5 py-1 text-[0.68rem] font-black transition disabled:opacity-35 ${
+                                                                        row.attendanceStatus ===
+                                                                        'absent'
+                                                                            ? 'border-rose-300/40 bg-rose-300/15 text-rose-100'
+                                                                            : 'border-white/10 bg-white/[0.04] text-slate-400 hover:border-rose-300/30 hover:text-rose-100'
+                                                                    }`}
+                                                                >
+                                                                    {row.attendanceStatus ===
+                                                                    'absent'
+                                                                        ? 'F'
+                                                                        : '—'}
+                                                                </button>
+
+                                                                {criteria.map(
+                                                                    (
+                                                                        criterion,
+                                                                        criterionIndex
+                                                                    ) => {
+                                                                        const inputIndex =
+                                                                            index *
+                                                                                criteria.length +
+                                                                            criterionIndex;
+                                                                        const absent =
+                                                                            row.attendanceStatus ===
+                                                                            'absent';
+
+                                                                        return (
+                                                                            <input
+                                                                                key={
+                                                                                    criterion.id
+                                                                                }
+                                                                                ref={element => {
+                                                                                    quickGradeInputRefs.current[
+                                                                                        inputIndex
+                                                                                    ] =
+                                                                                        element;
+                                                                                }}
+                                                                                data-daily-quick-grade-input="true"
+                                                                                data-criterion-id={
+                                                                                    criterion.id
+                                                                                }
+                                                                                type="text"
+                                                                                inputMode="decimal"
+                                                                                value={
+                                                                                    absent
+                                                                                        ? ''
+                                                                                        : row.criterionScores[
+                                                                                              criterion.id
+                                                                                          ] ??
+                                                                                          '10'
+                                                                                }
+                                                                                onChange={event =>
+                                                                                    changeCriterionScore(
+                                                                                        row,
+                                                                                        criterion.id,
+                                                                                        event
+                                                                                            .target
+                                                                                            .value
+                                                                                    )
+                                                                                }
+                                                                                onKeyDown={event => {
+                                                                                    if (
+                                                                                        event.key ===
+                                                                                            'Enter' ||
+                                                                                        event.key ===
+                                                                                            'ArrowDown'
+                                                                                    ) {
+                                                                                        event.preventDefault();
+                                                                                        focusNextQuickGrade(
+                                                                                            inputIndex
+                                                                                        );
+                                                                                    }
+                                                                                }}
+                                                                                disabled={
+                                                                                    saving ||
+                                                                                    lessonForm.status ===
+                                                                                        'cancelled' ||
+                                                                                    absent
+                                                                                }
+                                                                                placeholder={
+                                                                                    absent
+                                                                                        ? '—'
+                                                                                        : '10'
+                                                                                }
+                                                                                aria-label={`${criterion.name} de ${row.student.name}`}
+                                                                                className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                                                            />
+                                                                        );
+                                                                    }
                                                                 )}
+
+                                                                <span className="rounded-md border border-white/10 bg-white/[0.035] px-1.5 py-1 text-center text-[0.68rem] font-black text-cyan-100">
+                                                                    {row.attendanceStatus ===
+                                                                    'absent'
+                                                                        ? '—'
+                                                                        : formatScore(
+                                                                              calculateDailyCriteriaAverage(
+                                                                                  row.criterionScores,
+                                                                                  criteria
+                                                                              )
+                                                                          )}
+                                                                </span>
                                                             </div>
 
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    toggleAttendance(
-                                                                        row
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    saving ||
-                                                                    lessonForm.status ===
-                                                                        'cancelled'
-                                                                }
-                                                                aria-pressed={
-                                                                    row.attendanceStatus ===
-                                                                    'absent'
-                                                                }
-                                                                className={`rounded-md border px-1.5 py-1 text-[0.68rem] font-black transition disabled:opacity-35 ${
-                                                                    row.attendanceStatus ===
-                                                                    'absent'
-                                                                        ? 'border-rose-300/40 bg-rose-300/15 text-rose-100'
-                                                                        : 'border-white/10 bg-white/[0.04] text-slate-400 hover:border-rose-300/30 hover:text-rose-100'
-                                                                }`}
-                                                            >
-                                                                {row.attendanceStatus ===
-                                                                'absent'
-                                                                    ? 'F'
-                                                                    : '—'}
-                                                            </button>
-
-                                                            {quickGradeVisible ? (
-                                                                row.assessmentStatus ===
-                                                                'absent' ? (
-                                                                    <span className="rounded-md border border-rose-300/25 bg-rose-300/10 px-1.5 py-1 text-center text-[0.68rem] font-black text-rose-100">
-                                                                        F
-                                                                    </span>
-                                                                ) : row.assessmentStatus ===
-                                                                  'exempt' ? (
-                                                                    <span className="rounded-md border border-violet-300/25 bg-violet-300/10 px-1.5 py-1 text-center text-[0.68rem] font-black text-violet-100">
-                                                                        D
-                                                                    </span>
-                                                                ) : (
-                                                                    <input
-                                                                        ref={element => {
-                                                                            quickGradeInputRefs.current[
-                                                                                index
-                                                                            ] =
-                                                                                element;
-                                                                        }}
-                                                                        data-daily-quick-grade-input="true"
-                                                                        type="text"
-                                                                        inputMode="decimal"
-                                                                        value={
-                                                                            row.assessmentScoreText
-                                                                        }
-                                                                        onChange={event =>
-                                                                            changeScore(
-                                                                                row,
-                                                                                event
-                                                                                    .target
-                                                                                    .value
-                                                                            )
-                                                                        }
-                                                                        onKeyDown={event => {
-                                                                            if (
-                                                                                event.key ===
-                                                                                    'Enter' ||
-                                                                                event.key ===
-                                                                                    'ArrowDown'
-                                                                            ) {
-                                                                                event.preventDefault();
-                                                                                focusNextQuickGrade(
-                                                                                    index
-                                                                                );
-                                                                            }
-                                                                        }}
-                                                                        disabled={
-                                                                            saving ||
-                                                                            lessonForm.status ===
-                                                                                'cancelled'
-                                                                        }
-                                                                        placeholder="0–20"
-                                                                        aria-label={`Classificação de ${row.student.name}`}
-                                                                        className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
-                                                                    />
-                                                                )
-                                                            ) : null}
-                                                        </div>
-
-                                                        {showStudentDetails ? (
-                                                            <div className="grid gap-2 border-t border-white/[0.06] bg-white/[0.02] px-2.5 py-2 sm:grid-cols-2">
-                                                                <label className="text-[0.62rem] font-bold text-slate-500">
-                                                                    Código da
-                                                                    falta
-
-                                                                    <input
-                                                                        type="text"
-                                                                        value={
-                                                                            row.attendanceCode
-                                                                        }
-                                                                        onChange={event =>
-                                                                            updateStudent(
-                                                                                row
-                                                                                    .student
-                                                                                    .id,
-                                                                                {
-                                                                                    attendanceCode:
-                                                                                        event
-                                                                                            .target
-                                                                                            .value
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            saving ||
-                                                                            row.attendanceStatus !==
-                                                                                'absent' ||
-                                                                            lessonForm.status ===
-                                                                                'cancelled'
-                                                                        }
-                                                                        placeholder="F"
-                                                                        className={`${compactInputClassName} mt-1`}
-                                                                    />
-                                                                </label>
-
-                                                                <label className="text-[0.62rem] font-bold text-slate-500">
-                                                                    Observação
-                                                                    da falta
-
-                                                                    <input
-                                                                        type="text"
-                                                                        value={
-                                                                            row.attendanceNote
-                                                                        }
-                                                                        onChange={event =>
-                                                                            updateStudent(
-                                                                                row
-                                                                                    .student
-                                                                                    .id,
-                                                                                {
-                                                                                    attendanceNote:
-                                                                                        event
-                                                                                            .target
-                                                                                            .value
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            saving ||
-                                                                            row.attendanceStatus !==
-                                                                                'absent' ||
-                                                                            lessonForm.status ===
-                                                                                'cancelled'
-                                                                        }
-                                                                        placeholder="Motivo ou nota"
-                                                                        className={`${compactInputClassName} mt-1`}
-                                                                    />
-                                                                </label>
-
-                                                                {assessmentEnabled ? (
+                                                            {showStudentDetails ? (
+                                                                <div
+                                                                    className="grid gap-2 border-t border-white/[0.06] bg-white/[0.02] px-2.5 py-2 sm:grid-cols-2"
+                                                                    style={{
+                                                                        minWidth:
+                                                                            criteriaGridMinWidth
+                                                                    }}
+                                                                >
                                                                     <label className="text-[0.62rem] font-bold text-slate-500">
-                                                                        Estado
-                                                                        da
-                                                                        avaliação
-
-                                                                        <select
-                                                                            value={
-                                                                                row.assessmentStatus
-                                                                            }
-                                                                            onChange={event => {
-                                                                                const assessmentStatus =
-                                                                                    event
-                                                                                        .target
-                                                                                        .value as DailyAssessmentStatus;
-
-                                                                                updateStudent(
-                                                                                    row
-                                                                                        .student
-                                                                                        .id,
-                                                                                    {
-                                                                                        assessmentStatus,
-                                                                                        assessmentScore:
-                                                                                            assessmentStatus ===
-                                                                                            'evaluated'
-                                                                                                ? row.assessmentScore
-                                                                                                : null,
-                                                                                        assessmentScoreText:
-                                                                                            assessmentStatus ===
-                                                                                            'evaluated'
-                                                                                                ? row.assessmentScoreText
-                                                                                                : ''
-                                                                                    }
-                                                                                );
-                                                                            }}
-                                                                            disabled={
-                                                                                saving
-                                                                            }
-                                                                            className={`${compactInputClassName} mt-1`}
-                                                                        >
-                                                                            {assessmentStatusOptions.map(
-                                                                                option => (
-                                                                                    <option
-                                                                                        key={
-                                                                                            option.value
-                                                                                        }
-                                                                                        value={
-                                                                                            option.value
-                                                                                        }
-                                                                                    >
-                                                                                        {
-                                                                                            option.label
-                                                                                        }
-                                                                                    </option>
-                                                                                )
-                                                                            )}
-                                                                        </select>
-                                                                    </label>
-                                                                ) : null}
-
-                                                                {assessmentEnabled ? (
-                                                                    <label className="text-[0.62rem] font-bold text-slate-500">
-                                                                        Observação
-                                                                        da
-                                                                        avaliação
+                                                                        Código da
+                                                                        falta
 
                                                                         <input
                                                                             type="text"
                                                                             value={
-                                                                                row.assessmentNote
+                                                                                row.attendanceCode
                                                                             }
                                                                             onChange={event =>
                                                                                 updateStudent(
@@ -3987,7 +3335,7 @@ export default function DailyWorkspaceView({
                                                                                         .student
                                                                                         .id,
                                                                                     {
-                                                                                        assessmentNote:
+                                                                                        attendanceCode:
                                                                                             event
                                                                                                 .target
                                                                                                 .value
@@ -3995,44 +3343,71 @@ export default function DailyWorkspaceView({
                                                                                 )
                                                                             }
                                                                             disabled={
-                                                                                saving
+                                                                                saving ||
+                                                                                row.attendanceStatus !==
+                                                                                    'absent' ||
+                                                                                lessonForm.status ===
+                                                                                    'cancelled'
                                                                             }
-                                                                            placeholder="Observação opcional"
+                                                                            placeholder="F"
                                                                             className={`${compactInputClassName} mt-1`}
                                                                         />
                                                                     </label>
-                                                                ) : null}
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                );
-                                            }
-                                        )}
 
-                                        {students.length ===
-                                        0 ? (
-                                            <div className="px-4 py-8 text-center text-sm text-slate-500">
-                                                Esta turma
-                                                ainda não
-                                                possui
-                                                alunos
-                                                ativos.
-                                            </div>
-                                        ) : null}
-                                    </div>
+                                                                    <label className="text-[0.62rem] font-bold text-slate-500">
+                                                                        Observação
+                                                                        da falta
 
-                                    <div className="shrink-0 border-t border-white/10 bg-slate-900/50 px-3 py-1.5 text-[0.62rem] text-slate-500">
-                                        A lista tem
-                                        deslocamento
-                                        próprio para
-                                        manter o sumário
-                                        e os alunos
-                                        visíveis no
-                                        mesmo ecrã.
+                                                                        <input
+                                                                            type="text"
+                                                                            value={
+                                                                                row.attendanceNote
+                                                                            }
+                                                                            onChange={event =>
+                                                                                updateStudent(
+                                                                                    row
+                                                                                        .student
+                                                                                        .id,
+                                                                                    {
+                                                                                        attendanceNote:
+                                                                                            event
+                                                                                                .target
+                                                                                                .value
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            disabled={
+                                                                                saving ||
+                                                                                row.attendanceStatus !==
+                                                                                    'absent' ||
+                                                                                lessonForm.status ===
+                                                                                    'cancelled'
+                                                                            }
+                                                                            placeholder="Motivo ou nota"
+                                                                            className={`${compactInputClassName} mt-1`}
+                                                                        />
+                                                                    </label>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                }
+                                            )}
+
+                                            {students.length ===
+                                            0 ? (
+                                                <div className="px-4 py-8 text-center text-sm text-slate-500">
+                                                    Esta turma
+                                                    ainda não
+                                                    possui
+                                                    alunos
+                                                    ativos.
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     </div>
                                 </section>
                             </div>
-
                             {showAdvanced ? (
                                 <section className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
                                     <p className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-amber-300">
@@ -4267,14 +3642,16 @@ export default function DailyWorkspaceView({
                                 !success ? (
                                     <p
                                         className={
-                                            hasUnsavedChanges
+                                            hasPendingSave
                                                 ? 'font-bold text-amber-200'
                                                 : 'text-slate-500'
                                         }
                                     >
                                         {hasUnsavedChanges
                                             ? 'Existem alterações por guardar.'
-                                            : 'Sumário, faltas e notas estão guardados em conjunto.'}
+                                            : hasCriteriaDefaultsToSave
+                                              ? 'A avaliação está pronta com 10 por defeito. Guarde para registar.'
+                                              : 'Sumário, faltas e notas estão guardados em conjunto.'}
                                     </p>
                                 ) : null}
                             </div>
@@ -4308,13 +3685,13 @@ export default function DailyWorkspaceView({
                                     disabled={
                                         loading ||
                                         saving ||
-                                        !hasUnsavedChanges
+                                        !hasPendingSave
                                     }
                                     className="rounded-lg bg-cyan-300 px-5 py-2 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     {saving
                                         ? 'A guardar…'
-                                        : hasUnsavedChanges
+                                        : hasPendingSave
                                           ? 'Guardar aula'
                                           : 'Aula guardada'}
                                 </button>

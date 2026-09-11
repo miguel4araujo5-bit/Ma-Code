@@ -60,6 +60,8 @@ export interface MAProfessorDailyDraftStudent {
     | 'exempt'
   assessmentScoreText: string
   assessmentNote: string
+  criterionScores?:
+    Record<string, string>
 }
 
 export interface MAProfessorDailyDraft {
@@ -352,6 +354,20 @@ function isStringArray(
     )
 }
 
+function isStringRecord(
+  value: unknown
+): value is Record<string, string> {
+  return Boolean(
+    value &&
+      typeof value ===
+        'object' &&
+      !Array.isArray(value) &&
+      Object.values(value).every(
+        isString
+      )
+  )
+}
+
 function isDraftLesson(
   value: unknown
 ): value is MAProfessorDailyDraftLesson {
@@ -513,6 +529,13 @@ function isDraftStudent(
     ) &&
     isString(
       student.assessmentNote
+    ) &&
+    (
+      student.criterionScores ===
+        undefined ||
+      isStringRecord(
+        student.criterionScores
+      )
     )
   )
 }
