@@ -525,7 +525,11 @@ export async function commitModulePlanificationImport(input: {
               .toArray()
           ).filter(planification => planification.active)
 
-          if (activePlanifications.length === 0) {
+          if (
+            existingModule.active &&
+            existingModule.academicYearId === request.academicYearId &&
+            activePlanifications.length === 0
+          ) {
             if (!source.contentsText.trim() && !source.objectivesText.trim()) {
               throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos nem objetivos de planificação.')
             }
