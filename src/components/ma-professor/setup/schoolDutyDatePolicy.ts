@@ -128,13 +128,19 @@ function usesSBento2026_2027Preset(
   academicYear: AcademicYear,
   schoolName: string
 ) {
+  const academicYearName =
+    normalizeAcademicYearName(
+      academicYear.name
+    )
+
   return (
     isSBentoSchoolName(
       schoolName
     ) &&
-    normalizeAcademicYearName(
-      academicYear.name
-    ) === '2026/2027'
+    (
+      academicYearName === '2026/2027' ||
+      academicYearName === '2026/27'
+    )
   )
 }
 
