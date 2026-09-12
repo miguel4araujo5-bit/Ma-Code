@@ -113,8 +113,8 @@ const lessons = [
     id: 'lesson-b',
     included: false,
     weekday: 3,
-    startTime: '09:20',
-    endTime: '10:10',
+    startTime: '09:25',
+    endTime: '10:15',
     periodCount: 1,
     groupName: '11.º E',
     courseName: 'Técnico de Apoio Psicossocial',
@@ -134,25 +134,63 @@ const duties = [
   }
 ]
 
+const unresolved = [
+  {
+    id: 'unknown-a',
+    weekday: 5,
+    startTime: '10:30',
+    endTime: '11:20',
+    periodCount: 1,
+    rawText: 'Projeto Individual',
+    reason: 'Classificação insuficiente.'
+  }
+]
+
+const sourceTimeRows = [
+  { startTime: '07:35', endTime: '08:25' },
+  { startTime: '08:30', endTime: '09:20' },
+  { startTime: '09:25', endTime: '10:15' },
+  { startTime: '10:30', endTime: '11:20' },
+  { startTime: '12:20', endTime: '13:10' }
+]
+
 const updates = []
 
 async function render() {
+  updates.length = 0
+
   await act(async () => {
     rootView.render(
       createElement(ScheduleImportVisualGrid, {
         lessons,
         duties,
+        unresolved,
+        sourceTimeRows,
         onUpdateLesson: (id, changes) =>
-          updates.push({ kind: 'lesson', id, changes }),
+          updates.push({ kind: 'lesson-update', id, changes }),
         onUpdateDuty: (id, changes) =>
-          updates.push({ kind: 'duty', id, changes })
+          updates.push({ kind: 'duty-update', id, changes }),
+        onLessonAsDuty: id =>
+          updates.push({ kind: 'lesson-as-duty', id }),
+        onDutyAsLesson: id =>
+          updates.push({ kind: 'duty-as-lesson', id }),
+        onUnresolvedAsLesson: id =>
+          updates.push({ kind: 'unknown-as-lesson', id }),
+        onUnresolvedAsDuty: id =>
+          updates.push({ kind: 'unknown-as-duty', id }),
+        onIgnoreUnresolved: id =>
+          updates.push({ kind: 'ignore-unknown', id })
       })
     )
   })
 }
 
-function buttonWithText(text) {
-  return [...container.querySelectorAll('button')]
+function block(id) {
+  return container.querySelector(`[data-schedule-block="${id}"]`)
+}
+
+function buttonInside(element, text) {
+  return [...element.querySelectorAll('button')]
     .find(button => button.textContent.includes(text))
 }
 
@@ -164,7 +202,7 @@ after(async () => {
   rmSync(output, { recursive: true, force: true })
 })
 
-test('visual review mirrors a school timetable with weekdays, time rows and imported context', async () => {
+test('weekly review preserves source time rows including empty rows and keeps every occupied block in the grid', async () => {
   await render()
 
   const text = container.textContent
@@ -174,50 +212,125 @@ test('visual review mirrors a school timetable with weekdays, time rows and impo
   }
 
   assert.doesNotMatch(text, /Sábado|Domingo/)
-  assert.match(text, /08:30/)
-  assert.match(text, /09:20/)
+  assert.match(text, /07:35/)
+  assert.match(text, /08:25/)
+  assert.match(text, /12:20/)
+  assert.match(text, /13:10/)
   assert.match(text, /Área de Expressões/)
-  assert.match(text, /10\.º D/)
-  assert.match(text, /Técnico de Apoio Psicossocial/)
   assert.match(text, /Co PCE/)
-  assert.match(text, /Disciplina por confirmar/)
-  assert.match(text, /Excluída da importação/)
+  assert.match(text, /Projeto Individual/)
+  assert.match(text, /Componente letiva/)
+  assert.match(text, /Cargo/)
+  assert.equal(
+    container.querySelectorAll('[data-schedule-cell]').length,
+    sourceTimeRows.length * 5
+  )
 })
 
-test('clicking a lesson opens editable review without bypassing ambiguous-subject confirmation', async () => {
+test('clicking a lesson expands its editor inside the same timetable cell', async () => {
   await render()
 
-  const ambiguous = buttonWithText('AP')
-  assert.ok(ambiguous)
+  const article = block('lesson-a')
+  assert.ok(article)
+  const opener = buttonInside(article, 'Área de Expressões')
+  assert.ok(opener)
 
   await act(async () => {
-    ambiguous.dispatchEvent(
+    opener.dispatchEvent(
       new MouseEvent('click', { bubbles: true })
     )
   })
 
-  assert.match(container.textContent, /Rever aula/)
-  assert.match(container.textContent, /Turma/)
-  assert.match(container.textContent, /Disciplina/)
-  assert.match(container.textContent, /Curso/)
-  assert.match(
-    container.textContent,
-    /Confirme apenas depois de verificar/
+  const editor = article.querySelector('.schedule-import-inline-editor')
+  assert.ok(editor)
+  assert.match(editor.textContent, /Turma/)
+  assert.match(editor.textContent, /Disciplina/)
+  assert.match(editor.textContent, /Curso/)
+  assert.equal(
+    container.querySelectorAll(':scope > .schedule-import-inline-editor').length,
+    0
   )
+})
 
-  const confirm =
-    buttonWithText('Confirmar como disciplina')
+test('a teaching block can be reclassified directly to Cargo from its own cell', async () => {
+  await render()
+
+  const article = block('lesson-a')
+  const cargo = buttonInside(article, 'Cargo')
+  assert.ok(cargo)
+
+  await act(async () => {
+    cargo.dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    )
+  })
+
+  assert.deepEqual(updates.at(-1), {
+    kind: 'lesson-as-duty',
+    id: 'lesson-a'
+  })
+})
+
+test('a duty can be reclassified directly to Componente letiva from its own cell', async () => {
+  await render()
+
+  const article = block('duty-a')
+  const teaching = buttonInside(article, 'Componente letiva')
+  assert.ok(teaching)
+
+  await act(async () => {
+    teaching.dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    )
+  })
+
+  assert.deepEqual(updates.at(-1), {
+    kind: 'duty-as-lesson',
+    id: 'duty-a'
+  })
+})
+
+test('unresolved occupied cells are classified in the weekly grid instead of a separate review panel', async () => {
+  await render()
+
+  const article = block('unknown-a')
+  assert.ok(article)
+  assert.match(article.textContent, /Escolha o tipo/)
+
+  const teaching = buttonInside(article, 'Componente letiva')
+  assert.ok(teaching)
+
+  await act(async () => {
+    teaching.dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    )
+  })
+
+  assert.deepEqual(updates.at(-1), {
+    kind: 'unknown-as-lesson',
+    id: 'unknown-a'
+  })
+})
+
+test('ambiguous subjects remain explicitly confirmable inside the cell editor', async () => {
+  await render()
+
+  const article = block('lesson-b')
+  const opener = buttonInside(article, 'AP')
+  assert.ok(opener)
+
+  await act(async () => {
+    opener.dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    )
+  })
+
+  assert.match(article.textContent, /Disciplina por confirmar/)
+  const confirm = buttonInside(article, 'Confirmar como disciplina')
   assert.ok(confirm)
   assert.equal(confirm.disabled, true)
 
-  const includeCheckbox =
-    [...container.querySelectorAll('input[type="checkbox"]')]
-      .find(input =>
-        input.parentElement?.textContent.includes(
-          'Incluir esta aula na importação'
-        )
-      )
-
+  const includeCheckbox = article.querySelector('input[type="checkbox"]')
   assert.ok(includeCheckbox)
   assert.equal(includeCheckbox.checked, false)
 
@@ -228,55 +341,10 @@ test('clicking a lesson opens editable review without bypassing ambiguous-subjec
   })
 
   assert.deepEqual(updates.at(-1), {
-    kind: 'lesson',
+    kind: 'lesson-update',
     id: 'lesson-b',
     changes: {
       included: true
     }
   })
-})
-
-test('confirmed lesson can be selected and its course field is exposed for correction', async () => {
-  await render()
-
-  const lesson =
-    buttonWithText('Área de Expressões')
-  assert.ok(lesson)
-
-  await act(async () => {
-    lesson.dispatchEvent(
-      new MouseEvent('click', { bubbles: true })
-    )
-  })
-
-  const courseInput =
-    [...container.querySelectorAll('input')]
-      .find(input =>
-        input.value === 'Técnico de Apoio Psicossocial'
-      )
-
-  assert.ok(courseInput)
-
-  await act(async () => {
-    const setter =
-      Object.getOwnPropertyDescriptor(
-        dom.window.HTMLInputElement.prototype,
-        'value'
-      ).set
-    setter.call(courseInput, 'Outro curso')
-    courseInput.dispatchEvent(
-      new Event('input', { bubbles: true })
-    )
-    courseInput.dispatchEvent(
-      new Event('change', { bubbles: true })
-    )
-  })
-
-  assert.ok(
-    updates.some(update =>
-      update.kind === 'lesson' &&
-      update.id === 'lesson-a' &&
-      update.changes.courseName === 'Outro curso'
-    )
-  )
 })

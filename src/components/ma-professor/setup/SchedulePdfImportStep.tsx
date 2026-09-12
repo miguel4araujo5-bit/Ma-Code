@@ -24,10 +24,10 @@ import {
   commitScheduleImportAtomically,
   readScheduleImportFingerprint
 } from './scheduleImportAtomicRepository'
-import ScheduleImportUnresolvedReview, {
+import ScheduleImportVisualGrid, {
+  type ScheduleImportTimeRow,
   type ScheduleImportUnresolvedDraft
-} from './ScheduleImportUnresolvedReview'
-import ScheduleImportVisualGrid from './ScheduleImportVisualGrid'
+} from './ScheduleImportVisualGrid'
 
 type Props = {
   snapshot: SetupSnapshot
@@ -46,6 +46,7 @@ type Draft = {
   courseName: string
   subjectName: string
   subjectConfirmed: boolean
+  dutyNameBackup?: string
 }
 
 type DutyDraft = {
@@ -55,6 +56,13 @@ type DutyDraft = {
   startTime: string
   endTime: string
   name: string
+  lessonBackup?: {
+    periodCount: number
+    groupName: string
+    courseName: string
+    subjectName: string
+    subjectConfirmed: boolean
+  }
 }
 
 type UnresolvedDraft =
@@ -69,6 +77,7 @@ type ParsedProposal = {
   lessons: Draft[]
   duties: DutyDraft[]
   unresolved: UnresolvedDraft[]
+  timeRows: ScheduleImportTimeRow[]
 }
 
 type ImportedSubjectResolution = {
@@ -146,9 +155,6 @@ const weekdayPatterns: Array<{
     ]
   }
 ]
-
-const inputClassName =
-  'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
 
 const UNSAVED_SCHEDULE_IMPORT_MESSAGE =
   'Existe uma proposta de horário importada por confirmar. Se continuar, essa proposta e as correções feitas serão perdidas. Pretende continuar?'
@@ -637,9 +643,24 @@ function parsePages(
   const lessons: Draft[] = []
   const duties: DutyDraft[] = []
   const unresolved: UnresolvedDraft[] = []
+  const sourceTimeRows =
+    new Map<string, ScheduleImportTimeRow>()
   const seenLessons = new Set<string>()
   const seenDuties = new Set<string>()
   const seenUnresolved = new Set<string>()
+
+  for (const page of pages) {
+    for (const line of page.lines) {
+      const time = extractTimeRange(line.text)
+      if (!time) continue
+
+      const key = `${time.startTime}|${time.endTime}`
+      sourceTimeRows.set(key, {
+        startTime: time.startTime,
+        endTime: time.endTime
+      })
+    }
+  }
 
   let lessonSequence = 0
   let dutySequence = 0
@@ -804,7 +825,7 @@ function parsePages(
         ),
       rawText,
       reason:
-        'A célula estava ocupada no PDF, mas não existem dados suficientes para a classificar automaticamente como aula ou cargo.'
+        'A célula estava ocupada no PDF, mas não existem dados suficientes para a classificar automaticamente como componente letiva ou cargo.'
     })
 
     return true
@@ -965,7 +986,12 @@ function parsePages(
   return {
     lessons,
     duties,
-    unresolved
+    unresolved,
+    timeRows: [...sourceTimeRows.values()].sort(
+      (left, right) =>
+        left.startTime.localeCompare(right.startTime) ||
+        left.endTime.localeCompare(right.endTime)
+    )
   }
 }
 
@@ -1021,6 +1047,10 @@ export default function SchedulePdfImportStep({
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [duties, setDuties] = useState<DutyDraft[]>([])
   const [unresolved, setUnresolved] = useState<UnresolvedDraft[]>([])
+  const [sourceTimeRows, setSourceTimeRows] =
+    useState<ScheduleImportTimeRow[]>([])
+  const [defaultPeriodMinutes, setDefaultPeriodMinutes] =
+    useState(50)
   const [expectedFingerprint, setExpectedFingerprint] = useState('')
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
@@ -1074,6 +1104,7 @@ export default function SchedulePdfImportStep({
     setDrafts([])
     setDuties([])
     setUnresolved([])
+    setSourceTimeRows([])
     setExpectedFingerprint('')
     setFileName('')
     setProgress('')
@@ -1155,6 +1186,7 @@ export default function SchedulePdfImportStep({
     setDrafts([])
     setDuties([])
     setUnresolved([])
+    setSourceTimeRows([])
     setExpectedFingerprint('')
     setFileName(file.name)
 
@@ -1172,6 +1204,10 @@ export default function SchedulePdfImportStep({
       const settings =
         await maProfessorRepository
           .getSettings()
+
+      setDefaultPeriodMinutes(
+        settings.defaultPeriodMinutes
+      )
 
       const proposal =
         parsePages(
@@ -1197,6 +1233,7 @@ export default function SchedulePdfImportStep({
       setDrafts(proposal.lessons)
       setDuties(proposal.duties)
       setUnresolved(proposal.unresolved)
+      setSourceTimeRows(proposal.timeRows)
       setExpectedFingerprint(
         fingerprint
       )
@@ -1210,7 +1247,7 @@ export default function SchedulePdfImportStep({
         proposal.unresolved.length
 
       setProgress(
-        `${proposal.lessons.length} aula${proposal.lessons.length === 1 ? '' : 's'}, ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} e ${unresolvedCount} bloco${unresolvedCount === 1 ? '' : 's'} por resolver encontrado${proposal.lessons.length + proposal.duties.length + unresolvedCount === 1 ? '' : 's'}. ${unresolvedCount > 0 ? 'Os blocos por resolver têm de ser classificados como aula, cargo ou ignorados explicitamente. ' : ''}${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
+        `${proposal.lessons.length} componente${proposal.lessons.length === 1 ? '' : 's'} letiva${proposal.lessons.length === 1 ? '' : 's'}, ${proposal.duties.length} cargo${proposal.duties.length === 1 ? '' : 's'} e ${unresolvedCount} bloco${unresolvedCount === 1 ? '' : 's'} por classificar encontrado${proposal.lessons.length + proposal.duties.length + unresolvedCount === 1 ? '' : 's'}. ${unresolvedCount > 0 ? 'Os blocos por classificar aparecem diretamente na grelha e têm de ser definidos como Componente letiva, Cargo ou ignorados explicitamente. ' : ''}${pendingSubjectCount > 0 ? `${pendingSubjectCount} disciplina${pendingSubjectCount === 1 ? '' : 's'} precisa${pendingSubjectCount === 1 ? '' : 'm'} de confirmação. ` : ''}AP/TAP é tratado como curso Técnico de Apoio Psicossocial quando surge como sigla separada. Reveja curso, turma e disciplina antes de confirmar.`
       )
     } catch (readError) {
       setError(
@@ -1260,6 +1297,98 @@ export default function SchedulePdfImportStep({
     setError('')
   }
 
+  function lessonAsDuty(id: string) {
+    if (busy) return
+
+    const lesson =
+      drafts.find(
+        candidate => candidate.id === id
+      )
+
+    if (!lesson) return
+
+    setDrafts(
+      current => current.filter(
+        candidate => candidate.id !== id
+      )
+    )
+    setDuties(
+      current => [
+        ...current.filter(
+          candidate => candidate.id !== id
+        ),
+        {
+          id: lesson.id,
+          included: lesson.included,
+          weekday: lesson.weekday,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          name:
+            lesson.dutyNameBackup?.trim() ||
+            lesson.subjectName.trim() ||
+            lesson.groupName.trim() ||
+            'Cargo / atividade',
+          lessonBackup: {
+            periodCount: lesson.periodCount,
+            groupName: lesson.groupName,
+            courseName: lesson.courseName,
+            subjectName: lesson.subjectName,
+            subjectConfirmed: lesson.subjectConfirmed
+          }
+        }
+      ]
+    )
+    setError('')
+  }
+
+  function dutyAsLesson(id: string) {
+    if (busy) return
+
+    const duty =
+      duties.find(
+        candidate => candidate.id === id
+      )
+
+    if (!duty) return
+
+    const backup = duty.lessonBackup
+
+    setDuties(
+      current => current.filter(
+        candidate => candidate.id !== id
+      )
+    )
+    setDrafts(
+      current => [
+        ...current.filter(
+          candidate => candidate.id !== id
+        ),
+        {
+          id: duty.id,
+          included: duty.included,
+          weekday: duty.weekday,
+          startTime: duty.startTime,
+          endTime: duty.endTime,
+          periodCount:
+            backup?.periodCount ??
+            suggestedPeriods(
+              duty.startTime,
+              duty.endTime,
+              defaultPeriodMinutes
+            ),
+          groupName: backup?.groupName ?? '',
+          courseName: backup?.courseName ?? '',
+          subjectName:
+            backup?.subjectName || duty.name,
+          subjectConfirmed:
+            backup?.subjectConfirmed ?? false,
+          dutyNameBackup: duty.name
+        }
+      ]
+    )
+    setError('')
+  }
+
   function resolveUnresolvedAsLesson(id: string) {
     const block =
       unresolved.find(
@@ -1289,7 +1418,7 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('resolved-slot'),
+          id: block.id,
           included: true,
           weekday: block.weekday,
           startTime: block.startTime,
@@ -1325,7 +1454,7 @@ export default function SchedulePdfImportStep({
       current => [
         ...current,
         {
-          id: manualId('resolved-duty'),
+          id: block.id,
           included: true,
           weekday: block.weekday,
           startTime: block.startTime,
@@ -1412,7 +1541,7 @@ export default function SchedulePdfImportStep({
 
     if (unresolved.length > 0) {
       setError(
-        'Existem blocos ocupados do horário por resolver. Classifique cada um como aula ou cargo, ou escolha explicitamente Ignorar, antes de confirmar a importação.'
+        'Existem blocos ocupados do horário por classificar. Escolha Componente letiva ou Cargo em cada célula, ou ignore explicitamente um falso positivo, antes de confirmar a importação.'
       )
       return
     }
@@ -1431,7 +1560,7 @@ export default function SchedulePdfImportStep({
       unconfirmedSubjects.length > 0
     ) {
       setError(
-        'Existem siglas ou nomes de disciplina por confirmar. Corrija a disciplina em cada linha assinalada ou escolha “Confirmar como disciplina”. O MA-Professor não vai criar disciplinas a partir de siglas ambíguas sem confirmação.'
+        'Existem siglas ou nomes de disciplina por confirmar. Corrija a disciplina diretamente na célula assinalada ou escolha “Confirmar como disciplina”. O MA-Professor não vai criar disciplinas a partir de siglas ambíguas sem confirmação.'
       )
       return
     }
@@ -1469,7 +1598,7 @@ export default function SchedulePdfImportStep({
           : ''
 
       setProgress(
-        `${included.length} aula${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'}; ${result.createdSlots} novo${result.createdSlots === 1 ? '' : 's'} bloco${result.createdSlots === 1 ? '' : 's'} criado${result.createdSlots === 1 ? '' : 's'} e ${result.createdDutyOccurrences} ocorrência${result.createdDutyOccurrences === 1 ? '' : 's'} de cargos programada${result.createdDutyOccurrences === 1 ? '' : 's'}.${courseNotice}`
+        `${included.length} componente${included.length === 1 ? '' : 's'} letiva${included.length === 1 ? '' : 's'} preparada${included.length === 1 ? '' : 's'}; ${result.createdSlots} novo${result.createdSlots === 1 ? '' : 's'} bloco${result.createdSlots === 1 ? '' : 's'} criado${result.createdSlots === 1 ? '' : 's'} e ${result.createdDutyOccurrences} ocorrência${result.createdDutyOccurrences === 1 ? '' : 's'} de cargos programada${result.createdDutyOccurrences === 1 ? '' : 's'}.${courseNotice}`
       )
 
       await onImported(
@@ -1482,6 +1611,7 @@ export default function SchedulePdfImportStep({
       setDrafts([])
       setDuties([])
       setUnresolved([])
+      setSourceTimeRows([])
       setExpectedFingerprint('')
       setFileName('')
     } catch (submitError) {
@@ -1532,7 +1662,7 @@ export default function SchedulePdfImportStep({
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-              O MA-Professor lê o PDF no seu dispositivo e prepara aulas e cargos. As salas são ignoradas. Nada é aplicado antes da sua confirmação. A gravação confirmada é feita como uma única operação: se houver um erro, nenhuma parte nova do horário fica gravada. Um curso já confirmado numa turma também não é substituído automaticamente por uma inferência diferente do PDF.
+              O MA-Professor lê o PDF no seu dispositivo e prepara a grelha semanal. As salas são ignoradas. Nada é aplicado antes da sua confirmação. A gravação confirmada é feita como uma única operação: se houver um erro, nenhuma parte nova do horário fica gravada. Um curso já confirmado numa turma também não é substituído automaticamente por uma inferência diferente do PDF.
             </p>
           </div>
 
@@ -1603,7 +1733,7 @@ export default function SchedulePdfImportStep({
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Compare a vista com o PDF original. Corrija o que estiver errado, acrescente blocos em falta e desmarque o que não pretende importar. Curso, turma e disciplina continuam editáveis antes da confirmação; a base só é alterada no commit final.
+                Compare a grelha com o PDF original. Clique numa célula para editar os dados e altere diretamente entre Componente letiva e Cargo quando a classificação automática não estiver correta. As linhas horárias do documento são mantidas mesmo quando estão vazias.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1613,7 +1743,7 @@ export default function SchedulePdfImportStep({
                   onClick={addManualLesson}
                   className="rounded-xl border border-cyan-300/25 bg-cyan-300/[0.08] px-4 py-2.5 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/[0.14] disabled:opacity-50"
                 >
-                  + Adicionar aula / hora
+                  + Adicionar componente letiva
                 </button>
 
                 <button
@@ -1631,19 +1761,18 @@ export default function SchedulePdfImportStep({
               <ScheduleImportVisualGrid
                 lessons={drafts}
                 duties={duties}
+                unresolved={unresolved}
+                sourceTimeRows={sourceTimeRows}
                 disabled={busy}
                 onUpdateLesson={updateDraft}
                 onUpdateDuty={updateDuty}
+                onLessonAsDuty={lessonAsDuty}
+                onDutyAsLesson={dutyAsLesson}
+                onUnresolvedAsLesson={resolveUnresolvedAsLesson}
+                onUnresolvedAsDuty={resolveUnresolvedAsDuty}
+                onIgnoreUnresolved={ignoreUnresolved}
               />
             </div>
-
-            <ScheduleImportUnresolvedReview
-              unresolved={unresolved}
-              disabled={busy}
-              onAsLesson={resolveUnresolvedAsLesson}
-              onAsDuty={resolveUnresolvedAsDuty}
-              onIgnore={ignoreUnresolved}
-            />
 
             {unconfirmedSubjects.length > 0 ? (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
@@ -1652,7 +1781,7 @@ export default function SchedulePdfImportStep({
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-amber-100/75">
-                  Utilize a grelha visual para corrigir o nome ou escolha “Confirmar como disciplina”. O MA-Professor não cria automaticamente uma disciplina a partir de uma sigla ambígua.
+                  Abra a própria célula para corrigir o nome ou escolha “Confirmar como disciplina”. O MA-Professor não cria automaticamente uma disciplina a partir de uma sigla ambígua.
                 </p>
               </div>
             ) : null}
@@ -1692,7 +1821,7 @@ export default function SchedulePdfImportStep({
                 {busy
                   ? 'A aplicar...'
                   : unresolved.length > 0
-                    ? `Resolver ${unresolved.length} bloco${unresolved.length === 1 ? '' : 's'} primeiro`
+                    ? `Classificar ${unresolved.length} bloco${unresolved.length === 1 ? '' : 's'} primeiro`
                     : unconfirmedSubjects.length > 0
                       ? `Confirmar ${unconfirmedSubjects.length} disciplina${unconfirmedSubjects.length === 1 ? '' : 's'} primeiro`
                       : `Confirmar ${includedCount} bloco${includedCount === 1 ? '' : 's'}`}
