@@ -9,8 +9,29 @@ import type {
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
+const REQUEST_GUARD_STORAGE_KEY =
+  'ma-professor-access-request-guard-v1'
+
+const PUBLIC_ACCESS_REQUEST_PATH =
+  '/api/ma-professor/access/request'
+
 const INTERNAL_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
+
+const REQUEST_GUARD_WINDOW_MS =
+  10 * 60 * 1000
+
+const REQUEST_GUARD_BLOCK_MS =
+  15 * 60 * 1000
+
+const REQUEST_GUARD_MAX_ATTEMPTS =
+  30
+
+const REQUEST_GUARD_RETENTION_MS =
+  60 * 60 * 1000
+
+const REQUEST_GUARD_MAX_BUCKETS =
+  256
 
 type JsonObject =
   Record<string, unknown>
@@ -31,10 +52,31 @@ interface AccessStateSnapshot {
   >
 }
 
+interface RequestGuardBucket {
+  windowStartedAt: number
+  count: number
+  blockedUntil: number | null
+  lastSeenAt: number
+}
+
+interface RequestGuardState {
+  schemaVersion: 1
+  buckets: Record<
+    string,
+    RequestGuardBucket
+  >
+  updatedAt: number
+}
+
 interface DurableObjectStorageLike {
   get<T>(
     key: string
   ): Promise<T | undefined>
+
+  put<T>(
+    key: string,
+    value: T
+  ): Promise<void>
 }
 
 interface DurableObjectStateLike {
@@ -44,7 +86,9 @@ interface DurableObjectStateLike {
 
 function json(
   body: unknown,
-  status = 200
+  status = 200,
+  extraHeaders:
+    Record<string, string> = {}
 ) {
   return new Response(
     JSON.stringify(body),
@@ -64,7 +108,8 @@ function json(
         'Referrer-Policy':
           'no-referrer',
         'X-Robots-Tag':
-          'noindex, nofollow'
+          'noindex, nofollow',
+        ...extraHeaders
       }
     }
   )
@@ -82,7 +127,132 @@ function normalizeEmail(
     : ''
 }
 
-async function readEmail(
+function createRequestGuardState():
+  RequestGuardState {
+  return {
+    schemaVersion: 1,
+    buckets: {},
+    updatedAt: Date.now()
+  }
+}
+
+function normalizeRequestGuardState(
+  value:
+    RequestGuardState |
+    undefined
+) {
+  if (
+    !value ||
+    value.schemaVersion !== 1 ||
+    !value.buckets ||
+    typeof value.buckets !==
+      'object'
+  ) {
+    return createRequestGuardState()
+  }
+
+  return value
+}
+
+function bytesToHex(
+  bytes: Uint8Array
+) {
+  return Array.from(
+    bytes,
+    byte =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
+}
+
+async function hashRequestOrigin(
+  value: string
+) {
+  const digest =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder()
+        .encode(
+          `ma-professor-access-request:${value}`
+        )
+    )
+
+  return bytesToHex(
+    new Uint8Array(digest)
+  )
+}
+
+function pruneRequestGuardState(
+  state: RequestGuardState,
+  now: number
+) {
+  const oldestAllowed =
+    now -
+    REQUEST_GUARD_RETENTION_MS
+
+  for (
+    const [
+      key,
+      bucket
+    ] of Object.entries(
+      state.buckets
+    )
+  ) {
+    if (
+      bucket.lastSeenAt <
+        oldestAllowed &&
+      (
+        bucket.blockedUntil ===
+          null ||
+        bucket.blockedUntil <=
+          now
+      )
+    ) {
+      delete state.buckets[
+        key
+      ]
+    }
+  }
+}
+
+function makeRoomForRequestGuardBucket(
+  state: RequestGuardState,
+  currentKey: string
+) {
+  if (
+    state.buckets[
+      currentKey
+    ] ||
+    Object.keys(
+      state.buckets
+    ).length <
+      REQUEST_GUARD_MAX_BUCKETS
+  ) {
+    return
+  }
+
+  const oldestKey =
+    Object.entries(
+      state.buckets
+    )
+      .sort(
+        (
+          left,
+          right
+        ) =>
+          left[1].lastSeenAt -
+          right[1].lastSeenAt
+      )[0]?.[0]
+
+  if (oldestKey) {
+    delete state.buckets[
+      oldestKey
+    ]
+  }
+}
+
+async function readRequestBody(
   request: Request
 ) {
   try {
@@ -97,17 +267,27 @@ async function readEmail(
         'object' ||
       Array.isArray(parsed)
     ) {
-      return ''
+      return null
     }
 
-    return normalizeEmail(
-      (
-        parsed as JsonObject
-      ).email
-    )
+    return parsed as
+      JsonObject
   } catch {
-    return ''
+    return null
   }
+}
+
+async function readEmail(
+  request: Request
+) {
+  const parsed =
+    await readRequestBody(
+      request
+    )
+
+  return normalizeEmail(
+    parsed?.email
+  )
 }
 
 export class MaProfessorAccessDurableObject {
@@ -155,6 +335,179 @@ export class MaProfessorAccessDurableObject {
     return response
   }
 
+  private async enforceAccessRequestRateLimit(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST' ||
+      new URL(
+        request.url
+      ).pathname !==
+        PUBLIC_ACCESS_REQUEST_PATH
+    ) {
+      return null
+    }
+
+    const body =
+      await readRequestBody(
+        request
+      )
+
+    if (
+      !body ||
+      typeof body.accountPassword !==
+        'string' ||
+      body.accountPassword.length ===
+        0
+    ) {
+      return null
+    }
+
+    const connectingIp =
+      (
+        request.headers.get(
+          'CF-Connecting-IP'
+        ) || ''
+      )
+        .trim()
+        .slice(0, 64)
+
+    if (!connectingIp) {
+      return null
+    }
+
+    const key =
+      await hashRequestOrigin(
+        connectingIp
+      )
+
+    const now =
+      Date.now()
+
+    const state =
+      normalizeRequestGuardState(
+        await this.state.storage.get<RequestGuardState>(
+          REQUEST_GUARD_STORAGE_KEY
+        )
+      )
+
+    pruneRequestGuardState(
+      state,
+      now
+    )
+
+    makeRoomForRequestGuardBucket(
+      state,
+      key
+    )
+
+    let bucket =
+      state.buckets[
+        key
+      ]
+
+    if (
+      bucket?.blockedUntil !==
+        null &&
+      bucket?.blockedUntil !==
+        undefined &&
+      bucket.blockedUntil >
+        now
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Foram recebidos demasiados pedidos de acesso desta origem. Aguarde alguns minutos antes de tentar novamente.'
+        },
+        429,
+        {
+          'Retry-After':
+            String(
+              Math.max(
+                1,
+                Math.ceil(
+                  (
+                    bucket.blockedUntil -
+                    now
+                  ) /
+                    1000
+                )
+              )
+            )
+        }
+      )
+    }
+
+    if (
+      !bucket ||
+      now -
+        bucket.windowStartedAt >=
+        REQUEST_GUARD_WINDOW_MS
+    ) {
+      bucket = {
+        windowStartedAt: now,
+        count: 1,
+        blockedUntil: null,
+        lastSeenAt: now
+      }
+    } else {
+      bucket.count += 1
+      bucket.lastSeenAt =
+        now
+    }
+
+    if (
+      bucket.count >
+      REQUEST_GUARD_MAX_ATTEMPTS
+    ) {
+      bucket.blockedUntil =
+        now +
+        REQUEST_GUARD_BLOCK_MS
+    }
+
+    state.buckets[
+      key
+    ] =
+      bucket
+
+    state.updatedAt =
+      now
+
+    await this.state.storage.put(
+      REQUEST_GUARD_STORAGE_KEY,
+      state
+    )
+
+    if (
+      bucket.blockedUntil !==
+        null &&
+      bucket.blockedUntil >
+        now
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Foram recebidos demasiados pedidos de acesso desta origem. Aguarde alguns minutos antes de tentar novamente.'
+        },
+        429,
+        {
+          'Retry-After':
+            String(
+              Math.ceil(
+                REQUEST_GUARD_BLOCK_MS /
+                  1000
+              )
+            )
+        }
+      )
+    }
+
+    return null
+  }
+
   private async handleRequest(
     request: Request
   ) {
@@ -162,6 +515,20 @@ export class MaProfessorAccessDurableObject {
       new URL(
         request.url
       ).pathname
+
+    if (
+      pathname ===
+        PUBLIC_ACCESS_REQUEST_PATH
+    ) {
+      const limited =
+        await this.enforceAccessRequestRateLimit(
+          request
+        )
+
+      if (limited) {
+        return limited
+      }
+    }
 
     if (
       pathname !==
