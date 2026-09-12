@@ -6,6 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
+| F103 | Reservar conteúdos de planificação já associados a aulas planeadas, evitando sugestões duplicadas e mantendo Diário/Calendário/Dashboard coerentes | `work/f103-planification-item-reservations` | `src/components/ma-professor/lessons/lessonRepositoryBase.ts`; `src/components/ma-professor/calendar/calendarWorkspaceRepositoryBase.ts`; `src/components/ma-professor/dashboard/dashboardRepositoryBase.ts`; utilitário/testes de reserva de planificação | EM CURSO | `aa5a37dedf45543491544a817017cc8d80647f50` | 2026-09-13 |
 
 ## Regras de utilização
 
