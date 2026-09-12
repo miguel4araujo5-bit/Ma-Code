@@ -2,6 +2,12 @@ import {
   maProfessorDb
 } from '../db'
 
+import {
+  findPlanificationReservationConflict,
+  getReservedPlanificationItemIds,
+  selectNextAvailablePlanificationItem
+} from '../planifications/planificationItemReservation'
+
 import type {
   EntityId
 } from '../types'
@@ -41,22 +47,77 @@ export {
   formatLessonsForBulkGIAE
 } from './lessonRepositoryBase'
 
+async function assertPlanificationItemsAvailable(
+  moduleId: EntityId,
+  planificationItemIds: EntityId[],
+  ignoredLessonId?: EntityId
+) {
+  if (planificationItemIds.length === 0) {
+    return
+  }
+
+  const moduleLessons =
+    await maProfessorDb.lessons
+      .where(
+        'moduleId'
+      )
+      .equals(
+        moduleId
+      )
+      .toArray()
+
+  const conflict =
+    findPlanificationReservationConflict(
+      moduleLessons,
+      moduleId,
+      planificationItemIds,
+      ignoredLessonId
+    )
+
+  if (conflict) {
+    throw new Error(
+      'Um dos conteúdos da planificação já está reservado noutra aula planeada.'
+    )
+  }
+}
+
 export class LessonRepository
   extends BaseLessonRepository {
   override async createLesson(
     input: LessonDraft
   ) {
+    await this.initialize()
+
     const requestedStatus =
       input.status ?? 'planned'
 
-    return super.createLesson({
+    const safeInput: LessonDraft = {
       ...input,
       status:
         resolveLessonStatusForDate(
           input.date,
           requestedStatus
         )
-    })
+    }
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.tables,
+      async () => {
+        if (
+          safeInput.status !== 'cancelled'
+        ) {
+          await assertPlanificationItemsAvailable(
+            safeInput.moduleId,
+            safeInput.planificationItemIds ?? []
+          )
+        }
+
+        return super.createLesson(
+          safeInput
+        )
+      }
+    )
   }
 
   override async updateLesson(
@@ -201,12 +262,100 @@ export class LessonRepository
           )
         }
 
+        const selectedPlanificationItemIds =
+          safeChanges.planificationItemIds ??
+          latest.planificationItemIds
+
+        const existingReservationIds =
+          latest.status === 'planned'
+            ? new Set(
+                latest.planificationItemIds
+              )
+            : new Set<EntityId>()
+
+        const newReservationIds =
+          nextStatus === 'cancelled'
+            ? []
+            : selectedPlanificationItemIds.filter(
+                itemId =>
+                  !existingReservationIds.has(
+                    itemId
+                  )
+              )
+
+        await assertPlanificationItemsAvailable(
+          nextModuleId,
+          newReservationIds,
+          id
+        )
+
         return super.updateLesson(
           id,
           safeChanges,
           options
         )
       }
+    )
+  }
+
+  override async getNextPlanificationItem(
+    moduleId: EntityId,
+    ignoredLessonId?: EntityId
+  ) {
+    await this.initialize()
+
+    const [
+      planifications,
+      moduleLessons
+    ] = await Promise.all([
+      maProfessorDb.planifications
+        .where(
+          'moduleId'
+        )
+        .equals(
+          moduleId
+        )
+        .toArray(),
+      maProfessorDb.lessons
+        .where(
+          'moduleId'
+        )
+        .equals(
+          moduleId
+        )
+        .toArray()
+    ])
+
+    const activePlanification =
+      planifications.find(
+        planification =>
+          planification.active
+      )
+
+    if (!activePlanification) {
+      return null
+    }
+
+    const items =
+      await maProfessorDb.planificationItems
+        .where(
+          'planificationId'
+        )
+        .equals(
+          activePlanification.id
+        )
+        .toArray()
+
+    const reservedIds =
+      getReservedPlanificationItemIds(
+        moduleLessons,
+        moduleId,
+        ignoredLessonId
+      )
+
+    return selectNextAvailablePlanificationItem(
+      items,
+      reservedIds
     )
   }
 
