@@ -42,6 +42,15 @@ function unique(values: string[]) {
   )
 }
 
+function normalizeModuleCode(
+  value: string
+) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-PT')
+}
+
 export function buildPlanificationPdfPreview(
   parsed: ParsedPlanificationPdfDocument,
   destinations: PlanificationPdfPreviewDestination[]
@@ -49,12 +58,18 @@ export function buildPlanificationPdfPreview(
   const rows =
     parsed.sections.map(
       (section, index) => {
+        const normalizedSectionCode =
+          normalizeModuleCode(
+            section.code
+          )
         const candidates =
-          section.code
+          normalizedSectionCode
             ? destinations.filter(
                 destination =>
-                  destination.code.trim() ===
-                  section.code
+                  normalizeModuleCode(
+                    destination.code
+                  ) ===
+                  normalizedSectionCode
               )
             : []
 
@@ -67,7 +82,7 @@ export function buildPlanificationPdfPreview(
           candidates.length === 0
         ) {
           warnings.push(
-            `Não existe uma UFCD com o código exato ${section.code} na turma e disciplina atualmente selecionadas.`
+            `Não existe uma UFCD ou módulo com o código ${section.code} na turma e disciplina atualmente selecionadas.`
           )
         }
 
