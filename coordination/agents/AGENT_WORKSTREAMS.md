@@ -6,6 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
+| F103 | Corrigir percentagem de faltas para ponderar tempos letivos (`periodCount`) sem perder contagens históricas por aula | `work/f103-attendance-period-weighting` | `src/components/ma-professor/attendance/attendanceRepository.ts`; `src/components/ma-professor/attendance/attendancePeriodMetrics.ts`; `src/components/ma-professor/types.ts`; testes de faltas por tempos | EM CURSO | `de7ee881bedcc3af3dc2ffc9de28034e7e8a8eac` | 2026-09-13 |
 
 ## Regras de utilização
 
