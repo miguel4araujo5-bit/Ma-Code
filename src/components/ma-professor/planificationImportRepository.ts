@@ -148,6 +148,24 @@ function normalizeText(
     )
 }
 
+function normalizeDescription(
+  value: string | undefined
+) {
+  return (
+    value ??
+    ''
+  )
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(line =>
+      line
+        .trim()
+        .replace(/[ \t]+/g, ' ')
+    )
+    .filter(Boolean)
+    .join('\n')
+}
+
 function requireText(
   value: string | undefined,
   label: string
@@ -191,7 +209,7 @@ function normalizePages(
           right
         ) =>
           left -
-          right
+            right
       )
 
   if (
@@ -221,7 +239,7 @@ function normalizeDocumentHash(
     )
   ) {
     throw new Error(
-      'O PDF não possui um SHA-256 válido para controlo de importação.'
+      'O documento não possui um SHA-256 válido para controlo de importação.'
     )
   }
 
@@ -509,7 +527,7 @@ function importedItemsMatch(
 ) {
   if (
     existing.length !==
-    intended.length
+      intended.length
   ) {
     return false
   }
@@ -534,9 +552,9 @@ function importedItemsMatch(
       index
     ) =>
       value ===
-      intendedShapes[
-        index
-      ]
+        intendedShapes[
+          index
+        ]
   )
 }
 
@@ -546,7 +564,7 @@ async function normalizeEntry(
 ): Promise<NormalizedImportEntry> {
   if (
     entry.mode ===
-    'skip'
+      'skip'
   ) {
     return {
       ...entry,
@@ -556,7 +574,7 @@ async function normalizeEntry(
             entry.planification.title
           ),
         description:
-          normalizeText(
+          normalizeDescription(
             entry.planification.description
           )
       },
@@ -606,7 +624,7 @@ async function normalizeEntry(
 
   if (
     items.length ===
-    0
+      0
   ) {
     throw new Error(
       'A UFCD selecionada não contém itens de planificação válidos para importar.'
@@ -622,7 +640,7 @@ async function normalizeEntry(
           'O título da planificação'
         ),
       description:
-        normalizeText(
+        normalizeDescription(
           entry.planification.description
         )
     },
@@ -725,7 +743,7 @@ async function loadDestination(
     activePlanifications[
       0
     ] ??
-    null
+      null
 
   if (
     activePlanification &&
@@ -794,6 +812,38 @@ function createPlanificationRecord(
     updatedAt:
       timestamp
   }
+}
+
+function mergePlanificationDescription(
+  current: string,
+  incoming: string
+) {
+  const next =
+    normalizeDescription(
+      incoming
+    )
+
+  if (!next) {
+    return current
+  }
+
+  const existing =
+    current.trim()
+
+  if (!existing) {
+    return next
+  }
+
+  if (
+    normalizeText(existing)
+      .includes(
+        normalizeText(next)
+      )
+  ) {
+    return current
+  }
+
+  return `${existing}\n\n${next}`
 }
 
 function createItemRecords(
@@ -870,7 +920,7 @@ function assertUniqueWriteDestinations(
     entry => {
       if (
         entry.mode ===
-        'skip'
+          'skip'
       ) {
         return
       }
@@ -959,7 +1009,7 @@ export class PlanificationImportRepository {
 
     if (
       input.confirmed !==
-      true
+        true
     ) {
       throw new Error(
         'A importação só pode ser gravada depois de confirmação explícita do professor.'
@@ -969,7 +1019,7 @@ export class PlanificationImportRepository {
     const documentName =
       requireText(
         input.document.name,
-        'O nome do PDF'
+        'O nome do documento'
       )
 
     const documentSha256 =
@@ -1006,11 +1056,11 @@ export class PlanificationImportRepository {
 
         for (
           const entry of
-          normalizedEntries
+            normalizedEntries
         ) {
           if (
             entry.mode ===
-            'skip'
+              'skip'
           ) {
             results.push({
               moduleId:
@@ -1032,7 +1082,7 @@ export class PlanificationImportRepository {
             destination.activeItems.filter(
               item =>
                 item.sourceImportKey ===
-                entry.sourceImportKey
+                  entry.sourceImportKey
             )
 
           if (
@@ -1046,7 +1096,7 @@ export class PlanificationImportRepository {
               )
             ) {
               throw new Error(
-                'Esta secção do PDF já foi importada, mas os itens associados foram alterados. Reveja a planificação antes de voltar a importar.'
+                'Esta secção do documento já foi importada, mas os itens associados foram alterados. Reveja a planificação antes de voltar a importar.'
               )
             }
 
@@ -1087,7 +1137,7 @@ export class PlanificationImportRepository {
 
           if (
             currentFingerprint !==
-            entry.expectedStateFingerprint
+              entry.expectedStateFingerprint
           ) {
             throw new Error(
               'A planificação foi alterada depois da pré-visualização. Atualize os destinos e confirme novamente antes de importar.'
@@ -1096,7 +1146,7 @@ export class PlanificationImportRepository {
 
           if (
             entry.mode ===
-            'create'
+              'create'
           ) {
             if (
               destination.activePlanification
@@ -1154,7 +1204,7 @@ export class PlanificationImportRepository {
 
           if (
             entry.mode ===
-            'append'
+              'append'
           ) {
             if (
               !destination.activePlanification
@@ -1175,7 +1225,7 @@ export class PlanificationImportRepository {
                     item.order
                 )
               ) +
-              1
+                1
 
             const itemRecords =
               createItemRecords(
@@ -1185,6 +1235,25 @@ export class PlanificationImportRepository {
                 documentName,
                 timestamp
               )
+
+            const mergedDescription =
+              mergePlanificationDescription(
+                destination.activePlanification.description,
+                entry.planification.description
+              )
+
+            if (
+              mergedDescription !==
+                destination.activePlanification.description
+            ) {
+              await maProfessorDb.planifications.put({
+                ...destination.activePlanification,
+                description:
+                  mergedDescription,
+                updatedAt:
+                  timestamp
+              })
+            }
 
             await maProfessorDb.planificationItems.bulkAdd(
               itemRecords

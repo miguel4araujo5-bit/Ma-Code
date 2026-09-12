@@ -77,6 +77,16 @@ class Table {
     return record.id
   }
 
+  async put(record) {
+    const index = rows(this.name).findIndex(item => item.id === record.id)
+    if (index < 0) {
+      rows(this.name).push(clone(record))
+    } else {
+      rows(this.name)[index] = clone(record)
+    }
+    return record.id
+  }
+
   async bulkAdd(records) {
     for (const record of records) {
       await this.add(record)
