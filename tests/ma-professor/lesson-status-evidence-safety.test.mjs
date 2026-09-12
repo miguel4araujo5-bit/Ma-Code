@@ -62,6 +62,15 @@ const dbUrl = transpile(`
             ? structuredClone(state().lesson)
             : undefined
         );
+      },
+      where(){
+        return {
+          equals(){
+            return {
+              async toArray(){return [structuredClone(state().lesson)]}
+            }
+          }
+        }
       }
     },
     lessonAttendance: counter('attendanceCount'),
@@ -105,6 +114,18 @@ const temporalSafetyUrl = transpile(`
   export function resolveLessonStatusForDate(_date, status){return status}
 `)
 
+const reservationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/planifications/planificationItemReservation.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const reservationUrl = transpile(
+  reservationSource
+)
+
 const source = await readFile(
   new URL(
     '../../src/components/ma-professor/lessons/lessonRepository.ts',
@@ -115,6 +136,10 @@ const source = await readFile(
 
 const runtime = source
   .replaceAll("'../db'", `'${dbUrl}'`)
+  .replaceAll(
+    "'../planifications/planificationItemReservation'",
+    `'${reservationUrl}'`
+  )
   .replaceAll("'./lessonRepositoryBase'", `'${baseRepositoryUrl}'`)
   .replaceAll("'./lessonHistoricalEditSafety'", `'${historicalSafetyUrl}'`)
   .replaceAll("'./lessonTemporalSafety'", `'${temporalSafetyUrl}'`)
@@ -140,6 +165,7 @@ function resetState({
       date: '2026-09-09',
       moduleId: 'module-1',
       status,
+      planificationItemIds: [],
       updatedAt: 'v1'
     }
   }
