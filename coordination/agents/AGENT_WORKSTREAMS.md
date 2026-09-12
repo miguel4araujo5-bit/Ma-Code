@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Unificar o motor de importação dos critérios entre o assistente guiado e a configuração avançada, preservando todas as opções manuais e a pré-visualização | `work/f103-unify-assessment-criteria-import` | `src/components/ma-professor/setup/AssessmentCriteriaPdfImportPanel.tsx`; `tests/ma-professor/assessment-criteria-import-paths.test.mjs` | EM CURSO — análise concluída; alteração limitada ao leitor/resolução comum, sem remover escopo por UFCD, edição manual ou confirmação antes de gravar | `b22d1461a5ba486a0607278575fe39f3134cbd3e` | 2026-09-12 |
+| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | `main` | 2026-09-12 |
 
 ## Regras de utilização
 
