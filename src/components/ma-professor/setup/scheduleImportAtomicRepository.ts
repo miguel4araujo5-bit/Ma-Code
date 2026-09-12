@@ -17,7 +17,8 @@ import type {
 } from '../types'
 
 import {
-  getDutyDatesForSchool
+  getDutyDatesForSchool,
+  requiresDutyDateRangeConfirmation
 } from './schoolDutyDatePolicy'
 
 export type ScheduleImportLesson = {
@@ -461,6 +462,80 @@ function dutyEventKey(
   return `${normalize(title)}|${date}`
 }
 
+function dutyDateLabel(
+  value: string
+) {
+  const [year, month, day] =
+    value.split('-')
+
+  return (
+    year && month && day
+      ? `${day}/${month}/${year}`
+      : value
+  )
+}
+
+async function confirmGenericDutyDateRange(
+  academicYearId: string
+) {
+  const [
+    academicYear,
+    profile
+  ] = await Promise.all([
+    maProfessorDb.academicYears.get(
+      academicYearId
+    ),
+    maProfessorDb.teacherProfiles.get(
+      TEACHER_PROFILE_ID
+    )
+  ])
+
+  if (!academicYear) {
+    throw new Error(
+      'O ano letivo já não existe.'
+    )
+  }
+
+  const schoolName =
+    profile?.schoolName
+      ?.trim() ?? ''
+
+  if (!schoolName) {
+    throw new Error(
+      'Não foi possível identificar a escola do professor. Confirme a escola antes de programar os cargos no calendário.'
+    )
+  }
+
+  if (
+    !requiresDutyDateRangeConfirmation(
+      academicYear,
+      schoolName
+    )
+  ) {
+    return
+  }
+
+  if (
+    typeof globalThis.confirm !==
+      'function'
+  ) {
+    throw new Error(
+      'A programação destes cargos exige confirmação explícita do intervalo de datas antes de guardar.'
+    )
+  }
+
+  const confirmed =
+    globalThis.confirm(
+      `O MA-Professor não tem períodos letivos oficiais pré-configurados para esta escola e este ano letivo. Se continuar, os cargos serão programados semanalmente entre ${dutyDateLabel(academicYear.startDate)} e ${dutyDateLabel(academicYear.endDate)}, excluindo os dias já marcados no Calendário como interrupções ou feriados que bloqueiam aulas. Confirma este intervalo?`
+    )
+
+  if (!confirmed) {
+    throw new Error(
+      'A programação dos cargos foi cancelada. Nenhuma alteração foi guardada.'
+    )
+  }
+}
+
 export async function commitScheduleImportAtomically(
   input: {
     academicYearId: string
@@ -484,6 +559,12 @@ export async function commitScheduleImportAtomically(
   )
 
   await openMAProfessorDatabase()
+
+  if (duties.length > 0) {
+    await confirmGenericDutyDateRange(
+      input.academicYearId
+    )
+  }
 
   const result =
     await maProfessorDb.transaction(
