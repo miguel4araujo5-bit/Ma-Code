@@ -1,3 +1,6 @@
+import {
+  lessonRepository
+} from '../lessons/lessonRepository'
 import type {
   EntityId,
   ISODate
@@ -23,9 +26,30 @@ export class DashboardRepository
         requestedReferenceDate
       )
 
-    return dashboardFutureAgendaRepository.project(
-      snapshot
-    )
+    const projectedSnapshot =
+      await dashboardFutureAgendaRepository.project(
+        snapshot
+      )
+
+    const assignments =
+      await Promise.all(
+        projectedSnapshot.assignments.map(
+          async row => ({
+            ...row,
+            nextPlanificationItem:
+              row.currentModule
+                ? await lessonRepository.getNextPlanificationItem(
+                    row.currentModule.id
+                  )
+                : null
+          })
+        )
+      )
+
+    return {
+      ...projectedSnapshot,
+      assignments
+    }
   }
 }
 

@@ -1,4 +1,7 @@
 import {
+  lessonRepository
+} from '../lessons/lessonRepository'
+import {
   scheduledLessonReconciliationRepository
 } from '../lessons/scheduledLessonReconciliationRepository'
 import type {
@@ -87,6 +90,26 @@ function minDate(
 
 export class CalendarWorkspaceRepository
   extends BaseCalendarWorkspaceRepository {
+  override async getLessonEditorContext(
+    lessonId: EntityId
+  ) {
+    const context =
+      await super.getLessonEditorContext(
+        lessonId
+      )
+
+    const nextPlanificationItem =
+      await lessonRepository.getNextPlanificationItem(
+        context.lessonRow.lesson.moduleId,
+        lessonId
+      )
+
+    return {
+      ...context,
+      nextPlanificationItem
+    }
+  }
+
   async getWorkspace(
     academicYearId: EntityId,
     mode: CalendarViewMode = 'week',
