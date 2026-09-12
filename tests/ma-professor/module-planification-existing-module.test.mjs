@@ -307,6 +307,10 @@ test(
       plans[0].title,
       /Nome já confirmado/
     )
+    assert.match(
+      plans[0].description,
+      /Metodologia\/estratégias:\nMetodologia geral/
+    )
 
     const items =
       await maProfessorDb.planificationItems
@@ -314,19 +318,32 @@ test(
         .equals(plans[0].id)
         .toArray()
 
-    assert.equal(items.length, 3)
+    const orderedItems = items.sort(
+      (left, right) =>
+        left.order - right.order
+    )
+
+    assert.equal(orderedItems.length, 2)
     assert.deepEqual(
-      items
-        .sort(
-          (left, right) =>
-            left.order - right.order
-        )
-        .map(item => item.suggestedSummary),
+      orderedItems.map(item => item.suggestedSummary),
       [
         'Conteúdo 1',
-        'Objetivo 1',
         'Conteúdo 2'
       ]
+    )
+    assert.deepEqual(
+      orderedItems.map(item => item.objectives),
+      [
+        'Objetivo 1',
+        ''
+      ]
+    )
+    assert.ok(
+      orderedItems.every(
+        item =>
+          item.activity === '' &&
+          item.sourceImportKey.startsWith('module-plan-v4:')
+      )
     )
 
     assert.deepEqual(
