@@ -158,6 +158,14 @@ function transpile(source, filename) {
       '"./maProfessorAccessRenewalSplitBridge"',
       '"./maProfessorAccessRenewalSplitBridge.mjs"'
     )
+    .replaceAll(
+      "'./maProfessorAccessCredentialSplitBridge'",
+      "'./maProfessorAccessCredentialSplitBridge.mjs'"
+    )
+    .replaceAll(
+      '"./maProfessorAccessCredentialSplitBridge"',
+      '"./maProfessorAccessCredentialSplitBridge.mjs"'
+    )
 }
 
 async function stageRetentionBridge() {
@@ -223,6 +231,19 @@ async function stageRetentionBridge() {
     ),
     `
       export function createMAProfessorAccessRenewalSplitState(state) {
+        return state
+      }
+    `,
+    'utf8'
+  )
+
+  await writeFile(
+    join(
+      directory,
+      'maProfessorAccessCredentialSplitBridge.mjs'
+    ),
+    `
+      export function createMAProfessorAccessCredentialSplitState(state) {
         return state
       }
     `,
