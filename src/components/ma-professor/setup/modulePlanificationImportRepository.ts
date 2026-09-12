@@ -487,6 +487,7 @@ export async function commitModulePlanificationImport(input: {
     let created = 0
     let skipped = 0
     let repaired = 0
+    let attached = 0
     const updatedGroupIds = new Set<string>()
 
     for (const assignmentId of assignments) {
@@ -516,10 +517,57 @@ export async function commitModulePlanificationImport(input: {
         const sameCode = existing.filter(module => normalize(module.code) === normalize(row.code))
         if (sameCode.length > 1) throw new Error('Existem módulos ambíguos com o mesmo código no destino.')
         if (sameCode.length) {
+          const existingModule = sameCode[0]
+          const activePlanifications = (
+            await maProfessorDb.planifications
+              .where('moduleId')
+              .equals(existingModule.id)
+              .toArray()
+          ).filter(planification => planification.active)
+
+          if (activePlanifications.length === 0) {
+            if (!source.contentsText.trim() && !source.objectivesText.trim()) {
+              throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos nem objetivos de planificação.')
+            }
+
+            const timestamp = new Date().toISOString()
+            const audit = { createdAt: timestamp, updatedAt: timestamp }
+            const kind = moduleKindLabel(existingModule.code)
+            const planification: Planification = {
+              id: crypto.randomUUID(), academicYearId: request.academicYearId,
+              teachingAssignmentId: assignmentId, moduleId: existingModule.id, active: true,
+              title: `Planificação — ${kind} ${existingModule.code} · ${existingModule.name}`,
+              description: [
+                source.periodLabel,
+                source.durationHours !== null ? `Duração no documento: ${source.durationHours} horas.` : '',
+                source.plannedLessons !== null ? `Aulas previstas no documento: ${source.plannedLessons}.` : '',
+                request.document.periodMinutes ? `Duração das aulas no documento: ${request.document.periodMinutes} minutos.` : '',
+                `Tempos letivos confirmados: ${existingModule.plannedPeriods}.`
+              ].filter(Boolean).join('\n'),
+              sourceDocumentName: request.document.name, sourcePages: source.sourcePages, ...audit
+            }
+            const items = buildPlanificationItems({
+              planificationId: planification.id,
+              source,
+              documentName: request.document.name,
+              documentSha256: request.document.sha256,
+              sectionIndex: row.sectionIndex,
+              assignmentId,
+              timestamp
+            })
+
+            if (!items.length) throw new Error('Uma UFCD ou módulo selecionado não contém pontos de planificação válidos.')
+
+            await maProfessorDb.planifications.add(planification)
+            await maProfessorDb.planificationItems.bulkAdd(items)
+            attached++
+            continue
+          }
+
           if (
             (source.contentsText.trim() || source.objectivesText.trim()) &&
             await repairLegacyImportedPlanification({
-              module: sameCode[0],
+              module: existingModule,
               source,
               documentName: request.document.name,
               documentSha256: request.document.sha256,
@@ -577,11 +625,14 @@ export async function commitModulePlanificationImport(input: {
         created++
       }
     }
-    return { created, skipped, repaired }
+    return { created, skipped, repaired, attached }
   })
-  if (result.created || result.repaired) markDashboardDataDirty()
+  if (result.created || result.repaired || result.attached) markDashboardDataDirty()
   return {
     created: result.created,
-    skipped: result.skipped
+    skipped: result.skipped,
+    ...(result.attached > 0
+      ? { attached: result.attached }
+      : {})
   }
 }
