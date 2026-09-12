@@ -195,7 +195,7 @@ test('the same real PDF dropped in the detailed and guided panels yields identic
   let detailedRows
   const detailed = await mount(DetailedPanel, snapshot)
   try {
-    await detailed.click(detailed.button('Importar PDF'))
+    await detailed.click(detailed.button('Importar documento'))
     await detailed.drop(file)
     await detailed.settle(() => detailed.host.querySelectorAll('article').length === 3)
     detailedRows = detailed.readRows()

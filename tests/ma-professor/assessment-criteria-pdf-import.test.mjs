@@ -220,8 +220,9 @@ test(
 test(
   'the setup import stays local, requires review and reuses protected assessment repositories',
   () => {
-    assert.match(panelSource, /extractPlanificationPdf/)
-    assert.match(panelSource, /Arraste o PDF para aqui/)
+    assert.match(panelSource, /readAssessmentCriteriaDocument/)
+    assert.doesNotMatch(panelSource, /extractPlanificationPdf/)
+    assert.match(panelSource, /Arraste o PDF ou Word para aqui/)
     assert.match(panelSource, /Revisão obrigatória/)
     assert.match(panelSource, /criteriaStateFingerprint/)
     assert.match(panelSource, /createSubjectSchemes/)
