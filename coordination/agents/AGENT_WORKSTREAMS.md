@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Dar sumário real aos blocos `Cargo` importados sem criar disciplinas/UFCD falsas: manter os cargos fora da avaliação, reutilizar as ocorrências locais já criadas no calendário e expô-las no fluxo diário com gravação própria de sumário | `work/f103-duty-summaries` | `src/components/ma-professor/daily/*`; `src/components/ma-professor/setup/scheduleImportAtomicRepository.ts`; testes MA-Professor relacionados | EM CURSO — solução local-first sobre `schoolCalendarEvents`; sem novo Worker, D1, Durable Object, binding, polling ou recurso pago | `6878b3dfc13def79e1046e544118f85120ab88c1` | 2026-09-12 |
+| F103 | Fechar o contrato de sumário dos blocos `Cargo`: reutilizar as ocorrências `schoolCalendarEvents` já criadas por data, manter o sumário independente por ocorrência, não criar disciplinas/UFCD/avaliações falsas e alinhar a UI para mostrar apenas `Cargo` | `work/f103-duty-summaries` | `src/components/ma-professor/product/CalendarProductWorkspace.tsx`; testes MA-Professor relacionados | EM CURSO — sem alteração de schema ou persistência; solução local-first já existente é preservada e protegida por regressão; sem Worker, D1, Durable Object, binding, polling ou recurso pago | `6878b3dfc13def79e1046e544118f85120ab88c1` | 2026-09-12 |
 
 ## Regras de utilização
 
