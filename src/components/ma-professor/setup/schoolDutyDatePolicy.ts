@@ -138,6 +138,16 @@ function usesSBento2026_2027Preset(
   )
 }
 
+export function requiresDutyDateRangeConfirmation(
+  academicYear: AcademicYear,
+  schoolName: string
+) {
+  return !usesSBento2026_2027Preset(
+    academicYear,
+    schoolName
+  )
+}
+
 function isBlockedByConfiguredCalendar(
   date: ISODate,
   events: SchoolCalendarEvent[]
