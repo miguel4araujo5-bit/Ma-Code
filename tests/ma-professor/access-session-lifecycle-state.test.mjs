@@ -155,86 +155,6 @@ function accessState(sessions) {
 }
 
 test(
-  'session lifecycle keeps only the newest active token per account and device',
-  async () => {
-    const now = Date.now()
-    const storage =
-      new MemoryStorage({
-        [ACCESS_KEY]: accessState({
-          'same-device-old':
-            storedSession({
-              tokenHash:
-                'same-device-old',
-              createdAt:
-                now - 10_000
-            }),
-          'same-device-new':
-            storedSession({
-              tokenHash:
-                'same-device-new',
-              createdAt:
-                now - 1_000
-            }),
-          'other-device':
-            storedSession({
-              tokenHash:
-                'other-device',
-              deviceId:
-                'device-teacher-02',
-              createdAt:
-                now - 2_000
-            })
-        })
-      })
-
-    const guarded =
-      createMAProfessorSessionLifecycleState({
-        storage
-      })
-
-    const value =
-      await guarded.storage.get(
-        ACCESS_KEY
-      )
-
-    assert.equal(
-      value.sessions[
-        'same-device-old'
-      ],
-      undefined,
-      'Um token anterior da mesma conta/dispositivo não pode continuar ativo depois de existir um token mais recente.'
-    )
-    assert.ok(
-      value.sessions[
-        'same-device-new'
-      ]
-    )
-    assert.ok(
-      value.sessions[
-        'other-device'
-      ],
-      'Dispositivos diferentes continuam independentes.'
-    )
-
-    assert.equal(
-      storage.putCalls.length,
-      1,
-      'A primeira leitura deve persistir apenas uma limpeza necessária.'
-    )
-
-    await guarded.storage.get(
-      ACCESS_KEY
-    )
-
-    assert.equal(
-      storage.putCalls.length,
-      1,
-      'Uma leitura já limpa não deve gerar nova escrita.'
-    )
-  }
-)
-
-test(
   'revoked and absolutely expired sessions are removed server-side while recent sessions remain',
   async () => {
     assert.equal(
@@ -297,11 +217,68 @@ test(
     assert.ok(
       value.sessions.recent
     )
+    assert.equal(
+      storage.putCalls.length,
+      1,
+      'A limpeza necessária deve persistir numa única escrita lógica.'
+    )
+
+    await guarded.storage.get(
+      ACCESS_KEY
+    )
+
+    assert.equal(
+      storage.putCalls.length,
+      1,
+      'Uma leitura já limpa não deve gerar nova escrita.'
+    )
   }
 )
 
 test(
-  'session cleanup mutates an access write before delegation so lower in-memory state cannot retain the old token',
+  'recent concurrent tokens on the same device are not changed by the absolute-timeout guard',
+  async () => {
+    const now = Date.now()
+    const storage =
+      new MemoryStorage({
+        [ACCESS_KEY]: accessState({
+          older:
+            storedSession({
+              tokenHash: 'older',
+              createdAt:
+                now - 10_000
+            }),
+          newer:
+            storedSession({
+              tokenHash: 'newer',
+              createdAt:
+                now - 1_000
+            })
+        })
+      })
+
+    const guarded =
+      createMAProfessorSessionLifecycleState({
+        storage
+      })
+
+    const value =
+      await guarded.storage.get(
+        ACCESS_KEY
+      )
+
+    assert.ok(value.sessions.older)
+    assert.ok(value.sessions.newer)
+    assert.equal(
+      storage.putCalls.length,
+      0,
+      'Esta fase não deve alterar cardinalidade de sessões recentes nem expulsar outro dispositivo indiretamente.'
+    )
+  }
+)
+
+test(
+  'absolute-expiry cleanup mutates an access write before delegation so lower in-memory state cannot retain an expired token',
   async () => {
     const now = Date.now()
     const storage =
@@ -313,11 +290,13 @@ test(
 
     const value =
       accessState({
-        old:
+        expired:
           storedSession({
-            tokenHash: 'old',
+            tokenHash: 'expired',
             createdAt:
-              now - 5_000
+              now - 181 * DAY_MS,
+            lastSeenAt:
+              now
           }),
         fresh:
           storedSession({
@@ -333,24 +312,22 @@ test(
     )
 
     assert.equal(
-      value.sessions.old,
+      value.sessions.expired,
       undefined,
-      'A mesma referência usada pelo código inferior deve ficar já sanitizada.'
+      'A mesma referência usada pelo código inferior deve ficar já sem a sessão expirada.'
     )
-    assert.ok(
-      value.sessions.fresh
-    )
+    assert.ok(value.sessions.fresh)
     assert.equal(
       storage.snapshot(
         ACCESS_KEY
-      ).sessions.old,
+      ).sessions.expired,
       undefined
     )
   }
 )
 
 test(
-  'multi-key access writes stay in one atomic batch while session rotation is applied',
+  'multi-key access writes stay in one atomic batch while absolute expiry is applied',
   async () => {
     const now = Date.now()
     const storage =
@@ -362,15 +339,15 @@ test(
 
     const value =
       accessState({
-        old:
+        expired:
           storedSession({
-            tokenHash: 'old',
+            tokenHash: 'expired',
             createdAt:
-              now - 3_000
+              now - 181 * DAY_MS
           }),
-        new:
+        fresh:
           storedSession({
-            tokenHash: 'new',
+            tokenHash: 'fresh',
             createdAt:
               now
           })
@@ -396,8 +373,13 @@ test(
     assert.equal(
       storage.putCalls[0]
         .entries[ACCESS_KEY]
-        .sessions.old,
+        .sessions.expired,
       undefined
+    )
+    assert.ok(
+      storage.putCalls[0]
+        .entries[ACCESS_KEY]
+        .sessions.fresh
     )
     assert.equal(
       storage.snapshot(
