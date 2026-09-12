@@ -185,7 +185,7 @@ function moduleLabel(
     : name
 }
 
-function moduleKindLabel(
+export function moduleKindLabel(
   code: string
 ) {
   return /^\d{3,6}$/.test(
@@ -544,7 +544,7 @@ export async function commitPlanificationPdfImport(
 ): Promise<PlanificationImportBatchResult> {
   if (!rows.length) {
     throw new Error(
-      'Selecione pelo menos uma UFCD para importar.'
+      'Selecione pelo menos uma UFCD ou módulo para importar.'
     )
   }
 
