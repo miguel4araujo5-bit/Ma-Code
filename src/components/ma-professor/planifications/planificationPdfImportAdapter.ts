@@ -348,6 +348,48 @@ function descriptionForRow(
     .join('\n')
 }
 
+function semanticPlanificationPoints(
+  content: string,
+  objectives: string
+) {
+  const contents =
+    splitPlanificationContentBlocks(
+      content
+    )
+  const objectivePoints =
+    splitPlanificationContentBlocks(
+      objectives
+    )
+
+  if (!contents.length) {
+    return objectivePoints.map(
+      objective => ({
+        content: objective,
+        objectives: ''
+      })
+    )
+  }
+
+  return contents.map(
+    (
+      contentPoint,
+      index
+    ) => ({
+      content:
+        contentPoint,
+      objectives:
+        index ===
+          contents.length - 1
+          ? objectivePoints
+              .slice(index)
+              .join('\n')
+          : objectivePoints[
+              index
+            ] ?? ''
+    })
+  )
+}
+
 function itemsForRow(
   row: PlanificationPdfImportConfirmedRow
 ) {
@@ -355,25 +397,15 @@ function itemsForRow(
     return []
   }
 
-  const blocks =
-    splitPlanificationContentBlocks(
-      row.content
-    )
-
-  const contents =
-    blocks.length
-      ? blocks
-      : ['']
-
-  const objectives =
-    normalizeLineBreaks(
-      row.objectives
-    )
-
-  return contents.map(
-    content => ({
-      content,
-      objectives,
+  return semanticPlanificationPoints(
+    row.content,
+    row.objectives
+  ).map(
+    point => ({
+      content:
+        point.content,
+      objectives:
+        point.objectives,
       activity: '',
       resources: '',
       evaluation: '',
