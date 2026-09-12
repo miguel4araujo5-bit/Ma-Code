@@ -2,6 +2,10 @@ import {
   MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
 } from './maProfessorActivationCredentialGuardBridge'
 
+import {
+  createMAProfessorAccessSessionSplitState
+} from './maProfessorAccessSessionSplitBridge'
+
 import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
@@ -321,10 +325,15 @@ export class MaProfessorAccessDurableObject {
     state: DurableObjectStateLike,
     env: MaProfessorAccessEnv
   ) {
+    const sessionSplitState =
+      createMAProfessorAccessSessionSplitState(
+        state
+      )
+
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
         createRetentionGuardedState(
-          state
+          sessionSplitState
         ) as never,
         env
       )
