@@ -127,12 +127,12 @@ function transpile(source, filename) {
 
   return output.outputText
     .replaceAll(
-      "'./maProfessorActivationCredentialGuardBridge'",
-      "'./maProfessorActivationCredentialGuardBridge.mjs'"
+      "'./maProfessorLoginAttemptGuardBridge'",
+      "'./maProfessorLoginAttemptGuardBridge.mjs'"
     )
     .replaceAll(
-      '"./maProfessorActivationCredentialGuardBridge"',
-      '"./maProfessorActivationCredentialGuardBridge.mjs"'
+      '"./maProfessorLoginAttemptGuardBridge"',
+      '"./maProfessorLoginAttemptGuardBridge.mjs"'
     )
     .replaceAll(
       "'./maProfessorAccessSessionSplitBridge'",
@@ -211,7 +211,7 @@ async function stageRetentionBridge() {
   await writeFile(
     join(
       directory,
-      'maProfessorActivationCredentialGuardBridge.mjs'
+      'maProfessorLoginAttemptGuardBridge.mjs'
     ),
     `
       export const statesSeen = []
@@ -264,7 +264,7 @@ async function stageRetentionBridge() {
       pathToFileURL(
         join(
           directory,
-          'maProfessorActivationCredentialGuardBridge.mjs'
+          'maProfessorLoginAttemptGuardBridge.mjs'
         )
       ).href
     )
@@ -570,7 +570,7 @@ test(
     )
     assert.doesNotMatch(
       entry,
-      /from '\.\/maProfessorActivationCredentialGuardBridge'/
+      /from '\.\/maProfessorLoginAttemptGuardBridge'/
     )
 
     assert.match(
@@ -579,7 +579,7 @@ test(
     )
     assert.doesNotMatch(
       wrangler,
-      /access-request-retention/i
+      /login-guard/i
     )
   }
 )
