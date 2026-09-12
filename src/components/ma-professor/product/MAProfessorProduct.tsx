@@ -15,7 +15,7 @@ import {
 
 import InitialSchoolCalendarBootstrap from '../calendar/InitialSchoolCalendarBootstrap'
 
-import DailyWorkspaceView from '../daily/DailyWorkspaceView'
+import DailyWorkspaceView from '../daily/DailyWorkspaceWithDuties'
 import {
   ensureDailyScheduledLessonsForDate
 } from '../daily/dailyScheduledLessonPreparation'
