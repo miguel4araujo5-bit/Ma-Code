@@ -245,28 +245,36 @@ function createColdStartWriteGuardedState(
       ) {
         if (
           typeof keyOrEntries ===
-            'string' &&
-          keyOrEntries ===
-            ACCESS_STORAGE_KEY &&
-          firstAccessStatePutPending
+            'string'
         ) {
-          firstAccessStatePutPending =
-            false
-
           if (
-            initialAccessStateLoaded &&
-            isRedundantColdStartWrite(
-              initialAccessState,
-              value
-            )
+            keyOrEntries ===
+              ACCESS_STORAGE_KEY &&
+            firstAccessStatePutPending
           ) {
-            return
+            firstAccessStatePutPending =
+              false
+
+            if (
+              initialAccessStateLoaded &&
+              isRedundantColdStartWrite(
+                initialAccessState,
+                value
+              )
+            ) {
+              return
+            }
           }
+
+          await storage.put(
+            keyOrEntries,
+            value
+          )
+          return
         }
 
         await storage.put(
-          keyOrEntries,
-          value
+          keyOrEntries
         )
       }
     }
