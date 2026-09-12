@@ -6,6 +6,10 @@ import {
   createMAProfessorAccessSessionSplitState
 } from './maProfessorAccessSessionSplitBridge'
 
+import {
+  createMAProfessorAccessRequestSplitState
+} from './maProfessorAccessRequestSplitBridge'
+
 import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
@@ -204,8 +208,7 @@ function pruneStaleRejectedRequests(
         0 ||
       Math.max(
         ...timestamps
-      ) >=
-        cutoff
+      ) >= cutoff
     ) {
       continue
     }
@@ -235,17 +238,13 @@ function createRetentionGuardedState(
         key: string
       ) {
         const value =
-          await storage.get<T>(
-            key
-          )
+          await storage.get<T>(key)
 
         if (
-          key ===
-            ACCESS_STORAGE_KEY &&
+          key === ACCESS_STORAGE_KEY &&
           !accessStateInspected
         ) {
-          accessStateInspected =
-            true
+          accessStateInspected = true
 
           if (
             pruneStaleRejectedRequests(
@@ -294,10 +293,7 @@ function createRetentionGuardedState(
         property,
         receiver
       ) {
-        if (
-          property ===
-            'storage'
-        ) {
+        if (property === 'storage') {
           return guardedStorage
         }
 
@@ -330,10 +326,15 @@ export class MaProfessorAccessDurableObject {
         state
       )
 
+    const requestSplitState =
+      createMAProfessorAccessRequestSplitState(
+        sessionSplitState
+      )
+
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
         createRetentionGuardedState(
-          sessionSplitState
+          requestSplitState
         ) as never,
         env
       )
