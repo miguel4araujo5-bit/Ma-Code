@@ -313,6 +313,41 @@ function titleForSection(
     : 'Planificação importada'
 }
 
+function contextBlock(
+  label: string,
+  value: string
+) {
+  const text =
+    normalizeLineBreaks(
+      value
+    )
+
+  return text
+    ? `${label}:\n${text}`
+    : ''
+}
+
+function descriptionForRow(
+  row: PlanificationPdfImportConfirmedRow
+) {
+  return [
+    contextBlock(
+      'Metodologia/estratégias',
+      row.activity
+    ),
+    contextBlock(
+      'Recursos',
+      row.resources
+    ),
+    contextBlock(
+      'Avaliação',
+      row.evaluation
+    )
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
 function itemsForRow(
   row: PlanificationPdfImportConfirmedRow
 ) {
@@ -334,26 +369,14 @@ function itemsForRow(
     normalizeLineBreaks(
       row.objectives
     )
-  const activity =
-    normalizeLineBreaks(
-      row.activity
-    )
-  const resources =
-    normalizeLineBreaks(
-      row.resources
-    )
-  const evaluation =
-    normalizeLineBreaks(
-      row.evaluation
-    )
 
   return contents.map(
     content => ({
       content,
       objectives,
-      activity,
-      resources,
-      evaluation,
+      activity: '',
+      resources: '',
+      evaluation: '',
       suggestedSummary: '',
       sourcePages: [
         ...row.section
@@ -416,7 +439,10 @@ export async function commitPlanificationPdfImport(
                 titleForSection(
                   row.section
                 ),
-              description: ''
+              description:
+                descriptionForRow(
+                  row
+                )
             },
             items:
               itemsForRow(
