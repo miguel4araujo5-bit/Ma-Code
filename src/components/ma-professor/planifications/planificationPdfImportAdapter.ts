@@ -424,7 +424,19 @@ function contextBlock(
 function descriptionForRow(
   row: PlanificationPdfImportConfirmedRow
 ) {
+  const periodLabel =
+    normalizeLineBreaks(
+      row.section.periodLabel
+    )
+
   return [
+    periodLabel,
+    row.section.durationHours !== null
+      ? `Duração no documento: ${row.section.durationHours} horas.`
+      : '',
+    row.section.plannedLessons !== null
+      ? `Aulas previstas no documento: ${row.section.plannedLessons}.`
+      : '',
     contextBlock(
       'Metodologia/estratégias',
       row.activity
