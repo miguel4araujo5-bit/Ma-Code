@@ -276,6 +276,33 @@ async function parseModuleStyleWord(
   }
 }
 
+function withDurationWarnings(document: ModuleDocument): ModuleDocument {
+  return {
+    ...document,
+    sections: document.sections.map(section => {
+      const warning = durationWarning(
+        section,
+        document.periodMinutes
+      )
+
+      if (
+        !warning ||
+        section.warnings.includes(warning)
+      ) {
+        return section
+      }
+
+      return {
+        ...section,
+        warnings: [
+          ...section.warnings,
+          warning
+        ]
+      }
+    })
+  }
+}
+
 export async function readModuleDocument(file: File): Promise<ModuleDocument> {
   if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Selecione um PDF ou Word até 20 MB.')
   const bytes = new Uint8Array(await file.arrayBuffer())
@@ -293,10 +320,10 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
     const xml = strFromU8(archive['word/document.xml'])
 
     try {
-      return {
+      return withDurationWarnings({
         ...parseModuleDocxXml(xml, file.name),
         sha256
-      }
+      })
     } catch (failure) {
       if (
         !(failure instanceof Error) ||
@@ -313,7 +340,7 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
         )
 
       if (moduleDocument) {
-        return moduleDocument
+        return withDurationWarnings(moduleDocument)
       }
 
       throw new Error(
@@ -342,7 +369,7 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
 
   if (!parsed.sections.length) throw new Error('Não foram encontradas UFCD ou módulos com texto legível neste PDF.')
   const text = document.pages.flatMap(page => page.lines.map(row => row.text)).join('\n')
-  return {
+  return withDurationWarnings({
     name: file.name, sha256, ...metadata(text, file.name), sections: parsed.sections,
     warnings: [
       ...standardParsed.warnings.filter(warning =>
@@ -354,7 +381,7 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
         : parsed.warnings),
       'O PDF pode dividir palavras entre linhas. Reveja as designações e os textos extraídos; pode corrigi-los antes de importar.'
     ]
-  }
+  })
 }
 
 export function durationWarning(section: ParsedPlanificationPdfSection, periodMinutes: number | null) {
