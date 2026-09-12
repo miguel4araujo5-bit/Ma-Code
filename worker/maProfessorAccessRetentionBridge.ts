@@ -22,6 +22,10 @@ import {
   createMAProfessorAccessLicenseSplitState
 } from './maProfessorAccessLicenseSplitBridge'
 
+import {
+  createMAProfessorSessionLifecycleState
+} from './maProfessorSessionLifecycleState'
+
 import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
@@ -358,10 +362,15 @@ export class MaProfessorAccessDurableObject {
         credentialSplitState
       )
 
+    const sessionLifecycleState =
+      createMAProfessorSessionLifecycleState(
+        licenseSplitState
+      )
+
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
         createRetentionGuardedState(
-          licenseSplitState
+          sessionLifecycleState
         ) as never,
         env
       )

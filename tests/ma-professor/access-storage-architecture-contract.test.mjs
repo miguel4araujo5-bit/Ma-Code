@@ -10,6 +10,12 @@ const ROOT = new URL('../../', import.meta.url)
 const ACCESS_CORE_KEY =
   'ma-professor-access-state-v1'
 
+const SESSION_LIFECYCLE_FILE =
+  'maProfessorSessionLifecycleState.ts'
+
+const SESSION_LIFECYCLE_FACTORY =
+  'createMAProfessorSessionLifecycleState'
+
 const SPLITS = [
   {
     field: 'sessions',
@@ -56,7 +62,7 @@ async function read(relativePath) {
 }
 
 test(
-  'production composes all access-state splits once and in the migration-safe order',
+  'production composes all access-state splits and the session lifecycle guard in the migration-safe order',
   async () => {
     const retention =
       await read(
@@ -101,20 +107,51 @@ test(
         declarationPosition
     }
 
-    const retentionPosition =
+    const lifecycleDeclarationPosition =
       retention.indexOf(
-        'createRetentionGuardedState(',
+        'const sessionLifecycleState',
         previousPosition
       )
 
     assert.ok(
-      retentionPosition > previousPosition,
-      'A retenção deve receber o estado lógico já recomposto pelos cinco splits.'
+      lifecycleDeclarationPosition >
+        previousPosition,
+      'O lifecycle guard deve receber o estado lógico já recomposto pelos cinco splits.'
+    )
+
+    const lifecycleFactoryPosition =
+      retention.indexOf(
+        SESSION_LIFECYCLE_FACTORY,
+        lifecycleDeclarationPosition
+      )
+
+    assert.ok(
+      lifecycleFactoryPosition >
+        lifecycleDeclarationPosition
+    )
+
+    assert.match(
+      retention.slice(
+        lifecycleDeclarationPosition
+      ),
+      /createMAProfessorSessionLifecycleState\(\s*licenseSplitState\s*\)/
+    )
+
+    const retentionPosition =
+      retention.indexOf(
+        'createRetentionGuardedState(',
+        lifecycleDeclarationPosition
+      )
+
+    assert.ok(
+      retentionPosition >
+        lifecycleDeclarationPosition,
+      'A retenção deve correr depois da política de ciclo de vida das sessões.'
     )
 
     assert.match(
       retention.slice(retentionPosition),
-      /createRetentionGuardedState\(\s*licenseSplitState\s*\)/
+      /createRetentionGuardedState\(\s*sessionLifecycleState\s*\)/
     )
   }
 )
@@ -176,6 +213,43 @@ test(
 )
 
 test(
+  'session lifecycle remains an internal state guard with no polling or Cloudflare resource of its own',
+  async () => {
+    const lifecycle =
+      await read(
+        `worker/${SESSION_LIFECYCLE_FILE}`
+      )
+    const wrangler =
+      await read('wrangler.jsonc')
+
+    assert.match(
+      lifecycle,
+      new RegExp(
+        `['"]${ACCESS_CORE_KEY}['"]`
+      )
+    )
+    assert.match(
+      lifecycle,
+      new RegExp(
+        `export function ${SESSION_LIFECYCLE_FACTORY}`
+      )
+    )
+    assert.match(
+      lifecycle,
+      /MA_PROFESSOR_SESSION_ABSOLUTE_MAX_AGE_DAYS\s*=\s*\n?\s*180/
+    )
+    assert.doesNotMatch(
+      lifecycle,
+      /setInterval\s*\(|setTimeout\s*\(|scheduled\s*\(|alarm\s*\(/
+    )
+    assert.doesNotMatch(
+      wrangler,
+      /SessionLifecycle|session-lifecycle|SESSION_LIFECYCLE/
+    )
+  }
+)
+
+test(
   'split storage keys are private implementation details of their owning bridges',
   async () => {
     const workerDirectory =
@@ -209,7 +283,7 @@ test(
 )
 
 test(
-  'the five split stores do not require Cloudflare bindings or Wrangler migrations',
+  'the five split stores and lifecycle guard do not require Cloudflare bindings or Wrangler migrations',
   async () => {
     const wrangler =
       await read('wrangler.jsonc')
