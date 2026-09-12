@@ -32,14 +32,6 @@ interface DurableObjectStateLike {
     DurableObjectStorageLike
 }
 
-interface ActiveSessionCandidate {
-  key: string
-  email: string
-  deviceId: string
-  createdAt: number
-  lastSeenAt: number
-}
-
 function isRecord(
   value: unknown
 ): value is JsonObject {
@@ -59,18 +51,6 @@ function readTimestamp(
     : null
 }
 
-function normalizeIdentity(
-  value: unknown,
-  maxLength: number
-) {
-  return typeof value === 'string'
-    ? value
-        .trim()
-        .toLowerCase()
-        .slice(0, maxLength)
-    : ''
-}
-
 function sanitizeSessions(
   value: unknown,
   now: number
@@ -84,8 +64,6 @@ function sanitizeSessions(
 
   const sessions =
     value.sessions
-  const candidates:
-    ActiveSessionCandidate[] = []
   let changed = false
 
   for (
@@ -117,75 +95,7 @@ function sanitizeSessions(
     ) {
       delete sessions[key]
       changed = true
-      continue
     }
-
-    const email =
-      normalizeIdentity(
-        candidate.email,
-        180
-      )
-    const deviceId =
-      normalizeIdentity(
-        candidate.deviceId,
-        180
-      )
-
-    if (
-      !email ||
-      !deviceId ||
-      createdAt === null
-    ) {
-      continue
-    }
-
-    candidates.push({
-      key,
-      email,
-      deviceId,
-      createdAt,
-      lastSeenAt:
-        readTimestamp(
-          candidate.lastSeenAt
-        ) ?? createdAt
-    })
-  }
-
-  candidates.sort(
-    (left, right) =>
-      right.createdAt -
-        left.createdAt ||
-      right.lastSeenAt -
-        left.lastSeenAt ||
-      right.key.localeCompare(
-        left.key
-      )
-  )
-
-  const activeDeviceSessions =
-    new Set<string>()
-
-  for (
-    const candidate of candidates
-  ) {
-    const identity =
-      `${candidate.email}\n${candidate.deviceId}`
-
-    if (
-      activeDeviceSessions.has(
-        identity
-      )
-    ) {
-      delete sessions[
-        candidate.key
-      ]
-      changed = true
-      continue
-    }
-
-    activeDeviceSessions.add(
-      identity
-    )
   }
 
   return changed
