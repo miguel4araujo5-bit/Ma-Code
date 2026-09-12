@@ -19,7 +19,7 @@ test(
     )
     assert.match(
       source,
-      /durationWarning\(section, document\.periodMinutes\)/
+      /durationWarning\(\s*section,\s*document\.periodMinutes\s*\)/
     )
     assert.match(
       source,
