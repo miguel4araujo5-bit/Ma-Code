@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Integrar os blocos `Cargo` no fluxo Diário semanal, para que fiquem acessíveis juntamente com as componentes letivas e permitam abrir/editar o respetivo sumário por ocorrência, reutilizando `schoolCalendarEvents` sem criar disciplinas/UFCD/avaliações falsas | `work/f103-daily-duty-blocks` | `src/components/ma-professor/daily/DailyDutyWeekPanel.tsx`; `src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx`; `src/components/ma-professor/calendar/dutyEvent.ts`; `src/components/ma-professor/product/MAProfessorProduct.tsx`; testes MA-Professor relacionados | EM CURSO — reutilizar persistência local existente; sem novo schema, Worker, D1, Durable Object, binding, polling ou recurso pago | `9b6c98a1341810d706f40ec82378805d7c5d7bee` | 2026-09-12 |
 
 ## Regras de utilização
 
