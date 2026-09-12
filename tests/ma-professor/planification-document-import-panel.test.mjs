@@ -49,7 +49,7 @@ test(
     )
     assert.match(
       panelSource,
-      /Todas as UFCD deste documento são tratadas na mesma transação/
+      /Todas as secções deste documento são tratadas na mesma transação/
     )
     assert.match(
       panelSource,
