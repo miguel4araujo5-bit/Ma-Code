@@ -14,6 +14,10 @@ import {
   createMAProfessorAccessRenewalSplitState
 } from './maProfessorAccessRenewalSplitBridge'
 
+import {
+  createMAProfessorAccessCredentialSplitState
+} from './maProfessorAccessCredentialSplitBridge'
+
 import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
@@ -340,10 +344,15 @@ export class MaProfessorAccessDurableObject {
         requestSplitState
       )
 
+    const credentialSplitState =
+      createMAProfessorAccessCredentialSplitState(
+        renewalSplitState
+      )
+
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
         createRetentionGuardedState(
-          renewalSplitState
+          credentialSplitState
         ) as never,
         env
       )
