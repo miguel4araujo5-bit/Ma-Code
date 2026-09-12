@@ -133,6 +133,7 @@ function usesSBento2026_2027Preset(
       academicYear.name
     )
 
+  // O assistente aceita a designação longa e a abreviada do mesmo ano letivo.
   return (
     isSBentoSchoolName(
       schoolName
