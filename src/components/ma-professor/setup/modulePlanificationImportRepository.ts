@@ -22,6 +22,11 @@ type PlanificationSummaryPoint = {
   text: string
 }
 
+type SemanticPlanificationPoint = {
+  content: string
+  objectives: string
+}
+
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-PT')
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(clean(value))
@@ -156,7 +161,38 @@ function createPlanificationItem(input: {
   }
 }
 
-function buildPlanificationItems(input: {
+function buildSemanticPlanificationPoints(
+  contentsText: string,
+  objectivesText: string
+): SemanticPlanificationPoint[] {
+  const contents = splitPlanificationPoints(contentsText)
+  const objectives = splitPlanificationPoints(objectivesText)
+
+  if (!contents.length) {
+    return objectives.map(objective => ({
+      content: objective,
+      objectives: ''
+    }))
+  }
+
+  return contents.map((content, index) => ({
+    content,
+    objectives: index === contents.length - 1
+      ? objectives.slice(index).join('\n')
+      : objectives[index] ?? ''
+  }))
+}
+
+function semanticSourceImportKey(
+  sha256: string,
+  sectionIndex: number,
+  assignmentId: string,
+  pointOrder: number
+) {
+  return `module-plan-v4:${sha256}:${sectionIndex}:${assignmentId}:${pointOrder}`
+}
+
+function buildSemanticPlanificationItems(input: {
   planificationId: string
   source: ModuleDocument['sections'][number]
   documentName: string
@@ -164,17 +200,60 @@ function buildPlanificationItems(input: {
   sectionIndex: number
   assignmentId: string
   timestamp: string
-}) {
-  return buildSummarySequence(
+}) : PlanificationItem[] {
+  return buildSemanticPlanificationPoints(
     input.source.contentsText,
     input.source.objectivesText
-  ).map((point, index) =>
-    createPlanificationItem({
-      ...input,
-      point,
-      order: index + 1
-    })
-  )
+  ).map((point, index) => {
+    const order = index + 1
+
+    return {
+      id: `${input.planificationId}-summary-${String(order).padStart(4, '0')}-${crypto.randomUUID()}`,
+      planificationId: input.planificationId,
+      order,
+      content: point.content,
+      objectives: point.objectives,
+      activity: '',
+      resources: '',
+      evaluation: '',
+      suggestedSummary: point.content,
+      status: 'planned',
+      usedLessonId: null,
+      usedAt: null,
+      sourceDocumentName: input.documentName,
+      sourcePages: input.source.sourcePages,
+      sourceImportKey: semanticSourceImportKey(
+        input.documentSha256,
+        input.sectionIndex,
+        input.assignmentId,
+        order
+      ),
+      createdAt: input.timestamp,
+      updatedAt: input.timestamp
+    }
+  })
+}
+
+function contextBlock(label: string, value: string) {
+  const text = value.trim()
+  return text ? `${label}:\n${text}` : ''
+}
+
+function buildPlanificationDescription(input: {
+  source: ModuleDocument['sections'][number]
+  periodMinutes: number | null
+  confirmedPeriods: number
+}) {
+  return [
+    input.source.periodLabel,
+    input.source.durationHours !== null ? `Duração no documento: ${input.source.durationHours} horas.` : '',
+    input.source.plannedLessons !== null ? `Aulas previstas no documento: ${input.source.plannedLessons}.` : '',
+    input.periodMinutes ? `Duração das aulas no documento: ${input.periodMinutes} minutos.` : '',
+    `Tempos letivos confirmados: ${input.confirmedPeriods}.`,
+    contextBlock('Metodologia/estratégias', input.source.methodologyText),
+    contextBlock('Recursos', input.source.resourcesText),
+    contextBlock('Avaliação', input.source.evaluationText)
+  ].filter(Boolean).join('\n')
 }
 
 function isModuleImportItem(item: PlanificationItem) {
@@ -541,16 +620,14 @@ export async function commitModulePlanificationImport(input: {
               id: crypto.randomUUID(), academicYearId: request.academicYearId,
               teachingAssignmentId: assignmentId, moduleId: existingModule.id, active: true,
               title: `Planificação — ${kind} ${existingModule.code} · ${existingModule.name}`,
-              description: [
-                source.periodLabel,
-                source.durationHours !== null ? `Duração no documento: ${source.durationHours} horas.` : '',
-                source.plannedLessons !== null ? `Aulas previstas no documento: ${source.plannedLessons}.` : '',
-                request.document.periodMinutes ? `Duração das aulas no documento: ${request.document.periodMinutes} minutos.` : '',
-                `Tempos letivos confirmados: ${existingModule.plannedPeriods}.`
-              ].filter(Boolean).join('\n'),
+              description: buildPlanificationDescription({
+                source,
+                periodMinutes: request.document.periodMinutes,
+                confirmedPeriods: existingModule.plannedPeriods
+              }),
               sourceDocumentName: request.document.name, sourcePages: source.sourcePages, ...audit
             }
-            const items = buildPlanificationItems({
+            const items = buildSemanticPlanificationItems({
               planificationId: planification.id,
               source,
               documentName: request.document.name,
@@ -603,16 +680,14 @@ export async function commitModulePlanificationImport(input: {
           id: crypto.randomUUID(), academicYearId: request.academicYearId,
           teachingAssignmentId: assignmentId, moduleId: module.id, active: true,
           title: `Planificação — ${kind} ${row.code} · ${row.name.trim()}`,
-          description: [
-            source.periodLabel,
-            source.durationHours !== null ? `Duração no documento: ${source.durationHours} horas.` : '',
-            source.plannedLessons !== null ? `Aulas previstas no documento: ${source.plannedLessons}.` : '',
-            request.document.periodMinutes ? `Duração das aulas no documento: ${request.document.periodMinutes} minutos.` : '',
-            `Tempos letivos confirmados: ${row.plannedPeriods}.`
-          ].filter(Boolean).join('\n'),
+          description: buildPlanificationDescription({
+            source,
+            periodMinutes: request.document.periodMinutes,
+            confirmedPeriods: row.plannedPeriods
+          }),
           sourceDocumentName: request.document.name, sourcePages: source.sourcePages, ...audit
         }
-        const items = buildPlanificationItems({
+        const items = buildSemanticPlanificationItems({
           planificationId: planification.id,
           source,
           documentName: request.document.name,
