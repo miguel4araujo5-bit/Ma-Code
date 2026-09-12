@@ -48,6 +48,8 @@ const CELL_GAP = 18
 const RULE_TOLERANCE = 1.5
 const MIN_VERTICAL_RULE_LENGTH = 25
 const MIN_HORIZONTAL_RULE_LENGTH = 250
+const MAX_PLANIFICATION_PDF_BYTES =
+  20 * 1024 * 1024
 
 // pdfjs-dist 6.x packs path commands inside constructPath as the
 // DrawOPS numeric protocol. Keeping the tiny protocol local avoids importing
@@ -663,6 +665,15 @@ export async function extractPlanificationPdf(
   ) {
     throw new Error(
       'Selecione um ficheiro PDF.'
+    )
+  }
+
+  if (
+    file.size >
+      MAX_PLANIFICATION_PDF_BYTES
+  ) {
+    throw new Error(
+      'O PDF ultrapassa o limite de 20 MB. Reduza o ficheiro antes de voltar a importar.'
     )
   }
 
