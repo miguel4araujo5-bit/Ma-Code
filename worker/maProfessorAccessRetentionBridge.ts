@@ -265,9 +265,19 @@ function createRetentionGuardedState(
           | Record<string, unknown>,
         value?: unknown
       ) {
+        if (
+          typeof keyOrEntries ===
+            'string'
+        ) {
+          await storage.put(
+            keyOrEntries,
+            value
+          )
+          return
+        }
+
         await storage.put(
-          keyOrEntries,
-          value
+          keyOrEntries
         )
       }
     }
