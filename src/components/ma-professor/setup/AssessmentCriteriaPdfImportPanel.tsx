@@ -13,9 +13,6 @@ import {
   assessmentCriteriaModuleRepository
 } from '../assessmentCriteriaModuleRepository'
 import {
-  extractPlanificationPdf
-} from '../planifications/planificationPdfExtractor'
-import {
   maProfessorRepository,
   type AssessmentCriterionDraft,
   type SetupSnapshot
@@ -27,6 +24,12 @@ import type {
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
+import {
+  readAssessmentCriteriaDocument
+} from './assessmentCriteriaDocumentReader'
+import {
+  resolveAssessmentCriteriaDestinations
+} from './assessmentCriteriaDestinations'
 import {
   parseAssessmentCriteriaPdfDocument,
   type AssessmentCriteriaPdfCandidate,
@@ -56,16 +59,7 @@ const textareaClassName =
   'min-h-20 w-full resize-y rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm leading-6 text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50'
 
 function clean(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-}
-
-function normalize(value: string) {
-  return clean(value)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-PT')
+  return value.trim().replace(/\s+/g, ' ')
 }
 
 function formatPercentage(value: number) {
@@ -80,35 +74,19 @@ function errorMessage(error: unknown) {
     : 'Não foi possível concluir a importação.'
 }
 
-function importedDescription(
-  candidate: AssessmentCriteriaPdfCandidate
-) {
-  const parts: string[] = []
-
-  if (candidate.domainLabel) {
-    parts.push(
-      `Domínio/dimensão: ${candidate.domainLabel}`
-    )
-  }
-
-  if (candidate.description) {
-    parts.push(candidate.description)
-  }
-
-  if (candidate.subcriteria.length > 0) {
-    parts.push(
-      `Subcritérios:\n${candidate.subcriteria
-        .map(item => `- ${item}`)
-        .join('\n')}`
-    )
-  }
-
-  return parts.join('\n\n')
+function importedDescription(candidate: AssessmentCriteriaPdfCandidate) {
+  return [
+    candidate.domainLabel
+      ? `Domínio/dimensão: ${candidate.domainLabel}`
+      : '',
+    candidate.description,
+    candidate.subcriteria.length > 0
+      ? `Subcritérios:\n${candidate.subcriteria.map(item => `- ${item}`).join('\n')}`
+      : ''
+  ].filter(Boolean).join('\n\n')
 }
 
-function rowsFromParsed(
-  parsed: ParsedAssessmentCriteriaPdfDocument
-): ImportRow[] {
+function rowsFromParsed(parsed: ParsedAssessmentCriteriaPdfDocument): ImportRow[] {
   return parsed.candidates.map(candidate => ({
     id: candidate.id,
     included: true,
@@ -124,9 +102,7 @@ function rowsFromParsed(
   }))
 }
 
-function criteriaStateFingerprint(
-  snapshot: SetupSnapshot
-) {
+function criteriaStateFingerprint(snapshot: SetupSnapshot) {
   const assignments = snapshot.teachingAssignments
     .map(item => [
       item.id,
@@ -135,9 +111,8 @@ function criteriaStateFingerprint(
       item.active,
       item.updatedAt
     ])
-    .sort((left, right) =>
-      String(left[0]).localeCompare(String(right[0]))
-    )
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+
   const modules = snapshot.modules
     .map(item => [
       item.id,
@@ -145,9 +120,8 @@ function criteriaStateFingerprint(
       item.active,
       item.updatedAt
     ])
-    .sort((left, right) =>
-      String(left[0]).localeCompare(String(right[0]))
-    )
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+
   const schemes = snapshot.assessmentSchemes
     .map(item => [
       item.id,
@@ -157,9 +131,8 @@ function criteriaStateFingerprint(
       item.active,
       item.updatedAt
     ])
-    .sort((left, right) =>
-      String(left[0]).localeCompare(String(right[0]))
-    )
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+
   const criteria = snapshot.assessmentCriteria
     .map(item => [
       item.id,
@@ -167,21 +140,12 @@ function criteriaStateFingerprint(
       item.active,
       item.updatedAt
     ])
-    .sort((left, right) =>
-      String(left[0]).localeCompare(String(right[0]))
-    )
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
 
-  return JSON.stringify({
-    assignments,
-    modules,
-    schemes,
-    criteria
-  })
+  return JSON.stringify({ assignments, modules, schemes, criteria })
 }
 
-function confidenceLabel(
-  value: ImportRow['confidence']
-) {
+function confidenceLabel(value: ImportRow['confidence']) {
   if (value === 'high') return 'Confiança alta'
   if (value === 'medium') return 'Rever'
   return 'Revisão necessária'
@@ -198,18 +162,12 @@ export default function AssessmentCriteriaPdfImportPanel({
     useState<ParsedAssessmentCriteriaPdfDocument | null>(null)
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState<ImportRow[]>([])
-  const [schemeName, setSchemeName] =
-    useState('Critérios de avaliação')
-  const [scope, setScope] =
-    useState<AssessmentSchemeScope>('subject')
-  const [assignmentIds, setAssignmentIds] =
-    useState<EntityId[]>([])
-  const [moduleAssignmentId, setModuleAssignmentId] =
-    useState<EntityId>('')
-  const [moduleId, setModuleId] =
-    useState<EntityId>('')
-  const [sourceFingerprint, setSourceFingerprint] =
-    useState('')
+  const [schemeName, setSchemeName] = useState('Critérios de avaliação')
+  const [scope, setScope] = useState<AssessmentSchemeScope>('subject')
+  const [assignmentIds, setAssignmentIds] = useState<EntityId[]>([])
+  const [moduleAssignmentId, setModuleAssignmentId] = useState<EntityId>('')
+  const [moduleId, setModuleId] = useState<EntityId>('')
+  const [sourceFingerprint, setSourceFingerprint] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [importing, setImporting] = useState(false)
   const [dragActive, setDragActive] = useState(false)
@@ -217,10 +175,7 @@ export default function AssessmentCriteriaPdfImportPanel({
   const [feedback, setFeedback] = useState('')
 
   const busy = analyzing || importing
-  const hasProposal =
-    Boolean(parsed) ||
-    rows.length > 0 ||
-    Boolean(fileName)
+  const hasProposal = Boolean(parsed || rows.length || fileName)
 
   useMAProfessorUnsavedWorkspaceProtection(
     hasProposal,
@@ -229,22 +184,12 @@ export default function AssessmentCriteriaPdfImportPanel({
   )
 
   const groupById = useMemo(
-    () => new Map(
-      snapshot.groups.map(group => [
-        group.id,
-        group
-      ])
-    ),
+    () => new Map(snapshot.groups.map(group => [group.id, group])),
     [snapshot.groups]
   )
 
   const subjectById = useMemo(
-    () => new Map(
-      snapshot.subjects.map(subject => [
-        subject.id,
-        subject
-      ])
-    ),
+    () => new Map(snapshot.subjects.map(subject => [subject.id, subject])),
     [snapshot.subjects]
   )
 
@@ -263,34 +208,22 @@ export default function AssessmentCriteriaPdfImportPanel({
           assignment,
           group,
           subject,
-          label:
-            `${group?.name ?? 'Turma'} · ${subjectLabel}`
+          label: `${group?.name ?? 'Turma'} · ${subjectLabel}`
         }
       })
       .sort((left, right) =>
-        left.label.localeCompare(
-          right.label,
-          'pt-PT',
-          {
-            numeric: true,
-            sensitivity: 'base'
-          }
-        )
+        left.label.localeCompare(right.label, 'pt-PT', {
+          numeric: true,
+          sensitivity: 'base'
+        })
       ),
-    [
-      groupById,
-      snapshot.teachingAssignments,
-      subjectById
-    ]
+    [groupById, snapshot.teachingAssignments, subjectById]
   )
 
   const activeSubjectSchemeAssignments = useMemo(
     () => new Set(
       snapshot.assessmentSchemes
-        .filter(scheme =>
-          scheme.active &&
-          scheme.scope === 'subject'
-        )
+        .filter(scheme => scheme.active && scheme.scope === 'subject')
         .map(scheme => scheme.teachingAssignmentId)
     ),
     [snapshot.assessmentSchemes]
@@ -325,44 +258,19 @@ export default function AssessmentCriteriaPdfImportPanel({
   )
 
   const totalWeight = useMemo(
-    () => includedRows.reduce(
-      (total, row) => {
-        const value = Number(
-          row.weightPercent.replace(',', '.')
-        )
-        return total + (
-          Number.isFinite(value)
-            ? value
-            : 0
-        )
-      },
-      0
-    ),
+    () => includedRows.reduce((total, row) => {
+      const value = Number(row.weightPercent.replace(',', '.'))
+      return total + (Number.isFinite(value) ? value : 0)
+    }, 0),
     [includedRows]
   )
 
-  const detectedSubject =
-    parsed?.metadata.subject?.value ?? ''
-
-  const suggestedAssignments = useMemo(
-    () => {
-      const normalizedSubject = normalize(detectedSubject)
-
-      if (!normalizedSubject) {
-        return []
-      }
-
-      return assignments.filter(item => {
-        if (!item.subject) {
-          return false
-        }
-
-        return (
-          normalize(item.subject.name) === normalizedSubject ||
-          normalize(item.subject.shortName) === normalizedSubject
-        )
-      })
-    }, [assignments, detectedSubject])
+  const detectedSubject = parsed?.metadata.subject?.value ?? ''
+  const destinationResolution = useMemo(
+    () => resolveAssessmentCriteriaDestinations(snapshot, detectedSubject),
+    [snapshot, detectedSubject]
+  )
+  const suggestedAssignments = destinationResolution.candidates
 
   function clearProposal() {
     setParsed(null)
@@ -379,15 +287,6 @@ export default function AssessmentCriteriaPdfImportPanel({
 
   async function analyzeFile(file: File) {
     if (
-      file.type !== 'application/pdf' &&
-      !file.name.toLocaleLowerCase('pt-PT')
-        .endsWith('.pdf')
-    ) {
-      setError('Selecione um ficheiro PDF válido.')
-      return
-    }
-
-    if (
       hasProposal &&
       !window.confirm(
         'Substituir a proposta atual e perder as correções ainda não importadas?'
@@ -401,13 +300,8 @@ export default function AssessmentCriteriaPdfImportPanel({
     setFeedback('')
 
     try {
-      const extracted =
-        await extractPlanificationPdf(file)
-      const result =
-        parseAssessmentCriteriaPdfDocument(
-          extracted,
-          file.name
-        )
+      const document = await readAssessmentCriteriaDocument(file)
+      const result = parseAssessmentCriteriaPdfDocument(document, file.name)
 
       setParsed(result)
       setFileName(file.name)
@@ -415,9 +309,7 @@ export default function AssessmentCriteriaPdfImportPanel({
       setAssignmentIds([])
       setModuleAssignmentId('')
       setModuleId('')
-      setSourceFingerprint(
-        criteriaStateFingerprint(snapshot)
-      )
+      setSourceFingerprint(criteriaStateFingerprint(snapshot))
 
       if (result.candidates.length === 0) {
         setError(
@@ -433,46 +325,32 @@ export default function AssessmentCriteriaPdfImportPanel({
     }
   }
 
-  function handleFileChange(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
-
-    if (file) {
-      void analyzeFile(file)
-    }
-
+    if (file) void analyzeFile(file)
     event.target.value = ''
   }
 
-  function handleDrop(
-    event: DragEvent<HTMLDivElement>
-  ) {
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragActive(false)
 
-    if (busy) {
+    if (busy) return
+
+    if (event.dataTransfer.files.length !== 1) {
+      setError('Adicione um documento de critérios de cada vez.')
       return
     }
 
     const file = event.dataTransfer.files?.[0]
-
-    if (file) {
-      void analyzeFile(file)
-    }
+    if (file) void analyzeFile(file)
   }
 
-  function updateRow(
-    id: string,
-    changes: Partial<ImportRow>
-  ) {
+  function updateRow(id: string, changes: Partial<ImportRow>) {
     setRows(current =>
       current.map(row =>
         row.id === id
-          ? {
-              ...row,
-              ...changes
-            }
+          ? { ...row, ...changes }
           : row
       )
     )
@@ -481,11 +359,7 @@ export default function AssessmentCriteriaPdfImportPanel({
   }
 
   function toggleAssignment(id: EntityId) {
-    if (
-      activeSubjectSchemeAssignments.has(id)
-    ) {
-      return
-    }
+    if (activeSubjectSchemeAssignments.has(id)) return
 
     setAssignmentIds(current =>
       current.includes(id)
@@ -498,43 +372,30 @@ export default function AssessmentCriteriaPdfImportPanel({
 
   function validateRows(): AssessmentCriterionDraft[] {
     if (!schemeName.trim()) {
-      throw new Error(
-        'Indique um nome para o conjunto de critérios.'
-      )
+      throw new Error('Indique um nome para o conjunto de critérios.')
     }
 
     if (includedRows.length === 0) {
-      throw new Error(
-        'Mantenha pelo menos um critério para importar.'
-      )
+      throw new Error('Mantenha pelo menos um critério para importar.')
     }
 
     const names = new Set<string>()
-
     const criteria = includedRows.map(
       (row, index): AssessmentCriterionDraft => {
         const name = clean(row.name)
-
         if (!name) {
-          throw new Error(
-            `Critério ${index + 1}: indique o nome.`
-          )
+          throw new Error(`Critério ${index + 1}: indique o nome.`)
         }
 
-        const normalizedName = normalize(name)
-
+        const normalizedName = name.toLocaleLowerCase('pt-PT')
         if (names.has(normalizedName)) {
           throw new Error(
             `O critério “${name}” está repetido. Reveja a proposta antes de importar.`
           )
         }
-
         names.add(normalizedName)
 
-        const weightPercent = Number(
-          row.weightPercent.replace(',', '.')
-        )
-
+        const weightPercent = Number(row.weightPercent.replace(',', '.'))
         if (
           !Number.isFinite(weightPercent) ||
           weightPercent <= 0 ||
@@ -564,9 +425,7 @@ export default function AssessmentCriteriaPdfImportPanel({
     return criteria
   }
 
-  function validateDestination(
-    current: SetupSnapshot
-  ) {
+  function validateDestination(current: SetupSnapshot) {
     if (scope === 'subject') {
       if (assignmentIds.length === 0) {
         throw new Error(
@@ -576,32 +435,26 @@ export default function AssessmentCriteriaPdfImportPanel({
 
       for (const assignmentId of assignmentIds) {
         const assignment = current.teachingAssignments.find(
-          item =>
-            item.id === assignmentId &&
-            item.active
+          item => item.id === assignmentId && item.active
         )
-
         if (!assignment) {
           throw new Error(
             'Uma turma e disciplina selecionada deixou de estar disponível.'
           )
         }
 
-        const alreadyConfigured =
-          current.assessmentSchemes.some(
-            scheme =>
-              scheme.active &&
-              scheme.scope === 'subject' &&
-              scheme.teachingAssignmentId === assignmentId
+        if (
+          current.assessmentSchemes.some(scheme =>
+            scheme.active &&
+            scheme.scope === 'subject' &&
+            scheme.teachingAssignmentId === assignmentId
           )
-
-        if (alreadyConfigured) {
+        ) {
           throw new Error(
             'Uma turma e disciplina selecionada já possui critérios gerais. A importação não substitui critérios existentes.'
           )
         }
       }
-
       return
     }
 
@@ -612,9 +465,7 @@ export default function AssessmentCriteriaPdfImportPanel({
     }
 
     const assignment = current.teachingAssignments.find(
-      item =>
-        item.id === moduleAssignmentId &&
-        item.active
+      item => item.id === moduleAssignmentId && item.active
     )
     const module = current.modules.find(
       item =>
@@ -630,12 +481,11 @@ export default function AssessmentCriteriaPdfImportPanel({
     }
 
     if (
-      current.assessmentSchemes.some(
-        scheme =>
-          scheme.active &&
-          scheme.scope === 'module' &&
-          scheme.teachingAssignmentId === moduleAssignmentId &&
-          scheme.moduleId === moduleId
+      current.assessmentSchemes.some(scheme =>
+        scheme.active &&
+        scheme.scope === 'module' &&
+        scheme.teachingAssignmentId === moduleAssignmentId &&
+        scheme.moduleId === moduleId
       )
     ) {
       throw new Error(
@@ -645,13 +495,7 @@ export default function AssessmentCriteriaPdfImportPanel({
   }
 
   async function commitImport() {
-    if (
-      busy ||
-      !parsed ||
-      rows.length === 0
-    ) {
-      return
-    }
+    if (busy || !parsed || rows.length === 0) return
 
     setImporting(true)
     setError('')
@@ -659,17 +503,13 @@ export default function AssessmentCriteriaPdfImportPanel({
 
     try {
       const criteria = validateRows()
-      const current =
-        await maProfessorRepository.getSetupSnapshot(
-          snapshot.academicYear.id
-        )
+      const current = await maProfessorRepository.getSetupSnapshot(
+        snapshot.academicYear.id
+      )
 
-      if (
-        criteriaStateFingerprint(current) !==
-        sourceFingerprint
-      ) {
+      if (criteriaStateFingerprint(current) !== sourceFingerprint) {
         throw new Error(
-          'A configuração de critérios, disciplinas ou UFCD foi alterada desde a análise do PDF. Analise novamente o ficheiro antes de importar.'
+          'A configuração de critérios, disciplinas ou UFCD foi alterada desde a análise do documento. Analise novamente o ficheiro antes de importar.'
         )
       }
 
@@ -684,32 +524,29 @@ export default function AssessmentCriteriaPdfImportPanel({
       }
 
       if (scope === 'subject') {
-        await assessmentCriteriaBatchRepository
-          .createSubjectSchemes({
-            academicYearId: snapshot.academicYear.id,
-            teachingAssignmentIds: assignmentIds,
-            name: schemeName,
-            criteria,
-            active: true
-          })
+        await assessmentCriteriaBatchRepository.createSubjectSchemes({
+          academicYearId: snapshot.academicYear.id,
+          teachingAssignmentIds: assignmentIds,
+          name: schemeName,
+          criteria,
+          active: true
+        })
       } else {
-        await assessmentCriteriaModuleRepository
-          .createModuleScheme(
-            {
-              academicYearId: snapshot.academicYear.id,
-              teachingAssignmentId: moduleAssignmentId,
-              moduleId,
-              name: schemeName,
-              active: true
-            },
-            criteria
-          )
+        await assessmentCriteriaModuleRepository.createModuleScheme(
+          {
+            academicYearId: snapshot.academicYear.id,
+            teachingAssignmentId: moduleAssignmentId,
+            moduleId,
+            name: schemeName,
+            active: true
+          },
+          criteria
+        )
       }
 
-      const nextSnapshot =
-        await maProfessorRepository.getSetupSnapshot(
-          snapshot.academicYear.id
-        )
+      const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
+        snapshot.academicYear.id
+      )
 
       clearProposal()
       setFeedback(
@@ -732,10 +569,10 @@ export default function AssessmentCriteriaPdfImportPanel({
               Importação assistida
             </p>
             <h2 className="mt-2 text-xl font-black text-white">
-              Importar critérios de um PDF
+              Importar critérios de PDF ou Word
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              O PDF é analisado localmente. Nada é guardado sem revisão e confirmação; critérios existentes não são substituídos.
+              O documento é analisado localmente pelo mesmo motor do assistente simples. Nada é guardado sem pré-visualização, revisão e confirmação; critérios existentes não são substituídos.
             </p>
           </div>
 
@@ -749,7 +586,7 @@ export default function AssessmentCriteriaPdfImportPanel({
               }}
               className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:brightness-110"
             >
-              Importar PDF
+              Importar documento
             </button>
           ) : null}
         </div>
@@ -759,7 +596,7 @@ export default function AssessmentCriteriaPdfImportPanel({
             <input
               ref={inputRef}
               type="file"
-              accept="application/pdf,.pdf"
+              accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               disabled={busy}
               onChange={handleFileChange}
               className="hidden"
@@ -784,11 +621,11 @@ export default function AssessmentCriteriaPdfImportPanel({
             >
               <p className="font-black text-white">
                 {analyzing
-                  ? 'A analisar o PDF…'
-                  : 'Arraste o PDF para aqui'}
+                  ? 'A analisar o documento…'
+                  : 'Arraste o PDF ou Word para aqui'}
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                ou selecione o ficheiro no dispositivo
+                ou selecione um ficheiro no dispositivo
               </p>
               <button
                 type="button"
@@ -796,7 +633,7 @@ export default function AssessmentCriteriaPdfImportPanel({
                 onClick={() => inputRef.current?.click()}
                 className="mt-4 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-bold text-slate-200 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.07] disabled:opacity-50"
               >
-                Selecionar PDF
+                Selecionar PDF ou Word
               </button>
             </div>
 
@@ -805,9 +642,7 @@ export default function AssessmentCriteriaPdfImportPanel({
                 <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-black text-white">
-                        {fileName}
-                      </p>
+                      <p className="font-black text-white">{fileName}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {parsed.pageCount} página{parsed.pageCount === 1 ? '' : 's'} · {parsed.candidates.length} critério{parsed.candidates.length === 1 ? '' : 's'} proposto{parsed.candidates.length === 1 ? '' : 's'}
                       </p>
@@ -818,41 +653,34 @@ export default function AssessmentCriteriaPdfImportPanel({
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
-                      <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">Disciplina</p>
-                      <p className="mt-2 text-sm text-slate-200">{parsed.metadata.subject?.value || 'Não identificada'}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
-                      <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">Curso</p>
-                      <p className="mt-2 text-sm text-slate-200">{parsed.metadata.course?.value || 'Não identificado'}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
-                      <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">Ano</p>
-                      <p className="mt-2 text-sm text-slate-200">{parsed.metadata.grade?.value || 'Não identificado'}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
-                      <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">Turma</p>
-                      <p className="mt-2 text-sm text-slate-200">{parsed.metadata.group?.value || 'Não identificada'}</p>
-                    </div>
+                    {[
+                      ['Disciplina', parsed.metadata.subject?.value || 'Não identificada'],
+                      ['Curso', parsed.metadata.course?.value || 'Não identificado'],
+                      ['Ano', parsed.metadata.grade?.value || 'Não identificado'],
+                      ['Turma', parsed.metadata.group?.value || 'Não identificada']
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
+                        <p className="mt-2 text-sm text-slate-200">{value}</p>
+                      </div>
+                    ))}
                   </div>
 
                   {suggestedAssignments.length > 0 ? (
                     <p className="mt-3 text-xs leading-5 text-cyan-100/80">
-                      Correspondência encontrada para a disciplina: {suggestedAssignments.map(item => item.label).join(', ')}. O destino continua a exigir seleção explícita.
+                      Correspondência sugerida pelo motor comum: {suggestedAssignments.map(item => item.label).join(', ')}. No modo avançado o destino continua a exigir seleção explícita.
                     </p>
                   ) : null}
                 </div>
 
                 {parsed.warnings.length > 0 ? (
                   <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-                    <p className="text-sm font-black text-amber-100">
-                      Avisos da análise
-                    </p>
-                    <ul className="mt-2 space-y-1 text-xs leading-5 text-amber-100/80">
+                    <p className="text-sm font-black text-amber-100">Avisos da análise</p>
+                    <div className="mt-2 space-y-1 text-xs leading-5 text-amber-100/80">
                       {parsed.warnings.map((warning, index) => (
-                        <li key={`${warning}-${index}`}>• {warning}</li>
+                        <p key={`${warning}-${index}`}>• {warning}</p>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 ) : null}
 
@@ -860,12 +688,8 @@ export default function AssessmentCriteriaPdfImportPanel({
                   <div>
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                          Proposta
-                        </p>
-                        <p className="mt-1 font-black text-white">
-                          Reveja todos os critérios detetados
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pré-visualização</p>
+                        <p className="mt-1 font-black text-white">Reveja todos os critérios detetados</p>
                       </div>
                       <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${
                         Math.abs(totalWeight - 100) <= 0.001
@@ -888,11 +712,9 @@ export default function AssessmentCriteriaPdfImportPanel({
                                 type="checkbox"
                                 checked={row.included}
                                 disabled={busy}
-                                onChange={event =>
-                                  updateRow(row.id, {
-                                    included: event.target.checked
-                                  })
-                                }
+                                onChange={event => updateRow(row.id, {
+                                  included: event.target.checked
+                                })}
                               />
                               Critério {index + 1}
                             </label>
@@ -912,11 +734,9 @@ export default function AssessmentCriteriaPdfImportPanel({
                               <input
                                 value={row.name}
                                 disabled={!row.included || busy}
-                                onChange={event =>
-                                  updateRow(row.id, {
-                                    name: event.target.value
-                                  })
-                                }
+                                onChange={event => updateRow(row.id, {
+                                  name: event.target.value
+                                })}
                                 className={`${inputClassName} mt-2`}
                               />
                             </label>
@@ -931,11 +751,9 @@ export default function AssessmentCriteriaPdfImportPanel({
                                   inputMode="decimal"
                                   value={row.weightPercent}
                                   disabled={!row.included || busy}
-                                  onChange={event =>
-                                    updateRow(row.id, {
-                                      weightPercent: event.target.value
-                                    })
-                                  }
+                                  onChange={event => updateRow(row.id, {
+                                    weightPercent: event.target.value
+                                  })}
                                   className={`${inputClassName} pr-9`}
                                 />
                                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-bold text-slate-500">%</span>
@@ -948,11 +766,9 @@ export default function AssessmentCriteriaPdfImportPanel({
                             <textarea
                               value={row.description}
                               disabled={!row.included || busy}
-                              onChange={event =>
-                                updateRow(row.id, {
-                                  description: event.target.value
-                                })
-                              }
+                              onChange={event => updateRow(row.id, {
+                                description: event.target.value
+                              })}
                               className={`${textareaClassName} mt-2`}
                             />
                           </label>
@@ -1019,14 +835,16 @@ export default function AssessmentCriteriaPdfImportPanel({
                     {scope === 'subject' ? (
                       <div className="mt-4 grid gap-2 sm:grid-cols-2">
                         {assignments.map(item => {
-                          const blocked =
-                            activeSubjectSchemeAssignments.has(
-                              item.assignment.id
-                            )
-                          const selected =
-                            assignmentIds.includes(
-                              item.assignment.id
-                            )
+                          const blocked = activeSubjectSchemeAssignments.has(
+                            item.assignment.id
+                          )
+                          const selected = assignmentIds.includes(
+                            item.assignment.id
+                          )
+                          const recommended = suggestedAssignments.some(
+                            suggestion =>
+                              suggestion.assignment.id === item.assignment.id
+                          )
 
                           return (
                             <label
@@ -1044,11 +862,7 @@ export default function AssessmentCriteriaPdfImportPanel({
                                   type="checkbox"
                                   checked={selected}
                                   disabled={blocked || busy}
-                                  onChange={() =>
-                                    toggleAssignment(
-                                      item.assignment.id
-                                    )
-                                  }
+                                  onChange={() => toggleAssignment(item.assignment.id)}
                                   className="mt-1"
                                 />
                                 <span>
@@ -1057,9 +871,8 @@ export default function AssessmentCriteriaPdfImportPanel({
                                     {item.group?.courseName
                                       ? `Curso: ${item.group.courseName}`
                                       : 'Curso não indicado'}
-                                    {blocked
-                                      ? ' · Já possui critérios gerais'
-                                      : ''}
+                                    {recommended ? ' · Correspondência sugerida' : ''}
+                                    {blocked ? ' · Já possui critérios gerais' : ''}
                                   </span>
                                 </span>
                               </span>
@@ -1140,9 +953,7 @@ export default function AssessmentCriteriaPdfImportPanel({
                     onClick={() => {
                       if (
                         !hasProposal ||
-                        window.confirm(
-                          'Descartar esta proposta de importação?'
-                        )
+                        window.confirm('Descartar esta proposta de importação?')
                       ) {
                         clearProposal()
                         setError('')
