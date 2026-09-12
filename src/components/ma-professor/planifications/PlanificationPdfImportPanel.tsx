@@ -13,6 +13,7 @@ import {
 import {
   commitPlanificationPdfImport,
   loadPlanificationPdfImportDestinations,
+  moduleKindLabel,
   type PlanificationPdfImportDestination
 } from './planificationPdfImportAdapter'
 import type {
@@ -426,7 +427,7 @@ export default function PlanificationPdfImportPanel({
       )
 
     if (!selectedRows.length) {
-      return 'Selecione pelo menos uma UFCD para importar.'
+      return 'Selecione pelo menos uma UFCD ou módulo para importar.'
     }
 
     const writeDestinations =
@@ -441,10 +442,16 @@ export default function PlanificationPdfImportPanel({
         selectedRows[index]
       const state =
         rows[row.key]
+      const kind =
+        row.section.code
+          ? moduleKindLabel(
+              row.section.code
+            )
+          : 'Secção'
       const label =
         row.section.code
-          ? `UFCD ${row.section.code}`
-          : `UFCD ${index + 1}`
+          ? `${kind} ${row.section.code}`
+          : `Secção ${index + 1}`
 
       if (
         !state?.destinationId ||
@@ -533,7 +540,7 @@ export default function PlanificationPdfImportPanel({
 
     if (
       !window.confirm(
-        'Confirmar a importação? Todas as UFCD deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+        'Confirmar a importação? Todas as secções deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
       )
     ) {
       return
@@ -641,10 +648,10 @@ export default function PlanificationPdfImportPanel({
             Importar planificação
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
-            PDF ou Word → UFCD → revisão → importação
+            PDF ou Word → UFCD/módulo → revisão → importação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            O documento é analisado localmente. Reveja a turma, disciplina, UFCD e os conteúdos antes da confirmação final. Não são inventados sumários.
+            O documento é analisado localmente. Reveja a turma, disciplina, UFCD/módulo e os conteúdos antes da confirmação final. Não são inventados sumários.
           </p>
         </div>
 
@@ -692,7 +699,7 @@ export default function PlanificationPdfImportPanel({
             : 'Arraste o PDF ou Word da planificação para aqui'}
         </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          Nesta fase, cada confirmação trata um documento completo para manter todas as UFCD do documento no mesmo rollback.
+          Nesta fase, cada confirmação trata um documento completo para manter todas as secções do documento no mesmo rollback.
         </p>
         <button
           type="button"
@@ -747,6 +754,12 @@ export default function PlanificationPdfImportPanel({
                   state.destinationId
               ) ?? null
             : null
+        const kind =
+          row.section.code
+            ? moduleKindLabel(
+                row.section.code
+              )
+            : 'Secção'
         const warnings = [
           ...row.warnings
         ]
@@ -781,7 +794,7 @@ export default function PlanificationPdfImportPanel({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-black text-violet-100">
-                  UFCD {row.section.code || 'sem código'}
+                  {kind} {row.section.code || 'sem código'}
                 </span>
                 <h3 className="mt-3 text-lg font-black text-white">
                   {displayText(
@@ -875,7 +888,7 @@ export default function PlanificationPdfImportPanel({
                       className={selectClass}
                     >
                       <option value="">
-                        Escolher turma, disciplina e UFCD…
+                        Escolher turma, disciplina e UFCD/módulo…
                       </option>
                       {destinations.map(item => (
                         <option
@@ -927,7 +940,11 @@ export default function PlanificationPdfImportPanel({
                           Acrescentar no fim
                         </option>
                         <option value="skip">
-                          Ignorar esta UFCD
+                          {kind === 'UFCD'
+                            ? 'Ignorar esta UFCD'
+                            : kind === 'Módulo'
+                              ? 'Ignorar este módulo'
+                              : 'Ignorar esta secção'}
                         </option>
                       </select>
                     ) : (
