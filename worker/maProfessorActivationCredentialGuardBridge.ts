@@ -9,6 +9,9 @@ import type {
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
+const ACCOUNT_AUTH_STORAGE_KEY =
+  'ma-professor-account-auth-v1'
+
 const REQUEST_GUARD_STORAGE_KEY =
   'ma-professor-access-request-guard-v1'
 
@@ -49,6 +52,14 @@ interface AccessStateSnapshot {
   credentials?: Record<
     string,
     StoredAccessCredentialSnapshot
+  >
+}
+
+interface StoredAccountAuthStateSnapshot {
+  schemaVersion?: number
+  credentials?: Record<
+    string,
+    unknown
   >
 }
 
@@ -353,6 +364,25 @@ function normalizeEmail(
     : ''
 }
 
+function createGenericAccessRequestResponse(
+  email: string
+) {
+  return json({
+    success: true,
+    request: {
+      email,
+      status: 'pending',
+      requestedAt: null,
+      approvedAt: null,
+      rejectedAt: null,
+      activatedAt: null
+    },
+    canActivate: false,
+    message:
+      'Pedido recebido ou já em processamento. Por segurança, o estado exato da conta não é apresentado nesta confirmação. Utilize novamente o mesmo email e a mesma password pessoal para consultar o estado.'
+  })
+}
+
 function createRequestGuardState():
   RequestGuardState {
   return {
@@ -516,6 +546,15 @@ async function readEmail(
   )
 }
 
+function hasSessionToken(
+  body: JsonObject
+) {
+  return typeof body.token ===
+      'string' &&
+    body.token.trim().length >
+      0
+}
+
 export class MaProfessorAccessDurableObject {
   private readonly state:
     DurableObjectStateLike
@@ -587,10 +626,9 @@ export class MaProfessorAccessDurableObject {
 
     if (
       !body ||
-      typeof body.accountPassword !==
-        'string' ||
-      body.accountPassword.length ===
-        0
+      hasSessionToken(
+        body
+      )
     ) {
       return null
     }
@@ -739,6 +777,105 @@ export class MaProfessorAccessDurableObject {
     return null
   }
 
+  private async handlePublicAccessRequest(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST'
+    ) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const body =
+      await readRequestBody(
+        request
+      )
+
+    if (!body) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    if (
+      hasSessionToken(
+        body
+      )
+    ) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!email) {
+      return this.existing.fetch(
+        request
+      )
+    }
+
+    const accountPassword =
+      typeof body.accountPassword ===
+        'string'
+        ? body.accountPassword
+        : ''
+
+    if (!accountPassword) {
+      return createGenericAccessRequestResponse(
+        email
+      )
+    }
+
+    const authState =
+      await this.state.storage.get<StoredAccountAuthStateSnapshot>(
+        ACCOUNT_AUTH_STORAGE_KEY
+      )
+
+    const hadPersonalPassword =
+      Boolean(
+        authState
+          ?.credentials?.[
+            email
+          ]
+      )
+
+    const response =
+      await this.existing.fetch(
+        request
+      )
+
+    if (
+      hadPersonalPassword
+    ) {
+      if (
+        response.ok ||
+        response.status !==
+          409
+      ) {
+        return response
+      }
+
+      return createGenericAccessRequestResponse(
+        email
+      )
+    }
+
+    if (!response.ok) {
+      return response
+    }
+
+    return createGenericAccessRequestResponse(
+      email
+    )
+  }
+
   private async handleRequest(
     request: Request
   ) {
@@ -759,6 +896,10 @@ export class MaProfessorAccessDurableObject {
       if (limited) {
         return limited
       }
+
+      return this.handlePublicAccessRequest(
+        request
+      )
     }
 
     if (
