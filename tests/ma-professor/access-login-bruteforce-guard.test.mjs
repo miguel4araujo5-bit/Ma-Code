@@ -107,12 +107,12 @@ function transpile(source, filename) {
 
   return output.outputText
     .replaceAll(
-      "'./maProfessorActivationCredentialGuardBridge'",
-      "'./maProfessorActivationCredentialGuardBridge.mjs'"
+      "'./maProfessorPublicAuthPrivacyBridge'",
+      "'./maProfessorPublicAuthPrivacyBridge.mjs'"
     )
     .replaceAll(
-      '"./maProfessorActivationCredentialGuardBridge"',
-      '"./maProfessorActivationCredentialGuardBridge.mjs"'
+      '"./maProfessorPublicAuthPrivacyBridge"',
+      '"./maProfessorPublicAuthPrivacyBridge.mjs"'
     )
 }
 
@@ -149,7 +149,7 @@ async function stageGuard() {
   await writeFile(
     join(
       directory,
-      'maProfessorActivationCredentialGuardBridge.mjs'
+      'maProfessorPublicAuthPrivacyBridge.mjs'
     ),
     `
       export const calls = []
@@ -259,7 +259,7 @@ async function stageGuard() {
       pathToFileURL(
         join(
           directory,
-          'maProfessorActivationCredentialGuardBridge.mjs'
+          'maProfessorPublicAuthPrivacyBridge.mjs'
         )
       ).href
     )
