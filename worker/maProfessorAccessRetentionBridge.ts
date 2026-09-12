@@ -1,6 +1,6 @@
 import {
   MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
-} from './maProfessorLoginAttemptGuardBridge'
+} from './maProfessorPublicAuthPrivacyBridge'
 
 import {
   createMAProfessorAccessSessionSplitState
