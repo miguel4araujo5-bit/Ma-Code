@@ -2,6 +2,7 @@ import {
   type ComponentProps,
   useEffect
 } from 'react'
+import DashboardDutyPendingPanel from './DashboardDutyPendingPanel'
 import DashboardViewBase from './DashboardViewBase'
 import {
   getDashboardDataRevision
@@ -17,6 +18,9 @@ type DashboardViewProps =
 export default function DashboardView(
   props: DashboardViewProps
 ) {
+  const dashboardRevision =
+    getDashboardDataRevision()
+
   useEffect(
     () => {
       const revision =
@@ -41,8 +45,25 @@ export default function DashboardView(
   )
 
   return (
-    <DashboardViewBase
-      {...props}
-    />
+    <>
+      <DashboardDutyPendingPanel
+        academicYearId={
+          props.snapshot.academicYear.id
+        }
+        academicYearStartDate={
+          props.snapshot.academicYear.startDate
+        }
+        referenceDate={
+          props.snapshot.referenceDate
+        }
+        refreshToken={
+          dashboardRevision
+        }
+      />
+
+      <DashboardViewBase
+        {...props}
+      />
+    </>
   )
 }
