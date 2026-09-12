@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Expor no Dashboard os `Cargo` já ocorridos que continuam sem sumário, reutilizando `schoolCalendarEvents` e o parser partilhado de Cargo, sem criar entidades pedagógicas falsas nem alterar avaliação/GIAE | `work/f103-dashboard-duty-pending` | `src/components/ma-professor/dashboard/DashboardDutyPendingPanel.tsx`; `src/components/ma-professor/dashboard/DashboardView.tsx`; testes MA-Professor relacionados | EM CURSO — leitura local de eventos existentes; sem novo schema, Worker, D1, Durable Object, binding, polling ou recurso pago | `dbed249893edbab4a2e4125105df1e58f6d2e2c3` | 2026-09-12 |
 
 ## Regras de utilização
 
