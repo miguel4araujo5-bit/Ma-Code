@@ -14,6 +14,9 @@ import * as ts from 'typescript'
 const ACCESS_KEY =
   'ma-professor-access-state-v1'
 
+const REQUEST_GUARD_KEY =
+  'ma-professor-access-request-guard-v1'
+
 function clone(value) {
   return value === undefined
     ? undefined
@@ -30,11 +33,20 @@ class MemoryStorage {
         ]
       )
     )
+    this.putCalls = 0
   }
 
   async get(key) {
     return clone(
       this.values.get(key)
+    )
+  }
+
+  async put(key, value) {
+    this.putCalls += 1
+    this.values.set(
+      key,
+      clone(value)
     )
   }
 
@@ -193,7 +205,8 @@ async function stageGuard() {
 function request(
   pathname,
   body,
-  method = 'POST'
+  method = 'POST',
+  extraHeaders = {}
 ) {
   return new Request(
     `https://ma-professor.internal${pathname}`,
@@ -201,7 +214,8 @@ function request(
       method,
       headers: {
         'Content-Type':
-          'application/json'
+          'application/json',
+        ...extraHeaders
       },
       body:
         method === 'POST'
@@ -408,6 +422,306 @@ test(
     assert.equal(
       lower.delegatedRequests.length,
       1
+    )
+  }
+)
+
+test(
+  'public account creation is rate limited per Cloudflare origin without storing the raw IP',
+  async t => {
+    const {
+      guard,
+      lower,
+      dispose
+    } = await stageGuard()
+
+    t.after(dispose)
+
+    const storage =
+      new MemoryStorage()
+
+    const access =
+      new guard.MaProfessorAccessDurableObject(
+        {
+          storage
+        },
+        {}
+      )
+
+    const ip =
+      '203.0.113.24'
+
+    for (
+      let index = 0;
+      index < 30;
+      index += 1
+    ) {
+      const response =
+        await access.fetch(
+          request(
+            '/api/ma-professor/access/request',
+            {
+              email:
+                `docente-${index}@example.com`,
+              accountPassword:
+                'password-segura'
+            },
+            'POST',
+            {
+              'CF-Connecting-IP':
+                ip
+            }
+          )
+        )
+
+      assert.equal(
+        response.status,
+        200
+      )
+    }
+
+    const blocked =
+      await access.fetch(
+        request(
+          '/api/ma-professor/access/request',
+          {
+            email:
+              'bloqueado@example.com',
+            accountPassword:
+              'password-segura'
+          },
+          'POST',
+          {
+            'CF-Connecting-IP':
+              ip
+          }
+        )
+      )
+
+    assert.equal(
+      blocked.status,
+      429
+    )
+    assert.ok(
+      Number(
+        blocked.headers.get(
+          'Retry-After'
+        )
+      ) > 0
+    )
+    assert.equal(
+      lower.delegatedRequests.length,
+      30
+    )
+
+    const guardState =
+      storage.snapshot(
+        REQUEST_GUARD_KEY
+      )
+
+    assert.equal(
+      Object.keys(
+        guardState.buckets
+      ).length,
+      1
+    )
+
+    const [bucketKey] =
+      Object.keys(
+        guardState.buckets
+      )
+
+    assert.match(
+      bucketKey,
+      /^[a-f0-9]{64}$/
+    )
+    assert.doesNotMatch(
+      JSON.stringify(
+        guardState
+      ),
+      new RegExp(
+        ip.replaceAll(
+          '.',
+          '\\.'
+        )
+      )
+    )
+  }
+)
+
+test(
+  'blocked access request origins do not keep writing and non-signup request flows are not throttled',
+  async t => {
+    const {
+      guard,
+      lower,
+      dispose
+    } = await stageGuard()
+
+    t.after(dispose)
+
+    const storage =
+      new MemoryStorage()
+
+    const access =
+      new guard.MaProfessorAccessDurableObject(
+        {
+          storage
+        },
+        {}
+      )
+
+    const headers = {
+      'CF-Connecting-IP':
+        '198.51.100.8'
+    }
+
+    for (
+      let index = 0;
+      index < 31;
+      index += 1
+    ) {
+      await access.fetch(
+        request(
+          '/api/ma-professor/access/request',
+          {
+            email:
+              `limite-${index}@example.com`,
+            accountPassword:
+              'password-segura'
+          },
+          'POST',
+          headers
+        )
+      )
+    }
+
+    const writesAtBlock =
+      storage.putCalls
+
+    const blockedAgain =
+      await access.fetch(
+        request(
+          '/api/ma-professor/access/request',
+          {
+            email:
+              'outra@example.com',
+            accountPassword:
+              'password-segura'
+          },
+          'POST',
+          headers
+        )
+      )
+
+    assert.equal(
+      blockedAgain.status,
+      429
+    )
+    assert.equal(
+      storage.putCalls,
+      writesAtBlock,
+      'Depois de a origem estar bloqueada, novas tentativas não devem gerar mais escritas no Durable Object.'
+    )
+
+    const renewalLikeRequest =
+      await access.fetch(
+        request(
+          '/api/ma-professor/access/request',
+          {
+            email:
+              'docente@example.com',
+            plan:
+              'paid_30_days',
+            token:
+              'token',
+            deviceId:
+              'device'
+          },
+          'POST',
+          headers
+        )
+      )
+
+    assert.equal(
+      renewalLikeRequest.status,
+      200
+    )
+    assert.equal(
+      lower.delegatedRequests.length,
+      31,
+      'Os 30 pedidos iniciais e o fluxo sem accountPassword devem continuar a ser delegados.'
+    )
+  }
+)
+
+test(
+  'request guard state remains bounded even when origins rotate',
+  async t => {
+    const {
+      guard,
+      dispose
+    } = await stageGuard()
+
+    t.after(dispose)
+
+    const storage =
+      new MemoryStorage()
+
+    const access =
+      new guard.MaProfessorAccessDurableObject(
+        {
+          storage
+        },
+        {}
+      )
+
+    for (
+      let index = 0;
+      index < 260;
+      index += 1
+    ) {
+      const third =
+        Math.floor(
+          index / 250
+        )
+      const fourth =
+        index % 250 + 1
+
+      const response =
+        await access.fetch(
+          request(
+            '/api/ma-professor/access/request',
+            {
+              email:
+                `rotacao-${index}@example.com`,
+              accountPassword:
+                'password-segura'
+            },
+            'POST',
+            {
+              'CF-Connecting-IP':
+                `192.0.${third}.${fourth}`
+            }
+          )
+        )
+
+      assert.equal(
+        response.status,
+        200
+      )
+    }
+
+    const guardState =
+      storage.snapshot(
+        REQUEST_GUARD_KEY
+      )
+
+    assert.equal(
+      Object.keys(
+        guardState.buckets
+      ).length,
+      256
     )
   }
 )
