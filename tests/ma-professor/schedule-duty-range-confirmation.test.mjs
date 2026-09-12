@@ -99,6 +99,17 @@ test(
 
     assert.equal(
       policy.requiresDutyDateRangeConfirmation(
+        {
+          ...academicYear,
+          name: '2026/27'
+        },
+        'EBS S. Bento'
+      ),
+      false
+    )
+
+    assert.equal(
+      policy.requiresDutyDateRangeConfirmation(
         academicYear,
         'Escola Secundária Exemplo'
       ),
