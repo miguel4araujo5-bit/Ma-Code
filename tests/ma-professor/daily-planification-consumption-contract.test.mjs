@@ -93,7 +93,7 @@ test(
   () => {
     assert.match(
       dailyViewSource,
-      /dailyWorkspaceRepository\.saveLesson\(\{[\s\S]*planificationItemIds:[\s\S]*lessonForm[\s\S]*\.planificationItemIds/
+      /dailyWorkspaceRepository\.saveLesson\(\s*\{[\s\S]*planificationItemIds:[\s\S]*lessonForm[\s\S]*\.planificationItemIds/
     )
     assert.match(
       dailyRepositorySource,
