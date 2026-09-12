@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Remodelar a revisão semanal do horário: preservar todos os tempos do PDF, editar diretamente cada célula e permitir classificar cada bloco como `Componente letiva` ou `Cargo`, sem editor/tabelas duplicados por baixo | `work/f103-schedule-inline-weekly-review` | `src/components/ma-professor/setup/ScheduleImportVisualGrid.tsx`; `src/components/ma-professor/setup/SchedulePdfImportStep.tsx`; testes de importação do horário | EM CURSO — alteração limitada ao fluxo local de importação/revisão; sem Worker, D1, Durable Objects, sync ou schema | `b53770e526929c597aff2c03491d1301f38d4ac8` | 2026-09-12 |
+| F103 | Fechar o contrato de sumário dos blocos `Cargo`: reutilizar as ocorrências `schoolCalendarEvents` já criadas por data, manter o sumário independente por ocorrência, não criar disciplinas/UFCD/avaliações falsas e alinhar a UI para mostrar apenas `Cargo` | `work/f103-duty-summaries` | `src/components/ma-professor/product/CalendarProductWorkspace.tsx`; `tests/ma-professor/duty-summary-contract.test.mjs` | PR #107 PRONTO — CI verde: build + MA-Professor + Conquistador + MA-Quadro; sem alteração de schema ou persistência; 0 pedidos Cloudflare adicionais | `6878b3dfc13def79e1046e544118f85120ab88c1` | 2026-09-12 |
 
 ## Regras de utilização
 

@@ -316,7 +316,7 @@ export function CalendarProductWorkspace({
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-200">
                   {duty
-                    ? 'Cargo / componente não letiva'
+                    ? 'Cargo'
                     : 'Evento escolar'}
                 </p>
 
@@ -377,7 +377,7 @@ export function CalendarProductWorkspace({
 
             {duty ? (
               <p className="mt-3 text-xs leading-5 text-slate-500">
-                Este registo é independente das aulas, módulos, alunos e avaliações. Alterar o sumário desta ocorrência não modifica as restantes semanas.
+                Este sumário pertence apenas a este bloco nesta data. Alterá-lo não modifica as restantes semanas.
               </p>
             ) : null}
 
