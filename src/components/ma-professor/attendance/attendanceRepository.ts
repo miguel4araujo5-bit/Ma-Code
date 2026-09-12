@@ -10,7 +10,8 @@ import {
 import type {
   EntityId,
   LearningRecovery,
-  LearningRecoveryOrigin
+  LearningRecoveryOrigin,
+  StudentAbsenceSummary
 } from '../types'
 
 import {
@@ -186,7 +187,8 @@ export class AttendanceRepository
           )
       )
 
-    const warningLevel =
+    const warningLevel:
+      StudentAbsenceSummary['warningLevel'] =
       metrics.absencePercent >
       settings.learningRecoveryThresholdPercent
         ? 'recovery_required'
