@@ -185,6 +185,16 @@ function moduleLabel(
     : name
 }
 
+function moduleKindLabel(
+  code: string
+) {
+  return /^\d{3,6}$/.test(
+    code.trim()
+  )
+    ? 'UFCD'
+    : 'Módulo'
+}
+
 function courseLabel(
   value: string | null | undefined
 ) {
@@ -390,16 +400,20 @@ function titleForSection(
     section.code.trim()
   const name =
     section.name.trim()
+  const kind =
+    moduleKindLabel(
+      code
+    )
 
   if (
     code &&
     name
   ) {
-    return `Planificação — UFCD ${code} · ${name}`
+    return `Planificação — ${kind} ${code} · ${name}`
   }
 
   if (code) {
-    return `Planificação — UFCD ${code}`
+    return `Planificação — ${kind} ${code}`
   }
 
   return name
