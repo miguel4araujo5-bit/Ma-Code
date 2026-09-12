@@ -1,15 +1,7 @@
-import {
-  MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
-} from './maProfessorAccessRetentionBridge'
-
-import type {
-  MaProfessorAccessEnv
-} from './maProfessorAccess'
-
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
-const SESSION_STORAGE_KEY =
+export const MA_PROFESSOR_ACCESS_SESSION_STORAGE_KEY =
   'ma-professor-access-sessions-v1'
 
 type JsonObject =
@@ -245,7 +237,7 @@ function buildCombinedState(
   return combined
 }
 
-function createSessionSplitState(
+export function createMAProfessorAccessSessionSplitState(
   state: DurableObjectStateLike
 ) {
   const storage =
@@ -307,7 +299,7 @@ function createSessionSplitState(
             ACCESS_STORAGE_KEY
           ),
           storage.get<unknown>(
-            SESSION_STORAGE_KEY
+            MA_PROFESSOR_ACCESS_SESSION_STORAGE_KEY
           )
         ])
 
@@ -335,10 +327,7 @@ function createSessionSplitState(
                 readSessions(rawCore),
               updatedAt:
                 readTimestamp(
-                  (
-                    rawCore as
-                      JsonObject
-                  ).updatedAt
+                  rawCore.updatedAt
                 ) ?? Date.now()
             }
 
@@ -350,7 +339,7 @@ function createSessionSplitState(
 
           if (!normalizedSessionStore) {
             migrationEntries[
-              SESSION_STORAGE_KEY
+              MA_PROFESSOR_ACCESS_SESSION_STORAGE_KEY
             ] =
               migratedSessions
           }
@@ -465,7 +454,7 @@ function createSessionSplitState(
 
     if (sessionsChanged) {
       entries[
-        SESSION_STORAGE_KEY
+        MA_PROFESSOR_ACCESS_SESSION_STORAGE_KEY
       ] =
         nextSessionStore
     }
@@ -585,14 +574,8 @@ function createSessionSplitState(
           ACCESS_STORAGE_KEY
         ]
 
-        /*
-         * A chave dividida é interna a esta camada.
-         * Evita que uma escrita antiga/em lote consiga
-         * substituir uma versão de sessões preparada
-         * pelo adaptador no mesmo passo.
-         */
         delete passthroughEntries[
-          SESSION_STORAGE_KEY
+          MA_PROFESSOR_ACCESS_SESSION_STORAGE_KEY
         ]
 
         await persistAccessWrite(
@@ -631,30 +614,4 @@ function createSessionSplitState(
       }
     }
   ) as DurableObjectStateLike
-}
-
-export class MaProfessorAccessDurableObject {
-  private readonly existing:
-    ExistingMaProfessorAccessDurableObject
-
-  constructor(
-    state: DurableObjectStateLike,
-    env: MaProfessorAccessEnv
-  ) {
-    this.existing =
-      new ExistingMaProfessorAccessDurableObject(
-        createSessionSplitState(
-          state
-        ) as never,
-        env
-      )
-  }
-
-  fetch(
-    request: Request
-  ) {
-    return this.existing.fetch(
-      request
-    )
-  }
 }
