@@ -73,10 +73,10 @@ test('multiword lesson names are not promoted to duties without positive duty ev
   assert.equal(extractDutyName('Laboratório de Competências Sociais'), '')
 })
 
-test('schedule import preview exposes manual additions for missing lessons/hours and duties', () => {
+test('schedule import preview exposes manual additions for missing teaching components and duties', () => {
   assert.match(source, /function addManualLesson\(/)
   assert.match(source, /function addManualDuty\(/)
-  assert.match(source, /\+ Adicionar aula \/ hora/)
+  assert.match(source, /\+ Adicionar componente letiva/)
   assert.match(source, /\+ Adicionar cargo/)
   assert.match(source, /id:\s*manualId\(\s*'manual-slot'\s*\)/)
   assert.match(source, /id:\s*manualId\(\s*'manual-duty'\s*\)/)

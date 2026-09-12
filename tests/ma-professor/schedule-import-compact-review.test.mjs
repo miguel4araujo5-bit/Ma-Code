@@ -32,7 +32,7 @@ const importStepSource = await readFile(
 )
 
 test(
-  'schedule review does not display the two legacy bulk tables underneath the visual grid',
+  'schedule review keeps the weekly grid as the single active review surface',
   () => {
     assert.match(
       mainSource,
@@ -42,17 +42,13 @@ test(
       importStepSource,
       /<div className="mt-5">\s*<ScheduleImportVisualGrid/
     )
+    assert.doesNotMatch(
+      importStepSource,
+      /ScheduleImportUnresolvedReview/
+    )
     assert.match(
       reviewCss,
       /div:has\(> section\[aria-label='Revisão visual do horário importado'\]\)/
-    )
-    assert.match(
-      reviewCss,
-      /min-w-\[1180px\]/
-    )
-    assert.match(
-      reviewCss,
-      /min-w-\[720px\]/
     )
     assert.match(
       reviewCss,
@@ -62,34 +58,84 @@ test(
 )
 
 test(
-  'the visual grid preserves all fields that existed in the hidden lesson and duty tables',
+  'the weekly grid keeps lesson and duty fields editable inside each cell and exposes direct type switching',
   () => {
     for (const field of [
-      'selectedLesson.weekday',
-      'selectedLesson.startTime',
-      'selectedLesson.endTime',
-      'selectedLesson.periodCount',
-      'selectedLesson.groupName',
-      'selectedLesson.courseName',
-      'selectedLesson.subjectName',
-      'selectedLesson.included',
-      'selectedDuty.weekday',
-      'selectedDuty.startTime',
-      'selectedDuty.endTime',
-      'selectedDuty.name',
-      'selectedDuty.included'
+      'lesson.weekday',
+      'lesson.startTime',
+      'lesson.endTime',
+      'lesson.periodCount',
+      'lesson.groupName',
+      'lesson.courseName',
+      'lesson.subjectName',
+      'lesson.included',
+      'duty.weekday',
+      'duty.startTime',
+      'duty.endTime',
+      'duty.name',
+      'duty.included'
     ]) {
-      assert.match(visualGridSource, new RegExp(field.replace('.', '\\.')))
+      assert.match(
+        visualGridSource,
+        new RegExp(field.replace('.', '\\.'))
+      )
     }
 
-    assert.match(visualGridSource, /Confirmar como disciplina/)
-    assert.match(importStepSource, /\+ Adicionar aula \/ hora/)
-    assert.match(importStepSource, /\+ Adicionar cargo/)
+    assert.match(
+      visualGridSource,
+      /schedule-import-inline-editor/
+    )
+    assert.match(
+      visualGridSource,
+      /Componente letiva/
+    )
+    assert.match(
+      visualGridSource,
+      /Cargo/
+    )
+    assert.match(
+      visualGridSource,
+      /Confirmar como disciplina/
+    )
+    assert.match(
+      importStepSource,
+      /\+ Adicionar componente letiva/
+    )
+    assert.match(
+      importStepSource,
+      /\+ Adicionar cargo/
+    )
   }
 )
 
 test(
-  'compact review CSS is scoped to the schedule visual-grid wrapper and cannot hide unrelated tables',
+  'source time rows and unresolved blocks are passed into the weekly grid instead of parallel review tables',
+  () => {
+    assert.match(
+      importStepSource,
+      /sourceTimeRows=\{sourceTimeRows\}/
+    )
+    assert.match(
+      importStepSource,
+      /unresolved=\{unresolved\}/
+    )
+    assert.match(
+      importStepSource,
+      /onLessonAsDuty=\{lessonAsDuty\}/
+    )
+    assert.match(
+      importStepSource,
+      /onDutyAsLesson=\{dutyAsLesson\}/
+    )
+    assert.match(
+      visualGridSource,
+      /data-schedule-cell/
+    )
+  }
+)
+
+test(
+  'compact review CSS remains scoped to the schedule visual-grid wrapper and cannot hide unrelated tables',
   () => {
     const cssWithoutComments = reviewCss.replace(/\/\*[\s\S]*?\*\//g, '')
     const selectors = cssWithoutComments

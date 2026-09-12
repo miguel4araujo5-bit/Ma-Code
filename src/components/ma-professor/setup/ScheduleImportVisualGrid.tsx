@@ -29,9 +29,26 @@ export type ScheduleImportDutyDraft = {
   name: string
 }
 
+export type ScheduleImportUnresolvedDraft = {
+  id: string
+  weekday: Weekday
+  startTime: string
+  endTime: string
+  periodCount: number
+  rawText: string
+  reason: string
+}
+
+export type ScheduleImportTimeRow = {
+  startTime: string
+  endTime: string
+}
+
 type Props = {
   lessons: ScheduleImportLessonDraft[]
   duties: ScheduleImportDutyDraft[]
+  unresolved: ScheduleImportUnresolvedDraft[]
+  sourceTimeRows?: ScheduleImportTimeRow[]
   disabled?: boolean
   onUpdateLesson: (
     id: string,
@@ -41,6 +58,11 @@ type Props = {
     id: string,
     changes: Partial<ScheduleImportDutyDraft>
   ) => void
+  onLessonAsDuty: (id: string) => void
+  onDutyAsLesson: (id: string) => void
+  onUnresolvedAsLesson: (id: string) => void
+  onUnresolvedAsDuty: (id: string) => void
+  onIgnoreUnresolved: (id: string) => void
 }
 
 type Selection =
@@ -50,6 +72,10 @@ type Selection =
     }
   | {
       kind: 'duty'
+      id: string
+    }
+  | {
+      kind: 'unresolved'
       id: string
     }
   | null
@@ -74,7 +100,7 @@ const weekdayLabels: Array<{
 ]
 
 const fieldClassName =
-  'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:opacity-50'
+  'w-full rounded-lg border border-white/10 bg-slate-950/80 px-2.5 py-2 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/10 disabled:opacity-50'
 
 function timeValue(value: string) {
   const [hours, minutes] =
@@ -87,22 +113,25 @@ function timeValue(value: string) {
 }
 
 function timeRows(
+  sourceTimeRows: ScheduleImportTimeRow[],
   lessons: ScheduleImportLessonDraft[],
-  duties: ScheduleImportDutyDraft[]
+  duties: ScheduleImportDutyDraft[],
+  unresolved: ScheduleImportUnresolvedDraft[]
 ): TimeRow[] {
-  const rows =
-    new Map<string, TimeRow>()
+  const rows = new Map<string, TimeRow>()
 
-  for (const item of [...lessons, ...duties]) {
+  for (const item of [
+    ...sourceTimeRows,
+    ...lessons,
+    ...duties,
+    ...unresolved
+  ]) {
     const startTime = item.startTime.trim()
     const endTime = item.endTime.trim()
 
-    if (!startTime || !endTime) {
-      continue
-    }
+    if (!startTime || !endTime) continue
 
     const key = `${startTime}|${endTime}`
-
     rows.set(key, {
       key,
       startTime,
@@ -119,12 +148,16 @@ function timeRows(
 
 function visibleWeekdays(
   lessons: ScheduleImportLessonDraft[],
-  duties: ScheduleImportDutyDraft[]
+  duties: ScheduleImportDutyDraft[],
+  unresolved: ScheduleImportUnresolvedDraft[]
 ) {
-  const hasWeekend =
-    [...lessons, ...duties].some(
-      item => item.weekday === 6 || item.weekday === 7
-    )
+  const hasWeekend = [
+    ...lessons,
+    ...duties,
+    ...unresolved
+  ].some(
+    item => item.weekday === 6 || item.weekday === 7
+  )
 
   return weekdayLabels.filter(
     day => hasWeekend || day.value <= 5
@@ -147,41 +180,378 @@ function sameSlot(
   )
 }
 
+function TypeSwitch({
+  value,
+  disabled,
+  onTeaching,
+  onDuty
+}: {
+  value: 'teaching' | 'duty' | 'unknown'
+  disabled: boolean
+  onTeaching: () => void
+  onDuty: () => void
+}) {
+  return (
+    <div
+      className="mt-2 grid grid-cols-2 overflow-hidden rounded-lg border border-white/10 bg-slate-950/55"
+      aria-label="Tipo do bloco"
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        aria-pressed={value === 'teaching'}
+        onClick={event => {
+          event.stopPropagation()
+          onTeaching()
+        }}
+        className={`px-2 py-1.5 text-[10px] font-black leading-4 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          value === 'teaching'
+            ? 'bg-cyan-300/18 text-cyan-50'
+            : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
+        }`}
+      >
+        Componente letiva
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-pressed={value === 'duty'}
+        onClick={event => {
+          event.stopPropagation()
+          onDuty()
+        }}
+        className={`border-l border-white/10 px-2 py-1.5 text-[10px] font-black leading-4 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          value === 'duty'
+            ? 'bg-violet-300/18 text-violet-50'
+            : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
+        }`}
+      >
+        Cargo
+      </button>
+    </div>
+  )
+}
+
 export default function ScheduleImportVisualGrid({
   lessons,
   duties,
+  unresolved,
+  sourceTimeRows = [],
   disabled = false,
   onUpdateLesson,
-  onUpdateDuty
+  onUpdateDuty,
+  onLessonAsDuty,
+  onDutyAsLesson,
+  onUnresolvedAsLesson,
+  onUnresolvedAsDuty,
+  onIgnoreUnresolved
 }: Props) {
   const [selection, setSelection] =
     useState<Selection>(null)
 
-  const rows =
-    useMemo(
-      () => timeRows(lessons, duties),
-      [lessons, duties]
+  const rows = useMemo(
+    () => timeRows(
+      sourceTimeRows,
+      lessons,
+      duties,
+      unresolved
+    ),
+    [sourceTimeRows, lessons, duties, unresolved]
+  )
+
+  const days = useMemo(
+    () => visibleWeekdays(
+      lessons,
+      duties,
+      unresolved
+    ),
+    [lessons, duties, unresolved]
+  )
+
+  const selected = (
+    kind: Exclude<Selection, null>['kind'],
+    id: string
+  ) =>
+    selection?.kind === kind &&
+    selection.id === id
+
+  function toggleSelection(
+    kind: Exclude<Selection, null>['kind'],
+    id: string
+  ) {
+    setSelection(current =>
+      current?.kind === kind && current.id === id
+        ? null
+        : { kind, id }
     )
+  }
 
-  const days =
-    useMemo(
-      () => visibleWeekdays(lessons, duties),
-      [lessons, duties]
+  function lessonEditor(
+    lesson: ScheduleImportLessonDraft
+  ) {
+    if (!selected('lesson', lesson.id)) return null
+
+    return (
+      <div
+        className="schedule-import-inline-editor mt-3 space-y-2 border-t border-white/10 pt-3"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] font-bold text-slate-400">
+            Dia
+            <select
+              value={lesson.weekday}
+              disabled={disabled || !lesson.included}
+              onChange={event =>
+                onUpdateLesson(lesson.id, {
+                  weekday: Number(event.target.value) as Weekday
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            >
+              {weekdayLabels.map(day => (
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-[10px] font-bold text-slate-400">
+            Tempos
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={lesson.periodCount}
+              disabled={disabled || !lesson.included}
+              onChange={event =>
+                onUpdateLesson(lesson.id, {
+                  periodCount: Math.max(
+                    1,
+                    Number(event.target.value) || 1
+                  )
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] font-bold text-slate-400">
+            Início
+            <input
+              type="time"
+              value={lesson.startTime}
+              disabled={disabled || !lesson.included}
+              onChange={event =>
+                onUpdateLesson(lesson.id, {
+                  startTime: event.target.value
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            />
+          </label>
+
+          <label className="text-[10px] font-bold text-slate-400">
+            Fim
+            <input
+              type="time"
+              value={lesson.endTime}
+              disabled={disabled || !lesson.included}
+              onChange={event =>
+                onUpdateLesson(lesson.id, {
+                  endTime: event.target.value
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            />
+          </label>
+        </div>
+
+        <label className="block text-[10px] font-bold text-slate-400">
+          Turma
+          <input
+            value={lesson.groupName}
+            disabled={disabled || !lesson.included}
+            onChange={event =>
+              onUpdateLesson(lesson.id, {
+                groupName: event.target.value
+              })
+            }
+            className={`${fieldClassName} mt-1`}
+          />
+        </label>
+
+        <label className="block text-[10px] font-bold text-slate-400">
+          Disciplina
+          <input
+            value={lesson.subjectName}
+            disabled={disabled || !lesson.included}
+            onChange={event =>
+              onUpdateLesson(lesson.id, {
+                subjectName: event.target.value,
+                subjectConfirmed: false
+              })
+            }
+            className={`${fieldClassName} mt-1`}
+          />
+        </label>
+
+        <label className="block text-[10px] font-bold text-slate-400">
+          Curso
+          <input
+            value={lesson.courseName ?? ''}
+            disabled={disabled || !lesson.included}
+            onChange={event =>
+              onUpdateLesson(lesson.id, {
+                courseName: event.target.value
+              })
+            }
+            placeholder="Curso, quando aplicável"
+            className={`${fieldClassName} mt-1`}
+          />
+        </label>
+
+        {!lesson.subjectConfirmed ? (
+          <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2.5 text-[11px] leading-5 text-amber-100">
+            <p className="font-bold">
+              Disciplina por confirmar.
+            </p>
+            <p className="mt-1 text-amber-100/70">
+              Confirme apenas depois de verificar que o texto corresponde realmente à disciplina.
+            </p>
+            <button
+              type="button"
+              disabled={
+                disabled ||
+                !lesson.included ||
+                !lesson.subjectName.trim()
+              }
+              onClick={() =>
+                onUpdateLesson(lesson.id, {
+                  subjectConfirmed: true
+                })
+              }
+              className="mt-2 rounded-lg border border-amber-200/25 bg-amber-200/[0.08] px-2.5 py-1.5 text-[10px] font-black text-amber-50 disabled:opacity-50"
+            >
+              Confirmar como disciplina
+            </button>
+          </div>
+        ) : null}
+
+        <label className="flex items-center gap-2 text-[11px] font-bold text-slate-300">
+          <input
+            type="checkbox"
+            checked={lesson.included}
+            disabled={disabled}
+            onChange={event =>
+              onUpdateLesson(lesson.id, {
+                included: event.target.checked
+              })
+            }
+            className="h-4 w-4 accent-cyan-300"
+          />
+          Incluir este bloco
+        </label>
+      </div>
     )
+  }
 
-  const selectedLesson =
-    selection?.kind === 'lesson'
-      ? lessons.find(
-          lesson => lesson.id === selection.id
-        ) ?? null
-      : null
+  function dutyEditor(
+    duty: ScheduleImportDutyDraft
+  ) {
+    if (!selected('duty', duty.id)) return null
 
-  const selectedDuty =
-    selection?.kind === 'duty'
-      ? duties.find(
-          duty => duty.id === selection.id
-        ) ?? null
-      : null
+    return (
+      <div
+        className="schedule-import-inline-editor mt-3 space-y-2 border-t border-white/10 pt-3"
+        onClick={event => event.stopPropagation()}
+      >
+        <label className="block text-[10px] font-bold text-slate-400">
+          Cargo / atividade
+          <input
+            value={duty.name}
+            disabled={disabled || !duty.included}
+            onChange={event =>
+              onUpdateDuty(duty.id, {
+                name: event.target.value
+              })
+            }
+            className={`${fieldClassName} mt-1`}
+          />
+        </label>
+
+        <div className="grid grid-cols-3 gap-2">
+          <label className="text-[10px] font-bold text-slate-400">
+            Dia
+            <select
+              value={duty.weekday}
+              disabled={disabled || !duty.included}
+              onChange={event =>
+                onUpdateDuty(duty.id, {
+                  weekday: Number(event.target.value) as Weekday
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            >
+              {weekdayLabels.map(day => (
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-[10px] font-bold text-slate-400">
+            Início
+            <input
+              type="time"
+              value={duty.startTime}
+              disabled={disabled || !duty.included}
+              onChange={event =>
+                onUpdateDuty(duty.id, {
+                  startTime: event.target.value
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            />
+          </label>
+
+          <label className="text-[10px] font-bold text-slate-400">
+            Fim
+            <input
+              type="time"
+              value={duty.endTime}
+              disabled={disabled || !duty.included}
+              onChange={event =>
+                onUpdateDuty(duty.id, {
+                  endTime: event.target.value
+                })
+              }
+              className={`${fieldClassName} mt-1`}
+            />
+          </label>
+        </div>
+
+        <label className="flex items-center gap-2 text-[11px] font-bold text-slate-300">
+          <input
+            type="checkbox"
+            checked={duty.included}
+            disabled={disabled}
+            onChange={event =>
+              onUpdateDuty(duty.id, {
+                included: event.target.checked
+              })
+            }
+            className="h-4 w-4 accent-violet-300"
+          />
+          Incluir este bloco
+        </label>
+      </div>
+    )
+  }
 
   return (
     <section
@@ -191,16 +561,16 @@ export default function ScheduleImportVisualGrid({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-black text-white">
-            Vista de horário
+            Vista semanal
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
-            Compare esta grelha com o PDF original. Clique num bloco para rever ou corrigir os dados antes de confirmar a importação.
+            Compare com o PDF e edite diretamente cada célula. O sistema propõe Componente letiva ou Cargo, mas a decisão pode ser corrigida antes de confirmar.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs font-bold">
           <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-1.5 text-cyan-100">
-            Aula
+            Componente letiva
           </span>
           <span className="rounded-full border border-violet-300/20 bg-violet-300/[0.07] px-3 py-1.5 text-violet-100">
             Cargo
@@ -213,16 +583,16 @@ export default function ScheduleImportVisualGrid({
 
       {rows.length === 0 ? (
         <p className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-center text-sm text-slate-500">
-          Ainda não existem blocos para apresentar no horário.
+          Ainda não existem linhas horárias para apresentar.
         </p>
       ) : (
         <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
           <div
-            className="min-w-[860px] bg-slate-950/35"
+            className="min-w-[920px] bg-slate-950/35"
             style={{
               display: 'grid',
               gridTemplateColumns:
-                `minmax(7.5rem, .72fr) repeat(${days.length}, minmax(10.5rem, 1fr))`
+                `minmax(6.75rem, .62fr) repeat(${days.length}, minmax(11rem, 1fr))`
             }}
           >
             <div className="border-b border-r border-white/10 bg-white/[0.035] px-3 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
@@ -248,103 +618,168 @@ export default function ScheduleImportVisualGrid({
                     {row.startTime}
                   </span>
                   <span className="mt-1 block text-xs font-semibold text-slate-500">
-                    até {row.endTime}
+                    {row.endTime}
                   </span>
                 </div>
               ]
 
               for (const day of days) {
-                const cellLessons =
-                  lessons.filter(
-                    lesson => sameSlot(lesson, day.value, row)
-                  )
-                const cellDuties =
-                  duties.filter(
-                    duty => sameSlot(duty, day.value, row)
-                  )
+                const cellLessons = lessons.filter(
+                  lesson => sameSlot(lesson, day.value, row)
+                )
+                const cellDuties = duties.filter(
+                  duty => sameSlot(duty, day.value, row)
+                )
+                const cellUnresolved = unresolved.filter(
+                  block => sameSlot(block, day.value, row)
+                )
 
                 rowCells.push(
                   <div
                     key={`cell-${row.key}-${day.value}`}
-                    className="min-h-28 border-b border-r border-white/10 p-2 last:border-r-0"
+                    data-schedule-cell={`${day.value}-${row.key}`}
+                    className="min-h-24 border-b border-r border-white/10 p-2 last:border-r-0"
                   >
                     <div className="space-y-2">
                       {cellLessons.map(lesson => (
-                        <button
+                        <article
                           key={lesson.id}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() =>
-                            setSelection({
-                              kind: 'lesson',
-                              id: lesson.id
-                            })
-                          }
-                          className={`w-full rounded-xl border p-3 text-left transition disabled:cursor-not-allowed ${
+                          data-schedule-block={lesson.id}
+                          className={`rounded-xl border p-2.5 transition ${
                             lesson.subjectConfirmed
-                              ? 'border-cyan-300/20 bg-cyan-300/[0.07] hover:border-cyan-300/40 hover:bg-cyan-300/[0.11]'
-                              : 'border-amber-300/30 bg-amber-300/[0.08] hover:border-amber-300/50 hover:bg-amber-300/[0.12]'
-                          } ${
-                            lesson.included
-                              ? ''
-                              : 'opacity-45'
-                          }`}
+                              ? 'border-cyan-300/20 bg-cyan-300/[0.07]'
+                              : 'border-amber-300/30 bg-amber-300/[0.08]'
+                          } ${lesson.included ? '' : 'opacity-45'}`}
                         >
-                          <span className="block font-black text-white">
-                            {lesson.subjectName.trim() ||
-                              'Disciplina por indicar'}
-                          </span>
-                          <span className="mt-1 block text-xs font-bold text-slate-300">
-                            {lesson.groupName.trim() ||
-                              'Turma por indicar'}
-                          </span>
-                          {lesson.courseName?.trim() ? (
-                            <span className="mt-1 block text-xs text-slate-400">
-                              {lesson.courseName}
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggleSelection('lesson', lesson.id)}
+                            className="w-full text-left disabled:cursor-not-allowed"
+                            aria-expanded={selected('lesson', lesson.id)}
+                          >
+                            <span className="block text-xs font-black leading-5 text-white">
+                              {lesson.subjectName.trim() || 'Disciplina por indicar'}
                             </span>
-                          ) : null}
-                          {!lesson.subjectConfirmed ? (
-                            <span className="mt-2 block text-xs font-bold text-amber-200">
-                              Disciplina por confirmar
+                            <span className="mt-0.5 block text-[11px] font-bold text-slate-300">
+                              {lesson.groupName.trim() || 'Turma por indicar'}
                             </span>
-                          ) : null}
-                          {!lesson.included ? (
-                            <span className="mt-2 block text-xs font-bold text-slate-500">
-                              Excluída da importação
-                            </span>
-                          ) : null}
-                        </button>
+                            {lesson.courseName?.trim() ? (
+                              <span className="mt-0.5 block text-[10px] leading-4 text-slate-500">
+                                {lesson.courseName}
+                              </span>
+                            ) : null}
+                            {!lesson.subjectConfirmed ? (
+                              <span className="mt-1.5 block text-[10px] font-bold text-amber-200">
+                                Disciplina por confirmar
+                              </span>
+                            ) : null}
+                          </button>
+
+                          <TypeSwitch
+                            value="teaching"
+                            disabled={disabled}
+                            onTeaching={() => undefined}
+                            onDuty={() => {
+                              onLessonAsDuty(lesson.id)
+                              setSelection({ kind: 'duty', id: lesson.id })
+                            }}
+                          />
+
+                          {lessonEditor(lesson)}
+                        </article>
                       ))}
 
                       {cellDuties.map(duty => (
-                        <button
+                        <article
                           key={duty.id}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() =>
-                            setSelection({
-                              kind: 'duty',
-                              id: duty.id
-                            })
-                          }
-                          className={`w-full rounded-xl border border-violet-300/20 bg-violet-300/[0.07] p-3 text-left transition hover:border-violet-300/40 hover:bg-violet-300/[0.11] disabled:cursor-not-allowed ${
-                            duty.included
-                              ? ''
-                              : 'opacity-45'
+                          data-schedule-block={duty.id}
+                          className={`rounded-xl border border-violet-300/20 bg-violet-300/[0.07] p-2.5 transition ${
+                            duty.included ? '' : 'opacity-45'
                           }`}
                         >
-                          <span className="block font-black text-white">
-                            {duty.name.trim() || 'Cargo por indicar'}
-                          </span>
-                          <span className="mt-1 block text-xs font-bold text-violet-200">
-                            Cargo / atividade
-                          </span>
-                          {!duty.included ? (
-                            <span className="mt-2 block text-xs font-bold text-slate-500">
-                              Excluído da importação
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggleSelection('duty', duty.id)}
+                            className="w-full text-left disabled:cursor-not-allowed"
+                            aria-expanded={selected('duty', duty.id)}
+                          >
+                            <span className="block text-xs font-black leading-5 text-white">
+                              {duty.name.trim() || 'Cargo por indicar'}
                             </span>
+                          </button>
+
+                          <TypeSwitch
+                            value="duty"
+                            disabled={disabled}
+                            onTeaching={() => {
+                              onDutyAsLesson(duty.id)
+                              setSelection({ kind: 'lesson', id: duty.id })
+                            }}
+                            onDuty={() => undefined}
+                          />
+
+                          {dutyEditor(duty)}
+                        </article>
+                      ))}
+
+                      {cellUnresolved.map(block => (
+                        <article
+                          key={block.id}
+                          data-schedule-block={block.id}
+                          className="rounded-xl border border-amber-300/30 bg-amber-300/[0.08] p-2.5"
+                        >
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggleSelection('unresolved', block.id)}
+                            className="w-full text-left disabled:cursor-not-allowed"
+                            aria-expanded={selected('unresolved', block.id)}
+                          >
+                            <span className="block text-xs font-black leading-5 text-white">
+                              {block.rawText}
+                            </span>
+                            <span className="mt-1 block text-[10px] font-bold text-amber-200">
+                              Escolha o tipo
+                            </span>
+                          </button>
+
+                          <TypeSwitch
+                            value="unknown"
+                            disabled={disabled}
+                            onTeaching={() => {
+                              onUnresolvedAsLesson(block.id)
+                              setSelection({ kind: 'lesson', id: block.id })
+                            }}
+                            onDuty={() => {
+                              onUnresolvedAsDuty(block.id)
+                              setSelection({ kind: 'duty', id: block.id })
+                            }}
+                          />
+
+                          {selected('unresolved', block.id) ? (
+                            <div
+                              className="schedule-import-inline-editor mt-3 border-t border-white/10 pt-3"
+                              onClick={event => event.stopPropagation()}
+                            >
+                              <p className="text-[10px] leading-4 text-amber-100/70">
+                                {block.reason}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => {
+                                  onIgnoreUnresolved(block.id)
+                                  setSelection(null)
+                                }}
+                                className="mt-2 rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-50"
+                              >
+                                Ignorar este bloco
+                              </button>
+                            </div>
                           ) : null}
-                        </button>
+                        </article>
                       ))}
                     </div>
                   </div>
@@ -356,341 +791,6 @@ export default function ScheduleImportVisualGrid({
           </div>
         </div>
       )}
-
-      {selectedLesson ? (
-        <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.045] p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">
-                Rever aula
-              </p>
-              <h3 className="mt-1 text-lg font-black text-white">
-                {selectedLesson.subjectName.trim() ||
-                  'Aula importada'}
-              </h3>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSelection(null)}
-              className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/[0.05]"
-            >
-              Fechar
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs font-bold text-slate-300">
-              Dia
-              <select
-                value={selectedLesson.weekday}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      weekday:
-                        Number(event.target.value) as Weekday
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              >
-                {weekdayLabels.map(day => (
-                  <option
-                    key={day.value}
-                    value={day.value}
-                  >
-                    {day.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Início
-              <input
-                type="time"
-                value={selectedLesson.startTime}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      startTime: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Fim
-              <input
-                type="time"
-                value={selectedLesson.endTime}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      endTime: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Tempos
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={selectedLesson.periodCount}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      periodCount:
-                        Math.max(
-                          1,
-                          Number(event.target.value) || 1
-                        )
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-          </div>
-
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
-            <label className="text-xs font-bold text-slate-300">
-              Turma
-              <input
-                value={selectedLesson.groupName}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      groupName: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Disciplina
-              <input
-                value={selectedLesson.subjectName}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      subjectName: event.target.value,
-                      subjectConfirmed: false
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Curso
-              <input
-                value={selectedLesson.courseName ?? ''}
-                disabled={disabled || !selectedLesson.included}
-                onChange={event =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      courseName: event.target.value
-                    }
-                  )
-                }
-                placeholder="Curso, quando aplicável"
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-          </div>
-
-          {!selectedLesson.subjectConfirmed ? (
-            <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] p-3 text-sm text-amber-100">
-              <p className="font-bold">
-                A disciplina está por confirmar.
-              </p>
-              <p className="mt-1 text-xs leading-5 text-amber-100/75">
-                Confirme apenas depois de verificar que o texto corresponde realmente a uma disciplina e não a um curso, turma ou outro código.
-              </p>
-              <button
-                type="button"
-                disabled={disabled || !selectedLesson.included || !selectedLesson.subjectName.trim()}
-                onClick={() =>
-                  onUpdateLesson(
-                    selectedLesson.id,
-                    {
-                      subjectConfirmed: true
-                    }
-                  )
-                }
-                className="mt-3 rounded-xl border border-amber-200/30 bg-amber-200/[0.08] px-3 py-2 text-xs font-black text-amber-50 transition hover:bg-amber-200/[0.13] disabled:opacity-50"
-              >
-                Confirmar como disciplina
-              </button>
-            </div>
-          ) : null}
-
-          <label className="mt-4 flex items-center gap-2 text-sm font-bold text-slate-200">
-            <input
-              type="checkbox"
-              checked={selectedLesson.included}
-              disabled={disabled}
-              onChange={event =>
-                onUpdateLesson(
-                  selectedLesson.id,
-                  {
-                    included: event.target.checked
-                  }
-                )
-              }
-              className="h-4 w-4 accent-cyan-300"
-            />
-            Incluir esta aula na importação
-          </label>
-        </div>
-      ) : null}
-
-      {selectedDuty ? (
-        <div className="mt-5 rounded-2xl border border-violet-300/20 bg-violet-300/[0.045] p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-200">
-                Rever cargo
-              </p>
-              <h3 className="mt-1 text-lg font-black text-white">
-                {selectedDuty.name.trim() || 'Cargo importado'}
-              </h3>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSelection(null)}
-              className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/[0.05]"
-            >
-              Fechar
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs font-bold text-slate-300">
-              Dia
-              <select
-                value={selectedDuty.weekday}
-                disabled={disabled || !selectedDuty.included}
-                onChange={event =>
-                  onUpdateDuty(
-                    selectedDuty.id,
-                    {
-                      weekday:
-                        Number(event.target.value) as Weekday
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              >
-                {weekdayLabels.map(day => (
-                  <option
-                    key={day.value}
-                    value={day.value}
-                  >
-                    {day.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Início
-              <input
-                type="time"
-                value={selectedDuty.startTime}
-                disabled={disabled || !selectedDuty.included}
-                onChange={event =>
-                  onUpdateDuty(
-                    selectedDuty.id,
-                    {
-                      startTime: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Fim
-              <input
-                type="time"
-                value={selectedDuty.endTime}
-                disabled={disabled || !selectedDuty.included}
-                onChange={event =>
-                  onUpdateDuty(
-                    selectedDuty.id,
-                    {
-                      endTime: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-
-            <label className="text-xs font-bold text-slate-300">
-              Cargo / atividade
-              <input
-                value={selectedDuty.name}
-                disabled={disabled || !selectedDuty.included}
-                onChange={event =>
-                  onUpdateDuty(
-                    selectedDuty.id,
-                    {
-                      name: event.target.value
-                    }
-                  )
-                }
-                className={`${fieldClassName} mt-1.5`}
-              />
-            </label>
-          </div>
-
-          <label className="mt-4 flex items-center gap-2 text-sm font-bold text-slate-200">
-            <input
-              type="checkbox"
-              checked={selectedDuty.included}
-              disabled={disabled}
-              onChange={event =>
-                onUpdateDuty(
-                  selectedDuty.id,
-                  {
-                    included: event.target.checked
-                  }
-                )
-              }
-              className="h-4 w-4 accent-violet-300"
-            />
-            Incluir este cargo na importação
-          </label>
-        </div>
-      ) : null}
     </section>
   )
 }

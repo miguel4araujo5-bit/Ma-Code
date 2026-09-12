@@ -11,9 +11,9 @@ const scheduleSource = await readFile(
   'utf8'
 )
 
-const reviewSource = await readFile(
+const visualGridSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/setup/ScheduleImportUnresolvedReview.tsx',
+    '../../src/components/ma-professor/setup/ScheduleImportVisualGrid.tsx',
     import.meta.url
   ),
   'utf8'
@@ -28,6 +28,10 @@ function loadParser() {
 
   const prelude = `
     type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
+    type ScheduleImportTimeRow = {
+      startTime: string
+      endTime: string
+    }
     type Draft = {
       id: string
       included: boolean
@@ -39,6 +43,7 @@ function loadParser() {
       courseName: string
       subjectName: string
       subjectConfirmed: boolean
+      dutyNameBackup?: string
     }
     type DutyDraft = {
       id: string
@@ -47,6 +52,13 @@ function loadParser() {
       startTime: string
       endTime: string
       name: string
+      lessonBackup?: {
+        periodCount: number
+        groupName: string
+        courseName: string
+        subjectName: string
+        subjectConfirmed: boolean
+      }
     }
     type UnresolvedDraft = {
       id: string
@@ -62,6 +74,7 @@ function loadParser() {
       lessons: Draft[]
       duties: DutyDraft[]
       unresolved: UnresolvedDraft[]
+      timeRows: ScheduleImportTimeRow[]
     }
     type ImportedSubjectResolution = {
       subjectName: string
@@ -128,6 +141,13 @@ test('an occupied cell that is neither a safe lesson nor a safe duty becomes unr
             positionedCells: header
           },
           {
+            text: '07:35–08:25',
+            cells: ['07:35–08:25'],
+            positionedCells: [
+              { text: '07:35–08:25', x: 10, width: 70 }
+            ]
+          },
+          {
             text: '08:30–09:20 10.º D AE Co PCE Projeto Individual',
             cells: [
               '08:30–09:20',
@@ -167,14 +187,47 @@ test('an occupied cell that is neither a safe lesson nor a safe duty becomes unr
       rawText: 'Projeto Individual'
     }
   )
+
+  assert.deepEqual(
+    proposal.timeRows,
+    [
+      { startTime: '07:35', endTime: '08:25' },
+      { startTime: '08:30', endTime: '09:20' }
+    ]
+  )
 })
 
-test('unresolved cells require an explicit Aula, Cargo or Ignorar decision before import', () => {
-  assert.match(reviewSource, /Blocos por resolver/)
-  assert.match(reviewSource, /Tratar como aula/)
-  assert.match(reviewSource, /Tratar como cargo/)
-  assert.match(reviewSource, /Ignorar este bloco/)
-  assert.match(scheduleSource, /unresolved\.length > 0/)
-  assert.match(scheduleSource, /setUnresolved\(/)
-  assert.match(scheduleSource, /periodCount: block\.periodCount/)
+test('unresolved cells are reviewed in the weekly grid with Componente letiva, Cargo or explicit ignore', () => {
+  assert.doesNotMatch(
+    scheduleSource,
+    /ScheduleImportUnresolvedReview/
+  )
+  assert.match(
+    scheduleSource,
+    /unresolved=\{unresolved\}/
+  )
+  assert.match(
+    scheduleSource,
+    /sourceTimeRows=\{sourceTimeRows\}/
+  )
+  assert.match(
+    visualGridSource,
+    /Componente letiva/
+  )
+  assert.match(
+    visualGridSource,
+    /Cargo/
+  )
+  assert.match(
+    visualGridSource,
+    /Ignorar este bloco/
+  )
+  assert.match(
+    scheduleSource,
+    /unresolved\.length > 0/
+  )
+  assert.match(
+    scheduleSource,
+    /id: block\.id/
+  )
 })
