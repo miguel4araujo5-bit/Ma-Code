@@ -20,7 +20,8 @@ import type {
   ParsedPlanificationPdfSection
 } from './planificationPdfParser'
 import {
-  buildPlanificationPdfPreview
+  buildPlanificationPdfPreview,
+  samePlanificationModuleCode
 } from './planificationPdfPreview'
 import type {
   PlanificationWorkspaceSnapshot
@@ -753,8 +754,10 @@ export default function PlanificationPdfImportPanel({
         if (
           destination &&
           row.section.code &&
-          destination.code.trim() !==
+          !samePlanificationModuleCode(
+            destination.code,
             row.section.code
+          )
         ) {
           warnings.push(
             `O destino selecionado tem o código ${destination.code || 'sem código'}, diferente de ${row.section.code}. Confirme esta correção manual.`
