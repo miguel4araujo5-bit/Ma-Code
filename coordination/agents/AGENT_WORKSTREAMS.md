@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Unificar a grelha semanal do Diário para mostrar `Componente letiva` e `Cargo` nas mesmas células/horas e com uma única navegação semanal, preservando o editor pedagógico existente e o sumário independente por ocorrência de Cargo | `work/f103-unified-daily-week` | `src/components/ma-professor/daily/DailyUnifiedWeekOverview.tsx`; `src/components/ma-professor/daily/DailyDutyWeekPanel.tsx`; `src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx`; `src/components/ma-professor/daily/dailyUnifiedWeek.css`; testes MA-Professor relacionados | EM CURSO — reutilizar `schoolCalendarEvents` e o workspace semanal existente; sem novo schema, Worker, D1, Durable Object, binding, polling ou recurso pago | `7807cf7e1c210cf7b28193ba2ca5d989add14776` | 2026-09-12 |
 
 ## Regras de utilização
 
