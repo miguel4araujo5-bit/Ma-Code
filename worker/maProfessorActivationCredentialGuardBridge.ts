@@ -73,15 +73,241 @@ interface DurableObjectStorageLike {
     key: string
   ): Promise<T | undefined>
 
-  put<T>(
-    key: string,
-    value: T
+  put(
+    keyOrEntries:
+      | string
+      | Record<string, unknown>,
+    value?: unknown
   ): Promise<void>
 }
 
 interface DurableObjectStateLike {
   storage:
     DurableObjectStorageLike
+}
+
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value ===
+      'object' &&
+    value !== null &&
+    !Array.isArray(value)
+  )
+}
+
+function cloneSnapshot(
+  value: unknown
+) {
+  return value === undefined
+    ? undefined
+    : structuredClone(value)
+}
+
+function deepEqual(
+  left: unknown,
+  right: unknown
+): boolean {
+  if (Object.is(left, right)) {
+    return true
+  }
+
+  if (
+    Array.isArray(left) ||
+    Array.isArray(right)
+  ) {
+    if (
+      !Array.isArray(left) ||
+      !Array.isArray(right) ||
+      left.length !==
+        right.length
+    ) {
+      return false
+    }
+
+    return left.every(
+      (value, index) =>
+        deepEqual(
+          value,
+          right[index]
+        )
+    )
+  }
+
+  if (
+    !isRecord(left) ||
+    !isRecord(right)
+  ) {
+    return false
+  }
+
+  const leftKeys =
+    Object.keys(left)
+  const rightKeys =
+    Object.keys(right)
+
+  if (
+    leftKeys.length !==
+    rightKeys.length
+  ) {
+    return false
+  }
+
+  return leftKeys.every(
+    key =>
+      Object.prototype.hasOwnProperty.call(
+        right,
+        key
+      ) &&
+      deepEqual(
+        left[key],
+        right[key]
+      )
+  )
+}
+
+function withoutUpdatedAt(
+  value: Record<string, unknown>
+) {
+  const copy = {
+    ...value
+  }
+
+  delete copy.updatedAt
+
+  return copy
+}
+
+function isRedundantColdStartWrite(
+  stored: unknown,
+  next: unknown
+) {
+  if (
+    !isRecord(stored) ||
+    !isRecord(next) ||
+    stored.schemaVersion !== 2 ||
+    next.schemaVersion !== 2 ||
+    typeof stored.updatedAt !==
+      'number'
+  ) {
+    return false
+  }
+
+  return deepEqual(
+    withoutUpdatedAt(stored),
+    withoutUpdatedAt(next)
+  )
+}
+
+function createColdStartWriteGuardedState(
+  state: DurableObjectStateLike
+) {
+  const storage =
+    state.storage
+
+  let initialAccessState:
+    unknown
+  let initialAccessStateLoaded =
+    false
+  let firstAccessStatePutPending =
+    true
+
+  const guardedStorage:
+    DurableObjectStorageLike = {
+      async get<T>(
+        key: string
+      ) {
+        const value =
+          await storage.get<T>(
+            key
+          )
+
+        if (
+          key ===
+            ACCESS_STORAGE_KEY &&
+          !initialAccessStateLoaded
+        ) {
+          initialAccessState =
+            cloneSnapshot(value)
+          initialAccessStateLoaded =
+            true
+        }
+
+        return value
+      },
+
+      async put(
+        keyOrEntries:
+          | string
+          | Record<string, unknown>,
+        value?: unknown
+      ) {
+        if (
+          typeof keyOrEntries ===
+            'string'
+        ) {
+          if (
+            keyOrEntries ===
+              ACCESS_STORAGE_KEY &&
+            firstAccessStatePutPending
+          ) {
+            firstAccessStatePutPending =
+              false
+
+            if (
+              initialAccessStateLoaded &&
+              isRedundantColdStartWrite(
+                initialAccessState,
+                value
+              )
+            ) {
+              return
+            }
+          }
+
+          await storage.put(
+            keyOrEntries,
+            value
+          )
+          return
+        }
+
+        await storage.put(
+          keyOrEntries
+        )
+      }
+    }
+
+  return new Proxy(
+    state as object,
+    {
+      get(
+        target,
+        property,
+        receiver
+      ) {
+        if (
+          property ===
+          'storage'
+        ) {
+          return guardedStorage
+        }
+
+        const value =
+          Reflect.get(
+            target,
+            property,
+            receiver
+          )
+
+        return typeof value ===
+          'function'
+          ? value.bind(target)
+          : value
+      }
+    }
+  ) as DurableObjectStateLike
 }
 
 function json(
@@ -308,9 +534,14 @@ export class MaProfessorAccessDurableObject {
     this.state =
       state
 
+    const guardedState =
+      createColdStartWriteGuardedState(
+        state
+      )
+
     this.existing =
       new ExistingMaProfessorAccessDurableObject(
-        state as never,
+        guardedState as never,
         env
       )
   }
