@@ -128,13 +128,30 @@ function usesSBento2026_2027Preset(
   academicYear: AcademicYear,
   schoolName: string
 ) {
+  const academicYearName =
+    normalizeAcademicYearName(
+      academicYear.name
+    )
+
+  // O assistente aceita a designação longa e a abreviada do mesmo ano letivo.
   return (
     isSBentoSchoolName(
       schoolName
     ) &&
-    normalizeAcademicYearName(
-      academicYear.name
-    ) === '2026/2027'
+    (
+      academicYearName === '2026/2027' ||
+      academicYearName === '2026/27'
+    )
+  )
+}
+
+export function requiresDutyDateRangeConfirmation(
+  academicYear: AcademicYear,
+  schoolName: string
+) {
+  return !usesSBento2026_2027Preset(
+    academicYear,
+    schoolName
   )
 }
 
