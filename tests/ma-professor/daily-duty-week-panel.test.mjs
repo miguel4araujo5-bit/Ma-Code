@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const panelSource = await readFile(
+const unifiedSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/daily/DailyDutyWeekPanel.tsx',
+    '../../src/components/ma-professor/daily/DailyUnifiedWeekOverview.tsx',
     import.meta.url
   ),
   'utf8'
@@ -13,6 +13,14 @@ const panelSource = await readFile(
 const wrapperSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const cssSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/dailyUnifiedWeek.css',
     import.meta.url
   ),
   'utf8'
@@ -34,70 +42,132 @@ const dutyHelperSource = await readFile(
   'utf8'
 )
 
+const legacyDailySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
-  'Daily Cargo panel reads only school-activity occurrences in the selected school week',
+  'unified Daily week reads lessons and Cargo occurrences for one shared school week',
   () => {
     assert.match(
-      panelSource,
-      /calendarRepository\.listEvents\(\{[\s\S]*academicYearId[\s\S]*dateFrom:[\s\S]*weekStart[\s\S]*dateTo:[\s\S]*weekEnd[\s\S]*type:[\s\S]*'school_activity'/
+      unifiedSource,
+      /calendarWorkspaceRepository\.getWorkspace\([\s\S]*academicYearId[\s\S]*'week'[\s\S]*date/
     )
     assert.match(
-      panelSource,
+      unifiedSource,
+      /calendarRepository\.listEvents\(\{[\s\S]*dateFrom:[\s\S]*nextSnapshot\.primaryStartDate[\s\S]*dateTo:[\s\S]*nextSnapshot\.primaryEndDate[\s\S]*type:[\s\S]*'school_activity'/
+    )
+    assert.match(
+      unifiedSource,
       /getDutyEventDetails\([\s\S]*event/
+    )
+    assert.match(
+      unifiedSource,
+      /day\.lessons\.filter/
+    )
+    assert.match(
+      unifiedSource,
+      /duties\.filter/
     )
   }
 )
 
 test(
-  'Cargo summary save updates only the selected calendar occurrence description',
+  'one timetable exposes only the agreed Componente letiva and Cargo terminology',
   () => {
     assert.match(
-      panelSource,
-      /calendarRepository\.updateEvent\([\s\S]*selected\.event\.id[\s\S]*description:[\s\S]*summary/
+      unifiedSource,
+      /Componente letiva/
+    )
+    assert.match(
+      unifiedSource,
+      />\s*Cargo\s*</
+    )
+    assert.match(
+      unifiedSource,
+      />\s*Sumário\s*</
+    )
+    assert.match(
+      unifiedSource,
+      /Guardar sumário/
     )
     assert.doesNotMatch(
-      panelSource,
+      unifiedSource,
+      /componente não letiva/i
+    )
+    assert.doesNotMatch(
+      unifiedSource,
+      /ligad[oa] à avaliação/i
+    )
+  }
+)
+
+test(
+  'Cargo summary save still updates only the selected occurrence and remains outside pedagogical entities',
+  () => {
+    assert.match(
+      unifiedSource,
+      /calendarRepository\.updateEvent\([\s\S]*selectedDuty\.event\.id[\s\S]*description:[\s\S]*summary/
+    )
+    assert.doesNotMatch(
+      unifiedSource,
       /teachingAssignmentId\s*:/
     )
     assert.doesNotMatch(
-      panelSource,
+      unifiedSource,
       /moduleId\s*:/
     )
     assert.doesNotMatch(
-      panelSource,
+      unifiedSource,
       /assessmentId\s*:/
+    )
+    assert.doesNotMatch(
+      unifiedSource,
+      /snapshotApi|manualSyncService|DurableObject|wrangler|cloudflare|fetch\(/i
     )
   }
 )
 
 test(
-  'Cargo summary editor protects unsaved text and detects concurrent edits',
+  'Cargo summary editor keeps unsaved-work and concurrent-edit protections',
   () => {
     assert.match(
-      panelSource,
+      unifiedSource,
       /useMAProfessorUnsavedWorkspaceProtection\([\s\S]*hasUnsavedSummary/
     )
     assert.match(
-      panelSource,
-      /current\.updatedAt\s*!==[\s\S]*selected\.event\.updatedAt/
+      unifiedSource,
+      /current\.updatedAt\s*!==[\s\S]*selectedDuty\.event\.updatedAt/
     )
     assert.match(
-      panelSource,
-      /current\.description\s*!==[\s\S]*selected\.event\.description/
+      unifiedSource,
+      /current\.description\s*!==[\s\S]*selectedDuty\.event\.description/
     )
   }
 )
 
 test(
-  'Daily wrapper keeps the existing lesson workspace and adds the Cargo week panel without a second persistence model',
+  'Daily wrapper owns one week navigation and reuses the existing lesson editor below it',
   () => {
     assert.match(
       wrapperSource,
-      /<DailyDutyWeekPanel/
+      /<DailyUnifiedWeekOverview/
     )
     assert.match(
       wrapperSource,
       /<DailyWorkspaceView/
+    )
+    assert.doesNotMatch(
+      wrapperSource,
+      /DailyDutyWeekPanel/
+    )
+    assert.match(
+      wrapperSource,
+      /key=\{`\$\{activeDate\}-\$\{[\s\S]*activeLessonId/
     )
     assert.match(
       productSource,
@@ -107,7 +177,21 @@ test(
 )
 
 test(
-  'Cargo parser recognises only imported Cargo calendar events and preserves the visible time range',
+  'legacy duplicate week overview is hidden only inside the unified wrapper',
+  () => {
+    assert.match(
+      cssSource,
+      /\.ma-professor-unified-daily\s*>\s*main\s*>\s*div\s*>\s*section:first-child/
+    )
+    assert.match(
+      legacyDailySource,
+      /<main className="min-h-\[calc\(100vh-58px\)\][\s\S]*<div className="mx-auto max-w-\[1600px\] space-y-2">[\s\S]*<section className="rounded-2xl/
+    )
+  }
+)
+
+test(
+  'Cargo parser remains the single contract for imported Cargo events',
   () => {
     assert.match(
       dutyHelperSource,
@@ -124,32 +208,6 @@ test(
     assert.match(
       dutyHelperSource,
       /DUTY_TIME_RANGE/
-    )
-  }
-)
-
-test(
-  'Daily Cargo UI uses only the agreed visible terminology',
-  () => {
-    assert.match(
-      panelSource,
-      />\s*Cargo\s*</
-    )
-    assert.match(
-      panelSource,
-      />\s*Sumário\s*</
-    )
-    assert.match(
-      panelSource,
-      /Guardar sumário/
-    )
-    assert.doesNotMatch(
-      panelSource,
-      /componente não letiva/i
-    )
-    assert.doesNotMatch(
-      panelSource,
-      /ligad[oa] à avaliação/i
     )
   }
 )
