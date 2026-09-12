@@ -1,6 +1,11 @@
 import {
+  ensureDefaultMAProfessorSettings,
   maProfessorDb
 } from '../db'
+
+import {
+  isStudentMemberOnDate
+} from '../students/studentMembership'
 
 import type {
   EntityId,
@@ -16,6 +21,10 @@ import type {
   LearningRecoveryChanges,
   LearningRecoveryDraft
 } from './attendanceRepositoryBase'
+
+import {
+  calculateAttendancePeriodMetrics
+} from './attendancePeriodMetrics'
 
 import {
   canAutomaticallyRemoveRecovery
@@ -77,6 +86,123 @@ async function getActiveRecovery(
 
 export class AttendanceRepository
   extends BaseAttendanceRepository {
+  override async getStudentModuleAbsenceSummary(
+    moduleId: EntityId,
+    studentId: EntityId
+  ) {
+    const baseline =
+      await super.getStudentModuleAbsenceSummary(
+        moduleId,
+        studentId
+      )
+
+    const [
+      student,
+      lessons,
+      attendanceRecords,
+      settings
+    ] =
+      await Promise.all([
+        maProfessorDb
+          .students
+          .get(
+            studentId
+          ),
+        maProfessorDb
+          .lessons
+          .where(
+            'moduleId'
+          )
+          .equals(
+            moduleId
+          )
+          .toArray(),
+        maProfessorDb
+          .lessonAttendance
+          .where(
+            'studentId'
+          )
+          .equals(
+            studentId
+          )
+          .toArray(),
+        ensureDefaultMAProfessorSettings()
+      ])
+
+    if (
+      !student
+    ) {
+      return baseline
+    }
+
+    const attendanceByLesson =
+      new Map(
+        attendanceRecords
+          .sort(
+            (
+              left,
+              right
+            ) =>
+              left.updatedAt.localeCompare(
+                right.updatedAt
+              )
+          )
+          .map(
+            attendance => [
+              attendance.lessonId,
+              attendance
+            ] as const
+          )
+      )
+
+    const metrics =
+      calculateAttendancePeriodMetrics(
+        lessons
+          .filter(
+            lesson =>
+              lesson.status ===
+                'taught' &&
+              lesson.countTowardProgress &&
+              (
+                isStudentMemberOnDate(
+                  student,
+                  lesson.date
+                ) ||
+                attendanceByLesson.has(
+                  lesson.id
+                )
+              )
+          )
+          .map(
+            lesson => ({
+              periodCount:
+                lesson.periodCount,
+              absent:
+                attendanceByLesson.get(
+                  lesson.id
+                )?.status ===
+                'absent'
+            })
+          )
+      )
+
+    const warningLevel =
+      metrics.absencePercent >
+      settings.learningRecoveryThresholdPercent
+        ? 'recovery_required'
+        : metrics.absencePercent >=
+            settings.absenceWarningPercent
+          ? 'warning'
+          : 'regular'
+
+    return {
+      ...baseline,
+      absencePercent:
+        metrics.absencePercent,
+      warningLevel
+    }
+  }
+
   private async createLearningRecoveryWithOrigin(
     input: LearningRecoveryDraft,
     origin: LearningRecoveryOrigin
