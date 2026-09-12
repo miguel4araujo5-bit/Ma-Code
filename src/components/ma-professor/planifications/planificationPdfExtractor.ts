@@ -674,13 +674,13 @@ export async function extractPlanificationPdf(
   const loadingTask =
     getDocument({ data })
 
-  const pdf =
-    await loadingTask.promise
-
   const pages:
     PlanificationPdfExtractionPage[] = []
 
   try {
+    const pdf =
+      await loadingTask.promise
+
     for (
       let pageNumber = 1;
       pageNumber <= pdf.numPages;
@@ -689,80 +689,94 @@ export async function extractPlanificationPdf(
       const page =
         await pdf.getPage(pageNumber)
 
-      // pdfjs-dist 6.1.200 implements getTextContent() with
-      // `for await...of` over a ReadableStream. Safari 26.x exposes
-      // getReader() but not ReadableStream[Symbol.asyncIterator], which
-      // throws "undefined is not a function". Consume the exact same
-      // stream through its reader API so extraction remains equivalent
-      // while working in Safari and the other supported browsers.
-      const reader =
-        page.streamTextContent()
-          .getReader()
-      const items:
-        PlanificationPdfTextItem[] = []
-
       try {
-        while (true) {
-          const {
-            value,
-            done
-          } = await reader.read()
+        // pdfjs-dist 6.1.200 implements getTextContent() with
+        // `for await...of` over a ReadableStream. Safari 26.x exposes
+        // getReader() but not ReadableStream[Symbol.asyncIterator], which
+        // throws "undefined is not a function". Consume the exact same
+        // stream through its reader API so extraction remains equivalent
+        // while working in Safari and the other supported browsers.
+        const reader =
+          page.streamTextContent()
+            .getReader()
+        const items:
+          PlanificationPdfTextItem[] = []
 
-          if (done) {
-            break
-          }
+        try {
+          while (true) {
+            const {
+              value,
+              done
+            } = await reader.read()
 
-          if (!value) {
-            continue
-          }
+            if (done) {
+              break
+            }
 
-          for (const item of value.items) {
-            if (
-              !('str' in item) ||
-              !Array.isArray(item.transform)
-            ) {
+            if (!value) {
               continue
             }
 
-            items.push({
-              str: String(item.str ?? ''),
-              transform:
-                item.transform.map(Number),
-              width:
-                Number(item.width ?? 0),
-              height:
-                Number(item.height ?? 0)
-            })
+            for (const item of value.items) {
+              if (
+                !('str' in item) ||
+                !Array.isArray(item.transform)
+              ) {
+                continue
+              }
+
+              items.push({
+                str: String(item.str ?? ''),
+                transform:
+                  item.transform.map(Number),
+                width:
+                  Number(item.width ?? 0),
+                height:
+                  Number(item.height ?? 0)
+              })
+            }
           }
+        } finally {
+          reader.releaseLock()
         }
+
+        const operators =
+          await page.getOperatorList()
+        const rules =
+          extractPlanificationPdfRuleBoxes(
+            operators
+          )
+
+        pages.push({
+          pageNumber,
+          items,
+          tableLines:
+            readRuledPlanificationTable(
+              items,
+              rules,
+              Boolean(
+                pages[
+                  pages.length - 1
+                ]?.tableLines
+              )
+            ) ?? undefined
+        })
       } finally {
-        reader.releaseLock()
+        try {
+          page.cleanup()
+        } catch {
+          // A limpeza da página não deve esconder
+          // o resultado ou o erro principal.
+        }
       }
-
-      const operators =
-        await page.getOperatorList()
-      const rules =
-        extractPlanificationPdfRuleBoxes(
-          operators
-        )
-
-      pages.push({
-        pageNumber,
-        items,
-        tableLines:
-          readRuledPlanificationTable(
-            items,
-            rules,
-            Boolean(
-              pages[
-                pages.length - 1
-              ]?.tableLines
-            )
-          ) ?? undefined
-      })
     }
   } finally {
-    await loadingTask.destroy()
+    try {
+      await loadingTask.destroy()
+    } catch {
+      // A limpeza do worker não deve esconder
+      // o resultado ou o erro principal.
+    }
   }
 
   const document =
