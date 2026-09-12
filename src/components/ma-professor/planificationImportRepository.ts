@@ -560,7 +560,8 @@ function importedItemsMatch(
 
 async function normalizeEntry(
   documentSha256: string,
-  entry: PlanificationImportEntry
+  entry: PlanificationImportEntry,
+  requireSourcePages: boolean
 ): Promise<NormalizedImportEntry> {
   if (
     entry.mode ===
@@ -606,7 +607,7 @@ async function normalizeEntry(
   const sourcePages =
     normalizePages(
       entry.source.pages,
-      true
+      requireSourcePages
     )
 
   const items =
@@ -1027,13 +1028,19 @@ export class PlanificationImportRepository {
         input.document.sha256
       )
 
+    const requireSourcePages =
+      !/\.docx$/i.test(
+        documentName
+      )
+
     const normalizedEntries =
       await Promise.all(
         input.entries.map(
           entry =>
             normalizeEntry(
               documentSha256,
-              entry
+              entry,
+              requireSourcePages
             )
         )
       )
