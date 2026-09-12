@@ -51,6 +51,18 @@ function normalizeModuleCode(
     .toLocaleLowerCase('pt-PT')
 }
 
+export function samePlanificationModuleCode(
+  left: string,
+  right: string
+) {
+  const normalizedLeft =
+    normalizeModuleCode(left)
+
+  return Boolean(normalizedLeft) &&
+    normalizedLeft ===
+      normalizeModuleCode(right)
+}
+
 export function buildPlanificationPdfPreview(
   parsed: ParsedPlanificationPdfDocument,
   destinations: PlanificationPdfPreviewDestination[]
@@ -58,18 +70,14 @@ export function buildPlanificationPdfPreview(
   const rows =
     parsed.sections.map(
       (section, index) => {
-        const normalizedSectionCode =
-          normalizeModuleCode(
-            section.code
-          )
         const candidates =
-          normalizedSectionCode
+          section.code
             ? destinations.filter(
                 destination =>
-                  normalizeModuleCode(
-                    destination.code
-                  ) ===
-                  normalizedSectionCode
+                  samePlanificationModuleCode(
+                    destination.code,
+                    section.code
+                  )
               )
             : []
 
