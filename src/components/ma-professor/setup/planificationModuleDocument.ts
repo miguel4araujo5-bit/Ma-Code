@@ -133,6 +133,42 @@ function parseWordDom(xml: string) {
   return dom
 }
 
+function nearestWordAncestor(
+  element: Element,
+  localName: string
+) {
+  let current = element.parentElement
+
+  while (current) {
+    if (
+      current.namespaceURI === WORD_NS &&
+      current.localName === localName
+    ) {
+      return current
+    }
+
+    current = current.parentElement
+  }
+
+  return null
+}
+
+function tableRows(table: Element) {
+  return Array.from(
+    table.getElementsByTagNameNS(WORD_NS, 'tr')
+  ).filter(row =>
+    nearestWordAncestor(row, 'tbl') === table
+  )
+}
+
+function rowCells(row: Element) {
+  return Array.from(
+    row.getElementsByTagNameNS(WORD_NS, 'tc')
+  ).filter(cell =>
+    nearestWordAncestor(cell, 'tr') === row
+  )
+}
+
 function genericWordLines(dom: Document) {
   const result: PlanificationPdfLine[] = []
 
@@ -148,10 +184,8 @@ function genericWordLines(dom: Document) {
   for (const table of Array.from(
     dom.getElementsByTagNameNS(WORD_NS, 'tbl')
   )) {
-    for (const row of Array.from(table.children)
-      .filter(element => element.localName === 'tr')) {
-      const cells = Array.from(row.children)
-        .filter(element => element.localName === 'tc')
+    for (const row of tableRows(table)) {
+      const cells = rowCells(row)
         .map(paragraphs)
 
       if (cells.some(Boolean)) {
@@ -169,8 +203,8 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
   const lines = [line(headers)]
   let found = 0
   for (const table of Array.from(dom.getElementsByTagNameNS(WORD_NS, 'tbl'))) {
-    for (const row of Array.from(table.children).filter(el => el.localName === 'tr')) {
-      const cellElements = Array.from(row.children).filter(el => el.localName === 'tc')
+    for (const row of tableRows(table)) {
+      const cellElements = rowCells(row)
       const cells = cellElements.map(paragraphs)
       if (cells.some(c => /temas\s*\/\s*conte[úu]dos/i.test(c))) continue
       if (/^avalia[çc][ãa]o$/i.test(cells[0]?.trim() ?? '')) {
