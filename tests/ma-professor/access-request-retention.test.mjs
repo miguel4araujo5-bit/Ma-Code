@@ -142,6 +142,14 @@ function transpile(source, filename) {
       '"./maProfessorAccessSessionSplitBridge"',
       '"./maProfessorAccessSessionSplitBridge.mjs"'
     )
+    .replaceAll(
+      "'./maProfessorAccessRequestSplitBridge'",
+      "'./maProfessorAccessRequestSplitBridge.mjs'"
+    )
+    .replaceAll(
+      '"./maProfessorAccessRequestSplitBridge"',
+      '"./maProfessorAccessRequestSplitBridge.mjs"'
+    )
 }
 
 async function stageRetentionBridge() {
@@ -181,6 +189,19 @@ async function stageRetentionBridge() {
     ),
     `
       export function createMAProfessorAccessSessionSplitState(state) {
+        return state
+      }
+    `,
+    'utf8'
+  )
+
+  await writeFile(
+    join(
+      directory,
+      'maProfessorAccessRequestSplitBridge.mjs'
+    ),
+    `
+      export function createMAProfessorAccessRequestSplitState(state) {
         return state
       }
     `,
@@ -347,11 +368,9 @@ test(
     const now =
       Date.now()
     const stale =
-      now -
-      181 * DAY_MS
+      now - 181 * DAY_MS
     const recent =
-      now -
-      30 * DAY_MS
+      now - 30 * DAY_MS
 
     const storage =
       new MemoryStorage({
@@ -390,15 +409,10 @@ test(
         storage
       )
 
-    assert.equal(
-      response.status,
-      200
-    )
+    assert.equal(response.status, 200)
 
     const persisted =
-      storage.snapshot(
-        ACCESS_KEY
-      )
+      storage.snapshot(ACCESS_KEY)
 
     assert.equal(
       persisted.accessRequests[
@@ -406,7 +420,6 @@ test(
       ],
       undefined
     )
-
     assert.ok(
       persisted.accessRequests[
         'recent-rejected@example.com'
@@ -424,9 +437,7 @@ test(
     )
 
     assert.equal(
-      storage.putsFor(
-        ACCESS_KEY
-      ).length,
+      storage.putsFor(ACCESS_KEY).length,
       1,
       'A limpeza deve persistir apenas quando encontrou um rejeitado elegível.'
     )
@@ -454,8 +465,7 @@ test(
     t.after(staged.dispose)
 
     const stale =
-      Date.now() -
-      181 * DAY_MS
+      Date.now() - 181 * DAY_MS
 
     const storage =
       new MemoryStorage({
@@ -480,8 +490,7 @@ test(
                   'rejected',
                   stale,
                   {
-                    approvedAt:
-                      stale
+                    approvedAt: stale
                   }
                 ),
               'activated-history@example.com':
@@ -490,8 +499,7 @@ test(
                   'rejected',
                   stale,
                   {
-                    activatedAt:
-                      stale
+                    activatedAt: stale
                   }
                 )
             },
@@ -518,9 +526,7 @@ test(
     )
 
     const persisted =
-      storage.snapshot(
-        ACCESS_KEY
-      )
+      storage.snapshot(ACCESS_KEY)
 
     assert.equal(
       Object.keys(
@@ -530,9 +536,7 @@ test(
     )
 
     assert.equal(
-      storage.putsFor(
-        ACCESS_KEY
-      ).length,
+      storage.putsFor(ACCESS_KEY).length,
       0,
       'Nenhuma escrita adicional deve ocorrer quando todos os registos antigos continuam protegidos.'
     )
