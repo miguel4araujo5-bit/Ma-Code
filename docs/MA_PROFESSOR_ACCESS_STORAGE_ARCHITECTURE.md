@@ -30,9 +30,17 @@ A cadeia de adaptação do estado é deliberada e deve permanecer:
 3. `createMAProfessorAccessRenewalSplitState`
 4. `createMAProfessorAccessCredentialSplitState`
 5. `createMAProfessorAccessLicenseSplitState`
-6. `createRetentionGuardedState`
+6. `createMAProfessorSessionLifecycleState`
+7. `createRetentionGuardedState`
 
 O entrypoint de produção continua a expor `MaProfessorAccessDurableObject` através de `maProfessorAccessRetentionBridge.ts`.
+
+O lifecycle guard não cria armazenamento próprio. Opera sobre o `AccessState` lógico já recomposto e aplica duas invariantes server-side às sessões antes de o restante código as consumir ou persistir:
+
+- uma conta só mantém um token ativo por `deviceId`; quando é emitido um token mais recente no mesmo dispositivo, o anterior deixa de permanecer no estado persistido;
+- nenhuma sessão pode permanecer ativa por mais de 180 dias desde `createdAt`, mesmo que `lastSeenAt` continue a ser atualizado.
+
+A janela de 180 dias mantém o valor de longa duração que já existia para a limpeza de sessões, mas passa também a funcionar como limite absoluto. Não foi reduzida nesta fase para evitar uma mudança desnecessária de experiência de utilização.
 
 ## Invariantes de segurança e compatibilidade
 
@@ -42,11 +50,13 @@ O entrypoint de produção continua a expor `MaProfessorAccessDurableObject` atr
 - Na primeira leitura de um estado legado, o campo correspondente é removido do core e migrado para a chave dedicada.
 - Writes apenas de um agregado não devem reescrever os restantes agregados.
 - Writes que alteram vários agregados continuam a ser encaminhados num `put({...})` multi-key, preservando a atomicidade oferecida pelo Durable Object Storage API.
+- A limpeza/rotação de sessões acontece dentro do mesmo write lógico; não acrescenta polling, cron, alarm ou um segundo Durable Object.
+- A limpeza muta também o objeto lógico que o código inferior acabou de escrever, para impedir que uma cache em memória continue a aceitar um token que já foi substituído.
 - A eliminação do último elemento de um store que já existe deve persistir um estado canónico vazio quando necessário para impedir que dados legado reapareçam.
 - Não são necessários novos bindings, namespaces, Durable Objects, D1, migrations Wrangler, cron, alarms ou polling para estas chaves internas.
-- Retenção de pedidos rejeitados recebe o estado lógico já recomposto e continua a proteger registos associados a licenças ou credenciais.
+- Retenção de pedidos rejeitados recebe o estado lógico já recomposto e já sujeito à política de ciclo de vida das sessões, continuando a proteger registos associados a licenças ou credenciais.
 
-O teste `tests/ma-professor/access-storage-architecture-contract.test.mjs` bloqueia regressões acidentais nestes pontos estruturais.
+Os testes `tests/ma-professor/access-storage-architecture-contract.test.mjs` e `tests/ma-professor/access-session-lifecycle-state.test.mjs` bloqueiam regressões acidentais nestes pontos estruturais e de ciclo de vida.
 
 ## Limite que esta arquitetura NÃO elimina
 
