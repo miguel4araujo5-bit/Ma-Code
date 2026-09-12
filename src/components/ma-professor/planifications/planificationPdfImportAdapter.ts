@@ -34,6 +34,11 @@ export interface PlanificationPdfImportConfirmedRow {
   expectedStateFingerprint: string
 }
 
+const BULLET_MARKER =
+  /^[•●○▪◦·]\s*/
+const BULLET_ANYWHERE =
+  /[•●○▪◦·]/
+
 function normalizeLineBreaks(
   value: string
 ) {
@@ -49,34 +54,123 @@ function normalizeLineBreaks(
     .join('\n')
 }
 
-export function splitPlanificationContentBlocks(
+function cleanPlanificationPoint(
   value: string
+) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function dedupePlanificationPoints(
+  values: string[]
 ) {
   const seen =
     new Set<string>()
 
-  return value
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map(line =>
-      line
-        .trim()
-        .replace(/\s+/g, ' ')
-    )
-    .filter(Boolean)
-    .filter(line => {
+  return values.filter(
+    value => {
       const key =
-        line.toLocaleLowerCase(
+        cleanPlanificationPoint(
+          value
+        ).toLocaleLowerCase(
           'pt-PT'
         )
 
-      if (seen.has(key)) {
+      if (
+        !key ||
+        seen.has(key)
+      ) {
         return false
       }
 
       seen.add(key)
       return true
-    })
+    }
+  )
+}
+
+export function splitPlanificationContentBlocks(
+  value: string
+) {
+  const normalized =
+    value
+      .replace(/\r\n/g, '\n')
+      .trim()
+
+  if (!normalized) {
+    return []
+  }
+
+  if (
+    !BULLET_ANYWHERE.test(
+      normalized
+    )
+  ) {
+    return dedupePlanificationPoints(
+      normalized
+        .split('\n')
+        .map(
+          cleanPlanificationPoint
+        )
+        .filter(Boolean)
+    )
+  }
+
+  const lines =
+    normalized
+      .replace(
+        /([•●○▪◦·])\s*/g,
+        '\n$1 '
+      )
+      .split('\n')
+      .map(line =>
+        line.trim()
+      )
+      .filter(Boolean)
+
+  const points: string[] = []
+  let current = ''
+
+  for (const line of lines) {
+    if (
+      BULLET_MARKER.test(
+        line
+      )
+    ) {
+      if (current) {
+        points.push(
+          cleanPlanificationPoint(
+            current
+          )
+        )
+      }
+
+      current = line
+        .replace(
+          BULLET_MARKER,
+          ''
+        )
+        .trim()
+      continue
+    }
+
+    current = current
+      ? `${current} ${line}`
+      : line
+  }
+
+  if (current) {
+    points.push(
+      cleanPlanificationPoint(
+        current
+      )
+    )
+  }
+
+  return dedupePlanificationPoints(
+    points
+  )
 }
 
 function moduleLabel(
