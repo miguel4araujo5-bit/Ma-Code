@@ -8,17 +8,16 @@ import {
 } from 'react'
 
 import {
+  readModuleDocument
+} from '../setup/planificationModuleDocument'
+import {
   commitPlanificationPdfImport,
   loadPlanificationPdfImportDestinations,
   type PlanificationPdfImportDestination
 } from './planificationPdfImportAdapter'
-import {
-  extractPlanificationPdf
-} from './planificationPdfExtractor'
-import {
-  parsePlanificationPdfDocument,
-  type ParsedPlanificationPdfDocument,
-  type ParsedPlanificationPdfSection
+import type {
+  ParsedPlanificationPdfDocument,
+  ParsedPlanificationPdfSection
 } from './planificationPdfParser'
 import {
   buildPlanificationPdfPreview
@@ -262,12 +261,17 @@ export default function PlanificationPdfImportPanel({
     importing
 
   async function analyzeFile(nextFile: File) {
-    if (
-      !nextFile.name
+    const lowerName =
+      nextFile.name
         .toLocaleLowerCase('pt-PT')
-        .endsWith('.pdf')
+
+    if (
+      !lowerName.endsWith('.pdf') &&
+      !lowerName.endsWith('.docx')
     ) {
-      setError('Selecione um ficheiro PDF válido.')
+      setError(
+        'Selecione um ficheiro PDF ou Word (.docx) válido.'
+      )
       return
     }
 
@@ -282,20 +286,24 @@ export default function PlanificationPdfImportPanel({
 
     try {
       const [
-        extracted,
+        document,
         loadedDestinations
       ] = await Promise.all([
-        extractPlanificationPdf(nextFile),
+        readModuleDocument(nextFile),
         loadPlanificationPdfImportDestinations(
           snapshot.academicYear.id
         )
       ])
 
-      const result =
-        parsePlanificationPdfDocument(
-          extracted,
-          nextFile.name
-        )
+      const result:
+        ParsedPlanificationPdfDocument = {
+          sourceDocumentName:
+            document.name,
+          sections:
+            document.sections,
+          warnings:
+            document.warnings
+        }
 
       setDestinations(loadedDestinations)
       setParsed(result)
@@ -303,7 +311,7 @@ export default function PlanificationPdfImportPanel({
       if (!result.sections.length) {
         setError(
           result.warnings[0] ||
-          'Não foi possível identificar UFCD com segurança neste PDF.'
+          'Não foi possível identificar UFCD ou módulos com segurança neste documento.'
         )
       }
     } catch (analysisError) {
@@ -407,7 +415,7 @@ export default function PlanificationPdfImportPanel({
       !preview ||
       !file
     ) {
-      return 'Selecione e analise primeiro um PDF.'
+      return 'Selecione e analise primeiro um PDF ou Word.'
     }
 
     const selectedRows =
@@ -524,7 +532,7 @@ export default function PlanificationPdfImportPanel({
 
     if (
       !window.confirm(
-        'Confirmar a importação? Todas as UFCD deste PDF são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+        'Confirmar a importação? Todas as UFCD deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
       )
     ) {
       return
@@ -629,13 +637,13 @@ export default function PlanificationPdfImportPanel({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-200">
-            Importar planificação PDF
+            Importar planificação
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
-            PDF → UFCD → revisão → importação
+            PDF ou Word → UFCD → revisão → importação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            O PDF é analisado localmente. Reveja a turma, disciplina, UFCD e os conteúdos antes da confirmação final. Não são inventados sumários.
+            O documento é analisado localmente. Reveja a turma, disciplina, UFCD e os conteúdos antes da confirmação final. Não são inventados sumários.
           </p>
         </div>
 
@@ -647,7 +655,7 @@ export default function PlanificationPdfImportPanel({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={handleFileChange}
         disabled={
           disabled ||
@@ -679,11 +687,11 @@ export default function PlanificationPdfImportPanel({
       >
         <p className="text-sm font-black text-white">
           {analyzing
-            ? 'A analisar o PDF...'
-            : 'Arraste o PDF da planificação para aqui'}
+            ? 'A analisar o documento...'
+            : 'Arraste o PDF ou Word da planificação para aqui'}
         </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          Nesta fase, cada confirmação trata um PDF completo para manter todas as UFCD do documento no mesmo rollback.
+          Nesta fase, cada confirmação trata um documento completo para manter todas as UFCD do documento no mesmo rollback.
         </p>
         <button
           type="button"
@@ -696,7 +704,7 @@ export default function PlanificationPdfImportPanel({
           }
           className="mt-4 rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-50 disabled:opacity-50"
         >
-          Selecionar PDF
+          Selecionar PDF ou Word
         </button>
       </div>
 
