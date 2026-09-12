@@ -8,6 +8,7 @@ import {
   parseProfessionalAssessmentCriteriaMatrix
 } from './assessmentCriteriaProfessionalMatrixParser'
 import type {
+  AssessmentCriteriaPdfCandidate,
   AssessmentCriteriaPdfMetadata,
   CriteriaImportMetadataField,
   ParsedAssessmentCriteriaPdfDocument
@@ -48,7 +49,7 @@ function inferredField(
             value,
             sourceText,
             sourcePage: page.pageNumber,
-            confidence: 'high'
+            confidence: 'medium'
           }
         }
       }
@@ -103,6 +104,36 @@ function enrichMetadata(
   }
 }
 
+function hasInconsistentWeightTotal(
+  warnings: string[]
+) {
+  return warnings.some(
+    warning =>
+      /ponderações detetadas.*não 100%/i.test(
+        warning
+      )
+  )
+}
+
+function honestCandidateConfidence(
+  candidates: AssessmentCriteriaPdfCandidate[],
+  warnings: string[]
+): AssessmentCriteriaPdfCandidate[] {
+  if (!hasInconsistentWeightTotal(warnings)) {
+    return candidates
+  }
+
+  return candidates.map(
+    candidate =>
+      candidate.confidence === 'high'
+        ? {
+            ...candidate,
+            confidence: 'medium'
+          }
+        : candidate
+  )
+}
+
 export function parseAssessmentCriteriaPdfDocument(
   document: PlanificationPdfDocument,
   sourceDocumentName: string
@@ -120,7 +151,10 @@ export function parseAssessmentCriteriaPdfDocument(
         document,
         matrix.metadata
       ),
-      candidates: matrix.candidates,
+      candidates: honestCandidateConfidence(
+        matrix.candidates,
+        matrix.warnings
+      ),
       warnings: matrix.warnings
     }
   }
@@ -136,6 +170,10 @@ export function parseAssessmentCriteriaPdfDocument(
     metadata: enrichMetadata(
       document,
       generic.metadata
+    ),
+    candidates: honestCandidateConfidence(
+      generic.candidates,
+      generic.warnings
     )
   }
 }
