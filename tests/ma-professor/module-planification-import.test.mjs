@@ -177,15 +177,16 @@ async function request(ids = ['a1', 'a2']) {
     }))
   }
 }
-test('creates modules and plans with content and objectives interleaved in document order', async () => {
+test('creates modules and plans with one lesson item per content and objectives attached to those contents', async () => {
   await seed()
   assert.equal(await maProfessorDb.modules.count(), 0)
   const result = await commitModulePlanificationImport(await request())
   assert.deepEqual(result, { created: 4, skipped: 0 })
   assert.equal(await maProfessorDb.planifications.count(), 4)
   const items = await maProfessorDb.planificationItems.toArray()
-  assert.equal(items.length, 12)
+  assert.equal(items.length, 6)
   assert.ok(items.every(item => item.suggestedSummary && item.usedAt === null))
+  assert.ok(items.every(item => item.activity === ''))
   const modules = await maProfessorDb.modules.toArray()
   const moduleA = modules.find(module => module.teachingAssignmentId === 'a1' && module.code === '0349')
   const planificationA = (await maProfessorDb.planifications.toArray())
@@ -194,12 +195,15 @@ test('creates modules and plans with content and objectives interleaved in docum
     .filter(item => item.planificationId === planificationA.id)
     .sort((left, right) => left.order - right.order)
   assert.deepEqual(sequence.map(item => item.suggestedSummary), [
-    'Conteúdo A 1', 'Objetivo A 1', 'Conteúdo A 2', 'Objetivo A 2'
+    'Conteúdo A 1', 'Conteúdo A 2'
   ])
-  assert.deepEqual(sequence.map(item => item.content), ['Conteúdo A 1', '', 'Conteúdo A 2', ''])
-  assert.deepEqual(sequence.map(item => item.objectives), ['', 'Objetivo A 1', '', 'Objetivo A 2'])
-  assert.deepEqual(sequence.map(item => item.order), [1, 2, 3, 4])
-  assert.ok(sequence.every(item => item.sourceImportKey.startsWith('module-plan-v3:')))
+  assert.deepEqual(sequence.map(item => item.content), ['Conteúdo A 1', 'Conteúdo A 2'])
+  assert.deepEqual(sequence.map(item => item.objectives), ['Objetivo A 1', 'Objetivo A 2'])
+  assert.deepEqual(sequence.map(item => item.order), [1, 2])
+  assert.ok(sequence.every(item => item.sourceImportKey.startsWith('module-plan-v4:')))
+  assert.match(planificationA.description, /Metodologia\/estratégias:/)
+  assert.match(planificationA.description, /Recursos:/)
+  assert.match(planificationA.description, /Avaliação:/)
   assert.ok(modules.filter(m => m.code === '10384').every(m => m.plannedPeriods === 60))
   assert.ok((await maProfessorDb.planifications.toArray()).some(p => p.description.includes('Aulas previstas no documento: 30')))
   for (const table of ['lessons', 'lessonAttendance', 'assessmentResults', 'setupProgress']) assert.equal(await maProfessorDb[table].count(), 0)
