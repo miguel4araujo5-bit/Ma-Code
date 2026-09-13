@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Grelha final → Excel | Importar localmente grelhas `.xlsx`/`.xlsm`/`.xls` de fecho de UFCD para rascunhos revistos pelo professor, sem inventar avaliações nem alterar o ficheiro original | feat/ma-professor-final-grade-excel-import | `src/components/ma-professor/assessments/ufcdFinalGradeExcelImport.ts`; `src/components/ma-professor/assessments/UfcdFinalGradeExcelImportPanel.tsx`; `src/components/ma-professor/assessments/UfcdFinalGradeGrid.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
