@@ -50,6 +50,7 @@ type GuidedStage =
   | 'schedule'
   | 'planifications'
   | 'criteria'
+  | 'students'
   | 'ready'
 
 const setupSteps: SetupStepDefinition[] = [
@@ -229,10 +230,29 @@ function hasCriteriaCoverage(snapshot: SetupSnapshot) {
   })
 }
 
+function hasStudentCoverage(snapshot: SetupSnapshot) {
+  const activeGroupIds = snapshot.groups
+    .filter(group => group.active)
+    .map(group => group.id)
+
+  if (activeGroupIds.length === 0) return false
+
+  const groupsWithStudents = new Set(
+    snapshot.students
+      .filter(student => student.active)
+      .map(student => student.groupId)
+  )
+
+  return activeGroupIds.every(groupId =>
+    groupsWithStudents.has(groupId)
+  )
+}
+
 function getInitialGuidedStage(snapshot: SetupSnapshot): GuidedStage {
   if (!hasCompleteScheduleCoverage(snapshot)) return 'schedule'
   if (!hasPlanificationCoverage(snapshot)) return 'planifications'
   if (!hasCriteriaCoverage(snapshot)) return 'criteria'
+  if (!hasStudentCoverage(snapshot)) return 'students'
   return 'ready'
 }
 
@@ -240,21 +260,24 @@ function GuidedProgress({
   stage,
   scheduleReady,
   planificationsReady,
-  criteriaReady
+  criteriaReady,
+  studentsReady
 }: {
   stage: GuidedStage
   scheduleReady: boolean
   planificationsReady: boolean
   criteriaReady: boolean
+  studentsReady: boolean
 }) {
   const steps = [
     { id: 'schedule', number: 1, label: 'Horário', done: scheduleReady },
     { id: 'planifications', number: 2, label: 'Planificações', done: planificationsReady },
-    { id: 'criteria', number: 3, label: 'Critérios', done: criteriaReady }
+    { id: 'criteria', number: 3, label: 'Critérios', done: criteriaReady },
+    { id: 'students', number: 4, label: 'Alunos', done: studentsReady }
   ] as const
 
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-4">
       {steps.map(step => {
         const active = stage === step.id
 
@@ -340,6 +363,7 @@ export default function SetupWizard({
   const scheduleReady = hasCompleteScheduleCoverage(snapshot)
   const planificationsReady = hasPlanificationCoverage(snapshot)
   const criteriaReady = hasCriteriaCoverage(snapshot)
+  const studentsReady = hasStudentCoverage(snapshot)
   const currentProgressStep = getFirstIncompleteStep(snapshot)
   const activeStepDefinition =
     setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
@@ -402,6 +426,12 @@ export default function SetupWizard({
     )
     onSnapshotChange(preparedSnapshot)
     setGuidedStage('planifications')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handleGuidedStudentsCompleted(nextSnapshot: SetupSnapshot) {
+    onSnapshotChange(nextSnapshot)
+    setGuidedStage('ready')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -500,7 +530,7 @@ export default function SetupWizard({
             Vamos preparar o essencial, um passo de cada vez.
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-            Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas. Pode saltar qualquer etapa e voltar mais tarde.
+            Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
           </p>
           <div className="mt-6">
             <GuidedProgress
@@ -508,6 +538,7 @@ export default function SetupWizard({
               scheduleReady={scheduleReady}
               planificationsReady={planificationsReady}
               criteriaReady={criteriaReady}
+              studentsReady={studentsReady}
             />
           </div>
         </section>
@@ -579,7 +610,7 @@ export default function SetupWizard({
           <div className="mt-6 space-y-5">
             <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">3 · Critérios</p>
-              <h2 className="mt-2 text-xl font-black">Por fim, adicione os critérios que já tiver.</h2>
+              <h2 className="mt-2 text-xl font-black">Adicione os critérios que já tiver.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
                 As disciplinas e respetivas componentes curriculares já preparadas tornam a correspondência mais segura. Pode usar PDF ou Word; as ponderações vêm sempre do documento e nunca são inventadas.
               </p>
@@ -606,15 +637,33 @@ export default function SetupWizard({
                 <button
                   type="button"
                   onClick={() => {
-                    setGuidedStage('ready')
+                    setGuidedStage('students')
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
                   className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950"
                 >
-                  Concluir por agora
+                  Continuar para alunos
                 </button>
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {guidedStage === 'students' ? (
+          <div className="mt-6 space-y-5">
+            <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">4 · Alunos</p>
+              <h2 className="mt-2 text-xl font-black">Adicione os alunos antes de concluir a configuração rápida.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                Use a mesma página de alunos da configuração avançada. Pode introduzir os alunos manualmente ou colar uma lista; todas as turmas ativas têm de ficar com alunos antes de avançar.
+              </p>
+            </section>
+
+            <StudentsSetupStep
+              snapshot={snapshot}
+              onSnapshotChange={onSnapshotChange}
+              onCompleted={handleGuidedStudentsCompleted}
+            />
           </div>
         ) : null}
 
@@ -626,10 +675,11 @@ export default function SetupWizard({
                 ? 'Já pode começar a trabalhar.'
                 : 'Pode continuar depois sem perder o que já configurou.'}
             </h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Horário</p><p className="mt-2 font-black">{scheduleReady ? '✓ Preparado' : '◌ Pendente'}</p></div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Planificações</p><p className="mt-2 font-black">{planificationsReady ? '✓ Preparadas' : '◌ Por completar'}</p></div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Critérios</p><p className="mt-2 font-black">{criteriaReady ? '✓ Configurados' : '◌ Por completar'}</p></div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Alunos</p><p className="mt-2 font-black">{studentsReady ? '✓ Adicionados' : '◌ Por adicionar'}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               {readiness.operationalReady ? (
