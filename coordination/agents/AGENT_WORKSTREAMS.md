@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Recuperações → Avaliação | Permitir usar explicitamente uma recuperação concluída como evidência adicional de um critério, sem criar aulas artificiais | feat/ma-professor-recovery-assessment | `src/components/ma-professor/types.ts`; `src/components/ma-professor/attendance/*`; `src/components/ma-professor/assessments/assessmentWorkspaceRepositoryBase.ts`; `src/components/ma-professor/product/AttendanceProductWorkspace.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
