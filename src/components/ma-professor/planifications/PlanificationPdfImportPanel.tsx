@@ -63,6 +63,14 @@ const selectClass =
 const textAreaClass =
   'w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm leading-6 text-white outline-none transition focus:border-violet-300/50 focus:ring-4 focus:ring-violet-300/10 disabled:cursor-not-allowed disabled:opacity-50'
 
+const SUPPORTED_PLANIFICATION_EXTENSIONS = [
+  '.pdf',
+  '.docx',
+  '.xlsx',
+  '.xlsm',
+  '.xls'
+] as const
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
@@ -268,11 +276,15 @@ export default function PlanificationPdfImportPanel({
         .toLocaleLowerCase('pt-PT')
 
     if (
-      !lowerName.endsWith('.pdf') &&
-      !lowerName.endsWith('.docx')
+      !SUPPORTED_PLANIFICATION_EXTENSIONS.some(
+        extension =>
+          lowerName.endsWith(
+            extension
+          )
+      )
     ) {
       setError(
-        'Selecione um ficheiro PDF ou Word (.docx) válido.'
+        'Selecione um ficheiro PDF, Word (.docx) ou Excel (.xlsx, .xlsm, .xls) válido.'
       )
       return
     }
@@ -417,7 +429,7 @@ export default function PlanificationPdfImportPanel({
       !preview ||
       !file
     ) {
-      return 'Selecione e analise primeiro um PDF ou Word.'
+      return 'Selecione e analise primeiro um PDF, Word ou Excel.'
     }
 
     const selectedRows =
@@ -648,7 +660,7 @@ export default function PlanificationPdfImportPanel({
             Importar planificação
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
-            PDF ou Word → UFCD/módulo → revisão → importação
+            PDF, Word ou Excel → UFCD/módulo → revisão → importação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             O documento é analisado localmente. Reveja a turma, disciplina, UFCD/módulo e os conteúdos antes da confirmação final. Não são inventados sumários.
@@ -663,7 +675,7 @@ export default function PlanificationPdfImportPanel({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.ms-excel.sheet.macroEnabled.12"
         onChange={handleFileChange}
         disabled={
           disabled ||
@@ -696,7 +708,7 @@ export default function PlanificationPdfImportPanel({
         <p className="text-sm font-black text-white">
           {analyzing
             ? 'A analisar o documento...'
-            : 'Arraste o PDF ou Word da planificação para aqui'}
+            : 'Arraste o PDF, Word ou Excel da planificação para aqui'}
         </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">
           Nesta fase, cada confirmação trata um documento completo para manter todas as secções do documento no mesmo rollback.
@@ -712,7 +724,7 @@ export default function PlanificationPdfImportPanel({
           }
           className="mt-4 rounded-xl border border-violet-200/25 bg-violet-300/10 px-4 py-2.5 text-xs font-black text-violet-50 disabled:opacity-50"
         >
-          Selecionar PDF ou Word
+          Selecionar PDF, Word ou Excel
         </button>
       </div>
 

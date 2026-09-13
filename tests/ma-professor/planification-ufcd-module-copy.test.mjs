@@ -62,7 +62,7 @@ test('normal planification panel no longer describes every section as a UFCD', (
   )
   assert.match(
     panelSource,
-    /PDF ou Word → UFCD\/módulo → revisão → importação/
+    /PDF, Word ou Excel → UFCD\/módulo → revisão → importação/
   )
   assert.match(
     panelSource,

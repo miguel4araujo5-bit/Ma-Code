@@ -395,10 +395,10 @@ export default function ModulePlanificationImportPanel({
                 }}
               >
                 <label className="block cursor-pointer text-sm font-black text-white">
-                  Arraste a planificação ou selecione PDF/Word
+                  Arraste a planificação ou selecione PDF/Word/Excel
                   <input
                     type="file"
-                    accept=".pdf,.docx"
+                    accept=".pdf,.docx,.xlsx,.xlsm,.xls"
                     className="mt-3 block w-full text-sm font-normal text-slate-400"
                     onChange={event => {
                       const file = event.currentTarget.files?.[0]
@@ -558,9 +558,9 @@ export default function ModulePlanificationImportPanel({
   return (
     <section className="rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white xl:col-span-2">
       <h2 className="text-xl font-black">Importar planificação</h2>
-      <p className="mt-2 text-sm text-slate-300">Crie as UFCD/módulos e as respetivas planificações a partir de um PDF ou Word, revendo separadamente disciplina, curso e turmas de destino.</p>
+      <p className="mt-2 text-sm text-slate-300">Crie as UFCD/módulos e as respetivas planificações a partir de um PDF, Word ou Excel, revendo separadamente disciplina, curso e turmas de destino.</p>
       {!open ? <button className={button + ' mt-4'} disabled={disabled || busy} onClick={() => changeOpen(true)}>
-        Importar PDF ou Word
+        Importar PDF, Word ou Excel
       </button> : <>
         <fieldset disabled={busy} className="mt-4 space-y-4">
           <div className="rounded-2xl border-2 border-dashed border-cyan-300/30 p-5"
@@ -572,7 +572,7 @@ export default function ModulePlanificationImportPanel({
               if (file) void load(file)
             }}>
             <label className="block text-sm font-bold">Arraste a planificação ou selecione um ficheiro (até 20 MB)
-              <input type="file" accept=".pdf,.docx" className="mt-3 block w-full text-sm"
+              <input type="file" accept=".pdf,.docx,.xlsx,.xlsm,.xls" className="mt-3 block w-full text-sm"
                 onChange={event => {
                   const file = event.currentTarget.files?.[0]
                   event.currentTarget.value = ''

@@ -209,6 +209,32 @@ test('DOCX import persists safely without inventing page numbers and remains ide
   assert.deepEqual(dbModule.__snapshot(), afterFirst)
 })
 
+for (const extension of ['xlsx', 'xlsm', 'xls']) {
+  test(`Excel .${extension} import persists without inventing source pages`, async () => {
+    dbModule.__reset()
+    const before = await destinationState()
+
+    const result = await repository.commitPlanificationImportBatch({
+      confirmed: true,
+      document: {
+        name: `planificacao.${extension}`,
+        sha256: hash
+      },
+      entries: [entry(before.stateFingerprint)]
+    })
+
+    assert.equal(result.results[0].action, 'created')
+
+    const after = dbModule.__snapshot()
+    assert.deepEqual(after.planifications[0].sourcePages, [])
+    assert.deepEqual(after.planificationItems[0].sourcePages, [])
+    assert.equal(
+      after.planificationItems[0].sourceDocumentName,
+      `planificacao.${extension}`
+    )
+  })
+}
+
 test('PDF import still rejects a missing source page', async () => {
   dbModule.__reset()
   const before = await destinationState()
