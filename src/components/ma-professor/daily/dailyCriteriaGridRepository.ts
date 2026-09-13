@@ -4,6 +4,7 @@ import {
 
 import {
   assessmentRepository,
+  type AssessmentResultDraft,
   type LessonAssessmentWorkspace
 } from '../assessments/assessmentRepository'
 
@@ -348,7 +349,9 @@ export class DailyCriteriaGridRepository {
 
     for (const criterion of workspace.criteria) {
       const entries =
-        input.rows.flatMap(
+        input.rows.flatMap<
+          AssessmentResultDraft
+        >(
           row => {
             if (
               row.attendanceStatus ===
@@ -359,7 +362,7 @@ export class DailyCriteriaGridRepository {
                   studentId:
                     row.studentId,
                   status:
-                    'absent' as const,
+                    'absent',
                   score: null,
                   note: ''
                 }
@@ -371,7 +374,7 @@ export class DailyCriteriaGridRepository {
                 studentId:
                   row.studentId,
                 status:
-                  'evaluated' as const,
+                  'evaluated',
                 score:
                   parseDailyCriterionScore(
                     row.scores[
