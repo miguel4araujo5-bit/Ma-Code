@@ -257,7 +257,7 @@ test(
 )
 
 test(
-  'present students require 0-20 scores while absent students are omitted',
+  'present students require 0-20 scores while absent students persist only an absence state',
   () => {
     assert.match(
       repositorySource,
@@ -265,7 +265,7 @@ test(
     )
     assert.match(
       repositorySource,
-      /row\.attendanceStatus ===[\s\S]*'absent'[\s\S]*return \[\]/
+      /row\.attendanceStatus ===[\s\S]*'absent'[\s\S]*status:[\s\S]*'absent'[\s\S]*score: null/
     )
   }
 )
