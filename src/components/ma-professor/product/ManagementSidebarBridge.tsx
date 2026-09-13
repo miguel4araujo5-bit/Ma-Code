@@ -56,7 +56,7 @@ const externalLabels =
   )
 
 const RESET_SCHEDULE_CONFIRMATION =
-  'Apagar o horário importado e começar de novo? Serão removidos os blocos semanais e os cargos criados pelo horário. Planificações, critérios, alunos, turmas e disciplinas serão mantidos. Esta ação não pode ser anulada.'
+  '⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados. Deseja mesmo apagar tudo e começar de novo?'
 
 function getErrorMessage(
   error: unknown

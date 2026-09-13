@@ -159,7 +159,25 @@ test(
 )
 
 test(
-  'schedule import reset removes only schedule data and refuses destructive historical cleanup',
+  'reset confirmation explicitly warns that downstream setup will be lost',
+  () => {
+    assert.match(
+      bridgeSource,
+      /⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados/
+    )
+    assert.match(
+      bridgeSource,
+      /Deseja mesmo apagar tudo e começar de novo\?/
+    )
+    assert.match(
+      bridgeSource,
+      /window\.confirm\([\s\S]*RESET_SCHEDULE_CONFIRMATION/
+    )
+  }
+)
+
+test(
+  'schedule reset clears schedule plus planifications criteria and students while preserving historical safeguards',
   () => {
     assert.match(
       resetSource,
@@ -172,6 +190,26 @@ test(
     assert.match(
       resetSource,
       /schoolCalendarEvents\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /assessmentCriteria\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /assessmentSchemes\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /planificationItems\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /planifications\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /students\.bulkDelete/
     )
     assert.match(
       resetSource,
@@ -191,11 +229,11 @@ test(
     )
     assert.match(
       resetSource,
-      /step !== 'weekly_schedule'/
+      /step !== 'weekly_schedule'[\s\S]*step !== 'planifications'[\s\S]*step !== 'assessment_criteria'[\s\S]*step !== 'students'/
     )
     assert.doesNotMatch(
       resetSource,
-      /groups\.(?:delete|bulkDelete)|subjects\.(?:delete|bulkDelete)|teachingAssignments\.(?:delete|bulkDelete)|planifications\.(?:delete|bulkDelete)/
+      /groups\.(?:delete|bulkDelete)|subjects\.(?:delete|bulkDelete)|teachingAssignments\.(?:delete|bulkDelete)/
     )
   }
 )
