@@ -17,6 +17,7 @@ import {
 import type {
   AcademicYear,
   ClassGroup,
+  EducationType,
   EntityId,
   ModuleUnit,
   Student,
@@ -72,12 +73,14 @@ export interface CreateGroupWorkspaceInput {
   name: string
   courseName?: string
   gradeLevel?: string
+  educationType?: EducationType
 }
 
 export interface UpdateGroupWorkspaceInput {
   name?: string
   courseName?: string
   gradeLevel?: string
+  educationType?: EducationType
   active?: boolean
 }
 
@@ -502,6 +505,10 @@ export class GroupsWorkspaceRepository {
         input.gradeLevel ??
         '',
 
+      educationType:
+        input.educationType ??
+        'professional',
+
       active:
         true
     })
@@ -511,6 +518,53 @@ export class GroupsWorkspaceRepository {
     groupId: EntityId,
     changes: UpdateGroupWorkspaceInput
   ) {
+    if (
+      changes.educationType !==
+      undefined
+    ) {
+      await this.initialize()
+
+      const current =
+        await maProfessorDb.groups.get(
+          groupId
+        )
+
+      if (
+        !current
+      ) {
+        throw new Error(
+          'A turma indicada não existe.'
+        )
+      }
+
+      const currentEducationType =
+        current.educationType ??
+        'professional'
+
+      if (
+        changes.educationType !==
+        currentEducationType
+      ) {
+        const assignmentCount =
+          await maProfessorDb.teachingAssignments
+            .where(
+              'groupId'
+            )
+            .equals(
+              groupId
+            )
+            .count()
+
+        if (
+          assignmentCount > 0
+        ) {
+          throw new Error(
+            'Não é possível alterar o tipo de ensino depois de existirem disciplinas associadas à turma.'
+          )
+        }
+      }
+    }
+
     return maProfessorRepository.updateGroup(
       groupId,
       changes
