@@ -53,7 +53,7 @@ const stepSources = new Map(
 const expectedSequence = [
   ['groups', 2, 'Turmas'],
   ['subjects', 3, 'Disciplinas'],
-  ['modules', 4, 'UFCD ou módulos'],
+  ['modules', 4, 'Organização curricular'],
   ['weekly_schedule', 5, 'Horário semanal'],
   ['assessment_criteria', 6, 'Critérios de avaliação'],
   ['planifications', 7, 'Planificações'],
