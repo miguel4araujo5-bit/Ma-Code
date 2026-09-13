@@ -189,3 +189,29 @@ test(
     )
   }
 )
+
+test(
+  'guided setup places students after criteria and before ready',
+  () => {
+    assert.match(
+      wizardSource,
+      /type GuidedStage =[\s\S]*\| 'criteria'[\s\S]*\| 'students'[\s\S]*\| 'ready'/
+    )
+    assert.match(
+      wizardSource,
+      /setGuidedStage\('students'\)[\s\S]*Continuar para alunos/
+    )
+    assert.match(
+      wizardSource,
+      /guidedStage === 'students'[\s\S]*<StudentsSetupStep[\s\S]*onCompleted=\{handleGuidedStudentsCompleted\}/
+    )
+    assert.match(
+      wizardSource,
+      /function handleGuidedStudentsCompleted\([\s\S]*setGuidedStage\('ready'\)/
+    )
+    assert.match(
+      wizardSource,
+      /\{ id: 'students', number: 4, label: 'Alunos', done: studentsReady \}/
+    )
+  }
+)
