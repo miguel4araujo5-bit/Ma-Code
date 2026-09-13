@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import AttendanceWorkspaceView from '../attendance/AttendanceWorkspaceView'
+import RecoveryAttemptsPanel from '../attendance/RecoveryAttemptsPanel'
 import {
   attendanceWorkspaceRepository,
   type AttendanceWorkspaceFilters,
@@ -12,7 +13,10 @@ import {
   type CreateWorkspaceRecoveryInput
 } from '../attendance/attendanceWorkspaceRepository'
 import type { EntityId } from '../types'
-import type { LearningRecoveryChanges } from '../attendance/attendanceRepository'
+import {
+  attendanceRepository,
+  type LearningRecoveryChanges
+} from '../attendance/attendanceRepository'
 
 interface AttendanceProductWorkspaceProps {
   academicYearId: EntityId
@@ -124,49 +128,80 @@ export function AttendanceProductWorkspace({
     )
   }
 
+  const createRecovery = (
+    input: CreateWorkspaceRecoveryInput
+  ) =>
+    mutate(() =>
+      attendanceWorkspaceRepository.createRecovery(input)
+    )
+
   return (
-    <AttendanceWorkspaceView
-      snapshot={snapshot}
-      loading={loading}
-      error={error}
-      onRefresh={() => void load()}
-      onFiltersChange={handleFiltersChange}
-      onCreateRecovery={(
-        input: CreateWorkspaceRecoveryInput
-      ) =>
-        mutate(() =>
-          attendanceWorkspaceRepository.createRecovery(input)
-        )
-      }
-      onUpdateRecovery={(
-        recoveryId: EntityId,
-        changes: LearningRecoveryChanges
-      ) =>
-        mutate(() =>
-          attendanceWorkspaceRepository.updateRecovery(
-            recoveryId,
-            changes
+    <div className="space-y-6">
+      <AttendanceWorkspaceView
+        snapshot={snapshot}
+        loading={loading}
+        error={error}
+        onRefresh={() => void load()}
+        onFiltersChange={handleFiltersChange}
+        onCreateRecovery={createRecovery}
+        onUpdateRecovery={(
+          recoveryId: EntityId,
+          changes: LearningRecoveryChanges
+        ) =>
+          mutate(() =>
+            attendanceWorkspaceRepository.updateRecovery(
+              recoveryId,
+              changes
+            )
           )
-        )
-      }
-      onDeletePendingRecovery={(
-        recoveryId: EntityId
-      ) =>
-        mutate(() =>
-          attendanceWorkspaceRepository.deletePendingRecovery(
-            recoveryId
+        }
+        onDeletePendingRecovery={(
+          recoveryId: EntityId
+        ) =>
+          mutate(() =>
+            attendanceWorkspaceRepository.deletePendingRecovery(
+              recoveryId
+            )
           )
-        )
-      }
-      onSynchronizeRecoveries={(
-        moduleId: EntityId
-      ) =>
-        mutate(() =>
-          attendanceWorkspaceRepository.synchronizeModuleRecoveries(
-            moduleId
+        }
+        onSynchronizeRecoveries={(
+          moduleId: EntityId
+        ) =>
+          mutate(() =>
+            attendanceWorkspaceRepository.synchronizeModuleRecoveries(
+              moduleId
+            )
           )
-        )
-      }
-    />
+        }
+      />
+
+      <RecoveryAttemptsPanel
+        snapshot={snapshot}
+        loading={loading}
+        onCreateAttempt={createRecovery}
+        onSetOutcome={(
+          recoveryId,
+          outcome
+        ) =>
+          mutate(() =>
+            attendanceRepository.setLearningRecoveryOutcome(
+              recoveryId,
+              outcome
+            )
+          )
+        }
+        onReferToExam={(
+          moduleId,
+          studentId
+        ) =>
+          mutate(() =>
+            attendanceRepository.referLearningRecoveryToExam(
+              moduleId,
+              studentId
+            )
+          )
+        }
+      />
+    </div>
   )
 }
