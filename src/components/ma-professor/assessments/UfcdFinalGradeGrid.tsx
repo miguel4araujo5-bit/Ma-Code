@@ -1,3 +1,7 @@
+import {
+  useState
+} from 'react'
+
 import type {
   EntityId
 } from '../types'
@@ -5,6 +9,10 @@ import type {
 import type {
   AssessmentWorkspaceSnapshot
 } from './assessmentWorkspaceRepository'
+
+import {
+  exportUfcdFinalGradeExcel
+} from './ufcdFinalGradeExcelExport'
 
 export interface UfcdFinalGradeDraft {
   finalGrade: string
@@ -276,6 +284,67 @@ export default function UfcdFinalGradeGrid({
   onDraftChange,
   onSaveStudent
 }: UfcdFinalGradeGridProps) {
+  const [
+    exporting,
+    setExporting
+  ] = useState(false)
+
+  const [
+    exportError,
+    setExportError
+  ] = useState('')
+
+  const hasDirtyDrafts =
+    snapshot.studentRows.some(
+      row => {
+        const persisted =
+          getPersistedDraft(
+            snapshot,
+            row.student.id
+          )
+
+        const current =
+          gradeDrafts[
+            row.student.id
+          ] ??
+          persisted
+
+        return isDraftDirty(
+          current,
+          persisted
+        )
+      }
+    )
+
+  async function handleExcelExport() {
+    if (
+      hasDirtyDrafts ||
+      exporting ||
+      loading
+    ) {
+      return
+    }
+
+    setExporting(true)
+    setExportError('')
+
+    try {
+      await exportUfcdFinalGradeExcel(
+        snapshot
+      )
+    } catch (
+      error
+    ) {
+      setExportError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível exportar a grelha Excel.'
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const confirmedGrades =
     snapshot.studentRows.flatMap(
       row =>
@@ -356,28 +425,64 @@ export default function UfcdFinalGradeGrid({
             </p>
           </div>
 
-          <div className="grid shrink-0 gap-2 text-xs sm:grid-cols-2 xl:min-w-[22rem]">
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5">
-              <span className="block font-bold text-slate-500">
-                Curso
-              </span>
-              <span className="mt-1 block font-black text-slate-200">
-                {snapshot.selectedGroup
-                  ?.courseName ||
-                  '—'}
-              </span>
+          <div className="shrink-0 space-y-3 xl:min-w-[22rem]">
+            <div className="grid gap-2 text-xs sm:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5">
+                <span className="block font-bold text-slate-500">
+                  Curso
+                </span>
+                <span className="mt-1 block font-black text-slate-200">
+                  {snapshot.selectedGroup
+                    ?.courseName ||
+                    '—'}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5">
+                <span className="block font-bold text-slate-500">
+                  Turma
+                </span>
+                <span className="mt-1 block font-black text-slate-200">
+                  {snapshot.selectedGroup
+                    ?.name ||
+                    '—'}
+                </span>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5">
-              <span className="block font-bold text-slate-500">
-                Turma
-              </span>
-              <span className="mt-1 block font-black text-slate-200">
-                {snapshot.selectedGroup
-                  ?.name ||
-                  '—'}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                void handleExcelExport()
+              }
+              disabled={
+                loading ||
+                exporting ||
+                hasDirtyDrafts ||
+                snapshot.criteria.length === 0 ||
+                snapshot.studentRows.length === 0
+              }
+              className="w-full rounded-xl border border-emerald-200/25 bg-emerald-300/10 px-4 py-2.5 text-sm font-black text-emerald-50 transition hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+            >
+              {exporting
+                ? 'A exportar Excel...'
+                : 'Exportar Excel'}
+            </button>
+
+            {hasDirtyDrafts ? (
+              <p className="text-xs font-semibold text-amber-200/80">
+                Guarde as alterações antes de exportar.
+              </p>
+            ) : null}
+
+            {exportError ? (
+              <p
+                role="alert"
+                className="text-xs font-semibold text-rose-200"
+              >
+                {exportError}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
