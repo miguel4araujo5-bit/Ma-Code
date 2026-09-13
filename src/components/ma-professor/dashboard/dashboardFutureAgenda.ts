@@ -1,11 +1,13 @@
 import type {
   EntityId,
-  Lesson
+  Lesson,
+  ModuleUnit
 } from '../types'
 import type {
   ScheduledLessonCreationPlan
 } from '../lessons/scheduledLessonReconciliation'
 import type {
+  DashboardAssignmentRow,
   DashboardLessonRow,
   DashboardSnapshot
 } from './dashboardRepositoryBase'
@@ -18,6 +20,20 @@ export interface DashboardFutureAgendaProjectionInput {
 }
 
 const MAX_UPCOMING_LESSONS = 8
+
+type RegularAnnualModule =
+  ModuleUnit & {
+    moduleKind?: 'regular_annual'
+  }
+
+function isRegularAnnualModule(
+  module: ModuleUnit
+) {
+  return (
+    module as RegularAnnualModule
+  ).moduleKind ===
+    'regular_annual'
+}
 
 function projectedLessonId(
   draft: ScheduledLessonCreationPlan
@@ -56,6 +72,135 @@ function sortLessons(
         right.id
       )
   )
+}
+
+function sumPeriods(
+  lessons: Lesson[]
+) {
+  return lessons.reduce(
+    (total, lesson) =>
+      total + lesson.periodCount,
+    0
+  )
+}
+
+function completionPercent(
+  taught: number,
+  planned: number
+) {
+  if (planned <= 0) {
+    return 0
+  }
+
+  return Math.round(
+    Math.min(
+      100,
+      Math.max(
+        0,
+        taught / planned * 100
+      )
+    ) * 100
+  ) / 100
+}
+
+function applyRegularAnnualProgress(
+  row: DashboardAssignmentRow,
+  effectiveLessons: Lesson[]
+): DashboardAssignmentRow {
+  const regularModuleRow =
+    row.modules.find(
+      item =>
+        isRegularAnnualModule(
+          item.module
+        )
+    )
+
+  if (!regularModuleRow) {
+    return row
+  }
+
+  const progressLessons =
+    effectiveLessons.filter(
+      lesson =>
+        lesson.teachingAssignmentId ===
+          row.assignment.id &&
+        lesson.moduleId ===
+          regularModuleRow.module.id &&
+        lesson.status !==
+          'cancelled' &&
+        lesson.countTowardProgress
+    )
+
+  const periodsPlanned =
+    sumPeriods(
+      progressLessons
+    )
+
+  const periodsTaught =
+    sumPeriods(
+      progressLessons.filter(
+        lesson =>
+          lesson.status ===
+          'taught'
+      )
+    )
+
+  const periodsRemaining =
+    Math.max(
+      0,
+      periodsPlanned -
+        periodsTaught
+    )
+
+  const percent =
+    completionPercent(
+      periodsTaught,
+      periodsPlanned
+    )
+
+  const estimatedCompletionDate =
+    sortLessons(
+      progressLessons
+    ).at(-1)?.date ??
+    null
+
+  const annualProgress = {
+    moduleId:
+      regularModuleRow.module.id,
+    periodsTaught,
+    periodsRemaining,
+    completionPercent:
+      percent,
+    estimatedCompletionDate
+  }
+
+  const modules =
+    row.modules.map(
+      item =>
+        item.module.id ===
+          regularModuleRow.module.id
+          ? {
+              ...item,
+              progress:
+                annualProgress
+            }
+          : item
+    )
+
+  return {
+    ...row,
+    modules,
+    periodsPlanned,
+    periodsTaught,
+    periodsRemaining,
+    completionPercent:
+      percent,
+    currentModuleProgress:
+      row.currentModule?.id ===
+        regularModuleRow.module.id
+        ? annualProgress
+        : row.currentModuleProgress
+  }
 }
 
 export function applyDashboardFutureAgendaProjection(
@@ -133,18 +278,37 @@ export function applyDashboardFutureAgendaProjection(
         input.snapshot.referenceDate
     )
 
+  const hasRegularAnnualProgress =
+    input.snapshot.assignments.some(
+      row =>
+        row.modules.some(
+          item =>
+            isRegularAnnualModule(
+              item.module
+            )
+        )
+    )
+
   const assignments =
     input.snapshot.assignments.map(
-      row => ({
-        ...row,
-        nextLesson:
-          futurePlannedLessons.find(
-            lesson =>
-              lesson.teachingAssignmentId ===
-              row.assignment.id
-          ) ??
-          null
-      })
+      row => {
+        const withAnnualProgress =
+          applyRegularAnnualProgress(
+            row,
+            effectiveLessons
+          )
+
+        return {
+          ...withAnnualProgress,
+          nextLesson:
+            futurePlannedLessons.find(
+              lesson =>
+                lesson.teachingAssignmentId ===
+                row.assignment.id
+            ) ??
+            null
+        }
+      }
     )
 
   const updatedAssignmentRowById =
@@ -198,10 +362,51 @@ export function applyDashboardFutureAgendaProjection(
         MAX_UPCOMING_LESSONS
       )
 
+  const periodsPlanned =
+    hasRegularAnnualProgress
+      ? assignments.reduce(
+          (total, row) =>
+            total +
+            row.periodsPlanned,
+          0
+        )
+      : input.snapshot.totals.periodsPlanned
+
+  const periodsTaught =
+    hasRegularAnnualProgress
+      ? assignments.reduce(
+          (total, row) =>
+            total +
+            row.periodsTaught,
+          0
+        )
+      : input.snapshot.totals.periodsTaught
+
+  const periodsRemaining =
+    hasRegularAnnualProgress
+      ? assignments.reduce(
+          (total, row) =>
+            total +
+            row.periodsRemaining,
+          0
+        )
+      : input.snapshot.totals.periodsRemaining
+
   return {
     ...input.snapshot,
     totals: {
       ...input.snapshot.totals,
+      periodsPlanned,
+      periodsTaught,
+      periodsRemaining,
+      completionPercent:
+        hasRegularAnnualProgress
+          ? completionPercent(
+              periodsTaught,
+              periodsPlanned
+            )
+          : input.snapshot.totals
+              .completionPercent,
       plannedLessonCount:
         plannedLessons.length
     },
