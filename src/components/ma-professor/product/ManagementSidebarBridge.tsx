@@ -38,6 +38,13 @@ const externalItems = [
   }
 ] as const
 
+const externalLabels =
+  new Set(
+    externalItems.map(
+      item => item.label
+    )
+  )
+
 export function ManagementSidebarBridge({
   onOpenAttendance,
   onOpenSchedule,
@@ -64,6 +71,12 @@ export function ManagementSidebarBridge({
         Array.from(
           nav.querySelectorAll<HTMLButtonElement>(
             'button[title="Em breve"]'
+          )
+        ).filter(button =>
+          externalLabels.has(
+            button.textContent
+              ?.replace(/\d+/g, '')
+              .trim() ?? ''
           )
         )
 
