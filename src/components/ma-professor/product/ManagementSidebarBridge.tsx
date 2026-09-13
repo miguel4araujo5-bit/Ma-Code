@@ -39,7 +39,7 @@ const externalItems = [
 ] as const
 
 const externalLabels =
-  new Set(
+  new Set<string>(
     externalItems.map(
       item => item.label
     )
