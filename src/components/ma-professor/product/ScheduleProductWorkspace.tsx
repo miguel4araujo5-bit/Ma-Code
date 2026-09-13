@@ -4,6 +4,9 @@ import {
   useState
 } from 'react'
 
+import {
+  syncRegularAnnualComponentsForAcademicYear
+} from '../curriculum/regularAnnualComponentRepository'
 import ScheduleWorkspaceView from '../schedule/ScheduleWorkspaceView'
 import {
   scheduleWorkspaceRepository,
@@ -73,6 +76,9 @@ export function ScheduleProductWorkspace({
 
     try {
       await operation()
+      await syncRegularAnnualComponentsForAcademicYear(
+        academicYearId
+      )
       await load()
     } catch (mutationError) {
       setError(getErrorMessage(mutationError))

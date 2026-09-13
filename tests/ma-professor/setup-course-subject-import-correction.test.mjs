@@ -146,11 +146,19 @@ test(
     )
     assert.match(
       modulesGuardSource,
-      /teachingAssignments:[\s\S]*!legacySubjectIds\.has/
+      /const remainingAssignments = useMemo\([\s\S]*!legacySubjectIds\.has/
     )
     assert.match(
       modulesGuardSource,
-      /modules:[\s\S]*!legacyAssignmentIds\.has/
+      /teachingAssignments:\s*remainingAssignments/
+    )
+    assert.match(
+      modulesGuardSource,
+      /const excludedAssignmentIds = useMemo\([\s\S]*legacyAssignmentIds[\s\S]*regularAssignmentIds/
+    )
+    assert.match(
+      modulesGuardSource,
+      /modules:[\s\S]*!excludedAssignmentIds\.has/
     )
     assert.match(
       modulesGuardSource,
