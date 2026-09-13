@@ -24,25 +24,27 @@ jobs:
           path = Path('tests/ma-professor/daily-pedagogical-workflow.test.mjs')
           text = path.read_text(encoding='utf-8')
           old = "\\1 'planned',\n          students:"
-          new = """test(
-  'future planned lesson can persist assessment results without attendance or GIAE side effects',
-  { concurrency: false },
-  async () => {
-    const state =
-      resetDailyState()
-    state.futureLesson = true
-
-    const repository =
-      new DailyWorkspaceRepository()
-
-    await loadLesson(repository)
-
-    const saved =
-      await repository.saveLesson(
-        lessonDraft({
-          summary: '',
-          status: 'planned',
-          students:"""
+          new = "\n".join([
+              "test(",
+              "  'future planned lesson can persist assessment results without attendance or GIAE side effects',",
+              "  { concurrency: false },",
+              "  async () => {",
+              "    const state =",
+              "      resetDailyState()",
+              "    state.futureLesson = true",
+              "",
+              "    const repository =",
+              "      new DailyWorkspaceRepository()",
+              "",
+              "    await loadLesson(repository)",
+              "",
+              "    const saved =",
+              "      await repository.saveLesson(",
+              "        lessonDraft({",
+              "          summary: '',",
+              "          status: 'planned',",
+              "          students:"
+          ])
           if text.count(old) != 1:
               raise SystemExit(f'Esperava 1 bloco malformado, encontrei {text.count(old)}.')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
