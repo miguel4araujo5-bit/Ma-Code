@@ -1,0 +1,55 @@
+name: Temporary future test repair
+
+on:
+  push:
+    branches:
+      - fix/ma-professor-future-actions-permissive
+
+permissions:
+  contents: write
+
+jobs:
+  repair-test:
+    if: ${{ !contains(github.event.head_commit.message, '[future-test-fixed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ma-professor-future-actions-permissive
+      - name: Repair malformed test block
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/ma-professor/daily-pedagogical-workflow.test.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "\\1 'planned',\n          students:"
+          new = """test(
+  'future planned lesson can persist assessment results without attendance or GIAE side effects',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    state.futureLesson = true
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    const saved =
+      await repository.saveLesson(
+        lessonDraft({
+          summary: '',
+          status: 'planned',
+          students:"""
+          if text.count(old) != 1:
+              raise SystemExit(f'Esperava 1 bloco malformado, encontrei {text.count(old)}.')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/ma-professor/daily-pedagogical-workflow.test.mjs
+          git commit -m "test: corrigir cenário de aula futura [future-test-fixed]"
+          git push origin HEAD:fix/ma-professor-future-actions-permissive
