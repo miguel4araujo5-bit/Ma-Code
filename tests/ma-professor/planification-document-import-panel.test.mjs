@@ -11,19 +11,31 @@ const panelSource = await readFile(
 )
 
 test(
-  'normal planification import accepts PDF and DOCX through the same validated document reader',
+  'normal planification import accepts PDF, DOCX and Excel through the same validated document reader',
   () => {
     assert.match(
       panelSource,
       /readModuleDocument/
     )
-    assert.match(
-      panelSource,
-      /\.pdf\|\.docx|pdf\|docx|\.pdf.*\.docx/is
-    )
+    for (const extension of [
+      '.pdf',
+      '.docx',
+      '.xlsx',
+      '.xlsm',
+      '.xls'
+    ]) {
+      assert.ok(
+        panelSource.includes(`'${extension}'`),
+        `supported document list should include ${extension}`
+      )
+    }
     assert.match(
       panelSource,
       /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/
+    )
+    assert.match(
+      panelSource,
+      /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/
     )
     assert.doesNotMatch(
       panelSource,
@@ -53,7 +65,7 @@ test(
     )
     assert.match(
       panelSource,
-      /PDF ou Word/
+      /PDF, Word ou Excel/
     )
     assert.doesNotMatch(
       panelSource,
