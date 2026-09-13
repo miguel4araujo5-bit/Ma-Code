@@ -356,7 +356,9 @@ export class AttendanceRepository
       )
 
     if (history.length > 0) {
-      return null
+      return sortLearningRecoveryAttempts(
+        history
+      )[history.length - 1]!
     }
 
     const module =
@@ -394,8 +396,13 @@ export class AttendanceRepository
     await this.initialize()
 
     const created =
-      await super.synchronizeRecoveriesForModule(
-        moduleId
+      (
+        await super.synchronizeRecoveriesForModule(
+          moduleId
+        )
+      ).filter(
+        recovery =>
+          recovery.status !== 'completed'
       )
 
     const candidates =
