@@ -2,6 +2,7 @@ import type {
   EntityId
 } from '../types'
 
+import FirstCycleAssessmentWorkspaceView from './FirstCycleAssessmentWorkspaceView'
 import ProfessionalAssessmentWorkspaceView from './ProfessionalAssessmentWorkspaceView'
 import RegularAssessmentWorkspaceView from './RegularAssessmentWorkspaceView'
 
@@ -10,6 +11,10 @@ import type {
   AssessmentWorkspaceSnapshot,
   SaveModuleFinalGradeInput
 } from './assessmentWorkspaceRepository'
+
+import {
+  getSummativeAssessmentScale
+} from './regularAssessmentScale'
 
 interface AssessmentWorkspaceViewProps {
   snapshot: AssessmentWorkspaceSnapshot
@@ -30,15 +35,28 @@ interface AssessmentWorkspaceViewProps {
 export default function AssessmentWorkspaceView(
   props: AssessmentWorkspaceViewProps
 ) {
-  return props.snapshot.selectedGroup
-    ?.educationType === 'regular'
+  const group =
+    props.snapshot.selectedGroup
+
+  if (
+    group?.educationType !== 'regular'
+  ) {
+    return (
+      <ProfessionalAssessmentWorkspaceView
+        {...props}
+      />
+    )
+  }
+
+  return getSummativeAssessmentScale(group)
+    .kind === 'qualitative'
     ? (
-        <RegularAssessmentWorkspaceView
+        <FirstCycleAssessmentWorkspaceView
           {...props}
         />
       )
     : (
-        <ProfessionalAssessmentWorkspaceView
+        <RegularAssessmentWorkspaceView
           {...props}
         />
       )
