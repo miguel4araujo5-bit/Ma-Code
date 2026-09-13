@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | main | 2026-09-13 |
+| Agente | Escala e experiência de avaliação final no ensino regular sem alterar o motor profissional | `feat/ma-professor-regular-assessment-scale` | `src/components/ma-professor/assessments/*regular*`; `AssessmentWorkspaceView.tsx`; `assessmentWorkspaceRepository.ts`; testes dedicados | ATIVO | `8a465d6490870b2e14e9c69b4ed3eeac5a34235e` | 2026-09-13 |
 
 ## Regras de utilização
 
