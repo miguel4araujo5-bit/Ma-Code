@@ -17,7 +17,8 @@ import {
   SettingsWorkspaceView
 } from '../settings/SettingsWorkspaceView'
 import type {
-  AcademicYear
+  AcademicYear,
+  SetupStepId
 } from '../types'
 import {
   AttendanceProductWorkspace
@@ -47,6 +48,18 @@ interface SuggestedAcademicYear {
   startDate: string
   endDate: string
 }
+
+const correctionCompletedSteps: SetupStepId[] = [
+  'academic_year',
+  'groups',
+  'subjects',
+  'modules',
+  'weekly_schedule',
+  'assessment_criteria',
+  'planifications',
+  'students',
+  'confirmation'
+]
 
 const menuCards: Array<{
   id: Exclude<MenuSection, 'home'>
@@ -141,6 +154,35 @@ function getErrorMessage(error: unknown) {
   }
 
   return 'Não foi possível preparar automaticamente o ano letivo.'
+}
+
+function normalizeCompletedCorrectionSnapshot(
+  snapshot: SetupSnapshot
+) {
+  const completed = Boolean(
+    snapshot.academicYear.setupCompletedAt ||
+    snapshot.progress?.completedAt
+  )
+
+  if (
+    !completed ||
+    !snapshot.progress
+  ) {
+    return snapshot
+  }
+
+  return {
+    ...snapshot,
+    progress: {
+      ...snapshot.progress,
+      completedSteps: Array.from(
+        new Set<SetupStepId>([
+          ...snapshot.progress.completedSteps,
+          ...correctionCompletedSteps
+        ])
+      )
+    }
+  }
 }
 
 async function ensureAcademicYear(): Promise<AcademicYear> {
@@ -378,7 +420,9 @@ export function ProductMenuWorkspace({
       .getSetupSnapshot(academicYear.id)
       .then(nextSnapshot => {
         if (!cancelled) {
-          setConfigurationSnapshot(nextSnapshot)
+          setConfigurationSnapshot(
+            normalizeCompletedCorrectionSnapshot(nextSnapshot)
+          )
         }
       })
       .catch(error => {
@@ -420,6 +464,14 @@ export function ProductMenuWorkspace({
     } finally {
       setChangingYear(false)
     }
+  }
+
+  function handleConfigurationSnapshotChange(
+    nextSnapshot: SetupSnapshot
+  ) {
+    setConfigurationSnapshot(
+      normalizeCompletedCorrectionSnapshot(nextSnapshot)
+    )
   }
 
   async function handleLeaveConfiguration() {
@@ -588,8 +640,8 @@ export function ProductMenuWorkspace({
             ) : configurationSnapshot ? (
               <SetupWizard
                 snapshot={configurationSnapshot}
-                onSnapshotChange={setConfigurationSnapshot}
-                onCompleted={setConfigurationSnapshot}
+                onSnapshotChange={handleConfigurationSnapshotChange}
+                onCompleted={handleConfigurationSnapshotChange}
                 initialMode="advanced"
               />
             ) : null}
