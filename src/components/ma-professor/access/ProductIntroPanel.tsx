@@ -8,7 +8,7 @@ const managementAreas = [
     {
         title: 'Planificações',
         description:
-            'Apoio na criação, organização e calendarização das planificações, conteúdos e UFCD ou módulos.'
+            'Apoio na criação, organização e calendarização das planificações e conteúdos, em disciplinas regulares, UFCD ou módulos.'
     },
     {
         title: 'Critérios de avaliação',
@@ -28,12 +28,12 @@ const managementAreas = [
     {
         title: 'Avaliações de período e finais',
         description:
-            'Acompanhe resultados e tenha a informação organizada para apoiar as avaliações de período, de UFCD ou módulo e finais.'
+            'Acompanhe resultados e tenha a informação organizada para apoiar as avaliações de período, de disciplina, de UFCD ou módulo e finais.'
     },
     {
         title: 'Sumários',
         description:
-            'Prepare, guarde e reutilize sumários, mantendo-os organizados por aula, turma e UFCD ou módulo.'
+            'Prepare, guarde e reutilize sumários, mantendo-os organizados por aula, turma, disciplina e componente curricular.'
     }
 ];
 
