@@ -215,3 +215,29 @@ test(
     )
   }
 )
+
+test(
+  'guided setup can safely reach final confirmation after students',
+  () => {
+    assert.match(
+      wizardSource,
+      /async function reconcileGuidedSetupProgress\([\s\S]*completeSetupStep/
+    )
+    assert.match(
+      wizardSource,
+      /async function openGuidedConfirmation\([\s\S]*reconcileGuidedSetupProgress[\s\S]*setGuidedStage\('confirmation'\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasGuidedSetupCoverage\(nextSnapshot\)[\s\S]*openGuidedConfirmation\(nextSnapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /guidedStage === 'confirmation'[\s\S]*<SetupConfirmationStep[\s\S]*onCompleted=\{onCompleted\}/
+    )
+    assert.match(
+      wizardSource,
+      /Concluir configuração/
+    )
+  }
+)
