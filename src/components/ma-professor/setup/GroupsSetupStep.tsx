@@ -23,7 +23,16 @@ type GroupsSetupStepProps = {
   onCompleted: (snapshot: SetupSnapshot) => void
 }
 
-type ProfessionalGrade =
+type GradeLevel =
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
   | '10'
   | '11'
   | '12'
@@ -34,16 +43,26 @@ type GroupEditForm = {
   gradeLevel: string
 }
 
-const professionalGrades: Array<{
-  id: ProfessionalGrade
+const gradeLevels: Array<{
+  id: GradeLevel
   label: string
 }> = [
+  { id: '1', label: '1.º' },
+  { id: '2', label: '2.º' },
+  { id: '3', label: '3.º' },
+  { id: '4', label: '4.º' },
+  { id: '5', label: '5.º' },
+  { id: '6', label: '6.º' },
+  { id: '7', label: '7.º' },
+  { id: '8', label: '8.º' },
+  { id: '9', label: '9.º' },
   { id: '10', label: '10.º' },
   { id: '11', label: '11.º' },
   { id: '12', label: '12.º' }
 ]
 
-const classLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+const classLetters =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
@@ -54,32 +73,39 @@ const DISCARD_STEP_MESSAGE =
 const DISCARD_EDIT_MESSAGE =
   'Existem alterações por guardar nesta turma. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(
+  error: unknown
+) {
   return error instanceof Error
     ? error.message
     : 'Ocorreu um erro inesperado.'
 }
 
-function getGradeLabel(grade: ProfessionalGrade) {
-  return professionalGrades.find(item => item.id === grade)?.label ?? grade
+function getGradeLabel(
+  grade: GradeLevel
+) {
+  return gradeLevels.find(
+    item => item.id === grade
+  )?.label ?? grade
 }
 
-function getGradeFromGroupName(name: string): ProfessionalGrade | null {
-  const trimmed = name.trim()
+function getGradeFromGroupName(
+  name: string
+): GradeLevel | null {
+  const match =
+    name.trim().match(
+      /^(1[0-2]|[1-9])(?:\.|º|\s)/
+    )
 
-  if (trimmed.startsWith('10')) {
-    return '10'
+  if (!match) {
+    return null
   }
 
-  if (trimmed.startsWith('11')) {
-    return '11'
-  }
-
-  if (trimmed.startsWith('12')) {
-    return '12'
-  }
-
-  return null
+  return gradeLevels.some(
+    item => item.id === match[1]
+  )
+    ? match[1] as GradeLevel
+    : null
 }
 
 function EmptyState() {
@@ -101,53 +127,97 @@ export default function GroupsSetupStep({
   onSnapshotChange,
   onCompleted
 }: GroupsSetupStepProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [selectedYears, setSelectedYears] = useState<ProfessionalGrade[]>([])
-  const [selectedGroupNames, setSelectedGroupNames] = useState<string[]>([])
-  const [editingGroupId, setEditingGroupId] = useState<EntityId | null>(null)
+  const rootRef =
+    useRef<HTMLDivElement>(null)
 
-  const [editForm, setEditForm] = useState<GroupEditForm>({
-    name: '',
-    courseName: '',
-    gradeLevel: ''
-  })
+  const [
+    selectedYears,
+    setSelectedYears
+  ] =
+    useState<GradeLevel[]>([])
 
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [
+    selectedGroupNames,
+    setSelectedGroupNames
+  ] =
+    useState<string[]>([])
 
-  const activeGroups = useMemo(
-    () => snapshot.groups.filter(group => group.active),
-    [snapshot.groups]
-  )
+  const [
+    editingGroupId,
+    setEditingGroupId
+  ] =
+    useState<EntityId | null>(null)
 
-  const existingNames = useMemo(
-    () =>
-      new Set(
-        snapshot.groups.map(group =>
-          group.name.trim().toLocaleLowerCase('pt-PT')
-        )
-      ),
-    [snapshot.groups]
-  )
+  const [
+    editForm,
+    setEditForm
+  ] =
+    useState<GroupEditForm>({
+      name: '',
+      courseName: '',
+      gradeLevel: ''
+    })
 
-  const editingGroup = editingGroupId
-    ? snapshot.groups.find(group => group.id === editingGroupId) ?? null
-    : null
+  const [busy, setBusy] =
+    useState(false)
+  const [error, setError] =
+    useState('')
+  const [success, setSuccess] =
+    useState('')
 
-  const hasPendingGroupSelection = selectedGroupNames.length > 0
-
-  const hasDirtyGroupEdit = Boolean(
-    editingGroup &&
-    (
-      editForm.name !== editingGroup.name ||
-      editForm.courseName !== editingGroup.courseName ||
-      editForm.gradeLevel !== editingGroup.gradeLevel
+  const activeGroups =
+    useMemo(
+      () =>
+        snapshot.groups.filter(
+          group => group.active
+        ),
+      [snapshot.groups]
     )
-  )
+
+  const existingNames =
+    useMemo(
+      () =>
+        new Set(
+          snapshot.groups.map(
+            group =>
+              group.name
+                .trim()
+                .toLocaleLowerCase(
+                  'pt-PT'
+                )
+          )
+        ),
+      [snapshot.groups]
+    )
+
+  const editingGroup =
+    editingGroupId
+      ? snapshot.groups.find(
+          group =>
+            group.id ===
+            editingGroupId
+        ) ?? null
+      : null
+
+  const hasPendingGroupSelection =
+    selectedGroupNames.length > 0
+
+  const hasDirtyGroupEdit =
+    Boolean(
+      editingGroup &&
+      (
+        editForm.name !==
+          editingGroup.name ||
+        editForm.courseName !==
+          editingGroup.courseName ||
+        editForm.gradeLevel !==
+          editingGroup.gradeLevel
+      )
+    )
 
   const hasUnsavedGroupSetupChanges =
-    hasPendingGroupSelection || hasDirtyGroupEdit
+    hasPendingGroupSelection ||
+    hasDirtyGroupEdit
 
   useMAProfessorUnsavedWorkspaceProtection(
     hasUnsavedGroupSetupChanges,
@@ -156,47 +226,81 @@ export default function GroupsSetupStep({
   )
 
   async function refreshSnapshot() {
-    const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
-      snapshot.academicYear.id
-    )
+    const nextSnapshot =
+      await maProfessorRepository.getSetupSnapshot(
+        snapshot.academicYear.id
+      )
 
-    onSnapshotChange(nextSnapshot)
+    onSnapshotChange(
+      nextSnapshot
+    )
 
     return nextSnapshot
   }
 
-  function toggleYear(grade: ProfessionalGrade) {
+  function toggleYear(
+    grade: GradeLevel
+  ) {
     setError('')
     setSuccess('')
 
-    setSelectedYears(current => {
-      if (current.includes(grade)) {
-        const prefix = `${getGradeLabel(grade)} `
+    setSelectedYears(
+      current => {
+        if (
+          current.includes(
+            grade
+          )
+        ) {
+          const prefix =
+            `${getGradeLabel(grade)} `
 
-        setSelectedGroupNames(groups =>
-          groups.filter(groupName => !groupName.startsWith(prefix))
-        )
+          setSelectedGroupNames(
+            groups =>
+              groups.filter(
+                groupName =>
+                  !groupName.startsWith(
+                    prefix
+                  )
+              )
+          )
 
-        return current.filter(item => item !== grade)
+          return current.filter(
+            item =>
+              item !== grade
+          )
+        }
+
+        return [
+          ...current,
+          grade
+        ]
       }
-
-      return [...current, grade]
-    })
+    )
   }
 
   function toggleGroup(
-    grade: ProfessionalGrade,
+    grade: GradeLevel,
     letter: string
   ) {
-    const groupName = `${getGradeLabel(grade)} ${letter}`
+    const groupName =
+      `${getGradeLabel(grade)} ${letter}`
 
     setError('')
     setSuccess('')
 
-    setSelectedGroupNames(current =>
-      current.includes(groupName)
-        ? current.filter(item => item !== groupName)
-        : [...current, groupName]
+    setSelectedGroupNames(
+      current =>
+        current.includes(
+          groupName
+        )
+          ? current.filter(
+              item =>
+                item !== groupName
+            )
+          : [
+              ...current,
+              groupName
+            ]
     )
   }
 
@@ -205,22 +309,40 @@ export default function GroupsSetupStep({
       return
     }
 
-    if (selectedYears.length === 0) {
-      setError('Selecione pelo menos um ano: 10.º, 11.º ou 12.º.')
+    if (
+      selectedYears.length === 0
+    ) {
+      setError(
+        'Selecione pelo menos um ano de escolaridade.'
+      )
       return
     }
 
-    if (selectedGroupNames.length === 0) {
-      setError('Selecione pelo menos uma turma.')
+    if (
+      selectedGroupNames.length === 0
+    ) {
+      setError(
+        'Selecione pelo menos uma turma.'
+      )
       return
     }
 
-    const newGroupNames = selectedGroupNames.filter(
-      name => !existingNames.has(name.toLocaleLowerCase('pt-PT'))
-    )
+    const newGroupNames =
+      selectedGroupNames.filter(
+        name =>
+          !existingNames.has(
+            name.toLocaleLowerCase(
+              'pt-PT'
+            )
+          )
+      )
 
-    if (newGroupNames.length === 0) {
-      setError('As turmas selecionadas já estão adicionadas.')
+    if (
+      newGroupNames.length === 0
+    ) {
+      setError(
+        'As turmas selecionadas já estão adicionadas.'
+      )
       return
     }
 
@@ -229,22 +351,31 @@ export default function GroupsSetupStep({
     setSuccess('')
 
     try {
-      for (const name of newGroupNames) {
-        const grade = getGradeFromGroupName(name)
+      for (
+        const name of
+        newGroupNames
+      ) {
+        const grade =
+          getGradeFromGroupName(
+            name
+          )
 
         await maProfessorRepository.createGroup({
-          academicYearId: snapshot.academicYear.id,
+          academicYearId:
+            snapshot.academicYear.id,
           name,
           courseName: '',
-          gradeLevel: grade
-            ? `${getGradeLabel(grade)} ano`
-            : '',
+          gradeLevel:
+            grade
+              ? `${getGradeLabel(
+                  grade
+                )} ano`
+              : '',
           active: true
         })
       }
 
       await refreshSnapshot()
-
       setSelectedGroupNames([])
 
       setSuccess(
@@ -252,20 +383,32 @@ export default function GroupsSetupStep({
           ? 'Turma adicionada.'
           : `${newGroupNames.length} turmas adicionadas.`
       )
-    } catch (submitError) {
-      setError(getErrorMessage(submitError))
+    } catch (
+      submitError
+    ) {
+      setError(
+        getErrorMessage(
+          submitError
+        )
+      )
     } finally {
       setBusy(false)
     }
   }
 
-  function startEditing(group: ClassGroup) {
-    setEditingGroupId(group.id)
+  function startEditing(
+    group: ClassGroup
+  ) {
+    setEditingGroupId(
+      group.id
+    )
 
     setEditForm({
       name: group.name,
-      courseName: group.courseName,
-      gradeLevel: group.gradeLevel
+      courseName:
+        group.courseName,
+      gradeLevel:
+        group.gradeLevel
     })
 
     setError('')
@@ -273,12 +416,20 @@ export default function GroupsSetupStep({
   }
 
   function confirmDiscardDirtyGroupEdit() {
-    return !hasDirtyGroupEdit || window.confirm(DISCARD_EDIT_MESSAGE)
+    return (
+      !hasDirtyGroupEdit ||
+      window.confirm(
+        DISCARD_EDIT_MESSAGE
+      )
+    )
   }
 
-  function requestStartEditing(group: ClassGroup) {
+  function requestStartEditing(
+    group: ClassGroup
+  ) {
     if (
-      group.id !== editingGroupId &&
+      group.id !==
+        editingGroupId &&
       !confirmDiscardDirtyGroupEdit()
     ) {
       return
@@ -289,7 +440,6 @@ export default function GroupsSetupStep({
 
   function cancelEditing() {
     setEditingGroupId(null)
-
     setEditForm({
       name: '',
       courseName: '',
@@ -298,7 +448,9 @@ export default function GroupsSetupStep({
   }
 
   function requestCancelEditing() {
-    if (!confirmDiscardDirtyGroupEdit()) {
+    if (
+      !confirmDiscardDirtyGroupEdit()
+    ) {
       return
     }
 
@@ -306,11 +458,15 @@ export default function GroupsSetupStep({
   }
 
   async function handleEditSubmit(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault()
 
-    if (!editingGroupId || busy) {
+    if (
+      !editingGroupId ||
+      busy
+    ) {
       return
     }
 
@@ -322,17 +478,28 @@ export default function GroupsSetupStep({
       await maProfessorRepository.updateGroup(
         editingGroupId,
         {
-          name: editForm.name,
-          courseName: editForm.courseName,
-          gradeLevel: editForm.gradeLevel
+          name:
+            editForm.name,
+          courseName:
+            editForm.courseName,
+          gradeLevel:
+            editForm.gradeLevel
         }
       )
 
       await refreshSnapshot()
       cancelEditing()
-      setSuccess('Turma atualizada.')
-    } catch (submitError) {
-      setError(getErrorMessage(submitError))
+      setSuccess(
+        'Turma atualizada.'
+      )
+    } catch (
+      submitError
+    ) {
+      setError(
+        getErrorMessage(
+          submitError
+        )
+      )
     } finally {
       setBusy(false)
     }
@@ -343,15 +510,21 @@ export default function GroupsSetupStep({
       return
     }
 
-    if (hasUnsavedGroupSetupChanges) {
+    if (
+      hasUnsavedGroupSetupChanges
+    ) {
       setError(
         'Existem alterações por guardar neste passo. Adicione as turmas selecionadas ou guarde/cancele a edição em curso antes de continuar.'
       )
       return
     }
 
-    if (activeGroups.length === 0) {
-      setError('Adicione pelo menos uma turma antes de continuar.')
+    if (
+      activeGroups.length === 0
+    ) {
+      setError(
+        'Adicione pelo menos uma turma antes de continuar.'
+      )
       return
     }
 
@@ -365,14 +538,25 @@ export default function GroupsSetupStep({
         'groups'
       )
 
-      const nextSnapshot = await maProfessorRepository.getSetupSnapshot(
-        snapshot.academicYear.id
-      )
+      const nextSnapshot =
+        await maProfessorRepository.getSetupSnapshot(
+          snapshot.academicYear.id
+        )
 
-      onSnapshotChange(nextSnapshot)
-      onCompleted(nextSnapshot)
-    } catch (continueError) {
-      setError(getErrorMessage(continueError))
+      onSnapshotChange(
+        nextSnapshot
+      )
+      onCompleted(
+        nextSnapshot
+      )
+    } catch (
+      continueError
+    ) {
+      setError(
+        getErrorMessage(
+          continueError
+        )
+      )
     } finally {
       setBusy(false)
     }
@@ -393,7 +577,7 @@ export default function GroupsSetupStep({
         </h2>
 
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-          No ensino profissional trabalhamos apenas com 10.º, 11.º e 12.º. Pode selecionar vários anos e várias turmas de uma só vez.
+          Selecione os anos e as turmas que leciona. Pode configurar turmas do 1.º ao 12.º ano, incluindo ensino básico, secundário e profissional.
         </p>
 
         <div className="mt-7">
@@ -401,26 +585,37 @@ export default function GroupsSetupStep({
             1. Selecione os anos
           </p>
 
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            {professionalGrades.map(grade => {
-              const selected = selectedYears.includes(grade.id)
+          <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
+            {gradeLevels.map(
+              grade => {
+                const selected =
+                  selectedYears.includes(
+                    grade.id
+                  )
 
-              return (
-                <button
-                  key={grade.id}
-                  type="button"
-                  onClick={() => toggleYear(grade.id)}
-                  className={`rounded-2xl border px-4 py-4 text-center text-lg font-black transition ${
-                    selected
-                      ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50'
-                      : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]'
-                  }`}
-                >
-                  {selected ? '✓ ' : ''}
-                  {grade.label}
-                </button>
-              )
-            })}
+                return (
+                  <button
+                    key={grade.id}
+                    type="button"
+                    onClick={() =>
+                      toggleYear(
+                        grade.id
+                      )
+                    }
+                    className={`rounded-2xl border px-4 py-4 text-center text-lg font-black transition ${
+                      selected
+                        ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50'
+                        : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]'
+                    }`}
+                  >
+                    {selected
+                      ? '✓ '
+                      : ''}
+                    {grade.label}
+                  </button>
+                )
+              }
+            )}
           </div>
         </div>
 
@@ -430,52 +625,75 @@ export default function GroupsSetupStep({
               2. Selecione as turmas
             </p>
 
-            {selectedYears.map(grade => (
-              <div
-                key={grade}
-                className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"
-              >
-                <p className="font-black text-white">
-                  {getGradeLabel(grade)} ano
-                </p>
+            {selectedYears.map(
+              grade => (
+                <div
+                  key={grade}
+                  className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"
+                >
+                  <p className="font-black text-white">
+                    {getGradeLabel(
+                      grade
+                    )} ano
+                  </p>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {classLetters.map(letter => {
-                    const groupName = `${getGradeLabel(grade)} ${letter}`
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {classLetters.map(
+                      letter => {
+                        const groupName =
+                          `${getGradeLabel(
+                            grade
+                          )} ${letter}`
 
-                    const selected =
-                      selectedGroupNames.includes(groupName)
+                        const selected =
+                          selectedGroupNames.includes(
+                            groupName
+                          )
 
-                    const alreadyAdded = existingNames.has(
-                      groupName.toLocaleLowerCase('pt-PT')
-                    )
+                        const alreadyAdded =
+                          existingNames.has(
+                            groupName.toLocaleLowerCase(
+                              'pt-PT'
+                            )
+                          )
 
-                    return (
-                      <button
-                        key={letter}
-                        type="button"
-                        disabled={alreadyAdded}
-                        onClick={() => toggleGroup(grade, letter)}
-                        className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-black transition ${
-                          alreadyAdded
-                            ? 'cursor-default border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-300/60'
-                            : selected
-                              ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50'
-                              : 'border-white/10 bg-slate-900/70 text-slate-300 hover:border-cyan-300/25'
-                        }`}
-                        title={
-                          alreadyAdded
-                            ? 'Turma já adicionada'
-                            : undefined
-                        }
-                      >
-                        {alreadyAdded ? '✓' : letter}
-                      </button>
-                    )
-                  })}
+                        return (
+                          <button
+                            key={letter}
+                            type="button"
+                            disabled={
+                              alreadyAdded
+                            }
+                            onClick={() =>
+                              toggleGroup(
+                                grade,
+                                letter
+                              )
+                            }
+                            className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-black transition ${
+                              alreadyAdded
+                                ? 'cursor-default border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-300/60'
+                                : selected
+                                  ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50'
+                                  : 'border-white/10 bg-slate-900/70 text-slate-300 hover:border-cyan-300/25'
+                            }`}
+                            title={
+                              alreadyAdded
+                                ? 'Turma já adicionada'
+                                : undefined
+                            }
+                          >
+                            {alreadyAdded
+                              ? '✓'
+                              : letter}
+                          </button>
+                        )
+                      }
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         ) : null}
 
@@ -488,23 +706,29 @@ export default function GroupsSetupStep({
             <div className="mt-3 flex flex-wrap gap-2">
               {selectedGroupNames
                 .slice()
-                .sort((left, right) =>
-                  left.localeCompare(
-                    right,
-                    'pt-PT',
-                    {
-                      numeric: true
-                    }
-                  )
+                .sort(
+                  (
+                    left,
+                    right
+                  ) =>
+                    left.localeCompare(
+                      right,
+                      'pt-PT',
+                      {
+                        numeric: true
+                      }
+                    )
                 )
-                .map(name => (
-                  <span
-                    key={name}
-                    className="rounded-full border border-cyan-300/20 bg-slate-950/50 px-3 py-1.5 text-xs font-black text-cyan-100"
-                  >
-                    {name}
-                  </span>
-                ))}
+                .map(
+                  name => (
+                    <span
+                      key={name}
+                      className="rounded-full border border-cyan-300/20 bg-slate-950/50 px-3 py-1.5 text-xs font-black text-cyan-100"
+                    >
+                      {name}
+                    </span>
+                  )
+                )}
             </div>
           </div>
         ) : null}
@@ -529,13 +753,20 @@ export default function GroupsSetupStep({
 
         <button
           type="button"
-          disabled={busy || selectedGroupNames.length === 0}
-          onClick={() => void handleAddSelected()}
+          disabled={
+            busy ||
+            selectedGroupNames.length ===
+              0
+          }
+          onClick={() =>
+            void handleAddSelected()
+          }
           className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {busy
             ? 'A guardar...'
-            : selectedGroupNames.length > 1
+            : selectedGroupNames.length >
+                1
               ? `Adicionar ${selectedGroupNames.length} turmas`
               : 'Adicionar turma'}
         </button>
@@ -545,7 +776,7 @@ export default function GroupsSetupStep({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-              Ensino profissional
+              Organização letiva
             </p>
 
             <h3 className="mt-2 text-xl font-black text-white">
@@ -562,44 +793,53 @@ export default function GroupsSetupStep({
           {activeGroups.length === 0 ? (
             <EmptyState />
           ) : (
-            activeGroups.map(group => (
-              <article
-                key={group.id}
-                className={`rounded-2xl border p-4 transition ${
-                  editingGroupId === group.id
-                    ? 'border-cyan-300/35 bg-cyan-300/[0.08]'
-                    : 'border-white/10 bg-white/[0.035]'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-black text-white">
-                      {group.name}
-                    </p>
+            activeGroups.map(
+              group => (
+                <article
+                  key={group.id}
+                  className={`rounded-2xl border p-4 transition ${
+                    editingGroupId ===
+                    group.id
+                      ? 'border-cyan-300/35 bg-cyan-300/[0.08]'
+                      : 'border-white/10 bg-white/[0.035]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-lg font-black text-white">
+                        {group.name}
+                      </p>
 
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {group.courseName ||
-                        group.gradeLevel ||
-                        'Ensino profissional'}
-                    </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {group.courseName ||
+                          group.gradeLevel ||
+                          'Turma'}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        requestStartEditing(
+                          group
+                        )
+                      }
+                      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100"
+                    >
+                      Editar
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => requestStartEditing(group)}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-cyan-300/25 hover:text-cyan-100"
-                  >
-                    Editar
-                  </button>
-                </div>
-              </article>
-            ))
+                </article>
+              )
+            )
           )}
         </div>
 
         {editingGroupId ? (
           <form
-            onSubmit={handleEditSubmit}
+            onSubmit={
+              handleEditSubmit
+            }
             className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.045] p-4"
           >
             <p className="text-sm font-black text-white">
@@ -615,14 +855,20 @@ export default function GroupsSetupStep({
                 <input
                   type="text"
                   value={editForm.name}
-                  onChange={event =>
-                    setEditForm(current => ({
-                      ...current,
-                      name: event.target.value
-                    }))
+                  onChange={
+                    event =>
+                      setEditForm(
+                        current => ({
+                          ...current,
+                          name:
+                            event.target.value
+                        })
+                      )
                   }
                   required
-                  className={inputClassName}
+                  className={
+                    inputClassName
+                  }
                 />
               </label>
 
@@ -633,15 +879,23 @@ export default function GroupsSetupStep({
 
                 <input
                   type="text"
-                  value={editForm.courseName}
-                  onChange={event =>
-                    setEditForm(current => ({
-                      ...current,
-                      courseName: event.target.value
-                    }))
+                  value={
+                    editForm.courseName
                   }
-                  placeholder="Técnico de Apoio Psicossocial"
-                  className={inputClassName}
+                  onChange={
+                    event =>
+                      setEditForm(
+                        current => ({
+                          ...current,
+                          courseName:
+                            event.target.value
+                        })
+                      )
+                  }
+                  placeholder="Ex.: Técnico de Apoio Psicossocial"
+                  className={
+                    inputClassName
+                  }
                 />
               </label>
 
@@ -652,14 +906,22 @@ export default function GroupsSetupStep({
 
                 <input
                   type="text"
-                  value={editForm.gradeLevel}
-                  onChange={event =>
-                    setEditForm(current => ({
-                      ...current,
-                      gradeLevel: event.target.value
-                    }))
+                  value={
+                    editForm.gradeLevel
                   }
-                  className={inputClassName}
+                  onChange={
+                    event =>
+                      setEditForm(
+                        current => ({
+                          ...current,
+                          gradeLevel:
+                            event.target.value
+                        })
+                      )
+                  }
+                  className={
+                    inputClassName
+                  }
                 />
               </label>
             </div>
@@ -676,7 +938,9 @@ export default function GroupsSetupStep({
               <button
                 type="button"
                 disabled={busy}
-                onClick={requestCancelEditing}
+                onClick={
+                  requestCancelEditing
+                }
                 className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-300"
               >
                 Cancelar
@@ -687,13 +951,19 @@ export default function GroupsSetupStep({
 
         <div className="mt-6 border-t border-white/10 pt-5">
           <p className="text-xs leading-5 text-slate-500">
-            Não precisa de indicar já o curso. Se quiser, pode acrescentá-lo numa turma através de “Editar”.
+            O curso ou área é opcional. Pode acrescentá-lo ou alterá-lo mais tarde através de “Editar”.
           </p>
 
           <button
             type="button"
-            disabled={busy || activeGroups.length === 0}
-            onClick={() => void handleContinue()}
+            disabled={
+              busy ||
+              activeGroups.length ===
+                0
+            }
+            onClick={() =>
+              void handleContinue()
+            }
             className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/45 bg-gradient-to-r from-cyan-300 via-sky-300 to-cyan-200 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
           >
             Continuar para as disciplinas
