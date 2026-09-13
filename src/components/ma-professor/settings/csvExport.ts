@@ -191,6 +191,12 @@ export function exportGradesCsv(
   const moduleById = new Map(
     data.modules.map(item => [item.id, item])
   )
+  const assignmentById = new Map(
+    data.teachingAssignments.map(item => [item.id, item])
+  )
+  const groupById = new Map(
+    data.groups.map(item => [item.id, item])
+  )
 
   return createCsv(
     [
@@ -202,22 +208,45 @@ export function exportGradesCsv(
       'ACS',
       'Autoavaliação',
       'Nota final',
+      'Menção qualitativa',
+      'Apreciação descritiva',
       'Confirmada em',
       'Nota'
     ],
     data.moduleFinalGrades.map(grade => {
       const student = studentById.get(grade.studentId)
       const module = moduleById.get(grade.moduleId)
+      const assignment = assignmentById.get(
+        grade.teachingAssignmentId
+      )
+      const group = assignment
+        ? groupById.get(assignment.groupId)
+        : null
+      const gradeLevel = group
+        ? Number.parseInt(group.gradeLevel, 10)
+        : null
+      const qualitativeContext =
+        group?.educationType === 'regular' &&
+        gradeLevel !== null &&
+        Number.isInteger(gradeLevel) &&
+        gradeLevel >= 1 &&
+        gradeLevel <= 4
 
       return [
         student?.name,
         student?.number,
         [module?.code, module?.name].filter(Boolean).join(' · '),
-        grade.calculatedAverage,
-        grade.suggestedGrade,
-        grade.usesAcs ? 'Sim' : 'Não',
-        grade.selfAssessmentGrade,
-        grade.finalGrade,
+        qualitativeContext ? '' : grade.calculatedAverage,
+        qualitativeContext ? '' : grade.suggestedGrade,
+        qualitativeContext
+          ? ''
+          : grade.usesAcs
+            ? 'Sim'
+            : 'Não',
+        qualitativeContext ? '' : grade.selfAssessmentGrade,
+        qualitativeContext ? '' : grade.finalGrade,
+        grade.qualitativeFinalGrade,
+        grade.descriptiveAssessment,
         grade.confirmedAt,
         grade.note
       ]
