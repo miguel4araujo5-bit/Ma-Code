@@ -27,16 +27,20 @@ for (const [name, source, jsx] of [
   ['view', viewSource, true],
   ['repository', repositorySource, false]
 ]) {
+  const compilerOptions = {
+    module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ES2022
+  }
+
+  if (jsx) {
+    compilerOptions.jsx =
+      ts.JsxEmit.ReactJSX
+  }
+
   const output = ts.transpileModule(
     source,
     {
-      compilerOptions: {
-        jsx: jsx
-          ? ts.JsxEmit.ReactJSX
-          : ts.JsxEmit.None,
-        module: ts.ModuleKind.ESNext,
-        target: ts.ScriptTarget.ES2022
-      },
+      compilerOptions,
       reportDiagnostics: true
     }
   )
