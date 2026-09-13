@@ -328,7 +328,11 @@ test(
     )
     assert.match(
       wrapperSource,
-      /suggestedGrade:\s*\n\s*calculation\.suggestedGrade/
+      /const allowNumericSuggestion\s*=\s*\n\s*usesNumericSuggestion\(\s*\n\s*snapshot\.selectedGroup/
+    )
+    assert.match(
+      wrapperSource,
+      /suggestedGrade:\s*\n\s*allowNumericSuggestion\s*\n\s*\? calculation\.suggestedGrade\s*\n\s*: null/
     )
   }
 )
