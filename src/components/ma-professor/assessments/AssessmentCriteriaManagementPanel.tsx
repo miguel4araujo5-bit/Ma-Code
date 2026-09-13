@@ -530,7 +530,7 @@ export default function AssessmentCriteriaManagementPanel({
           </div>
 
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Consulte e ajuste o conjunto aplicado a esta UFCD. As ponderações devem totalizar 100%.
+            Consulte e ajuste o conjunto de critérios selecionado. As ponderações devem totalizar 100%.
           </p>
         </div>
 
