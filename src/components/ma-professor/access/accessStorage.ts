@@ -3,6 +3,10 @@ import type {
   MAProfessorStoredAccess
 } from './accessTypes'
 
+import {
+  readMAProfessorAccessVerificationState
+} from './accessVerificationPolicy'
+
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-v1'
 
@@ -298,8 +302,26 @@ export function saveMAProfessorAccessSession(
   session:
     MAProfessorAccessSession
 ) {
+  const stored =
+    readMAProfessorStoredAccess()
+
+  const preserveVerifiedAt =
+    readMAProfessorAccessVerificationState() ===
+      'local-cache' &&
+    stored?.token === session.token &&
+    stored?.deviceId === session.deviceId &&
+    typeof stored.checkedAt ===
+      'string' &&
+    Boolean(stored.checkedAt)
+
   saveMAProfessorStoredAccess(
-    session
+    preserveVerifiedAt
+      ? {
+          ...session,
+          checkedAt:
+            stored.checkedAt
+        }
+      : session
   )
 }
 
