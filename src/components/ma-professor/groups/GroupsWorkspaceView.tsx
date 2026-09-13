@@ -17,6 +17,7 @@ import {
 } from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
+  EducationType,
   EntityId,
   Student
 } from '../types'
@@ -38,31 +39,21 @@ interface GroupsWorkspaceViewProps {
   loading?: boolean
   error?: string
   onRefresh?: () => void
-
-  onFiltersChange: (
-    filters: GroupsWorkspaceFilters
-  ) => void
-
-  onCreateGroup: (
-    input: CreateGroupWorkspaceInput
-  ) => Promise<void> | void
-
+  onFiltersChange: (filters: GroupsWorkspaceFilters) => void
+  onCreateGroup: (input: CreateGroupWorkspaceInput) => Promise<void> | void
   onUpdateGroup: (
     groupId: EntityId,
     changes: UpdateGroupWorkspaceInput
   ) => Promise<void> | void
-
   onSaveStudents: (
     academicYearId: EntityId,
     groupId: EntityId,
     drafts: StudentDraft[]
   ) => Promise<void> | void
-
   onUpdateStudent: (
     studentId: EntityId,
     changes: UpdateStudentWorkspaceInput
   ) => Promise<void> | void
-
   onSetStudentActive: (
     studentId: EntityId,
     active: boolean
@@ -73,6 +64,7 @@ interface GroupFormState {
   name: string
   courseName: string
   gradeLevel: string
+  educationType: EducationType
   active: boolean
 }
 
@@ -82,10 +74,7 @@ interface StudentFormState {
   notes: string
 }
 
-type StudentForms = Record<
-  EntityId,
-  StudentFormState
->
+type StudentForms = Record<EntityId, StudentFormState>
 
 type Feedback =
   | {
@@ -95,14 +84,20 @@ type Feedback =
   | null
 
 const fieldClass =
-  'w-full rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60'
+  'w-full rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60'
 
-function getErrorMessage(
-  error: unknown
-) {
+function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : 'Ocorreu um erro inesperado.'
+}
+
+function getEducationTypeLabel(
+  educationType: EducationType
+) {
+  return educationType === 'regular'
+    ? 'Ensino regular'
+    : 'Ensino profissional'
 }
 
 function createEmptyGroupForm(): GroupFormState {
@@ -110,6 +105,7 @@ function createEmptyGroupForm(): GroupFormState {
     name: '',
     courseName: '',
     gradeLevel: '',
+    educationType: 'professional',
     active: true
   }
 }
@@ -117,14 +113,16 @@ function createEmptyGroupForm(): GroupFormState {
 function createGroupForm(
   snapshot: GroupsWorkspaceSnapshot
 ): GroupFormState {
-  const group =
-    snapshot.selectedGroup
+  const group = snapshot.selectedGroup
 
   return group
     ? {
         name: group.name,
         courseName: group.courseName,
         gradeLevel: group.gradeLevel,
+        educationType:
+          group.educationType ??
+          'professional',
         active: group.active
       }
     : createEmptyGroupForm()
@@ -134,31 +132,23 @@ function createStudentForms(
   students: Student[]
 ): StudentForms {
   return Object.fromEntries(
-    students.map(
-      student => [
-        student.id,
-        {
-          number: student.number,
-          name: student.name,
-          notes: student.notes
-        }
-      ]
-    )
+    students.map(student => [
+      student.id,
+      {
+        number: student.number,
+        name: student.name,
+        notes: student.notes
+      }
+    ])
   ) as StudentForms
 }
 
-function splitStudentLine(
-  line: string
-) {
-  if (
-    line.includes('\t')
-  ) {
+function splitStudentLine(line: string) {
+  if (line.includes('\t')) {
     return line.split('\t')
   }
 
-  if (
-    line.includes(';')
-  ) {
+  if (line.includes(';')) {
     return line.split(';')
   }
 
@@ -168,35 +158,25 @@ function splitStudentLine(
 function parseStudents(
   value: string
 ): StudentDraft[] {
-  const drafts =
-    value
-      .split(/\r?\n/)
-      .map(
-        line =>
-          line.trim()
+  const drafts = value
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const [
+        number = '',
+        name = '',
+        ...noteParts
+      ] = splitStudentLine(line).map(
+        part => part.trim()
       )
-      .filter(Boolean)
-      .map(
-        line => {
-          const [
-            number = '',
-            name = '',
-            ...noteParts
-          ] = splitStudentLine(
-            line
-          ).map(
-            part =>
-              part.trim()
-          )
 
-          return {
-            number,
-            name,
-            notes:
-              noteParts.join(' · ')
-          }
-        }
-      )
+      return {
+        number,
+        name,
+        notes: noteParts.join(' · ')
+      }
+    })
 
   if (
     drafts.some(
@@ -222,9 +202,7 @@ function FieldLabel({
 }) {
   return (
     <span className="mb-2 flex items-center justify-between gap-3 text-xs font-bold text-slate-300">
-      <span>
-        {children}
-      </span>
+      <span>{children}</span>
 
       {optional ? (
         <span className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-slate-600">
@@ -247,21 +225,47 @@ function MetricCard({
   className: string
 }) {
   return (
-    <article
-      className={`rounded-2xl border p-4 ${className}`}
-    >
+    <article className={`rounded-2xl border p-4 ${className}`}>
       <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-
       <p className="mt-2 text-2xl font-black text-white">
         {value}
       </p>
-
       <p className="mt-1 text-xs leading-5 text-slate-500">
         {detail}
       </p>
     </article>
+  )
+}
+
+function EducationTypeSelect({
+  value,
+  disabled,
+  onChange
+}: {
+  value: EducationType
+  disabled: boolean
+  onChange: (value: EducationType) => void
+}) {
+  return (
+    <select
+      value={value}
+      onChange={event =>
+        onChange(
+          event.target.value as EducationType
+        )
+      }
+      disabled={disabled}
+      className={fieldClass}
+    >
+      <option value="professional">
+        Ensino profissional
+      </option>
+      <option value="regular">
+        Ensino regular
+      </option>
+    </select>
   )
 }
 
@@ -278,30 +282,18 @@ export default function GroupsWorkspaceView({
   onSetStudentActive
 }: GroupsWorkspaceViewProps) {
   const rootRef =
-    useRef<HTMLDivElement>(
-      null
-    )
+    useRef<HTMLDivElement>(null)
 
   const persistedGroupForm =
     useMemo(
-      () =>
-        createGroupForm(
-          snapshot
-        ),
-      [
-        snapshot.generatedAt
-      ]
+      () => createGroupForm(snapshot),
+      [snapshot.generatedAt]
     )
 
   const persistedStudentForms =
     useMemo(
-      () =>
-        createStudentForms(
-          snapshot.students
-        ),
-      [
-        snapshot.generatedAt
-      ]
+      () => createStudentForms(snapshot.students),
+      [snapshot.generatedAt]
     )
 
   const previousPersistedGroupFormRef =
@@ -317,65 +309,35 @@ export default function GroupsWorkspaceView({
   const discardOnNextSnapshotRef =
     useRef(false)
 
-  const [
-    showCreateGroup,
-    setShowCreateGroup
-  ] =
+  const [showCreateGroup, setShowCreateGroup] =
     useState(false)
 
-  const [
-    newGroup,
-    setNewGroup
-  ] =
+  const [newGroup, setNewGroup] =
     useState<GroupFormState>(
       createEmptyGroupForm
     )
 
-  const [
-    groupForm,
-    setGroupForm
-  ] =
+  const [groupForm, setGroupForm] =
     useState<GroupFormState>(
-      () =>
-        persistedGroupForm
+      () => persistedGroupForm
     )
 
-  const [
-    studentForms,
-    setStudentForms
-  ] =
+  const [studentForms, setStudentForms] =
     useState<StudentForms>(
-      () =>
-        persistedStudentForms
+      () => persistedStudentForms
     )
 
-  const [
-    importText,
-    setImportText
-  ] =
+  const [importText, setImportText] =
     useState('')
 
-  const [
-    includeInactive,
-    setIncludeInactive
-  ] =
+  const [includeInactive, setIncludeInactive] =
     useState(false)
 
-  const [
-    busyAction,
-    setBusyAction
-  ] =
-    useState<string | null>(
-      null
-    )
+  const [busyAction, setBusyAction] =
+    useState<string | null>(null)
 
-  const [
-    feedback,
-    setFeedback
-  ] =
-    useState<Feedback>(
-      null
-    )
+  const [feedback, setFeedback] =
+    useState<Feedback>(null)
 
   useEffect(() => {
     const previousPersistedGroupForm =
@@ -384,43 +346,37 @@ export default function GroupsWorkspaceView({
     const previousPersistedStudentForms =
       previousPersistedStudentFormsRef.current
 
-    setGroupForm(
-      current =>
-        discardOnNextSnapshotRef.current
-          ? persistedGroupForm
-          : reconcileMAProfessorDraftRecord(
-              {
-                group:
-                  previousPersistedGroupForm
-              },
-              {
-                group:
-                  current
-              },
-              {
-                group:
-                  persistedGroupForm
-              }
-            ).group
+    setGroupForm(current =>
+      discardOnNextSnapshotRef.current
+        ? persistedGroupForm
+        : reconcileMAProfessorDraftRecord(
+            {
+              group:
+                previousPersistedGroupForm
+            },
+            {
+              group: current
+            },
+            {
+              group:
+                persistedGroupForm
+            }
+          ).group
     )
 
-    setStudentForms(
-      current =>
-        discardOnNextSnapshotRef.current
-          ? persistedStudentForms
-          : reconcileMAProfessorDraftRecord(
-              previousPersistedStudentForms,
-              current,
-              persistedStudentForms
-            )
+    setStudentForms(current =>
+      discardOnNextSnapshotRef.current
+        ? persistedStudentForms
+        : reconcileMAProfessorDraftRecord(
+            previousPersistedStudentForms,
+            current,
+            persistedStudentForms
+          )
     )
 
-    discardOnNextSnapshotRef.current =
-      false
-
+    discardOnNextSnapshotRef.current = false
     previousPersistedGroupFormRef.current =
       persistedGroupForm
-
     previousPersistedStudentFormsRef.current =
       persistedStudentForms
   }, [
@@ -433,19 +389,10 @@ export default function GroupsWorkspaceView({
     useMemo(
       () =>
         hasMAProfessorDirtyDraftRecord(
-          {
-            group:
-              persistedGroupForm
-          },
-          {
-            group:
-              groupForm
-          }
+          { group: persistedGroupForm },
+          { group: groupForm }
         ),
-      [
-        groupForm,
-        persistedGroupForm
-      ]
+      [groupForm, persistedGroupForm]
     )
 
   const studentFormsDirty =
@@ -463,9 +410,7 @@ export default function GroupsWorkspaceView({
 
   const newGroupDirty =
     showCreateGroup &&
-    JSON.stringify(
-      newGroup
-    ) !==
+    JSON.stringify(newGroup) !==
       JSON.stringify(
         createEmptyGroupForm()
       )
@@ -474,9 +419,7 @@ export default function GroupsWorkspaceView({
     groupFormDirty ||
     studentFormsDirty ||
     newGroupDirty ||
-    Boolean(
-      importText.trim()
-    )
+    Boolean(importText.trim())
 
   function confirmDiscardUnsavedChanges() {
     return (
@@ -495,22 +438,36 @@ export default function GroupsWorkspaceView({
 
   const busy =
     loading ||
+    Boolean(busyAction)
+
+  const selectedGroupRow =
+    snapshot.selectedGroup
+      ? snapshot.groups.find(
+          row =>
+            row.group.id ===
+            snapshot.selectedGroup?.id
+        ) ?? null
+      : null
+
+  const selectedGroupHasAssignments =
     Boolean(
-      busyAction
+      selectedGroupRow &&
+      selectedGroupRow.assignmentCount > 0
     )
+
+  const selectedEducationType =
+    snapshot.selectedGroup?.educationType ??
+    'professional'
 
   const visibleStudents =
     includeInactive
       ? snapshot.students
       : snapshot.students.filter(
-          student =>
-            student.active
+          student => student.active
         )
 
   function discardLocalDraftsOnNextSnapshot() {
-    discardOnNextSnapshotRef.current =
-      true
-
+    discardOnNextSnapshotRef.current = true
     setImportText('')
     setNewGroup(
       createEmptyGroupForm()
@@ -560,17 +517,14 @@ export default function GroupsWorkspaceView({
       return
     }
 
-    if (
-      showCreateGroup
-    ) {
+    if (showCreateGroup) {
       setNewGroup(
         createEmptyGroupForm()
       )
     }
 
     setShowCreateGroup(
-      current =>
-        !current
+      current => !current
     )
     setFeedback(null)
   }
@@ -580,33 +534,24 @@ export default function GroupsWorkspaceView({
     action: () => Promise<void> | void,
     successMessage: string
   ) {
-    if (
-      busyAction
-    ) {
+    if (busyAction) {
       return
     }
 
-    setBusyAction(
-      actionId
-    )
+    setBusyAction(actionId)
     setFeedback(null)
 
     try {
       await action()
-
       setFeedback({
         tone: 'success',
         message: successMessage
       })
-    } catch (
-      actionError
-    ) {
+    } catch (actionError) {
       setFeedback({
         tone: 'error',
         message:
-          getErrorMessage(
-            actionError
-          )
+          getErrorMessage(actionError)
       })
     } finally {
       setBusyAction(null)
@@ -619,12 +564,10 @@ export default function GroupsWorkspaceView({
     key: Key,
     value: GroupFormState[Key]
   ) {
-    setNewGroup(
-      current => ({
-        ...current,
-        [key]: value
-      })
-    )
+    setNewGroup(current => ({
+      ...current,
+      [key]: value
+    }))
   }
 
   function updateGroupForm<
@@ -633,42 +576,31 @@ export default function GroupsWorkspaceView({
     key: Key,
     value: GroupFormState[Key]
   ) {
-    setGroupForm(
-      current => ({
-        ...current,
-        [key]: value
-      })
-    )
+    setGroupForm(current => ({
+      ...current,
+      [key]: value
+    }))
   }
 
   function updateStudentForm(
     studentId: EntityId,
     changes: Partial<StudentFormState>
   ) {
-    setStudentForms(
-      current => ({
-        ...current,
-
-        [studentId]: {
-          number:
-            current[studentId]
-              ?.number ??
-            '',
-
-          name:
-            current[studentId]
-              ?.name ??
-            '',
-
-          notes:
-            current[studentId]
-              ?.notes ??
-            '',
-
-          ...changes
-        }
-      })
-    )
+    setStudentForms(current => ({
+      ...current,
+      [studentId]: {
+        number:
+          current[studentId]?.number ??
+          '',
+        name:
+          current[studentId]?.name ??
+          '',
+        notes:
+          current[studentId]?.notes ??
+          '',
+        ...changes
+      }
+    }))
   }
 
   async function createGroup(
@@ -682,15 +614,13 @@ export default function GroupsWorkspaceView({
         await onCreateGroup({
           academicYearId:
             snapshot.academicYear.id,
-
-          name:
-            newGroup.name,
-
+          name: newGroup.name,
           courseName:
             newGroup.courseName,
-
           gradeLevel:
-            newGroup.gradeLevel
+            newGroup.gradeLevel,
+          educationType:
+            newGroup.educationType
         })
 
         setNewGroup(
@@ -707,9 +637,7 @@ export default function GroupsWorkspaceView({
   ) {
     event.preventDefault()
 
-    if (
-      !snapshot.selectedGroup
-    ) {
+    if (!snapshot.selectedGroup) {
       return
     }
 
@@ -729,33 +657,24 @@ export default function GroupsWorkspaceView({
   ) {
     event.preventDefault()
 
-    const group =
-      snapshot.selectedGroup
+    const group = snapshot.selectedGroup
 
-    if (
-      !group
-    ) {
+    if (!group) {
       return
     }
 
     let drafts: StudentDraft[]
 
     try {
-      drafts =
-        parseStudents(
-          importText
-        )
-    } catch (
-      parseError
-    ) {
+      drafts = parseStudents(
+        importText
+      )
+    } catch (parseError) {
       setFeedback({
         tone: 'error',
         message:
-          getErrorMessage(
-            parseError
-          )
+          getErrorMessage(parseError)
       })
-
       return
     }
 
@@ -767,7 +686,6 @@ export default function GroupsWorkspaceView({
           group.id,
           drafts
         )
-
         setImportText('')
       },
       drafts.length === 1
@@ -780,13 +698,9 @@ export default function GroupsWorkspaceView({
     student: Student
   ) {
     const form =
-      studentForms[
-        student.id
-      ]
+      studentForms[student.id]
 
-    if (
-      !form
-    ) {
+    if (!form) {
       return
     }
 
@@ -830,7 +744,6 @@ export default function GroupsWorkspaceView({
                 <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-cyan-100">
                   Turmas e alunos
                 </span>
-
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.65rem] font-bold text-slate-400">
                   {snapshot.academicYear.name}
                 </span>
@@ -841,16 +754,14 @@ export default function GroupsWorkspaceView({
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Consulte a turma, atualize os alunos e acrescente novos nomes sem repetir a configuração inicial.
+                Consulte a turma, atualize os alunos e acrescente novas turmas sem repetir a configuração inicial.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={
-                  handleCreateGroupToggle
-                }
+                onClick={handleCreateGroupToggle}
                 disabled={busy}
                 className="rounded-2xl border border-cyan-200/25 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-50"
               >
@@ -862,10 +773,7 @@ export default function GroupsWorkspaceView({
               <button
                 type="button"
                 onClick={handleRefresh}
-                disabled={
-                  busy ||
-                  !onRefresh
-                }
+                disabled={busy || !onRefresh}
                 className="rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
               >
                 {loading
@@ -887,43 +795,38 @@ export default function GroupsWorkspaceView({
                 snapshot.filters.groupId ??
                 ''
               }
-              onChange={
-                handleGroupFilterChange
-              }
+              onChange={handleGroupFilterChange}
               disabled={
                 busy ||
-                snapshot.groups.length ===
-                  0
+                snapshot.groups.length === 0
               }
               className="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {snapshot.groups.length ===
-              0 ? (
+              {snapshot.groups.length === 0 ? (
                 <option value="">
                   Sem turmas disponíveis
                 </option>
               ) : null}
 
-              {snapshot.groups.map(
-                row => (
-                  <option
-                    key={
-                      row.group.id
-                    }
-                    value={
-                      row.group.id
-                    }
-                  >
-                    {row.group.name}
-                    {row.group.active
-                      ? ''
-                      : ' · inativa'}
-                    {' · '}
-                    {row.activeStudentCount}
-                    {' alunos'}
-                  </option>
-                )
-              )}
+              {snapshot.groups.map(row => (
+                <option
+                  key={row.group.id}
+                  value={row.group.id}
+                >
+                  {row.group.name}
+                  {' · '}
+                  {getEducationTypeLabel(
+                    row.group.educationType ??
+                    'professional'
+                  )}
+                  {row.group.active
+                    ? ''
+                    : ' · inativa'}
+                  {' · '}
+                  {row.activeStudentCount}
+                  {' alunos'}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -942,8 +845,7 @@ export default function GroupsWorkspaceView({
         <div
           role="status"
           className={`rounded-2xl border p-4 text-sm leading-6 ${
-            feedback.tone ===
-            'success'
+            feedback.tone === 'success'
               ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-50'
               : 'border-rose-300/20 bg-rose-300/[0.07] text-rose-50'
           }`}
@@ -960,25 +862,17 @@ export default function GroupsWorkspaceView({
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
             Nova turma
           </p>
-
           <h2 className="mt-3 text-xl font-black text-white">
             Criar turma
           </h2>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label>
-              <FieldLabel>
-                Nome da turma
-              </FieldLabel>
-
+              <FieldLabel>Nome da turma</FieldLabel>
               <input
                 type="text"
-                value={
-                  newGroup.name
-                }
-                onChange={(
-                  event: ChangeEvent<HTMLInputElement>
-                ) =>
+                value={newGroup.name}
+                onChange={event =>
                   updateNewGroup(
                     'name',
                     event.target.value
@@ -992,18 +886,25 @@ export default function GroupsWorkspaceView({
             </label>
 
             <label>
-              <FieldLabel optional>
-                Curso
-              </FieldLabel>
+              <FieldLabel>Tipo de ensino</FieldLabel>
+              <EducationTypeSelect
+                value={newGroup.educationType}
+                disabled={busy}
+                onChange={value =>
+                  updateNewGroup(
+                    'educationType',
+                    value
+                  )
+                }
+              />
+            </label>
 
+            <label>
+              <FieldLabel optional>Curso ou área</FieldLabel>
               <input
                 type="text"
-                value={
-                  newGroup.courseName
-                }
-                onChange={(
-                  event: ChangeEvent<HTMLInputElement>
-                ) =>
+                value={newGroup.courseName}
+                onChange={event =>
                   updateNewGroup(
                     'courseName',
                     event.target.value
@@ -1016,18 +917,11 @@ export default function GroupsWorkspaceView({
             </label>
 
             <label>
-              <FieldLabel optional>
-                Ano
-              </FieldLabel>
-
+              <FieldLabel optional>Ano</FieldLabel>
               <input
                 type="text"
-                value={
-                  newGroup.gradeLevel
-                }
-                onChange={(
-                  event: ChangeEvent<HTMLInputElement>
-                ) =>
+                value={newGroup.gradeLevel}
+                onChange={event =>
                   updateNewGroup(
                     'gradeLevel',
                     event.target.value
@@ -1040,14 +934,17 @@ export default function GroupsWorkspaceView({
             </label>
           </div>
 
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Escolha ensino regular para turmas do ensino básico/secundário sem organização por UFCD; escolha profissional quando a disciplina é organizada por UFCD ou módulos.
+          </p>
+
           <div className="mt-5 flex justify-end">
             <button
               type="submit"
               disabled={busy}
               className="rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:opacity-60"
             >
-              {busyAction ===
-              'create-group'
+              {busyAction === 'create-group'
                 ? 'A criar...'
                 : 'Criar turma'}
             </button>
@@ -1058,46 +955,32 @@ export default function GroupsWorkspaceView({
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           label="Turmas"
-          value={
-            snapshot.totals.groupCount
-          }
+          value={snapshot.totals.groupCount}
           detail={`${snapshot.totals.activeGroupCount} ativas.`}
           className="border-cyan-300/15 bg-cyan-300/[0.035]"
         />
-
         <MetricCard
           label="Alunos ativos"
-          value={
-            snapshot.totals.activeStudentCount
-          }
+          value={snapshot.totals.activeStudentCount}
           detail="Incluídos nas aulas e avaliações."
           className="border-emerald-300/15 bg-emerald-300/[0.035]"
         />
-
         <MetricCard
           label="Alunos inativos"
-          value={
-            snapshot.totals.inactiveStudentCount
-          }
+          value={snapshot.totals.inactiveStudentCount}
           detail="Mantidos no histórico."
           className="border-slate-300/15 bg-slate-300/[0.035]"
         />
-
         <MetricCard
           label="Disciplinas"
-          value={
-            snapshot.totals.assignmentCount
-          }
+          value={snapshot.totals.assignmentCount}
           detail="Associações ativas às turmas."
           className="border-violet-300/15 bg-violet-300/[0.035]"
         />
-
         <MetricCard
-          label="UFCD"
-          value={
-            snapshot.totals.moduleCount
-          }
-          detail="UFCD ou módulos ativos."
+          label="Unidades"
+          value={snapshot.totals.moduleCount}
+          detail="UFCD, módulos ou componentes ativos."
           className="border-amber-300/15 bg-amber-300/[0.035]"
         />
       </section>
@@ -1107,7 +990,6 @@ export default function GroupsWorkspaceView({
           <p className="text-lg font-black text-white">
             Ainda não existem turmas.
           </p>
-
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
             Crie a primeira turma para depois adicionar os alunos.
           </p>
@@ -1123,11 +1005,16 @@ export default function GroupsWorkspaceView({
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
                   Dados da turma
                 </p>
-
-                <h2 className="mt-3 text-xl font-black text-white">
-                  {snapshot.selectedGroup.name}
-                </h2>
-
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-black text-white">
+                    {snapshot.selectedGroup.name}
+                  </h2>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-300">
+                    {getEducationTypeLabel(
+                      selectedEducationType
+                    )}
+                  </span>
+                </div>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   Alterar estes dados não elimina aulas, avaliações ou faltas já registadas.
                 </p>
@@ -1146,20 +1033,13 @@ export default function GroupsWorkspaceView({
               </span>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <label>
-                <FieldLabel>
-                  Nome da turma
-                </FieldLabel>
-
+                <FieldLabel>Nome da turma</FieldLabel>
                 <input
                   type="text"
-                  value={
-                    groupForm.name
-                  }
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
+                  value={groupForm.name}
+                  onChange={event =>
                     updateGroupForm(
                       'name',
                       event.target.value
@@ -1172,18 +1052,28 @@ export default function GroupsWorkspaceView({
               </label>
 
               <label>
-                <FieldLabel optional>
-                  Curso
-                </FieldLabel>
+                <FieldLabel>Tipo de ensino</FieldLabel>
+                <EducationTypeSelect
+                  value={groupForm.educationType}
+                  disabled={
+                    busy ||
+                    selectedGroupHasAssignments
+                  }
+                  onChange={value =>
+                    updateGroupForm(
+                      'educationType',
+                      value
+                    )
+                  }
+                />
+              </label>
 
+              <label>
+                <FieldLabel optional>Curso ou área</FieldLabel>
                 <input
                   type="text"
-                  value={
-                    groupForm.courseName
-                  }
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
+                  value={groupForm.courseName}
+                  onChange={event =>
                     updateGroupForm(
                       'courseName',
                       event.target.value
@@ -1195,18 +1085,11 @@ export default function GroupsWorkspaceView({
               </label>
 
               <label>
-                <FieldLabel optional>
-                  Ano
-                </FieldLabel>
-
+                <FieldLabel optional>Ano</FieldLabel>
                 <input
                   type="text"
-                  value={
-                    groupForm.gradeLevel
-                  }
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
+                  value={groupForm.gradeLevel}
+                  onChange={event =>
                     updateGroupForm(
                       'gradeLevel',
                       event.target.value
@@ -1218,15 +1101,17 @@ export default function GroupsWorkspaceView({
               </label>
             </div>
 
+            {selectedGroupHasAssignments ? (
+              <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-xs leading-5 text-amber-100/80">
+                O tipo de ensino fica bloqueado depois de existirem disciplinas associadas, para preservar a organização curricular já criada.
+              </p>
+            ) : null}
+
             <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
               <input
                 type="checkbox"
-                checked={
-                  groupForm.active
-                }
-                onChange={(
-                  event: ChangeEvent<HTMLInputElement>
-                ) =>
+                checked={groupForm.active}
+                onChange={event =>
                   updateGroupForm(
                     'active',
                     event.target.checked
@@ -1235,12 +1120,10 @@ export default function GroupsWorkspaceView({
                 disabled={busy}
                 className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
               />
-
               <span>
                 <span className="block text-sm font-black text-white">
                   Turma ativa
                 </span>
-
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
                   Desative apenas quando já não pretende utilizar a turma. O histórico será preservado.
                 </span>
@@ -1253,8 +1136,7 @@ export default function GroupsWorkspaceView({
                 disabled={busy}
                 className="rounded-xl border border-violet-200/25 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-60"
               >
-                {busyAction ===
-                'save-group'
+                {busyAction === 'save-group'
                   ? 'A guardar...'
                   : 'Guardar turma'}
               </button>
@@ -1263,62 +1145,55 @@ export default function GroupsWorkspaceView({
 
           <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-              Disciplinas e UFCD
+              {selectedEducationType === 'regular'
+                ? 'Disciplinas'
+                : 'Disciplinas e UFCD'}
             </p>
-
             <h2 className="mt-3 text-xl font-black text-white">
               Organização letiva da turma
             </h2>
 
-            {snapshot.teachingRows.length ===
-            0 ? (
+            {snapshot.teachingRows.length === 0 ? (
               <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-5 text-sm leading-6 text-slate-500">
                 Esta turma ainda não possui disciplinas associadas.
               </div>
             ) : (
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {snapshot.teachingRows.map(
-                  row => (
-                    <article
-                      key={
-                        row.assignment.id
-                      }
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
-                    >
-                      <p className="text-sm font-black text-white">
-                        {row.label}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {row.modules.length}{' '}
-                        {row.modules.length ===
-                        1
+                {snapshot.teachingRows.map(row => (
+                  <article
+                    key={row.assignment.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <p className="text-sm font-black text-white">
+                      {row.label}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {row.modules.length}{' '}
+                      {selectedEducationType === 'regular'
+                        ? row.modules.length === 1
+                          ? 'componente curricular'
+                          : 'componentes curriculares'
+                        : row.modules.length === 1
                           ? 'UFCD ou módulo'
                           : 'UFCD ou módulos'}
-                      </p>
+                    </p>
 
-                      {row.modules.length >
-                      0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {row.modules.map(
-                            module => (
-                              <span
-                                key={
-                                  module.id
-                                }
-                                className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-[0.68rem] font-bold text-cyan-100"
-                              >
-                                {module.code.trim()
-                                  ? `${module.code.trim()} · ${module.name}`
-                                  : module.name}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      ) : null}
-                    </article>
-                  )
-                )}
+                    {row.modules.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {row.modules.map(module => (
+                          <span
+                            key={module.id}
+                            className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-[0.68rem] font-bold text-cyan-100"
+                          >
+                            {module.code.trim()
+                              ? `${module.code.trim()} · ${module.name}`
+                              : module.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
               </div>
             )}
           </section>
@@ -1330,25 +1205,18 @@ export default function GroupsWorkspaceView({
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">
               Adicionar alunos
             </p>
-
             <h2 className="mt-3 text-xl font-black text-white">
               Colar lista da turma
             </h2>
-
             <p className="mt-2 text-sm leading-6 text-slate-400">
               Use uma linha por aluno no formato número; nome; observação. Também pode colar colunas do Excel ou Google Sheets.
             </p>
 
             <label className="mt-5 block">
-              <FieldLabel>
-                Lista de alunos
-              </FieldLabel>
-
+              <FieldLabel>Lista de alunos</FieldLabel>
               <textarea
                 value={importText}
-                onChange={(
-                  event: ChangeEvent<HTMLTextAreaElement>
-                ) =>
+                onChange={event =>
                   setImportText(
                     event.target.value
                   )
@@ -1364,7 +1232,6 @@ export default function GroupsWorkspaceView({
               <p className="text-xs leading-5 text-slate-500">
                 Um número já existente atualiza o aluno em vez de criar um duplicado.
               </p>
-
               <button
                 type="submit"
                 disabled={
@@ -1373,8 +1240,7 @@ export default function GroupsWorkspaceView({
                 }
                 className="rounded-2xl border border-emerald-200/30 bg-gradient-to-r from-emerald-300 to-teal-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:opacity-45"
               >
-                {busyAction ===
-                'import-students'
+                {busyAction === 'import-students'
                   ? 'A guardar...'
                   : 'Guardar alunos'}
               </button>
@@ -1387,11 +1253,9 @@ export default function GroupsWorkspaceView({
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
                   Alunos
                 </p>
-
                 <h2 className="mt-3 text-xl font-black text-white">
                   Lista da turma
                 </h2>
-
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   Edite cada aluno diretamente e mantenha inativos no histórico quando necessário.
                 </p>
@@ -1400,184 +1264,141 @@ export default function GroupsWorkspaceView({
               <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300">
                 <input
                   type="checkbox"
-                  checked={
-                    includeInactive
-                  }
-                  onChange={(
-                    event: ChangeEvent<HTMLInputElement>
-                  ) =>
+                  checked={includeInactive}
+                  onChange={event =>
                     setIncludeInactive(
                       event.target.checked
                     )
                   }
                   className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
                 />
-
                 Mostrar inativos
               </label>
             </div>
 
-            {visibleStudents.length ===
-            0 ? (
+            {visibleStudents.length === 0 ? (
               <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
                 <p className="text-sm font-black text-white">
                   A turma ainda não possui alunos ativos.
                 </p>
-
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   Cole a lista acima para começar.
                 </p>
               </div>
             ) : (
               <div className="mt-5 space-y-3">
-                {visibleStudents.map(
-                  student => {
-                    const form =
-                      studentForms[
-                        student.id
-                      ] ?? {
-                        number:
-                          student.number,
-                        name:
-                          student.name,
-                        notes:
-                          student.notes
-                      }
+                {visibleStudents.map(student => {
+                  const form =
+                    studentForms[student.id] ?? {
+                      number: student.number,
+                      name: student.name,
+                      notes: student.notes
+                    }
 
-                    return (
-                      <article
-                        key={
-                          student.id
-                        }
-                        className={`rounded-2xl border p-4 ${
-                          student.active
-                            ? 'border-white/10 bg-white/[0.03]'
-                            : 'border-slate-300/10 bg-slate-300/[0.025] opacity-75'
-                        }`}
-                      >
-                        <div className="grid gap-4 lg:grid-cols-[7rem_1fr_1fr_auto] lg:items-end">
-                          <label>
-                            <FieldLabel>
-                              Número
-                            </FieldLabel>
+                  return (
+                    <article
+                      key={student.id}
+                      className={`rounded-2xl border p-4 ${
+                        student.active
+                          ? 'border-white/10 bg-white/[0.03]'
+                          : 'border-slate-300/10 bg-slate-300/[0.025] opacity-75'
+                      }`}
+                    >
+                      <div className="grid gap-4 lg:grid-cols-[7rem_1fr_1fr_auto] lg:items-end">
+                        <label>
+                          <FieldLabel>Número</FieldLabel>
+                          <input
+                            type="text"
+                            value={form.number}
+                            onChange={event =>
+                              updateStudentForm(
+                                student.id,
+                                {
+                                  number:
+                                    event.target.value
+                                }
+                              )
+                            }
+                            disabled={busy}
+                            className={fieldClass}
+                          />
+                        </label>
 
-                            <input
-                              type="text"
-                              value={
-                                form.number
-                              }
-                              onChange={(
-                                event: ChangeEvent<HTMLInputElement>
-                              ) =>
-                                updateStudentForm(
-                                  student.id,
-                                  {
-                                    number:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              disabled={busy}
-                              className={fieldClass}
-                            />
-                          </label>
+                        <label>
+                          <FieldLabel>Nome</FieldLabel>
+                          <input
+                            type="text"
+                            value={form.name}
+                            onChange={event =>
+                              updateStudentForm(
+                                student.id,
+                                {
+                                  name:
+                                    event.target.value
+                                }
+                              )
+                            }
+                            disabled={busy}
+                            className={fieldClass}
+                          />
+                        </label>
 
-                          <label>
-                            <FieldLabel>
-                              Nome
-                            </FieldLabel>
+                        <label>
+                          <FieldLabel optional>Observação</FieldLabel>
+                          <input
+                            type="text"
+                            value={form.notes}
+                            onChange={event =>
+                              updateStudentForm(
+                                student.id,
+                                {
+                                  notes:
+                                    event.target.value
+                                }
+                              )
+                            }
+                            disabled={busy}
+                            className={fieldClass}
+                          />
+                        </label>
 
-                            <input
-                              type="text"
-                              value={
-                                form.name
-                              }
-                              onChange={(
-                                event: ChangeEvent<HTMLInputElement>
-                              ) =>
-                                updateStudentForm(
-                                  student.id,
-                                  {
-                                    name:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              disabled={busy}
-                              className={fieldClass}
-                            />
-                          </label>
+                        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void saveStudent(student)
+                            }
+                            disabled={busy}
+                            className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:opacity-60"
+                          >
+                            {busyAction === `student-${student.id}`
+                              ? 'A guardar...'
+                              : 'Guardar'}
+                          </button>
 
-                          <label>
-                            <FieldLabel optional>
-                              Observação
-                            </FieldLabel>
-
-                            <input
-                              type="text"
-                              value={
-                                form.notes
-                              }
-                              onChange={(
-                                event: ChangeEvent<HTMLInputElement>
-                              ) =>
-                                updateStudentForm(
-                                  student.id,
-                                  {
-                                    notes:
-                                      event.target.value
-                                  }
-                                )
-                              }
-                              disabled={busy}
-                              className={fieldClass}
-                            />
-                          </label>
-
-                          <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void saveStudent(
-                                  student
-                                )
-                              }
-                              disabled={busy}
-                              className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:opacity-60"
-                            >
-                              {busyAction ===
-                              `student-${student.id}`
-                                ? 'A guardar...'
-                                : 'Guardar'}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void toggleStudent(
-                                  student
-                                )
-                              }
-                              disabled={busy}
-                              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-60 ${
-                                student.active
-                                  ? 'border-rose-300/20 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/10'
-                                  : 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100 hover:bg-emerald-300/10'
-                              }`}
-                            >
-                              {busyAction ===
-                              `toggle-${student.id}`
-                                ? 'A atualizar...'
-                                : student.active
-                                  ? 'Desativar'
-                                  : 'Reativar'}
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void toggleStudent(student)
+                            }
+                            disabled={busy}
+                            className={`rounded-xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-60 ${
+                              student.active
+                                ? 'border-rose-300/20 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/10'
+                                : 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100 hover:bg-emerald-300/10'
+                            }`}
+                          >
+                            {busyAction === `toggle-${student.id}`
+                              ? 'A atualizar...'
+                              : student.active
+                                ? 'Desativar'
+                                : 'Reativar'}
+                          </button>
                         </div>
-                      </article>
-                    )
-                  }
-                )}
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             )}
           </section>
