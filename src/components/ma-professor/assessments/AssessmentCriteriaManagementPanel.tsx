@@ -21,6 +21,7 @@ import type {
 import {
   assessmentCriteriaManagementRepository,
   type AssessmentCriteriaEditability,
+  type AssessmentCriteriaEvidence,
   type UpdatedAssessmentCriteriaScheme
 } from './assessmentCriteriaManagementRepository'
 
@@ -45,7 +46,9 @@ const inputClassName =
 
 function createLocalId() {
   return globalThis.crypto?.randomUUID?.() ??
-    `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`
 }
 
 function toDraft(
@@ -57,7 +60,9 @@ function toDraft(
     name: criterion.name,
     description: criterion.description,
     weightPercent:
-      String(criterion.weightPercent)
+      String(
+        criterion.weightPercent
+      )
   }
 }
 
@@ -72,6 +77,51 @@ function formatPercent(
   ).format(value)
 }
 
+function readHistoryEvidence(
+  error: unknown
+): AssessmentCriteriaEvidence | null {
+  if (
+    !error ||
+    typeof error !== 'object' ||
+    !('evidence' in error)
+  ) {
+    return null
+  }
+
+  const evidence =
+    error.evidence
+
+  if (
+    !evidence ||
+    typeof evidence !== 'object' ||
+    !('lessonAssessmentCount' in evidence) ||
+    !('assessmentResultCount' in evidence) ||
+    !('finalGradeCount' in evidence)
+  ) {
+    return null
+  }
+
+  const candidate =
+    evidence as Partial<AssessmentCriteriaEvidence>
+
+  if (
+    typeof candidate.lessonAssessmentCount !== 'number' ||
+    typeof candidate.assessmentResultCount !== 'number' ||
+    typeof candidate.finalGradeCount !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    lessonAssessmentCount:
+      candidate.lessonAssessmentCount,
+    assessmentResultCount:
+      candidate.assessmentResultCount,
+    finalGradeCount:
+      candidate.finalGradeCount
+  }
+}
+
 export default function AssessmentCriteriaManagementPanel({
   snapshot,
   disabled = false,
@@ -80,7 +130,14 @@ export default function AssessmentCriteriaManagementPanel({
   const rootRef =
     useRef<HTMLDivElement>(null)
 
-  const scheme = snapshot.scheme
+  const scheme =
+    snapshot.scheme
+
+  const persistedSchemeId =
+    scheme?.id ?? ''
+
+  const persistedSchemeName =
+    scheme?.name ?? ''
 
   const [
     editability,
@@ -101,7 +158,7 @@ export default function AssessmentCriteriaManagementPanel({
     schemeName,
     setSchemeName
   ] = useState(
-    scheme?.name ?? ''
+    persistedSchemeName
   )
 
   const [
@@ -129,7 +186,7 @@ export default function AssessmentCriteriaManagementPanel({
 
   useEffect(() => {
     setSchemeName(
-      scheme?.name ?? ''
+      persistedSchemeName
     )
     setCriteria(
       snapshot.criteria.map(toDraft)
@@ -138,16 +195,18 @@ export default function AssessmentCriteriaManagementPanel({
     setError('')
     setSuccess('')
   }, [
-    scheme?.id,
+    persistedSchemeId,
+    persistedSchemeName,
     snapshot.generatedAt
   ])
 
   useEffect(() => {
     let cancelled = false
 
-    if (!scheme) {
+    if (!persistedSchemeId) {
       setEditability(null)
       setChecking(false)
+
       return () => {
         cancelled = true
       }
@@ -157,7 +216,9 @@ export default function AssessmentCriteriaManagementPanel({
     setError('')
 
     void assessmentCriteriaManagementRepository
-      .getEditability(scheme.id)
+      .getEditability(
+        persistedSchemeId
+      )
       .then(result => {
         if (!cancelled) {
           setEditability(result)
@@ -182,7 +243,7 @@ export default function AssessmentCriteriaManagementPanel({
       cancelled = true
     }
   }, [
-    scheme?.id,
+    persistedSchemeId,
     snapshot.generatedAt
   ])
 
@@ -197,29 +258,28 @@ export default function AssessmentCriteriaManagementPanel({
               )
 
             return total +
-              (Number.isFinite(value)
-                ? value
-                : 0)
+              (
+                Number.isFinite(value)
+                  ? value
+                  : 0
+              )
           },
           0
         ),
       [criteria]
     )
 
-  const originalCriteria =
-    snapshot.criteria
-
   const dirty =
     editing &&
     (
       schemeName !==
-        (scheme?.name ?? '') ||
+        persistedSchemeName ||
       criteria.length !==
-        originalCriteria.length ||
+        snapshot.criteria.length ||
       criteria.some(
         (criterion, index) => {
           const original =
-            originalCriteria[index]
+            snapshot.criteria[index]
 
           return (
             !original ||
@@ -227,7 +287,9 @@ export default function AssessmentCriteriaManagementPanel({
             criterion.name !== original.name ||
             criterion.description !== original.description ||
             criterion.weightPercent !==
-              String(original.weightPercent)
+              String(
+                original.weightPercent
+              )
           )
         }
       )
@@ -305,7 +367,10 @@ export default function AssessmentCriteriaManagementPanel({
 
     const base =
       Math.floor(
-        (100 / criteria.length) * 100
+        (
+          100 /
+          criteria.length
+        ) * 100
       ) / 100
 
     const last =
@@ -323,7 +388,8 @@ export default function AssessmentCriteriaManagementPanel({
           ...criterion,
           weightPercent:
             String(
-              index === current.length - 1
+              index ===
+                current.length - 1
                 ? last
                 : base
             )
@@ -344,7 +410,9 @@ export default function AssessmentCriteriaManagementPanel({
       return
     }
 
-    setSchemeName(scheme.name)
+    setSchemeName(
+      persistedSchemeName
+    )
     setCriteria(
       snapshot.criteria.map(toDraft)
     )
@@ -355,6 +423,7 @@ export default function AssessmentCriteriaManagementPanel({
 
   async function saveCriteria() {
     if (
+      !persistedSchemeId ||
       saving ||
       disabled ||
       locked
@@ -370,7 +439,8 @@ export default function AssessmentCriteriaManagementPanel({
       const result =
         await assessmentCriteriaManagementRepository
           .updateScheme({
-            schemeId: scheme.id,
+            schemeId:
+              persistedSchemeId,
             name: schemeName,
             criteria:
               criteria.map(criterion => ({
@@ -418,11 +488,17 @@ export default function AssessmentCriteriaManagementPanel({
         saveError.code ===
           'ASSESSMENT_CRITERIA_HISTORY_EXISTS'
       ) {
+        const actualEvidence =
+          readHistoryEvidence(
+            saveError
+          )
+
         setEditability(current => ({
           editable: false,
           evidence:
+            actualEvidence ??
             current?.evidence ?? {
-              lessonAssessmentCount: 1,
+              lessonAssessmentCount: 0,
               assessmentResultCount: 0,
               finalGradeCount: 0
             }
@@ -445,6 +521,7 @@ export default function AssessmentCriteriaManagementPanel({
             <span className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">
               Gestão dos critérios
             </span>
+
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.62rem] font-bold text-slate-400">
               {scheme.scope === 'module'
                 ? 'Específicos desta UFCD'
@@ -522,12 +599,14 @@ export default function AssessmentCriteriaManagementPanel({
                 <p className="text-sm font-black text-white">
                   {criterion.name}
                 </p>
+
                 <span className="shrink-0 text-xs font-black text-amber-200">
                   {formatPercent(
                     criterion.weightPercent
                   )}%
                 </span>
               </div>
+
               {criterion.description ? (
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   {criterion.description}
@@ -542,6 +621,7 @@ export default function AssessmentCriteriaManagementPanel({
             <span className="mb-2 block text-xs font-bold text-slate-300">
               Nome do conjunto
             </span>
+
             <input
               type="text"
               value={schemeName}
@@ -559,9 +639,12 @@ export default function AssessmentCriteriaManagementPanel({
             <p className="text-xs font-bold text-slate-400">
               Ponderações
             </p>
+
             <span
               className={`rounded-full border px-3 py-1.5 text-xs font-black ${
-                Math.abs(weightTotal - 100) < 0.001
+                Math.abs(
+                  weightTotal - 100
+                ) < 0.001
                   ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
                   : 'border-amber-300/20 bg-amber-300/10 text-amber-100'
               }`}
@@ -580,6 +663,7 @@ export default function AssessmentCriteriaManagementPanel({
                   <span className="mb-2 block text-xs font-bold text-slate-300">
                     Critério {index + 1}
                   </span>
+
                   <input
                     type="text"
                     value={criterion.name}
@@ -601,12 +685,15 @@ export default function AssessmentCriteriaManagementPanel({
                   <span className="mb-2 block text-xs font-bold text-slate-300">
                     Peso (%)
                   </span>
+
                   <input
                     type="number"
                     min="0.01"
                     max="100"
                     step="0.01"
-                    value={criterion.weightPercent}
+                    value={
+                      criterion.weightPercent
+                    }
                     onChange={event =>
                       updateCriterion(
                         criterion.localId,
@@ -642,6 +729,7 @@ export default function AssessmentCriteriaManagementPanel({
                 <span className="mb-2 block text-xs font-bold text-slate-400">
                   Descrição opcional
                 </span>
+
                 <textarea
                   value={criterion.description}
                   onChange={event =>
@@ -669,6 +757,7 @@ export default function AssessmentCriteriaManagementPanel({
             >
               Adicionar critério
             </button>
+
             <button
               type="button"
               onClick={distributeEqually}
@@ -677,7 +766,9 @@ export default function AssessmentCriteriaManagementPanel({
             >
               Distribuir 100% igualmente
             </button>
+
             <div className="flex-1" />
+
             <button
               type="button"
               onClick={cancelEditing}
@@ -686,6 +777,7 @@ export default function AssessmentCriteriaManagementPanel({
             >
               Cancelar
             </button>
+
             <button
               type="button"
               onClick={() =>
@@ -694,7 +786,9 @@ export default function AssessmentCriteriaManagementPanel({
               disabled={
                 saving ||
                 !dirty ||
-                Math.abs(weightTotal - 100) >= 0.001
+                Math.abs(
+                  weightTotal - 100
+                ) >= 0.001
               }
               className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
             >
