@@ -56,7 +56,7 @@ const lessonUrl = transpile(`
 const temporalSafetyUrl = transpile(`
   const s=()=>globalThis.__dailyState;
   export function isFutureLessonDate(){return Boolean(s()?.futureLesson)}
-  export function resolveLessonStatusForDate(_date,status){return isFutureLessonDate()&&status==='taught'?'planned':status}
+  export function resolveLessonStatusForDate(_date,status){return status}
 `)
 
 const calendarUrl = transpile(`

@@ -9,17 +9,23 @@ import {
 
 import MAProfessorApp from '../MAProfessorApp'
 import {
-  maProfessorRepository
+  maProfessorRepository,
+  type SetupSnapshot
 } from '../repository'
+import SetupWizard from '../setup/SetupWizard'
 import {
   SettingsWorkspaceView
 } from '../settings/SettingsWorkspaceView'
 import type {
-  AcademicYear
+  AcademicYear,
+  SetupStepId
 } from '../types'
 import {
   AttendanceProductWorkspace
 } from './AttendanceProductWorkspace'
+import {
+  ManagementSidebarBridge
+} from './ManagementSidebarBridge'
 import {
   ScheduleProductWorkspace
 } from './ScheduleProductWorkspace'
@@ -29,6 +35,7 @@ type MenuSection =
   | 'management'
   | 'attendance'
   | 'schedule'
+  | 'configuration'
   | 'settings'
   | 'restore'
 
@@ -44,6 +51,18 @@ interface SuggestedAcademicYear {
   startDate: string
   endDate: string
 }
+
+const correctionCompletedSteps: SetupStepId[] = [
+  'academic_year',
+  'groups',
+  'subjects',
+  'modules',
+  'weekly_schedule',
+  'assessment_criteria',
+  'planifications',
+  'students',
+  'confirmation'
+]
 
 const menuCards: Array<{
   id: Exclude<MenuSection, 'home'>
@@ -75,6 +94,14 @@ const menuCards: Array<{
     description:
       'Altere o horário semanal e registe feriados, interrupções e outros eventos.',
     icon: '▦'
+  },
+  {
+    id: 'configuration',
+    eyebrow: 'Configuração pedagógica',
+    title: 'Corrigir configuração inicial',
+    description:
+      'Reabra o assistente simples ou a configuração avançada para corrigir horário, planificações, critérios, turmas ou alunos sem reiniciar o ano letivo.',
+    icon: '↶'
   },
   {
     id: 'settings',
@@ -130,6 +157,35 @@ function getErrorMessage(error: unknown) {
   }
 
   return 'Não foi possível preparar automaticamente o ano letivo.'
+}
+
+function normalizeCompletedCorrectionSnapshot(
+  snapshot: SetupSnapshot
+) {
+  const completed = Boolean(
+    snapshot.academicYear.setupCompletedAt ||
+    snapshot.progress?.completedAt
+  )
+
+  if (
+    !completed ||
+    !snapshot.progress
+  ) {
+    return snapshot
+  }
+
+  return {
+    ...snapshot,
+    progress: {
+      ...snapshot.progress,
+      completedSteps: Array.from(
+        new Set<SetupStepId>([
+          ...snapshot.progress.completedSteps,
+          ...correctionCompletedSteps
+        ])
+      )
+    }
+  }
 }
 
 async function ensureAcademicYear(): Promise<AcademicYear> {
@@ -226,6 +282,11 @@ export function ProductMenuWorkspace({
   const [retryKey, setRetryKey] = useState(0)
   const [availableYears, setAvailableYears] = useState<AcademicYear[]>([])
   const [changingYear, setChangingYear] = useState(false)
+  const [configurationSnapshot, setConfigurationSnapshot] =
+    useState<SetupSnapshot | null>(null)
+  const [configurationLoading, setConfigurationLoading] = useState(false)
+  const [configurationError, setConfigurationError] = useState('')
+  const [configurationReloadKey, setConfigurationReloadKey] = useState(0)
 
   const setupCompleted = Boolean(academicYear?.setupCompletedAt)
 
@@ -345,6 +406,48 @@ export function ProductMenuWorkspace({
     }
   }, [academicYear])
 
+  useEffect(() => {
+    if (
+      section !== 'configuration' ||
+      !academicYear
+    ) {
+      return
+    }
+
+    let cancelled = false
+
+    setConfigurationLoading(true)
+    setConfigurationError('')
+
+    void maProfessorRepository
+      .getSetupSnapshot(academicYear.id)
+      .then(nextSnapshot => {
+        if (!cancelled) {
+          setConfigurationSnapshot(
+            normalizeCompletedCorrectionSnapshot(nextSnapshot)
+          )
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setConfigurationError(getErrorMessage(error))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setConfigurationLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    academicYear?.id,
+    configurationReloadKey,
+    section
+  ])
+
   async function handleAcademicYearChange(nextAcademicYearId: string) {
     if (
       !nextAcademicYearId ||
@@ -359,9 +462,29 @@ export function ProductMenuWorkspace({
 
     try {
       await maProfessorRepository.setActiveAcademicYear(nextAcademicYearId)
+      setConfigurationSnapshot(null)
       await onDataChanged()
     } finally {
       setChangingYear(false)
+    }
+  }
+
+  function handleConfigurationSnapshotChange(
+    nextSnapshot: SetupSnapshot
+  ) {
+    setConfigurationSnapshot(
+      normalizeCompletedCorrectionSnapshot(nextSnapshot)
+    )
+  }
+
+  async function handleLeaveConfiguration() {
+    try {
+      await onDataChanged()
+    } catch {
+      // As correções já ficaram persistidas localmente. Um refresh posterior
+      // volta a sincronizar o estado exterior do produto.
+    } finally {
+      setSection('home')
     }
   }
 
@@ -443,6 +566,11 @@ export function ProductMenuWorkspace({
         )}
 
         <MAProfessorApp />
+        <ManagementSidebarBridge
+          onOpenAttendance={() => setSection('attendance')}
+          onOpenSchedule={() => setSection('schedule')}
+          onOpenSettings={() => setSection('settings')}
+        />
       </div>
     )
   }
@@ -469,6 +597,64 @@ export function ProductMenuWorkspace({
         />
 
         <ScheduleProductWorkspace academicYearId={academicYear.id} />
+      </div>
+    )
+  }
+
+  if (section === 'configuration' && academicYear) {
+    return (
+      <div className="min-h-[calc(100vh-58px)] bg-slate-950">
+        <MenuHeader
+          title="Corrigir configuração"
+          onBack={() => void handleLeaveConfiguration()}
+        />
+
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[100rem]">
+            <section className="mb-6 rounded-3xl border border-emerald-300/20 bg-emerald-300/[0.06] p-5 text-white sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">
+                Correção segura
+              </p>
+              <h1 className="mt-2 text-xl font-black sm:text-2xl">
+                A configuração continua concluída enquanto corrige os dados.
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Pode voltar ao horário, planificações, critérios, alunos ou abrir o assistente simples. As alterações guardadas substituem apenas os dados que editar; não reiniciam o ano letivo nem apagam o trabalho existente.
+              </p>
+            </section>
+
+            {configurationLoading && !configurationSnapshot ? (
+              <section className="rounded-3xl border border-white/10 bg-slate-900/65 p-8 text-center text-white">
+                <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+                <p className="mt-4 text-sm font-black">
+                  A abrir a configuração atual…
+                </p>
+              </section>
+            ) : configurationError ? (
+              <section className="rounded-3xl border border-rose-300/20 bg-rose-300/[0.06] p-6 text-white">
+                <p className="text-sm font-bold text-rose-100">
+                  {configurationError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfigurationReloadKey(current => current + 1)
+                  }
+                  className="mt-4 rounded-xl border border-rose-200/20 bg-rose-200/10 px-4 py-2.5 text-sm font-black text-rose-50"
+                >
+                  Tentar novamente
+                </button>
+              </section>
+            ) : configurationSnapshot ? (
+              <SetupWizard
+                snapshot={configurationSnapshot}
+                onSnapshotChange={handleConfigurationSnapshotChange}
+                onCompleted={handleConfigurationSnapshotChange}
+                initialMode="advanced"
+              />
+            ) : null}
+          </div>
+        </div>
       </div>
     )
   }

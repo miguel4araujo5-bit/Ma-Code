@@ -241,3 +241,34 @@ test(
     )
   }
 )
+
+test(
+  'completed setup can reopen directly in advanced correction mode',
+  () => {
+    assert.match(
+      wizardSource,
+      /initialMode\?: 'guided' \| 'advanced'/,
+      'O assistente deve poder ser aberto explicitamente em modo avançado.'
+    )
+    assert.match(
+      wizardSource,
+      /initialMode = 'guided'/,
+      'O primeiro onboarding deve continuar a abrir no percurso simples por defeito.'
+    )
+    assert.match(
+      wizardSource,
+      /const setupAlreadyCompleted = Boolean\([\s\S]*setupCompletedAt[\s\S]*completedAt/,
+      'A reabertura deve distinguir um ano já concluído sem limpar o seu estado.'
+    )
+    assert.match(
+      wizardSource,
+      /initialMode === 'advanced'[\s\S]*setupAlreadyCompleted[\s\S]*\? 'weekly_schedule'[\s\S]*: getFirstIncompleteStep\(snapshot\)/,
+      'Uma correção avançada de configuração concluída deve abrir numa área editável, não ficar presa na confirmação.'
+    )
+    assert.match(
+      wizardSource,
+      /function isStepUnlocked\(_stepId: SetupStepId\) \{\s*return true\s*\}/,
+      'No modo avançado o professor deve continuar a poder abrir qualquer passo anterior.'
+    )
+  }
+)
