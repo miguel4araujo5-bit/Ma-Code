@@ -39,3 +39,30 @@ test(
     )
   }
 )
+
+test(
+  'preset event creation resynchronizes regular annual capacity before professional lesson generation',
+  () => {
+    assert.match(
+      source,
+      /syncRegularAnnualComponentsForAcademicYear/
+    )
+
+    const eventIndex =
+      source.indexOf(
+        'const createdEvents = await ensurePresetEvents(academicYearId)'
+      )
+    const syncIndex =
+      source.indexOf(
+        'await syncRegularAnnualComponentsForAcademicYear('
+      )
+    const generationIndex =
+      source.indexOf(
+        'await generateProfessionalPresetLessons('
+      )
+
+    assert.ok(eventIndex >= 0)
+    assert.ok(syncIndex > eventIndex)
+    assert.ok(generationIndex > syncIndex)
+  }
+)
