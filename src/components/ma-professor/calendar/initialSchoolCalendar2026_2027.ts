@@ -1,4 +1,7 @@
 import { calendarRepository } from './calendarRepository'
+import {
+  syncRegularAnnualComponentsForAcademicYear
+} from '../curriculum/regularAnnualComponentRepository'
 import { lessonRepository } from '../lessons/lessonRepository'
 import {
   maProfessorRepository,
@@ -226,10 +229,7 @@ function validatePresetContext(snapshot: SetupSnapshot) {
       )
     }
 
-    if (
-      group.educationType ===
-      'regular'
-    ) {
+    if (group.educationType === 'regular') {
       continue
     }
 
@@ -331,12 +331,10 @@ async function generateProfessionalPresetLessons(
   let createdLessons = 0
   let skippedExistingLessons = 0
 
-  for (
-    const [
-      teachingAssignmentId,
-      dateTo
-    ] of endDateByAssignment
-  ) {
+  for (const [
+    teachingAssignmentId,
+    dateTo
+  ] of endDateByAssignment) {
     const generation =
       await lessonRepository.generateScheduledLessons({
         academicYearId,
@@ -346,10 +344,8 @@ async function generateProfessionalPresetLessons(
         createCancelledForBlockedDates: false
       })
 
-    createdLessons +=
-      generation.created.length
-    skippedExistingLessons +=
-      generation.skippedExisting
+    createdLessons += generation.created.length
+    skippedExistingLessons += generation.skippedExisting
   }
 
   return {
@@ -397,6 +393,10 @@ async function prepare(
     endDateByAssignment
   )
 
+  await syncRegularAnnualComponentsForAcademicYear(
+    academicYearId
+  )
+
   const generation =
     await generateProfessionalPresetLessons(
       academicYearId,
@@ -407,8 +407,7 @@ async function prepare(
     applied: true,
     createdEvents,
     updatedScheduleSlots,
-    createdLessons:
-      generation.createdLessons,
+    createdLessons: generation.createdLessons,
     skippedExistingLessons:
       generation.skippedExistingLessons
   }
