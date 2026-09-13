@@ -270,16 +270,6 @@ export default function ModulesSetupCourseSubjectGuard({
     ]
   )
 
-  const legacyAssignmentIds = useMemo(
-    () =>
-      new Set(
-        legacyAssignments.map(
-          assignment => assignment.id
-        )
-      ),
-    [legacyAssignments]
-  )
-
   const professionalAssignmentIds = useMemo(
     () =>
       new Set(
@@ -390,6 +380,9 @@ export default function ModulesSetupCourseSubjectGuard({
           assignment =>
             professionalAssignmentIds.has(
               assignment.id
+            ) &&
+            !legacySubjectIds.has(
+              assignment.subjectId
             )
         ),
       modules:
