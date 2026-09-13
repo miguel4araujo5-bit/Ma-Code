@@ -8,6 +8,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 |---|---|---|---|---|---|---|
 | Recuperações | Até 3 tentativas estruturadas e encaminhamento para exame | feat/ma-professor-recovery-attempts | `src/components/ma-professor/types.ts`; `src/components/ma-professor/attendance/*`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 | Planificações | Expor Excel em todos os seletores normais que já usam o parser comum | fix/ma-professor-planification-excel-picker | `src/components/ma-professor/setup/ModulePlanificationImportPanelLegacy.tsx`; `src/components/ma-professor/planifications/PlanificationPdfImportPanel.tsx`; `src/components/ma-professor/planificationImportRepository.ts`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
+| GIAE | Fazer `Copiar` marcar automaticamente a versão copiada como submetida, mantendo a guarda de versão | fix/ma-professor-giae-copy-auto-submit | `src/components/ma-professor/giae/GIAEWorkspaceView.tsx`; testes GIAE MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
