@@ -770,6 +770,10 @@ test(
   () => {
     assert.match(
       dailyViewSource,
+      /🚨 Atenção: está a editar uma data futura\./
+    )
+    assert.doesNotMatch(
+      dailyViewSource,
       /Esta aula está marcada para uma data futura\. Pode registar a avaliação; confirme apenas que está a trabalhar na aula correta\./
     )
     assert.match(
