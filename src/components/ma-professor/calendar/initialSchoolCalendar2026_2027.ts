@@ -1,4 +1,7 @@
 import { calendarRepository } from './calendarRepository'
+import {
+  syncRegularAnnualComponentsForAcademicYear
+} from '../curriculum/regularAnnualComponentRepository'
 import { lessonRepository } from '../lessons/lessonRepository'
 import {
   maProfessorRepository,
@@ -395,6 +398,10 @@ async function prepare(
   const updatedScheduleSlots = await ensureScheduleValidity(
     snapshot,
     endDateByAssignment
+  )
+
+  await syncRegularAnnualComponentsForAcademicYear(
+    academicYearId
   )
 
   const generation =
