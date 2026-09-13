@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| F103 | Garantir que faltas não geram classificação nem penalização académica; ausência fica pendente até existir avaliação efetiva, sem distinguir justificada/injustificada no cálculo | `work/f103-absence-no-grade-penalty` | `src/components/ma-professor/daily/dailyCriteriaGridRepository.ts`; `src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts`; `src/components/ma-professor/assessments/lessonGradeCalculation.ts`; testes de avaliação | EM CURSO | `edb1f336f50ea8d5e8c65efd3e1f5ffc1c26d3c5` | 2026-09-13 |
+| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | main | 2026-09-13 |
 
 ## Regras de utilização
 
