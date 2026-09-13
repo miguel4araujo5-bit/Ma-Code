@@ -57,9 +57,17 @@ const planificationSource = await readFile(
   'utf8'
 )
 
-const assessmentSource = await readFile(
+const professionalAssessmentSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx',
+    '../../src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const regularAssessmentSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/RegularAssessmentWorkspaceView.tsx',
     import.meta.url
   ),
   'utf8'
@@ -214,48 +222,90 @@ test(
 )
 
 test(
-  'assessment grades preserve other dirty students across one-student saves and guard destructive actions',
+  'professional assessment grades preserve other dirty students across one-student saves and guard destructive actions',
   () => {
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /reconcileMAProfessorDraftRecord/
     )
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /hasAssessmentUnsavedChanges/
     )
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /confirmDiscardUnsavedChanges/
     )
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /useMAProfessorUnsavedWorkspaceProtection/
     )
 
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /snapshot\.generatedAt[\s\S]*reconcileMAProfessorDraftRecord/
     )
 
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /handleAssignmentChange[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onFiltersChange/
     )
 
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /handleModuleChange[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onFiltersChange/
     )
 
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /handleRefresh[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onRefresh/
     )
 
     assert.match(
-      assessmentSource,
+      professionalAssessmentSource,
       /handleLessonSelect[\s\S]*confirmDiscardUnsavedChanges[\s\S]*onLessonSelect/
+    )
+  }
+)
+
+test(
+  'regular assessment grades preserve dirty students and guard assignment, refresh and lesson navigation',
+  () => {
+    assert.match(
+      regularAssessmentSource,
+      /reconcileMAProfessorDraftRecord/
+    )
+    assert.match(
+      regularAssessmentSource,
+      /hasUnsavedChanges/
+    )
+    assert.match(
+      regularAssessmentSource,
+      /confirmDiscard/
+    )
+    assert.match(
+      regularAssessmentSource,
+      /useMAProfessorUnsavedWorkspaceProtection/
+    )
+
+    assert.match(
+      regularAssessmentSource,
+      /snapshot\.generatedAt[\s\S]*reconcileMAProfessorDraftRecord/
+    )
+
+    assert.match(
+      regularAssessmentSource,
+      /handleAssignmentChange[\s\S]*confirmDiscard\(\)[\s\S]*onFiltersChange/
+    )
+
+    assert.match(
+      regularAssessmentSource,
+      /handleRefresh[\s\S]*confirmDiscard\(\)[\s\S]*onRefresh/
+    )
+
+    assert.match(
+      regularAssessmentSource,
+      /handleLessonSelect[\s\S]*confirmDiscard\(\)[\s\S]*onLessonSelect/
     )
   }
 )
