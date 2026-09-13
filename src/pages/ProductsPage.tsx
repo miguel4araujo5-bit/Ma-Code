@@ -130,7 +130,7 @@ const products:
     eyebrow:
       'Gestão pedagógica',
     description:
-      'Organize planificações, sumários, UFCD, avaliações, faltas e recuperações de aprendizagens num único espaço preparado para o trabalho diário dos professores.',
+      'Organize disciplinas, planificações, sumários, avaliações, assiduidade e recuperações de aprendizagens num único espaço, com suporte para ensino regular e profissional — incluindo UFCD quando aplicável.',
     status:
       'Brevemente disponível',
     badge: 'MP',
@@ -138,9 +138,9 @@ const products:
       'border-emerald-300/30 bg-emerald-300/10 text-emerald-100 shadow-emerald-950/30',
     highlights: [
       'Sumários',
-      'UFCD',
+      'Disciplinas e UFCD',
       'Avaliações',
-      'Faltas'
+      'Assiduidade'
     ]
   }
 ]
@@ -409,7 +409,7 @@ export default function ProductsPage() {
 
     updateMeta(
       'keywords',
-      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, MA-Quadro, editor de design, criar post Instagram, MA-Professor, gestão de sumários, UFCD, apps web, ferramentas digitais'
+      'produtos MA-Code, MA PDF, ferramentas PDF, MA Carteira, MA-BTC ALERTAS, alertas bitcoin, MA-Recortes, criar stickers WhatsApp, MA-Quadro, editor de design, criar post Instagram, MA-Professor, gestão pedagógica, ensino regular, ensino profissional, disciplinas, UFCD, gestão de sumários, apps web, ferramentas digitais'
     )
 
     updateMeta(
