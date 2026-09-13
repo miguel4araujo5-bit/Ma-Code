@@ -8,12 +8,16 @@ import {
 import {
   calendarRepository
 } from '../calendar/calendarRepository'
+import CalendarRecoveriesPanel from '../calendar/CalendarRecoveriesPanel'
+import {
+  enrichCalendarSnapshotWithRecoveries,
+  type CalendarRecoveryWorkspaceSnapshot
+} from '../calendar/calendarRecoveryWorkspace'
 import CalendarWorkspaceView from '../calendar/CalendarWorkspaceView'
 import {
   calendarWorkspaceRepository,
   type CalendarViewMode,
-  type CalendarWorkspaceFilters,
-  type CalendarWorkspaceSnapshot
+  type CalendarWorkspaceFilters
 } from '../calendar/calendarWorkspaceRepository'
 import {
   useMAProfessorUnsavedWorkspaceProtection
@@ -112,7 +116,7 @@ export function CalendarProductWorkspace({
   const [anchorDate, setAnchorDate] = useState<ISODate>(todayISO)
   const [filters, setFilters] = useState<CalendarWorkspaceFilters>({})
   const [snapshot, setSnapshot] =
-    useState<CalendarWorkspaceSnapshot | null>(null)
+    useState<CalendarRecoveryWorkspaceSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
@@ -139,12 +143,17 @@ export function CalendarProductWorkspace({
     setError('')
 
     try {
-      const nextSnapshot =
+      const baseSnapshot =
         await calendarWorkspaceRepository.getWorkspace(
           academicYearId,
           mode,
           anchorDate,
           filters
+        )
+
+      const nextSnapshot =
+        await enrichCalendarSnapshotWithRecoveries(
+          baseSnapshot
         )
 
       setSnapshot(nextSnapshot)
@@ -301,6 +310,10 @@ export function CalendarProductWorkspace({
         onFiltersChange={nextFilters => setFilters(nextFilters)}
         onLessonSelect={handleLessonSelect}
         onEventSelect={handleEventSelect}
+      />
+
+      <CalendarRecoveriesPanel
+        snapshot={snapshot}
       />
 
       {selectedEvent ? (
