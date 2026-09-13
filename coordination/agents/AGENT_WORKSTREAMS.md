@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | main | 2026-09-13 |
+| Agente | Ressincronizar componente anual regular depois de o preset S. Bento criar eventos escolares | `fix/ma-professor-sbento-regular-preset` | `src/components/ma-professor/calendar/initialSchoolCalendar2026_2027.ts`; `tests/ma-professor/regular-school-calendar-preset.test.mjs` | ATIVO | `b3d5f8986309f4b1bd099954c9ee76b7ab99b6e7` | 2026-09-13 |
 
 ## Regras de utilização
 
