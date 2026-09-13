@@ -38,6 +38,9 @@ interface SettingsWorkspaceViewProps {
 
   onDataChanged?:
     () => void
+
+  initialTab?:
+    SettingsTab
 }
 
 const tabs: Array<{
@@ -97,14 +100,15 @@ const tabs: Array<{
 
 export function SettingsWorkspaceView({
   academicYearId,
-  onDataChanged
+  onDataChanged,
+  initialTab = 'profile'
 }: SettingsWorkspaceViewProps) {
   const [
     tab,
     setTab
   ] =
     useState<SettingsTab>(
-      'profile'
+      initialTab
     )
 
   return (
