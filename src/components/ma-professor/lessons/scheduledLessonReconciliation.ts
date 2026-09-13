@@ -1,3 +1,8 @@
+import {
+  isModuleWithinPlannedCapacity,
+  isRegularAnnualModule
+} from '../modules/regularAnnualModule'
+
 import type {
   AcademicYear,
   EntityId,
@@ -239,14 +244,24 @@ function selectModuleForAllocation(
   allocatedPeriodsByModule:
     Map<EntityId, number>
 ) {
+  const regularAnnual =
+    modules.find(
+      isRegularAnnualModule
+    )
+
+  if (regularAnnual) {
+    return regularAnnual
+  }
+
   return (
     modules.find(
       module =>
-        (
+        isModuleWithinPlannedCapacity(
+          module,
           allocatedPeriodsByModule.get(
             module.id
           ) ?? 0
-        ) < module.plannedPeriods
+        )
     ) ??
     modules[
       modules.length - 1
@@ -691,8 +706,10 @@ export function planScheduledLessonReconciliation(
       ) ?? 0
 
     const withinCapacity =
-      allocated <
-      module.plannedPeriods
+      isModuleWithinPlannedCapacity(
+        module,
+        allocated
+      )
 
     if (!withinCapacity) {
       createdOutsidePlannedCapacity += 1
