@@ -1,8 +1,3 @@
-import {
-  isModuleWithinPlannedCapacity,
-  isRegularAnnualModule
-} from '../modules/regularAnnualModule'
-
 import type {
   AcademicYear,
   EntityId,
@@ -59,6 +54,33 @@ interface ExpectedOccurrence {
   assignment: TeachingAssignment
   date: ISODate
   blocked: boolean
+}
+
+type RegularAnnualModule =
+  ModuleUnit & {
+    moduleKind?: 'regular_annual'
+  }
+
+function isRegularAnnualModule(
+  module: ModuleUnit
+) {
+  return (
+    module as RegularAnnualModule
+  ).moduleKind ===
+    'regular_annual'
+}
+
+function isModuleWithinPlannedCapacity(
+  module: ModuleUnit,
+  allocatedPeriods: number
+) {
+  return (
+    isRegularAnnualModule(
+      module
+    ) ||
+    allocatedPeriods <
+      module.plannedPeriods
+  )
 }
 
 function parseISODate(
