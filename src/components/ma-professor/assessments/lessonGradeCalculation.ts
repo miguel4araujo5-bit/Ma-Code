@@ -1,6 +1,7 @@
 import type {
   AssessmentCriterion,
   AssessmentResult,
+  CriterionGradeBreakdown,
   EntityId,
   LessonAssessment,
   Score
@@ -55,6 +56,98 @@ function calculateAverage(
       ) => total + value,
       0
     ) / values.length
+  )
+}
+
+export function isGradeBearingAssessmentResult(
+  result: AssessmentResult
+) {
+  return (
+    result.status !==
+    'absent'
+  )
+}
+
+export function calculateStudentCriterionGradeBreakdown(
+  criteria: AssessmentCriterion[],
+  assessments: LessonAssessment[],
+  results: AssessmentResult[],
+  studentId: EntityId
+): CriterionGradeBreakdown[] {
+  const assessmentById =
+    new Map(
+      assessments.map(
+        assessment => [
+          assessment.id,
+          assessment
+        ]
+      )
+    )
+
+  return criteria.map(
+    criterion => {
+      const criterionAssessments =
+        assessments.filter(
+          assessment =>
+            assessment.criterionId ===
+            criterion.id
+        )
+
+      const scores =
+        results.flatMap(
+          result => {
+            if (
+              result.studentId !==
+                studentId ||
+              !isGradeBearingAssessmentResult(
+                result
+              )
+            ) {
+              return []
+            }
+
+            const assessment =
+              assessmentById.get(
+                result.assessmentId
+              )
+
+            return (
+              assessment?.criterionId ===
+              criterion.id
+            )
+              ? [result.score]
+              : []
+          }
+        )
+
+      const average =
+        calculateAverage(
+          scores
+        )
+
+      return {
+        criterionId:
+          criterion.id,
+        criterionName:
+          criterion.name,
+        weightPercent:
+          criterion.weightPercent,
+        assessmentCount:
+          criterionAssessments.length,
+        average,
+        weightedContribution:
+          average ===
+          null
+            ? null
+            : roundScore(
+                average *
+                  (
+                    criterion.weightPercent /
+                    100
+                  )
+              )
+      }
+    }
   )
 }
 
@@ -145,6 +238,14 @@ export function calculateStudentLessonGradeSummary(
           assessment.lessonId,
           scoresByCriterion
         )
+      }
+
+      if (
+        !isGradeBearingAssessmentResult(
+          result
+        )
+      ) {
+        return
       }
 
       const scores =
