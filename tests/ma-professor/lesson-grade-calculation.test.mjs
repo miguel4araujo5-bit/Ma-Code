@@ -338,7 +338,7 @@ test(
   () => {
     assert.match(
       dailyGridSource,
-      /row\.attendanceStatus\s*===\s*\n\s*'absent'[\s\S]*status:\s*\n\s*'absent' as const[\s\S]*score: null/
+      /row\.attendanceStatus\s*===\s*\n\s*'absent'[\s\S]*status:\s*\n\s*'absent'[\s\S]*score: null/
     )
     assert.match(
       dailyGridSource,
