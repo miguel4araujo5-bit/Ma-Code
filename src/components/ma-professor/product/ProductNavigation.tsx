@@ -1,7 +1,7 @@
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
 
-export type ProductWorkspace = 'daily' | 'calendar' | 'menu'
+export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
 export type ProductTheme = 'light' | 'dark'
 
 interface ProductNavigationProps {
@@ -26,6 +26,11 @@ const items: Array<{
     id: 'calendar',
     label: 'Calendário',
     icon: '▦'
+  },
+  {
+    id: 'backup',
+    label: 'Cópia',
+    icon: '⇩'
   },
   {
     id: 'menu',
@@ -70,7 +75,7 @@ export function ProductNavigation({
           </span>
         </button>
 
-        <nav className="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
+        <nav className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
           {items.map(item => {
             const active = workspace === item.id
 
@@ -80,13 +85,13 @@ export function ProductNavigation({
                 type="button"
                 onClick={() => onSelect(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`min-w-0 rounded-xl px-2 py-2 text-center text-xs font-black transition sm:px-4 ${
+                className={`min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.68rem] font-black transition sm:px-4 sm:text-xs ${
                   active
                     ? 'bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/30'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }`}
               >
-                <span className="mr-1.5" aria-hidden="true">
+                <span className="mr-1 sm:mr-1.5" aria-hidden="true">
                   {item.icon}
                 </span>
 
