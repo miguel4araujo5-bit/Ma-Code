@@ -15,6 +15,14 @@ Reproduzir no MA-Professor o fluxo da grelha de fecho de módulo/UFCD usada como
 - Os campos novos de `ModuleFinalGrade` são opcionais e não indexados, pelo que dados, backups e snapshots anteriores continuam compatíveis e não é necessária migração Dexie.
 - A exportação CSV de classificações inclui ACS e Autoavaliação.
 
+## Exportação Excel
+
+- A grelha final pode ser exportada para `.xlsx` com a estrutura funcional da referência: identificação da turma/curso/UFCD, domínios e ponderações, ACS, nível automático, autoavaliação, nível final, assinatura e resumo global.
+- A exportação usa exclusivamente os valores já persistidos. Enquanto existir um rascunho de classificação, autoavaliação ou ACS por guardar, a exportação fica bloqueada.
+- A coluna `Nº Processo` é incluída por compatibilidade com a grelha de referência, mas permanece vazia enquanto o modelo de aluno não guardar esse identificador. O número do aluno nunca é reutilizado como número de processo.
+- As ponderações e o número de domínios são dinâmicos e seguem os critérios reais da UFCD selecionada.
+- O ficheiro é gerado localmente no browser com a dependência `xlsx` já existente no projeto. Não envia dados de alunos para servidores.
+
 ## Segurança e infraestrutura
 
 A implementação é local-first e usa a persistência Dexie já existente. Não adiciona pedidos de rede, polling, Workers, Durable Objects, D1, bindings ou consumo Cloudflare.
