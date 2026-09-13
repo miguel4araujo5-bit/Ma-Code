@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Agente | Tornar a recuperação de uma cópia JSON diretamente acessível no menu e durante o setup, reutilizando o restauro existente | `fix/ma-professor-json-restore-shortcut` | `ProductMenuWorkspace.tsx`; `SettingsWorkspaceView.tsx`; testes de backup/menu | ATIVO | `42f2d85c5347eac45ed34e22122193d37b81b3be` | 2026-09-13 |
 
 ## Regras de utilização
 
