@@ -3,6 +3,11 @@ import {
   openMAProfessorDatabase
 } from '../db'
 
+import {
+  listStudentRecoveryAssessmentGrades,
+  listStudentRecoveryCriterionScores
+} from '../attendance/recoveryAssessmentRepository'
+
 import type {
   ClassGroup,
   EntityId,
@@ -184,10 +189,13 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
           assessment.id
       )
 
-    const results =
+    const [
+      results,
+      recoveries
+    ] = await Promise.all([
       assessmentIds.length === 0
-        ? []
-        : await maProfessorDb
+        ? Promise.resolve([])
+        : maProfessorDb
             .assessmentResults
             .where(
               'assessmentId'
@@ -195,7 +203,15 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
             .anyOf(
               assessmentIds
             )
-            .toArray()
+            .toArray(),
+      maProfessorDb
+        .learningRecoveries
+        .where('moduleId')
+        .equals(
+          snapshot.selectedModule.id
+        )
+        .toArray()
+    ])
 
     const activities =
       snapshot.activities.map(
@@ -234,12 +250,27 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
     const studentRows =
       snapshot.studentRows.map(
         row => {
+          const recoveryGrades =
+            listStudentRecoveryAssessmentGrades(
+              recoveries,
+              snapshot.criteria,
+              row.student.id
+            )
+
+          const recoveryCriterionScores =
+            listStudentRecoveryCriterionScores(
+              recoveries,
+              snapshot.criteria,
+              row.student.id
+            )
+
           const calculation =
             calculateStudentLessonGradeSummary(
               snapshot.criteria,
               assessments,
               results,
-              row.student.id
+              row.student.id,
+              recoveryGrades
             )
 
           const criteria =
@@ -247,7 +278,8 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               snapshot.criteria,
               assessments,
               results,
-              row.student.id
+              row.student.id,
+              recoveryCriterionScores
             )
 
           return {
