@@ -180,6 +180,14 @@ test(
       '10371'
     )
     assert.equal(
+      result.sections[0].name,
+      'Respostas sociais de proximidade'
+    )
+    assert.doesNotMatch(
+      result.sections[0].name,
+      /Período|Métodos|Uso de/i
+    )
+    assert.equal(
       result.sections[0].durationHours,
       25
     )
