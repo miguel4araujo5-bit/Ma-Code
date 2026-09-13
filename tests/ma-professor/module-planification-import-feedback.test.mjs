@@ -10,6 +10,8 @@ const panelSource = await readFile(
   'utf8'
 )
 
+// Mantém o texto da revisão alinhado com o comportamento atómico já coberto
+// pelos testes de persistência de módulos existentes.
 test(
   'setup planification import reports the real action for existing modules',
   () => {
