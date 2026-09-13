@@ -1,6 +1,9 @@
 export const MA_PROFESSOR_ACCESS_VERIFICATION_EVENT =
   'ma-professor-access-verification-state'
 
+export const MA_PROFESSOR_VERIFICATION_FALLBACK_MAX_AGE_MS =
+  24 * 60 * 60 * 1000
+
 export type MAProfessorAccessVerificationState =
   | 'verified'
   | 'local-cache'
@@ -12,6 +15,7 @@ interface AccessErrorWithStatus {
 interface StoredAccessIdentity {
   token?: unknown
   deviceId?: unknown
+  checkedAt?: unknown
 }
 
 let currentVerificationState:
@@ -52,18 +56,59 @@ export function shouldInvalidateStoredSessionAfterVerificationError(
   )
 }
 
+export function isStoredVerificationFreshForFallback(
+  storedAccess:
+    StoredAccessIdentity | null,
+  nowMs = Date.now()
+) {
+  if (
+    !storedAccess ||
+    typeof storedAccess.checkedAt !==
+      'string' ||
+    !storedAccess.checkedAt
+  ) {
+    return false
+  }
+
+  const checkedAtMs =
+    new Date(
+      storedAccess.checkedAt
+    ).getTime()
+
+  if (
+    !Number.isFinite(checkedAtMs) ||
+    !Number.isFinite(nowMs)
+  ) {
+    return false
+  }
+
+  const ageMs =
+    nowMs - checkedAtMs
+
+  return (
+    ageMs >= 0 &&
+    ageMs <=
+      MA_PROFESSOR_VERIFICATION_FALLBACK_MAX_AGE_MS
+  )
+}
+
 export function canUseStoredSessionForVerificationFallback(
   error: unknown,
   storedAccess:
     StoredAccessIdentity | null,
   token: string,
-  deviceId: string
+  deviceId: string,
+  nowMs = Date.now()
 ) {
   if (
     shouldInvalidateStoredSessionAfterVerificationError(
       error
     ) ||
-    !storedAccess
+    !storedAccess ||
+    !isStoredVerificationFreshForFallback(
+      storedAccess,
+      nowMs
+    )
   ) {
     return false
   }
