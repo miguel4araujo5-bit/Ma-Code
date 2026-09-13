@@ -416,7 +416,7 @@ test('React interface selects a document, requires review and imports the course
     await act(async () => root.render(createElement(Panel, {
       snapshot, disabled: false, onActiveChange: () => {}, onImported: async () => { refreshed++ }
     })))
-    await click(findButton('Importar PDF ou Word'))
+    await click(findButton('Importar PDF, Word ou Excel'))
     const input = host.querySelector('input[type=file]')
     Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(courseXml) })], 'area-expressoes.docx')] })
     await act(async () => {
