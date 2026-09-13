@@ -14,6 +14,7 @@ import {
 } from '../navigation/useUnsavedWorkspaceProtection'
 import type {
   ClassGroup,
+  EducationType,
   EntityId
 } from '../types'
 
@@ -41,6 +42,7 @@ type GroupEditForm = {
   name: string
   courseName: string
   gradeLevel: string
+  educationType: EducationType
 }
 
 const gradeLevels: Array<{
@@ -65,7 +67,7 @@ const classLetters =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const inputClassName =
-  'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10'
+  'w-full rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-55'
 
 const DISCARD_STEP_MESSAGE =
   'Existem alterações por guardar neste passo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
@@ -108,6 +110,22 @@ function getGradeFromGroupName(
     : null
 }
 
+function getEducationType(
+  group: ClassGroup
+): EducationType {
+  return group.educationType ??
+    'professional'
+}
+
+function getEducationTypeLabel(
+  educationType: EducationType
+) {
+  return educationType ===
+    'regular'
+    ? 'Ensino regular'
+    : 'Ensino profissional'
+}
+
 function EmptyState() {
   return (
     <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.025] p-5 text-center">
@@ -116,7 +134,7 @@ function EmptyState() {
       </p>
 
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Selecione um ou mais anos e depois as letras das turmas que leciona.
+        Escolha o tipo de ensino, os anos e depois as letras das turmas que leciona.
       </p>
     </div>
   )
@@ -129,6 +147,14 @@ export default function GroupsSetupStep({
 }: GroupsSetupStepProps) {
   const rootRef =
     useRef<HTMLDivElement>(null)
+
+  const [
+    selectedEducationType,
+    setSelectedEducationType
+  ] =
+    useState<EducationType>(
+      'professional'
+    )
 
   const [
     selectedYears,
@@ -155,7 +181,9 @@ export default function GroupsSetupStep({
     useState<GroupEditForm>({
       name: '',
       courseName: '',
-      gradeLevel: ''
+      gradeLevel: '',
+      educationType:
+        'professional'
     })
 
   const [busy, setBusy] =
@@ -164,6 +192,21 @@ export default function GroupsSetupStep({
     useState('')
   const [success, setSuccess] =
     useState('')
+
+  const availableGradeLevels =
+    useMemo(
+      () =>
+        selectedEducationType ===
+        'professional'
+          ? gradeLevels.filter(
+              grade =>
+                Number(
+                  grade.id
+                ) >= 10
+            )
+          : gradeLevels,
+      [selectedEducationType]
+    )
 
   const activeGroups =
     useMemo(
@@ -199,6 +242,16 @@ export default function GroupsSetupStep({
         ) ?? null
       : null
 
+  const editingGroupHasAssignments =
+    Boolean(
+      editingGroup &&
+      snapshot.teachingAssignments.some(
+        assignment =>
+          assignment.groupId ===
+          editingGroup.id
+      )
+    )
+
   const hasPendingGroupSelection =
     selectedGroupNames.length > 0
 
@@ -211,7 +264,11 @@ export default function GroupsSetupStep({
         editForm.courseName !==
           editingGroup.courseName ||
         editForm.gradeLevel !==
-          editingGroup.gradeLevel
+          editingGroup.gradeLevel ||
+        editForm.educationType !==
+          getEducationType(
+            editingGroup
+          )
       )
     )
 
@@ -236,6 +293,26 @@ export default function GroupsSetupStep({
     )
 
     return nextSnapshot
+  }
+
+  function selectEducationType(
+    educationType: EducationType
+  ) {
+    if (
+      busy ||
+      educationType ===
+        selectedEducationType
+    ) {
+      return
+    }
+
+    setSelectedEducationType(
+      educationType
+    )
+    setSelectedYears([])
+    setSelectedGroupNames([])
+    setError('')
+    setSuccess('')
   }
 
   function toggleYear(
@@ -371,6 +448,8 @@ export default function GroupsSetupStep({
                   grade
                 )} ano`
               : '',
+          educationType:
+            selectedEducationType,
           active: true
         })
       }
@@ -408,7 +487,11 @@ export default function GroupsSetupStep({
       courseName:
         group.courseName,
       gradeLevel:
-        group.gradeLevel
+        group.gradeLevel,
+      educationType:
+        getEducationType(
+          group
+        )
     })
 
     setError('')
@@ -443,7 +526,9 @@ export default function GroupsSetupStep({
     setEditForm({
       name: '',
       courseName: '',
-      gradeLevel: ''
+      gradeLevel: '',
+      educationType:
+        'professional'
     })
   }
 
@@ -483,7 +568,9 @@ export default function GroupsSetupStep({
           courseName:
             editForm.courseName,
           gradeLevel:
-            editForm.gradeLevel
+            editForm.gradeLevel,
+          educationType:
+            editForm.educationType
         }
       )
 
@@ -582,11 +669,63 @@ export default function GroupsSetupStep({
 
         <div className="mt-7">
           <p className="text-sm font-black text-slate-200">
-            1. Selecione os anos
+            1. Tipo de ensino
+          </p>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                'professional',
+                'regular'
+              ] as EducationType[]
+            ).map(
+              educationType => {
+                const selected =
+                  selectedEducationType ===
+                  educationType
+
+                return (
+                  <button
+                    key={educationType}
+                    type="button"
+                    onClick={() =>
+                      selectEducationType(
+                        educationType
+                      )
+                    }
+                    disabled={busy}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      selected
+                        ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50'
+                        : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]'
+                    }`}
+                  >
+                    <span className="block text-sm font-black">
+                      {getEducationTypeLabel(
+                        educationType
+                      )}
+                    </span>
+
+                    <span className="mt-1 block text-xs leading-5 text-slate-500">
+                      {educationType ===
+                      'professional'
+                        ? '10.º, 11.º e 12.º anos · organização por UFCD/módulos.'
+                        : '1.º ao 12.º ano · organização regular da disciplina.'}
+                    </span>
+                  </button>
+                )
+              }
+            )}
+          </div>
+        </div>
+
+        <div className="mt-7">
+          <p className="text-sm font-black text-slate-200">
+            2. Selecione os anos
           </p>
 
           <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
-            {gradeLevels.map(
+            {availableGradeLevels.map(
               grade => {
                 const selected =
                   selectedYears.includes(
@@ -622,7 +761,7 @@ export default function GroupsSetupStep({
         {selectedYears.length > 0 ? (
           <div className="mt-7 space-y-6">
             <p className="text-sm font-black text-slate-200">
-              2. Selecione as turmas
+              3. Selecione as turmas
             </p>
 
             {selectedYears.map(
@@ -700,7 +839,9 @@ export default function GroupsSetupStep({
         {selectedGroupNames.length > 0 ? (
           <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">
-              A adicionar
+              A adicionar · {getEducationTypeLabel(
+                selectedEducationType
+              )}
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -806,9 +947,19 @@ export default function GroupsSetupStep({
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-lg font-black text-white">
-                        {group.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-black text-white">
+                          {group.name}
+                        </p>
+
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.6rem] font-black uppercase tracking-[0.08em] text-slate-400">
+                          {getEducationTypeLabel(
+                            getEducationType(
+                              group
+                            )
+                          )}
+                        </span>
+                      </div>
 
                       <p className="mt-1 text-xs leading-5 text-slate-500">
                         {group.courseName ||
@@ -870,6 +1021,47 @@ export default function GroupsSetupStep({
                     inputClassName
                   }
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-300">
+                  Tipo de ensino
+                </span>
+
+                <select
+                  value={
+                    editForm.educationType
+                  }
+                  onChange={
+                    event =>
+                      setEditForm(
+                        current => ({
+                          ...current,
+                          educationType:
+                            event.target.value as EducationType
+                        })
+                      )
+                  }
+                  disabled={
+                    editingGroupHasAssignments
+                  }
+                  className={
+                    inputClassName
+                  }
+                >
+                  <option value="professional">
+                    Ensino profissional
+                  </option>
+                  <option value="regular">
+                    Ensino regular
+                  </option>
+                </select>
+
+                {editingGroupHasAssignments ? (
+                  <span className="mt-2 block text-[0.68rem] leading-5 text-amber-200/80">
+                    O tipo de ensino fica bloqueado depois de existirem disciplinas associadas, para não alterar a organização curricular já criada.
+                  </span>
+                ) : null}
               </label>
 
               <label className="block">

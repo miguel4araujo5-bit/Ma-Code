@@ -25,12 +25,17 @@ export interface AcademicYear extends AuditFields {
   setupCompletedAt: ISODateTime | null
 }
 
+export type EducationType =
+  | 'professional'
+  | 'regular'
+
 export interface ClassGroup extends AuditFields {
   id: EntityId
   academicYearId: EntityId
   name: string
   courseName: string
   gradeLevel: string
+  educationType?: EducationType
   active: boolean
 }
 
