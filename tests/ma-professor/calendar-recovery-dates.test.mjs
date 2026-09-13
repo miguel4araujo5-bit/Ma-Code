@@ -113,15 +113,23 @@ test(
 )
 
 test(
-  'calendar workspace always enriches the final snapshot and the product renders the recovery panel',
+  'calendar product enriches the reconciled snapshot without changing the shared calendar repository contract',
   () => {
     assert.match(
+      productSource,
+      /const baseSnapshot =\s*await calendarWorkspaceRepository\.getWorkspace\(/
+    )
+    assert.match(
+      productSource,
+      /const nextSnapshot =\s*await enrichCalendarSnapshotWithRecoveries\(\s*baseSnapshot/
+    )
+    assert.doesNotMatch(
       calendarRepositorySource,
-      /enrichCalendarSnapshotWithRecoveries\(\s*initialSnapshot/
+      /enrichCalendarSnapshotWithRecoveries/
     )
     assert.match(
       calendarRepositorySource,
-      /enrichCalendarSnapshotWithRecoveries\(\s*finalSnapshot/
+      /return super\.getWorkspace\(/
     )
     assert.match(
       productSource,
