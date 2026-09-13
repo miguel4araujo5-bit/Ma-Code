@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| ACCESS-SESSION | Rotação segura de token no mesmo dispositivo antes de aplicar o limite global de sessões | `work/session-device-rotation-20260913` | `worker/maProfessorSessionRotationBridge.ts`; `worker/maProfessorAccessRetentionBridge.ts`; `worker/maProfessorSessionLifecycleState.ts`; testes de sessão/arquitetura | EM CURSO | `75dbf1b2d55499c445bf7dd5433199000978ebbc` | 2026-09-13 |
 
 ## Regras de utilização
 
