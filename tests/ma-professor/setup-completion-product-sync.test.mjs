@@ -56,3 +56,38 @@ test(
     )
   }
 )
+
+test(
+  'completed setup can be reopened for corrections without resetting completion',
+  () => {
+    assert.match(
+      source,
+      /id: 'configuration',[\s\S]*title: 'Corrigir configuração inicial'/,
+      'O menu deve disponibilizar uma entrada explícita para corrigir a configuração já concluída.'
+    )
+
+    assert.match(
+      source,
+      /section !== 'configuration'[\s\S]*getSetupSnapshot\(academicYear\.id\)/,
+      'A edição deve carregar o snapshot persistido do mesmo ano letivo.'
+    )
+
+    assert.match(
+      source,
+      /section === 'configuration'[\s\S]*<SetupWizard[\s\S]*snapshot=\{configurationSnapshot\}[\s\S]*onSnapshotChange=\{setConfigurationSnapshot\}/,
+      'A correção deve reutilizar o mesmo assistente sobre os dados existentes.'
+    )
+
+    assert.match(
+      source,
+      /A configuração continua concluída enquanto corrige os dados\./,
+      'A interface deve explicar que corrigir dados não reinicia o onboarding.'
+    )
+
+    assert.doesNotMatch(
+      source,
+      /setupCompletedAt\s*:\s*null/,
+      'Reabrir a configuração nunca deve apagar a marca de conclusão.'
+    )
+  }
+)
