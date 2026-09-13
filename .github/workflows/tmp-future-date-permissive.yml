@@ -36,7 +36,13 @@ jobs:
           def replace_regex(path, pattern, replacement, count=1):
               p = Path(path)
               text = p.read_text(encoding='utf-8')
-              new_text, actual = re.subn(pattern, replacement, text, count=count, flags=re.S)
+              new_text, actual = re.subn(
+                  pattern,
+                  lambda _match: replacement,
+                  text,
+                  count=count,
+                  flags=re.S
+              )
               if actual != count:
                   raise SystemExit(f'{path}: expected {count} regex match(es), found {actual}')
               p.write_text(new_text, encoding='utf-8')
