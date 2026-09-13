@@ -15,6 +15,9 @@ export interface ModuleDocument {
   periodMinutes: number | null
   sections: ParsedPlanificationPdfSection[]
   warnings: string[]
+  importKind?:
+    | 'curricular_units'
+    | 'regular_annual'
 }
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -277,6 +280,13 @@ async function parseModuleStyleWord(
 }
 
 function withDurationWarnings(document: ModuleDocument): ModuleDocument {
+  if (
+    document.importKind ===
+    'regular_annual'
+  ) {
+    return document
+  }
+
   return {
     ...document,
     sections: document.sections.map(section => {
@@ -315,21 +325,58 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
     } = await import(
       './planificationSpreadsheetDocument'
     )
-    const parsed = await extractPlanificationSpreadsheet(
-      bytes,
-      file.name
-    )
 
-    return withDurationWarnings({
-      name: file.name,
-      sha256,
-      ...metadata(
-        parsed.text,
+    try {
+      const parsed = await extractPlanificationSpreadsheet(
+        bytes,
         file.name
-      ),
-      sections: parsed.sections,
-      warnings: parsed.warnings
-    })
+      )
+
+      return withDurationWarnings({
+        name: file.name,
+        sha256,
+        ...metadata(
+          parsed.text,
+          file.name
+        ),
+        sections: parsed.sections,
+        warnings: parsed.warnings,
+        importKind:
+          'curricular_units'
+      })
+    } catch (failure) {
+      if (
+        !(failure instanceof Error) ||
+        failure.message !==
+          'Não foram encontradas UFCD ou módulos estruturados nas folhas deste Excel.'
+      ) {
+        throw failure
+      }
+
+      const {
+        extractRegularAnnualPlanificationSpreadsheet
+      } = await import(
+        './regularAnnualPlanificationSpreadsheetDocument'
+      )
+      const parsed =
+        await extractRegularAnnualPlanificationSpreadsheet(
+          bytes,
+          file.name
+        )
+
+      return withDurationWarnings({
+        name: file.name,
+        sha256,
+        ...metadata(
+          parsed.text,
+          file.name
+        ),
+        sections: parsed.sections,
+        warnings: parsed.warnings,
+        importKind:
+          'regular_annual'
+      })
+    }
   }
 
   if (/\.docx$/i.test(file.name)) {
