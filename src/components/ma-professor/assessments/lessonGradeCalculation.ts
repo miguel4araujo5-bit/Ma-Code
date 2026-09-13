@@ -26,6 +26,11 @@ export interface StudentLessonGradeSummary {
   suggestedGrade: Score | null
 }
 
+export interface AdditionalCriterionScore {
+  criterionId: EntityId
+  score: Score
+}
+
 const MIN_SCORE = 0
 const MAX_SCORE = 20
 
@@ -72,7 +77,8 @@ export function calculateStudentCriterionGradeBreakdown(
   criteria: AssessmentCriterion[],
   assessments: LessonAssessment[],
   results: AssessmentResult[],
-  studentId: EntityId
+  studentId: EntityId,
+  additionalScores: AdditionalCriterionScore[] = []
 ): CriterionGradeBreakdown[] {
   const assessmentById =
     new Map(
@@ -93,7 +99,7 @@ export function calculateStudentCriterionGradeBreakdown(
             criterion.id
         )
 
-      const scores =
+      const persistedScores =
         results.flatMap(
           result => {
             if (
@@ -120,10 +126,22 @@ export function calculateStudentCriterionGradeBreakdown(
           }
         )
 
+      const extraScores =
+        additionalScores
+          .filter(
+            item =>
+              item.criterionId ===
+              criterion.id
+          )
+          .map(
+            item => item.score
+          )
+
       const average =
-        calculateAverage(
-          scores
-        )
+        calculateAverage([
+          ...persistedScores,
+          ...extraScores
+        ])
 
       return {
         criterionId:
@@ -133,7 +151,8 @@ export function calculateStudentCriterionGradeBreakdown(
         weightPercent:
           criterion.weightPercent,
         assessmentCount:
-          criterionAssessments.length,
+          criterionAssessments.length +
+          extraScores.length,
         average,
         weightedContribution:
           average ===
@@ -155,7 +174,8 @@ export function calculateStudentLessonGradeSummary(
   criteria: AssessmentCriterion[],
   assessments: LessonAssessment[],
   results: AssessmentResult[],
-  studentId: EntityId
+  studentId: EntityId,
+  additionalGrades: Score[] = []
 ): StudentLessonGradeSummary {
   if (
     criteria.length === 0
@@ -370,10 +390,19 @@ export function calculateStudentLessonGradeSummary(
           : [lesson.grade]
     )
 
-  const provisionalAverage =
-    calculateAverage(
-      completeLessonGrades
+  const additionalValidGrades =
+    additionalGrades.filter(
+      grade =>
+        Number.isFinite(grade) &&
+        grade >= MIN_SCORE &&
+        grade <= MAX_SCORE
     )
+
+  const provisionalAverage =
+    calculateAverage([
+      ...completeLessonGrades,
+      ...additionalValidGrades
+    ])
 
   const allEvaluatedLessonsComplete =
     lessons.length > 0 &&
