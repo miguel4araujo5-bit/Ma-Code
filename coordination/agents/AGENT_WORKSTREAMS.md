@@ -7,6 +7,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
 | Avaliação regular | Suporte qualitativo do 1.º ciclo no fecho da disciplina | feat/ma-professor-first-cycle-qualitative-assessment | `types.ts`; `assessments/*`; `settings/csvExport.ts`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
+| Importação de planificações | Fixar em CI a estrutura real do DOCX 12.º D · Área de Expressões sem guardar o documento escolar | test/ma-professor-real-12d-docx-regression-v2 | `tests/ma-professor/module-planification-docx-wrapped-cells.test.mjs` | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
