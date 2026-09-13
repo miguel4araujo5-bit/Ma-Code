@@ -67,6 +67,7 @@ export interface ModuleUnit extends AuditFields {
   order: number
   plannedStartDate: ISODate | null
   plannedEndDate: ISODate | null
+  moduleKind?: 'regular_annual'
   active: boolean
 }
 
