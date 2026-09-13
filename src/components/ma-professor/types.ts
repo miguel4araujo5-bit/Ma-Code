@@ -5,6 +5,12 @@ export type LocalTime = string
 export type Score = number
 export type Percentage = number
 
+export type FirstCycleQualitativeGrade =
+  | 'Muito Bom'
+  | 'Bom'
+  | 'Suficiente'
+  | 'Insuficiente'
+
 export interface AuditFields {
   createdAt: ISODateTime
   updatedAt: ISODateTime
@@ -309,6 +315,8 @@ export interface ModuleFinalGrade extends AuditFields {
   selfAssessmentGrade?: Score | null
   usesAcs?: boolean
   finalGrade: Score | null
+  qualitativeFinalGrade?: FirstCycleQualitativeGrade | null
+  descriptiveAssessment?: string
   confirmedAt: ISODateTime | null
   note: string
 }

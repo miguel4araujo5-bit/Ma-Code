@@ -1,5 +1,6 @@
 import type {
   ClassGroup,
+  FirstCycleQualitativeGrade,
   Score
 } from '../types'
 
@@ -17,6 +18,14 @@ export interface SummativeAssessmentScale {
   placeholder: string
   description: string
 }
+
+export const FIRST_CYCLE_QUALITATIVE_GRADES:
+  readonly FirstCycleQualitativeGrade[] = [
+    'Muito Bom',
+    'Bom',
+    'Suficiente',
+    'Insuficiente'
+  ]
 
 const PROFESSIONAL_SCALE: SummativeAssessmentScale = {
   kind: 'score_0_20',
@@ -40,10 +49,10 @@ const REGULAR_FIRST_CYCLE_SCALE: SummativeAssessmentScale = {
   kind: 'qualitative',
   min: null,
   max: null,
-  inputLabel: 'Avaliação sumativa',
+  inputLabel: 'Menção qualitativa',
   placeholder: '',
   description:
-    'No 1.º ciclo, a avaliação sumativa é qualitativa. O MA-Professor não converte automaticamente médias numéricas em menções.'
+    'No 1.º ciclo, a avaliação sumativa é qualitativa e acompanhada de apreciação descritiva. O MA-Professor não converte automaticamente médias numéricas em menções.'
 }
 
 const UNSUPPORTED_SCALE: SummativeAssessmentScale = {
@@ -104,6 +113,17 @@ export function getSummativeAssessmentScale(
   return PROFESSIONAL_SCALE
 }
 
+export function isFirstCycleQualitativeGrade(
+  value: unknown
+): value is FirstCycleQualitativeGrade {
+  return (
+    typeof value === 'string' &&
+    FIRST_CYCLE_QUALITATIVE_GRADES.includes(
+      value as FirstCycleQualitativeGrade
+    )
+  )
+}
+
 export function validateSummativeNumericValue(
   group: ClassGroup | null | undefined,
   value: Score,
@@ -116,7 +136,7 @@ export function validateSummativeNumericValue(
     scale.kind === 'qualitative'
   ) {
     throw new Error(
-      `A ${label} do 1.º ciclo não pode ser guardada como nota numérica. Use o suporte qualitativo quando estiver disponível.`
+      `A ${label} do 1.º ciclo não pode ser guardada como nota numérica. Use uma menção qualitativa.`
     )
   }
 
