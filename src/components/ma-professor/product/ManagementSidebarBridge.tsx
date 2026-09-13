@@ -56,7 +56,7 @@ const externalLabels =
   )
 
 const RESET_SCHEDULE_CONFIRMATION =
-  '⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados, bem como a estrutura de turmas e disciplinas desta configuração. Deseja mesmo apagar tudo e começar de novo?'
+  '⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados. Deseja mesmo apagar tudo e começar de novo?'
 
 function getErrorMessage(
   error: unknown
