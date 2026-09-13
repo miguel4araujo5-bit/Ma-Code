@@ -249,7 +249,7 @@ test(
   () => {
     assert.match(
       documentSource,
-      /\.\(\?:xlsx\|xlsm\|xls\)/
+      /\\\.\(\?:xlsx\|xlsm\|xls\)/
     )
     assert.match(
       documentSource,
