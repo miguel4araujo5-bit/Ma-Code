@@ -8,12 +8,13 @@ import {
 import {
   calendarRepository
 } from '../calendar/calendarRepository'
+import CalendarRecoveriesPanel from '../calendar/CalendarRecoveriesPanel'
 import CalendarWorkspaceView from '../calendar/CalendarWorkspaceView'
 import {
   calendarWorkspaceRepository,
+  type CalendarRecoveryWorkspaceSnapshot,
   type CalendarViewMode,
-  type CalendarWorkspaceFilters,
-  type CalendarWorkspaceSnapshot
+  type CalendarWorkspaceFilters
 } from '../calendar/calendarWorkspaceRepository'
 import {
   useMAProfessorUnsavedWorkspaceProtection
@@ -112,7 +113,7 @@ export function CalendarProductWorkspace({
   const [anchorDate, setAnchorDate] = useState<ISODate>(todayISO)
   const [filters, setFilters] = useState<CalendarWorkspaceFilters>({})
   const [snapshot, setSnapshot] =
-    useState<CalendarWorkspaceSnapshot | null>(null)
+    useState<CalendarRecoveryWorkspaceSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
@@ -301,6 +302,10 @@ export function CalendarProductWorkspace({
         onFiltersChange={nextFilters => setFilters(nextFilters)}
         onLessonSelect={handleLessonSelect}
         onEventSelect={handleEventSelect}
+      />
+
+      <CalendarRecoveriesPanel
+        snapshot={snapshot}
       />
 
       {selectedEvent ? (
