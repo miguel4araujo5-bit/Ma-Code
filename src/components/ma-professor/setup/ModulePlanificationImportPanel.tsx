@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SetupSnapshot } from '../repository'
+import { samePlanificationModuleCode } from '../planifications/planificationPdfPreview'
 import PlanificationScheduleGrid from './PlanificationScheduleGrid'
 import {
   matchingPlanificationSubjects, normalizePlanificationLabel as normalizeSubjectLabel,
@@ -293,7 +294,7 @@ export default function ModulePlanificationImportPanel({
       return
     }
 
-    if (!guided && !window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. Os módulos já existentes serão preservados e ignorados.')) return
+    if (!guided && !window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. As UFCD/módulos já existentes serão preservados; quando ainda não tiverem planificação ativa, a planificação importada será associada sem duplicar o módulo.')) return
 
     saving.current = true
     setBusy(true)
@@ -321,7 +322,11 @@ export default function ModulePlanificationImportPanel({
       setEditingDestination(false)
       setShowAllDetails(false)
       changeOpen(false)
-      setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados; ${result.skipped} existentes preservados.`)
+      const attached = result.attached ?? 0
+      const attachedMessage = attached
+        ? `; ${attached} planificações adicionadas a UFCD/módulos existentes`
+        : ''
+      setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados${attachedMessage}; ${result.skipped} existentes preservados.`)
       await onImported()
     } catch (failure) {
       setError(committed
@@ -629,7 +634,7 @@ export default function ModulePlanificationImportPanel({
                 ))}
               </div>
             </div>
-            <p className="text-sm text-slate-300">Os tempos a criar têm {minutes} minutos. Confirme os valores antes de guardar. UFCD já existentes no destino serão ignoradas, incluindo a respetiva planificação.</p>
+            <p className="text-sm text-slate-300">Os tempos a criar têm {minutes} minutos. Confirme os valores antes de guardar. UFCD/módulos já existentes são preservados; se ainda não tiverem planificação ativa, a planificação importada será associada sem duplicar o módulo. Se já tiverem planificação ativa, essa planificação será preservada.</p>
             {rows.map((row, index) => {
               const source = document.sections[row.sectionIndex]
               const warning = durationWarning(source, document.periodMinutes)
@@ -660,9 +665,23 @@ export default function ModulePlanificationImportPanel({
                   const existing = assignment
                     ? snapshot.modules.filter(module =>
                         module.teachingAssignmentId === assignment.id &&
-                        module.code.trim() === row.code.trim()
+                        samePlanificationModuleCode(module.code, row.code)
                       )
                     : []
+                  const existingModule = existing.length === 1 ? existing[0] : null
+                  const hasActivePlanification = existingModule
+                    ? snapshot.planifications.some(planification =>
+                        planification.active &&
+                        planification.moduleId === existingModule.id
+                      )
+                    : false
+                  const existingAction = existing.length > 1
+                    ? 'Existem várias correspondências — rever antes de importar'
+                    : existingModule
+                      ? hasActivePlanification
+                        ? 'Já existe com planificação — preservar e ignorar'
+                        : 'UFCD/módulo já existe — adicionar planificação'
+                      : 'Criar módulo e planificação'
                   const currentCourse = group?.courseName?.trim() || 'não indicado'
                   const confirmedCourse = courseName.trim()
                   const courseChange = confirmedCourse && normalizeSubjectLabel(currentCourse) !== normalizeSubjectLabel(confirmedCourse)
@@ -674,7 +693,7 @@ export default function ModulePlanificationImportPanel({
                       ? `criar/associar “${subjectName.trim()}”; `
                       : ''
                   return <p key={id} className="text-sm text-cyan-100">
-                    {group?.name}: {subjectAction}{courseChange ? `curso “${currentCourse}” → “${confirmedCourse}”; ` : ''}{existing.length ? 'Já existe — preservar e ignorar' : 'Criar módulo e planificação'}
+                    {group?.name}: {subjectAction}{courseChange ? `curso “${currentCourse}” → “${confirmedCourse}”; ` : ''}{existingAction}
                   </p>
                 })}
                 <details><summary className="cursor-pointer text-sm font-bold">Rever conteúdos e planificação</summary>
