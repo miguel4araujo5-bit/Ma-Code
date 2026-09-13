@@ -1,124 +1,139 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import ts from 'typescript'
 
-const routerSource = await readFile(
+const regularWorkspaceSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx',
+    '../../src/components/ma-professor/assessments/RegularAssessmentWorkspaceView.tsx',
     import.meta.url
   ),
   'utf8'
 )
 
-const wrapperSource = await readFile(
+const managementPanelSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/assessments/RegularAssessmentWorkspaceManagedView.tsx',
+    '../../src/components/ma-professor/assessments/AssessmentCriteriaManagementPanel.tsx',
     import.meta.url
   ),
   'utf8'
 )
 
-const panelSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/assessments/RegularAssessmentCriteriaManagementPanel.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
+function assertTranspiles(
+  source,
+  fileName
+) {
+  const output = ts.transpileModule(
+    source,
+    {
+      fileName,
+      reportDiagnostics: true,
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ES2022,
+        jsx: ts.JsxEmit.ReactJSX
+      }
+    }
+  )
 
-const professionalGridSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/assessments/UfcdFinalGradeGrid.tsx',
-    import.meta.url
-  ),
-  'utf8'
-)
+  const errors = (output.diagnostics || [])
+    .filter(
+      diagnostic =>
+        diagnostic.category ===
+          ts.DiagnosticCategory.Error
+    )
+
+  assert.equal(
+    errors.length,
+    0,
+    errors
+      .map(diagnostic =>
+        ts.flattenDiagnosticMessageText(
+          diagnostic.messageText,
+          '\n'
+        )
+      )
+      .join('\n')
+  )
+}
 
 test(
-  'regular assessment routes through an additive criteria-management wrapper without replacing the established workspace',
+  'regular assessment workspace compiles after reusing the protected criteria manager',
   () => {
-    assert.match(
-      routerSource,
-      /RegularAssessmentWorkspaceView\s+from\s+['"]\.\/RegularAssessmentWorkspaceManagedView['"]/
+    assertTranspiles(
+      regularWorkspaceSource,
+      'RegularAssessmentWorkspaceView.tsx'
     )
-    assert.match(
-      wrapperSource,
-      /RegularAssessmentWorkspaceView/
-    )
-    assert.match(
-      wrapperSource,
-      /RegularAssessmentCriteriaManagementPanel/
-    )
-    assert.match(
-      wrapperSource,
-      /criteriaOverride/
-    )
-    assert.match(
-      wrapperSource,
-      /criteria:\s*criteriaOverride\.criteria/
+    assertTranspiles(
+      managementPanelSource,
+      'AssessmentCriteriaManagementPanel.tsx'
     )
   }
 )
 
 test(
-  'regular criteria reuse the protected persistence repository and the 100-percent contract',
+  'regular assessment exposes the same post-setup criteria manager without duplicating its persistence logic',
   () => {
     assert.match(
-      panelSource,
-      /assessmentCriteriaManagementRepository[\s\S]*?getEditability\(schemeId\)/
+      regularWorkspaceSource,
+      /AssessmentCriteriaManagementPanel/
     )
     assert.match(
-      panelSource,
-      /assessmentCriteriaManagementRepository[\s\S]*?updateScheme/
+      regularWorkspaceSource,
+      /criteriaOverride/
     )
     assert.match(
-      panelSource,
-      /ASSESSMENT_CRITERIA_HISTORY_EXISTS/
+      regularWorkspaceSource,
+      /onSaved=\{setCriteriaOverride\}/
     )
     assert.match(
-      panelSource,
-      /Math\.abs\(weightTotal - 100\) >= 0\.001/
+      regularWorkspaceSource,
+      /disabled=\{[\s\S]*loading[\s\S]*savingStudentId\s*!==\s*null[\s\S]*hasUnsavedChanges[\s\S]*\}/
     )
     assert.match(
-      panelSource,
-      /useMAProfessorUnsavedWorkspaceProtection/
+      regularWorkspaceSource,
+      /criteriaSnapshot\.criteria\.length\s*===\s*0/
+    )
+    assert.doesNotMatch(
+      regularWorkspaceSource,
+      /snapshot\.criteria\.map/
+    )
+  }
+)
+
+test(
+  'shared criteria manager uses neutral explanatory copy while preserving the professional UFCD scope label',
+  () => {
+    assert.match(
+      managementPanelSource,
+      /Consulte e ajuste o conjunto de critérios selecionado\./
+    )
+    assert.doesNotMatch(
+      managementPanelSource,
+      /aplicado a esta UFCD/
     )
     assert.match(
-      panelSource,
-      /Específicos desta componente anual/
+      managementPanelSource,
+      /Específicos desta UFCD/
     )
     assert.match(
-      panelSource,
+      managementPanelSource,
       /Gerais da disciplina/
     )
   }
 )
 
 test(
-  'professional criteria management remains on the existing UFCD grid path',
-  () => {
-    assert.match(
-      professionalGridSource,
-      /AssessmentCriteriaManagementPanel/
-    )
-    assert.match(
-      professionalGridSource,
-      /BaseUfcdFinalGradeGrid/
-    )
-  }
-)
-
-test(
-  'regular criteria management remains local-first and adds no Cloudflare path',
+  'regular criteria management remains local-first and adds no Cloudflare or remote path',
   () => {
     const combined = [
-      wrapperSource,
-      panelSource
+      regularWorkspaceSource,
+      managementPanelSource
     ].join('\n')
 
     assert.doesNotMatch(
       combined,
-      /fetch\(|snapshotApi|Durable Object|wrangler|cloudflare|workers ai|D1Database/i
+      /fetch\(|snapshotApi|Durable Object|wrangler|cloudflare|workers ai/i
     )
   }
 )

@@ -3,7 +3,7 @@ import type {
 } from '../types'
 
 import ProfessionalAssessmentWorkspaceView from './ProfessionalAssessmentWorkspaceView'
-import RegularAssessmentWorkspaceView from './RegularAssessmentWorkspaceManagedView'
+import RegularAssessmentWorkspaceView from './RegularAssessmentWorkspaceView'
 
 import type {
   AssessmentWorkspaceFilters,
