@@ -226,6 +226,13 @@ function validatePresetContext(snapshot: SetupSnapshot) {
       )
     }
 
+    if (
+      group.educationType ===
+      'regular'
+    ) {
+      continue
+    }
+
     endDateByAssignment.set(assignment.id, getGroupEndDate(group))
   }
 
@@ -317,6 +324,40 @@ async function ensureScheduleValidity(
   return updatedScheduleSlots
 }
 
+async function generateProfessionalPresetLessons(
+  academicYearId: EntityId,
+  endDateByAssignment: Map<EntityId, ISODate>
+) {
+  let createdLessons = 0
+  let skippedExistingLessons = 0
+
+  for (
+    const [
+      teachingAssignmentId,
+      dateTo
+    ] of endDateByAssignment
+  ) {
+    const generation =
+      await lessonRepository.generateScheduledLessons({
+        academicYearId,
+        teachingAssignmentId,
+        dateFrom: SECONDARY_START_DATE,
+        dateTo,
+        createCancelledForBlockedDates: false
+      })
+
+    createdLessons +=
+      generation.created.length
+    skippedExistingLessons +=
+      generation.skippedExisting
+  }
+
+  return {
+    createdLessons,
+    skippedExistingLessons
+  }
+}
+
 async function prepare(
   academicYearId: EntityId
 ): Promise<InitialSchoolCalendarPreparationResult> {
@@ -356,19 +397,20 @@ async function prepare(
     endDateByAssignment
   )
 
-  const generation = await lessonRepository.generateScheduledLessons({
-    academicYearId,
-    dateFrom: SECONDARY_START_DATE,
-    dateTo: TENTH_GRADE_END_DATE,
-    createCancelledForBlockedDates: false
-  })
+  const generation =
+    await generateProfessionalPresetLessons(
+      academicYearId,
+      endDateByAssignment
+    )
 
   return {
     applied: true,
     createdEvents,
     updatedScheduleSlots,
-    createdLessons: generation.created.length,
-    skippedExistingLessons: generation.skippedExisting
+    createdLessons:
+      generation.createdLessons,
+    skippedExistingLessons:
+      generation.skippedExistingLessons
   }
 }
 
