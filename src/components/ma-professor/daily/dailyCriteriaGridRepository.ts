@@ -354,7 +354,16 @@ export class DailyCriteriaGridRepository {
               row.attendanceStatus ===
               'absent'
             ) {
-              return []
+              return [
+                {
+                  studentId:
+                    row.studentId,
+                  status:
+                    'absent' as const,
+                  score: null,
+                  note: ''
+                }
+              ]
             }
 
             return [
