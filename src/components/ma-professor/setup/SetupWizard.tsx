@@ -51,6 +51,7 @@ type GuidedStage =
   | 'planifications'
   | 'criteria'
   | 'students'
+  | 'confirmation'
   | 'ready'
 
 const setupSteps: SetupStepDefinition[] = [
@@ -168,6 +169,21 @@ function activeAssignmentIds(snapshot: SetupSnapshot) {
     .map(assignment => assignment.id)
 }
 
+function hasModuleCoverage(snapshot: SetupSnapshot) {
+  const assignments = activeAssignmentIds(snapshot)
+  if (assignments.length === 0) return false
+
+  const moduleAssignmentIds = new Set(
+    snapshot.modules
+      .filter(module => module.active)
+      .map(module => module.teachingAssignmentId)
+  )
+
+  return assignments.every(assignmentId =>
+    moduleAssignmentIds.has(assignmentId)
+  )
+}
+
 function hasPlanificationCoverage(snapshot: SetupSnapshot) {
   const assignments = activeAssignmentIds(snapshot)
   if (assignments.length === 0) return false
@@ -246,6 +262,56 @@ function hasStudentCoverage(snapshot: SetupSnapshot) {
   return activeGroupIds.every(groupId =>
     groupsWithStudents.has(groupId)
   )
+}
+
+function hasGuidedSetupCoverage(snapshot: SetupSnapshot) {
+  return (
+    hasCompleteScheduleCoverage(snapshot) &&
+    hasModuleCoverage(snapshot) &&
+    hasPlanificationCoverage(snapshot) &&
+    hasCriteriaCoverage(snapshot) &&
+    hasStudentCoverage(snapshot)
+  )
+}
+
+async function reconcileGuidedSetupProgress(snapshot: SetupSnapshot) {
+  const completed = new Set<SetupStepId>(
+    snapshot.progress?.completedSteps ?? []
+  )
+  const stepsToComplete: SetupStepId[] = []
+
+  if (hasCompleteScheduleCoverage(snapshot)) {
+    stepsToComplete.push(...importedScheduleSteps)
+  }
+  if (hasModuleCoverage(snapshot)) {
+    stepsToComplete.push('modules')
+  }
+  if (hasCriteriaCoverage(snapshot)) {
+    stepsToComplete.push('assessment_criteria')
+  }
+  if (hasPlanificationCoverage(snapshot)) {
+    stepsToComplete.push('planifications')
+  }
+  if (hasStudentCoverage(snapshot)) {
+    stepsToComplete.push('students')
+  }
+
+  let changed = false
+
+  for (const step of stepsToComplete) {
+    if (completed.has(step)) continue
+
+    await maProfessorRepository.completeSetupStep(
+      snapshot.academicYear.id,
+      step
+    )
+    completed.add(step)
+    changed = true
+  }
+
+  return changed
+    ? maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
+    : snapshot
 }
 
 function getInitialGuidedStage(snapshot: SetupSnapshot): GuidedStage {
@@ -348,6 +414,8 @@ export default function SetupWizard({
   const [activeStep, setActiveStep] = useState<SetupStepId>(
     () => getFirstIncompleteStep(snapshot)
   )
+  const [guidedPreparingConfirmation, setGuidedPreparingConfirmation] = useState(false)
+  const [guidedPreparationError, setGuidedPreparationError] = useState('')
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
@@ -364,6 +432,7 @@ export default function SetupWizard({
   const planificationsReady = hasPlanificationCoverage(snapshot)
   const criteriaReady = hasCriteriaCoverage(snapshot)
   const studentsReady = hasStudentCoverage(snapshot)
+  const guidedSetupReady = hasGuidedSetupCoverage(snapshot)
   const currentProgressStep = getFirstIncompleteStep(snapshot)
   const activeStepDefinition =
     setupSteps.find(step => step.id === activeStep) ?? setupSteps[0]
@@ -379,6 +448,12 @@ export default function SetupWizard({
   }
 
   function navigateToStep(stepId: SetupStepId) {
+    setActiveStep(stepId)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function openAdvancedStep(stepId: SetupStepId) {
+    setAdvancedMode(true)
     setActiveStep(stepId)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -429,7 +504,37 @@ export default function SetupWizard({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleGuidedStudentsCompleted(nextSnapshot: SetupSnapshot) {
+  async function openGuidedConfirmation(nextSnapshot: SetupSnapshot) {
+    if (guidedPreparingConfirmation) return
+
+    setGuidedPreparingConfirmation(true)
+    setGuidedPreparationError('')
+
+    try {
+      const preparedSnapshot = await reconcileGuidedSetupProgress(
+        nextSnapshot
+      )
+
+      onSnapshotChange(preparedSnapshot)
+      setGuidedStage('confirmation')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (preparationError) {
+      setGuidedPreparationError(
+        preparationError instanceof Error
+          ? preparationError.message
+          : 'Não foi possível preparar a conclusão da configuração.'
+      )
+    } finally {
+      setGuidedPreparingConfirmation(false)
+    }
+  }
+
+  async function handleGuidedStudentsCompleted(nextSnapshot: SetupSnapshot) {
+    if (hasGuidedSetupCoverage(nextSnapshot)) {
+      await openGuidedConfirmation(nextSnapshot)
+      return
+    }
+
     onSnapshotChange(nextSnapshot)
     setGuidedStage('ready')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -655,7 +760,7 @@ export default function SetupWizard({
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">4 · Alunos</p>
               <h2 className="mt-2 text-xl font-black">Adicione os alunos antes de concluir a configuração rápida.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Use a mesma página de alunos da configuração avançada. Pode introduzir os alunos manualmente ou colar uma lista; todas as turmas ativas têm de ficar com alunos antes de avançar.
+                Use a mesma página de alunos da configuração avançada. Pode introduzir os alunos manualmente ou colar uma lista; todas as turmas ativas têm de ficar com alunos antes de avançar para a confirmação final.
               </p>
             </section>
 
@@ -663,6 +768,25 @@ export default function SetupWizard({
               snapshot={snapshot}
               onSnapshotChange={onSnapshotChange}
               onCompleted={handleGuidedStudentsCompleted}
+            />
+          </div>
+        ) : null}
+
+        {guidedStage === 'confirmation' ? (
+          <div className="mt-6 space-y-5">
+            <section className="rounded-3xl border border-emerald-300/20 bg-emerald-300/[0.055] p-5 text-white shadow-xl shadow-black/15 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Configuração rápida preparada</p>
+              <h2 className="mt-2 text-xl font-black">Já pode concluir a configuração.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Os alunos já foram introduzidos. Faça a revisão final abaixo e conclua o ano letivo sem ter de entrar na configuração avançada.
+              </p>
+            </section>
+
+            <SetupConfirmationStep
+              snapshot={snapshot}
+              onSnapshotChange={onSnapshotChange}
+              onCompleted={onCompleted}
+              onEditStep={openAdvancedStep}
             />
           </div>
         ) : null}
@@ -681,8 +805,26 @@ export default function SetupWizard({
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Critérios</p><p className="mt-2 font-black">{criteriaReady ? '✓ Configurados' : '◌ Por completar'}</p></div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-xs text-slate-500">Alunos</p><p className="mt-2 font-black">{studentsReady ? '✓ Adicionados' : '◌ Por adicionar'}</p></div>
             </div>
+
+            {guidedPreparationError ? (
+              <div className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm font-semibold text-rose-100">
+                {guidedPreparationError}
+              </div>
+            ) : null}
+
             <div className="mt-6 flex flex-wrap gap-3">
-              {readiness.operationalReady ? (
+              {guidedSetupReady ? (
+                <button
+                  type="button"
+                  onClick={() => void openGuidedConfirmation(snapshot)}
+                  disabled={guidedPreparingConfirmation}
+                  className="rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-emerald-950 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {guidedPreparingConfirmation
+                    ? 'A preparar conclusão…'
+                    : 'Concluir configuração'}
+                </button>
+              ) : readiness.operationalReady ? (
                 <button
                   type="button"
                   onClick={openDaily}
