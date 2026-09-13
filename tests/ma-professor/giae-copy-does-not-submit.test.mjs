@@ -228,7 +228,7 @@ test(
 )
 
 test(
-  'the dedicated GIAE workspace keeps copy and submit as separate actions',
+  'the dedicated GIAE copy marks the exact copied version submitted only after clipboard success',
   () => {
     const copyHandler =
       getFunctionBody(
@@ -237,15 +237,84 @@ test(
         'function handleCopyVisible()'
       )
 
-    assert.equal(
-      copyHandler.includes('onMarkSubmitted'),
-      false,
-      'A ação Copiar do workspace GIAE continua separada da submissão explícita nesse workspace.'
+    const clipboardIndex =
+      copyHandler.indexOf('await writeClipboard(')
+    const authorizationIndex =
+      copyHandler.indexOf(
+        'giaeWorkspaceRepository.recordCopiedLesson('
+      )
+    const submitIndex =
+      copyHandler.indexOf('await onMarkSubmitted!(')
+
+    assert.notEqual(clipboardIndex, -1)
+    assert.notEqual(authorizationIndex, -1)
+    assert.notEqual(submitIndex, -1)
+    assert.ok(
+      clipboardIndex < authorizationIndex &&
+      authorizationIndex < submitIndex,
+      'O GIAE só pode autorizar e marcar como submetida a versão depois de a cópia para o clipboard ter sucesso.'
     )
 
     assert.match(
+      copyHandler,
+      /row\.canMarkSubmitted\s*&&[\s\S]*Boolean\(onMarkSubmitted\)/
+    )
+    assert.match(
+      copyHandler,
+      /O sumário foi copiado, mas não foi assinalado como submetido no GIAE\./
+    )
+    assert.match(
+      copyHandler,
+      /Sumário copiado e assinalado automaticamente como submetido no GIAE\./
+    )
+    assert.match(
       giaeSource,
       /function handleMarkSubmitted\(/
+    )
+  }
+)
+
+test(
+  'copying the visible GIAE list auto-submits only pending copied rows after clipboard success',
+  () => {
+    const copyVisibleHandler =
+      getFunctionBody(
+        giaeSource,
+        'function handleCopyVisible()',
+        'function handleMarkSubmitted('
+      )
+
+    const clipboardIndex =
+      copyVisibleHandler.indexOf('await writeClipboard(')
+    const authorizationIndex =
+      copyVisibleHandler.indexOf(
+        'giaeWorkspaceRepository.recordCopiedLessons('
+      )
+    const submitIndex =
+      copyVisibleHandler.indexOf(
+        'await onMarkManySubmitted!('
+      )
+
+    assert.notEqual(clipboardIndex, -1)
+    assert.notEqual(authorizationIndex, -1)
+    assert.notEqual(submitIndex, -1)
+    assert.ok(
+      clipboardIndex < authorizationIndex &&
+      authorizationIndex < submitIndex,
+      'A submissão conjunta só pode acontecer depois da cópia bem-sucedida e da autorização das versões copiadas.'
+    )
+
+    assert.match(
+      copyVisibleHandler,
+      /const pendingRows =[\s\S]*copiedRows\.filter\([\s\S]*row\.canMarkSubmitted/
+    )
+    assert.match(
+      copyVisibleHandler,
+      /pendingRows\.map\([\s\S]*row\.lesson/
+    )
+    assert.match(
+      copyVisibleHandler,
+      /Os sumários foram copiados, mas nem todos foram assinalados como submetidos no GIAE\./
     )
   }
 )
