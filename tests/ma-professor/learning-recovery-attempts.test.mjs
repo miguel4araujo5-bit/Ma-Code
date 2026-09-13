@@ -443,7 +443,11 @@ test(
   () => {
     assert.match(
       repositorySource,
-      /if \(history\.length > 0\) \{\s*return null\s*\}/
+      /if \(history\.length > 0\) \{\s*return sortLearningRecoveryAttempts\(/
+    )
+    assert.match(
+      repositorySource,
+      /\.filter\([\s\S]*recovery =>[\s\S]*recovery\.status !== 'completed'/
     )
     assert.match(
       repositorySource,
