@@ -1029,7 +1029,7 @@ export class PlanificationImportRepository {
       )
 
     const requireSourcePages =
-      !/\.docx$/i.test(
+      !/\.(?:docx|xlsx|xlsm|xls)$/i.test(
         documentName
       )
 
