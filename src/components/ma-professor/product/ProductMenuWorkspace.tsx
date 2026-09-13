@@ -562,7 +562,11 @@ export function ProductMenuWorkspace({
           </div>
         )}
 
-        <MAProfessorApp />
+        <MAProfessorApp
+          onOpenAttendance={() => setSection('attendance')}
+          onOpenSchedule={() => setSection('schedule')}
+          onOpenSettings={() => setSection('settings')}
+        />
       </div>
     )
   }
