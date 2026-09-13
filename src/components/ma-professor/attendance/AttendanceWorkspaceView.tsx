@@ -343,6 +343,10 @@ export default function AttendanceWorkspaceView({
       busyAction
     )
 
+  const regularEducation =
+    snapshot.selectedGroup?.educationType ===
+    'regular'
+
   async function runAction(
     actionId: string,
     action: () => Promise<void> | void,
@@ -418,7 +422,7 @@ export default function AttendanceWorkspaceView({
       setFeedback({
         tone: 'error',
         message:
-          'Selecione uma turma, disciplina e UFCD válidas.'
+          'Selecione uma turma, uma disciplina e uma componente curricular válida.'
       })
       return
     }
@@ -534,7 +538,9 @@ export default function AttendanceWorkspaceView({
               </div>
 
               <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                Acompanhamento por UFCD
+                {regularEducation
+                  ? 'Acompanhamento da disciplina'
+                  : 'Acompanhamento por UFCD'}
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
@@ -628,7 +634,9 @@ export default function AttendanceWorkspaceView({
 
           <label>
             <span className="mb-2 block text-sm font-bold text-slate-200">
-              UFCD ou módulo
+              {regularEducation
+                ? 'Componente curricular'
+                : 'UFCD ou módulo'}
             </span>
 
             <select
@@ -658,7 +666,9 @@ export default function AttendanceWorkspaceView({
               {snapshot.moduleOptions.length ===
               0 ? (
                 <option value="">
-                  Sem UFCD disponíveis
+                  {regularEducation
+                    ? 'Sem componentes curriculares disponíveis'
+                    : 'Sem UFCD ou módulos disponíveis'}
                 </option>
               ) : null}
 
@@ -708,7 +718,9 @@ export default function AttendanceWorkspaceView({
           </p>
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            Confirme a turma, a disciplina, a UFCD e os alunos na configuração do MA-Professor.
+            {regularEducation
+              ? 'Confirme a turma, a disciplina, a componente curricular e os alunos na configuração do MA-Professor.'
+              : 'Confirme a turma, a disciplina, a UFCD ou módulo e os alunos na configuração do MA-Professor.'}
           </p>
         </section>
       ) : (
@@ -784,7 +796,9 @@ export default function AttendanceWorkspaceView({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  As percentagens consideram apenas aulas dadas e contabilizadas nesta UFCD.
+                  {regularEducation
+                    ? 'As percentagens consideram apenas aulas dadas e contabilizadas nesta disciplina.'
+                    : 'As percentagens consideram apenas aulas dadas e contabilizadas nesta UFCD ou módulo.'}
                 </p>
               </div>
 
@@ -1141,7 +1155,9 @@ export default function AttendanceWorkspaceView({
                                   </p>
                                 ) : (
                                   <p className="text-xs leading-5 text-slate-500">
-                                    A recuperação será ligada a esta UFCD e ao aluno selecionado.
+                                    {regularEducation
+                                      ? 'A recuperação será ligada a esta disciplina e ao aluno selecionado.'
+                                      : 'A recuperação será ligada a esta UFCD ou módulo e ao aluno selecionado.'}
                                   </p>
                                 )}
                               </div>
