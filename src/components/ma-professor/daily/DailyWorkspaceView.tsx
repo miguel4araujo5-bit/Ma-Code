@@ -576,7 +576,7 @@ export default function DailyWorkspaceView({
             async () => true
         );
     const quickGradeInputRefs =
-        useRef<Array<HTMLInputElement | null>>(
+        useRef<Array<HTMLSelectElement | null>>(
             []
         );
 
@@ -2264,7 +2264,6 @@ export default function DailyWorkspaceView({
                 !input.disabled
             ) {
                 input.focus();
-                input.select();
                 return;
             }
         }
@@ -2727,7 +2726,7 @@ export default function DailyWorkspaceView({
 
                             {lessonIsFuture ? (
                                 <div className="mb-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-sm font-bold text-amber-100">
-                                    🚨 Esta aula está marcada para uma data futura. Pode registar a avaliação; confirme apenas que está a trabalhar na aula correta.
+                                    🚨 Atenção: está a editar uma data futura.
                                 </div>
                             ) : null}
 
@@ -3235,7 +3234,7 @@ export default function DailyWorkspaceView({
                                                                             'absent';
 
                                                                         return (
-                                                                            <input
+                                                                            <select
                                                                                 key={
                                                                                     criterion.id
                                                                                 }
@@ -3249,8 +3248,6 @@ export default function DailyWorkspaceView({
                                                                                 data-criterion-id={
                                                                                     criterion.id
                                                                                 }
-                                                                                type="text"
-                                                                                inputMode="decimal"
                                                                                 value={
                                                                                     absent
                                                                                         ? ''
@@ -3271,9 +3268,7 @@ export default function DailyWorkspaceView({
                                                                                 onKeyDown={event => {
                                                                                     if (
                                                                                         event.key ===
-                                                                                            'Enter' ||
-                                                                                        event.key ===
-                                                                                            'ArrowDown'
+                                                                                        'Enter'
                                                                                     ) {
                                                                                         event.preventDefault();
                                                                                         focusNextQuickGrade(
@@ -3287,14 +3282,45 @@ export default function DailyWorkspaceView({
                                                                                         'cancelled' ||
                                                                                     absent
                                                                                 }
-                                                                                placeholder={
-                                                                                    absent
-                                                                                        ? '—'
-                                                                                        : '10'
-                                                                                }
                                                                                 aria-label={`${criterion.name} de ${row.student.name}`}
-                                                                                className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
-                                                                            />
+                                                                                className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                                                            >
+                                                                                {absent ? (
+                                                                                    <option value="">
+                                                                                        —
+                                                                                    </option>
+                                                                                ) : null}
+                                                                                {Array.from(
+                                                                                    {
+                                                                                        length: 20
+                                                                                    },
+                                                                                    (
+                                                                                        _,
+                                                                                        optionIndex
+                                                                                    ) => {
+                                                                                        const grade =
+                                                                                            String(
+                                                                                                optionIndex +
+                                                                                                    1
+                                                                                            );
+
+                                                                                        return (
+                                                                                            <option
+                                                                                                key={
+                                                                                                    grade
+                                                                                                }
+                                                                                                value={
+                                                                                                    grade
+                                                                                                }
+                                                                                            >
+                                                                                                {
+                                                                                                    grade
+                                                                                                }
+                                                                                            </option>
+                                                                                        );
+                                                                                    }
+                                                                                )}
+                                                                            </select>
                                                                         );
                                                                     }
                                                                 )}

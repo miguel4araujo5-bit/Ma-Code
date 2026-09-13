@@ -265,7 +265,7 @@ test(
 )
 
 test(
-  'the main Daily workspace exposes one score input per configured criterion',
+  'the main Daily workspace exposes one grade selector per configured criterion',
   () => {
     assert.doesNotThrow(() =>
       transpile(
@@ -275,7 +275,7 @@ test(
     )
     assert.match(
       dailyWorkspaceSource,
-      /data-daily-quick-grade-input="true"/
+      /<select[\s\S]*data-daily-quick-grade-input="true"/
     )
     assert.match(
       dailyWorkspaceSource,
@@ -288,6 +288,28 @@ test(
     assert.match(
       dailyWorkspaceSource,
       /calculateDailyCriteriaAverage\(/
+    )
+  }
+)
+
+test(
+  'daily criterion selector offers grades 1 through 20 and starts at ten',
+  () => {
+    assert.match(
+      dailyWorkspaceSource,
+      /length:\s*20/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /optionIndex \+\s*1/
+    )
+    assert.match(
+      dailyWorkspaceSource,
+      /row\.criterionScores\[[\s\S]*criterion\.id[\s\S]*\]\s*\?\?\s*'10'/
+    )
+    assert.doesNotMatch(
+      dailyWorkspaceSource,
+      /data-daily-quick-grade-input="true"[\s\S]{0,300}inputMode="decimal"/
     )
   }
 )
@@ -337,18 +359,27 @@ test(
 )
 
 test(
-  'keyboard-only entry remains available across criterion score cells',
+  'native grade selector keeps ArrowDown for choosing a grade and Enter can advance',
   () => {
+    const selectorSection = dailyWorkspaceSource.slice(
+      dailyWorkspaceSource.indexOf(
+        'data-daily-quick-grade-input="true"'
+      ) - 500,
+      dailyWorkspaceSource.indexOf(
+        'data-daily-quick-grade-input="true"'
+      ) + 4000
+    )
+
     assert.match(
-      dailyWorkspaceSource,
+      selectorSection,
       /event\.key ===[\s\S]*'Enter'/
     )
-    assert.match(
-      dailyWorkspaceSource,
+    assert.doesNotMatch(
+      selectorSection,
       /event\.key ===[\s\S]*'ArrowDown'/
     )
     assert.match(
-      dailyWorkspaceSource,
+      selectorSection,
       /focusNextQuickGrade\(/
     )
   }
