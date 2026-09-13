@@ -25,7 +25,7 @@ jobs:
   tests:
     name: Validate tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -142,6 +142,16 @@ jobs:
       - name: Run MA-Quadro tests
         if: steps.scope.outputs.quadro == 'true'
         run: npm run test:ma-quadro
+
+      - name: Install MA-Professor browser test runtime
+        if: steps.scope.outputs.professor == 'true'
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run MA-Professor browser critical path
+        if: steps.scope.outputs.professor == 'true'
+        run: node tests/ma-professor/browser-critical-path.e2e.mjs
 
   build:
     name: Validate build
