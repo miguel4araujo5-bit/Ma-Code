@@ -297,7 +297,7 @@ test(
     )
     assert.match(
       initialCalendarSource,
-      /lessonRepository\.generateScheduledLessons\(\{[\s\S]*?teachingAssignmentId/[\s\S]*?dateTo/
+      /lessonRepository\.generateScheduledLessons\(\{[\s\S]*?teachingAssignmentId[\s\S]*?dateTo/
     )
   }
 )
