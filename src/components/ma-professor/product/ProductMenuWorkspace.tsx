@@ -7,7 +7,9 @@ import {
   useState
 } from 'react'
 
-import MAProfessorApp from '../MAProfessorApp'
+import MAProfessorApp, {
+  type MAProfessorWorkspaceView
+} from '../MAProfessorApp'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -39,8 +41,20 @@ type MenuSection =
   | 'settings'
   | 'restore'
 
+export type ProductMenuNavigationTarget =
+  | MAProfessorWorkspaceView
+  | 'attendance'
+  | 'schedule'
+  | 'settings'
+
+export interface ProductMenuNavigationRequest {
+  id: number
+  target: ProductMenuNavigationTarget
+}
+
 interface ProductMenuWorkspaceProps {
   academicYear: AcademicYear | null
+  navigationRequest?: ProductMenuNavigationRequest | null
   onDataChanged: () => void | Promise<void>
   onOpenDaily: () => void
   onOpenCalendar: () => void
@@ -50,6 +64,22 @@ interface SuggestedAcademicYear {
   name: string
   startDate: string
   endDate: string
+}
+
+const managementWorkspaceTargets: MAProfessorWorkspaceView[] = [
+  'dashboard',
+  'giae',
+  'assessments',
+  'planifications',
+  'groups'
+]
+
+function isManagementWorkspaceTarget(
+  target: ProductMenuNavigationTarget
+): target is MAProfessorWorkspaceView {
+  return managementWorkspaceTargets.includes(
+    target as MAProfessorWorkspaceView
+  )
 }
 
 const correctionCompletedSteps: SetupStepId[] = [
@@ -272,6 +302,7 @@ function MenuHeader({
 
 export function ProductMenuWorkspace({
   academicYear,
+  navigationRequest = null,
   onDataChanged,
   onOpenDaily,
   onOpenCalendar
@@ -295,6 +326,26 @@ export function ProductMenuWorkspace({
       setSection('management')
     }
   }, [setupCompleted])
+
+  useEffect(() => {
+    const target =
+      navigationRequest?.target
+
+    if (!target) {
+      return
+    }
+
+    if (
+      isManagementWorkspaceTarget(
+        target
+      )
+    ) {
+      setSection('management')
+      return
+    }
+
+    setSection(target)
+  }, [navigationRequest?.id])
 
   useEffect(() => {
     if (
@@ -565,7 +616,21 @@ export function ProductMenuWorkspace({
           </div>
         )}
 
-        <MAProfessorApp />
+        <MAProfessorApp
+          workspaceRequest={
+            navigationRequest &&
+            isManagementWorkspaceTarget(
+              navigationRequest.target
+            )
+              ? {
+                  id:
+                    navigationRequest.id,
+                  workspace:
+                    navigationRequest.target
+                }
+              : null
+          }
+        />
         <ManagementSidebarBridge
           onOpenAttendance={() => setSection('attendance')}
           onOpenSchedule={() => setSection('schedule')}

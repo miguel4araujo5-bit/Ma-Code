@@ -128,6 +128,11 @@ export function ManagementSidebarBridge({
 
       for (const button of hiddenButtons) {
         button.hidden = true
+        button.style.setProperty(
+          'display',
+          'none',
+          'important'
+        )
       }
 
       currentTarget = {
@@ -164,6 +169,9 @@ export function ManagementSidebarBridge({
         currentTarget?.hiddenButtons ?? []
       ) {
         button.hidden = false
+        button.style.removeProperty(
+          'display'
+        )
       }
     }
   }, [])

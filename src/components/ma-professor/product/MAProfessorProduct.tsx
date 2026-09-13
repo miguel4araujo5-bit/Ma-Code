@@ -46,10 +46,12 @@ import {
 } from './CalendarProductWorkspace'
 
 import {
-  ProductMenuWorkspace
+  ProductMenuWorkspace,
+  type ProductMenuNavigationRequest
 } from './ProductMenuWorkspace'
 import {
   ProductNavigation,
+  type ProductSidebarDestination,
   type ProductTheme,
   type ProductWorkspace
 } from './ProductNavigation'
@@ -178,6 +180,17 @@ function ProductContent() {
     useState<AcademicYear | null>(
       null
     )
+
+  const [
+    menuNavigationRequest,
+    setMenuNavigationRequest
+  ] =
+    useState<ProductMenuNavigationRequest | null>(
+      null
+    )
+
+  const menuNavigationSequenceRef =
+    useRef(0)
 
   const [
     operationalReady,
@@ -479,6 +492,9 @@ function ProductContent() {
           nextWorkspace ===
           'menu'
         ) {
+          setMenuNavigationRequest(
+            null
+          )
           setWorkspace(
             'menu'
           )
@@ -569,6 +585,52 @@ function ProductContent() {
           false
         )
       }
+    }
+
+  const handleSidebarDestination =
+    async (
+      destination:
+        ProductSidebarDestination
+    ) => {
+      if (
+        destination ===
+        'calendar'
+      ) {
+        await handleSelect(
+          'calendar'
+        )
+        return
+      }
+
+      if (changingWorkspace) {
+        return
+      }
+
+      if (
+        workspace ===
+        'daily'
+      ) {
+        const canLeave =
+          await (
+            dailyNavigationGuardRef.current?.() ??
+            Promise.resolve(true)
+          )
+
+        if (!canLeave) {
+          return
+        }
+      }
+
+      menuNavigationSequenceRef.current += 1
+      setMenuNavigationRequest({
+        id:
+          menuNavigationSequenceRef.current,
+        target:
+          destination
+      })
+      setWorkspace(
+        'menu'
+      )
     }
 
   const handleDataChanged =
@@ -692,6 +754,12 @@ function ProductContent() {
               next
             )
         }
+        onOpenSidebarDestination={
+          next =>
+            void handleSidebarDestination(
+              next
+            )
+        }
         onToggleTheme={() =>
           setTheme(
             current =>
@@ -775,6 +843,9 @@ function ProductContent() {
         <ProductMenuWorkspace
           academicYear={
             academicYear
+          }
+          navigationRequest={
+            menuNavigationRequest
           }
           onDataChanged={
             handleDataChanged
