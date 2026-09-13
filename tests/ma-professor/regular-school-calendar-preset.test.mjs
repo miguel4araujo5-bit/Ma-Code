@@ -21,11 +21,29 @@ test(
 )
 
 test(
+  'S. Bento professional teaching starts on 14 September while regular groups remain outside this preset',
+  () => {
+    assert.match(
+      source,
+      /const PROFESSIONAL_START_DATE: ISODate = '2026-09-14'/
+    )
+    assert.doesNotMatch(
+      source,
+      /const SECONDARY_START_DATE/
+    )
+    assert.match(
+      source,
+      /group\.educationType ===\s*'regular'[\s\S]*continue/
+    )
+  }
+)
+
+test(
   'preset lesson generation is scoped to each professional assignment and its own end date',
   () => {
     assert.match(
       source,
-      /async function generateProfessionalPresetLessons\([\s\S]*for \([\s\S]*teachingAssignmentId,[\s\S]*dateTo[\s\S]*of endDateByAssignment[\s\S]*lessonRepository\.generateScheduledLessons\(\{[\s\S]*academicYearId,[\s\S]*teachingAssignmentId,[\s\S]*dateFrom: SECONDARY_START_DATE,[\s\S]*dateTo,[\s\S]*createCancelledForBlockedDates: false/
+      /async function generateProfessionalPresetLessons\([\s\S]*for \([\s\S]*teachingAssignmentId,[\s\S]*dateTo[\s\S]*of endDateByAssignment[\s\S]*lessonRepository\.generateScheduledLessons\(\{[\s\S]*academicYearId,[\s\S]*teachingAssignmentId,[\s\S]*dateFrom: PROFESSIONAL_START_DATE,[\s\S]*dateTo,[\s\S]*createCancelledForBlockedDates: false/
     )
   }
 )
