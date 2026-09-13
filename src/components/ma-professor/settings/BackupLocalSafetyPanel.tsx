@@ -142,7 +142,7 @@ export function BackupLocalSafetyPanel() {
         setFeedback({
           tone: 'success',
           message:
-            'Estado atual descarregado. Guarde o ficheiro num local seguro antes de avançar com um restauro.'
+            'Cópia completa descarregada. Guarde o ficheiro num local seguro.'
         })
       } catch (error) {
         setFeedback({
@@ -169,12 +169,16 @@ export function BackupLocalSafetyPanel() {
   return (
     <section className="rounded-3xl border border-amber-300/20 bg-amber-300/[0.06] p-5 sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-200">
-        Segurança das cópias locais
+        Proteja o trabalho
       </p>
 
       <h2 className="mt-2 text-xl font-black text-white">
-        Antes de restaurar, preserve o estado atual
+        Em janela privada, guarde uma cópia antes de fechar
       </h2>
+
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-100">
+        Em navegação privada ou anónima, o browser pode eliminar os dados locais quando a janela ou a sessão privada termina. Para não perder o trabalho, descarregue uma cópia para o computador ou use a cópia cifrada online disponível logo abaixo.
+      </p>
 
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
         Uma cópia JSON local não está cifrada e pode conter nomes de alunos, faltas, avaliações e outros dados escolares. Guarde estes ficheiros apenas num local seguro.
@@ -224,7 +228,7 @@ export function BackupLocalSafetyPanel() {
       >
         {busy
           ? 'A criar cópia…'
-          : 'Descarregar estado atual antes de restaurar'}
+          : 'Descarregar cópia para este computador'}
       </button>
 
       {feedback ? (

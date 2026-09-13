@@ -34,6 +34,22 @@ const productMenuSource = await readFile(
   'utf8'
 )
 
+const productNavigationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/ProductNavigation.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const productSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dbSource = await readFile(
   new URL(
     '../../src/components/ma-professor/db.ts',
@@ -61,7 +77,7 @@ test(
   () => {
     assert.match(
       safetySource,
-      /Descarregar estado atual antes de restaurar/
+      /Descarregar cópia para este computador/
     )
     assert.match(
       safetySource,
@@ -151,6 +167,62 @@ test(
     assert.match(
       backupSource,
       /Escreva RESTAURAR para confirmar\./
+    )
+  }
+)
+
+test(
+  'backup is directly reachable from the global product navigation and works before setup is complete',
+  () => {
+    assert.match(
+      productNavigationSource,
+      /ProductWorkspace = 'daily' \| 'calendar' \| 'backup' \| 'menu'/
+    )
+    assert.match(
+      productNavigationSource,
+      /id:\s*'backup'[\s\S]*label:\s*'Cópia'/
+    )
+    assert.match(
+      productNavigationSource,
+      /grid-cols-4/
+    )
+    assert.match(
+      productSource,
+      /nextWorkspace ===[\s\S]*'backup'[\s\S]*setWorkspace\([\s\S]*'backup'/
+    )
+    assert.match(
+      productSource,
+      /workspace !== 'menu' &&[\s\S]*workspace !== 'backup' &&[\s\S]*checkingYear/
+    )
+    assert.match(
+      productSource,
+      /workspace ===[\s\S]*'backup' \? \(\s*<SettingsWorkspaceView[\s\S]*initialTab=\"backup\"/
+    )
+  }
+)
+
+test(
+  'backup screen warns about private browsing and keeps both local and encrypted-online choices',
+  () => {
+    assert.match(
+      safetySource,
+      /Em janela privada, guarde uma cópia antes de fechar/
+    )
+    assert.match(
+      safetySource,
+      /navegação privada ou anónima[\s\S]*eliminar os dados locais/i
+    )
+    assert.match(
+      safetySource,
+      /Descarregar cópia para este computador/
+    )
+    assert.match(
+      backupSource,
+      /<EncryptedSyncPanel \/>/
+    )
+    assert.match(
+      backupSource,
+      /Guardar cópia cifrada agora|EncryptedSyncPanel/
     )
   }
 )
