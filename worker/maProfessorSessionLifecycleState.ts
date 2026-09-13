@@ -392,30 +392,33 @@ function reconcileSessionReplacement(
 
     const otherActive =
       Object.entries(sessions)
-        .filter(
-          ([key, candidate]) =>
-            key !== replacement.key &&
-            isActiveSession(candidate) &&
-            normalizeEmail(
-              candidate.email
-            ) === replacement.email
-        )
-        .map(
-          ([key, candidate]) => ({
-            key,
-            createdAt:
+        .flatMap(
+          ([key, candidate]) => {
+            if (
+              key === replacement.key ||
+              !isActiveSession(candidate) ||
+              normalizeEmail(
+                candidate.email
+              ) !== replacement.email
+            ) {
+              return []
+            }
+
+            const createdAt =
               readTimestamp(
                 candidate.createdAt
-              ) ?? 0,
-            lastSeenAt:
-              readTimestamp(
-                candidate.lastSeenAt
-              ) ??
-              readTimestamp(
-                candidate.createdAt
-              ) ??
-              0
-          })
+              ) ?? 0
+
+            return [{
+              key,
+              createdAt,
+              lastSeenAt:
+                readTimestamp(
+                  candidate.lastSeenAt
+                ) ??
+                createdAt
+            }]
+          }
         )
         .sort(
           (left, right) =>
