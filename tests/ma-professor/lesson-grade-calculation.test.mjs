@@ -19,6 +19,14 @@ const wrapperSource = await readFile(
   'utf8'
 )
 
+const dailyGridSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/dailyCriteriaGridRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 function transpile(source) {
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -79,13 +87,14 @@ function assessment(
 
 function result(
   assessmentId,
-  score
+  score,
+  status = 'evaluated'
 ) {
   return {
-    id: `result-${assessmentId}-${score}`,
+    id: `result-${assessmentId}-${status}-${score}`,
     assessmentId,
     studentId: 'student-1',
-    status: 'evaluated',
+    status,
     score,
     note: ''
   }
@@ -224,7 +233,74 @@ test(
 )
 
 test(
-  'workspace wrapper replaces criterion-first provisional grade with lesson-first result',
+  'absence has no numeric grade value and leaves the missed evaluation pending',
+  () => {
+    const assessments = [
+      assessment('l1-c1', 'lesson-1', 'c1'),
+      assessment('l1-c2', 'lesson-1', 'c2'),
+      assessment('l1-c3', 'lesson-1', 'c3'),
+      assessment('l2-c1', 'lesson-2', 'c1'),
+      assessment('l2-c2', 'lesson-2', 'c2'),
+      assessment('l2-c3', 'lesson-2', 'c3')
+    ]
+
+    const results = [
+      result('l1-c1', 10),
+      result('l1-c2', 20),
+      result('l1-c3', 20),
+      result('l2-c1', 0, 'absent'),
+      result('l2-c2', 0, 'absent'),
+      result('l2-c3', 0, 'absent')
+    ]
+
+    const summary =
+      calculation.calculateStudentLessonGradeSummary(
+        criteria,
+        assessments,
+        results,
+        'student-1'
+      )
+
+    assert.deepEqual(
+      summary.lessons.map(item => item.grade),
+      [14, null]
+    )
+    assert.equal(
+      summary.provisionalAverage,
+      14
+    )
+    assert.equal(
+      summary.allEvaluatedLessonsComplete,
+      false
+    )
+    assert.equal(
+      summary.suggestedGrade,
+      null
+    )
+
+    const breakdown =
+      calculation.calculateStudentCriterionGradeBreakdown(
+        criteria,
+        assessments,
+        results,
+        'student-1'
+      )
+
+    assert.deepEqual(
+      breakdown.map(item => item.average),
+      [10, 20, 20]
+    )
+    assert.equal(
+      calculation.isGradeBearingAssessmentResult(
+        result('l2-c1', 0, 'absent')
+      ),
+      false
+    )
+  }
+)
+
+test(
+  'workspace wrapper keeps absence out of activity averages and final criterion breakdowns',
   () => {
     assert.match(
       wrapperSource,
@@ -232,7 +308,19 @@ test(
     )
     assert.match(
       wrapperSource,
-      /provisionalAverage:\s*\n\s*calculation\.provisionalAverage/
+      /calculateStudentCriterionGradeBreakdown/
+    )
+    assert.match(
+      wrapperSource,
+      /isGradeBearingAssessmentResult/
+    )
+    assert.match(
+      wrapperSource,
+      /activity\.absentCount\s*===\s*0/
+    )
+    assert.match(
+      wrapperSource,
+      /criteria,\s*\n\s*provisionalAverage:\s*\n\s*calculation\.provisionalAverage/
     )
     assert.match(
       wrapperSource,
@@ -241,6 +329,20 @@ test(
     assert.match(
       wrapperSource,
       /suggestedGrade:\s*\n\s*calculation\.suggestedGrade/
+    )
+  }
+)
+
+test(
+  'daily criteria grid persists absence as status instead of an academic zero',
+  () => {
+    assert.match(
+      dailyGridSource,
+      /row\.attendanceStatus\s*===\s*\n\s*'absent'[\s\S]*status:\s*\n\s*'absent' as const[\s\S]*score: null/
+    )
+    assert.match(
+      dailyGridSource,
+      /row\.result\?\.status\s*!==\s*\n\s*'evaluated'/
     )
   }
 )
