@@ -53,7 +53,9 @@ const {
 
 const stored = {
   token: 'token-a',
-  deviceId: 'device-a'
+  deviceId: 'device-a',
+  checkedAt: new Date()
+    .toISOString()
 }
 
 test(
