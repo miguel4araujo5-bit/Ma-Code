@@ -19,6 +19,14 @@ const atomicSource = await readFile(
   'utf8'
 )
 
+const bootstrapSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/calendar/InitialSchoolCalendarBootstrap.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 function transpile(source, filename) {
   const output = ts.transpileModule(
     source,
@@ -167,6 +175,39 @@ test(
     assert.match(
       atomic,
       /A programação dos cargos foi cancelada\. Nenhuma alteração foi guardada\./
+    )
+  }
+)
+
+
+test(
+  'legacy S. Bento setup can recover the school from the configured calendar before scheduling duties',
+  () => {
+    assert.match(
+      atomicSource,
+      /S_BENTO_CALENDAR_DESCRIPTION/
+    )
+    assert.match(
+      atomicSource,
+      /inferSchoolNameFromCalendarEvents/
+    )
+    assert.match(
+      atomicSource,
+      /profile\?\.schoolName[\s\S]*inferSchoolNameFromCalendarEvents\([\s\S]*calendarEvents/
+    )
+    assert.match(
+      atomicSource,
+      /const dutySchoolName =[\s\S]*await confirmGenericDutyDateRange[\s\S]*profile\?\.schoolName[\s\S]*dutySchoolName/
+    )
+  }
+)
+
+test(
+  'school bootstrap reopens school selection if the profile loses its school during the session',
+  () => {
+    assert.match(
+      bootstrapSource,
+      /if \(!state\.schoolName\.trim\(\)\) \{\s*setStage\('selecting'\)\s*return\s*\}/
     )
   }
 )
