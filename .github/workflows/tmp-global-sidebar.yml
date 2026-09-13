@@ -1,0 +1,93 @@
+name: Temporary global sidebar patch
+
+on:
+  push:
+    branches:
+      - fix/ma-professor-global-sidebar
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    if: ${{ !contains(github.event.head_commit.message, '[global-sidebar-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ma-professor-global-sidebar
+          fetch-depth: 0
+
+      - name: Apply global sidebar integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} exact match(es), found {actual}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          product = 'src/components/ma-professor/product/MAProfessorProduct.tsx'
+          replace_exact(product, "import {\n  ProductMenuWorkspace\n} from './ProductMenuWorkspace'\nimport {\n  ProductNavigation,\n  type ProductTheme,\n  type ProductWorkspace\n} from './ProductNavigation'\n", "import {\n  ProductMenuWorkspace,\n  type ProductMenuNavigationRequest\n} from './ProductMenuWorkspace'\nimport {\n  ProductNavigation,\n  type ProductSidebarDestination,\n  type ProductTheme,\n  type ProductWorkspace\n} from './ProductNavigation'\n")
+          replace_exact(product, "  const [\n    academicYear,\n    setAcademicYear\n  ] =\n    useState<AcademicYear | null>(\n      null\n    )\n", "  const [\n    academicYear,\n    setAcademicYear\n  ] =\n    useState<AcademicYear | null>(\n      null\n    )\n\n  const [\n    menuNavigationRequest,\n    setMenuNavigationRequest\n  ] =\n    useState<ProductMenuNavigationRequest | null>(\n      null\n    )\n\n  const menuNavigationSequenceRef =\n    useRef(0)\n")
+          replace_exact(product, "        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n", "        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setMenuNavigationRequest(\n            null\n          )\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n")
+          replace_exact(product, "  const handleDataChanged =\n    async () => {\n", "  const handleSidebarDestination =\n    async (\n      destination:\n        ProductSidebarDestination\n    ) => {\n      if (\n        destination ===\n        'calendar'\n      ) {\n        await handleSelect(\n          'calendar'\n        )\n        return\n      }\n\n      if (changingWorkspace) {\n        return\n      }\n\n      if (\n        workspace ===\n        'daily'\n      ) {\n        const canLeave =\n          await (\n            dailyNavigationGuardRef.current?.() ??\n            Promise.resolve(true)\n          )\n\n        if (!canLeave) {\n          return\n        }\n      }\n\n      menuNavigationSequenceRef.current += 1\n      setMenuNavigationRequest({\n        id:\n          menuNavigationSequenceRef.current,\n        target:\n          destination\n      })\n      setWorkspace(\n        'menu'\n      )\n    }\n\n  const handleDataChanged =\n    async () => {\n")
+          replace_exact(product, "        onSelect={\n          next =>\n            void handleSelect(\n              next\n            )\n        }\n        onToggleTheme={() =>\n", "        onSelect={\n          next =>\n            void handleSelect(\n              next\n            )\n        }\n        onOpenSidebarDestination={\n          next =>\n            void handleSidebarDestination(\n              next\n            )\n        }\n        onToggleTheme={() =>\n")
+          replace_exact(product, "        <ProductMenuWorkspace\n          academicYear={\n            academicYear\n          }\n          onDataChanged={\n            handleDataChanged\n          }\n", "        <ProductMenuWorkspace\n          academicYear={\n            academicYear\n          }\n          navigationRequest={\n            menuNavigationRequest\n          }\n          onDataChanged={\n            handleDataChanged\n          }\n")
+
+          menu = 'src/components/ma-professor/product/ProductMenuWorkspace.tsx'
+          replace_exact(menu, "import MAProfessorApp from '../MAProfessorApp'\n", "import MAProfessorApp, {\n  type MAProfessorWorkspaceView\n} from '../MAProfessorApp'\n")
+          replace_exact(menu, "interface ProductMenuWorkspaceProps {\n  academicYear: AcademicYear | null\n  onDataChanged: () => void | Promise<void>\n  onOpenDaily: () => void\n  onOpenCalendar: () => void\n}\n", "export type ProductMenuNavigationTarget =\n  | MAProfessorWorkspaceView\n  | 'attendance'\n  | 'schedule'\n  | 'settings'\n\nexport interface ProductMenuNavigationRequest {\n  id: number\n  target: ProductMenuNavigationTarget\n}\n\ninterface ProductMenuWorkspaceProps {\n  academicYear: AcademicYear | null\n  navigationRequest?: ProductMenuNavigationRequest | null\n  onDataChanged: () => void | Promise<void>\n  onOpenDaily: () => void\n  onOpenCalendar: () => void\n}\n")
+          replace_exact(menu, "const correctionCompletedSteps: SetupStepId[] = [\n", "const managementWorkspaceTargets: MAProfessorWorkspaceView[] = [\n  'dashboard',\n  'giae',\n  'assessments',\n  'planifications',\n  'groups'\n]\n\nfunction isManagementWorkspaceTarget(\n  target: ProductMenuNavigationTarget\n): target is MAProfessorWorkspaceView {\n  return managementWorkspaceTargets.includes(\n    target as MAProfessorWorkspaceView\n  )\n}\n\nconst correctionCompletedSteps: SetupStepId[] = [\n")
+          replace_exact(menu, "export function ProductMenuWorkspace({\n  academicYear,\n  onDataChanged,\n  onOpenDaily,\n  onOpenCalendar\n}: ProductMenuWorkspaceProps) {\n", "export function ProductMenuWorkspace({\n  academicYear,\n  navigationRequest = null,\n  onDataChanged,\n  onOpenDaily,\n  onOpenCalendar\n}: ProductMenuWorkspaceProps) {\n")
+          replace_exact(menu, "  useEffect(() => {\n    if (!setupCompleted) {\n      setSection('management')\n    }\n  }, [setupCompleted])\n\n  useEffect(() => {\n", "  useEffect(() => {\n    if (!setupCompleted) {\n      setSection('management')\n    }\n  }, [setupCompleted])\n\n  useEffect(() => {\n    const target =\n      navigationRequest?.target\n\n    if (!target) {\n      return\n    }\n\n    if (\n      isManagementWorkspaceTarget(\n        target\n      )\n    ) {\n      setSection('management')\n      return\n    }\n\n    setSection(target)\n  }, [navigationRequest?.id])\n\n  useEffect(() => {\n")
+          replace_exact(menu, "        <MAProfessorApp />\n        <ManagementSidebarBridge\n", "        <MAProfessorApp\n          workspaceRequest={\n            navigationRequest &&\n            isManagementWorkspaceTarget(\n              navigationRequest.target\n            )\n              ? {\n                  id:\n                    navigationRequest.id,\n                  workspace:\n                    navigationRequest.target\n                }\n              : null\n          }\n        />\n        <ManagementSidebarBridge\n")
+
+          legacy = 'src/components/ma-professor/MAProfessorApp.tsx'
+          replace_exact(legacy, "type WorkspaceView =\n  | 'dashboard'\n  | 'calendar'\n  | 'giae'\n  | 'assessments'\n  | 'planifications'\n  | 'groups'\n", "export type MAProfessorWorkspaceView =\n  | 'dashboard'\n  | 'calendar'\n  | 'giae'\n  | 'assessments'\n  | 'planifications'\n  | 'groups'\n\ntype WorkspaceView =\n  MAProfessorWorkspaceView\n\nexport interface MAProfessorWorkspaceRequest {\n  id: number\n  workspace: MAProfessorWorkspaceView\n}\n\ninterface MAProfessorAppProps {\n  workspaceRequest?:\n    MAProfessorWorkspaceRequest | null\n}\n")
+          replace_exact(legacy, "export default function MAProfessorApp() {\n", "export default function MAProfessorApp({\n  workspaceRequest = null\n}: MAProfessorAppProps = {}) {\n")
+          replace_exact(legacy, "  function handleWorkspaceChange(\n    workspace: WorkspaceView\n  ) {\n    setLessonEditorContext(null)\n    setLessonEditorError('')\n\n    if (\n      workspace !==\n      'calendar'\n    ) {\n      setExtraLessonContext(null)\n      setExtraLessonError('')\n    }\n\n    setActiveWorkspace(\n      workspace\n    )\n  }\n\n  function handleCalendarModeChange(\n", "  function handleWorkspaceChange(\n    workspace: WorkspaceView\n  ) {\n    setLessonEditorContext(null)\n    setLessonEditorError('')\n\n    if (\n      workspace !==\n      'calendar'\n    ) {\n      setExtraLessonContext(null)\n      setExtraLessonError('')\n    }\n\n    setActiveWorkspace(\n      workspace\n    )\n  }\n\n  useEffect(() => {\n    if (\n      !workspaceRequest ||\n      !setupCompleted\n    ) {\n      return\n    }\n\n    handleWorkspaceChange(\n      workspaceRequest.workspace\n    )\n  }, [\n    setupCompleted,\n    workspaceRequest?.id\n  ])\n\n  function handleCalendarModeChange(\n")
+
+          bridge = 'src/components/ma-professor/product/ManagementSidebarBridge.tsx'
+          replace_exact(bridge, "      for (const button of hiddenButtons) {\n        button.hidden = true\n      }\n", "      for (const button of hiddenButtons) {\n        button.hidden = true\n        button.style.setProperty(\n          'display',\n          'none',\n          'important'\n        )\n      }\n")
+          replace_exact(bridge, "        button.hidden = false\n", "        button.hidden = false\n        button.style.removeProperty(\n          'display'\n        )\n")
+
+          test_file = 'tests/ma-professor/product-sidebar-navigation.test.mjs'
+          p = Path(test_file)
+          text = p.read_text(encoding='utf-8')
+          marker = "const legacyAppSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/MAProfessorApp.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\n"
+          sources = "const productNavigationSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/ProductNavigation.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst productSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\n"
+          if text.count(marker) != 1:
+              raise SystemExit('test source insertion marker mismatch')
+          text = text.replace(marker, marker + sources, 1)
+          old = "    assert.match(\n      bridgeSource,\n      /createPortal/\n    )\n"
+          new = "    assert.match(\n      bridgeSource,\n      /createPortal/\n    )\n    assert.match(\n      bridgeSource,\n      /style\\.setProperty\\([\\s\\S]*'display'[\\s\\S]*'none'[\\s\\S]*'important'/\n    )\n"
+          if text.count(old) != 1:
+              raise SystemExit('bridge test marker mismatch')
+          text = text.replace(old, new, 1)
+          anchor = "test(\n  'saved guided schedule can be edited or reset before a replacement import',\n"
+          new_tests = "test(\n  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer',\n  () => {\n    assert.match(productNavigationSource, /aria-label=\\\"Abrir navegação completa do MA-Professor\\\"/)\n    assert.match(productNavigationSource, /src=\\\"\\/ma-code\\.png\\\"/)\n    assert.match(productNavigationSource, /sidebarOpen[\\s\\S]*role=\\\"dialog\\\"[\\s\\S]*aria-label=\\\"Navegação completa do MA-Professor\\\"/)\n    for (const label of ['Painel', 'Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {\n      assert.ok(productNavigationSource.includes(label), `missing global drawer entry: ${label}`)\n    }\n  }\n)\n\ntest(\n  'global sidebar destinations reuse existing workspaces instead of duplicating screens',\n  () => {\n    assert.match(productSource, /handleSidebarDestination[\\s\\S]*destination ===[\\s\\S]*'calendar'[\\s\\S]*handleSelect/)\n    assert.match(productSource, /setMenuNavigationRequest\\([\\s\\S]*target:[\\s\\S]*destination[\\s\\S]*setWorkspace\\([\\s\\S]*'menu'/)\n    assert.match(productSource, /navigationRequest=\\{[\\s\\S]*menuNavigationRequest/)\n    assert.match(menuSource, /isManagementWorkspaceTarget[\\s\\S]*setSection\\('management'\\)/)\n    assert.match(menuSource, /<MAProfessorApp[\\s\\S]*workspaceRequest=/)\n    assert.match(legacyAppSource, /handleWorkspaceChange\\([\\s\\S]*workspaceRequest\\.workspace/)\n  }\n)\n\ntest(\n  'opening the global sidebar from Daily preserves the unsaved-work navigation guard',\n  () => {\n    assert.match(productSource, /handleSidebarDestination[\\s\\S]*workspace ===[\\s\\S]*'daily'[\\s\\S]*dailyNavigationGuardRef\\.current/)\n    assert.match(productSource, /if \\(!canLeave\\) \\{[\\s\\S]*return/)\n  }\n)\n\n"
+          if text.count(anchor) != 1:
+              raise SystemExit('test anchor mismatch')
+          p.write_text(text.replace(anchor, new_tests + anchor, 1), encoding='utf-8')
+          PY
+
+      - name: Validate targeted sidebar tests
+        shell: bash
+        run: |
+          git diff --check
+          node --test tests/ma-professor/product-sidebar-navigation.test.mjs
+
+      - name: Commit applied patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/ma-professor/product/MAProfessorProduct.tsx src/components/ma-professor/product/ProductMenuWorkspace.tsx src/components/ma-professor/MAProfessorApp.tsx src/components/ma-professor/product/ManagementSidebarBridge.tsx tests/ma-professor/product-sidebar-navigation.test.mjs
+          git commit -m "fix: ligar drawer global aos ecrãs existentes [global-sidebar-applied]"
+          git push origin HEAD:fix/ma-professor-global-sidebar
