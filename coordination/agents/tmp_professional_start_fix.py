@@ -10,8 +10,8 @@ if source.count(old_decl) != 1:
 source = source.replace(old_decl, new_decl, 1)
 
 old_refs = source.count('SECONDARY_START_DATE')
-if old_refs != 3:
-    raise SystemExit(f'expected three old start-date references after declaration replacement, found {old_refs}')
+if old_refs != 4:
+    raise SystemExit(f'expected four old start-date references after declaration replacement, found {old_refs}')
 source = source.replace('SECONDARY_START_DATE', 'PROFESSIONAL_START_DATE')
 source_path.write_text(source, encoding='utf-8')
 
@@ -25,7 +25,7 @@ test_source = test_source.replace(old_regex, 'dateFrom: PROFESSIONAL_START_DATE'
 anchor = "test(\n  'preset lesson generation is scoped to each professional assignment and its own end date',"
 if test_source.count(anchor) != 1:
     raise SystemExit('test anchor not found exactly once')
-new_test = """test(
+new_test = r"""test(
   'S. Bento professional teaching starts on 14 September while regular groups remain outside this preset',
   () => {
     assert.match(
