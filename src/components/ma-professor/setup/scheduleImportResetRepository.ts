@@ -24,16 +24,18 @@ export async function resetScheduleImportForSetup(
   const result =
     await maProfessorDb.transaction(
       'rw',
-      maProfessorDb.academicYears,
-      maProfessorDb.setupProgress,
-      maProfessorDb.weeklyScheduleSlots,
-      maProfessorDb.schoolCalendarEvents,
-      maProfessorDb.lessons,
-      maProfessorDb.students,
-      maProfessorDb.assessmentSchemes,
-      maProfessorDb.assessmentCriteria,
-      maProfessorDb.planifications,
-      maProfessorDb.planificationItems,
+      [
+        maProfessorDb.academicYears,
+        maProfessorDb.setupProgress,
+        maProfessorDb.weeklyScheduleSlots,
+        maProfessorDb.schoolCalendarEvents,
+        maProfessorDb.lessons,
+        maProfessorDb.students,
+        maProfessorDb.assessmentSchemes,
+        maProfessorDb.assessmentCriteria,
+        maProfessorDb.planifications,
+        maProfessorDb.planificationItems
+      ],
       async () => {
         const [
           academicYear,
