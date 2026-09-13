@@ -5,6 +5,9 @@ import {
 } from 'react'
 
 import {
+  syncRegularAnnualComponentsForAcademicYear
+} from '../curriculum/regularAnnualComponentRepository'
+import {
   maProfessorRepository,
   type SetupSnapshot
 } from '../repository'
@@ -50,9 +53,9 @@ type GuidedStage =
   | 'ready'
 
 const setupSteps: SetupStepDefinition[] = [
-  { id: 'groups', number: 2, title: 'Turmas', shortTitle: 'Turmas', description: 'Selecione rapidamente as turmas do ensino profissional que leciona.' },
+  { id: 'groups', number: 2, title: 'Turmas', shortTitle: 'Turmas', description: 'Selecione as turmas que leciona e indique se pertencem ao ensino regular ou profissional.' },
   { id: 'subjects', number: 3, title: 'Disciplinas', shortTitle: 'Disciplinas', description: 'Escolha as disciplinas e associe cada uma às turmas onde a leciona.' },
-  { id: 'modules', number: 4, title: 'UFCD ou módulos', shortTitle: 'UFCD', description: 'Introduza cada UFCD uma vez e indique apenas as turmas onde se aplica.' },
+  { id: 'modules', number: 4, title: 'Organização curricular', shortTitle: 'Currículo', description: 'Configure UFCD/módulos nas turmas profissionais; no ensino regular a componente anual é preparada automaticamente.' },
   { id: 'weekly_schedule', number: 5, title: 'Horário semanal', shortTitle: 'Horário', description: 'Indique os dias, as horas e os tempos letivos.' },
   { id: 'assessment_criteria', number: 6, title: 'Critérios de avaliação', shortTitle: 'Critérios', description: 'Configure critérios e ponderações que totalizem 100%.' },
   { id: 'planifications', number: 7, title: 'Planificações', shortTitle: 'Planos', description: 'Organize conteúdos, atividades, objetivos e sumários.' },
@@ -129,6 +132,22 @@ async function reconcileImportedScheduleProgress(snapshot: SetupSnapshot) {
   return changed
     ? maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id)
     : snapshot
+}
+
+async function prepareRegularCurriculumAfterSchedule(
+  snapshot: SetupSnapshot
+) {
+  if (!hasCompleteScheduleCoverage(snapshot)) {
+    return snapshot
+  }
+
+  await syncRegularAnnualComponentsForAcademicYear(
+    snapshot.academicYear.id
+  )
+
+  return maProfessorRepository.getSetupSnapshot(
+    snapshot.academicYear.id
+  )
 }
 
 function activeAssignmentIds(snapshot: SetupSnapshot) {
@@ -349,8 +368,13 @@ export default function SetupWizard({
   }
 
   async function handleStepCompleted(nextSnapshot: SetupSnapshot) {
+    const synchronizedSnapshot =
+      await prepareRegularCurriculumAfterSchedule(
+        nextSnapshot
+      )
+
     const preparedSnapshot = await reconcileImportedScheduleProgress(
-      nextSnapshot
+      synchronizedSnapshot
     )
 
     onSnapshotChange(preparedSnapshot)
@@ -368,8 +392,13 @@ export default function SetupWizard({
   }
 
   async function handleGuidedScheduleImported(nextSnapshot: SetupSnapshot) {
+    const synchronizedSnapshot =
+      await prepareRegularCurriculumAfterSchedule(
+        nextSnapshot
+      )
+
     const preparedSnapshot = await reconcileImportedScheduleProgress(
-      nextSnapshot
+      synchronizedSnapshot
     )
     onSnapshotChange(preparedSnapshot)
     setGuidedStage('planifications')
@@ -412,8 +441,12 @@ export default function SetupWizard({
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={async nextSnapshot => {
+                const synchronizedSnapshot =
+                  await prepareRegularCurriculumAfterSchedule(
+                    nextSnapshot
+                  )
                 const prepared = await reconcileImportedScheduleProgress(
-                  nextSnapshot
+                  synchronizedSnapshot
                 )
                 onSnapshotChange(prepared)
               }}
@@ -502,7 +535,7 @@ export default function SetupWizard({
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{snapshot.subjects.filter(subject => subject.active).length} disciplinas</span>
-                <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{activeModuleCount} UFCD/módulos</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{activeModuleCount} componentes/UFCD</span>
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{activePlanificationCount} planificações</span>
               </div>
             </section>
@@ -548,7 +581,7 @@ export default function SetupWizard({
               <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">3 · Critérios</p>
               <h2 className="mt-2 text-xl font-black">Por fim, adicione os critérios que já tiver.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                As disciplinas e UFCD/módulos já preparados tornam a correspondência mais segura. Pode usar PDF ou Word; as ponderações vêm sempre do documento e nunca são inventadas.
+                As disciplinas e respetivas componentes curriculares já preparadas tornam a correspondência mais segura. Pode usar PDF ou Word; as ponderações vêm sempre do documento e nunca são inventadas.
               </p>
               <p className="mt-3 text-xs font-bold text-slate-500">Conjuntos atualmente configurados: {activeSchemeCount}</p>
             </section>
@@ -639,7 +672,7 @@ export default function SetupWizard({
       <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-6 lg:p-7">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Configuração avançada · Ensino profissional / secundário</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Configuração avançada · Ensino regular / profissional</p>
             <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Editar manualmente todas as áreas.</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">Ano letivo ativo: {snapshot.academicYear.name}</p>
           </div>
@@ -676,7 +709,7 @@ export default function SetupWizard({
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.075] p-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-200">Pronto para trabalhar</p>
-              <p className="mt-2 font-black text-white">Turmas, disciplinas, UFCD e horário já permitem gerar as aulas.</p>
+              <p className="mt-2 font-black text-white">Turmas, disciplinas, organização curricular e horário já permitem gerar as aulas.</p>
               <p className="mt-1 text-sm leading-6 text-slate-300">Pode escrever o primeiro sumário agora e continuar critérios, planificações e alunos mais tarde.</p>
             </div>
             <button type="button" onClick={openDaily} className="shrink-0 rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-emerald-950 transition hover:brightness-110">Abrir aula de hoje</button>
