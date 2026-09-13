@@ -29,12 +29,20 @@ export async function resetScheduleImportForSetup(
       maProfessorDb.weeklyScheduleSlots,
       maProfessorDb.schoolCalendarEvents,
       maProfessorDb.lessons,
+      maProfessorDb.students,
+      maProfessorDb.assessmentSchemes,
+      maProfessorDb.assessmentCriteria,
+      maProfessorDb.planifications,
+      maProfessorDb.planificationItems,
       async () => {
         const [
           academicYear,
           progress,
           slots,
-          events
+          events,
+          students,
+          schemes,
+          planifications
         ] = await Promise.all([
           maProfessorDb.academicYears.get(
             academicYearId
@@ -48,6 +56,18 @@ export async function resetScheduleImportForSetup(
             .equals(academicYearId)
             .toArray(),
           maProfessorDb.schoolCalendarEvents
+            .where('academicYearId')
+            .equals(academicYearId)
+            .toArray(),
+          maProfessorDb.students
+            .where('academicYearId')
+            .equals(academicYearId)
+            .toArray(),
+          maProfessorDb.assessmentSchemes
+            .where('academicYearId')
+            .equals(academicYearId)
+            .toArray(),
+          maProfessorDb.planifications
             .where('academicYearId')
             .equals(academicYearId)
             .toArray()
@@ -104,6 +124,59 @@ export async function resetScheduleImportForSetup(
           )
         }
 
+        const schemeIds =
+          schemes.map(scheme => scheme.id)
+        const planificationIds =
+          planifications.map(planification =>
+            planification.id
+          )
+
+        const criteria =
+          schemeIds.length > 0
+            ? await maProfessorDb.assessmentCriteria
+                .where('schemeId')
+                .anyOf(schemeIds)
+                .toArray()
+            : []
+
+        const planificationItems =
+          planificationIds.length > 0
+            ? await maProfessorDb.planificationItems
+                .where('planificationId')
+                .anyOf(planificationIds)
+                .toArray()
+            : []
+
+        if (criteria.length > 0) {
+          await maProfessorDb.assessmentCriteria.bulkDelete(
+            criteria.map(criterion => criterion.id)
+          )
+        }
+
+        if (schemes.length > 0) {
+          await maProfessorDb.assessmentSchemes.bulkDelete(
+            schemeIds
+          )
+        }
+
+        if (planificationItems.length > 0) {
+          await maProfessorDb.planificationItems.bulkDelete(
+            planificationItems.map(item => item.id)
+          )
+        }
+
+        if (planifications.length > 0) {
+          await maProfessorDb.planifications.bulkDelete(
+            planificationIds
+          )
+        }
+
+        if (students.length > 0) {
+          await maProfessorDb.students.bulkDelete(
+            students.map(student => student.id)
+          )
+        }
+
         if (slotIds.length > 0) {
           await maProfessorDb.weeklyScheduleSlots.bulkDelete(
             slotIds
@@ -125,7 +198,11 @@ export async function resetScheduleImportForSetup(
           completedSteps:
             progress.completedSteps.filter(
               step =>
-                step !== 'weekly_schedule'
+                step !== 'weekly_schedule' &&
+                step !== 'planifications' &&
+                step !== 'assessment_criteria' &&
+                step !== 'students' &&
+                step !== 'confirmation'
             ),
           updatedAt: now()
         })
@@ -134,14 +211,25 @@ export async function resetScheduleImportForSetup(
           removedScheduleSlots:
             slotIds.length,
           removedDutyEvents:
-            dutyEventIds.length
+            dutyEventIds.length,
+          removedStudents:
+            students.length,
+          removedAssessmentSchemes:
+            schemes.length,
+          removedAssessmentCriteria:
+            criteria.length,
+          removedPlanifications:
+            planifications.length,
+          removedPlanificationItems:
+            planificationItems.length
         }
       }
     )
 
   if (
-    result.removedScheduleSlots > 0 ||
-    result.removedDutyEvents > 0
+    Object.values(result).some(
+      value => value > 0
+    )
   ) {
     markDashboardDataDirty()
   }
