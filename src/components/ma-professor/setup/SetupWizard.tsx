@@ -36,6 +36,7 @@ type SetupWizardProps = {
   snapshot: SetupSnapshot
   onSnapshotChange: (snapshot: SetupSnapshot) => void
   onCompleted: (snapshot: SetupSnapshot) => void
+  initialMode?: 'guided' | 'advanced'
 }
 
 type SetupStepDefinition = {
@@ -405,14 +406,25 @@ function AcademicYearSummary({
 export default function SetupWizard({
   snapshot,
   onSnapshotChange,
-  onCompleted
+  onCompleted,
+  initialMode = 'guided'
 }: SetupWizardProps) {
-  const [advancedMode, setAdvancedMode] = useState(false)
+  const setupAlreadyCompleted = Boolean(
+    snapshot.academicYear.setupCompletedAt ||
+    snapshot.progress?.completedAt
+  )
+  const [advancedMode, setAdvancedMode] = useState(
+    initialMode === 'advanced'
+  )
   const [guidedStage, setGuidedStage] = useState<GuidedStage>(
     () => getInitialGuidedStage(snapshot)
   )
   const [activeStep, setActiveStep] = useState<SetupStepId>(
-    () => getFirstIncompleteStep(snapshot)
+    () =>
+      initialMode === 'advanced' &&
+      setupAlreadyCompleted
+        ? 'weekly_schedule'
+        : getFirstIncompleteStep(snapshot)
   )
   const [guidedPreparingConfirmation, setGuidedPreparingConfirmation] = useState(false)
   const [guidedPreparationError, setGuidedPreparationError] = useState('')
