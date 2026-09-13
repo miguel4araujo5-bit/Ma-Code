@@ -1,0 +1,519 @@
+name: Temporary global sidebar patch
+
+on:
+  push:
+    branches:
+      - fix/ma-professor-global-sidebar
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    if: ${{ !contains(github.event.head_commit.message, '[global-sidebar-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ma-professor-global-sidebar
+          fetch-depth: 0
+
+      - name: Apply global sidebar integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} exact match(es), found {actual}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          # ProductNavigation is small enough to replace as a complete, reviewed unit.
+          Path('src/components/ma-professor/product/ProductNavigation.tsx').write_text(r'''import {
+  useEffect,
+  useState
+} from 'react'
+
+import { useMAProfessorAccess } from '../access/AccessGate'
+import { getLicenseStatusLabel } from '../access/accessTypes'
+
+export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
+export type ProductTheme = 'light' | 'dark'
+export type ProductSidebarDestination =
+  | 'dashboard'
+  | 'calendar'
+  | 'giae'
+  | 'assessments'
+  | 'planifications'
+  | 'groups'
+  | 'attendance'
+  | 'schedule'
+  | 'settings'
+
+interface ProductNavigationProps {
+  workspace: ProductWorkspace
+  academicYearName: string | null
+  theme: ProductTheme
+  onSelect: (workspace: ProductWorkspace) => void
+  onOpenSidebarDestination: (destination: ProductSidebarDestination) => void
+  onToggleTheme: () => void
+}
+
+const items: Array<{
+  id: ProductWorkspace
+  label: string
+  icon: string
+}> = [
+  {
+    id: 'daily',
+    label: 'Hoje',
+    icon: '▤'
+  },
+  {
+    id: 'calendar',
+    label: 'Calendário',
+    icon: '▦'
+  },
+  {
+    id: 'backup',
+    label: 'Cópia',
+    icon: '⇩'
+  },
+  {
+    id: 'menu',
+    label: 'Menu',
+    icon: '☰'
+  }
+]
+
+const sidebarItems: Array<{
+  id: ProductSidebarDestination
+  label: string
+}> = [
+  { id: 'dashboard', label: 'Painel' },
+  { id: 'calendar', label: 'Calendário' },
+  { id: 'giae', label: 'Sumários / GIAE' },
+  { id: 'assessments', label: 'Avaliações' },
+  { id: 'planifications', label: 'Planificações' },
+  { id: 'groups', label: 'Turmas e alunos' },
+  { id: 'attendance', label: 'Faltas e recuperações' },
+  { id: 'schedule', label: 'Horários' },
+  { id: 'settings', label: 'Definições' }
+]
+
+export function ProductNavigation({
+  workspace,
+  academicYearName,
+  theme,
+  onSelect,
+  onOpenSidebarDestination,
+  onToggleTheme
+}: ProductNavigationProps) {
+  const { session } = useMAProfessorAccess()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const nextThemeLabel =
+    theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'
+
+  useEffect(() => {
+    if (!sidebarOpen) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [sidebarOpen])
+
+  function openDestination(destination: ProductSidebarDestination) {
+    setSidebarOpen(false)
+    onOpenSidebarDestination(destination)
+  }
+
+  return (
+    <>
+      <header className="sticky top-0 z-[70] border-b border-white/10 bg-slate-950/95 text-white shadow-xl shadow-black/20 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1800px] items-center gap-2 px-2 py-2 sm:gap-3 sm:px-5">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="flex shrink-0 items-center gap-2 rounded-2xl px-1 py-1.5 text-left transition hover:bg-white/[0.04] sm:gap-3 sm:px-2"
+            aria-label="Abrir navegação completa do MA-Professor"
+            aria-expanded={sidebarOpen}
+          >
+            <img
+              src="/ma-code.png"
+              alt=""
+              aria-hidden="true"
+              className="h-9 w-9 rounded-xl object-contain"
+            />
+
+            <span className="hidden min-w-0 xl:block">
+              <span className="block truncate text-sm font-black">
+                MA-Professor
+              </span>
+
+              <span className="block truncate text-[0.65rem] font-semibold text-slate-500">
+                {academicYearName || 'Configuração inicial'}
+              </span>
+            </span>
+          </button>
+
+          <nav className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
+            {items.map(item => {
+              const active = workspace === item.id
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelect(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.68rem] font-black transition sm:px-4 sm:text-xs ${
+                    active
+                      ? 'bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/30'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className="mr-1 sm:mr-1.5" aria-hidden="true">
+                    {item.icon}
+                  </span>
+
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            aria-label={nextThemeLabel}
+            aria-pressed={theme === 'light'}
+            title={nextThemeLabel}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+          >
+            <span aria-hidden="true">
+              {theme === 'dark' ? '☀' : '☾'}
+            </span>
+          </button>
+
+          <div className="hidden min-w-0 text-right lg:block">
+            <p className="max-w-48 truncate text-xs font-bold text-slate-300">
+              {session.email}
+            </p>
+
+            <p className="text-[0.65rem] font-semibold text-emerald-300">
+              {getLicenseStatusLabel(session.license.status)}
+              {session.license.daysRemaining !== null
+                ? ` · ${session.license.daysRemaining} dias`
+                : ''}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {sidebarOpen ? (
+        <div className="fixed inset-0 z-[120]">
+          <button
+            type="button"
+            aria-label="Fechar navegação"
+            onClick={() => setSidebarOpen(false)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+          />
+
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navegação completa do MA-Professor"
+            className="absolute inset-y-0 left-0 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto border-r border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-black/60"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/ma-code.png"
+                  alt="MA-Code"
+                  className="h-11 w-11 rounded-xl object-contain"
+                />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    MA-Code
+                  </p>
+                  <p className="font-black text-white">
+                    MA-Professor
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Fechar navegação"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSidebarOpen(false)
+                onSelect('daily')
+              }}
+              className="mt-7 flex w-full items-center gap-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-3 text-left text-sm font-black text-cyan-100 transition hover:bg-cyan-300/10"
+            >
+              <span className="grid h-7 w-7 place-items-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-xs">
+                ▤
+              </span>
+              Hoje
+            </button>
+
+            <nav className="mt-3 space-y-1.5" aria-label="Áreas do MA-Professor">
+              {sidebarItems.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => openDestination(item.id)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+
+            <div className="mt-auto pt-6">
+              <p className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4 text-xs leading-6 text-slate-400">
+                O menu fica acessível pelo logótipo mesmo quando uma área ocupa o ecrã completo.
+              </p>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+    </>
+  )
+}
+''', encoding='utf-8')
+
+          product = 'src/components/ma-professor/product/MAProfessorProduct.tsx'
+          replace_exact(
+              product,
+              """import {\n  ProductMenuWorkspace\n} from './ProductMenuWorkspace'\nimport {\n  ProductNavigation,\n  type ProductTheme,\n  type ProductWorkspace\n} from './ProductNavigation'\n""",
+              """import {\n  ProductMenuWorkspace,\n  type ProductMenuNavigationRequest\n} from './ProductMenuWorkspace'\nimport {\n  ProductNavigation,\n  type ProductSidebarDestination,\n  type ProductTheme,\n  type ProductWorkspace\n} from './ProductNavigation'\n"""
+          )
+          replace_exact(
+              product,
+              """  const [\n    academicYear,\n    setAcademicYear\n  ] =\n    useState<AcademicYear | null>(\n      null\n    )\n""",
+              """  const [\n    academicYear,\n    setAcademicYear\n  ] =\n    useState<AcademicYear | null>(\n      null\n    )\n\n  const [\n    menuNavigationRequest,\n    setMenuNavigationRequest\n  ] =\n    useState<ProductMenuNavigationRequest | null>(\n      null\n    )\n\n  const menuNavigationSequenceRef =\n    useRef(0)\n"""
+          )
+          replace_exact(
+              product,
+              """        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n""",
+              """        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setMenuNavigationRequest(\n            null\n          )\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n"""
+          )
+          replace_exact(
+              product,
+              """  const handleDataChanged =\n    async () => {\n""",
+              """  const handleSidebarDestination =\n    async (\n      destination:\n        ProductSidebarDestination\n    ) => {\n      if (\n        destination ===\n        'calendar'\n      ) {\n        await handleSelect(\n          'calendar'\n        )\n        return\n      }\n\n      if (changingWorkspace) {\n        return\n      }\n\n      if (\n        workspace ===\n        'daily'\n      ) {\n        const canLeave =\n          await (\n            dailyNavigationGuardRef.current?.() ??\n            Promise.resolve(true)\n          )\n\n        if (!canLeave) {\n          return\n        }\n      }\n\n      menuNavigationSequenceRef.current += 1\n      setMenuNavigationRequest({\n        id:\n          menuNavigationSequenceRef.current,\n        target:\n          destination\n      })\n      setWorkspace(\n        'menu'\n      )\n    }\n\n  const handleDataChanged =\n    async () => {\n"""
+          )
+          replace_exact(
+              product,
+              """        onSelect={\n          next =>\n            void handleSelect(\n              next\n            )\n        }\n        onToggleTheme={() =>\n""",
+              """        onSelect={\n          next =>\n            void handleSelect(\n              next\n            )\n        }\n        onOpenSidebarDestination={\n          next =>\n            void handleSidebarDestination(\n              next\n            )\n        }\n        onToggleTheme={() =>\n"""
+          )
+          replace_exact(
+              product,
+              """        <ProductMenuWorkspace\n          academicYear={\n            academicYear\n          }\n          onDataChanged={\n            handleDataChanged\n          }\n""",
+              """        <ProductMenuWorkspace\n          academicYear={\n            academicYear\n          }\n          navigationRequest={\n            menuNavigationRequest\n          }\n          onDataChanged={\n            handleDataChanged\n          }\n"""
+          )
+
+          menu = 'src/components/ma-professor/product/ProductMenuWorkspace.tsx'
+          replace_exact(
+              menu,
+              """import MAProfessorApp from '../MAProfessorApp'\n""",
+              """import MAProfessorApp, {\n  type MAProfessorWorkspaceView\n} from '../MAProfessorApp'\n"""
+          )
+          replace_exact(
+              menu,
+              """interface ProductMenuWorkspaceProps {\n  academicYear: AcademicYear | null\n  onDataChanged: () => void | Promise<void>\n  onOpenDaily: () => void\n  onOpenCalendar: () => void\n}\n""",
+              """export type ProductMenuNavigationTarget =\n  | MAProfessorWorkspaceView\n  | 'attendance'\n  | 'schedule'\n  | 'settings'\n\nexport interface ProductMenuNavigationRequest {\n  id: number\n  target: ProductMenuNavigationTarget\n}\n\ninterface ProductMenuWorkspaceProps {\n  academicYear: AcademicYear | null\n  navigationRequest?: ProductMenuNavigationRequest | null\n  onDataChanged: () => void | Promise<void>\n  onOpenDaily: () => void\n  onOpenCalendar: () => void\n}\n"""
+          )
+          replace_exact(
+              menu,
+              """const correctionCompletedSteps: SetupStepId[] = [\n""",
+              """const managementWorkspaceTargets: MAProfessorWorkspaceView[] = [\n  'dashboard',\n  'giae',\n  'assessments',\n  'planifications',\n  'groups'\n]\n\nfunction isManagementWorkspaceTarget(\n  target: ProductMenuNavigationTarget\n): target is MAProfessorWorkspaceView {\n  return managementWorkspaceTargets.includes(\n    target as MAProfessorWorkspaceView\n  )\n}\n\nconst correctionCompletedSteps: SetupStepId[] = [\n"""
+          )
+          replace_exact(
+              menu,
+              """export function ProductMenuWorkspace({\n  academicYear,\n  onDataChanged,\n  onOpenDaily,\n  onOpenCalendar\n}: ProductMenuWorkspaceProps) {\n""",
+              """export function ProductMenuWorkspace({\n  academicYear,\n  navigationRequest = null,\n  onDataChanged,\n  onOpenDaily,\n  onOpenCalendar\n}: ProductMenuWorkspaceProps) {\n"""
+          )
+          replace_exact(
+              menu,
+              """  useEffect(() => {\n    if (!setupCompleted) {\n      setSection('management')\n    }\n  }, [setupCompleted])\n\n  useEffect(() => {\n""",
+              """  useEffect(() => {\n    if (!setupCompleted) {\n      setSection('management')\n    }\n  }, [setupCompleted])\n\n  useEffect(() => {\n    const target =\n      navigationRequest?.target\n\n    if (!target) {\n      return\n    }\n\n    if (\n      isManagementWorkspaceTarget(\n        target\n      )\n    ) {\n      setSection('management')\n      return\n    }\n\n    setSection(target)\n  }, [navigationRequest?.id])\n\n  useEffect(() => {\n"""
+          )
+          replace_exact(
+              menu,
+              """        <MAProfessorApp />\n        <ManagementSidebarBridge\n""",
+              """        <MAProfessorApp\n          workspaceRequest={\n            navigationRequest &&\n            isManagementWorkspaceTarget(\n              navigationRequest.target\n            )\n              ? {\n                  id:\n                    navigationRequest.id,\n                  workspace:\n                    navigationRequest.target\n                }\n              : null\n          }\n        />\n        <ManagementSidebarBridge\n"""
+          )
+
+          legacy = 'src/components/ma-professor/MAProfessorApp.tsx'
+          replace_exact(
+              legacy,
+              """type WorkspaceView =\n  | 'dashboard'\n  | 'calendar'\n  | 'giae'\n  | 'assessments'\n  | 'planifications'\n  | 'groups'\n""",
+              """export type MAProfessorWorkspaceView =\n  | 'dashboard'\n  | 'calendar'\n  | 'giae'\n  | 'assessments'\n  | 'planifications'\n  | 'groups'\n\ntype WorkspaceView =\n  MAProfessorWorkspaceView\n\nexport interface MAProfessorWorkspaceRequest {\n  id: number\n  workspace: MAProfessorWorkspaceView\n}\n\ninterface MAProfessorAppProps {\n  workspaceRequest?:\n    MAProfessorWorkspaceRequest | null\n}\n"""
+          )
+          replace_exact(
+              legacy,
+              """export default function MAProfessorApp() {\n""",
+              """export default function MAProfessorApp({\n  workspaceRequest = null\n}: MAProfessorAppProps = {}) {\n"""
+          )
+          replace_exact(
+              legacy,
+              """  function handleWorkspaceChange(\n    workspace: WorkspaceView\n  ) {\n    setLessonEditorContext(null)\n    setLessonEditorError('')\n\n    if (\n      workspace !==\n      'calendar'\n    ) {\n      setExtraLessonContext(null)\n      setExtraLessonError('')\n    }\n\n    setActiveWorkspace(\n      workspace\n    )\n  }\n\n  function handleCalendarModeChange(\n""",
+              """  function handleWorkspaceChange(\n    workspace: WorkspaceView\n  ) {\n    setLessonEditorContext(null)\n    setLessonEditorError('')\n\n    if (\n      workspace !==\n      'calendar'\n    ) {\n      setExtraLessonContext(null)\n      setExtraLessonError('')\n    }\n\n    setActiveWorkspace(\n      workspace\n    )\n  }\n\n  useEffect(() => {\n    if (\n      !workspaceRequest ||\n      !setupCompleted\n    ) {\n      return\n    }\n\n    handleWorkspaceChange(\n      workspaceRequest.workspace\n    )\n  }, [\n    setupCompleted,\n    workspaceRequest?.id\n  ])\n\n  function handleCalendarModeChange(\n"""
+          )
+
+          bridge = 'src/components/ma-professor/product/ManagementSidebarBridge.tsx'
+          replace_exact(
+              bridge,
+              """      for (const button of hiddenButtons) {\n        button.hidden = true\n      }\n""",
+              """      for (const button of hiddenButtons) {\n        button.hidden = true\n        button.style.setProperty(\n          'display',\n          'none',\n          'important'\n        )\n      }\n"""
+          )
+          replace_exact(
+              bridge,
+              """        button.hidden = false\n""",
+              """        button.hidden = false\n        button.style.removeProperty(\n          'display'\n        )\n"""
+          )
+
+          test_file = 'tests/ma-professor/product-sidebar-navigation.test.mjs'
+          p = Path(test_file)
+          text = p.read_text(encoding='utf-8')
+          insert_after = """const legacyAppSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/MAProfessorApp.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\n"""
+          addition_sources = """const productNavigationSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/ProductNavigation.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst productSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\n"""
+          if text.count(insert_after) != 1:
+              raise SystemExit('test source insertion marker mismatch')
+          text = text.replace(insert_after, insert_after + addition_sources, 1)
+          text = text.replace(
+              """    assert.match(\n      bridgeSource,\n      /createPortal/\n    )\n""",
+              """    assert.match(\n      bridgeSource,\n      /createPortal/\n    )\n    assert.match(\n      bridgeSource,\n      /style\\.setProperty\\([\\s\\S]*'display'[\\s\\S]*'none'[\\s\\S]*'important'/\n    )\n""",
+              1
+          )
+          anchor = """test(\n  'saved guided schedule can be edited or reset before a replacement import',\n"""
+          new_tests = r'''test(
+  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer',
+  () => {
+    assert.match(
+      productNavigationSource,
+      /aria-label="Abrir navegação completa do MA-Professor"/
+    )
+    assert.match(
+      productNavigationSource,
+      /src="\/ma-code\.png"/
+    )
+    assert.match(
+      productNavigationSource,
+      /sidebarOpen[\s\S]*role="dialog"[\s\S]*aria-label="Navegação completa do MA-Professor"/
+    )
+
+    for (const label of [
+      'Painel',
+      'Calendário',
+      'Sumários / GIAE',
+      'Avaliações',
+      'Planificações',
+      'Turmas e alunos',
+      'Faltas e recuperações',
+      'Horários',
+      'Definições'
+    ]) {
+      assert.ok(
+        productNavigationSource.includes(label),
+        `missing global drawer entry: ${label}`
+      )
+    }
+  }
+)
+
+test(
+  'global sidebar destinations reuse existing workspaces instead of duplicating screens',
+  () => {
+    assert.match(
+      productSource,
+      /handleSidebarDestination[\s\S]*destination ===[\s\S]*'calendar'[\s\S]*handleSelect/
+    )
+    assert.match(
+      productSource,
+      /setMenuNavigationRequest\([\s\S]*target:[\s\S]*destination[\s\S]*setWorkspace\([\s\S]*'menu'/
+    )
+    assert.match(
+      productSource,
+      /navigationRequest=\{[\s\S]*menuNavigationRequest/
+    )
+    assert.match(
+      menuSource,
+      /isManagementWorkspaceTarget[\s\S]*setSection\('management'\)/
+    )
+    assert.match(
+      menuSource,
+      /<MAProfessorApp[\s\S]*workspaceRequest=/
+    )
+    assert.match(
+      legacyAppSource,
+      /workspaceRequest\.workspace[\s\S]*handleWorkspaceChange|handleWorkspaceChange\([\s\S]*workspaceRequest\.workspace/
+    )
+  }
+)
+
+test(
+  'opening the global sidebar from Daily preserves the unsaved-work navigation guard',
+  () => {
+    assert.match(
+      productSource,
+      /handleSidebarDestination[\s\S]*workspace ===[\s\S]*'daily'[\s\S]*dailyNavigationGuardRef\.current/
+    )
+    assert.match(
+      productSource,
+      /if \(!canLeave\) \{[\s\S]*return/
+    )
+  }
+)
+
+'''
+          if text.count(anchor) != 1:
+              raise SystemExit('test anchor mismatch')
+          text = text.replace(anchor, new_tests + anchor, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate targeted sidebar tests
+        shell: bash
+        run: |
+          git diff --check
+          node --test tests/ma-professor/product-sidebar-navigation.test.mjs
+
+      - name: Commit applied patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/ma-professor/product/ProductNavigation.tsx src/components/ma-professor/product/MAProfessorProduct.tsx src/components/ma-professor/product/ProductMenuWorkspace.tsx src/components/ma-professor/MAProfessorApp.tsx src/components/ma-professor/product/ManagementSidebarBridge.tsx tests/ma-professor/product-sidebar-navigation.test.mjs
+          git commit -m "fix: tornar navegação lateral global e persistente [global-sidebar-applied]"
+          git push origin HEAD:fix/ma-professor-global-sidebar
