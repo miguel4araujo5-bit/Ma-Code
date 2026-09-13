@@ -3,7 +3,7 @@ import type {
 } from '../types'
 
 import ProfessionalAssessmentWorkspaceView from './ProfessionalAssessmentWorkspaceView'
-import RegularAssessmentWorkspaceManagedView from './RegularAssessmentWorkspaceManagedView'
+import RegularAssessmentWorkspaceView from './RegularAssessmentWorkspaceManagedView'
 
 import type {
   AssessmentWorkspaceFilters,
@@ -33,7 +33,7 @@ export default function AssessmentWorkspaceView(
   return props.snapshot.selectedGroup
     ?.educationType === 'regular'
     ? (
-        <RegularAssessmentWorkspaceManagedView
+        <RegularAssessmentWorkspaceView
           {...props}
         />
       )
