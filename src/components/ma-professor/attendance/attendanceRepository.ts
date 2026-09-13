@@ -31,6 +31,14 @@ import {
   canAutomaticallyRemoveRecovery
 } from './learningRecoveryLifecycle'
 
+import {
+  MAX_LEARNING_RECOVERY_ATTEMPTS,
+  sortLearningRecoveryAttempts,
+  summarizeLearningRecoveryAttempts,
+  type LearningRecoveryAttemptRecord,
+  type LearningRecoveryOutcome
+} from './learningRecoveryAttempts'
+
 export type {
   AttendanceEntryDraft,
   SaveLessonAttendanceOptions,
@@ -49,21 +57,31 @@ export {
   getLearningRecoveryStatusLabel
 } from './attendanceRepositoryBase'
 
+async function listRecoveryHistory(
+  moduleId: EntityId,
+  studentId: EntityId
+) {
+  return maProfessorDb
+    .learningRecoveries
+    .where(
+      '[moduleId+studentId]'
+    )
+    .equals([
+      moduleId,
+      studentId
+    ])
+    .toArray()
+}
+
 async function getActiveRecovery(
   moduleId: EntityId,
   studentId: EntityId
 ) {
   const recoveries =
-    await maProfessorDb
-      .learningRecoveries
-      .where(
-        '[moduleId+studentId]'
-      )
-      .equals([
-        moduleId,
-        studentId
-      ])
-      .toArray()
+    await listRecoveryHistory(
+      moduleId,
+      studentId
+    )
 
   return (
     recoveries
@@ -83,6 +101,10 @@ async function getActiveRecovery(
       )[0] ??
     null
   )
+}
+
+function now() {
+  return new Date().toISOString()
 }
 
 export class AttendanceRepository
@@ -221,14 +243,16 @@ export class AttendanceRepository
           )
 
         const persisted:
-          LearningRecovery = {
+          LearningRecoveryAttemptRecord = {
           ...recovery,
           origin,
           teacherTouchedAt:
             origin ===
             'manual'
               ? recovery.createdAt
-              : null
+              : null,
+          outcome: null,
+          referredToExamAt: null
         }
 
         await maProfessorDb
@@ -245,6 +269,48 @@ export class AttendanceRepository
   override async createLearningRecovery(
     input: LearningRecoveryDraft
   ) {
+    await this.initialize()
+
+    const history =
+      await listRecoveryHistory(
+        input.moduleId,
+        input.studentId
+      )
+
+    if (history.length > 0) {
+      const summary =
+        summarizeLearningRecoveryAttempts(
+          history
+        )
+
+      if (
+        summary.attemptCount >=
+        MAX_LEARNING_RECOVERY_ATTEMPTS
+      ) {
+        throw new Error(
+          'Já foram registadas três tentativas de recuperação para este aluno nesta UFCD. Não é possível criar uma quarta tentativa.'
+        )
+      }
+
+      if (summary.hasSuccessfulAttempt) {
+        throw new Error(
+          'A recuperação deste aluno já foi concluída com sucesso.'
+        )
+      }
+
+      if (summary.referredToExamAt) {
+        throw new Error(
+          'Este aluno já foi encaminhado para exame.'
+        )
+      }
+
+      if (!summary.canCreateNextAttempt) {
+        throw new Error(
+          'Conclua e classifique a tentativa anterior como “Sem sucesso” antes de iniciar uma nova tentativa.'
+        )
+      }
+    }
+
     return this.createLearningRecoveryWithOrigin(
       input,
       'manual'
@@ -279,10 +345,20 @@ export class AttendanceRepository
         studentId
       )
 
-    if (
-      existing
-    ) {
+    if (existing) {
       return existing
+    }
+
+    const history =
+      await listRecoveryHistory(
+        moduleId,
+        studentId
+      )
+
+    if (history.length > 0) {
+      return sortLearningRecoveryAttempts(
+        history
+      )[history.length - 1]!
     }
 
     const module =
@@ -292,9 +368,7 @@ export class AttendanceRepository
           moduleId
         )
 
-    if (
-      !module
-    ) {
+    if (!module) {
       throw new Error(
         'A UFCD ou módulo indicado não existe.'
       )
@@ -322,8 +396,13 @@ export class AttendanceRepository
     await this.initialize()
 
     const created =
-      await super.synchronizeRecoveriesForModule(
-        moduleId
+      (
+        await super.synchronizeRecoveriesForModule(
+          moduleId
+        )
+      ).filter(
+        recovery =>
+          recovery.status !== 'completed'
       )
 
     const candidates =
@@ -393,9 +472,7 @@ export class AttendanceRepository
           }
         )
 
-      if (
-        deleted
-      ) {
+      if (deleted) {
         await this.ensureLearningRecovery(
           moduleId,
           candidate.studentId
@@ -431,9 +508,7 @@ export class AttendanceRepository
         )[0] ??
       null
 
-    if (
-      !activeAcademicYear
-    ) {
+    if (!activeAcademicYear) {
       return []
     }
 
@@ -511,6 +586,52 @@ export class AttendanceRepository
   ) {
     await this.initialize()
 
+    const current =
+      await maProfessorDb
+        .learningRecoveries
+        .get(id) as
+          LearningRecoveryAttemptRecord |
+          undefined
+
+    if (
+      current?.referredToExamAt &&
+      changes.status !== undefined &&
+      changes.status !== 'completed'
+    ) {
+      throw new Error(
+        'Uma recuperação já encaminhada para exame não pode ser reaberta.'
+      )
+    }
+
+    if (
+      current?.status === 'completed' &&
+      changes.status !== undefined &&
+      changes.status !== 'completed'
+    ) {
+      const history =
+        sortLearningRecoveryAttempts(
+          await listRecoveryHistory(
+            current.moduleId,
+            current.studentId
+          )
+        )
+
+      const currentIndex =
+        history.findIndex(
+          recovery =>
+            recovery.id === current.id
+        )
+
+      if (
+        currentIndex >= 0 &&
+        currentIndex < history.length - 1
+      ) {
+        throw new Error(
+          'Não pode reabrir uma tentativa anterior depois de já ter iniciado uma tentativa seguinte.'
+        )
+      }
+    }
+
     return maProfessorDb.transaction(
       'rw',
       maProfessorDb.tables,
@@ -519,11 +640,17 @@ export class AttendanceRepository
           await super.updateLearningRecovery(
             id,
             changes
-          )
+          ) as LearningRecoveryAttemptRecord
 
         const touched:
-          LearningRecovery = {
+          LearningRecoveryAttemptRecord = {
           ...updated,
+          outcome:
+            updated.status === 'completed'
+              ? updated.outcome ?? null
+              : null,
+          referredToExamAt:
+            updated.referredToExamAt ?? null,
           teacherTouchedAt:
             updated.teacherTouchedAt ??
             updated.updatedAt
@@ -531,11 +658,158 @@ export class AttendanceRepository
 
         await maProfessorDb
           .learningRecoveries
-          .put(
-            touched
-          )
+          .put(touched)
 
         return touched
+      }
+    )
+  }
+
+  async setLearningRecoveryOutcome(
+    id: EntityId,
+    outcome: LearningRecoveryOutcome
+  ) {
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.learningRecoveries,
+      async () => {
+        const current =
+          await maProfessorDb
+            .learningRecoveries
+            .get(id) as
+              LearningRecoveryAttemptRecord |
+              undefined
+
+        if (!current) {
+          throw new Error(
+            'A tentativa de recuperação indicada não existe.'
+          )
+        }
+
+        if (current.status !== 'completed') {
+          throw new Error(
+            'Conclua a tentativa antes de registar o respetivo resultado.'
+          )
+        }
+
+        if (
+          current.referredToExamAt &&
+          current.outcome !== outcome
+        ) {
+          throw new Error(
+            'O resultado já não pode ser alterado depois do encaminhamento para exame.'
+          )
+        }
+
+        const history =
+          sortLearningRecoveryAttempts(
+            await listRecoveryHistory(
+              current.moduleId,
+              current.studentId
+            )
+          )
+
+        const currentIndex =
+          history.findIndex(
+            recovery =>
+              recovery.id === current.id
+          )
+
+        if (
+          outcome === 'successful' &&
+          currentIndex >= 0 &&
+          currentIndex < history.length - 1
+        ) {
+          throw new Error(
+            'Não pode marcar uma tentativa anterior com sucesso depois de já ter iniciado uma tentativa seguinte.'
+          )
+        }
+
+        const timestamp = now()
+        const updated:
+          LearningRecoveryAttemptRecord = {
+          ...current,
+          outcome,
+          teacherTouchedAt:
+            current.teacherTouchedAt ??
+            timestamp,
+          updatedAt: timestamp
+        }
+
+        await maProfessorDb
+          .learningRecoveries
+          .put(updated)
+
+        return updated
+      }
+    )
+  }
+
+  async referLearningRecoveryToExam(
+    moduleId: EntityId,
+    studentId: EntityId
+  ) {
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.learningRecoveries,
+      async () => {
+        const history =
+          await listRecoveryHistory(
+            moduleId,
+            studentId
+          )
+
+        const summary =
+          summarizeLearningRecoveryAttempts(
+            history
+          )
+
+        if (summary.referredToExamAt) {
+          return summary.attempts.find(
+            attempt =>
+              Boolean(
+                attempt.referredToExamAt
+              )
+          ) ?? null
+        }
+
+        if (!summary.canReferToExam) {
+          throw new Error(
+            'O encaminhamento para exame só fica disponível depois de três tentativas concluídas sem sucesso.'
+          )
+        }
+
+        const target =
+          summary.attempts[
+            MAX_LEARNING_RECOVERY_ATTEMPTS - 1
+          ]
+
+        if (!target) {
+          throw new Error(
+            'Não foi possível identificar a terceira tentativa de recuperação.'
+          )
+        }
+
+        const timestamp = now()
+        const updated:
+          LearningRecoveryAttemptRecord = {
+          ...target,
+          referredToExamAt: timestamp,
+          teacherTouchedAt:
+            target.teacherTouchedAt ??
+            timestamp,
+          updatedAt: timestamp
+        }
+
+        await maProfessorDb
+          .learningRecoveries
+          .put(updated)
+
+        return updated
       }
     )
   }
