@@ -73,13 +73,13 @@ const statusOptions: Array<{
     value: 'planned',
     label: 'Planeada',
     description:
-      'A aula mantém-se agendada e ainda não conta como dada.'
+      'A aula mantém-se agendada; pode preparar avaliações sem a marcar como dada.'
   },
   {
     value: 'taught',
     label: 'Dada',
     description:
-      'A aula conta para o progresso e permite faltas e avaliações.'
+      'A aula conta para o progresso e permite registar assiduidade.'
   },
   {
     value: 'cancelled',
@@ -535,12 +535,6 @@ export default function LessonEditorDialog({
               .count()
           ])
 
-          assertCalendarLessonRelatedDataCompatibility(
-            form.status,
-            attendanceCount,
-            assessmentCount
-          )
-
           let savedLesson = await lessonRepository.updateLesson(
             lesson.id,
             {
@@ -566,6 +560,12 @@ export default function LessonEditorDialog({
             }
           )
 
+          assertCalendarLessonRelatedDataCompatibility(
+            savedLesson.status,
+            attendanceCount,
+            assessmentCount
+          )
+
           if (
             form.giaeStatus === 'submitted' &&
             savedLesson.status === 'taught' &&
@@ -588,12 +588,12 @@ export default function LessonEditorDialog({
               )
           }
 
+          const assessmentSection =
+            assessmentSectionRef.current
+
           if (savedLesson.status === 'taught') {
             const attendanceSection =
               attendanceSectionRef.current
-
-            const assessmentSection =
-              assessmentSectionRef.current
 
             if (!attendanceSection) {
               throw new Error(
@@ -601,16 +601,18 @@ export default function LessonEditorDialog({
               )
             }
 
+            await saveAttendanceWhenReady(
+              attendanceSection,
+              savedLesson
+            )
+          }
+
+          if (savedLesson.status !== 'cancelled') {
             if (!assessmentSection) {
               throw new Error(
                 'Não foi possível preparar as avaliações desta aula.'
               )
             }
-
-            await saveAttendanceWhenReady(
-              attendanceSection,
-              savedLesson
-            )
 
             await assessmentSection.saveAssessments(savedLesson)
           }
@@ -1129,23 +1131,20 @@ export default function LessonEditorDialog({
                   </div>
                 </section>
 
-                {form.status !== 'taught' ? (
-                  <section className="rounded-[1.5rem] border border-dashed border-amber-300/25 bg-amber-300/[0.045] p-6 sm:p-8">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-xl font-black text-amber-100">
+                {form.status === 'planned' ? (
+                  <section className="rounded-[1.5rem] border border-dashed border-cyan-300/25 bg-cyan-300/[0.045] p-6 sm:p-8">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-xl font-black text-cyan-100">
                       !
                     </div>
 
                     <h3 className="mt-5 text-xl font-black text-white">
-                      Marque a aula como dada
+                      Aula planeada
                     </h3>
 
                     <p className="mt-3 text-sm leading-7 text-slate-400">
-                      A assiduidade e a avaliação ficam disponíveis
-                      assim que selecionar o estado{' '}
-                      <strong className="text-amber-100">
-                        Dada
-                      </strong>
-                      .
+                      Pode registar avaliações nesta aula sem a marcar
+                      como dada. A assiduidade só fica disponível quando
+                      a aula for efetivamente dada.
                     </p>
 
                     <button
@@ -1157,6 +1156,32 @@ export default function LessonEditorDialog({
                       className="mt-6 rounded-2xl border border-emerald-200/30 bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
                     >
                       Marcar como dada
+                    </button>
+                  </section>
+                ) : form.status === 'cancelled' ? (
+                  <section className="rounded-[1.5rem] border border-dashed border-rose-300/25 bg-rose-300/[0.045] p-6 sm:p-8">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-300/25 bg-rose-300/10 text-xl font-black text-rose-100">
+                      !
+                    </div>
+
+                    <h3 className="mt-5 text-xl font-black text-white">
+                      Aula cancelada
+                    </h3>
+
+                    <p className="mt-3 text-sm leading-7 text-slate-400">
+                      A assiduidade e as avaliações ficam indisponíveis
+                      enquanto a aula estiver cancelada.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStatusChange('planned')
+                      }
+                      disabled={saving}
+                      className="mt-6 rounded-2xl border border-cyan-200/30 bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      Repor como planeada
                     </button>
                   </section>
                 ) : null}
@@ -1177,7 +1202,7 @@ export default function LessonEditorDialog({
 
                 <div
                   className={
-                    form.status === 'taught'
+                    form.status !== 'cancelled'
                       ? 'block'
                       : 'hidden'
                   }

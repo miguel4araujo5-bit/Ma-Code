@@ -642,6 +642,15 @@ const DailyLessonAssessmentSection = forwardRef<
     const hasDraftAssessment =
       Boolean(draft?.enabled)
 
+    const hasDirtyRegisters =
+      Object.values(registers).some(
+        state => state.dirty
+      )
+
+    const hasPendingAssessmentChanges =
+      hasDraftAssessment ||
+      hasDirtyRegisters
+
     function validatePendingAssessments() {
       for (const state of Object.values(registers)) {
         if (!state.dirty) {
@@ -708,10 +717,10 @@ const DailyLessonAssessmentSection = forwardRef<
 
           if (
             hasAssessmentData &&
-            changes.status !== 'taught'
+            changes.status === 'cancelled'
           ) {
             throw new Error(
-              'Esta aula possui avaliações. Mantenha-a marcada como dada ou elimine primeiro as avaliações associadas.'
+              'Esta aula possui avaliações. Elimine primeiro as avaliações associadas antes de a cancelar.'
             )
           }
 
@@ -725,7 +734,7 @@ const DailyLessonAssessmentSection = forwardRef<
           }
 
           if (
-            changes.status === 'taught' &&
+            changes.status !== 'cancelled' &&
             changes.moduleId === workspace.lesson.moduleId
           ) {
             validatePendingAssessments()
@@ -733,7 +742,17 @@ const DailyLessonAssessmentSection = forwardRef<
         },
 
         async saveAssessments(lesson) {
-          if (lesson.status !== 'taught') {
+          if (lesson.status === 'cancelled') {
+            if (hasPendingAssessmentChanges) {
+              throw new Error(
+                'Não é possível guardar avaliações numa aula cancelada.'
+              )
+            }
+
+            return
+          }
+
+          if (!hasPendingAssessmentChanges) {
             return
           }
 
@@ -889,6 +908,7 @@ const DailyLessonAssessmentSection = forwardRef<
         draft,
         hasDraftAssessment,
         hasExistingAssessments,
+        hasPendingAssessmentChanges,
         loadError,
         loading,
         registers,
@@ -1119,8 +1139,8 @@ const DailyLessonAssessmentSection = forwardRef<
         lessonStatus === 'taught' ? (
           <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-xs leading-5 text-cyan-100/80">
             Esta aula ainda está guardada como planeada. Pode
-            preparar as notas agora; a avaliação só será criada
-            quando guardar a aula como dada.
+            registar as notas agora; se a data continuar no futuro,
+            a aula permanece planeada e a avaliação fica guardada.
           </div>
         ) : null}
 

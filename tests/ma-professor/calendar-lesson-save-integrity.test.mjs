@@ -85,7 +85,7 @@ test(
 )
 
 test(
-  'non-taught lesson states reject persisted attendance or assessments',
+  'planned lessons may keep assessments but never persisted attendance, while cancelled lessons reject both',
   async () => {
     assert.ok(saveSafetySource)
 
@@ -101,6 +101,22 @@ test(
       )
     )
 
+    assert.doesNotThrow(() =>
+      safety.assertCalendarLessonRelatedDataCompatibility(
+        'planned',
+        0,
+        2
+      )
+    )
+
+    assert.doesNotThrow(() =>
+      safety.assertCalendarLessonRelatedDataCompatibility(
+        'cancelled',
+        0,
+        0
+      )
+    )
+
     assert.throws(
       () =>
         safety.assertCalendarLessonRelatedDataCompatibility(
@@ -108,7 +124,7 @@ test(
           1,
           0
         ),
-      /Mantenha-a marcada como dada/i
+      /faltas[\s\S]*marcada como dada/i
     )
 
     assert.throws(
@@ -118,16 +134,79 @@ test(
           0,
           1
         ),
-      /Mantenha-a marcada como dada/i
+      /avaliações[\s\S]*cancelar/i
+    )
+  }
+)
+
+test(
+  'calendar validates related records against the effective persisted status after future-date normalization',
+  () => {
+    const updateIndex = editorSource.indexOf(
+      'let savedLesson = await lessonRepository.updateLesson('
+    )
+    const safetyIndex = editorSource.indexOf(
+      'assertCalendarLessonRelatedDataCompatibility(',
+      updateIndex
     )
 
+    assert.ok(updateIndex >= 0)
+    assert.ok(safetyIndex > updateIndex)
+    assert.match(
+      editorSource.slice(safetyIndex),
+      /assertCalendarLessonRelatedDataCompatibility\(\s*savedLesson\.status,\s*attendanceCount,\s*assessmentCount\s*\)/s
+    )
+  }
+)
+
+test(
+  'calendar keeps attendance taught-only but saves assessments for planned or taught lessons',
+  () => {
     assert.match(
       editorSource,
-      /assertCalendarLessonRelatedDataCompatibility/
+      /if \(savedLesson\.status === 'taught'\)[\s\S]*saveAttendanceWhenReady/s
     )
     assert.match(
       editorSource,
-      /lessonAttendance[\s\S]*lessonAssessments/
+      /if \(savedLesson\.status !== 'cancelled'\)[\s\S]*assessmentSection\.saveAssessments\(savedLesson\)/s
+    )
+    assert.match(
+      editorSource,
+      /form\.status === 'taught'[\s\S]*<LessonAttendanceSection/s
+    )
+    assert.match(
+      editorSource,
+      /form\.status !== 'cancelled'[\s\S]*<DailyLessonAssessmentSection/s
+    )
+    assert.match(
+      editorSource,
+      /Pode registar avaliações nesta aula sem a marcar[\s\S]*como dada/
+    )
+  }
+)
+
+test(
+  'assessment section persists pending grades on planned lessons and still protects cancelled lessons',
+  () => {
+    assert.doesNotMatch(
+      assessmentSectionSource,
+      /if \(lesson\.status !== 'taught'\) \{\s*return\s*\}/
+    )
+    assert.match(
+      assessmentSectionSource,
+      /if \(lesson\.status === 'cancelled'\)[\s\S]*Não é possível guardar avaliações numa aula cancelada/s
+    )
+    assert.match(
+      assessmentSectionSource,
+      /changes\.status === 'cancelled'[\s\S]*Elimine primeiro as avaliações associadas antes de a cancelar/s
+    )
+    assert.match(
+      assessmentSectionSource,
+      /hasPendingAssessmentChanges[\s\S]*hasDraftAssessment[\s\S]*hasDirtyRegisters/s
+    )
+    assert.match(
+      assessmentSectionSource,
+      /se a data continuar no futuro,[\s\S]*a aula permanece planeada e a avaliação fica guardada/
     )
   }
 )
