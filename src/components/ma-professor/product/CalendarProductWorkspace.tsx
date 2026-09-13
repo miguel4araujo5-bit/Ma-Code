@@ -9,10 +9,13 @@ import {
   calendarRepository
 } from '../calendar/calendarRepository'
 import CalendarRecoveriesPanel from '../calendar/CalendarRecoveriesPanel'
+import {
+  enrichCalendarSnapshotWithRecoveries,
+  type CalendarRecoveryWorkspaceSnapshot
+} from '../calendar/calendarRecoveryWorkspace'
 import CalendarWorkspaceView from '../calendar/CalendarWorkspaceView'
 import {
   calendarWorkspaceRepository,
-  type CalendarRecoveryWorkspaceSnapshot,
   type CalendarViewMode,
   type CalendarWorkspaceFilters
 } from '../calendar/calendarWorkspaceRepository'
@@ -140,12 +143,17 @@ export function CalendarProductWorkspace({
     setError('')
 
     try {
-      const nextSnapshot =
+      const baseSnapshot =
         await calendarWorkspaceRepository.getWorkspace(
           academicYearId,
           mode,
           anchorDate,
           filters
+        )
+
+      const nextSnapshot =
+        await enrichCalendarSnapshotWithRecoveries(
+          baseSnapshot
         )
 
       setSnapshot(nextSnapshot)
