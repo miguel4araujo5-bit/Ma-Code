@@ -6,6 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
+| Agente | Transformar a estrutura real da planificação 12.º D em regressão CI sem guardar o documento escolar no repositório | `test/ma-professor-real-12d-docx-regression` | testes DOCX de planificações | ATIVO | `ffb5c3e03db99166d0ef05fd7fd8bef270f72d19` | 2026-09-13 |
 
 ## Regras de utilização
 
