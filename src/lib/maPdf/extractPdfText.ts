@@ -1,6 +1,7 @@
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { ProgressCallback, SelectedPdf } from '../../types/maPdf'
+import { normalizePdfPasswordError } from './pdfPasswordError'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -877,6 +878,10 @@ export async function extractTextFromPdf(
       pageCount: pdfDocument.numPages,
       characterCount
     }
+  } catch (error) {
+    throw normalizePdfPasswordError(
+      error
+    )
   } finally {
     try {
       await loadingTask.destroy()

@@ -49,6 +49,7 @@ Function('require', 'exports', javascript(readFileSync(join(root, extractorPath)
   if (request === 'pdfjs-dist') return pdfjs
   if (request.includes('pdf.worker')) return { default: new URL(import.meta.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')).href }
   if (request === './planificationPdfTableLayout') return require(join(output, base, 'planifications/planificationPdfTableLayout.js'))
+  if (request === '../../../lib/maPdf/pdfPasswordError') return { normalizePdfPasswordError: error => error }
   throw new Error(`Unexpected dependency: ${request}`)
 }, extractorExports)
 require.cache[extractorTarget] = { id: extractorTarget, filename: extractorTarget, loaded: true, exports: extractorExports }
