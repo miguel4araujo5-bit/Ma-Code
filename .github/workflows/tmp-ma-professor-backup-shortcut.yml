@@ -1,0 +1,110 @@
+name: Temporary MA-Professor backup shortcut patch
+
+on:
+  push:
+    branches:
+      - feat/ma-professor-backup-shortcut
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    if: ${{ !contains(github.event.head_commit.message, '[backup-shortcut-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ma-professor-backup-shortcut
+          fetch-depth: 0
+
+      - name: Apply backup shortcut integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} exact match(es), found {actual}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          product = 'src/components/ma-professor/product/MAProfessorProduct.tsx'
+
+          replace_exact(
+              product,
+              """import {\n  maProfessorRepository\n} from '../repository'\n\nimport OperationalReadinessReporter from '../setup/OperationalReadinessReporter'\n""",
+              """import {\n  maProfessorRepository\n} from '../repository'\n\nimport {\n  SettingsWorkspaceView\n} from '../settings/SettingsWorkspaceView'\n\nimport OperationalReadinessReporter from '../setup/OperationalReadinessReporter'\n"""
+          )
+
+          replace_exact(
+              product,
+              """        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n\n        let activeYear =\n""",
+              """        if (\n          nextWorkspace ===\n          'menu'\n        ) {\n          setWorkspace(\n            'menu'\n          )\n\n          return\n        }\n\n        if (\n          nextWorkspace ===\n          'backup'\n        ) {\n          setWorkspace(\n            'backup'\n          )\n\n          return\n        }\n\n        let activeYear =\n"""
+          )
+
+          replace_exact(
+              product,
+              """  const showLoading =\n    workspace !== 'menu' &&\n    checkingYear &&\n""",
+              """  const showLoading =\n    workspace !== 'menu' &&\n    workspace !== 'backup' &&\n    checkingYear &&\n"""
+          )
+
+          replace_exact(
+              product,
+              """  const showAcademicYearError =\n    workspace !== 'menu' &&\n    !checkingYear &&\n""",
+              """  const showAcademicYearError =\n    workspace !== 'menu' &&\n    workspace !== 'backup' &&\n    !checkingYear &&\n"""
+          )
+
+          replace_exact(
+              product,
+              """  const showSetupRequired =\n    workspace !== 'menu' &&\n    !checkingYear &&\n""",
+              """  const showSetupRequired =\n    workspace !== 'menu' &&\n    workspace !== 'backup' &&\n    !checkingYear &&\n"""
+          )
+
+          replace_exact(
+              product,
+              """      {workspace ===\n      'menu' ? (\n        <ProductMenuWorkspace\n""",
+              """      {workspace ===\n      'backup' ? (\n        <SettingsWorkspaceView\n          academicYearId={\n            academicYear?.id ??\n            null\n          }\n          onDataChanged={\n            handleDataChanged\n          }\n          initialTab=\"backup\"\n        />\n      ) : null}\n\n      {workspace ===\n      'menu' ? (\n        <ProductMenuWorkspace\n"""
+          )
+
+          test_file = 'tests/ma-professor/backup-safety-ui.test.mjs'
+
+          replace_exact(
+              test_file,
+              """const productMenuSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst dbSource = await readFile(\n""",
+              """const productMenuSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst productNavigationSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/ProductNavigation.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst productSource = await readFile(\n  new URL(\n    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',\n    import.meta.url\n  ),\n  'utf8'\n)\n\nconst dbSource = await readFile(\n"""
+          )
+
+          replace_exact(
+              test_file,
+              "/Descarregar estado atual antes de restaurar/",
+              "/Descarregar cópia para este computador/"
+          )
+
+          insertion = """test(\n  'backup is directly reachable from the global product navigation and works before setup is complete',\n  () => {\n    assert.match(\n      productNavigationSource,\n      /ProductWorkspace = 'daily' \\| 'calendar' \\| 'backup' \\| 'menu'/\n    )\n    assert.match(\n      productNavigationSource,\n      /id:\\s*'backup'[\\s\\S]*label:\\s*'Cópia'/\n    )\n    assert.match(\n      productNavigationSource,\n      /grid-cols-4/\n    )\n    assert.match(\n      productSource,\n      /nextWorkspace ===[\\s\\S]*'backup'[\\s\\S]*setWorkspace\\([\\s\\S]*'backup'/\n    )\n    assert.match(\n      productSource,\n      /workspace !== 'menu' &&[\\s\\S]*workspace !== 'backup' &&[\\s\\S]*checkingYear/\n    )\n    assert.match(\n      productSource,\n      /workspace ===[\\s\\S]*'backup' \\? \\(\\s*<SettingsWorkspaceView[\\s\\S]*initialTab=\\\"backup\\\"/\n    )\n  }\n)\n\ntest(\n  'backup screen warns about private browsing and keeps both local and encrypted-online choices',\n  () => {\n    assert.match(\n      safetySource,\n      /Em janela privada, guarde uma cópia antes de fechar/\n    )\n    assert.match(\n      safetySource,\n      /navegação privada ou anónima[\\s\\S]*eliminar os dados locais/i\n    )\n    assert.match(\n      safetySource,\n      /Descarregar cópia para este computador/\n    )\n    assert.match(\n      backupSource,\n      /<EncryptedSyncPanel \\/>/\n    )\n    assert.match(\n      backupSource,\n      /Guardar cópia cifrada agora|EncryptedSyncPanel/\n    )\n  }\n)\n\n"""
+
+          marker = """test(\n  'MA-Professor requests persistent browser storage without changing the Dexie schema',\n"""
+          p = Path(test_file)
+          text = p.read_text(encoding='utf-8')
+          if text.count(marker) != 1:
+              raise SystemExit(f'{test_file}: insertion marker mismatch')
+          p.write_text(text.replace(marker, insertion + marker, 1), encoding='utf-8')
+          PY
+
+      - name: Validate targeted backup tests
+        shell: bash
+        run: |
+          git diff --check
+          node --test tests/ma-professor/backup-safety-ui.test.mjs
+
+      - name: Commit applied patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/ma-professor/product/MAProfessorProduct.tsx tests/ma-professor/backup-safety-ui.test.mjs
+          git commit -m "feat: integrar atalho de cópia segura [backup-shortcut-applied]"
+          git push origin HEAD:feat/ma-professor-backup-shortcut
