@@ -24,6 +24,10 @@ import {
   maProfessorRepository
 } from '../repository'
 
+import {
+  SettingsWorkspaceView
+} from '../settings/SettingsWorkspaceView'
+
 import OperationalReadinessReporter from '../setup/OperationalReadinessReporter'
 
 import {
@@ -482,6 +486,17 @@ function ProductContent() {
           return
         }
 
+        if (
+          nextWorkspace ===
+          'backup'
+        ) {
+          setWorkspace(
+            'backup'
+          )
+
+          return
+        }
+
         let activeYear =
           academicYear
         let ready =
@@ -614,11 +629,13 @@ function ProductContent() {
 
   const showLoading =
     workspace !== 'menu' &&
+    workspace !== 'backup' &&
     checkingYear &&
     !academicYear
 
   const showAcademicYearError =
     workspace !== 'menu' &&
+    workspace !== 'backup' &&
     !checkingYear &&
     !academicYear &&
     Boolean(
@@ -639,6 +656,7 @@ function ProductContent() {
 
   const showSetupRequired =
     workspace !== 'menu' &&
+    workspace !== 'backup' &&
     !checkingYear &&
     !academicYearError &&
     (
@@ -735,6 +753,20 @@ function ProductContent() {
           onOpenLesson={
             openLessonFromCalendar
           }
+        />
+      ) : null}
+
+      {workspace ===
+      'backup' ? (
+        <SettingsWorkspaceView
+          academicYearId={
+            academicYear?.id ??
+            null
+          }
+          onDataChanged={
+            handleDataChanged
+          }
+          initialTab="backup"
         />
       ) : null}
 
