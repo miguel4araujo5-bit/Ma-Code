@@ -21,7 +21,7 @@ const exportSource = await readFile(
 
 const gridSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/assessments/UfcdFinalGradeGrid.tsx',
+    '../../src/components/ma-professor/assessments/UfcdFinalGradeGridBase.tsx',
     import.meta.url
   ),
   'utf8'
