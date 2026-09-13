@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | main | 2026-09-13 |
+| MA-Professor regular | Componente anual técnica para ensino regular sem UFCD/módulo manual | feat/ma-professor-regular-annual-module | setup/regularEducationModules.ts; setup/ModulesSetupCourseSubjectGuard.tsx; lessons/scheduledLessonReconciliation.ts; lessons/lessonRepositoryBase.ts; setup/SetupConfirmationStep.tsx; testes | ATIVO | bc775676651f4ee5be29866132f4e36fcbf86547 | 2026-09-13 |
 
 ## Regras de utilização
 
