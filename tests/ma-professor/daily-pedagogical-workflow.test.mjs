@@ -231,7 +231,7 @@ test(
       await repository.saveLesson(
         lessonDraft({
           summary: '',
-          status: 'taught',
+          status: 'planned',
           students:
             studentDrafts({
               anaScore: 17,
@@ -328,7 +328,7 @@ test(
 )
 
 test(
-  'future attendance remains blocked while future assessment is allowed',
+  'future lesson can persist attendance after the professor chooses to edit the future date',
   { concurrency: false },
   async () => {
     const state =
@@ -340,28 +340,29 @@ test(
 
     await loadLesson(repository)
 
-    await assert.rejects(
-      () =>
-        repository.saveLesson(
-          lessonDraft({
-            summary: '',
-            status: 'planned',
-            students:
-              studentDrafts({
-                brunoAbsent: true
-              })
+    await repository.saveLesson(
+      lessonDraft({
+        summary:
+          'Sumário preparado antecipadamente.',
+        status: 'taught',
+        students:
+          studentDrafts({
+            brunoAbsent: true
           })
-        ),
-      /aula futura ainda não pode receber faltas/i
+      })
     )
 
-    assert.deepEqual(
-      state.attendance,
-      {}
-    )
     assert.equal(
       state.lesson.status,
-      'planned'
+      'taught'
+    )
+    assert.equal(
+      state.attendance['student-2'].status,
+      'absent'
+    )
+    assert.equal(
+      state.attendance['student-2'].code,
+      'F'
     )
   }
 )

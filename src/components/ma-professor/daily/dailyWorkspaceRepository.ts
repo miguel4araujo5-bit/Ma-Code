@@ -29,7 +29,6 @@ import {
 } from '../lessons/lessonRepository'
 
 import {
-  isFutureLessonDate,
   resolveLessonStatusForDate
 } from '../lessons/lessonTemporalSafety'
 
@@ -565,22 +564,6 @@ function buildAssessmentEntries(
   )
 }
 
-function hasFutureAttendanceInput(
-  input: DailyLessonSaveDraft
-) {
-  return input.students.some(
-    row =>
-      row.attendanceStatus ===
-        'absent' ||
-      Boolean(
-        row.attendanceCode.trim()
-      ) ||
-      Boolean(
-        row.attendanceNote.trim()
-      )
-  )
-}
-
 function fingerprintRecords(
   records: unknown[]
 ) {
@@ -1000,37 +983,11 @@ export class DailyWorkspaceRepository {
       )
     }
 
-    const futurePreparation =
-      isFutureLessonDate(
-        loadedLesson.date
-      )
-
     const effectiveStatus =
       resolveLessonStatusForDate(
         loadedLesson.date,
         input.status
       )
-
-    if (
-      futurePreparation &&
-      input.giaeStatus ===
-        'submitted'
-    ) {
-      throw new Error(
-        'Uma aula futura não pode ser marcada como submetida no GIAE. Guarde apenas a preparação da aula.'
-      )
-    }
-
-    if (
-      futurePreparation &&
-      hasFutureAttendanceInput(
-        input
-      )
-    ) {
-      throw new Error(
-        'Uma aula futura ainda não pode receber faltas. Pode registar a avaliação, o sumário, a atividade e a planificação.'
-      )
-    }
 
     if (
       effectiveStatus ===
