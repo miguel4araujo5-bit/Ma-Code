@@ -7,7 +7,9 @@ import type {
 } from '../types'
 
 import {
-  calculateStudentLessonGradeSummary
+  calculateStudentCriterionGradeBreakdown,
+  calculateStudentLessonGradeSummary,
+  isGradeBearingAssessmentResult
 } from './lessonGradeCalculation'
 
 import {
@@ -99,6 +101,35 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
             )
             .toArray()
 
+    const activities =
+      snapshot.activities.map(
+        activity => {
+          const gradeBearingResults =
+            results.filter(
+              result =>
+                result.assessmentId ===
+                  activity.assessment.id &&
+                isGradeBearingAssessmentResult(
+                  result
+                )
+            )
+
+          return {
+            ...activity,
+            average:
+              calculateAverage(
+                gradeBearingResults.map(
+                  result =>
+                    result.score
+                )
+              ),
+            complete:
+              activity.complete &&
+              activity.absentCount === 0
+          }
+        }
+      )
+
     const studentRows =
       snapshot.studentRows.map(
         row => {
@@ -110,10 +141,19 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               row.student.id
             )
 
+          const criteria =
+            calculateStudentCriterionGradeBreakdown(
+              snapshot.criteria,
+              assessments,
+              results,
+              row.student.id
+            )
+
           return {
             ...row,
             gradeSummary: {
               ...row.gradeSummary,
+              criteria,
               provisionalAverage:
                 calculation.provisionalAverage,
               allActiveCriteriaAssessed:
@@ -137,11 +177,22 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               ]
       )
 
+    const completeActivityCount =
+      activities.filter(
+        activity =>
+          activity.complete
+      ).length
+
     return {
       ...snapshot,
+      activities,
       studentRows,
       totals: {
         ...snapshot.totals,
+        completeActivityCount,
+        incompleteActivityCount:
+          activities.length -
+          completeActivityCount,
         studentsWithAssessment:
           provisionalAverages.length,
         classAverage:
