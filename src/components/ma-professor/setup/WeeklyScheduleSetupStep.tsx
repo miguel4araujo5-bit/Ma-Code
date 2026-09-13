@@ -6,9 +6,6 @@ import {
 } from 'react'
 
 import {
-  syncRegularAnnualComponentsForAcademicYear
-} from '../curriculum/regularAnnualComponentRepository'
-import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
 import {
@@ -1039,10 +1036,6 @@ export default function WeeklyScheduleSetupStep({
     setSuccess('')
 
     try {
-      await syncRegularAnnualComponentsForAcademicYear(
-        snapshot.academicYear.id
-      )
-
       await maProfessorRepository.completeSetupStep(
         snapshot.academicYear.id,
         'weekly_schedule'
@@ -1693,7 +1686,7 @@ export default function WeeklyScheduleSetupStep({
                   ) : null}
                 </article>
               )
-            )
+            }
           )}
         </div>
 
