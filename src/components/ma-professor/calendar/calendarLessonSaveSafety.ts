@@ -7,17 +7,31 @@ export function assertCalendarLessonRelatedDataCompatibility(
   attendanceCount: number,
   assessmentCount: number
 ) {
+  if (status === 'taught') {
+    return
+  }
+
   if (
-    status === 'taught' ||
-    (
-      attendanceCount === 0 &&
-      assessmentCount === 0
-    )
+    status === 'planned' &&
+    attendanceCount === 0
   ) {
     return
   }
 
-  throw new Error(
-    'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como dada para preservar esses registos.'
-  )
+  if (
+    attendanceCount > 0
+  ) {
+    throw new Error(
+      'Esta aula já possui faltas. Mantenha-a marcada como dada para preservar esses registos.'
+    )
+  }
+
+  if (
+    status === 'cancelled' &&
+    assessmentCount > 0
+  ) {
+    throw new Error(
+      'Esta aula já possui avaliações. Elimine primeiro as avaliações associadas antes de a cancelar.'
+    )
+  }
 }
