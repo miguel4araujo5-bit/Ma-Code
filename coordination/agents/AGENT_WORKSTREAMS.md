@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| MA-Professor E2E final | Encadear os fluxos críticos já concluídos num teste browser/integrado de regressão final, sem alterar lógica de produto salvo regressão comprovada | test/ma-professor-final-e2e-regression | `tests/ma-professor/browser-critical-path.e2e.mjs`; testes E2E MA-Professor; eventualmente `.github/workflows/deploy.yml` | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
