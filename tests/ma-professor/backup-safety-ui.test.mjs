@@ -18,6 +18,22 @@ const settingsSource = await readFile(
   'utf8'
 )
 
+const backupSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/BackupSettingsPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const productMenuSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dbSource = await readFile(
   new URL(
     '../../src/components/ma-professor/db.ts',
@@ -75,6 +91,66 @@ test(
     assert.ok(
       safetyPosition < backupPosition,
       'O aviso de segurança deve surgir antes das operações de backup/restauro.'
+    )
+  }
+)
+
+test(
+  'JSON restore is directly discoverable from the menu and during an incomplete setup',
+  () => {
+    assert.match(
+      productMenuSource,
+      /\| 'restore'/
+    )
+    assert.match(
+      productMenuSource,
+      /id:\s*'restore'[\s\S]*title:\s*'Tenho uma cópia JSON'/
+    )
+    assert.match(
+      productMenuSource,
+      /Já tem uma cópia de segurança\?/
+    )
+    assert.match(
+      productMenuSource,
+      /onClick=\{\(\) => setSection\('restore'\)\}/
+    )
+    assert.match(
+      productMenuSource,
+      /section === 'settings' \|\|[\s\S]*section === 'restore'/
+    )
+  }
+)
+
+test(
+  'the direct restore shortcut opens the existing backup tab instead of creating a second restore path',
+  () => {
+    assert.match(
+      settingsSource,
+      /initialTab\?:[\s\S]*SettingsTab/
+    )
+    assert.match(
+      settingsSource,
+      /initialTab = 'profile'/
+    )
+    assert.match(
+      settingsSource,
+      /useState<SettingsTab>\([\s\S]*initialTab/
+    )
+    assert.match(
+      productMenuSource,
+      /initialTab=\{[\s\S]*isRestore[\s\S]*\? 'backup'[\s\S]*: 'profile'/
+    )
+    assert.match(
+      backupSource,
+      /parseMAProfessorBackupFile\(/
+    )
+    assert.match(
+      backupSource,
+      /restoreMAProfessorBackup\(/
+    )
+    assert.match(
+      backupSource,
+      /Escreva RESTAURAR para confirmar\./
     )
   }
 )
