@@ -108,12 +108,12 @@ export default function MAProfessorPage() {
 
       updateMeta(
         'description',
-        'MA-Professor é um ambiente digital para organização do trabalho docente. A fase piloto tem acesso gratuito e vagas limitadas, mediante pedido de acesso.'
+        'MA-Professor é um ambiente digital para organização do trabalho docente no ensino regular e profissional. A fase piloto tem acesso gratuito e vagas limitadas, mediante pedido de acesso.'
       )
 
       updateMeta(
         'keywords',
-        'MA-Professor, gestão de sumários, UFCD, cursos profissionais, planificação de aulas, avaliações de alunos, faltas, recuperação de aprendizagens'
+        'MA-Professor, gestão pedagógica, ensino regular, ensino profissional, disciplinas, UFCD, gestão de sumários, planificação de aulas, avaliações de alunos, assiduidade, faltas, recuperação de aprendizagens'
       )
 
       updateMeta(
@@ -148,7 +148,7 @@ export default function MAProfessorPage() {
 
       updatePropertyMeta(
         'og:description',
-        'Ambiente digital para organização do trabalho docente, atualmente em fase piloto com acesso gratuito e vagas limitadas.'
+        'Ambiente digital para organização do trabalho docente no ensino regular e profissional, atualmente em fase piloto com acesso gratuito e vagas limitadas.'
       )
 
       updatePropertyMeta(
@@ -168,7 +168,7 @@ export default function MAProfessorPage() {
 
       updateMeta(
         'twitter:description',
-        'MA-Professor em fase piloto: organização de aulas, sumários, turmas, assiduidade e avaliação para docentes.'
+        'MA-Professor em fase piloto: organização de aulas, sumários, turmas, assiduidade e avaliação no ensino regular e profissional.'
       )
 
       updateMeta(
