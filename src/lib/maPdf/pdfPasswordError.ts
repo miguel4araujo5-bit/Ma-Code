@@ -11,10 +11,7 @@ export const PDF_PASSWORD_CANCELLED_MESSAGE =
   'A abertura do PDF protegido foi cancelada.'
 
 type PdfPasswordLoadingTask = {
-  onPassword?: (
-    updatePassword: (password: string) => void,
-    reason: unknown
-  ) => void
+  onPassword?: unknown
   destroy: () => Promise<void> | void
 }
 
@@ -71,7 +68,7 @@ export function configurePdfPasswordPrompt(
   let cancelled = false
 
   loadingTask.onPassword = (
-    updatePassword
+    updatePassword: (password: string) => void
   ) => {
     const password = requestPassword(
       promptCount === 0
