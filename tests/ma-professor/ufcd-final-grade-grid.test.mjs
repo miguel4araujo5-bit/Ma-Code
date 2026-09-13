@@ -18,9 +18,25 @@ const repositorySource = await readFile(
   'utf8'
 )
 
-const workspaceSource = await readFile(
+const workspaceRouterSource = await readFile(
   new URL(
     '../../src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const professionalWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const regularWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/RegularAssessmentWorkspaceView.tsx',
     import.meta.url
   ),
   'utf8'
@@ -87,31 +103,53 @@ test(
 )
 
 test(
-  'assessment workspace integrates the final grid into the existing dirty-draft and save flow',
+  'professional assessment workspace preserves the final grid, dirty drafts and save flow after the regular split',
   () => {
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /UfcdFinalGradeGrid/
     )
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /const selfAssessmentGrade\s*=/
     )
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /selfAssessmentGrade,\s*usesAcs:/
     )
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /usesAcs:\s*draft\.usesAcs/
     )
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /hasMAProfessorDirtyDraftRecord/
     )
     assert.match(
-      workspaceSource,
+      professionalWorkspaceSource,
       /useMAProfessorUnsavedWorkspaceProtection/
+    )
+  }
+)
+
+test(
+  'assessment workspace routes only explicit regular groups away from the preserved professional workspace',
+  () => {
+    assert.match(
+      workspaceRouterSource,
+      /selectedGroup[\s\S]*educationType\s*===\s*['"]regular['"]/
+    )
+    assert.match(
+      workspaceRouterSource,
+      /RegularAssessmentWorkspaceView/
+    )
+    assert.match(
+      workspaceRouterSource,
+      /ProfessionalAssessmentWorkspaceView/
+    )
+    assert.match(
+      regularWorkspaceSource,
+      /Avaliações · Ensino regular/
     )
   }
 )

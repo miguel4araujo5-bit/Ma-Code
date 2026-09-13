@@ -3,6 +3,7 @@ import {
 } from '../db'
 
 import type {
+  ClassGroup,
   Score
 } from '../types'
 
@@ -15,8 +16,14 @@ import {
 import {
   AssessmentWorkspaceRepository as AssessmentWorkspaceRepositoryBase,
   type AssessmentWorkspaceFilters,
-  type AssessmentWorkspaceSnapshot
+  type AssessmentWorkspaceSnapshot,
+  type SaveModuleFinalGradeInput
 } from './assessmentWorkspaceRepositoryBase'
+
+import {
+  usesNumericSuggestion,
+  validateSummativeNumericValue
+} from './regularAssessmentScale'
 
 export type {
   AssessmentAssignmentOption,
@@ -53,6 +60,34 @@ function calculateAverage(
       ) * 100
     ) / 100
   )
+}
+
+async function getGroupForModule(
+  moduleId: string
+): Promise<ClassGroup | null> {
+  const module =
+    await maProfessorDb.modules.get(
+      moduleId
+    )
+
+  if (!module) {
+    return null
+  }
+
+  const assignment =
+    await maProfessorDb.teachingAssignments.get(
+      module.teachingAssignmentId
+    )
+
+  if (!assignment) {
+    return null
+  }
+
+  return (
+    await maProfessorDb.groups.get(
+      assignment.groupId
+    )
+  ) ?? null
 }
 
 export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepositoryBase {
@@ -130,6 +165,11 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
         }
       )
 
+    const allowNumericSuggestion =
+      usesNumericSuggestion(
+        snapshot.selectedGroup
+      )
+
     const studentRows =
       snapshot.studentRows.map(
         row => {
@@ -159,7 +199,9 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               allActiveCriteriaAssessed:
                 calculation.allEvaluatedLessonsComplete,
               suggestedGrade:
-                calculation.suggestedGrade
+                allowNumericSuggestion
+                  ? calculation.suggestedGrade
+                  : null
             }
           }
         }
@@ -201,6 +243,45 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
           )
       }
     }
+  }
+
+  async saveModuleFinalGrade(
+    input: SaveModuleFinalGradeInput
+  ) {
+    const group =
+      await getGroupForModule(
+        input.moduleId
+      )
+
+    if (
+      group?.educationType ===
+      'regular'
+    ) {
+      if (
+        input.finalGrade !== null
+      ) {
+        validateSummativeNumericValue(
+          group,
+          input.finalGrade,
+          'classificação final'
+        )
+      }
+
+      if (
+        input.selfAssessmentGrade !== undefined &&
+        input.selfAssessmentGrade !== null
+      ) {
+        validateSummativeNumericValue(
+          group,
+          input.selfAssessmentGrade,
+          'autoavaliação'
+        )
+      }
+    }
+
+    return super.saveModuleFinalGrade(
+      input
+    )
   }
 }
 

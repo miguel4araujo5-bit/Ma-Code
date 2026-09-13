@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| — | Sem fluxos ativos registados neste momento | — | — | LIVRE | main | 2026-09-13 |
 
 ## Regras de utilização
 
