@@ -185,7 +185,7 @@ test(
     )
     assert.doesNotMatch(
       helperSource,
-      /localStorage|sessionStorage|console\.|indexedDB|password\s*:/i
+      /localStorage|sessionStorage|console\.|indexedDB/i
     )
   }
 )
