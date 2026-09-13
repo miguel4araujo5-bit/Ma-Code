@@ -36,9 +36,9 @@ export default function PlanificationScheduleGrid({
     <section aria-label="Associar planificações ao horário" className="mt-5">
       <h3 className="font-black text-white">Planificações por turma</h3>
       <p className="mt-1 text-sm leading-6 text-slate-400">
-        Arraste o PDF ou Word para uma aula, ou clique para escolher o ficheiro. A planificação fica associada a todas as aulas dessa disciplina e turma.
+        Arraste o PDF, Word ou Excel para uma aula, ou clique para escolher o ficheiro. A planificação fica associada a todas as aulas dessa disciplina e turma.
       </p>
-      <input ref={fileInput} type="file" accept=".pdf,.docx" className="hidden" tabIndex={-1}
+      <input ref={fileInput} type="file" accept=".pdf,.docx,.xlsx,.xlsm,.xls" className="hidden" tabIndex={-1}
         aria-label="Escolher planificação para a aula selecionada" disabled={disabled}
         onChange={event => {
           const file = event.currentTarget.files?.[0]

@@ -304,10 +304,34 @@ function withDurationWarnings(document: ModuleDocument): ModuleDocument {
 }
 
 export async function readModuleDocument(file: File): Promise<ModuleDocument> {
-  if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Selecione um PDF ou Word até 20 MB.')
+  if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Selecione um PDF, Word ou Excel até 20 MB.')
   const bytes = new Uint8Array(await file.arrayBuffer())
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   const sha256 = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+
+  if (/\.(?:xlsx|xlsm|xls)$/i.test(file.name)) {
+    const {
+      extractPlanificationSpreadsheet
+    } = await import(
+      './planificationSpreadsheetDocument'
+    )
+    const parsed = await extractPlanificationSpreadsheet(
+      bytes,
+      file.name
+    )
+
+    return withDurationWarnings({
+      name: file.name,
+      sha256,
+      ...metadata(
+        parsed.text,
+        file.name
+      ),
+      sections: parsed.sections,
+      warnings: parsed.warnings
+    })
+  }
+
   if (/\.docx$/i.test(file.name)) {
     const archive = unzipSync(bytes, {
       filter: entry => {
@@ -348,7 +372,7 @@ export async function readModuleDocument(file: File): Promise<ModuleDocument> {
       )
     }
   }
-  if (!/\.pdf$/i.test(file.name)) throw new Error('Selecione um PDF ou um Word (.docx).')
+  if (!/\.pdf$/i.test(file.name)) throw new Error('Selecione um PDF, Word (.docx) ou Excel (.xlsx, .xlsm, .xls).')
   const { extractPlanificationPdf } = await import('../planifications/planificationPdfExtractor')
   const document = await extractPlanificationPdf(file)
   const standardParsed = parsePlanificationPdfDocument(document, file.name)
