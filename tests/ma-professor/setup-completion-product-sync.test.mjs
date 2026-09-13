@@ -56,3 +56,56 @@ test(
     )
   }
 )
+
+test(
+  'completed setup can be reopened for corrections without resetting completion',
+  () => {
+    assert.match(
+      source,
+      /id: 'configuration',[\s\S]*title: 'Corrigir configuração inicial'/,
+      'O menu deve disponibilizar uma entrada explícita para corrigir a configuração já concluída.'
+    )
+
+    assert.match(
+      source,
+      /section !== 'configuration'[\s\S]*getSetupSnapshot\(academicYear\.id\)/,
+      'A edição deve carregar o snapshot persistido do mesmo ano letivo.'
+    )
+
+    assert.match(
+      source,
+      /section === 'configuration'[\s\S]*<SetupWizard[\s\S]*snapshot=\{configurationSnapshot\}[\s\S]*onSnapshotChange=\{handleConfigurationSnapshotChange\}[\s\S]*initialMode="advanced"/,
+      'A correção deve reutilizar o mesmo assistente sobre os dados existentes e abrir diretamente o modo avançado.'
+    )
+
+    assert.match(
+      source,
+      /const correctionCompletedSteps: SetupStepId\[\] = \[[\s\S]*'groups'[\s\S]*'subjects'[\s\S]*'modules'[\s\S]*'weekly_schedule'[\s\S]*'assessment_criteria'[\s\S]*'planifications'[\s\S]*'students'[\s\S]*'confirmation'/,
+      'Um setup oficialmente concluído deve apresentar todos os passos do avançado como confirmados.'
+    )
+
+    assert.match(
+      source,
+      /function normalizeCompletedCorrectionSnapshot\([\s\S]*snapshot\.academicYear\.setupCompletedAt[\s\S]*completedSteps: Array\.from\([\s\S]*correctionCompletedSteps/,
+      'A normalização dos vistos deve ser apenas uma projeção do snapshot concluído.'
+    )
+
+    assert.match(
+      source,
+      /setConfigurationSnapshot\(\s*normalizeCompletedCorrectionSnapshot\(nextSnapshot\)\s*\)/,
+      'Os vistos devem manter-se coerentes também depois de guardar uma correção.'
+    )
+
+    assert.match(
+      source,
+      /A configuração continua concluída enquanto corrige os dados\./,
+      'A interface deve explicar que corrigir dados não reinicia o onboarding.'
+    )
+
+    assert.doesNotMatch(
+      source,
+      /setupCompletedAt\s*:\s*null/,
+      'Reabrir a configuração nunca deve apagar a marca de conclusão.'
+    )
+  }
+)
