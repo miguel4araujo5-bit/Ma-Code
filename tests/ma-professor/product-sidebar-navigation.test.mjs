@@ -18,6 +18,14 @@ const bridgeSource = await readFile(
   'utf8'
 )
 
+const resetSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/setup/scheduleImportResetRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const legacyAppSource = await readFile(
   new URL(
     '../../src/components/ma-professor/MAProfessorApp.tsx',
@@ -112,6 +120,82 @@ test(
     assert.match(
       bridgeSource,
       /button\.hidden = false/
+    )
+  }
+)
+
+test(
+  'saved guided schedule can be edited or reset before a replacement import',
+  () => {
+    assert.match(
+      bridgeSource,
+      /Usar horário guardado/
+    )
+    assert.match(
+      bridgeSource,
+      /Editar horário guardado/
+    )
+    assert.match(
+      bridgeSource,
+      /Apagar horário importado e importar outro/
+    )
+    assert.match(
+      bridgeSource,
+      /<ScheduleProductWorkspace[\s\S]*academicYearId=\{editingAcademicYearId\}/
+    )
+    assert.match(
+      bridgeSource,
+      /Concluir edição e voltar/
+    )
+    assert.match(
+      bridgeSource,
+      /resetScheduleImportForSetup/
+    )
+    assert.match(
+      bridgeSource,
+      /window\.location\.reload\(\)/
+    )
+  }
+)
+
+test(
+  'schedule import reset removes only schedule data and refuses destructive historical cleanup',
+  () => {
+    assert.match(
+      resetSource,
+      /maProfessorDb\.transaction/
+    )
+    assert.match(
+      resetSource,
+      /weeklyScheduleSlots\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /schoolCalendarEvents\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /isDutyEvent\(event\)/
+    )
+    assert.match(
+      resetSource,
+      /academicYear\.setupCompletedAt[\s\S]*progress\.completedAt/
+    )
+    assert.match(
+      resetSource,
+      /lessons[\s\S]*scheduleSlotId[\s\S]*count\(\)/
+    )
+    assert.match(
+      resetSource,
+      /event\.description/
+    )
+    assert.match(
+      resetSource,
+      /step !== 'weekly_schedule'/
+    )
+    assert.doesNotMatch(
+      resetSource,
+      /groups\.(?:delete|bulkDelete)|subjects\.(?:delete|bulkDelete)|teachingAssignments\.(?:delete|bulkDelete)|planifications\.(?:delete|bulkDelete)/
     )
   }
 )
