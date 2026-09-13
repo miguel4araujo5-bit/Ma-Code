@@ -272,3 +272,17 @@ test(
     )
   }
 )
+
+test(
+  'setup scrolls to the top after the newly selected screen has rendered',
+  () => {
+    assert.match(
+      wizardSource,
+      /useEffect\(\(\) => \{[\s\S]*requestAnimationFrame[\s\S]*window\.scrollTo\(\{ top: 0, behavior: 'smooth' \}\)/
+    )
+    assert.match(
+      wizardSource,
+      /\}, \[advancedMode, guidedStage, activeStep\]\)/
+    )
+  }
+)

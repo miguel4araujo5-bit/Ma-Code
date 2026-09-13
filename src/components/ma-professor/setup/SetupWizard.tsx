@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -428,6 +429,16 @@ export default function SetupWizard({
   )
   const [guidedPreparingConfirmation, setGuidedPreparingConfirmation] = useState(false)
   const [guidedPreparationError, setGuidedPreparationError] = useState('')
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
+  }, [advancedMode, guidedStage, activeStep])
 
   const completedSteps = useMemo(
     () => getEffectiveCompletedSteps(snapshot),
