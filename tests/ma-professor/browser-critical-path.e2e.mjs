@@ -14,6 +14,8 @@ const TEST_SUMMARY =
   'Sumário E2E persistido após reload.'
 const ACTIVATION_PASSWORD =
   'E2E-ACTIVATE'
+const FIXED_NOW =
+  '2026-09-21T09:30:00+01:00'
 const HOST =
   '127.0.0.1'
 const PORT =
@@ -83,7 +85,7 @@ function startVite() {
       chunk.toString()
     )
 
-    if (output.length > 80) {
+    if (output.length > 100) {
       output.shift()
     }
   }
@@ -247,13 +249,6 @@ async function installOfflineApi(
           )
 
         case '/api/ma-professor/access/operational-state':
-          return jsonResponse(
-            route,
-            {
-              success: true
-            }
-          )
-
         case '/api/ma-professor/access/logout':
           return jsonResponse(
             route,
@@ -267,7 +262,22 @@ async function installOfflineApi(
             route,
             {
               success: true,
-              e2eOffline: true
+              request: {
+                email:
+                  TEST_EMAIL,
+                status:
+                  'approved',
+                requestedAt:
+                  '2026-09-01T00:00:00.000Z',
+                approvedAt:
+                  '2026-09-01T00:00:00.000Z',
+                rejectedAt: null,
+                activatedAt:
+                  '2026-09-01T00:00:00.000Z'
+              },
+              canActivate: true,
+              message:
+                'Resposta E2E local.'
             }
           )
       }
@@ -277,7 +287,7 @@ async function installOfflineApi(
   return requests
 }
 
-async function waitForText(
+async function waitForExactText(
   page,
   text
 ) {
@@ -296,6 +306,99 @@ async function waitForText(
   return locator
 }
 
+async function diagnosticSnapshot(
+  page,
+  apiRequests,
+  pageErrors
+) {
+  let body = ''
+
+  try {
+    body =
+      await page
+        .locator('body')
+        .innerText()
+  } catch {
+    body =
+      '<body indisponível>'
+  }
+
+  return JSON.stringify(
+    {
+      url:
+        page.url(),
+      body:
+        body.slice(
+          0,
+          8000
+        ),
+      apiRequests,
+      pageErrors
+    },
+    null,
+    2
+  )
+}
+
+async function waitForOnboarding(
+  page,
+  apiRequests,
+  pageErrors
+) {
+  const onboarding =
+    page.getByRole(
+      'heading',
+      {
+        name:
+          /Vamos preparar o essencial/
+      }
+    )
+
+  try {
+    await onboarding.waitFor({
+      state: 'visible'
+    })
+  } catch (error) {
+    console.error(
+      'MA_PROFESSOR_E2E_ONBOARDING_DIAGNOSTIC=' +
+        await diagnosticSnapshot(
+          page,
+          apiRequests,
+          pageErrors
+        )
+    )
+
+    throw error
+  }
+}
+
+async function completeInitialSchoolSelection(
+  page
+) {
+  await page
+    .getByRole(
+      'heading',
+      {
+        name:
+          'Em que escola leciona?',
+        exact: true
+      }
+    )
+    .waitFor({
+      state: 'visible'
+    })
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          /S\. Bento — Vizela/
+      }
+    )
+    .click()
+}
+
 async function configureMinimumOperationalSetup(
   page
 ) {
@@ -310,7 +413,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Passo 2 de 9'
   )
@@ -346,7 +449,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Turma adicionada.'
   )
@@ -362,7 +465,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Passo 3 de 9'
   )
@@ -389,7 +492,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Disciplina adicionada.'
   )
@@ -405,7 +508,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Passo 4 de 9'
   )
@@ -445,7 +548,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'UFCD ou módulo aplicado a 1 turma.'
   )
@@ -461,7 +564,7 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Passo 5 de 9'
   )
@@ -475,31 +578,12 @@ async function configureMinimumOperationalSetup(
         'AE · 11.º E'
     })
 
-  const weekdayLabel =
-    await page.evaluate(
-      () => {
-        const labels = [
-          'Domingo',
-          'Segunda-feira',
-          'Terça-feira',
-          'Quarta-feira',
-          'Quinta-feira',
-          'Sexta-feira',
-          'Sábado'
-        ]
-
-        return labels[
-          new Date().getDay()
-        ]
-      }
-    )
-
   await page
     .getByRole(
       'button',
       {
         name:
-          weekdayLabel,
+          'Segunda-feira',
         exact: true
       }
     )
@@ -516,13 +600,13 @@ async function configureMinimumOperationalSetup(
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Bloco de horário adicionado com sucesso.'
   )
 
-  await page
-    .getByRole(
+  const openToday =
+    page.getByRole(
       'button',
       {
         name:
@@ -530,20 +614,12 @@ async function configureMinimumOperationalSetup(
         exact: true
       }
     )
-    .waitFor({
-      state: 'visible'
-    })
 
-  await page
-    .getByRole(
-      'button',
-      {
-        name:
-          'Abrir aula de hoje',
-        exact: true
-      }
-    )
-    .click()
+  await openToday.waitFor({
+    state: 'visible'
+  })
+
+  await openToday.click()
 }
 
 async function getSummaryEditor(
@@ -631,6 +707,8 @@ async function readPersistedLesson(
         lesson:
           lesson
             ? {
+                date:
+                  lesson.date,
                 status:
                   lesson.status,
                 origin:
@@ -672,6 +750,10 @@ try {
   const page =
     await context.newPage()
 
+  await page.clock.setFixedTime(
+    new Date(FIXED_NOW)
+  )
+
   page.setDefaultTimeout(
     20_000
   )
@@ -709,18 +791,6 @@ try {
         'domcontentloaded'
     }
   )
-
-  await page
-    .getByRole(
-      'heading',
-      {
-        name:
-          /Vamos preparar o essencial/
-      }
-    )
-    .waitFor({
-      state: 'visible'
-    })
 
   await page.waitForFunction(
     () =>
@@ -760,6 +830,16 @@ try {
     'A password de ativação não deve permanecer no fragmento do URL.'
   )
 
+  await completeInitialSchoolSelection(
+    page
+  )
+
+  await waitForOnboarding(
+    page,
+    apiRequests,
+    pageErrors
+  )
+
   await configureMinimumOperationalSetup(
     page
   )
@@ -786,7 +866,7 @@ try {
     )
     .click()
 
-  await waitForText(
+  await waitForExactText(
     page,
     'Aula, sumário, faltas e avaliações guardados.'
   )
@@ -805,6 +885,10 @@ try {
     firstPersistence.duplicates,
     1,
     'Guardar o primeiro sumário não pode duplicar a aula prevista.'
+  )
+  assert.equal(
+    firstPersistence.lesson?.date,
+    '2026-09-21'
   )
   assert.equal(
     firstPersistence.lesson?.status,
@@ -865,6 +949,15 @@ try {
         '/api/ma-professor/access/activate'
     ),
     'O percurso deve passar pela ativação real da interface.'
+  )
+
+  assert.ok(
+    apiRequests.some(
+      request =>
+        request.path ===
+        '/api/ma-professor/access/account/verify'
+    ),
+    'A sessão ativada deve ser verificada pelo AccessGate.'
   )
 
   assert.ok(
