@@ -112,7 +112,7 @@ test(
 )
 
 test(
-  'future preparation stays planned while today past and cancellation keep their normal status',
+  'future dates preserve the lesson status selected by the professor',
   () => {
     const referenceDate = '2026-09-06'
 
@@ -122,7 +122,7 @@ test(
         'taught',
         referenceDate
       ),
-      'planned'
+      'taught'
     )
     assert.equal(
       resolveLessonStatusForDate(
@@ -152,16 +152,14 @@ test(
 )
 
 test(
-  'explicit future GIAE/taught guard still rejects invalid submitted-state paths',
+  'future dates no longer reject a taught status',
   () => {
-    assert.throws(
-      () =>
-        assertLessonNotTaughtInFuture(
-          '2026-09-07',
-          'taught',
-          '2026-09-06'
-        ),
-      /aula futura não pode ser marcada como dada/i
+    assert.doesNotThrow(() =>
+      assertLessonNotTaughtInFuture(
+        '2026-09-07',
+        'taught',
+        '2026-09-06'
+      )
     )
 
     assert.doesNotThrow(() =>
@@ -175,7 +173,7 @@ test(
 )
 
 test(
-  'lesson repository normalizes future taught writes and guards GIAE individual and bulk submission',
+  'lesson repository keeps temporal helpers while future-date policy is permissive',
   () => {
     assert.match(
       lessonRepositorySource,
@@ -219,7 +217,7 @@ test(
 )
 
 test(
-  'Daily future preparation keeps GIAE and attendance blocked but no longer blocks assessment',
+  'Daily does not add future-date blocks for GIAE attendance or assessment',
   () => {
     const saveStart =
       dailyRepositorySource.indexOf(
@@ -238,23 +236,19 @@ test(
 
     assert.match(
       saveBody,
-      /const futurePreparation =[\s\S]*isFutureLessonDate\(/s
-    )
-    assert.match(
-      saveBody,
       /const effectiveStatus =[\s\S]*resolveLessonStatusForDate\(/s
-    )
-    assert.match(
-      saveBody,
-      /futurePreparation &&[\s\S]*input\.giaeStatus ===[\s\S]*'submitted'[\s\S]*aula futura não pode ser marcada como submetida no GIAE/i
-    )
-    assert.match(
-      saveBody,
-      /futurePreparation &&[\s\S]*hasFutureAttendanceInput\([\s\S]*aula futura ainda não pode receber faltas/i
     )
     assert.doesNotMatch(
       saveBody,
-      /futurePreparation &&[\s\S]{0,160}input\.assessment\.mode !==[\s\S]{0,160}'none'/s
+      /aula futura não pode ser marcada como submetida no GIAE/i
+    )
+    assert.doesNotMatch(
+      saveBody,
+      /aula futura ainda não pode receber faltas/i
+    )
+    assert.doesNotMatch(
+      saveBody,
+      /hasFutureAttendanceInput/
     )
     assert.match(
       saveBody,

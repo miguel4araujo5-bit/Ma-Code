@@ -37,39 +37,19 @@ export function isFutureLessonDate(
 }
 
 export function resolveLessonStatusForDate(
-  lessonDate: ISODate,
+  _lessonDate: ISODate,
   status: LessonStatus,
-  referenceDate: ISODate =
+  _referenceDate: ISODate =
     todayISO()
 ): LessonStatus {
-  if (
-    status === 'taught' &&
-    isFutureLessonDate(
-      lessonDate,
-      referenceDate
-    )
-  ) {
-    return 'planned'
-  }
-
   return status
 }
 
 export function assertLessonNotTaughtInFuture(
-  lessonDate: ISODate,
-  status: LessonStatus,
-  referenceDate: ISODate =
+  _lessonDate: ISODate,
+  _status: LessonStatus,
+  _referenceDate: ISODate =
     todayISO()
 ) {
-  if (
-    status === 'taught' &&
-    isFutureLessonDate(
-      lessonDate,
-      referenceDate
-    )
-  ) {
-    throw new Error(
-      'Uma aula futura não pode ser marcada como dada. Pode preparar antecipadamente o sumário, a atividade e a planificação, mantendo a aula como planeada.'
-    )
-  }
+  return
 }
