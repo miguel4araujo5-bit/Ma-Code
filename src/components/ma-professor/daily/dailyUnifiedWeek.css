@@ -1,3 +1,23 @@
 .ma-professor-unified-daily > main > div > section:first-child {
   display: none;
 }
+
+/* A grelha semanal já distingue cada bloco pela própria célula.
+   A legenda "Componente letiva / Cargo" no cabeçalho era redundante. */
+.ma-professor-unified-daily
+  > section:first-child
+  > div
+  > div:first-child
+  > div:first-child
+  > div:first-child {
+  display: none;
+}
+
+.ma-professor-unified-daily
+  > section:first-child
+  > div
+  > div:first-child
+  > div:first-child
+  > p {
+  margin-top: 0;
+}

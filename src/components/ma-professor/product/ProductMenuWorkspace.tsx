@@ -24,6 +24,9 @@ import {
   AttendanceProductWorkspace
 } from './AttendanceProductWorkspace'
 import {
+  ManagementSidebarBridge
+} from './ManagementSidebarBridge'
+import {
   ScheduleProductWorkspace
 } from './ScheduleProductWorkspace'
 
@@ -563,6 +566,11 @@ export function ProductMenuWorkspace({
         )}
 
         <MAProfessorApp />
+        <ManagementSidebarBridge
+          onOpenAttendance={() => setSection('attendance')}
+          onOpenSchedule={() => setSection('schedule')}
+          onOpenSettings={() => setSection('settings')}
+        />
       </div>
     )
   }
