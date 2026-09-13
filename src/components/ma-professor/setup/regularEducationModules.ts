@@ -3,6 +3,12 @@ import {
   openMAProfessorDatabase
 } from '../db'
 
+import {
+  isRegularAnnualModule,
+  REGULAR_ANNUAL_MODULE_KIND,
+  type RegularAnnualModule
+} from '../modules/regularAnnualModule'
+
 import type {
   ClassGroup,
   EntityId,
@@ -11,14 +17,10 @@ import type {
   TeachingAssignment
 } from '../types'
 
-export const REGULAR_ANNUAL_MODULE_KIND =
-  'regular_annual' as const
-
-type RegularAnnualModule =
-  ModuleUnit & {
-    moduleKind?:
-      typeof REGULAR_ANNUAL_MODULE_KIND
-  }
+export {
+  isRegularAnnualModule,
+  REGULAR_ANNUAL_MODULE_KIND
+} from '../modules/regularAnnualModule'
 
 function now() {
   return new Date().toISOString()
@@ -36,15 +38,6 @@ function createEntityId(
     : `${prefix}-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 12)}`
-}
-
-export function isRegularAnnualModule(
-  module: ModuleUnit
-) {
-  return (
-    module as RegularAnnualModule
-  ).moduleKind ===
-    REGULAR_ANNUAL_MODULE_KIND
 }
 
 export function isRegularEducationGroup(
