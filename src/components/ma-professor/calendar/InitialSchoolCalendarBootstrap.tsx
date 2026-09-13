@@ -203,7 +203,17 @@ export default function InitialSchoolCalendarBootstrap({
         next: state => {
           if (
             disposed ||
-            !state ||
+            !state
+          ) {
+            return
+          }
+
+          if (!state.schoolName.trim()) {
+            setStage('selecting')
+            return
+          }
+
+          if (
             !isSBentoSchoolName(
               state.schoolName
             ) ||

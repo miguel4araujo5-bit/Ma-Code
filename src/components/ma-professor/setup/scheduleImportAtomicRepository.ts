@@ -44,6 +44,24 @@ export type ScheduleImportDuty = {
 const TEACHER_PROFILE_ID =
   'local-profile'
 
+const S_BENTO_SCHOOL_NAME =
+  'Agrupamento de Escolas de S. Bento, Vizela'
+
+const S_BENTO_CALENDAR_DESCRIPTION =
+  'Calendário Escolar 2026/2027 — Agrupamento de Escolas de S. Bento, Vizela.'
+
+function inferSchoolNameFromCalendarEvents(
+  events: SchoolCalendarEvent[]
+) {
+  return events.some(event =>
+    (event.description ?? '').includes(
+      S_BENTO_CALENDAR_DESCRIPTION
+    )
+  )
+    ? S_BENTO_SCHOOL_NAME
+    : ''
+}
+
 function normalize(
   value: string
 ) {
@@ -480,14 +498,19 @@ async function confirmGenericDutyDateRange(
 ) {
   const [
     academicYear,
-    profile
+    profile,
+    calendarEvents
   ] = await Promise.all([
     maProfessorDb.academicYears.get(
       academicYearId
     ),
     maProfessorDb.teacherProfiles.get(
       TEACHER_PROFILE_ID
-    )
+    ),
+    maProfessorDb.schoolCalendarEvents
+      .where('academicYearId')
+      .equals(academicYearId)
+      .toArray()
   ])
 
   if (!academicYear) {
@@ -498,7 +521,10 @@ async function confirmGenericDutyDateRange(
 
   const schoolName =
     profile?.schoolName
-      ?.trim() ?? ''
+      ?.trim() ||
+    inferSchoolNameFromCalendarEvents(
+      calendarEvents
+    )
 
   if (!schoolName) {
     throw new Error(
@@ -512,7 +538,7 @@ async function confirmGenericDutyDateRange(
       schoolName
     )
   ) {
-    return
+    return schoolName
   }
 
   if (
@@ -534,6 +560,8 @@ async function confirmGenericDutyDateRange(
       'A programação dos cargos foi cancelada. Nenhuma alteração foi guardada.'
     )
   }
+
+  return schoolName
 }
 
 export async function commitScheduleImportAtomically(
@@ -560,11 +588,12 @@ export async function commitScheduleImportAtomically(
 
   await openMAProfessorDatabase()
 
-  if (duties.length > 0) {
-    await confirmGenericDutyDateRange(
-      input.academicYearId
-    )
-  }
+  const dutySchoolName =
+    duties.length > 0
+      ? await confirmGenericDutyDateRange(
+          input.academicYearId
+        )
+      : ''
 
   const result =
     await maProfessorDb.transaction(
@@ -607,7 +636,8 @@ export async function commitScheduleImportAtomically(
 
         const schoolName =
           profile?.schoolName
-            ?.trim() ?? ''
+            ?.trim() ||
+          dutySchoolName
 
         if (
           duties.length > 0 &&
