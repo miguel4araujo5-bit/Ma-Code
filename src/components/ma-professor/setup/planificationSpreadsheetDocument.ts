@@ -337,7 +337,7 @@ function parseDurationHours(
 ) {
   const match =
     value.match(
-      /\b(\d+(?:[.,]\d+)?)\s*(?:h|horas?)\b/i
+      /\b(\d+(?:[.,]\d+)?)\s*(?:horas?|h)\b/i
     )
 
   if (!match) {
@@ -457,7 +457,7 @@ function moduleDescriptor(
   name =
     name
       .replace(
-        /\(?\s*\d+(?:[.,]\d+)?\s*(?:h|horas?)\s*\)?/gi,
+        /\(?\s*\d+(?:[.,]\d+)?\s*(?:horas?|h)\s*\)?/gi,
         ' '
       )
       .replace(
