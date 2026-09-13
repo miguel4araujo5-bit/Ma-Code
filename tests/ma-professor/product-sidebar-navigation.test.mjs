@@ -34,6 +34,22 @@ const legacyAppSource = await readFile(
   'utf8'
 )
 
+const productNavigationSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/ProductNavigation.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const productSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/MAProfessorProduct.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dailyCssSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyUnifiedWeek.css',
@@ -82,6 +98,10 @@ test(
       /createPortal/
     )
     assert.match(
+      bridgeSource,
+      /style\.setProperty\([\s\S]*'display'[\s\S]*'none'[\s\S]*'important'/
+    )
+    assert.match(
       legacyAppSource,
       /aria-label="Navegação do MA-Professor"/
     )
@@ -121,6 +141,38 @@ test(
       bridgeSource,
       /button\.hidden = false/
     )
+  }
+)
+
+test(
+  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer',
+  () => {
+    assert.match(productNavigationSource, /aria-label=\"Abrir navegação completa do MA-Professor\"/)
+    assert.match(productNavigationSource, /src=\"\/ma-code\.png\"/)
+    assert.match(productNavigationSource, /sidebarOpen[\s\S]*role=\"dialog\"[\s\S]*aria-label=\"Navegação completa do MA-Professor\"/)
+    for (const label of ['Painel', 'Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
+      assert.ok(productNavigationSource.includes(label), `missing global drawer entry: ${label}`)
+    }
+  }
+)
+
+test(
+  'global sidebar destinations reuse existing workspaces instead of duplicating screens',
+  () => {
+    assert.match(productSource, /handleSidebarDestination[\s\S]*destination ===[\s\S]*'calendar'[\s\S]*handleSelect/)
+    assert.match(productSource, /setMenuNavigationRequest\([\s\S]*target:[\s\S]*destination[\s\S]*setWorkspace\([\s\S]*'menu'/)
+    assert.match(productSource, /navigationRequest=\{[\s\S]*menuNavigationRequest/)
+    assert.match(menuSource, /isManagementWorkspaceTarget[\s\S]*setSection\('management'\)/)
+    assert.match(menuSource, /<MAProfessorApp[\s\S]*workspaceRequest=/)
+    assert.match(legacyAppSource, /handleWorkspaceChange\([\s\S]*workspaceRequest\.workspace/)
+  }
+)
+
+test(
+  'opening the global sidebar from Daily preserves the unsaved-work navigation guard',
+  () => {
+    assert.match(productSource, /handleSidebarDestination[\s\S]*workspace ===[\s\S]*'daily'[\s\S]*dailyNavigationGuardRef\.current/)
+    assert.match(productSource, /if \(!canLeave\) \{[\s\S]*return/)
   }
 )
 

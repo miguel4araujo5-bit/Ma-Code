@@ -101,13 +101,26 @@ type AcademicYearFormState = {
   endDate: string
 }
 
-type WorkspaceView =
+export type MAProfessorWorkspaceView =
   | 'dashboard'
   | 'calendar'
   | 'giae'
   | 'assessments'
   | 'planifications'
   | 'groups'
+
+type WorkspaceView =
+  MAProfessorWorkspaceView
+
+export interface MAProfessorWorkspaceRequest {
+  id: number
+  workspace: MAProfessorWorkspaceView
+}
+
+interface MAProfessorAppProps {
+  workspaceRequest?:
+    MAProfessorWorkspaceRequest | null
+}
 
 type NavigationItem = {
   id: string
@@ -592,7 +605,9 @@ function AcademicYearSetup({
   )
 }
 
-export default function MAProfessorApp() {
+export default function MAProfessorApp({
+  workspaceRequest = null
+}: MAProfessorAppProps = {}) {
   const [
     applicationState,
     setApplicationState
@@ -1908,6 +1923,22 @@ export default function MAProfessorApp() {
       workspace
     )
   }
+
+  useEffect(() => {
+    if (
+      !workspaceRequest ||
+      !setupCompleted
+    ) {
+      return
+    }
+
+    handleWorkspaceChange(
+      workspaceRequest.workspace
+    )
+  }, [
+    setupCompleted,
+    workspaceRequest?.id
+  ])
 
   function handleCalendarModeChange(
     mode: CalendarViewMode
