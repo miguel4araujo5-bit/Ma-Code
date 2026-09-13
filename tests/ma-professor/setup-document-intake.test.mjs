@@ -143,7 +143,7 @@ test(
   'manual nine-step setup and the detailed PDF criteria importer remain available only as an explicit advanced path',
   () => {
     assert.match(wizardSource, /if \(!advancedMode\)/)
-    assert.match(wizardSource, /Configuração avançada · Ensino profissional \/ secundário/)
+    assert.match(wizardSource, /Configuração avançada · Ensino regular \/ profissional/)
     assert.match(wizardSource, /ModulesSetupCourseSubjectGuard/)
     assert.match(wizardSource, /AssessmentCriteriaPdfImportPanel/)
     assert.match(wizardSource, /AssessmentCriteriaSetupStep/)
