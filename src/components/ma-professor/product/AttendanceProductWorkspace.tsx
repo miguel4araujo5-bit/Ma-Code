@@ -12,7 +12,14 @@ import {
   type AttendanceWorkspaceSnapshot,
   type CreateWorkspaceRecoveryInput
 } from '../attendance/attendanceWorkspaceRepository'
-import type { EntityId } from '../types'
+import {
+  recoveryAssessmentRepository,
+  type RecoveryAssessmentScores
+} from '../attendance/recoveryAssessmentRepository'
+import type {
+  AssessmentCriterion,
+  EntityId
+} from '../types'
 import {
   attendanceRepository,
   type LearningRecoveryChanges
@@ -33,6 +40,8 @@ export function AttendanceProductWorkspace({
 }: AttendanceProductWorkspaceProps) {
   const [snapshot, setSnapshot] =
     useState<AttendanceWorkspaceSnapshot | null>(null)
+  const [assessmentCriteria, setAssessmentCriteria] =
+    useState<AssessmentCriterion[]>([])
   const [filters, setFilters] =
     useState<AttendanceWorkspaceFilters>({})
   const [loading, setLoading] = useState(true)
@@ -50,7 +59,19 @@ export function AttendanceProductWorkspace({
             nextFilters
           )
 
+        const nextAssessmentCriteria =
+          nextSnapshot.selectedAssignment &&
+          nextSnapshot.selectedModule
+            ? await recoveryAssessmentRepository.listCriteria(
+                nextSnapshot.selectedAssignment.id,
+                nextSnapshot.selectedModule.id
+              )
+            : []
+
         setSnapshot(nextSnapshot)
+        setAssessmentCriteria(
+          nextAssessmentCriteria
+        )
         setFilters(nextSnapshot.filters)
       } catch (loadError) {
         setError(getErrorMessage(loadError))
@@ -177,6 +198,7 @@ export function AttendanceProductWorkspace({
 
       <RecoveryAttemptsPanel
         snapshot={snapshot}
+        assessmentCriteria={assessmentCriteria}
         loading={loading}
         onCreateAttempt={createRecovery}
         onSetOutcome={(
@@ -198,6 +220,26 @@ export function AttendanceProductWorkspace({
             attendanceRepository.referLearningRecoveryToExam(
               moduleId,
               studentId
+            )
+          )
+        }
+        onSaveAssessment={(
+          recoveryId: EntityId,
+          scores: RecoveryAssessmentScores
+        ) =>
+          mutate(() =>
+            recoveryAssessmentRepository.saveAssessment(
+              recoveryId,
+              scores
+            )
+          )
+        }
+        onClearAssessment={(
+          recoveryId: EntityId
+        ) =>
+          mutate(() =>
+            recoveryAssessmentRepository.clearAssessment(
+              recoveryId
             )
           )
         }
