@@ -129,6 +129,9 @@ const pdfJsStubUrl =
 const workerStubUrl =
   dataUrl('export default "worker-stub"')
 
+const pdfPasswordErrorStubUrl =
+  dataUrl('export const normalizePdfPasswordError = error => error')
+
 const extractorRuntimeSource =
   transpile(
     extractorSource,
@@ -165,6 +168,14 @@ const extractorRuntimeSource =
     .replaceAll(
       '"./planificationPdfTableLayout"',
       `"${tableLayoutUrl}"`
+    )
+    .replaceAll(
+      "'../../../lib/maPdf/pdfPasswordError'",
+      `'${pdfPasswordErrorStubUrl}'`
+    )
+    .replaceAll(
+      '"../../../lib/maPdf/pdfPasswordError"',
+      `"${pdfPasswordErrorStubUrl}"`
     )
 
 const previewRuntimeSource =

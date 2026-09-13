@@ -33,6 +33,7 @@ async function importItems(items) {
   let cleaned = false
   const extractor = load(extractorSource, {
     'pdfjs-dist/build/pdf.worker.min.mjs?url': { default: 'test-worker.mjs' },
+    './pdfPasswordError': { normalizePdfPasswordError: error => error },
     'pdfjs-dist': {
       GlobalWorkerOptions: {},
       getDocument: () => ({

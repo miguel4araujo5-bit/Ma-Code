@@ -43,6 +43,7 @@ const extractorExports = {}
 // production extractor and parser. Only PDF transport/worker setup is stubbed.
 Function('require', 'exports', javascript(readFileSync(join(root, extractorPath), 'utf8')))(request => {
   if (request.includes('pdf.worker')) return { default: 'test-worker.mjs' }
+  if (request === './pdfPasswordError') return { normalizePdfPasswordError: error => error }
   if (request === 'pdfjs-dist') return {
     GlobalWorkerOptions: {},
     getDocument: () => ({

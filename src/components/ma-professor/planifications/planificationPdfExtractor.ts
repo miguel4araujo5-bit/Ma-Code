@@ -4,6 +4,7 @@ import {
   getDocument
 } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { normalizePdfPasswordError } from '../../../lib/maPdf/pdfPasswordError'
 import { readRuledPlanificationTable, type PdfRuleBox } from './planificationPdfTableLayout'
 
 import type {
@@ -781,6 +782,10 @@ export async function extractPlanificationPdf(
         }
       }
     }
+  } catch (error) {
+    throw normalizePdfPasswordError(
+      error
+    )
   } finally {
     try {
       await loadingTask.destroy()
