@@ -30,6 +30,7 @@ type MenuSection =
   | 'attendance'
   | 'schedule'
   | 'settings'
+  | 'restore'
 
 interface ProductMenuWorkspaceProps {
   academicYear: AcademicYear | null
@@ -82,6 +83,14 @@ const menuCards: Array<{
     description:
       'Aceda ao perfil, pesquisa global, cópias de segurança, restauro e licença.',
     icon: '⚙'
+  },
+  {
+    id: 'restore',
+    eyebrow: 'Recuperação',
+    title: 'Tenho uma cópia JSON',
+    description:
+      'Escolha uma cópia de segurança, valide-a e restaure os dados guardados nesse ficheiro.',
+    icon: '↺'
   }
 ]
 
@@ -410,7 +419,28 @@ export function ProductMenuWorkspace({
             title="Sumários, avaliações e planificações"
             onBack={() => setSection('home')}
           />
-        ) : null}
+        ) : (
+          <div className="border-b border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:px-6">
+            <div className="mx-auto flex max-w-[1800px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black text-emerald-200">
+                  Já tem uma cópia de segurança?
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  Pode recuperar um ficheiro JSON antes de voltar a configurar tudo manualmente.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSection('restore')}
+                className="rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2.5 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15"
+              >
+                Tenho uma cópia JSON
+              </button>
+            </div>
+          </div>
+        )}
 
         <MAProfessorApp />
       </div>
@@ -443,17 +473,38 @@ export function ProductMenuWorkspace({
     )
   }
 
-  if (section === 'settings') {
+  if (
+    section === 'settings' ||
+    section === 'restore'
+  ) {
+    const isRestore =
+      section === 'restore'
+
     return (
       <div className="min-h-[calc(100vh-58px)] bg-slate-950">
         <MenuHeader
-          title="Definições e dados"
-          onBack={() => setSection('home')}
+          title={
+            isRestore
+              ? 'Recuperar cópia JSON'
+              : 'Definições e dados'
+          }
+          onBack={() =>
+            setSection(
+              setupCompleted
+                ? 'home'
+                : 'management'
+            )
+          }
         />
 
         <SettingsWorkspaceView
           academicYearId={academicYear?.id ?? null}
           onDataChanged={onDataChanged}
+          initialTab={
+            isRestore
+              ? 'backup'
+              : 'profile'
+          }
         />
       </div>
     )
