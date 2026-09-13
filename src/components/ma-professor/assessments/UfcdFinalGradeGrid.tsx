@@ -12,6 +12,7 @@ import type {
 } from './assessmentCriteriaManagementRepository'
 
 import BaseUfcdFinalGradeGrid from './UfcdFinalGradeGridBase'
+import UfcdFinalGradeExcelImportPanel from './UfcdFinalGradeExcelImportPanel'
 
 export type {
   UfcdFinalGradeDraft
@@ -114,6 +115,11 @@ export default function UfcdFinalGradeGrid(
       }
     )
 
+  const importerDisabled =
+    Boolean(props.loading) ||
+    Boolean(props.savingStudentId) ||
+    hasDirtyGradeDrafts
+
   return (
     <>
       {effectiveSnapshot.scheme &&
@@ -122,11 +128,7 @@ export default function UfcdFinalGradeGrid(
           <AssessmentCriteriaManagementPanel
             snapshot={effectiveSnapshot}
             disabled={
-              Boolean(props.loading) ||
-              Boolean(
-                props.savingStudentId
-              ) ||
-              hasDirtyGradeDrafts
+              importerDisabled
             }
             onSaved={
               setCriteriaOverride
@@ -134,6 +136,20 @@ export default function UfcdFinalGradeGrid(
           />
         </section>
       ) : null}
+
+      <UfcdFinalGradeExcelImportPanel
+        snapshot={effectiveSnapshot}
+        disabled={importerDisabled}
+        onApplyDraft={(
+          studentId,
+          changes
+        ) =>
+          props.onDraftChange(
+            studentId,
+            changes
+          )
+        }
+      />
 
       <BaseUfcdFinalGradeGrid
         {...props}
