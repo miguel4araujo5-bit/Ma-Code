@@ -214,7 +214,24 @@ test(
   }
 )
 
-\1 'planned',
+test(
+  'future planned lesson can persist assessment results without attendance or GIAE side effects',
+  { concurrency: false },
+  async () => {
+    const state =
+      resetDailyState()
+    state.futureLesson = true
+
+    const repository =
+      new DailyWorkspaceRepository()
+
+    await loadLesson(repository)
+
+    const saved =
+      await repository.saveLesson(
+        lessonDraft({
+          summary: '',
+          status: 'planned',
           students:
             studentDrafts({
               anaScore: 17,
