@@ -4,7 +4,7 @@ import {
   getDocument
 } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { normalizePdfPasswordError } from '../../../lib/maPdf/pdfPasswordError'
+import * as pdfPasswordError from '../../../lib/maPdf/pdfPasswordError'
 import { readRuledPlanificationTable, type PdfRuleBox } from './planificationPdfTableLayout'
 
 import type {
@@ -685,6 +685,10 @@ export async function extractPlanificationPdf(
 
   const loadingTask =
     getDocument({ data })
+  const passwordPrompt =
+    pdfPasswordError.configurePdfPasswordPrompt?.(
+      loadingTask
+    )
 
   const pages:
     PlanificationPdfExtractionPage[] = []
@@ -783,9 +787,13 @@ export async function extractPlanificationPdf(
       }
     }
   } catch (error) {
-    throw normalizePdfPasswordError(
-      error
-    )
+    throw passwordPrompt
+      ? passwordPrompt.normalizeError(
+          error
+        )
+      : pdfPasswordError.normalizePdfPasswordError(
+          error
+        )
   } finally {
     try {
       await loadingTask.destroy()

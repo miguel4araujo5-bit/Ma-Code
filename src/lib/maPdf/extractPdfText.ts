@@ -1,7 +1,7 @@
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { ProgressCallback, SelectedPdf } from '../../types/maPdf'
-import { normalizePdfPasswordError } from './pdfPasswordError'
+import * as pdfPasswordError from './pdfPasswordError'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -824,6 +824,10 @@ export async function extractTextFromPdf(
     await selected.file.arrayBuffer()
   )
   const loadingTask = getDocument({ data })
+  const passwordPrompt =
+    pdfPasswordError.configurePdfPasswordPrompt?.(
+      loadingTask
+    )
 
   try {
     const pdfDocument = await loadingTask.promise
@@ -879,9 +883,13 @@ export async function extractTextFromPdf(
       characterCount
     }
   } catch (error) {
-    throw normalizePdfPasswordError(
-      error
-    )
+    throw passwordPrompt
+      ? passwordPrompt.normalizeError(
+          error
+        )
+      : pdfPasswordError.normalizePdfPasswordError(
+          error
+        )
   } finally {
     try {
       await loadingTask.destroy()
