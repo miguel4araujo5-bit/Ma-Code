@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Terminologia regular | Tornar a linguagem de Faltas/Recuperações e Avaliação adequada a turmas regulares sem alterar cálculos | fix/ma-professor-regular-terminology | `src/components/ma-professor/attendance/AttendanceWorkspaceView.tsx`; `src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
+| Terminologia regular | Tornar a apresentação transversal do MA-Professor compatível com ensino regular e profissional | fix/ma-professor-regular-terminology | `src/components/ma-professor/access/ProductIntroPanel.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
