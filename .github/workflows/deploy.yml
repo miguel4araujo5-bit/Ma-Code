@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - main
+      - feat/ma-professor-general-education-grades
     paths-ignore:
       - 'coordination/**'
       - 'docs/**'
