@@ -6,6 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
+| E2E regular | Cobrir no Chromium o percurso integrado do ensino regular sem alterar a lógica de avaliação | test/ma-professor-regular-browser-e2e | `tests/ma-professor/browser-integrated-regression.e2e.mjs` | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
