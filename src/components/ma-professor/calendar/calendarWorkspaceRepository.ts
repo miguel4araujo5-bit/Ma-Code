@@ -9,15 +9,23 @@ import type {
   ISODate
 } from '../types'
 import {
+  enrichCalendarSnapshotWithRecoveries,
+  type CalendarRecoveryWorkspaceSnapshot
+} from './calendarRecoveryWorkspace'
+import {
   CalendarWorkspaceRepository as BaseCalendarWorkspaceRepository
 } from './calendarWorkspaceRepositoryBase'
 import type {
   CalendarViewMode,
-  CalendarWorkspaceFilters,
-  CalendarWorkspaceSnapshot
+  CalendarWorkspaceFilters
 } from './calendarWorkspaceRepositoryBase'
 
 export * from './calendarWorkspaceRepositoryBase'
+export type {
+  CalendarRecoveryDayRow,
+  CalendarRecoveryRow,
+  CalendarRecoveryWorkspaceSnapshot
+} from './calendarRecoveryWorkspace'
 
 function formatLocalISODate(
   date: Date
@@ -115,7 +123,7 @@ export class CalendarWorkspaceRepository
     mode: CalendarViewMode = 'week',
     requestedAnchorDate?: ISODate,
     filters: CalendarWorkspaceFilters = {}
-  ): Promise<CalendarWorkspaceSnapshot> {
+  ): Promise<CalendarRecoveryWorkspaceSnapshot> {
     const initialSnapshot =
       await super.getWorkspace(
         academicYearId,
@@ -137,7 +145,9 @@ export class CalendarWorkspaceRepository
       )
 
     if (dateFrom > dateTo) {
-      return initialSnapshot
+      return enrichCalendarSnapshotWithRecoveries(
+        initialSnapshot
+      )
     }
 
     const today =
@@ -198,15 +208,18 @@ export class CalendarWorkspaceRepository
         reconciliation.deletedLessonIds.length > 0
     }
 
-    if (!changed) {
-      return initialSnapshot
-    }
+    const finalSnapshot =
+      changed
+        ? await super.getWorkspace(
+            academicYearId,
+            mode,
+            requestedAnchorDate,
+            filters
+          )
+        : initialSnapshot
 
-    return super.getWorkspace(
-      academicYearId,
-      mode,
-      requestedAnchorDate,
-      filters
+    return enrichCalendarSnapshotWithRecoveries(
+      finalSnapshot
     )
   }
 }
