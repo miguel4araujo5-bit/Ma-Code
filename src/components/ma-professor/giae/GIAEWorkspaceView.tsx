@@ -1214,6 +1214,10 @@ export default function GIAEWorkspaceView({
   function handleCopy(
     row: GIAEWorkspaceRow
   ) {
+    const shouldAutoSubmit =
+      row.canMarkSubmitted &&
+      Boolean(onMarkSubmitted)
+
     void runAction(
       `copy:${row.lesson.id}`,
       async () => {
@@ -1223,29 +1227,63 @@ export default function GIAEWorkspaceView({
           )
         )
 
+        if (!shouldAutoSubmit) {
+          return
+        }
+
         giaeWorkspaceRepository.recordCopiedLesson(
           row.lesson
         )
+
+        try {
+          await onMarkSubmitted!(
+            row.lesson.id
+          )
+        } catch (submitError) {
+          const message =
+            submitError instanceof Error
+              ? submitError.message
+              : 'Não foi possível atualizar o estado no GIAE.'
+
+          throw new Error(
+            `O sumário foi copiado, mas não foi assinalado como submetido no GIAE. ${message}`
+          )
+        }
       },
-      'Sumário copiado.'
+      shouldAutoSubmit
+        ? 'Sumário copiado e assinalado automaticamente como submetido no GIAE.'
+        : 'Sumário copiado.'
     )
   }
 
   function handleCopyVisible() {
-    const copiedLessons =
-      snapshot.rows
-        .filter(
-          (
-            row
-          ) =>
-            row.canCopy
-        )
-        .map(
-          (
-            row
-          ) =>
-            row.lesson
-        )
+    const copiedRows =
+      snapshot.rows.filter(
+        (
+          row
+        ) =>
+          row.canCopy
+      )
+
+    const pendingRows =
+      copiedRows.filter(
+        (
+          row
+        ) =>
+          row.canMarkSubmitted
+      )
+
+    const pendingLessonIds =
+      pendingRows.map(
+        (
+          row
+        ) =>
+          row.lesson.id
+      )
+
+    const shouldAutoSubmit =
+      pendingLessonIds.length > 0 &&
+      Boolean(onMarkManySubmitted)
 
     void runAction(
       'copy-visible',
@@ -1257,16 +1295,53 @@ export default function GIAEWorkspaceView({
           )
         )
 
+        if (!shouldAutoSubmit) {
+          return
+        }
+
         giaeWorkspaceRepository.recordCopiedLessons(
-          copiedLessons
+          pendingRows.map(
+            (
+              row
+            ) =>
+              row.lesson
+          )
         )
+
+        try {
+          await onMarkManySubmitted!(
+            pendingLessonIds
+          )
+
+          setSelectedLessonIds(
+            new Set()
+          )
+        } catch (submitError) {
+          const message =
+            submitError instanceof Error
+              ? submitError.message
+              : 'Não foi possível atualizar o estado no GIAE.'
+
+          throw new Error(
+            `Os sumários foram copiados, mas nem todos foram assinalados como submetidos no GIAE. ${message}`
+          )
+        }
       },
-      `${visibleCopyCount} ${
-        visibleCopyCount ===
-        1
-          ? 'sumário copiado'
-          : 'sumários copiados'
-      } com identificação.`
+      shouldAutoSubmit
+        ? `${visibleCopyCount} ${
+            visibleCopyCount === 1
+              ? 'sumário copiado'
+              : 'sumários copiados'
+          } com identificação; ${pendingLessonIds.length} ${
+            pendingLessonIds.length === 1
+              ? 'foi assinalado automaticamente como submetido'
+              : 'foram assinalados automaticamente como submetidos'
+          } no GIAE.`
+        : `${visibleCopyCount} ${
+            visibleCopyCount === 1
+              ? 'sumário copiado'
+              : 'sumários copiados'
+          } com identificação.`
     )
   }
 
@@ -1360,7 +1435,7 @@ export default function GIAEWorkspaceView({
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-              Prepare os sumários, copie o texto para o GIAE e registe o que já foi submetido. O MA-Professor não acede ao portal da escola nem envia dados automaticamente.
+              Prepare os sumários e copie o texto para o GIAE. Depois de uma cópia bem-sucedida, o MA-Professor assinala automaticamente essa mesma versão como submetida; nunca envia dados para o portal da escola.
             </p>
 
             <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -1440,7 +1515,7 @@ export default function GIAEWorkspaceView({
               snapshot.totals
                 .submitted
             }
-            detail="Confirmados manualmente"
+            detail="Assinalados após cópia ou confirmação manual"
             className="border-emerald-300/20 bg-emerald-300/[0.055]"
           />
 
