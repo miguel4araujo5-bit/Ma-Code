@@ -39,25 +39,25 @@ export default function AssessmentWorkspaceView(
     props.snapshot.selectedGroup
 
   if (
-    group?.educationType !== 'regular'
+    group?.educationType === 'regular'
   ) {
-    return (
-      <ProfessionalAssessmentWorkspaceView
-        {...props}
-      />
-    )
+    return getSummativeAssessmentScale(group)
+      .kind === 'qualitative'
+      ? (
+          <FirstCycleAssessmentWorkspaceView
+            {...props}
+          />
+        )
+      : (
+          <RegularAssessmentWorkspaceView
+            {...props}
+          />
+        )
   }
 
-  return getSummativeAssessmentScale(group)
-    .kind === 'qualitative'
-    ? (
-        <FirstCycleAssessmentWorkspaceView
-          {...props}
-        />
-      )
-    : (
-        <RegularAssessmentWorkspaceView
-          {...props}
-        />
-      )
+  return (
+    <ProfessionalAssessmentWorkspaceView
+      {...props}
+    />
+  )
 }
