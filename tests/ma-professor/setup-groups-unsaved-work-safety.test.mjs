@@ -50,8 +50,14 @@ test(
       source,
       /function requestCancelEditing\(\)[\s\S]*confirmDiscardDirtyGroupEdit\(\)/
     )
-    assert.match(source, /onClick=\{requestCancelEditing\}/)
-    assert.match(source, /onClick=\{\(\) => requestStartEditing\(group\)\}/)
+    assert.match(
+      source,
+      /onClick=\{\s*requestCancelEditing\s*\}/
+    )
+    assert.match(
+      source,
+      /onClick=\{\(\) =>\s*requestStartEditing\(\s*group\s*\)\s*\}/
+    )
   }
 )
 
