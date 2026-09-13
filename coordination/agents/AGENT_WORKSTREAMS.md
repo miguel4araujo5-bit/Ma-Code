@@ -6,7 +6,7 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Calendário | Mostrar recuperações na respetiva data prevista sem criar eventos escolares artificiais | feat/ma-professor-recovery-calendar | `src/components/ma-professor/calendar/calendarWorkspaceRepository.ts`; novos componentes/helper de recuperações; `src/components/ma-professor/product/CalendarProductWorkspace.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
+| Terminologia regular | Tornar a linguagem de Faltas/Recuperações e Avaliação adequada a turmas regulares sem alterar cálculos | fix/ma-professor-regular-terminology | `src/components/ma-professor/attendance/AttendanceWorkspaceView.tsx`; `src/components/ma-professor/assessments/AssessmentWorkspaceView.tsx`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
