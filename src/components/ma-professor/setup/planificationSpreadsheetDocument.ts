@@ -332,41 +332,12 @@ function valueAt(
       )
 }
 
-function joinRange(
-  row: SpreadsheetRow,
-  start: number | undefined,
-  end: number | undefined
-) {
-  if (
-    start === undefined
-  ) {
-    return ''
-  }
-
-  const final =
-    end === undefined ||
-    end <= start
-      ? start + 1
-      : end
-
-  return compactLines(
-    row
-      .slice(
-        start,
-        final
-      )
-      .map(cellText)
-      .filter(Boolean)
-      .join('\n')
-  )
-}
-
 function parseDurationHours(
   value: string
 ) {
   const match =
     value.match(
-      /\b(\d+(?:[.,]\d+)?)\s*(?:horas?|h)\b/i
+      /\b(\d+(?:[.,]\d+)?)\s*(?:h|horas?)\b/i
     )
 
   if (!match) {
@@ -486,7 +457,7 @@ function moduleDescriptor(
   name =
     name
       .replace(
-        /\(?\s*\d+(?:[.,]\d+)?\s*(?:horas?|h)\s*\)?/gi,
+        /\(?\s*\d+(?:[.,]\d+)?\s*(?:h|horas?)\s*\)?/gi,
         ' '
       )
       .replace(
@@ -844,10 +815,9 @@ export function parsePlanificationSpreadsheetRows(
     }
 
     const moduleText =
-      joinRange(
+      valueAt(
         row,
-        header.columns.module,
-        header.columns.contents
+        header.columns.module
       )
 
     const descriptor =
