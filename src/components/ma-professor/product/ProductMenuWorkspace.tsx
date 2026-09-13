@@ -559,7 +559,7 @@ export function ProductMenuWorkspace({
                 A configuração continua concluída enquanto corrige os dados.
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                Pode voltar ao horário, planificações, critérios, alunos ou abrir a configuração avançada. As alterações guardadas substituem apenas os dados que editar; não reiniciam o ano letivo nem apagam o trabalho existente.
+                Pode voltar ao horário, planificações, critérios, alunos ou abrir o assistente simples. As alterações guardadas substituem apenas os dados que editar; não reiniciam o ano letivo nem apagam o trabalho existente.
               </p>
             </section>
 
@@ -590,6 +590,7 @@ export function ProductMenuWorkspace({
                 snapshot={configurationSnapshot}
                 onSnapshotChange={setConfigurationSnapshot}
                 onCompleted={setConfigurationSnapshot}
+                initialMode="advanced"
               />
             ) : null}
           </div>
