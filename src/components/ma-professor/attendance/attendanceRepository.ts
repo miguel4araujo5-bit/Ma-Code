@@ -19,6 +19,7 @@ import {
 } from './attendanceRepositoryBase'
 
 import type {
+  AttendanceSummaryFilters,
   LearningRecoveryChanges,
   LearningRecoveryDraft
 } from './attendanceRepositoryBase'
@@ -225,6 +226,59 @@ export class AttendanceRepository
         metrics.absencePercent,
       warningLevel
     }
+  }
+
+  override async listModuleAbsenceSummaries(
+    moduleId: EntityId
+  ) {
+    const baseline =
+      await super.listModuleAbsenceSummaries(
+        moduleId
+      )
+
+    return Promise.all(
+      baseline.map(
+        summary =>
+          this.getStudentModuleAbsenceSummary(
+            moduleId,
+            summary.studentId
+          )
+      )
+    )
+  }
+
+  override async listAbsenceOverview(
+    filters: AttendanceSummaryFilters
+  ) {
+    const baselineRows =
+      await super.listAbsenceOverview({
+        ...filters,
+        warningLevel: null
+      })
+
+    const rows =
+      await Promise.all(
+        baselineRows.map(
+          async row => ({
+            ...row,
+            summary:
+              await this.getStudentModuleAbsenceSummary(
+                row.module.id,
+                row.student.id
+              )
+          })
+        )
+      )
+
+    if (!filters.warningLevel) {
+      return rows
+    }
+
+    return rows.filter(
+      row =>
+        row.summary.warningLevel ===
+        filters.warningLevel
+    )
   }
 
   private async createLearningRecoveryWithOrigin(

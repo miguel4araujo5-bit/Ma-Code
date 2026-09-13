@@ -6,7 +6,6 @@ A `main` remota é sempre a fonte de verdade. Entradas concluídas devem ser rem
 
 | Fluxo | Problema | Branch | Ficheiros em alteração | Estado | Base remota | Atualizado |
 |---|---|---|---|---|---|---|
-| Assiduidade | Uniformizar a ponderação por tempos entre resumo individual, Diário, Dashboard e visão global de faltas | fix/ma-professor-attendance-period-summary | `src/components/ma-professor/attendance/attendanceRepository.ts`; testes MA-Professor | ATIVO | `main` | 2026-09-13 |
 
 ## Regras de utilização
 
