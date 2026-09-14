@@ -13,23 +13,29 @@ const compact = value =>
 
 const [
   clientSource,
+  restoreServiceSource,
   workerSource,
   entrySource,
   syncPanelSource,
-  restorePanelSource
+  restorePanelSource,
+  dailySource
 ] = await Promise.all([
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
+  read('src/components/ma-professor/sync/cloudBackupRestoreService.ts'),
   read('worker/maProfessorCloudBackup.ts'),
   read('worker/entry.ts'),
   read('src/components/ma-professor/settings/EncryptedSyncPanel.tsx'),
-  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx')
+  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
+  read('src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx')
 ])
 
 const client = compact(clientSource)
+const restoreService = compact(restoreServiceSource)
 const worker = compact(workerSource)
 const entry = compact(entrySource)
 const syncPanel = compact(syncPanelSource)
 const restorePanel = compact(restorePanelSource)
+const daily = compact(dailySource)
 
 test(
   'cloud backup API is routed through the worker entrypoint',
@@ -92,7 +98,7 @@ test(
     )
     assert.match(
       client,
-      /postJson\( '\/push', \{ \.\.\.sessionBody\( session \), recordId: RECORD_ID, expectedServerRevision: status\.serverRevision, encrypted: prepared\.encrypted \}/
+      /postJson\( '\/push', \{ \.\.\.sessionBody\(session\), recordId: RECORD_ID, expectedServerRevision: status\.serverRevision, encrypted: prepared\.encrypted \}/
     )
     assert.doesNotMatch(
       client,
@@ -100,7 +106,7 @@ test(
     )
     assert.match(
       client,
-      /subtle \.encrypt\(/
+      /subtle\.encrypt\(/
     )
   }
 )
@@ -132,7 +138,7 @@ test(
 )
 
 test(
-  'online backup remains manual and restore requires explicit confirmation plus a safety copy',
+  'online backup remains manual and restore keeps local and remote race guards',
   () => {
     assert.match(
       syncPanel,
@@ -152,7 +158,37 @@ test(
     )
     assert.match(
       restorePanel,
-      /await restoreMAProfessorBackup\( preview\.backup \)/
+      /expectedLocalContentSignature: foundPreview\.localContentSignature/
+    )
+    assert.match(
+      restoreService,
+      /freshRemote\.serverRevision !== options\.expectedServerRevision/
+    )
+    assert.match(
+      restoreService,
+      /freshRemote\.ciphertextHash !== options\.expectedCiphertextHash/
+    )
+    assert.match(
+      restoreService,
+      /restoreMAProfessorDatabaseSnapshotIfLocalUnchanged\(/
+    )
+  }
+)
+
+test(
+  'Hoje shows a discreet local reminder without adding network polling',
+  () => {
+    assert.match(
+      daily,
+      /activeDate === todayISO\(\)/
+    )
+    assert.match(
+      daily,
+      /faça regularmente uma cópia de segurança/
+    )
+    assert.doesNotMatch(
+      daily,
+      /fetch\(|setInterval\(|setTimeout\(/
     )
   }
 )
