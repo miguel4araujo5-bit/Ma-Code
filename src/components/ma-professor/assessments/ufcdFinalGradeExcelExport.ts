@@ -27,7 +27,6 @@ import {
 import {
   clearWorksheetCell,
   loadOfficialUfcdXlsmTemplate,
-  setWorksheetFormula,
   setWorksheetNumber,
   setWorksheetString,
   writeOfficialUfcdXlsm,
@@ -42,23 +41,43 @@ const HOME_SHEET =
 const CFP_SHEET =
   'xl/worksheets/sheet14.xml'
 
-const OFFICIAL_MOMENT_SHEETS = [
-  { name: 'P1I1', path: 'xl/worksheets/sheet2.xml' },
-  { name: 'P1I2', path: 'xl/worksheets/sheet17.xml' },
-  { name: 'P1I3', path: 'xl/worksheets/sheet18.xml' },
-  { name: 'P1I4', path: 'xl/worksheets/sheet19.xml' },
-  { name: 'P1I5', path: 'xl/worksheets/sheet20.xml' },
-  { name: 'P2I1', path: 'xl/worksheets/sheet3.xml' },
-  { name: 'P2I2', path: 'xl/worksheets/sheet4.xml' },
-  { name: 'P2I3', path: 'xl/worksheets/sheet5.xml' },
-  { name: 'P2I4', path: 'xl/worksheets/sheet6.xml' },
-  { name: 'P2I5', path: 'xl/worksheets/sheet7.xml' },
-  { name: 'P3I1', path: 'xl/worksheets/sheet8.xml' },
-  { name: 'P3I2', path: 'xl/worksheets/sheet9.xml' },
-  { name: 'P3I3', path: 'xl/worksheets/sheet10.xml' },
-  { name: 'P3I4', path: 'xl/worksheets/sheet11.xml' },
-  { name: 'P3I5', path: 'xl/worksheets/sheet12.xml' }
-] as const
+type MomentSheetDefinition = {
+  name: string
+  path: string
+  titleCell: string
+  firstItemColumn: number
+  lastItemColumn: number
+}
+
+const P1_LAYOUT = {
+  titleCell: 'G2',
+  firstItemColumn: 4,
+  lastItemColumn: 49
+} as const
+
+const P23_LAYOUT = {
+  titleCell: 'F2',
+  firstItemColumn: 3,
+  lastItemColumn: 48
+} as const
+
+const OFFICIAL_MOMENT_SHEETS: MomentSheetDefinition[] = [
+  { name: 'P1I1', path: 'xl/worksheets/sheet2.xml', ...P1_LAYOUT },
+  { name: 'P1I2', path: 'xl/worksheets/sheet17.xml', ...P1_LAYOUT },
+  { name: 'P1I3', path: 'xl/worksheets/sheet18.xml', ...P1_LAYOUT },
+  { name: 'P1I4', path: 'xl/worksheets/sheet19.xml', ...P1_LAYOUT },
+  { name: 'P1I5', path: 'xl/worksheets/sheet20.xml', ...P1_LAYOUT },
+  { name: 'P2I1', path: 'xl/worksheets/sheet3.xml', ...P23_LAYOUT },
+  { name: 'P2I2', path: 'xl/worksheets/sheet4.xml', ...P23_LAYOUT },
+  { name: 'P2I3', path: 'xl/worksheets/sheet5.xml', ...P23_LAYOUT },
+  { name: 'P2I4', path: 'xl/worksheets/sheet6.xml', ...P23_LAYOUT },
+  { name: 'P2I5', path: 'xl/worksheets/sheet7.xml', ...P23_LAYOUT },
+  { name: 'P3I1', path: 'xl/worksheets/sheet8.xml', ...P23_LAYOUT },
+  { name: 'P3I2', path: 'xl/worksheets/sheet9.xml', ...P23_LAYOUT },
+  { name: 'P3I3', path: 'xl/worksheets/sheet10.xml', ...P23_LAYOUT },
+  { name: 'P3I4', path: 'xl/worksheets/sheet11.xml', ...P23_LAYOUT },
+  { name: 'P3I5', path: 'xl/worksheets/sheet12.xml', ...P23_LAYOUT }
+]
 
 type EvaluationMoment = {
   lessonId: EntityId
@@ -428,17 +447,17 @@ function populateHome(
 
 function clearMomentInputs(
   files: OfficialXlsmFiles,
-  sheetPath: string
+  sheet: MomentSheetDefinition
 ) {
   clearWorksheetCell(
     files,
-    sheetPath,
-    'G2'
+    sheet.path,
+    sheet.titleCell
   )
 
   for (
-    let columnIndex = 4;
-    columnIndex <= 49;
+    let columnIndex = sheet.firstItemColumn;
+    columnIndex <= sheet.lastItemColumn;
     columnIndex += 1
   ) {
     const column =
@@ -447,7 +466,7 @@ function clearMomentInputs(
     for (const row of [8, 9, 12, 13]) {
       clearWorksheetCell(
         files,
-        sheetPath,
+        sheet.path,
         `${column}${row}`
       )
     }
@@ -459,7 +478,7 @@ function clearMomentInputs(
     ) {
       clearWorksheetCell(
         files,
-        sheetPath,
+        sheet.path,
         `${column}${row}`
       )
     }
@@ -468,7 +487,7 @@ function clearMomentInputs(
 
 function populateMoment(
   files: OfficialXlsmFiles,
-  sheetPath: string,
+  sheet: MomentSheetDefinition,
   moment: EvaluationMoment,
   snapshot: AssessmentWorkspaceSnapshot
 ) {
@@ -514,43 +533,56 @@ function populateMoment(
 
   setWorksheetString(
     files,
-    sheetPath,
-    'G2',
+    sheet.path,
+    sheet.titleCell,
     moment.title || moment.date
   )
 
+  if (criterionEntries.length === 0) {
+    return
+  }
+
   const acsInternalDomain =
     `D${model.criteria.length + 1}`
+  const adaptationStartColumn =
+    sheet.firstItemColumn +
+    criterionEntries.length
 
   criterionEntries.forEach(
     (entry, itemIndex) => {
-      const column =
+      const generalColumn =
         columnName(
-          4 + itemIndex
+          sheet.firstItemColumn +
+          itemIndex
+        )
+      const adaptationColumn =
+        columnName(
+          adaptationStartColumn +
+          itemIndex
         )
 
       setWorksheetString(
         files,
-        sheetPath,
-        `${column}8`,
+        sheet.path,
+        `${generalColumn}8`,
         entry.criterion.label
       )
       setWorksheetNumber(
         files,
-        sheetPath,
-        `${column}9`,
+        sheet.path,
+        `${generalColumn}9`,
         20
       )
       setWorksheetString(
         files,
-        sheetPath,
-        `${column}12`,
+        sheet.path,
+        `${adaptationColumn}12`,
         acsInternalDomain
       )
       setWorksheetNumber(
         files,
-        sheetPath,
-        `${column}13`,
+        sheet.path,
+        `${adaptationColumn}13`,
         20
       )
 
@@ -568,10 +600,18 @@ function populateMoment(
             return
           }
 
+          const usesAcs =
+            studentRow.finalGradeRecord
+              ?.usesAcs ?? false
+          const targetColumn =
+            usesAcs
+              ? adaptationColumn
+              : generalColumn
+
           setWorksheetNumber(
             files,
-            sheetPath,
-            `${column}${14 + studentIndex}`,
+            sheet.path,
+            `${targetColumn}${14 + studentIndex}`,
             result.score
           )
         }
@@ -588,15 +628,21 @@ function populateCfpInputs(
   const model =
     buildUfcdCfpModel(snapshot)
 
+  for (
+    let index = 0;
+    index < 30;
+    index += 1
+  ) {
+    clearWorksheetCell(
+      files,
+      CFP_SHEET,
+      `AI${12 + index}`
+    )
+  }
+
   model.rows.forEach(
     (student, index) => {
       const row = 12 + index
-
-      clearWorksheetCell(
-        files,
-        CFP_SHEET,
-        `AI${row}`
-      )
 
       if (
         student.selfAssessmentGrade !== null
@@ -609,6 +655,8 @@ function populateCfpInputs(
         )
       }
 
+      // A fórmula original de BW calcula o nível final automaticamente.
+      // Só é substituída quando o professor confirmou explicitamente a nota.
       if (student.finalGrade !== null) {
         setWorksheetNumber(
           files,
@@ -697,7 +745,7 @@ export async function exportUfcdFinalGradeExcel(
     sheet =>
       clearMomentInputs(
         files,
-        sheet.path
+        sheet
       )
   )
 
@@ -707,7 +755,7 @@ export async function exportUfcdFinalGradeExcel(
         files,
         OFFICIAL_MOMENT_SHEETS[
           index
-        ].path,
+        ],
         moment,
         snapshot
       )
