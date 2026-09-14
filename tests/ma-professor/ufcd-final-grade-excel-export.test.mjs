@@ -216,12 +216,15 @@ test(
 )
 
 test(
-  'Excel download reuses the existing client download helper and lazy-loads xlsx',
+  'Excel download reuses the client helper and writes the official macro-enabled workbook',
   () => {
-    assert.match(exportSource, /await import\('xlsx'\)/)
     assert.match(exportSource, /downloadBlob/)
-    assert.match(exportSource, /bookType:\s*'xlsx'/)
-    assert.match(exportSource, /compression:\s*true/)
+    assert.match(exportSource, /loadOfficialUfcdXlsmTemplate/)
+    assert.match(exportSource, /writeOfficialUfcdXlsm/)
+    assert.match(exportSource, /macroEnabled\.12/)
+    assert.match(exportSource, /-Completo\.xlsm/)
+    assert.doesNotMatch(exportSource, /await import\('xlsx'\)/)
+    assert.doesNotMatch(exportSource, /bookType:\s*'xlsx'/)
   }
 )
 
