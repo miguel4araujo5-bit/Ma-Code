@@ -1,46 +1,15 @@
 import {
-  gunzipSync,
   strFromU8,
   strToU8,
   unzipSync,
   zipSync
 } from 'fflate'
 
-const TEMPLATE_BASE =
-  '/ma-professor/templates/Grelha_Avaliacao_UFCD_UC_Modelo.bundle'
-
-const TEMPLATE_PART_COUNT = 12
+const TEMPLATE_URL =
+  '/ma-professor/templates/Grelha_Avaliacao_UFCD_UC_Modelo.xlsm'
 
 export type OfficialXlsmFiles =
   Record<string, Uint8Array>
-
-type TemplateManifest = {
-  version: number
-  cloneP1: Array<{
-    sheet: number
-    codeName: string
-    drawing: number
-  }>
-  cloneP2: Array<{
-    sheet: number
-    codeName: string
-    period: number
-  }>
-}
-
-function decodeBase64(
-  value: string
-) {
-  const binary = atob(
-    value.replace(/\s+/g, '')
-  )
-
-  return Uint8Array.from(
-    binary,
-    character =>
-      character.charCodeAt(0)
-  )
-}
 
 function text(
   files: OfficialXlsmFiles,
@@ -63,68 +32,6 @@ function setText(
   value: string
 ) {
   files[path] = strToU8(value)
-}
-
-function cloneInstrumentSheets(
-  files: OfficialXlsmFiles,
-  manifest: TemplateManifest
-) {
-  const p1Source =
-    text(
-      files,
-      'xl/worksheets/sheet2.xml'
-    )
-  const p1Drawing =
-    files['xl/drawings/drawing2.xml']
-
-  if (!p1Drawing) {
-    throw new Error(
-      'O modelo XLSM está incompleto: falta o desenho-base P1.'
-    )
-  }
-
-  for (const clone of manifest.cloneP1) {
-    setText(
-      files,
-      `xl/worksheets/sheet${clone.sheet}.xml`,
-      p1Source.replace(
-        /codeName="Folha2"/,
-        `codeName="${clone.codeName}"`
-      )
-    )
-
-    files[
-      `xl/drawings/drawing${clone.drawing}.xml`
-    ] = p1Drawing.slice()
-  }
-
-  const p2Source =
-    text(
-      files,
-      'xl/worksheets/sheet3.xml'
-    )
-
-  for (const clone of manifest.cloneP2) {
-    let sheet =
-      p2Source.replace(
-        /codeName="Folha25"/,
-        `codeName="${clone.codeName}"`
-      )
-
-    if (clone.period === 3) {
-      sheet = sheet.replace(
-        /(<c\b[^>]*\br="U5"[^>]*>\s*<v>)39(<\/v>\s*<\/c>)/,
-        (_match, before: string, after: string) =>
-          `${before}96${after}`
-      )
-    }
-
-    setText(
-      files,
-      `xl/worksheets/sheet${clone.sheet}.xml`,
-      sheet
-    )
-  }
 }
 
 function cellPattern(
@@ -185,8 +92,8 @@ export function setWorksheetString(
   address: string,
   value: string
 ) {
-  const xml = text(files, sheetPath)
-  const escaped = escapeXml(value)
+  const escaped =
+    escapeXml(value)
   const preserve =
     /^\s|\s$/.test(value)
       ? ' xml:space="preserve"'
@@ -196,7 +103,7 @@ export function setWorksheetString(
     files,
     sheetPath,
     replaceCell(
-      xml,
+      text(files, sheetPath),
       address,
       `<is><t${preserve}>${escaped}</t></is>`,
       'inlineStr'
@@ -456,73 +363,54 @@ function markForRecalculation(
   delete files['xl/calcChain.xml']
 }
 
+function validateOfficialTemplate(
+  files: OfficialXlsmFiles
+) {
+  const required = [
+    'xl/workbook.xml',
+    'xl/vbaProject.bin',
+    'xl/worksheets/sheet1.xml',
+    'xl/worksheets/sheet14.xml',
+    ...Array.from(
+      { length: 20 },
+      (_, index) =>
+        `xl/worksheets/sheet${index + 1}.xml`
+    )
+  ]
+
+  const missing =
+    required.find(
+      path => !files[path]
+    )
+
+  if (missing) {
+    throw new Error(
+      `O modelo oficial XLSM está incompleto: falta ${missing}.`
+    )
+  }
+}
+
 export async function loadOfficialUfcdXlsmTemplate() {
-  const responses =
-    await Promise.all(
-      Array.from(
-        { length: TEMPLATE_PART_COUNT },
-        (_, index) =>
-          fetch(
-            `${TEMPLATE_BASE}.part${String(index + 1).padStart(2, '0')}.b64`,
-            { cache: 'force-cache' }
-          )
-      )
+  const response =
+    await fetch(
+      TEMPLATE_URL,
+      { cache: 'force-cache' }
     )
 
-  const failed =
-    responses.find(
-      response => !response.ok
-    )
-
-  if (failed) {
+  if (!response.ok) {
     throw new Error(
       'Não foi possível carregar o modelo oficial XLSM de avaliação.'
     )
   }
 
-  const base64 =
-    (
-      await Promise.all(
-        responses.map(
-          response => response.text()
-        )
-      )
-    ).join('')
-
-  const bundle =
-    gunzipSync(
-      decodeBase64(base64)
-    )
   const files =
-    unzipSync(bundle) as OfficialXlsmFiles
+    unzipSync(
+      new Uint8Array(
+        await response.arrayBuffer()
+      )
+    ) as OfficialXlsmFiles
 
-  const manifestPath =
-    'ma-code-template-manifest.json'
-  const manifestFile =
-    files[manifestPath]
-
-  if (!manifestFile) {
-    throw new Error(
-      'O modelo oficial XLSM não contém o manifesto esperado.'
-    )
-  }
-
-  const manifest =
-    JSON.parse(
-      strFromU8(manifestFile)
-    ) as TemplateManifest
-
-  if (manifest.version !== 1) {
-    throw new Error(
-      'A versão do modelo oficial XLSM não é suportada.'
-    )
-  }
-
-  delete files[manifestPath]
-  cloneInstrumentSheets(
-    files,
-    manifest
-  )
+  validateOfficialTemplate(files)
   repairP2P3StudentReferences(files)
   repairAutoStudentReferences(files)
   repairCfpInstrumentReferences(files)
