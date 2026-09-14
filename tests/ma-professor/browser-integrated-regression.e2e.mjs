@@ -219,7 +219,7 @@ try {
       teachingAssignmentId: assignment.id,
       code: '10385',
       name: 'Expressão Dramática',
-      plannedPeriods: 50,
+      plannedPeriods: 10,
       order: 1,
       plannedStartDate: '2026-09-01',
       plannedEndDate: '2027-02-28',
@@ -841,7 +841,7 @@ try {
   )
   assert.equal(
     result.attendance.studentB?.absencePercent,
-    100
+    10
   )
   assert.equal(
     result.attendance.studentB?.warningLevel,

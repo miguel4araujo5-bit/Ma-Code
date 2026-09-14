@@ -193,11 +193,30 @@ test('explicit future evaluation persists real scores and blanks stay not evalua
   assert.equal(runtime.calculateDailyCriteriaAverage(input.rows[0].scores, criteria), 14.8)
   assert.deepEqual(result.scoresByStudentId.bruno, {})
   for (const entries of state.results.values()) {
-    assert.deepEqual(entries[1], { studentId: 'bruno', status: 'not_evaluated', score: null, note: '' })
+    assert.equal(entries.some(entry => entry.studentId === 'bruno'), false)
   }
   assert.ok(state.assessments.every(item => item.assessment.title.startsWith('Sumário futuro · ')))
   input.rows[0].scores = {}
   const cleared = await repository.saveLessonGrid(input)
   assert.deepEqual(cleared.scoresByStudentId.ana, {})
   assert.equal(state.created, 3, 'Clearing or saving again must not duplicate assessments')
+})
+
+test('the actual activation handler requires a click and preserves grades on repeated clicks', () => {
+  const activate = compile(
+    'export function activate(students, criteria, status = "taught", busy = false) {\n' +
+    'const savingRef = { current: busy }, lessonForm = { status };\n' +
+    'const assessmentEnabled = isDailyAssessmentEnabled(students);\n' +
+    'const setStudents = update => { students = update(students) };\n' +
+    functionSource('isDailyAssessmentEnabled') + '\n' +
+    functionSource('buildActivatedStudentRows') + '\n' +
+    functionSource('startAssessment') + '\n' +
+    'startAssessment(); return students;\n}'
+  ).activate
+  const students = activate(buildRows(), criteria)
+  assert.equal(students[0].criterionScores.learning, '10')
+  students[0].criterionScores.learning = '18'
+  assert.equal(activate(students, criteria)[0].criterionScores.learning, '18')
+  assert.equal(helpers.isDailyAssessmentEnabled(activate(buildRows(), criteria, 'cancelled')), false)
+  assert.equal(helpers.isDailyAssessmentEnabled(activate(buildRows(), criteria, 'taught', true)), false)
 })

@@ -374,12 +374,8 @@ export class DailyCriteriaGridRepository {
             }
 
             if (!row.scores[criterion.id]?.trim()) {
-              return [{
-                studentId: row.studentId,
-                status: 'not_evaluated',
-                score: null,
-                note: ''
-              }]
+              // Sem resultado significa não avaliado no modelo existente.
+              return []
             }
 
             return [

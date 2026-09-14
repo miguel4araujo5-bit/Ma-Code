@@ -293,19 +293,19 @@ test(
 )
 
 test(
-  'daily criterion selector offers grades 1 through 20 and starts at ten',
+  'daily criterion selector offers grades 0 through 20 and an unassessed empty value',
   () => {
     assert.match(
       dailyWorkspaceSource,
-      /length:\s*20/
+      /length:\s*21/
     )
     assert.match(
       dailyWorkspaceSource,
-      /optionIndex \+\s*1/
+      /<option value="">/
     )
     assert.match(
       dailyWorkspaceSource,
-      /row\.criterionScores\[[\s\S]*criterion\.id[\s\S]*\]\s*\?\?\s*'10'/
+      /row\.criterionScores\[[\s\S]*criterion\.id[\s\S]*\]\s*\?\?\s*''/
     )
     assert.doesNotMatch(
       dailyWorkspaceSource,
@@ -315,19 +315,19 @@ test(
 )
 
 test(
-  'missing daily criterion scores start at ten but remain write-free until the professor saves or edits',
+  'missing daily criterion scores require explicit activation before they can be saved',
   () => {
     assert.match(
       dailyWorkspaceSource,
-      /: '10'/
+      /onClick=\{startAssessment\}/
     )
     assert.match(
       dailyWorkspaceSource,
-      /hasCriteriaDefaultsToSave/
+      /!assessmentEnabled/
     )
     assert.match(
       dailyWorkspaceSource,
-      /const hasPendingSave =[\s\S]*hasCriteriaDefaultsToSave/
+      /const hasPendingSave =\s*hasUnsavedChanges/
     )
     assert.match(
       dailyWorkspaceSource,
