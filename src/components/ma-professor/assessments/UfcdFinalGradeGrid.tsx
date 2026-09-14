@@ -12,6 +12,7 @@ import type {
 } from './assessmentCriteriaManagementRepository'
 
 import BaseUfcdFinalGradeGrid from './UfcdFinalGradeGridBase'
+import UfcdCfpPreview from './UfcdCfpPreview'
 import UfcdFinalGradeExcelImportPanel from './UfcdFinalGradeExcelImportPanel'
 
 export type {
@@ -151,10 +152,27 @@ export default function UfcdFinalGradeGrid(
         }
       />
 
-      <BaseUfcdFinalGradeGrid
-        {...props}
-        snapshot={effectiveSnapshot}
-      />
+      {effectiveSnapshot.selectedGroup &&
+      effectiveSnapshot.selectedSubject &&
+      effectiveSnapshot.selectedModule &&
+      effectiveSnapshot.criteria.length > 0 &&
+      effectiveSnapshot.studentRows.length > 0 ? (
+        <UfcdCfpPreview
+          snapshot={effectiveSnapshot}
+          disabled={importerDisabled}
+        />
+      ) : null}
+
+      <style>{
+        '.ma-professor-cfp-editor > section > div:first-child button { display: none; }'
+      }</style>
+
+      <div className="ma-professor-cfp-editor">
+        <BaseUfcdFinalGradeGrid
+          {...props}
+          snapshot={effectiveSnapshot}
+        />
+      </div>
     </>
   )
 }
