@@ -65,7 +65,7 @@ test(
     )
     assert.match(
       pdfSource,
-      /'%' /
+      /'%',/
     )
   }
 )
