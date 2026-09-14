@@ -37,7 +37,7 @@ export type InitialSchoolCalendarPreparationResult = {
 }
 
 const PRESET_ACADEMIC_YEAR = '2026/2027'
-const SECONDARY_START_DATE: ISODate = '2026-09-21'
+const PROFESSIONAL_START_DATE: ISODate = '2026-09-14'
 const TENTH_GRADE_END_DATE: ISODate = '2027-06-11'
 const ELEVENTH_TWELFTH_END_DATE: ISODate = '2027-06-04'
 const PRESET_DESCRIPTION =
@@ -203,7 +203,7 @@ function getGroupEndDate(group: ClassGroup): ISODate {
 
 function validatePresetContext(snapshot: SetupSnapshot) {
   if (
-    SECONDARY_START_DATE < snapshot.academicYear.startDate ||
+    PROFESSIONAL_START_DATE < snapshot.academicYear.startDate ||
     TENTH_GRADE_END_DATE > snapshot.academicYear.endDate
   ) {
     throw new Error(
@@ -298,7 +298,7 @@ async function ensureScheduleValidity(
     if (!expectedEndDate) continue
 
     if (
-      slot.validFrom === SECONDARY_START_DATE &&
+      slot.validFrom === PROFESSIONAL_START_DATE &&
       slot.validUntil === expectedEndDate
     ) {
       continue
@@ -314,7 +314,7 @@ async function ensureScheduleValidity(
     }
 
     await scheduleWorkspaceRepository.updateScheduleSlot(slot.id, {
-      validFrom: SECONDARY_START_DATE,
+      validFrom: PROFESSIONAL_START_DATE,
       validUntil: expectedEndDate
     })
 
@@ -339,7 +339,7 @@ async function generateProfessionalPresetLessons(
       await lessonRepository.generateScheduledLessons({
         academicYearId,
         teachingAssignmentId,
-        dateFrom: SECONDARY_START_DATE,
+        dateFrom: PROFESSIONAL_START_DATE,
         dateTo,
         createCancelledForBlockedDates: false
       })
