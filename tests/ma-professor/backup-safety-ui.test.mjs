@@ -73,19 +73,31 @@ test(
 )
 
 test(
-  'the user can explicitly download the current state before restoring',
+  'the backup screen exposes only one local JSON download action',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       safetySource,
       /Descarregar cópia para este computador/
     )
-    assert.match(
+    assert.doesNotMatch(
       safetySource,
       /createMAProfessorBackup\(\)/
     )
-    assert.match(
+    assert.doesNotMatch(
       safetySource,
       /downloadTextFile\(/
+    )
+    assert.match(
+      backupSource,
+      /Cópia para guardar consigo/
+    )
+    assert.match(
+      backupSource,
+      /Descarregar uma cópia completa/
+    )
+    assert.match(
+      backupSource,
+      /handleJsonExport/
     )
   }
 )
@@ -214,7 +226,11 @@ test(
     )
     assert.match(
       safetySource,
-      /Descarregar cópia para este computador/
+      /opção de cópia local ou a cópia cifrada online disponíveis abaixo/i
+    )
+    assert.match(
+      backupSource,
+      /Descarregar uma cópia completa/
     )
     assert.match(
       backupSource,
