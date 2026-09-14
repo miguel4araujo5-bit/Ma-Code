@@ -405,7 +405,7 @@ function buildStudentRows(
                                   criterion.id
                               ]
                           )
-                        : '10'
+                        : ''
                 ])
             );
 
@@ -431,6 +431,34 @@ function buildStudentRows(
             criterionScorePersisted
         };
     });
+}
+
+function isDailyAssessmentEnabled(
+    rows: StudentEditorRow[]
+) {
+    return rows.some(row =>
+        Object.values(row.criterionScores).some(
+            score => score.trim() !== ''
+        ) ||
+        Object.values(row.criterionScorePersisted).some(Boolean)
+    );
+}
+
+function buildActivatedStudentRows(
+    rows: StudentEditorRow[],
+    criteria: DailyCriteriaGridSnapshot['criteria']
+): StudentEditorRow[] {
+    return rows.map(row => ({
+        ...row,
+        criterionScores: Object.fromEntries(
+            criteria.map(criterion => [
+                criterion.id,
+                row.criterionScores[criterion.id]?.trim()
+                    ? row.criterionScores[criterion.id]
+                    : '10'
+            ])
+        )
+    }));
 }
 
 function buildEditorSignature(
@@ -553,11 +581,6 @@ export default function DailyWorkspaceView({
     const [
         showAdvanced,
         setShowAdvanced
-    ] = useState(false);
-
-    const [
-        showAssessmentDetails,
-        setShowAssessmentDetails
     ] = useState(false);
 
     const [
@@ -972,25 +995,8 @@ export default function DailyWorkspaceView({
     const criteriaGridMinWidth =
         (18 + criteria.length * 5.5) + 'rem';
 
-    const hasCriteriaDefaultsToSave =
-        Boolean(
-            lessonForm &&
-                lessonForm.status !==
-                    'cancelled' &&
-                criteria.length > 0 &&
-                students.some(
-                    row =>
-                        row.attendanceStatus ===
-                            'present' &&
-                        criteria.some(
-                            criterion =>
-                                !row
-                                    .criterionScorePersisted[
-                                    criterion.id
-                                ]
-                        )
-                )
-        );
+    const assessmentEnabled =
+        isDailyAssessmentEnabled(students);
 
     const selectedAssessmentId:
         EntityId | null = null;
@@ -1031,8 +1037,7 @@ export default function DailyWorkspaceView({
         );
 
     const hasPendingSave =
-        hasUnsavedChanges ||
-        hasCriteriaDefaultsToSave;
+        hasUnsavedChanges;
 
     const persistCurrentDailyDraft =
         useCallback(
@@ -1357,9 +1362,6 @@ export default function DailyWorkspaceView({
 
     function closeSecondaryPanels() {
         setShowAdvanced(false);
-        setShowAssessmentDetails(
-            false
-        );
         setShowStudentDetails(false);
     }
 
@@ -1600,6 +1602,7 @@ export default function DailyWorkspaceView({
         }
 
         if (
+            assessmentEnabled &&
             effectiveStatus !==
             'cancelled'
         ) {
@@ -1612,6 +1615,10 @@ export default function DailyWorkspaceView({
                 }
 
                 for (const criterion of criteria) {
+                    if (!row.criterionScores[criterion.id]?.trim()) {
+                        continue;
+                    }
+
                     try {
                         parseDailyCriterionScore(
                             row.criterionScores[
@@ -1709,6 +1716,7 @@ export default function DailyWorkspaceView({
             lessonPersisted = true;
 
             if (
+                assessmentEnabled &&
                 effectiveStatus !==
                     'cancelled' &&
                 criteria.length > 0
@@ -1751,10 +1759,12 @@ export default function DailyWorkspaceView({
                                 criteria.map(
                                     criterion => [
                                         criterion.id,
+                                        assessmentEnabled &&
                                         effectiveStatus !==
                                             'cancelled' &&
                                         row.attendanceStatus ===
-                                            'present'
+                                            'present' &&
+                                        Boolean(row.criterionScores[criterion.id]?.trim())
                                     ]
                                 )
                             )
@@ -2219,6 +2229,21 @@ export default function DailyWorkspaceView({
                         ? row.attendanceNote
                         : ''
             }
+        );
+    }
+
+    function startAssessment() {
+        if (
+            savingRef.current ||
+            lessonForm?.status === 'cancelled' ||
+            criteria.length === 0 ||
+            assessmentEnabled
+        ) {
+            return;
+        }
+
+        setStudents(current =>
+            buildActivatedStudentRows(current, criteria)
         );
     }
 
@@ -2974,26 +2999,21 @@ export default function DailyWorkspaceView({
 
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    setShowAssessmentDetails(
-                                                        current =>
-                                                            !current
-                                                    )
-                                                }
+                                                onClick={startAssessment}
+                                                aria-pressed={assessmentEnabled}
                                                 disabled={
                                                     saving ||
+                                                    lessonForm.status === 'cancelled' ||
                                                     criteria.length ===
                                                         0
                                                 }
                                                 className={`rounded-lg border px-2.5 py-1.5 text-[0.68rem] font-black transition disabled:cursor-not-allowed disabled:opacity-35 ${
-                                                    showAssessmentDetails
+                                                    assessmentEnabled
                                                         ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
                                                         : 'border-white/10 bg-white/[0.04] text-slate-300 hover:border-cyan-300/30 hover:text-white'
                                                 }`}
                                             >
-                                                {showAssessmentDetails
-                                                    ? 'Ocultar atividade'
-                                                    : 'Atividade'}
+                                                Avaliação
                                             </button>
 
                                             <button
@@ -3027,7 +3047,8 @@ export default function DailyWorkspaceView({
                                         </div>
                                     ) : null}
 
-                                    {showAssessmentDetails &&
+                                    {showStudentDetails &&
+                                    assessmentEnabled &&
                                     assessmentForm ? (
                                         <div className="border-b border-cyan-300/15 bg-cyan-300/[0.04] px-3 py-2.5">
                                             <label className="block text-[0.66rem] font-bold text-slate-400">
@@ -3254,7 +3275,7 @@ export default function DailyWorkspaceView({
                                                                                         : row.criterionScores[
                                                                                               criterion.id
                                                                                           ] ??
-                                                                                          '10'
+                                                                                          ''
                                                                                 }
                                                                                 onChange={event =>
                                                                                     changeCriterionScore(
@@ -3278,6 +3299,7 @@ export default function DailyWorkspaceView({
                                                                                 }}
                                                                                 disabled={
                                                                                     saving ||
+                                                                                    !assessmentEnabled ||
                                                                                     lessonForm.status ===
                                                                                         'cancelled' ||
                                                                                     absent
@@ -3285,14 +3307,19 @@ export default function DailyWorkspaceView({
                                                                                 aria-label={`${criterion.name} de ${row.student.name}`}
                                                                                 className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
                                                                             >
-                                                                                {absent ? (
-                                                                                    <option value="">
-                                                                                        —
+                                                                                <option value="">
+                                                                                    —
+                                                                                </option>
+                                                                                {!absent &&
+                                                                                row.criterionScores[criterion.id] &&
+                                                                                !Number.isInteger(Number(row.criterionScores[criterion.id])) ? (
+                                                                                    <option value={row.criterionScores[criterion.id]}>
+                                                                                        {row.criterionScores[criterion.id]}
                                                                                     </option>
                                                                                 ) : null}
                                                                                 {Array.from(
                                                                                     {
-                                                                                        length: 20
+                                                                                        length: 21
                                                                                     },
                                                                                     (
                                                                                         _,
@@ -3300,8 +3327,7 @@ export default function DailyWorkspaceView({
                                                                                     ) => {
                                                                                         const grade =
                                                                                             String(
-                                                                                                optionIndex +
-                                                                                                    1
+                                                                                                optionIndex
                                                                                             );
 
                                                                                         return (
@@ -3675,9 +3701,9 @@ export default function DailyWorkspaceView({
                                     >
                                         {hasUnsavedChanges
                                             ? 'Existem alterações por guardar.'
-                                            : hasCriteriaDefaultsToSave
-                                              ? 'A avaliação está pronta com 10 por defeito. Guarde para registar.'
-                                              : 'Sumário, faltas e notas estão guardados em conjunto.'}
+                                            : assessmentEnabled
+                                              ? 'Sumário, faltas e notas estão guardados em conjunto.'
+                                              : 'Sem avaliação nesta aula. Carregue em Avaliação para avaliar.'}
                                     </p>
                                 ) : null}
                             </div>

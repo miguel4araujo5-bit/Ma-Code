@@ -339,6 +339,10 @@ export class DailyCriteriaGridRepository {
       }
 
       for (const criterion of workspace.criteria) {
+        if (!row.scores[criterion.id]?.trim()) {
+          continue
+        }
+
         parseDailyCriterionScore(
           row.scores[
             criterion.id
@@ -367,6 +371,11 @@ export class DailyCriteriaGridRepository {
                   note: ''
                 }
               ]
+            }
+
+            if (!row.scores[criterion.id]?.trim()) {
+              // Sem resultado significa não avaliado no modelo existente.
+              return []
             }
 
             return [
@@ -448,6 +457,10 @@ export class DailyCriteriaGridRepository {
             )
         }
 
+        continue
+      }
+
+      if (!entries.some(entry => entry.status === 'evaluated')) {
         continue
       }
 
