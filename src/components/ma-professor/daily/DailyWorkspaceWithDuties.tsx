@@ -133,6 +133,14 @@ export default function DailyWorkspaceWithDuties({
         }
       />
 
+      {activeDate === todayISO() ? (
+        <div className="px-3 pt-1 sm:px-5 lg:px-7">
+          <p className="mx-auto max-w-[1600px] rounded-xl border border-amber-200/10 bg-amber-200/[0.035] px-3 py-2 text-[0.68rem] font-semibold text-slate-400">
+            Para maior segurança, faça regularmente uma cópia de segurança — sobretudo em navegação privada ou se surgir algum erro.
+          </p>
+        </div>
+      ) : null}
+
       <DailyWorkspaceView
         key={`${activeDate}-${
           activeLessonId ?? 'auto'

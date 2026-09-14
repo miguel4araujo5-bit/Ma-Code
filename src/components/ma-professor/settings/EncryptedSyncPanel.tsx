@@ -9,12 +9,14 @@ import {
 } from '../access/AccessGate'
 
 import {
-  inspectMAProfessorManualSync,
-  uploadAndVerifyMAProfessorManualSync,
-  verifyMAProfessorManualSync,
-  type MAProfessorManualSyncOverview,
-  type MAProfessorManualSyncVerification
-} from '../sync/manualSyncService'
+  inspectMAProfessorCloudBackup,
+  uploadAndVerifyMAProfessorCloudBackup,
+  type MAProfessorCloudBackupStatus
+} from '../sync/cloudBackupService'
+
+import {
+  createMAProfessorBackup
+} from './backupRepository'
 
 type FeedbackTone =
   | 'success'
@@ -36,40 +38,6 @@ function getErrorMessage(
     error.message.trim()
     ? error.message
     : 'Não foi possível concluir a operação.'
-}
-
-function formatBytes(
-  bytes: number
-) {
-  if (
-    bytes <
-      1024
-  ) {
-    return `${bytes} B`
-  }
-
-  if (
-    bytes <
-      1024 *
-        1024
-  ) {
-    return `${(
-      bytes /
-      1024
-    ).toFixed(
-      1
-    )} KB`
-  }
-
-  return `${(
-    bytes /
-    (
-      1024 *
-      1024
-    )
-  ).toFixed(
-    1
-  )} MB`
 }
 
 function formatDateTime(
@@ -108,188 +76,58 @@ function formatDateTime(
     )
 }
 
-function getStatusPresentation(
-  overview:
-    MAProfessorManualSyncOverview
+function formatBytes(
+  bytes: number | null
 ) {
-  switch (
-    overview.status
+  if (
+    bytes ===
+      null
   ) {
-    case 'synced':
-      return {
-        eyebrow:
-          'Cópia atualizada',
-
-        title:
-          'Os dados deste dispositivo estão guardados online.',
-
-        description:
-          'A última cópia cifrada foi enviada e verificada com sucesso.',
-
-        tone:
-          'emerald' as const
-      }
-
-    case 'local-changes':
-      return {
-        eyebrow:
-          'Alterações por guardar',
-
-        title:
-          'Existem alterações neste dispositivo.',
-
-        description:
-          'A cópia online continua segura, mas ainda não inclui as alterações mais recentes.',
-
-        tone:
-          'amber' as const
-      }
-
-    case 'remote-newer':
-      return {
-        eyebrow:
-          'Cópia mais recente online',
-
-        title:
-          'Existe uma versão online mais recente.',
-
-        description:
-          'Por segurança, este dispositivo não pode substituir essa versão sem a verificar primeiro.',
-
-        tone:
-          'violet' as const
-      }
-
-    case 'remote-unverified':
-      return {
-        eyebrow:
-          'Cópia online encontrada',
-
-        title:
-          'Este dispositivo ainda não confirmou a cópia online.',
-
-        description:
-          'Verifique a cópia antes de guardar uma nova versão.',
-
-        tone:
-          'violet' as const
-      }
-
-    case 'status-outdated':
-      return {
-        eyebrow:
-          'A atualizar estado',
-
-        title:
-          'A informação do servidor precisa de ser atualizada.',
-
-        description:
-          'Atualize o estado antes de criar uma nova cópia.',
-
-        tone:
-          'amber' as const
-      }
-
-    case 'not-synced':
-    default:
-      return {
-        eyebrow:
-          'Ainda não sincronizado',
-
-        title:
-          'Ainda não existe uma cópia cifrada destes dados online.',
-
-        description:
-          'Pode criar a primeira cópia quando estiver pronto. Nada é enviado automaticamente.',
-
-        tone:
-          'cyan' as const
-      }
+    return '—'
   }
-}
 
-function getToneClasses(
-  tone:
-    'cyan' |
-    'emerald' |
-    'amber' |
-    'violet'
-) {
-  switch (tone) {
-    case 'emerald':
-      return {
-        border:
-          'border-emerald-300/20',
-
-        background:
-          'bg-emerald-300/[0.06]',
-
-        text:
-          'text-emerald-300'
-      }
-
-    case 'amber':
-      return {
-        border:
-          'border-amber-300/20',
-
-        background:
-          'bg-amber-300/[0.06]',
-
-        text:
-          'text-amber-300'
-      }
-
-    case 'violet':
-      return {
-        border:
-          'border-violet-300/20',
-
-        background:
-          'bg-violet-300/[0.06]',
-
-        text:
-          'text-violet-300'
-      }
-
-    case 'cyan':
-    default:
-      return {
-        border:
-          'border-cyan-300/20',
-
-        background:
-          'bg-cyan-300/[0.06]',
-
-        text:
-          'text-cyan-300'
-      }
+  if (
+    bytes <
+      1024
+  ) {
+    return `${bytes} B`
   }
+
+  if (
+    bytes <
+      1024 *
+        1024
+  ) {
+    return `${(
+      bytes /
+      1024
+    ).toFixed(
+      1
+    )} KB`
+  }
+
+  return `${(
+    bytes /
+    (
+      1024 *
+      1024
+    )
+  ).toFixed(
+    1
+  )} MB`
 }
 
 export function EncryptedSyncPanel() {
   const {
-    session,
-    syncStatus,
-    syncChecking,
-    syncError,
-    refreshSyncStatus
+    session
   } =
     useMAProfessorAccess()
 
   const [
-    overview,
-    setOverview
+    status,
+    setStatus
   ] =
-    useState<MAProfessorManualSyncOverview | null>(
-      null
-    )
-
-  const [
-    verification,
-    setVerification
-  ] =
-    useState<MAProfessorManualSyncVerification | null>(
+    useState<MAProfessorCloudBackupStatus | null>(
       null
     )
 
@@ -297,17 +135,13 @@ export function EncryptedSyncPanel() {
     checking,
     setChecking
   ] =
-    useState(false)
+    useState(true)
 
   const [
     busy,
     setBusy
   ] =
-    useState<
-      '' |
-      'upload' |
-      'verify'
-    >('')
+    useState(false)
 
   const [
     feedback,
@@ -317,38 +151,29 @@ export function EncryptedSyncPanel() {
       null
     )
 
-  const refreshOverview =
+  const refreshStatus =
     useCallback(
-      async (
-        revision:
-          number,
-        updatedAt:
-          string | null
-      ) => {
-        setChecking(true)
+      async () => {
+        setChecking(
+          true
+        )
 
         try {
           const next =
-            await inspectMAProfessorManualSync({
-              email:
-                session.email,
+            await inspectMAProfessorCloudBackup(
+              session
+            )
 
-              deviceId:
-                session.deviceId,
-
-              serverRevision:
-                revision,
-
-              serverUpdatedAt:
-                updatedAt
-            })
-
-          setOverview(
+          setStatus(
             next
           )
         } catch (
           error
         ) {
+          setStatus(
+            null
+          )
+
           setFeedback({
             tone:
               'error',
@@ -359,93 +184,54 @@ export function EncryptedSyncPanel() {
               )
           })
         } finally {
-          setChecking(false)
+          setChecking(
+            false
+          )
         }
       },
       [
-        session.deviceId,
-        session.email
+        session
       ]
     )
 
   useEffect(() => {
-    if (
-      !syncStatus ||
-      !syncStatus.profileExists
-    ) {
-      setOverview(
-        null
-      )
-
-      return
-    }
-
-    void refreshOverview(
-      syncStatus.serverRevision,
-      syncStatus.updatedAt
-    )
+    void refreshStatus()
   }, [
-    refreshOverview,
-    syncStatus
+    refreshStatus
   ])
-
-  const handleRefresh =
-    async () => {
-      setFeedback(null)
-      setVerification(null)
-
-      await refreshSyncStatus()
-    }
 
   const handleUpload =
     async () => {
-      if (
-        !syncStatus ||
-        !syncStatus.profileExists ||
-        busy
-      ) {
+      if (busy) {
         return
       }
 
       setBusy(
-        'upload'
+        true
+      )
+      setFeedback(
+        null
       )
 
-      setFeedback(null)
-      setVerification(null)
-
       try {
+        const backup =
+          await createMAProfessorBackup()
+
         const result =
-          await uploadAndVerifyMAProfessorManualSync({
-            token:
-              session.token,
-
-            email:
-              session.email,
-
-            deviceId:
-              session.deviceId,
-
-            serverRevision:
-              syncStatus.serverRevision,
-
-            serverUpdatedAt:
-              syncStatus.updatedAt
-          })
-
-        setOverview(
-          result.overview
-        )
+          await uploadAndVerifyMAProfessorCloudBackup(
+            session,
+            backup
+          )
 
         setFeedback({
           tone:
             'success',
 
           message:
-            'Cópia cifrada guardada e verificada com sucesso.'
+            `Cópia cifrada guardada e verificada com sucesso. Revisão ${result.recordRevision}.`
         })
 
-        await refreshSyncStatus()
+        await refreshStatus()
       } catch (
         error
       ) {
@@ -459,192 +245,17 @@ export function EncryptedSyncPanel() {
             )
         })
 
-        await refreshSyncStatus()
+        await refreshStatus()
       } finally {
-        setBusy('')
+        setBusy(
+          false
+        )
       }
     }
 
-  const handleVerify =
-    async () => {
-      if (
-        !syncStatus ||
-        !syncStatus.profileExists ||
-        busy
-      ) {
-        return
-      }
-
-      setBusy(
-        'verify'
-      )
-
-      setFeedback(null)
-      setVerification(null)
-
-      try {
-        const result =
-          await verifyMAProfessorManualSync({
-            token:
-              session.token,
-
-            email:
-              session.email,
-
-            deviceId:
-              session.deviceId,
-
-            serverRevision:
-              syncStatus.serverRevision,
-
-            serverUpdatedAt:
-              syncStatus.updatedAt
-          })
-
-        setVerification(
-          result
-        )
-
-        if (
-          result.found ===
-            false
-        ) {
-          setFeedback({
-            tone:
-              'warning',
-
-            message:
-              'Não foi encontrada uma cópia cifrada dos dados deste ano no servidor.'
-          })
-
-          return
-        }
-
-        if (
-          result.matchesLocal
-        ) {
-          setFeedback({
-            tone:
-              'success',
-
-            message:
-              'A cópia online foi desencriptada e corresponde exatamente aos dados deste dispositivo.'
-          })
-
-          await refreshOverview(
-            result.remoteServerRevision,
-            result.remoteUpdatedAt
-          )
-        } else {
-          setFeedback({
-            tone:
-              'warning',
-
-            message:
-              'A cópia online é diferente dos dados atualmente guardados neste dispositivo. Nenhuma versão foi substituída.'
-          })
-        }
-
-        await refreshSyncStatus()
-      } catch (
-        error
-      ) {
-        setFeedback({
-          tone:
-            'error',
-
-          message:
-            getErrorMessage(
-              error
-            )
-        })
-      } finally {
-        setBusy('')
-      }
-    }
-
-  if (
-    syncChecking &&
-    !syncStatus
-  ) {
-    return (
-      <section className="rounded-3xl border border-cyan-300/15 bg-slate-900/70 p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-          Cópia cifrada online
-        </p>
-
-        <p className="mt-3 text-sm text-slate-400">
-          A verificar o estado da sua cópia…
-        </p>
-      </section>
-    )
-  }
-
-  if (
-    !syncStatus ||
-    !syncStatus.profileExists
-  ) {
-    return (
-      <section className="rounded-3xl border border-amber-300/15 bg-slate-900/70 p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-          Cópia cifrada online
-        </p>
-
-        <h2 className="mt-2 text-xl font-black text-white">
-          A proteção online ainda não está disponível
-        </h2>
-
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-          Os dados continuam guardados neste dispositivo. Atualize o estado para confirmar se a proteção da conta já ficou ativa.
-        </p>
-
-        {syncError ? (
-          <p className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200">
-            {syncError}
-          </p>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() =>
-            void handleRefresh()
-          }
-          className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:border-cyan-300/30"
-        >
-          Atualizar estado
-        </button>
-      </section>
-    )
-  }
-
-  const presentation =
-    overview
-      ? getStatusPresentation(
-          overview
-        )
-      : null
-
-  const toneClasses =
-    presentation
-      ? getToneClasses(
-          presentation.tone
-        )
-      : getToneClasses(
-          'cyan'
-        )
-
-  const canUpload =
-    Boolean(
-      overview &&
-      (
-        overview.status ===
-          'not-synced' ||
-        overview.status ===
-          'synced' ||
-        overview.status ===
-          'local-changes'
-      )
-    )
+  const found =
+    status?.backup.found ===
+      true
 
   return (
     <section className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/20 p-5 sm:p-6">
@@ -655,17 +266,17 @@ export function EncryptedSyncPanel() {
           </p>
 
           <h2 className="mt-2 text-xl font-black text-white">
-            Uma cópia protegida, controlada por si
+            Proteção online disponível
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            A cópia é protegida neste dispositivo antes do envio. A MA-CODE não possui a chave necessária para abrir os dados escolares.
+            Quando guardar uma cópia, os dados são cifrados neste dispositivo antes de saírem do browser. A nuvem recebe apenas conteúdo cifrado. Para decifrar ou restaurar a cópia é necessária uma sessão válida da conta MA-Professor.
           </p>
         </div>
 
         <div className="shrink-0 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-3">
           <p className="text-xs font-black text-emerald-200">
-            Proteção ativa
+            Sessão protegida
           </p>
 
           <p className="mt-1 text-[0.68rem] text-emerald-100/70">
@@ -674,181 +285,113 @@ export function EncryptedSyncPanel() {
         </div>
       </div>
 
-      {checking ||
-      !overview ? (
+      {checking ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/55 p-4">
           <p className="text-sm font-semibold text-slate-400">
-            A verificar os dados deste dispositivo…
+            A verificar a sua cópia online…
           </p>
         </div>
-      ) : (
-        <>
-          <div
-            className={`mt-5 rounded-2xl border p-4 ${toneClasses.border} ${toneClasses.background}`}
-          >
-            <p
-              className={`text-xs font-black uppercase tracking-[0.16em] ${toneClasses.text}`}
-            >
-              {presentation?.eyebrow}
+      ) : status ? (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
+              Estado
             </p>
 
-            <p className="mt-2 text-base font-black text-white">
-              {presentation?.title}
-            </p>
-
-            <p className="mt-1.5 text-sm leading-6 text-slate-400">
-              {presentation?.description}
+            <p className={`mt-2 text-sm font-black ${
+              found
+                ? 'text-emerald-300'
+                : 'text-cyan-300'
+            }`}>
+              {found
+                ? 'Cópia guardada'
+                : 'Sem cópia online'}
             </p>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-500">
-                Registos locais
-              </p>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
+              Última cópia
+            </p>
 
-              <p className="mt-2 text-xl font-black text-white">
-                {overview.localRecords}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-500">
-                Tamanho
-              </p>
-
-              <p className="mt-2 text-xl font-black text-white">
-                {formatBytes(
-                  overview.localBytes
-                )}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-500">
-                Última cópia
-              </p>
-
-              <p className="mt-2 text-sm font-black leading-5 text-white">
-                {formatDateTime(
-                  overview.lastSyncedAt
-                )}
-              </p>
-            </div>
+            <p className="mt-2 text-sm font-black text-white">
+              {formatDateTime(
+                status.backup.updatedAt
+              )}
+            </p>
           </div>
-        </>
-      )}
 
-      {verification &&
-      verification.found ? (
-        <div
-          className={`mt-4 rounded-2xl border p-4 ${
-            verification.matchesLocal
-              ? 'border-emerald-300/20 bg-emerald-300/[0.06]'
-              : 'border-amber-300/20 bg-amber-300/[0.06]'
-          }`}
-        >
-          <p
-            className={`text-sm font-black ${
-              verification.matchesLocal
-                ? 'text-emerald-200'
-                : 'text-amber-200'
-            }`}
-          >
-            {verification.matchesLocal
-              ? '✓ Cópia online confirmada'
-              : 'A cópia online é diferente'}
-          </p>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
+              Tamanho cifrado
+            </p>
 
-          <p className="mt-2 text-xs leading-5 text-slate-400">
-            Dispositivo: {verification.localRecords} registos · Online: {verification.remoteRecords} registos
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Cópia online atualizada em {formatDateTime(
-              verification.remoteUpdatedAt
-            )}.
-          </p>
+            <p className="mt-2 text-sm font-black text-white">
+              {formatBytes(
+                status.backup.ciphertextBytes
+              )}
+            </p>
+          </div>
         </div>
       ) : null}
 
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={
+            busy ||
+            checking ||
+            !status
+          }
+          onClick={() =>
+            void handleUpload()
+          }
+          className="rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
+        >
+          {busy
+            ? 'A cifrar, enviar e verificar…'
+            : found
+              ? 'Atualizar cópia cifrada'
+              : 'Guardar primeira cópia cifrada'}
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            busy ||
+            checking
+          }
+          onClick={() => {
+            setFeedback(
+              null
+            )
+            void refreshStatus()
+          }}
+          className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:border-cyan-300/30 disabled:cursor-wait disabled:opacity-60"
+        >
+          Atualizar estado
+        </button>
+      </div>
+
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        Nada é enviado automaticamente. A cópia online só muda quando carrega no botão para guardar ou atualizar.
+      </p>
+
       {feedback ? (
         <p
-          role="status"
-          className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+          className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
             feedback.tone ===
-              'success'
-              ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-200'
+            'success'
+              ? 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200'
               : feedback.tone ===
                   'warning'
-                ? 'border-amber-300/20 bg-amber-300/[0.07] text-amber-200'
-                : 'border-rose-300/20 bg-rose-300/[0.07] text-rose-200'
+                ? 'border-amber-300/20 bg-amber-300/[0.06] text-amber-200'
+                : 'border-rose-300/20 bg-rose-300/[0.06] text-rose-200'
           }`}
         >
           {feedback.message}
         </p>
       ) : null}
-
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          disabled={
-            Boolean(
-              busy
-            ) ||
-            checking ||
-            !canUpload
-          }
-          onClick={() =>
-            void handleUpload()
-          }
-          className="flex-1 rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ===
-          'upload'
-            ? 'A guardar e verificar…'
-            : 'Guardar cópia cifrada agora'}
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            Boolean(
-              busy
-            ) ||
-            checking ||
-            syncStatus.serverRevision ===
-              0
-          }
-          onClick={() =>
-            void handleVerify()
-          }
-          className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white transition hover:border-violet-300/30 hover:bg-violet-300/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ===
-          'verify'
-            ? 'A verificar…'
-            : 'Verificar cópia online'}
-        </button>
-      </div>
-
-      {overview &&
-      (
-        overview.status ===
-          'remote-newer' ||
-        overview.status ===
-          'remote-unverified'
-      ) ? (
-        <p className="mt-4 text-xs leading-5 text-amber-200/80">
-          Para sua segurança, uma cópia online que este dispositivo ainda não confirmou nunca é substituída automaticamente.
-        </p>
-      ) : null}
-
-      <p className="mt-4 text-xs leading-5 text-slate-500">
-        A sincronização automática continua desligada nesta fase. O envio só acontece quando carrega no botão acima.
-      </p>
     </section>
   )
 }
-
-export default EncryptedSyncPanel
