@@ -8,8 +8,9 @@ import type {
   ModuleUnit
 } from '../types'
 
-const completionDateCache =
-  new Map<string, string | null>()
+import {
+  setUfcdCompletionDate
+} from './ufcdCfpModel'
 
 export function completionDateFromLessons(
   plannedPeriods: number,
@@ -38,7 +39,9 @@ export function completionDateFromLessons(
   for (const lesson of orderedLessons) {
     if (
       lesson.status !== 'taught' ||
-      !lesson.countTowardProgress
+      !lesson.countTowardProgress ||
+      !Number.isFinite(lesson.periodCount) ||
+      lesson.periodCount <= 0
     ) {
       continue
     }
@@ -54,14 +57,6 @@ export function completionDateFromLessons(
   }
 
   return null
-}
-
-export function getCachedModuleCompletionDate(
-  moduleId: string
-) {
-  return completionDateCache.get(
-    moduleId
-  ) ?? null
 }
 
 export async function resolveModuleCompletionDate(
@@ -85,7 +80,7 @@ export async function resolveModuleCompletionDate(
       lessons
     )
 
-  completionDateCache.set(
+  setUfcdCompletionDate(
     module.id,
     completionDate
   )
