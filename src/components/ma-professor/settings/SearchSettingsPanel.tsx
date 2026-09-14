@@ -73,6 +73,7 @@ export function SearchSettingsPanel({
       setSearched(true)
     } catch (searchError) {
       setError(getErrorMessage(searchError))
+      setSearched(true)
     } finally {
       setLoading(false)
     }
@@ -84,9 +85,56 @@ export function SearchSettingsPanel({
   }
 
   useEffect(() => {
+    let cancelled = false
+
+    setQuery('')
+    setKind('all')
+    setDateFrom('')
+    setDateTo('')
     setResults([])
     setSearched(false)
+    setLoading(true)
+    setError('')
+
+    void searchMAProfessor({
+      query: '',
+      academicYearId,
+      kind: 'all',
+      dateFrom: null,
+      dateTo: null
+    })
+      .then(nextResults => {
+        if (cancelled) {
+          return
+        }
+
+        setResults(nextResults)
+        setSearched(true)
+      })
+      .catch(searchError => {
+        if (cancelled) {
+          return
+        }
+
+        setError(getErrorMessage(searchError))
+        setSearched(true)
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [academicYearId])
+
+  const hasActiveFilters =
+    Boolean(query.trim()) ||
+    kind !== 'all' ||
+    Boolean(dateFrom) ||
+    Boolean(dateTo)
 
   return (
     <div className="space-y-5">
@@ -98,8 +146,8 @@ export function SearchSettingsPanel({
           Encontre qualquer registo
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Pesquise alunos, sumários, UFCD, planificações, avaliações,
-          classificações e recuperações do ano letivo ativo.
+          Pesquise alunos, sumários, UFCD, conteúdos de planificações,
+          avaliações, classificações e recuperações do ano letivo ativo.
         </p>
 
         <form
@@ -110,7 +158,8 @@ export function SearchSettingsPanel({
             type="search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Nome, número, sumário, conteúdo…"
+            placeholder="Nome, número, UFCD, sumário, conteúdo…"
+            aria-label="Texto a pesquisar"
             className="rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50"
           />
 
@@ -121,6 +170,7 @@ export function SearchSettingsPanel({
                 event.target.value as MAProfessorSearchKind | 'all'
               )
             }
+            aria-label="Tipo de registo"
             className="rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300/50"
           >
             <option value="all">Todos os tipos</option>
@@ -155,12 +205,25 @@ export function SearchSettingsPanel({
             {loading ? 'A pesquisar…' : 'Pesquisar'}
           </button>
         </form>
+
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Pode escrever várias palavras por qualquer ordem. Sem filtros,
+          são mostrados automaticamente os registos mais recentes.
+        </p>
       </section>
 
       {error ? (
         <p className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
           {error}
         </p>
+      ) : null}
+
+      {loading && !searched ? (
+        <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6">
+          <p className="text-sm font-semibold text-slate-300">
+            A carregar os registos do ano letivo…
+          </p>
+        </section>
       ) : null}
 
       {searched ? (
@@ -220,11 +283,15 @@ export function SearchSettingsPanel({
           ) : (
             <div className="mt-5 rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center">
               <p className="text-sm font-bold text-slate-300">
-                Não foram encontrados registos.
+                {hasActiveFilters
+                  ? 'Não foram encontrados registos com estes filtros.'
+                  : 'Não existem registos pesquisáveis no ano letivo ativo.'}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Altere o texto ou remova alguns filtros.
-              </p>
+              {hasActiveFilters ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Altere o texto, o tipo ou o intervalo de datas.
+                </p>
+              ) : null}
             </div>
           )}
         </section>
