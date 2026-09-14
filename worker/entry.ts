@@ -53,6 +53,11 @@ import {
   type MaProfessorSyncEnv
 } from './maProfessorSync'
 import {
+  handleMAProfessorCloudBackupApiRequest,
+  isMAProfessorCloudBackupApiPath,
+  type MaProfessorCloudBackupEnv
+} from './maProfessorCloudBackup'
+import {
   handleConquistadorMatchmakingApiRequest,
   isConquistadorMatchmakingApiPath,
   type ConquistadorMatchmakingEnv
@@ -85,6 +90,7 @@ export type Env =
   MaProfessorSyncEnv &
   MaProfessorSnapshotEnv &
   MaProfessorRecoveryEnv &
+  MaProfessorCloudBackupEnv &
   ConquistadorMatchmakingEnv &
   ConquistadorGameSessionEnv
 
@@ -476,6 +482,17 @@ export default {
       }
 
       return response
+    }
+
+    if (
+      isMAProfessorCloudBackupApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorCloudBackupApiRequest(
+        request,
+        env
+      )
     }
 
     if (
