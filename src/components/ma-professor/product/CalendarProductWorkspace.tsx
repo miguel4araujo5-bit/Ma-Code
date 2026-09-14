@@ -112,7 +112,7 @@ export function CalendarProductWorkspace({
   academicYearId,
   onOpenLesson
 }: CalendarProductWorkspaceProps) {
-  const [mode, setMode] = useState<CalendarViewMode>('week')
+  const [mode, setMode] = useState<CalendarViewMode>('month')
   const [anchorDate, setAnchorDate] = useState<ISODate>(todayISO)
   const [filters, setFilters] = useState<CalendarWorkspaceFilters>({})
   const [snapshot, setSnapshot] =
