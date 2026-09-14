@@ -637,6 +637,16 @@ export async function exportUfcdCfpPdf(
     110
   const summaryCellWidth =
     52
+  const summaryHeaderHeight =
+    16
+  const summarySubheaderHeight =
+    10
+  const summaryValueHeight =
+    14
+  const summaryBlockHeight =
+    summaryHeaderHeight +
+    summarySubheaderHeight +
+    summaryValueHeight
 
   drawCell(
     page,
@@ -645,7 +655,7 @@ export async function exportUfcdCfpPdf(
     MARGIN + 120,
     summaryTop,
     summaryLabelWidth,
-    16,
+    summaryBlockHeight,
     {
       fill: COLORS.header,
       size: 5.7,
@@ -688,7 +698,7 @@ export async function exportUfcdCfpPdf(
         summaryX,
         summaryTop,
         summaryCellWidth,
-        16,
+        summaryHeaderHeight,
         {
           fill: COLORS.header,
           size: 5,
@@ -697,12 +707,43 @@ export async function exportUfcdCfpPdf(
       )
       drawCell(
         page,
+        bold,
+        'Nº',
+        summaryX,
+        summaryTop -
+          summaryHeaderHeight,
+        summaryCellWidth / 2,
+        summarySubheaderHeight,
+        {
+          size: 4.8,
+          align: 'center'
+        }
+      )
+      drawCell(
+        page,
+        bold,
+        '%',
+        summaryX +
+          summaryCellWidth / 2,
+        summaryTop -
+          summaryHeaderHeight,
+        summaryCellWidth / 2,
+        summarySubheaderHeight,
+        {
+          size: 4.8,
+          align: 'center'
+        }
+      )
+      drawCell(
+        page,
         font,
         String(item.count),
         summaryX,
-        summaryTop - 16,
+        summaryTop -
+          summaryHeaderHeight -
+          summarySubheaderHeight,
         summaryCellWidth / 2,
-        14,
+        summaryValueHeight,
         {
           size: 5.4,
           align: 'center'
@@ -714,9 +755,11 @@ export async function exportUfcdCfpPdf(
         `${item.percent}%`,
         summaryX +
           summaryCellWidth / 2,
-        summaryTop - 16,
+        summaryTop -
+          summaryHeaderHeight -
+          summarySubheaderHeight,
         summaryCellWidth / 2,
-        14,
+        summaryValueHeight,
         {
           size: 5.4,
           align: 'center'
@@ -729,7 +772,9 @@ export async function exportUfcdCfpPdf(
   )
 
   const detailsY =
-    summaryTop - 42
+    summaryTop -
+    summaryBlockHeight -
+    8
 
   drawCell(
     page,
