@@ -470,7 +470,7 @@ export default function UfcdCfpPreview({
             </tbody>
           </table>
 
-          <div className="mt-4 flex items-end justify-between gap-8 text-[8px]">
+          <div className="mt-4 flex items-start justify-end gap-4 text-[8px]">
             <table className="border-collapse text-center">
               <thead>
                 <tr>
@@ -523,10 +523,16 @@ export default function UfcdCfpPreview({
               </thead>
             </table>
 
-            <div className="grid min-w-72 gap-2 text-center">
-              <div className="border border-slate-700 bg-slate-300 px-3 py-1 font-bold">
-                Formandos Avaliados: {model.evaluatedCount}
+            <div className="w-32 shrink-0 text-center">
+              <div className="border border-slate-700 bg-slate-300 px-2 py-1 font-bold">
+                Formandos Avaliados
               </div>
+              <div className="border-x border-b border-slate-700 px-2 py-1.5 font-medium">
+                {model.evaluatedCount}
+              </div>
+            </div>
+
+            <div className="grid w-48 shrink-0 gap-2 text-center">
               <div>
                 <div className="border border-slate-700 bg-slate-300 px-3 py-1 font-bold">
                   Data de Conclusão do Módulo

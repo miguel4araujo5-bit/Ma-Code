@@ -71,6 +71,45 @@ test(
 )
 
 test(
+  'CFP footer keeps evaluated trainees separate and uses non-overlapping PDF geometry',
+  () => {
+    assert.match(
+      previewSource,
+      /Formandos Avaliados[\s\S]*\{model\.evaluatedCount\}/
+    )
+    assert.doesNotMatch(
+      previewSource,
+      /Formandos Avaliados:\s*\{model\.evaluatedCount\}/
+    )
+
+    assert.match(
+      pdfSource,
+      /const footerStartX/
+    )
+    assert.match(
+      pdfSource,
+      /const evaluatedX/
+    )
+    assert.match(
+      pdfSource,
+      /const rightX/
+    )
+    assert.match(
+      pdfSource,
+      /'Formandos Avaliados'[\s\S]*String\(model\.evaluatedCount\)/
+    )
+    assert.doesNotMatch(
+      pdfSource,
+      /MARGIN \+ 500/
+    )
+    assert.doesNotMatch(
+      pdfSource,
+      /MARGIN \+ 640/
+    )
+  }
+)
+
+test(
   'CFP Excel keeps Nº and % on separate summary rows',
   () => {
     assert.match(
