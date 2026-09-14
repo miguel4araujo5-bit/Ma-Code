@@ -9,23 +9,6 @@ import {
   type MAProfessorStorageStatus
 } from '../db'
 
-import {
-  createMAProfessorBackup,
-  getBackupFileName
-} from './backupRepository'
-
-import {
-  downloadTextFile
-} from './csvExport'
-
-function getErrorMessage(
-  error: unknown
-) {
-  return error instanceof Error
-    ? error.message
-    : 'Não foi possível criar a cópia do estado atual.'
-}
-
 function formatStorageAmount(
   value: number
 ) {
@@ -69,23 +52,6 @@ function formatStorageAmount(
 
 export function BackupLocalSafetyPanel() {
   const [
-    busy,
-    setBusy
-  ] =
-    useState(false)
-
-  const [
-    feedback,
-    setFeedback
-  ] =
-    useState<{
-      tone:
-        | 'success'
-        | 'error'
-      message: string
-    } | null>(null)
-
-  const [
     storageStatus,
     setStorageStatus
   ] =
@@ -114,47 +80,6 @@ export function BackupLocalSafetyPanel() {
     }
   }, [])
 
-  const handleDownloadCurrentState =
-    async () => {
-      if (busy) {
-        return
-      }
-
-      setBusy(true)
-      setFeedback(null)
-
-      try {
-        const backup =
-          await createMAProfessorBackup()
-
-        downloadTextFile(
-          getBackupFileName(
-            backup.exportedAt
-          ),
-          JSON.stringify(
-            backup,
-            null,
-            2
-          ),
-          'application/json;charset=utf-8'
-        )
-
-        setFeedback({
-          tone: 'success',
-          message:
-            'Cópia completa descarregada. Guarde o ficheiro num local seguro.'
-        })
-      } catch (error) {
-        setFeedback({
-          tone: 'error',
-          message:
-            getErrorMessage(error)
-        })
-      } finally {
-        setBusy(false)
-      }
-    }
-
   const storageUsageLabel =
     storageStatus?.usage !== null &&
     storageStatus?.usage !== undefined &&
@@ -177,7 +102,7 @@ export function BackupLocalSafetyPanel() {
       </h2>
 
       <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-100">
-        Em navegação privada ou anónima, o browser pode eliminar os dados locais quando a janela ou a sessão privada termina. Para não perder o trabalho, descarregue uma cópia para o computador ou use a cópia cifrada online disponível logo abaixo.
+        Em navegação privada ou anónima, o browser pode eliminar os dados locais quando a janela ou a sessão privada termina. Para não perder o trabalho, use a opção de cópia local ou a cópia cifrada online disponíveis abaixo.
       </p>
 
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
@@ -185,7 +110,7 @@ export function BackupLocalSafetyPanel() {
       </p>
 
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-        Um restauro substitui os dados atualmente guardados neste browser. Pode descarregar primeiro uma cópia do estado atual para ter um ponto de retorno controlado por si.
+        Um restauro substitui os dados atualmente guardados neste browser. Antes de restaurar, pode criar uma cópia do estado atual na opção de cópia local abaixo.
       </p>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
@@ -217,31 +142,6 @@ export function BackupLocalSafetyPanel() {
           </p>
         ) : null}
       </div>
-
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => {
-          void handleDownloadCurrentState()
-        }}
-        className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-60"
-      >
-        {busy
-          ? 'A criar cópia…'
-          : 'Descarregar cópia para este computador'}
-      </button>
-
-      {feedback ? (
-        <p
-          className={`mt-4 rounded-xl border px-3 py-2 text-xs font-semibold ${
-            feedback.tone === 'success'
-              ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-              : 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-          }`}
-        >
-          {feedback.message}
-        </p>
-      ) : null}
     </section>
   )
 }
