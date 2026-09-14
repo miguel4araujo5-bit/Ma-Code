@@ -6,6 +6,8 @@ import {
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
 
+import './singleSidebar.css'
+
 export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
 export type ProductTheme = 'light' | 'dark'
 export type ProductSidebarDestination =
