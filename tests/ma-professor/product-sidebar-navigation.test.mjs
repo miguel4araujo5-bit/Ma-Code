@@ -50,6 +50,14 @@ const productSource = await readFile(
   'utf8'
 )
 
+const singleSidebarCssSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/singleSidebar.css',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dailyCssSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyUnifiedWeek.css',
@@ -145,14 +153,44 @@ test(
 )
 
 test(
-  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer',
+  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer without a recursive Painel entry',
   () => {
     assert.match(productNavigationSource, /aria-label=\"Abrir navegação completa do MA-Professor\"/)
     assert.match(productNavigationSource, /src=\"\/ma-code\.png\"/)
     assert.match(productNavigationSource, /sidebarOpen[\s\S]*role=\"dialog\"[\s\S]*aria-label=\"Navegação completa do MA-Professor\"/)
-    for (const label of ['Painel', 'Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
+    for (const label of ['Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
       assert.ok(productNavigationSource.includes(label), `missing global drawer entry: ${label}`)
     }
+    assert.doesNotMatch(
+      productNavigationSource,
+      /\{ id: 'dashboard', label: 'Painel' \}/
+    )
+  }
+)
+
+test(
+  'wide product shell keeps only the global persistent sidebar visible',
+  () => {
+    assert.match(
+      productNavigationSource,
+      /import '\.\/singleSidebar\.css'/
+    )
+    assert.match(
+      singleSidebarCssSource,
+      /@media \(min-width: 1280px\)/
+    )
+    assert.match(
+      singleSidebarCssSource,
+      /lg:grid-cols-\[17rem_1fr\]/
+    )
+    assert.match(
+      singleSidebarCssSource,
+      /> aside:first-child[\s\S]*display: none !important/
+    )
+    assert.match(
+      singleSidebarCssSource,
+      /grid-template-columns: minmax\(0, 1fr\) !important/
+    )
   }
 )
 

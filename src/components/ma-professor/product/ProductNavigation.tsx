@@ -6,10 +6,11 @@ import {
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
 
+import './singleSidebar.css'
+
 export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
 export type ProductTheme = 'light' | 'dark'
 export type ProductSidebarDestination =
-  | 'dashboard'
   | 'calendar'
   | 'giae'
   | 'assessments'
@@ -67,7 +68,6 @@ const sidebarItems: Array<{
   id: ProductSidebarDestination
   label: string
 }> = [
-  { id: 'dashboard', label: 'Painel' },
   { id: 'calendar', label: 'Calendário' },
   { id: 'giae', label: 'Sumários / GIAE' },
   { id: 'assessments', label: 'Avaliações' },
