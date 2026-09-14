@@ -443,7 +443,7 @@ test(
   () => {
     assert.match(
       repositorySource,
-      /if \(history\.length > 0\) \{\s*return sortLearningRecoveryAttempts\(/
+      /const assignmentHistory =[\s\S]*listRecoveryHistoryForAssignment\([\s\S]*module\.teachingAssignmentId,[\s\S]*studentId[\s\S]*\)[\s\S]*if \(assignmentHistory\.length > 0\) \{[\s\S]*return sortLearningRecoveryAttempts\(\s*assignmentHistory\s*\)/
     )
     assert.match(
       repositorySource,
