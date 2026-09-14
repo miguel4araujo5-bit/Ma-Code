@@ -440,20 +440,43 @@ function cleanModuleName(
   moduleText: string,
   code: string
 ) {
-  return normalizeSpaces(moduleText)
-    .replace(
-      new RegExp(
-        `\\bufcd\\s*[.:#-]?\\s*${code}\\b`,
-        'i'
-      ),
-      ' '
-    )
-    .replace(
-      /\(\s*\d+(?:[.,]\d+)?\s*(?:h|horas?)\s*\)/gi,
-      ' '
-    )
-    .replace(/^[\s–—-]+|[\s–—-]+$/g, '')
-    .replace(/\s+/g, ' ')
+  const cleaned =
+    normalizeSpaces(moduleText)
+      .replace(
+        new RegExp(
+          `\\bufcd\\s*[.:#-]?\\s*${code}\\b`,
+          'i'
+        ),
+        ' '
+      )
+      .replace(
+        /\(\s*\d+(?:[.,]\d+)?\s*(?:h|horas?)\s*\)/gi,
+        ' '
+      )
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const contaminationMarkers = [
+    /\s+fichas?\s+de\s+avalia[cç][aã]o\b/i,
+    /\s+avalia[cç][aã]o\s*[:–—-]/i
+  ]
+
+  let end = cleaned.length
+
+  for (const marker of contaminationMarkers) {
+    const match = marker.exec(cleaned)
+
+    if (
+      match &&
+      match.index > 0
+    ) {
+      end = Math.min(end, match.index)
+    }
+  }
+
+  return cleaned
+    .slice(0, end)
+    .replace(/^[\s–—-]+|[\s–—:;-]+$/g, '')
     .trim()
 }
 
