@@ -38,6 +38,7 @@ export type InitialSchoolCalendarPreparationResult = {
 
 const PRESET_ACADEMIC_YEAR = '2026/2027'
 const PROFESSIONAL_START_DATE: ISODate = '2026-09-14'
+const LEGACY_PROFESSIONAL_START_DATE: ISODate = '2026-09-21'
 const TENTH_GRADE_END_DATE: ISODate = '2027-06-11'
 const ELEVENTH_TWELFTH_END_DATE: ISODate = '2027-06-04'
 const PRESET_DESCRIPTION =
@@ -308,7 +309,14 @@ async function ensureScheduleValidity(
       slot.validFrom === snapshot.academicYear.startDate &&
       slot.validUntil === snapshot.academicYear.endDate
 
-    if (!stillUsesGenericYearBounds) {
+    const stillUsesLegacyPresetBounds =
+      slot.validFrom === LEGACY_PROFESSIONAL_START_DATE &&
+      slot.validUntil === expectedEndDate
+
+    if (
+      !stillUsesGenericYearBounds &&
+      !stillUsesLegacyPresetBounds
+    ) {
       // Uma vigência já personalizada pelo professor nunca é substituída.
       continue
     }
