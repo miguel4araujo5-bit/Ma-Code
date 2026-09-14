@@ -482,18 +482,6 @@ export class AttendanceRepository
   ) {
     await this.initialize()
 
-    const activeAssignmentRecovery =
-      await getActiveRecoveryForAssignment(
-        input.teachingAssignmentId,
-        input.studentId
-      )
-
-    if (activeAssignmentRecovery) {
-      throw new Error(
-        'Este aluno já possui uma recuperação pendente ou em curso nesta disciplina.'
-      )
-    }
-
     const history =
       await listRecoveryHistory(
         input.moduleId,
@@ -532,6 +520,18 @@ export class AttendanceRepository
           'Conclua e classifique a tentativa anterior como “Sem sucesso” antes de iniciar uma nova tentativa.'
         )
       }
+    }
+
+    const activeAssignmentRecovery =
+      await getActiveRecoveryForAssignment(
+        input.teachingAssignmentId,
+        input.studentId
+      )
+
+    if (activeAssignmentRecovery) {
+      throw new Error(
+        'Este aluno já possui uma recuperação pendente ou em curso nesta disciplina.'
+      )
     }
 
     return this.createLearningRecoveryWithOrigin(
@@ -582,22 +582,7 @@ export class AttendanceRepository
       )
 
     if (activeAssignmentRecovery) {
-      return activeAssignmentRecovery.moduleId ===
-        moduleId
-        ? activeAssignmentRecovery
-        : null
-    }
-
-    const history =
-      await listRecoveryHistory(
-        moduleId,
-        studentId
-      )
-
-    if (history.length > 0) {
-      return sortLearningRecoveryAttempts(
-        history
-      )[history.length - 1]!
+      return activeAssignmentRecovery
     }
 
     const assignmentHistory =
@@ -607,28 +592,63 @@ export class AttendanceRepository
       )
 
     if (assignmentHistory.length > 0) {
-      return null
+      return sortLearningRecoveryAttempts(
+        assignmentHistory
+      )[assignmentHistory.length - 1]!
     }
 
-    if (
-      !(
+    const assignmentModules =
+      await maProfessorDb
+        .modules
+        .where(
+          'teachingAssignmentId'
+        )
+        .equals(
+          module.teachingAssignmentId
+        )
+        .toArray()
+
+    const orderedModules = [
+      module,
+      ...assignmentModules
+        .filter(
+          candidate =>
+            candidate.active &&
+            candidate.id !== module.id
+        )
+        .sort(
+          (
+            left,
+            right
+          ) =>
+            left.order - right.order
+        )
+    ]
+
+    let recoveryModule =
+      module
+
+    for (const candidate of orderedModules) {
+      if (
         await hasStudentAbsenceInModule(
-          moduleId,
+          candidate.id,
           studentId
         )
-      )
-    ) {
-      return null
+      ) {
+        recoveryModule =
+          candidate
+        break
+      }
     }
 
     return this.createLearningRecoveryWithOrigin(
       {
         academicYearId:
-          module.academicYearId,
+          recoveryModule.academicYearId,
         teachingAssignmentId:
-          module.teachingAssignmentId,
+          recoveryModule.teachingAssignmentId,
         moduleId:
-          module.id,
+          recoveryModule.id,
         studentId,
         status:
           'pending'
@@ -642,16 +662,6 @@ export class AttendanceRepository
   ) {
     await this.initialize()
 
-    const created =
-      (
-        await super.synchronizeRecoveriesForModule(
-          moduleId
-        )
-      ).filter(
-        recovery =>
-          recovery.status !== 'completed'
-      )
-
     const module =
       await maProfessorDb
         .modules
@@ -660,8 +670,40 @@ export class AttendanceRepository
         )
 
     if (!module) {
-      return created
+      return []
     }
+
+    const recoveryRowsBefore =
+      await maProfessorDb
+        .learningRecoveries
+        .where(
+          'teachingAssignmentId'
+        )
+        .equals(
+          module.teachingAssignmentId
+        )
+        .toArray()
+
+    const recoveryIdsBefore =
+      new Set(
+        recoveryRowsBefore.map(
+          recovery =>
+            recovery.id
+        )
+      )
+
+    const created =
+      (
+        await super.synchronizeRecoveriesForModule(
+          moduleId
+        )
+      ).filter(
+        recovery =>
+          recovery.status !== 'completed' &&
+          !recoveryIdsBefore.has(
+            recovery.id
+          )
+      )
 
     const candidates =
       await maProfessorDb
