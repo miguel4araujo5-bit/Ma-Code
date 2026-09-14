@@ -2,6 +2,10 @@ import type {
   AssessmentWorkspaceSnapshot
 } from './assessmentWorkspaceRepository'
 
+import {
+  getCachedModuleCompletionDate
+} from './ufcdCompletionDate'
+
 export interface UfcdCfpCriterion {
   id: string
   label: string
@@ -114,46 +118,27 @@ function formatModuleLabel(
 function formatCompletionDate(
   snapshot: AssessmentWorkspaceSnapshot
 ) {
-  if (
-    snapshot.studentRows.length === 0 ||
-    snapshot.studentRows.some(
-      row =>
-        row.gradeSummary
-          .confirmedFinalGrade === null
+  const module = snapshot.selectedModule
+
+  if (!module) {
+    return ''
+  }
+
+  const completionDate =
+    getCachedModuleCompletionDate(
+      module.id
     )
-  ) {
-    return ''
-  }
 
-  const latest = snapshot.studentRows
-    .flatMap(
-      row =>
-        row.finalGradeRecord
-          ?.confirmedAt
-          ? [row.finalGradeRecord.confirmedAt]
-          : []
+  const match =
+    completionDate?.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
     )
-    .sort()
-    .at(-1)
 
-  if (!latest) {
+  if (!match) {
     return ''
   }
 
-  const date = new Date(latest)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }
-  ).format(date)
+  return `${match[3]}/${match[2]}/${match[1]}`
 }
 
 function bandCount(
