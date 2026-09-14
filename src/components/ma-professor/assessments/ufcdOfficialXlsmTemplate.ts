@@ -114,7 +114,8 @@ function cloneInstrumentSheets(
     if (clone.period === 3) {
       sheet = sheet.replace(
         /(<c\b[^>]*\br="U5"[^>]*>\s*<v>)39(<\/v>\s*<\/c>)/,
-        '$196$2'
+        (_match, before: string, after: string) =>
+          `${before}96${after}`
       )
     }
 
@@ -285,18 +286,28 @@ function repairCfpInstrumentReferences(
 ) {
   const sheetPath =
     'xl/worksheets/sheet14.xml'
-  const sourceColumns = [
-    'J',
-    'L',
-    'N',
-    'P',
-    'R',
-    'T'
-  ]
   const blocks = [
-    { period: 1, targetStartRow: 12 },
-    { period: 2, targetStartRow: 47 },
-    { period: 3, targetStartRow: 82 }
+    {
+      period: 1,
+      targetStartRow: 12,
+      sourceColumns: [
+        'J', 'L', 'N', 'P', 'R', 'T'
+      ]
+    },
+    {
+      period: 2,
+      targetStartRow: 47,
+      sourceColumns: [
+        'I', 'K', 'M', 'O', 'Q', 'S'
+      ]
+    },
+    {
+      period: 3,
+      targetStartRow: 82,
+      sourceColumns: [
+        'I', 'K', 'M', 'O', 'Q', 'S'
+      ]
+    }
   ]
 
   for (const block of blocks) {
@@ -310,7 +321,7 @@ function repairCfpInstrumentReferences(
         instrument <= 5;
         instrument += 1
       ) {
-        sourceColumns.forEach(
+        block.sourceColumns.forEach(
           (sourceColumn, domainIndex) => {
             const targetColumn =
               columnName(
