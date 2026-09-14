@@ -741,6 +741,37 @@ export async function exportUfcdCfpPdf(
     }
   )
 
+  const professorY =
+    detailsY - 46
+
+  drawCell(
+    page,
+    bold,
+    'O/A Professor(a)',
+    MARGIN + 640,
+    professorY,
+    166,
+    16,
+    {
+      fill: COLORS.header,
+      size: 5.5,
+      align: 'center'
+    }
+  )
+  drawCell(
+    page,
+    font,
+    '',
+    MARGIN + 640,
+    professorY - 16,
+    166,
+    28,
+    {
+      size: 6,
+      align: 'center'
+    }
+  )
+
   const pdfBytes =
     await document.save({
       useObjectStreams: true
