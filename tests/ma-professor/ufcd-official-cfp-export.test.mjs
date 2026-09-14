@@ -246,6 +246,10 @@ test(
       /-CFP\.pdf/
     )
     assert.match(
+      pdfSource,
+      /O\/A Professor\(a\)/
+    )
+    assert.match(
       previewSource,
       /Pré-visualização da folha CFP/
     )
