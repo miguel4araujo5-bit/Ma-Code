@@ -39,6 +39,28 @@ test(
 )
 
 test(
+  'legacy S. Bento professional slots that still use the old 21 September preset are migrated to 14 September',
+  () => {
+    assert.match(
+      source,
+      /const LEGACY_PROFESSIONAL_START_DATE: ISODate = '2026-09-21'/
+    )
+    assert.match(
+      source,
+      /const stillUsesLegacyPresetBounds =[\s\S]*slot\.validFrom === LEGACY_PROFESSIONAL_START_DATE[\s\S]*slot\.validUntil === expectedEndDate/
+    )
+    assert.match(
+      source,
+      /!stillUsesGenericYearBounds &&[\s\S]*!stillUsesLegacyPresetBounds[\s\S]*continue/
+    )
+    assert.match(
+      source,
+      /updateScheduleSlot\(slot\.id, \{[\s\S]*validFrom: PROFESSIONAL_START_DATE,[\s\S]*validUntil: expectedEndDate/
+    )
+  }
+)
+
+test(
   'preset lesson generation is scoped to each professional assignment and its own end date',
   () => {
     assert.match(
