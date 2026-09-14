@@ -28,6 +28,14 @@ interface ProductNavigationProps {
   onToggleTheme: () => void
 }
 
+interface SidebarPanelProps {
+  academicYearName: string | null
+  showCloseButton: boolean
+  onClose: () => void
+  onOpenToday: () => void
+  onOpenDestination: (destination: ProductSidebarDestination) => void
+}
+
 const items: Array<{
   id: ProductWorkspace
   label: string
@@ -70,6 +78,85 @@ const sidebarItems: Array<{
   { id: 'settings', label: 'Definições' }
 ]
 
+function SidebarPanel({
+  academicYearName,
+  showCloseButton,
+  onClose,
+  onOpenToday,
+  onOpenDestination
+}: SidebarPanelProps) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src="/ma-code.png"
+            alt="MA-Code"
+            className="h-11 w-11 shrink-0 rounded-xl object-contain"
+          />
+
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+              MA-Code
+            </p>
+            <p className="truncate font-black text-white">
+              MA-Professor
+            </p>
+            <p className="truncate text-[0.65rem] font-semibold text-slate-500">
+              {academicYearName || 'Configuração inicial'}
+            </p>
+          </div>
+        </div>
+
+        {showCloseButton ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar navegação"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={onOpenToday}
+        className="mt-7 flex w-full items-center gap-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-3 text-left text-sm font-black text-cyan-100 transition hover:bg-cyan-300/10"
+      >
+        <span className="grid h-7 w-7 place-items-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-xs">
+          ▤
+        </span>
+        Hoje
+      </button>
+
+      <nav className="mt-3 space-y-1.5" aria-label="Áreas do MA-Professor">
+        {sidebarItems.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onOpenDestination(item.id)}
+            className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="mt-auto pt-6">
+        <p className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4 text-xs leading-6 text-slate-400">
+          Em ecrãs largos, este menu mantém-se aberto. Em ecrãs menores,
+          abre pelo logótipo.
+        </p>
+      </div>
+    </>
+  )
+}
+
 export function ProductNavigation({
   workspace,
   academicYearName,
@@ -102,6 +189,27 @@ export function ProductNavigation({
     }
   }, [sidebarOpen])
 
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 1280px)')
+
+    const handleDesktopChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setSidebarOpen(false)
+      }
+    }
+
+    desktopQuery.addEventListener('change', handleDesktopChange)
+
+    return () => {
+      desktopQuery.removeEventListener('change', handleDesktopChange)
+    }
+  }, [])
+
+  function openToday() {
+    setSidebarOpen(false)
+    onSelect('daily')
+  }
+
   function openDestination(destination: ProductSidebarDestination) {
     setSidebarOpen(false)
     onOpenSidebarDestination(destination)
@@ -114,7 +222,7 @@ export function ProductNavigation({
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="flex shrink-0 items-center gap-2 rounded-2xl px-1 py-1.5 text-left transition hover:bg-white/[0.04] sm:gap-3 sm:px-2"
+            className="flex shrink-0 items-center gap-2 rounded-2xl px-1 py-1.5 text-left transition hover:bg-white/[0.04] sm:gap-3 sm:px-2 xl:hidden"
             aria-label="Abrir navegação completa do MA-Professor"
             aria-expanded={sidebarOpen}
           >
@@ -125,7 +233,7 @@ export function ProductNavigation({
               className="h-9 w-9 rounded-xl object-contain"
             />
 
-            <span className="hidden min-w-0 xl:block">
+            <span className="hidden min-w-0 sm:block">
               <span className="block truncate text-sm font-black">
                 MA-Professor
               </span>
@@ -190,8 +298,21 @@ export function ProductNavigation({
         </div>
       </header>
 
+      <aside
+        aria-label="Navegação completa do MA-Professor"
+        className="fixed inset-y-0 left-0 z-[110] hidden w-80 flex-col overflow-y-auto border-r border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-black/30 xl:flex"
+      >
+        <SidebarPanel
+          academicYearName={academicYearName}
+          showCloseButton={false}
+          onClose={() => setSidebarOpen(false)}
+          onOpenToday={openToday}
+          onOpenDestination={openDestination}
+        />
+      </aside>
+
       {sidebarOpen ? (
-        <div className="fixed inset-0 z-[120]">
+        <div className="fixed inset-0 z-[120] xl:hidden">
           <button
             type="button"
             aria-label="Fechar navegação"
@@ -205,68 +326,13 @@ export function ProductNavigation({
             aria-label="Navegação completa do MA-Professor"
             className="absolute inset-y-0 left-0 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto border-r border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-black/60"
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/ma-code.png"
-                  alt="MA-Code"
-                  className="h-11 w-11 rounded-xl object-contain"
-                />
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    MA-Code
-                  </p>
-                  <p className="font-black text-white">
-                    MA-Professor
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(false)}
-                aria-label="Fechar navegação"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
-              >
-                ×
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSidebarOpen(false)
-                onSelect('daily')
-              }}
-              className="mt-7 flex w-full items-center gap-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-3 text-left text-sm font-black text-cyan-100 transition hover:bg-cyan-300/10"
-            >
-              <span className="grid h-7 w-7 place-items-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-xs">
-                ▤
-              </span>
-              Hoje
-            </button>
-
-            <nav className="mt-3 space-y-1.5" aria-label="Áreas do MA-Professor">
-              {sidebarItems.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => openDestination(item.id)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </nav>
-
-            <div className="mt-auto pt-6">
-              <p className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4 text-xs leading-6 text-slate-400">
-                O menu fica acessível pelo logótipo mesmo quando uma área ocupa o ecrã completo.
-              </p>
-            </div>
+            <SidebarPanel
+              academicYearName={academicYearName}
+              showCloseButton
+              onClose={() => setSidebarOpen(false)}
+              onOpenToday={openToday}
+              onOpenDestination={openDestination}
+            />
           </aside>
         </div>
       ) : null}
