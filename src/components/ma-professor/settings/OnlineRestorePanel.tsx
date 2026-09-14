@@ -7,14 +7,14 @@ import {
 } from '../access/AccessGate'
 
 import {
-  downloadMAProfessorCloudBackup,
-  type MAProfessorDownloadedCloudBackup
-} from '../sync/cloudBackupService'
+  previewMAProfessorCloudRestore,
+  restoreMAProfessorCloudRestore,
+  type MAProfessorCloudRestorePreview
+} from '../sync/cloudBackupRestoreService'
 
 import {
   createMAProfessorBackup,
-  getBackupFileName,
-  restoreMAProfessorBackup
+  getBackupFileName
 } from './backupRepository'
 
 import {
@@ -31,11 +31,8 @@ type FeedbackTone =
   | 'error'
 
 interface Feedback {
-  tone:
-    FeedbackTone
-
-  message:
-    string
+  tone: FeedbackTone
+  message: string
 }
 
 function getErrorMessage(
@@ -51,9 +48,7 @@ function formatDateTime(
   value: string
 ) {
   const date =
-    new Date(
-      value
-    )
+    new Date(value)
 
   if (
     Number.isNaN(
@@ -63,20 +58,13 @@ function formatDateTime(
     return '—'
   }
 
-  return new Intl
-    .DateTimeFormat(
-      'pt-PT',
-      {
-        dateStyle:
-          'medium',
-
-        timeStyle:
-          'short'
-      }
-    )
-    .format(
-      date
-    )
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }
+  ).format(date)
 }
 
 export function OnlineRestorePanel({
@@ -91,26 +79,19 @@ export function OnlineRestorePanel({
     preview,
     setPreview
   ] =
-    useState<MAProfessorDownloadedCloudBackup | null>(
+    useState<MAProfessorCloudRestorePreview | null>(
       null
     )
-
   const [
     busy,
     setBusy
   ] =
-    useState<
-      '' |
-      'preview' |
-      'restore'
-    >('')
-
+    useState<'' | 'preview' | 'restore'>('')
   const [
     confirmation,
     setConfirmation
   ] =
     useState('')
-
   const [
     feedback,
     setFeedback
@@ -125,59 +106,39 @@ export function OnlineRestorePanel({
         return
       }
 
-      setBusy(
-        'preview'
-      )
-      setFeedback(
-        null
-      )
-      setPreview(
-        null
-      )
-      setConfirmation(
-        ''
-      )
+      setBusy('preview')
+      setFeedback(null)
+      setPreview(null)
+      setConfirmation('')
 
       try {
-        const downloaded =
-          await downloadMAProfessorCloudBackup(
+        const foundPreview =
+          await previewMAProfessorCloudRestore(
             session
           )
 
-        if (!downloaded) {
+        if (!foundPreview) {
           setFeedback({
-            tone:
-              'warning',
-
+            tone: 'warning',
             message:
               'Ainda não existe uma cópia cifrada online para esta conta.'
           })
-
           return
         }
 
         setPreview(
-          downloaded
+          foundPreview
         )
-
         setFeedback({
-          tone:
-            'success',
-
+          tone: 'success',
           message:
             'A cópia foi descarregada, decifrada neste dispositivo e validada. Nada foi restaurado ainda.'
         })
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setFeedback({
-          tone:
-            'error',
-
+          tone: 'error',
           message:
-            getErrorMessage(
-              error
-            )
+            getErrorMessage(error)
         })
       } finally {
         setBusy('')
@@ -186,10 +147,7 @@ export function OnlineRestorePanel({
 
   const handleRestore =
     async () => {
-      if (
-        !preview ||
-        busy
-      ) {
+      if (!preview || busy) {
         return
       }
 
@@ -200,22 +158,18 @@ export function OnlineRestorePanel({
         'RESTAURAR'
       ) {
         setFeedback({
-          tone:
-            'error',
-
+          tone: 'error',
           message:
             'Escreva RESTAURAR para confirmar.'
         })
-
         return
       }
 
-      setBusy(
-        'restore'
-      )
-      setFeedback(
-        null
-      )
+      const foundPreview =
+        preview
+
+      setBusy('restore')
+      setFeedback(null)
 
       try {
         const safetyBackup =
@@ -236,37 +190,35 @@ export function OnlineRestorePanel({
           'application/json;charset=utf-8'
         )
 
-        await restoreMAProfessorBackup(
-          preview.backup
+        await restoreMAProfessorCloudRestore(
+          session,
+          {
+            expectedServerRevision:
+              foundPreview.serverRevision,
+            expectedRecordRevision:
+              foundPreview.recordRevision,
+            expectedCiphertextHash:
+              foundPreview.ciphertextHash,
+            expectedPlaintextHash:
+              foundPreview.plaintextHash,
+            expectedLocalContentSignature:
+              foundPreview.localContentSignature
+          }
         )
 
-        setPreview(
-          null
-        )
-        setConfirmation(
-          ''
-        )
-
+        setPreview(null)
+        setConfirmation('')
         setFeedback({
-          tone:
-            'success',
-
+          tone: 'success',
           message:
             'Cópia online restaurada. Foi também descarregada uma cópia local de segurança dos dados que existiam antes do restauro.'
         })
-
         onDataChanged?.()
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setFeedback({
-          tone:
-            'error',
-
+          tone: 'error',
           message:
-            getErrorMessage(
-              error
-            )
+            getErrorMessage(error)
         })
       } finally {
         setBusy('')
@@ -278,29 +230,22 @@ export function OnlineRestorePanel({
       <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
         Restauro da nuvem
       </p>
-
       <h2 className="mt-2 text-xl font-black text-white">
         Decifrar e restaurar a sua cópia
       </h2>
-
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
         A cópia só é decifrada neste dispositivo depois de a sessão da sua conta MA-Professor ser validada. Pode inspecioná-la antes de substituir qualquer dado local.
       </p>
 
       <button
         type="button"
-        disabled={
-          Boolean(
-            busy
-          )
-        }
+        disabled={Boolean(busy)}
         onClick={() =>
           void handlePreview()
         }
         className="mt-5 rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
       >
-        {busy ===
-        'preview'
+        {busy === 'preview'
           ? 'A decifrar e validar…'
           : 'Decifrar e preparar restauro'}
       </button>
@@ -312,14 +257,12 @@ export function OnlineRestorePanel({
               <p className="text-sm font-black text-white">
                 Cópia pronta a restaurar
               </p>
-
               <p className="mt-1 text-xs text-slate-500">
                 Guardada em {formatDateTime(
                   preview.updatedAt
                 )} · revisão {preview.recordRevision}
               </p>
             </div>
-
             <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-200">
               Validada
             </span>
@@ -334,7 +277,6 @@ export function OnlineRestorePanel({
                 Anos letivos
               </p>
             </div>
-
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
                 {preview.validation.summary.students}
@@ -343,7 +285,6 @@ export function OnlineRestorePanel({
                 Alunos
               </p>
             </div>
-
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
                 {preview.validation.summary.lessons}
@@ -352,7 +293,6 @@ export function OnlineRestorePanel({
                 Aulas
               </p>
             </div>
-
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
                 {preview.validation.summary.assessmentResults}
@@ -370,33 +310,24 @@ export function OnlineRestorePanel({
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input
               type="text"
-              value={
-                confirmation
-              }
-              onChange={
-                event =>
-                  setConfirmation(
-                    event.target.value
-                  )
+              value={confirmation}
+              onChange={event =>
+                setConfirmation(
+                  event.target.value
+                )
               }
               placeholder="Escreva RESTAURAR"
               className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-300/50"
             />
-
             <button
               type="button"
-              disabled={
-                Boolean(
-                  busy
-                )
-              }
+              disabled={Boolean(busy)}
               onClick={() =>
                 void handleRestore()
               }
               className="rounded-xl bg-violet-300 px-5 py-2.5 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60"
             >
-              {busy ===
-              'restore'
+              {busy === 'restore'
                 ? 'A restaurar…'
                 : 'Restaurar cópia'}
             </button>
@@ -407,11 +338,9 @@ export function OnlineRestorePanel({
       {feedback ? (
         <p
           className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone ===
-            'success'
+            feedback.tone === 'success'
               ? 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200'
-              : feedback.tone ===
-                  'warning'
+              : feedback.tone === 'warning'
                 ? 'border-amber-300/20 bg-amber-300/[0.06] text-amber-200'
                 : 'border-rose-300/20 bg-rose-300/[0.06] text-rose-200'
           }`}
