@@ -33,6 +33,14 @@ const criterionColors = [
   '#f6b26b'
 ]
 
+function criterionColor(
+  index: number
+) {
+  return criterionColors[
+    index % criterionColors.length
+  ]
+}
+
 function formatScore(
   value: number | null,
   decimals = 2
@@ -122,6 +130,26 @@ export default function UfcdCfpPreview({
       },
       (_, index) =>
         model.rows[index] ?? null
+    )
+
+  const blankDomainSlotCount =
+    Math.max(
+      0,
+      5 - model.criteria.length
+    )
+
+  const blankDomainSlots =
+    Array.from(
+      {
+        length:
+          blankDomainSlotCount
+      },
+      (_, index) => index
+    )
+
+  const acsColor =
+    criterionColor(
+      model.criteria.length
     )
 
   return (
@@ -231,19 +259,38 @@ export default function UfcdCfpPreview({
                       className="border border-slate-700 px-1 py-1 text-center font-black"
                       style={{
                         backgroundColor:
-                          criterionColors[
-                            index %
-                              criterionColors.length
-                          ]
+                          criterionColor(index)
                       }}
                     >
                       {criterion.weightPercent}%
                     </th>
                   )
                 )}
-                <th className="border border-slate-700 bg-[#b6d7a8] px-1 py-1 text-center font-black">
+                <th
+                  className="border border-slate-700 px-1 py-1 text-center font-black"
+                  style={{
+                    backgroundColor:
+                      acsColor
+                  }}
+                >
                   100%
                 </th>
+                {blankDomainSlots.map(
+                  slotIndex => (
+                    <th
+                      key={`blank-weight-${slotIndex}`}
+                      className="border border-slate-700 px-1 py-1"
+                      style={{
+                        backgroundColor:
+                          criterionColor(
+                            model.criteria.length +
+                              1 +
+                              slotIndex
+                          )
+                      }}
+                    />
+                  )
+                )}
                 <th className="border border-slate-700 bg-slate-300 px-1 py-1" />
                 <th className="border border-slate-700 bg-slate-300 px-1 py-1" />
                 <th className="border border-slate-700 bg-slate-300 px-1 py-1" />
@@ -268,19 +315,38 @@ export default function UfcdCfpPreview({
                       className="w-14 border border-slate-700 px-1 py-1.5"
                       style={{
                         backgroundColor:
-                          criterionColors[
-                            index %
-                              criterionColors.length
-                          ]
+                          criterionColor(index)
                       }}
                     >
                       {criterion.label}
                     </th>
                   )
                 )}
-                <th className="w-14 border border-slate-700 bg-[#b6d7a8] px-1 py-1.5">
+                <th
+                  className="w-14 border border-slate-700 px-1 py-1.5"
+                  style={{
+                    backgroundColor:
+                      acsColor
+                  }}
+                >
                   ACS
                 </th>
+                {blankDomainSlots.map(
+                  slotIndex => (
+                    <th
+                      key={`blank-header-${slotIndex}`}
+                      className="w-14 border border-slate-700 px-1 py-1.5"
+                      style={{
+                        backgroundColor:
+                          criterionColor(
+                            model.criteria.length +
+                              1 +
+                              slotIndex
+                          )
+                      }}
+                    />
+                  )
+                )}
                 <th className="w-20 border border-slate-700 bg-slate-300 px-1 py-1.5">
                   Nível Automático
                 </th>
@@ -316,10 +382,7 @@ export default function UfcdCfpPreview({
                           className="border border-slate-700 px-1 py-[3px] text-center"
                           style={{
                             backgroundColor:
-                              criterionColors[
-                                index %
-                                  criterionColors.length
-                              ]
+                              criterionColor(index)
                           }}
                         >
                           {row
@@ -332,13 +395,35 @@ export default function UfcdCfpPreview({
                         </td>
                       )
                     )}
-                    <td className="border border-slate-700 bg-[#b6d7a8] px-1 py-[3px] text-center">
+                    <td
+                      className="border border-slate-700 px-1 py-[3px] text-center"
+                      style={{
+                        backgroundColor:
+                          acsColor
+                      }}
+                    >
                       {row
                         ? formatScore(
                             row.acsScore
                           )
                         : ''}
                     </td>
+                    {blankDomainSlots.map(
+                      slotIndex => (
+                        <td
+                          key={`blank-cell-${rowIndex}-${slotIndex}`}
+                          className="border border-slate-700 px-1 py-[3px]"
+                          style={{
+                            backgroundColor:
+                              criterionColor(
+                                model.criteria.length +
+                                  1 +
+                                  slotIndex
+                              )
+                          }}
+                        />
+                      )
+                    )}
                     <td className="border border-slate-700 px-1 py-[3px] text-center">
                       {row
                         ? formatScore(
