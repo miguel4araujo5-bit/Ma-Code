@@ -35,11 +35,18 @@ const COLORS = {
     rgb(0.92, 0.79, 0.70),
     rgb(0.94, 0.66, 0.45)
   ],
-  acs: rgb(0.68, 0.80, 0.50),
   automatic: rgb(0.82, 0.82, 0.82),
   self: rgb(0.86, 0.86, 0.86),
   final: rgb(0.86, 0.86, 0.86),
   white: rgb(1, 1, 1)
+}
+
+function criterionColor(
+  index: number
+) {
+  return COLORS.criterion[
+    index % COLORS.criterion.length
+  ]
 }
 
 function formatNumber(
@@ -346,6 +353,11 @@ export async function exportUfcdCfpPdf(
   const automaticWidth = 62
   const selfWidth = 58
   const finalWidth = 48
+  const blankDomainSlotCount =
+    Math.max(
+      0,
+      5 - model.criteria.length
+    )
 
   const usedWithoutSignature =
     processWidth +
@@ -354,6 +366,8 @@ export async function exportUfcdCfpPdf(
     model.criteria.length *
       criterionWidth +
     acsWidth +
+    blankDomainSlotCount *
+      criterionWidth +
     automaticWidth +
     selfWidth +
     finalWidth
@@ -391,18 +405,35 @@ export async function exportUfcdCfpPdf(
           `${criterion.weightPercent}%`,
         width: criterionWidth,
         fill:
-          COLORS.criterion[
-            index %
-              COLORS.criterion.length
-          ]
+          criterionColor(index)
       })
     ),
     {
       label: 'ACS',
       weight: '100%',
       width: acsWidth,
-      fill: COLORS.acs
+      fill:
+        criterionColor(
+          model.criteria.length
+        )
     },
+    ...Array.from(
+      {
+        length:
+          blankDomainSlotCount
+      },
+      (_, index) => ({
+        label: '',
+        weight: '',
+        width: criterionWidth,
+        fill:
+          criterionColor(
+            model.criteria.length +
+              1 +
+              index
+          )
+      })
+    ),
     {
       label: 'Nível Automático',
       weight: '',
@@ -518,6 +549,13 @@ export async function exportUfcdCfpPdf(
             row.acsScore,
             2
           ),
+          ...Array.from(
+            {
+              length:
+                blankDomainSlotCount
+            },
+            () => ''
+          ),
           formatNumber(
             row.automaticLevel,
             1
@@ -544,33 +582,27 @@ export async function exportUfcdCfpPdf(
 
     columns.forEach(
       (column, columnIndex) => {
-        const criterionStart = 3
-        const criterionEnd =
-          criterionStart +
-          model.criteria.length
+        const coloredStart = 3
+        const coloredEnd =
+          coloredStart +
+          model.criteria.length +
+          1 +
+          blankDomainSlotCount
 
         const fill =
           columnIndex >=
-            criterionStart &&
+            coloredStart &&
           columnIndex <
-            criterionEnd
-            ? COLORS.criterion[
-                (
-                  columnIndex -
-                  criterionStart
-                ) %
-                  COLORS.criterion.length
-              ]
-            : columnIndex ===
-                criterionEnd
-              ? COLORS.acs
-              : COLORS.white
+            coloredEnd
+            ? criterionColor(
+                columnIndex -
+                  coloredStart
+              )
+            : COLORS.white
 
         drawCell(
           page,
-          columnIndex === 2
-            ? font
-            : font,
+          font,
           String(
             values[columnIndex] ?? ''
           ),
