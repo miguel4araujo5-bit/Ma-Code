@@ -52,7 +52,7 @@ const metrics = await import(
 )
 
 test(
-  'absence percentage is weighted by teaching periods instead of lesson rows',
+  'absence periods remain weighted by the number of teaching periods in each lesson',
   () => {
     const result =
       metrics.calculateAttendancePeriodMetrics([
@@ -78,29 +78,83 @@ test(
 )
 
 test(
-  'single-period lessons preserve the former percentage result',
+  'annual discipline percentage uses the planned annual workload instead of lessons taught so far',
   () => {
     const result =
-      metrics.calculateAttendancePeriodMetrics([
-        {
-          periodCount: 1,
-          absent: true
-        },
-        {
-          periodCount: 1,
-          absent: false
-        }
-      ])
+      metrics.calculateAnnualAttendancePeriodMetrics(
+        100,
+        [
+          {
+            periodCount: 1,
+            absent: true
+          },
+          {
+            periodCount: 2,
+            absent: false
+          }
+        ]
+      )
 
-    assert.equal(
-      result.absencePercent,
-      50
+    assert.deepEqual(
+      result,
+      {
+        periodsTaught: 3,
+        absencePeriods: 1,
+        absencePercent: 1,
+        plannedPeriods: 100
+      }
     )
   }
 )
 
 test(
-  'attendance repository applies period weighting only to the percentage and warning threshold',
+  'ten absence periods out of one hundred planned periods produce exactly the 10 percent threshold',
+  () => {
+    const result =
+      metrics.calculateAnnualAttendancePeriodMetrics(
+        100,
+        [
+          {
+            periodCount: 10,
+            absent: true
+          }
+        ]
+      )
+
+    assert.equal(
+      result.absencePercent,
+      10
+    )
+  }
+)
+
+test(
+  'when the attendance record is corrected by the class director the annual percentage can return to zero',
+  () => {
+    const result =
+      metrics.calculateAnnualAttendancePeriodMetrics(
+        100,
+        [
+          {
+            periodCount: 10,
+            absent: false
+          }
+        ]
+      )
+
+    assert.equal(
+      result.absencePeriods,
+      0
+    )
+    assert.equal(
+      result.absencePercent,
+      0
+    )
+  }
+)
+
+test(
+  'attendance repository aggregates the whole teaching assignment and all active module planned periods',
   () => {
     assert.match(
       repositorySource,
@@ -108,21 +162,53 @@ test(
     )
     assert.match(
       repositorySource,
-      /calculateAttendancePeriodMetrics\([\s\S]*lesson\.periodCount[\s\S]*attendanceByLesson\.get\([\s\S]*'absent'/
+      /lessons[\s\S]*\.where\([\s\S]*'teachingAssignmentId'[\s\S]*module\.teachingAssignmentId/
     )
     assert.match(
       repositorySource,
-      /absencePercent:\s*metrics\.absencePercent/
+      /assignmentModules[\s\S]*assignmentModule\.active[\s\S]*assignmentModule\.plannedPeriods/
     )
     assert.match(
       repositorySource,
-      /metrics\.absencePercent\s*>\s*settings\.learningRecoveryThresholdPercent[\s\S]*metrics\.absencePercent\s*>=\s*settings\.absenceWarningPercent/
+      /calculateAnnualAttendancePeriodMetrics\([\s\S]*annualPlannedPeriods[\s\S]*lesson\.periodCount[\s\S]*'absent'/
     )
   }
 )
 
 test(
-  'historical recovery counters remain lesson-based while the stored percentage uses the corrected summary',
+  'the recovery threshold is inclusive at 10 percent and the warning label carries the emergency marker',
+  () => {
+    assert.match(
+      repositorySource,
+      /metrics\.absencePercent\s*>=\s*settings\.learningRecoveryThresholdPercent/
+    )
+    assert.match(
+      repositorySource,
+      /return '🚨 Recuperação necessária'/
+    )
+  }
+)
+
+test(
+  'automatic recovery synchronization is discipline-aware and avoids parallel recoveries across UFCDs',
+  () => {
+    assert.match(
+      repositorySource,
+      /getActiveRecoveryForAssignment\([\s\S]*teachingAssignmentId[\s\S]*studentId/
+    )
+    assert.match(
+      repositorySource,
+      /listRecoveryHistoryForAssignment\([\s\S]*'teachingAssignmentId'/
+    )
+    assert.match(
+      repositorySource,
+      /synchronizeRecoveriesForModule[\s\S]*learningRecoveries[\s\S]*'teachingAssignmentId'[\s\S]*module\.teachingAssignmentId/
+    )
+  }
+)
+
+test(
+  'historical recovery counters remain lesson-based while the stored percentage uses the corrected annual summary',
   () => {
     assert.match(
       baseRepositorySource,
