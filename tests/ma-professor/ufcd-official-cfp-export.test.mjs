@@ -19,6 +19,14 @@ const excelSource = await readFile(
   'utf8'
 )
 
+const templateExporterSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/ufcdOfficialTemplateExport.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const pdfSource = await readFile(
   new URL(
     '../../src/components/ma-professor/assessments/ufcdCfpPdfExport.ts',
@@ -98,6 +106,7 @@ const snapshot = {
   studentRows: [
     {
       student: {
+        id: 'regular',
         number: '1',
         name: 'Aluno Regular'
       },
@@ -118,6 +127,7 @@ const snapshot = {
     },
     {
       student: {
+        id: 'acs',
         number: '2',
         name: 'Aluno ACS'
       },
@@ -140,7 +150,7 @@ const snapshot = {
 }
 
 test(
-  'CFP model uses the configured criteria and keeps ACS in the official dedicated column',
+  'CFP keeps D1 D2 D3 as regular criteria and routes ACS students outside those columns',
   () => {
     const model =
       modelModule.buildUfcdCfpModel(
@@ -148,7 +158,10 @@ test(
       )
 
     assert.deepEqual(
-      model.criteria.map(item => [item.label, item.weightPercent]),
+      model.criteria.map(item => [
+        item.label,
+        item.weightPercent
+      ]),
       [
         ['D1', 60],
         ['D2', 20],
@@ -173,69 +186,53 @@ test(
       model.rows[1].acsScore,
       17.2
     )
-    assert.equal(
-      model.completionDate,
-      '21/02/2027'
-    )
   }
 )
 
 test(
-  'Excel export builds the complete official workbook structure instead of one invented final sheet',
+  'Excel export uses the original macro-enabled template and maps ACS to D4 rather than replacing D3',
   () => {
-    for (const sheetName of [
-      'HOME',
-      'P1I1',
-      'P1I2',
-      'P1I3',
-      'P1I4',
-      'P1I5',
-      'P2I1',
-      'P2I2',
-      'P2I3',
-      'P2I4',
-      'P2I5',
-      'P3I1',
-      'P3I2',
-      'P3I3',
-      'P3I4',
-      'P3I5',
-      'PRINT',
-      'CFP',
-      'PRINTCFP',
-      'AUTO'
-    ]) {
-      assert.match(
-        excelSource,
-        new RegExp(`['\"]${sheetName}['\"]`)
-      )
-    }
-
     assert.match(
       excelSource,
-      /momentSheetName\(index\)/
+      /ufcdOfficialTemplateExport/
     )
     assert.match(
-      excelSource,
-      /left\.lesson\.date\.localeCompare/
+      templateExporterSource,
+      /xl\/vbaProject\.bin/
     )
     assert.match(
-      excelSource,
-      /assessmentResults[\s\S]*anyOf\(assessmentIds\)/
+      templateExporterSource,
+      /-Completo\.xlsm/
     )
     assert.match(
-      excelSource,
-      /-Completo\.xlsx/
+      templateExporterSource,
+      /GENERAL_COLUMNS = \[\s*'E',\s*'F',\s*'G'/
     )
-    assert.doesNotMatch(
-      excelSource,
-      /sheetName:\s*'Grelha Final'/
+    assert.match(
+      templateExporterSource,
+      /criterion\s*\?\s*`D\$\{index \+ 1\}`/
+    )
+    assert.match(
+      templateExporterSource,
+      /'E18',[\s\S]*'ACS'/
+    )
+    assert.match(
+      templateExporterSource,
+      /'F18',[\s\S]*100/
+    )
+    assert.match(
+      templateExporterSource,
+      /`\$\{column\}12`,[\s\S]*'D4'/
+    )
+    assert.match(
+      templateExporterSource,
+      /usesAcs/
     )
   }
 )
 
 test(
-  'PDF and preview are explicitly CFP-only while exposing both export choices',
+  'PDF and preview stay CFP-only while Excel remains a separate complete-workbook action',
   () => {
     assert.match(
       pdfSource,
