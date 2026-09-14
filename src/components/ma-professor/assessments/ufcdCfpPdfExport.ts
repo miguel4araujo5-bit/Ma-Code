@@ -634,9 +634,9 @@ export async function exportUfcdCfpPdf(
   const summaryTop =
     studentY - 12
   const summaryLabelWidth =
-    110
+    64
   const summaryCellWidth =
-    52
+    30
   const summaryHeaderHeight =
     16
   const summarySubheaderHeight =
@@ -647,21 +647,6 @@ export async function exportUfcdCfpPdf(
     summaryHeaderHeight +
     summarySubheaderHeight +
     summaryValueHeight
-
-  drawCell(
-    page,
-    bold,
-    'AVALIAÇÃO GLOBAL',
-    MARGIN + 120,
-    summaryTop,
-    summaryLabelWidth,
-    summaryBlockHeight,
-    {
-      fill: COLORS.header,
-      size: 5.7,
-      align: 'center'
-    }
-  )
 
   const summaryItems = [
     ...model.gradeBands.map(
@@ -685,8 +670,48 @@ export async function exportUfcdCfpPdf(
     }
   ]
 
+  const summaryWidth =
+    summaryLabelWidth +
+    summaryItems.length *
+      summaryCellWidth
+  const evaluatedWidth =
+    126
+  const summaryGap =
+    14
+  const rightGap =
+    24
+  const rightBoxWidth =
+    170
+  const footerWidth =
+    summaryWidth +
+    summaryGap +
+    evaluatedWidth +
+    rightGap +
+    rightBoxWidth
+  const footerStartX =
+    MARGIN +
+    Math.max(
+      0,
+      contentWidth - footerWidth
+    )
+
+  drawCell(
+    page,
+    bold,
+    'AVALIAÇÃO GLOBAL',
+    footerStartX,
+    summaryTop,
+    summaryLabelWidth,
+    summaryBlockHeight,
+    {
+      fill: COLORS.header,
+      size: 5.7,
+      align: 'center'
+    }
+  )
+
   let summaryX =
-    MARGIN + 120 +
+    footerStartX +
     summaryLabelWidth
 
   summaryItems.forEach(
@@ -771,32 +796,51 @@ export async function exportUfcdCfpPdf(
     }
   )
 
-  const detailsY =
-    summaryTop -
-    summaryBlockHeight -
-    8
+  const evaluatedX =
+    footerStartX +
+    summaryWidth +
+    summaryGap
 
   drawCell(
     page,
     bold,
-    `Formandos Avaliados: ${model.evaluatedCount}`,
-    MARGIN + 500,
-    detailsY,
-    130,
+    'Formandos Avaliados',
+    evaluatedX,
+    summaryTop,
+    evaluatedWidth,
     18,
     {
       fill: COLORS.header,
-      size: 5.7,
+      size: 5.5,
       align: 'center'
     }
   )
   drawCell(
     page,
+    font,
+    String(model.evaluatedCount),
+    evaluatedX,
+    summaryTop - 18,
+    evaluatedWidth,
+    22,
+    {
+      size: 6,
+      align: 'center'
+    }
+  )
+
+  const rightX =
+    evaluatedX +
+    evaluatedWidth +
+    rightGap
+
+  drawCell(
+    page,
     bold,
     'Data de Conclusão do Módulo',
-    MARGIN + 640,
-    detailsY,
-    166,
+    rightX,
+    summaryTop,
+    rightBoxWidth,
     18,
     {
       fill: COLORS.header,
@@ -808,9 +852,9 @@ export async function exportUfcdCfpPdf(
     page,
     font,
     model.completionDate,
-    MARGIN + 640,
-    detailsY - 18,
-    166,
+    rightX,
+    summaryTop - 18,
+    rightBoxWidth,
     18,
     {
       size: 6,
@@ -819,15 +863,15 @@ export async function exportUfcdCfpPdf(
   )
 
   const professorY =
-    detailsY - 46
+    summaryTop - 44
 
   drawCell(
     page,
     bold,
     'O/A Professor(a)',
-    MARGIN + 640,
+    rightX,
     professorY,
-    166,
+    rightBoxWidth,
     16,
     {
       fill: COLORS.header,
@@ -839,9 +883,9 @@ export async function exportUfcdCfpPdf(
     page,
     font,
     '',
-    MARGIN + 640,
+    rightX,
     professorY - 16,
-    166,
+    rightBoxWidth,
     28,
     {
       size: 6,
