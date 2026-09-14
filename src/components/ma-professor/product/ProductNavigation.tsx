@@ -146,13 +146,6 @@ function SidebarPanel({
           </button>
         ))}
       </nav>
-
-      <div className="mt-auto pt-6">
-        <p className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4 text-xs leading-6 text-slate-400">
-          Em ecrãs largos, este menu mantém-se aberto. Em ecrãs menores,
-          abre pelo logótipo.
-        </p>
-      </div>
     </>
   )
 }
