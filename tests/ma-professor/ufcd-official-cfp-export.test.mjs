@@ -269,6 +269,37 @@ test(
 )
 
 test(
+  'CFP preview and PDF preserve the six coloured domain slots from the reference sheet',
+  () => {
+    assert.match(
+      previewSource,
+      /5 - model\.criteria\.length/
+    )
+    assert.match(
+      previewSource,
+      /blankDomainSlots/
+    )
+    assert.match(
+      previewSource,
+      /criterionColor\(\s*model\.criteria\.length\s*\)/
+    )
+
+    assert.match(
+      pdfSource,
+      /5 - model\.criteria\.length/
+    )
+    assert.match(
+      pdfSource,
+      /blankDomainSlotCount/
+    )
+    assert.match(
+      pdfSource,
+      /criterionColor\(\s*model\.criteria\.length\s*\)/
+    )
+  }
+)
+
+test(
   'final-grade wrapper shows the CFP preview and hides the legacy duplicate export control',
   () => {
     assert.match(
