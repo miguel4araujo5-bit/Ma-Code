@@ -2,10 +2,6 @@ import type {
   AssessmentWorkspaceSnapshot
 } from './assessmentWorkspaceRepository'
 
-import {
-  getCachedModuleCompletionDate
-} from './ufcdCompletionDate'
-
 export interface UfcdCfpCriterion {
   id: string
   label: string
@@ -48,6 +44,19 @@ export interface UfcdCfpModel {
   evaluatedCount: number
   completionDate: string
   fileBaseName: string
+}
+
+const completionDateByModuleId =
+  new Map<string, string | null>()
+
+export function setUfcdCompletionDate(
+  moduleId: string,
+  completionDate: string | null
+) {
+  completionDateByModuleId.set(
+    moduleId,
+    completionDate
+  )
 }
 
 function safeFilePart(
@@ -125,9 +134,9 @@ function formatCompletionDate(
   }
 
   const completionDate =
-    getCachedModuleCompletionDate(
+    completionDateByModuleId.get(
       module.id
-    )
+    ) ?? null
 
   const match =
     completionDate?.match(
