@@ -10,7 +10,7 @@ const S_BENTO_2026_2027_DUTY_RANGES: Array<{
   endDate: ISODate
 }> = [
   {
-    startDate: '2026-09-21',
+    startDate: '2026-09-14',
     endDate: '2026-12-15'
   },
   {
