@@ -116,7 +116,7 @@ test(
 )
 
 test(
-  'keeps the S. Bento 2026/2027 ranges and closed dates',
+  'keeps the S. Bento 2026/2027 duty ranges and closed dates from 14 September',
   () => {
     const mondays =
       getDutyDatesForSchool(
@@ -126,13 +126,13 @@ test(
       )
 
     assert.equal(
-      mondays.includes('2026-09-21'),
+      mondays.includes('2026-09-14'),
       true
     )
 
     assert.equal(
-      mondays.includes('2026-09-14'),
-      false
+      mondays.includes('2026-09-21'),
+      true
     )
 
     assert.equal(
