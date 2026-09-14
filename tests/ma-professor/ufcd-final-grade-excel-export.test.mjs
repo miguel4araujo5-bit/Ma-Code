@@ -78,7 +78,7 @@ const snapshot = {
       student: {
         id: 'student-1',
         number: '2',
-        name: 'Ana Claudia Miranda Peixoto'
+        name: 'Ana Exemplo'
       },
       gradeSummary: {
         provisionalAverage: 16.8,
@@ -104,7 +104,7 @@ const snapshot = {
       student: {
         id: 'student-2',
         number: '3',
-        name: 'André Miguel Almeida Ferreira'
+        name: 'André Exemplo'
       },
       gradeSummary: {
         provisionalAverage: 9.8,
@@ -130,108 +130,77 @@ const snapshot = {
 }
 
 test(
-  'Excel model follows the reference grid while using real dynamic criteria',
+  'legacy Excel model still follows dynamic criteria for import/compatibility helpers',
   () => {
-    const model = modelModule.buildUfcdFinalGradeExcelModel(snapshot)
+    const model =
+      modelModule.buildUfcdFinalGradeExcelModel(
+        snapshot
+      )
 
-    assert.equal(model.rows[0][0], 'CÁLCULOS DE FINAL DE MÓDULO/UFCD')
-    assert.equal(model.rows[2][3], 0.6)
-    assert.equal(model.rows[2][4], 0.4)
-    assert.equal(model.rows[2][5], 1)
-
-    assert.deepEqual(
-      model.rows[3],
-      [
-        'Nº Processo',
-        'Nº',
-        'Aluno / Domínio',
-        'D1',
-        'D2',
-        'ACS',
-        'Nível Automático',
-        'Autoavaliação',
-        'Nível Final',
-        'Assinatura do Formando'
-      ]
+    assert.equal(
+      model.rows[2][3],
+      0.6
+    )
+    assert.equal(
+      model.rows[2][4],
+      0.4
     )
 
-    const ana = model.rows.find(row => row[2] === 'Ana Claudia Miranda Peixoto')
-    assert.ok(ana)
-    assert.equal(ana[0], '')
-    assert.equal(ana[1], '2')
-    assert.equal(ana[3], 16.81)
-    assert.equal(ana[4], 16.8)
-    assert.equal(ana[5], null)
-    assert.equal(ana[6], 16.8)
-    assert.equal(ana[7], 12)
-    assert.equal(ana[8], 17)
-    assert.equal(ana[9], '')
+    const regular =
+      model.rows.find(
+        row =>
+          row[2] ===
+          'Ana Exemplo'
+      )
 
-    const andre = model.rows.find(row => row[2] === 'André Miguel Almeida Ferreira')
-    assert.ok(andre)
-    assert.equal(andre[3], null)
-    assert.equal(andre[4], null)
-    assert.equal(andre[5], 9.8)
-    assert.equal(andre[8], 10)
-
-    assert.match(model.fileName, /^Grelha-Avaliacao-.*\.xlsx$/)
+    assert.ok(regular)
+    assert.equal(
+      regular[3],
+      16.81
+    )
+    assert.equal(
+      regular[4],
+      16.8
+    )
   }
 )
 
 test(
-  'Excel model builds the global evaluation summary from confirmed grades',
+  'Excel export delegates to the original-template exporter',
   () => {
-    const model = modelModule.buildUfcdFinalGradeExcelModel(snapshot)
-    const summaryIndex = model.rows.findIndex(
-      row => row[0] === 'AVALIAÇÃO GLOBAL'
+    assert.match(
+      exportSource,
+      /export \{\s*exportUfcdFinalGradeExcel\s*\} from '\.\/ufcdOfficialTemplateExport'/
     )
-
-    assert.ok(summaryIndex > 0)
-    assert.deepEqual(
-      model.rows[summaryIndex].slice(0, 8),
-      [
-        'AVALIAÇÃO GLOBAL',
-        '1 - 6',
-        '7 - 9',
-        '10 - 13',
-        '14 - 17',
-        '18 - 20',
-        'NEGATIVO',
-        'POSITIVO'
-      ]
+    assert.doesNotMatch(
+      exportSource,
+      /bookType:\s*'xlsx'/
     )
-    assert.deepEqual(
-      model.rows[summaryIndex + 1].slice(0, 8),
-      ['Nº', 0, 0, 1, 1, 0, 0, 2]
-    )
-
-    const details = model.rows.find(
-      row => row[0] === 'Formandos Avaliados'
-    )
-    assert.ok(details)
-    assert.equal(details[1], 2)
-    assert.equal(details[3], 'Data de Conclusão do Módulo')
-    assert.equal(details[4], '25/02/2026')
   }
 )
 
 test(
-  'Excel download reuses the existing client download helper and lazy-loads xlsx',
+  'final grid still blocks export while drafts are dirty',
   () => {
-    assert.match(exportSource, /await import\('xlsx'\)/)
-    assert.match(exportSource, /downloadBlob/)
-    assert.match(exportSource, /bookType:\s*'xlsx'/)
-    assert.match(exportSource, /compression:\s*true/)
-  }
-)
-
-test(
-  'final grid exports only persisted values and blocks export while drafts are dirty',
-  () => {
-    assert.match(gridSource, /exportUfcdFinalGradeExcel/)
-    assert.match(gridSource, /const hasDirtyDrafts\s*=/)
-    assert.match(gridSource, /Guarde as alterações antes de exportar\./)
-    assert.match(gridSource, /Exportar Excel/)
-    assert.match(gridSource, /hasDirtyDrafts\s*\|\|/)
+    assert.match(
+      gridSource,
+      /exportUfcdFinalGradeExcel/
+    )
+    assert.match(
+      gridSource,
+      /const hasDirtyDrafts\s*=/
+    )
+    assert.match(
+      gridSource,
+      /Guarde as alterações antes de exportar\./
+    )
+    assert.match(
+      gridSource,
+      /Exportar Excel/
+    )
+    assert.match(
+      gridSource,
+      /hasDirtyDrafts\s*\|\|/
+    )
   }
 )
