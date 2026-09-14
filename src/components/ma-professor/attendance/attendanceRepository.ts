@@ -15,7 +15,8 @@ import type {
 } from '../types'
 
 import {
-  AttendanceRepository as BaseAttendanceRepository
+  AttendanceRepository as BaseAttendanceRepository,
+  getAbsenceWarningLevelLabel as getBaseAbsenceWarningLevelLabel
 } from './attendanceRepositoryBase'
 
 import type {
@@ -25,7 +26,7 @@ import type {
 } from './attendanceRepositoryBase'
 
 import {
-  calculateAttendancePeriodMetrics
+  calculateAnnualAttendancePeriodMetrics
 } from './attendancePeriodMetrics'
 
 import {
@@ -54,9 +55,24 @@ export type {
 
 export {
   getAttendanceStatusLabel,
-  getAbsenceWarningLevelLabel,
   getLearningRecoveryStatusLabel
 } from './attendanceRepositoryBase'
+
+export function getAbsenceWarningLevelLabel(
+  warningLevel:
+    StudentAbsenceSummary['warningLevel']
+) {
+  if (
+    warningLevel ===
+    'recovery_required'
+  ) {
+    return '🚨 Recuperação necessária'
+  }
+
+  return getBaseAbsenceWarningLevelLabel(
+    warningLevel
+  )
+}
 
 async function listRecoveryHistory(
   moduleId: EntityId,
@@ -72,6 +88,28 @@ async function listRecoveryHistory(
       studentId
     ])
     .toArray()
+}
+
+async function listRecoveryHistoryForAssignment(
+  teachingAssignmentId: EntityId,
+  studentId: EntityId
+) {
+  const recoveries =
+    await maProfessorDb
+      .learningRecoveries
+      .where(
+        'teachingAssignmentId'
+      )
+      .equals(
+        teachingAssignmentId
+      )
+      .toArray()
+
+  return recoveries.filter(
+    recovery =>
+      recovery.studentId ===
+      studentId
+  )
 }
 
 async function getActiveRecovery(
@@ -104,6 +142,89 @@ async function getActiveRecovery(
   )
 }
 
+async function getActiveRecoveryForAssignment(
+  teachingAssignmentId: EntityId,
+  studentId: EntityId
+) {
+  const recoveries =
+    await listRecoveryHistoryForAssignment(
+      teachingAssignmentId,
+      studentId
+    )
+
+  return (
+    recoveries
+      .filter(
+        recovery =>
+          recovery.status !==
+          'completed'
+      )
+      .sort(
+        (
+          left,
+          right
+        ) =>
+          right.triggeredAt.localeCompare(
+            left.triggeredAt
+          )
+      )[0] ??
+    null
+  )
+}
+
+async function hasStudentAbsenceInModule(
+  moduleId: EntityId,
+  studentId: EntityId
+) {
+  const [
+    lessons,
+    attendanceRecords
+  ] = await Promise.all([
+    maProfessorDb
+      .lessons
+      .where(
+        'moduleId'
+      )
+      .equals(
+        moduleId
+      )
+      .toArray(),
+    maProfessorDb
+      .lessonAttendance
+      .where(
+        'studentId'
+      )
+      .equals(
+        studentId
+      )
+      .toArray()
+  ])
+
+  const countedLessonIds =
+    new Set(
+      lessons
+        .filter(
+          lesson =>
+            lesson.status ===
+              'taught' &&
+            lesson.countTowardProgress
+        )
+        .map(
+          lesson =>
+            lesson.id
+        )
+    )
+
+  return attendanceRecords.some(
+    attendance =>
+      attendance.status ===
+        'absent' &&
+      countedLessonIds.has(
+        attendance.lessonId
+      )
+  )
+}
+
 function now() {
   return new Date().toISOString()
 }
@@ -120,9 +241,21 @@ export class AttendanceRepository
         studentId
       )
 
+    const module =
+      await maProfessorDb
+        .modules
+        .get(
+          moduleId
+        )
+
+    if (!module) {
+      return baseline
+    }
+
     const [
       student,
       lessons,
+      assignmentModules,
       attendanceRecords,
       settings
     ] =
@@ -135,10 +268,19 @@ export class AttendanceRepository
         maProfessorDb
           .lessons
           .where(
-            'moduleId'
+            'teachingAssignmentId'
           )
           .equals(
-            moduleId
+            module.teachingAssignmentId
+          )
+          .toArray(),
+        maProfessorDb
+          .modules
+          .where(
+            'teachingAssignmentId'
+          )
+          .equals(
+            module.teachingAssignmentId
           )
           .toArray(),
         maProfessorDb
@@ -153,9 +295,7 @@ export class AttendanceRepository
         ensureDefaultMAProfessorSettings()
       ])
 
-    if (
-      !student
-    ) {
+    if (!student) {
       return baseline
     }
 
@@ -179,8 +319,25 @@ export class AttendanceRepository
           )
       )
 
+    const annualPlannedPeriods =
+      assignmentModules
+        .filter(
+          assignmentModule =>
+            assignmentModule.active
+        )
+        .reduce(
+          (
+            total,
+            assignmentModule
+          ) =>
+            total +
+            assignmentModule.plannedPeriods,
+          0
+        )
+
     const metrics =
-      calculateAttendancePeriodMetrics(
+      calculateAnnualAttendancePeriodMetrics(
+        annualPlannedPeriods,
         lessons
           .filter(
             lesson =>
@@ -212,7 +369,7 @@ export class AttendanceRepository
 
     const warningLevel:
       StudentAbsenceSummary['warningLevel'] =
-      metrics.absencePercent >
+      metrics.absencePercent >=
       settings.learningRecoveryThresholdPercent
         ? 'recovery_required'
         : metrics.absencePercent >=
@@ -325,6 +482,18 @@ export class AttendanceRepository
   ) {
     await this.initialize()
 
+    const activeAssignmentRecovery =
+      await getActiveRecoveryForAssignment(
+        input.teachingAssignmentId,
+        input.studentId
+      )
+
+    if (activeAssignmentRecovery) {
+      throw new Error(
+        'Este aluno já possui uma recuperação pendente ou em curso nesta disciplina.'
+      )
+    }
+
     const history =
       await listRecoveryHistory(
         input.moduleId,
@@ -393,14 +562,30 @@ export class AttendanceRepository
       )
     }
 
-    const existing =
-      await getActiveRecovery(
-        moduleId,
+    const module =
+      await maProfessorDb
+        .modules
+        .get(
+          moduleId
+        )
+
+    if (!module) {
+      throw new Error(
+        'A UFCD ou módulo indicado não existe.'
+      )
+    }
+
+    const activeAssignmentRecovery =
+      await getActiveRecoveryForAssignment(
+        module.teachingAssignmentId,
         studentId
       )
 
-    if (existing) {
-      return existing
+    if (activeAssignmentRecovery) {
+      return activeAssignmentRecovery.moduleId ===
+        moduleId
+        ? activeAssignmentRecovery
+        : null
     }
 
     const history =
@@ -415,17 +600,25 @@ export class AttendanceRepository
       )[history.length - 1]!
     }
 
-    const module =
-      await maProfessorDb
-        .modules
-        .get(
-          moduleId
-        )
-
-    if (!module) {
-      throw new Error(
-        'A UFCD ou módulo indicado não existe.'
+    const assignmentHistory =
+      await listRecoveryHistoryForAssignment(
+        module.teachingAssignmentId,
+        studentId
       )
+
+    if (assignmentHistory.length > 0) {
+      return null
+    }
+
+    if (
+      !(
+        await hasStudentAbsenceInModule(
+          moduleId,
+          studentId
+        )
+      )
+    ) {
+      return null
     }
 
     return this.createLearningRecoveryWithOrigin(
@@ -459,14 +652,25 @@ export class AttendanceRepository
           recovery.status !== 'completed'
       )
 
+    const module =
+      await maProfessorDb
+        .modules
+        .get(
+          moduleId
+        )
+
+    if (!module) {
+      return created
+    }
+
     const candidates =
       await maProfessorDb
         .learningRecoveries
         .where(
-          'moduleId'
+          'teachingAssignmentId'
         )
         .equals(
-          moduleId
+          module.teachingAssignmentId
         )
         .toArray()
 
@@ -484,7 +688,7 @@ export class AttendanceRepository
 
       const summary =
         await this.getStudentModuleAbsenceSummary(
-          moduleId,
+          candidate.moduleId,
           candidate.studentId
         )
 
@@ -528,7 +732,7 @@ export class AttendanceRepository
 
       if (deleted) {
         await this.ensureLearningRecovery(
-          moduleId,
+          candidate.moduleId,
           candidate.studentId
         )
       }
