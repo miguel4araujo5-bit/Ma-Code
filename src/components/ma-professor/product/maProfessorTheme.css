@@ -5,6 +5,12 @@
   transition: background-color 180ms ease, color 180ms ease;
 }
 
+@media (min-width: 1280px) {
+  .ma-professor-product {
+    padding-left: 20rem;
+  }
+}
+
 .ma-professor-product[data-theme='light'] {
   --ma-professor-accent: #2563eb;
   --ma-professor-accent-strong: #1d4ed8;
