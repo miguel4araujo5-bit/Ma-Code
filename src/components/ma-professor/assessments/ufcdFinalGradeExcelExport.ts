@@ -17,38 +17,50 @@ import type {
 } from './assessmentWorkspaceRepository'
 
 import {
+  resolveModuleCompletionDate
+} from './ufcdCompletionDate'
+
+import {
   buildUfcdCfpModel
 } from './ufcdCfpModel'
 
-const XLSX_MIME =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+import {
+  clearWorksheetCell,
+  loadOfficialUfcdXlsmTemplate,
+  setWorksheetFormula,
+  setWorksheetNumber,
+  setWorksheetString,
+  writeOfficialUfcdXlsm,
+  type OfficialXlsmFiles
+} from './ufcdOfficialXlsmTemplate'
+
+const XLSM_MIME =
+  'application/vnd.ms-excel.sheet.macroEnabled.12'
+
+const HOME_SHEET =
+  'xl/worksheets/sheet1.xml'
+const CFP_SHEET =
+  'xl/worksheets/sheet14.xml'
 
 const OFFICIAL_MOMENT_SHEETS = [
-  'P1I1',
-  'P1I2',
-  'P1I3',
-  'P1I4',
-  'P1I5',
-  'P2I1',
-  'P2I2',
-  'P2I3',
-  'P2I4',
-  'P2I5',
-  'P3I1',
-  'P3I2',
-  'P3I3',
-  'P3I4',
-  'P3I5'
+  { name: 'P1I1', path: 'xl/worksheets/sheet2.xml' },
+  { name: 'P1I2', path: 'xl/worksheets/sheet17.xml' },
+  { name: 'P1I3', path: 'xl/worksheets/sheet18.xml' },
+  { name: 'P1I4', path: 'xl/worksheets/sheet19.xml' },
+  { name: 'P1I5', path: 'xl/worksheets/sheet20.xml' },
+  { name: 'P2I1', path: 'xl/worksheets/sheet3.xml' },
+  { name: 'P2I2', path: 'xl/worksheets/sheet4.xml' },
+  { name: 'P2I3', path: 'xl/worksheets/sheet5.xml' },
+  { name: 'P2I4', path: 'xl/worksheets/sheet6.xml' },
+  { name: 'P2I5', path: 'xl/worksheets/sheet7.xml' },
+  { name: 'P3I1', path: 'xl/worksheets/sheet8.xml' },
+  { name: 'P3I2', path: 'xl/worksheets/sheet9.xml' },
+  { name: 'P3I3', path: 'xl/worksheets/sheet10.xml' },
+  { name: 'P3I4', path: 'xl/worksheets/sheet11.xml' },
+  { name: 'P3I5', path: 'xl/worksheets/sheet12.xml' }
 ] as const
 
-type XlsxModule =
-  typeof import('xlsx')
-
-type MatrixValue =
-  string | number | null
-
-interface EvaluationMoment {
-  sheetName: string
+type EvaluationMoment = {
   lessonId: EntityId
   date: string
   title: string
@@ -56,68 +68,6 @@ interface EvaluationMoment {
     EntityId,
     Map<EntityId, AssessmentResult>
   >
-}
-
-function createMatrix(
-  rows: number,
-  columns: number
-): MatrixValue[][] {
-  return Array.from(
-    { length: rows },
-    () =>
-      Array.from(
-        { length: columns },
-        () => ''
-      )
-  )
-}
-
-function put(
-  XLSX: XlsxModule,
-  matrix: MatrixValue[][],
-  address: string,
-  value: MatrixValue
-) {
-  const cell =
-    XLSX.utils.decode_cell(address)
-
-  while (
-    matrix.length <= cell.r
-  ) {
-    matrix.push([])
-  }
-
-  while (
-    matrix[cell.r].length <= cell.c
-  ) {
-    matrix[cell.r].push('')
-  }
-
-  matrix[cell.r][cell.c] = value
-}
-
-function setCellNumberFormat(
-  XLSX: XlsxModule,
-  sheet: import('xlsx').WorkSheet,
-  address: string,
-  format: string
-) {
-  const cell = sheet[address]
-
-  if (cell) {
-    cell.z = format
-  }
-}
-
-function momentSheetName(
-  index: number
-) {
-  const period =
-    Math.floor(index / 5) + 1
-  const instrument =
-    (index % 5) + 1
-
-  return `P${period}I${instrument}`
 }
 
 function cleanMomentTitle(
@@ -157,44 +107,29 @@ async function loadEvaluationMoments(
       AssessmentResult[]
     >()
 
-  results.forEach(
-    result => {
-      const current =
-        resultsByAssessment.get(
-          result.assessmentId
-        ) ?? []
+  for (const result of results) {
+    const current =
+      resultsByAssessment.get(
+        result.assessmentId
+      ) ?? []
 
-      current.push(result)
-
-      resultsByAssessment.set(
-        result.assessmentId,
-        current
-      )
-    }
-  )
+    current.push(result)
+    resultsByAssessment.set(
+      result.assessmentId,
+      current
+    )
+  }
 
   const orderedActivities =
     [...snapshot.activities].sort(
-      (left, right) => {
-        const date =
-          left.lesson.date.localeCompare(
-            right.lesson.date
-          )
-
-        if (date !== 0) {
-          return date
-        }
-
-        const time =
-          left.lesson.startTime.localeCompare(
-            right.lesson.startTime
-          )
-
-        if (time !== 0) {
-          return time
-        }
-
-        return left.assessment.title.localeCompare(
+      (left, right) =>
+        left.lesson.date.localeCompare(
+          right.lesson.date
+        ) ||
+        left.lesson.startTime.localeCompare(
+          right.lesson.startTime
+        ) ||
+        left.assessment.title.localeCompare(
           right.assessment.title,
           'pt-PT',
           {
@@ -202,155 +137,266 @@ async function loadEvaluationMoments(
             sensitivity: 'base'
           }
         )
-      }
     )
 
-  const groups =
-    new Map<
-      EntityId,
-      Omit<EvaluationMoment, 'sheetName'>
-    >()
+  const moments =
+    new Map<EntityId, EvaluationMoment>()
 
-  orderedActivities.forEach(
-    activity => {
-      const key =
-        activity.lesson.id
-
-      const existing =
-        groups.get(key)
-
-      const title =
-        activity.assessment.description
-          .trim() ||
-        cleanMomentTitle(
-          activity.assessment.title
-        ) ||
-        activity.assessment.title
-
-      const resultsForCriterion =
-        new Map<
-          EntityId,
-          AssessmentResult
-        >(
-          (
-            resultsByAssessment.get(
-              activity.assessment.id
-            ) ?? []
-          ).map(
-            result => [
-              result.studentId,
-              result
-            ]
-          )
+  for (const activity of orderedActivities) {
+    const resultsForCriterion =
+      new Map<EntityId, AssessmentResult>(
+        (
+          resultsByAssessment.get(
+            activity.assessment.id
+          ) ?? []
+        ).map(
+          result => [
+            result.studentId,
+            result
+          ]
         )
-
-      if (existing) {
-        existing.resultsByCriterion.set(
-          activity.criterion.id,
-          resultsForCriterion
-        )
-        return
-      }
-
-      groups.set(
-        key,
-        {
-          lessonId: key,
-          date: activity.lesson.date,
-          title,
-          resultsByCriterion:
-            new Map([
-              [
-                activity.criterion.id,
-                resultsForCriterion
-              ]
-            ])
-        }
       )
-    }
-  )
 
-  return Array.from(
-    groups.values()
-  ).map(
-    (moment, index) => ({
-      ...moment,
-      sheetName:
-        momentSheetName(index)
-    })
-  )
+    const title =
+      activity.assessment.description
+        .trim() ||
+      cleanMomentTitle(
+        activity.assessment.title
+      ) ||
+      activity.assessment.title
+
+    const existing =
+      moments.get(
+        activity.lesson.id
+      )
+
+    if (existing) {
+      existing.resultsByCriterion.set(
+        activity.criterion.id,
+        resultsForCriterion
+      )
+      continue
+    }
+
+    moments.set(
+      activity.lesson.id,
+      {
+        lessonId:
+          activity.lesson.id,
+        date:
+          activity.lesson.date,
+        title,
+        resultsByCriterion:
+          new Map([
+            [
+              activity.criterion.id,
+              resultsForCriterion
+            ]
+          ])
+      }
+    )
+  }
+
+  return [...moments.values()]
 }
 
-function buildHomeSheet(
-  XLSX: XlsxModule,
-  snapshot: AssessmentWorkspaceSnapshot
+function columnName(
+  zeroBasedColumn: number
+) {
+  let value =
+    zeroBasedColumn + 1
+  let result = ''
+
+  while (value > 0) {
+    const remainder =
+      (value - 1) % 26
+
+    result =
+      String.fromCharCode(
+        65 + remainder
+      ) + result
+
+    value =
+      Math.floor(
+        (value - 1) / 26
+      )
+  }
+
+  return result
+}
+
+function excelSerialFromIsoDate(
+  value: string | null
+) {
+  const match =
+    value?.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    )
+
+  if (!match) {
+    return null
+  }
+
+  const timestamp =
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3])
+    )
+  const excelEpoch =
+    Date.UTC(1899, 11, 30)
+
+  return (
+    timestamp - excelEpoch
+  ) / 86_400_000
+}
+
+function formatIsoDate(
+  value: string | null
+) {
+  const match =
+    value?.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    )
+
+  return match
+    ? `${match[3]}/${match[2]}/${match[1]}`
+    : ''
+}
+
+function clearHomeInputs(
+  files: OfficialXlsmFiles
+) {
+  for (
+    let row = 6;
+    row <= 35;
+    row += 1
+  ) {
+    for (const column of [
+      'H',
+      'I',
+      'J',
+      'K',
+      'L'
+    ]) {
+      clearWorksheetCell(
+        files,
+        HOME_SHEET,
+        `${column}${row}`
+      )
+    }
+  }
+
+  for (
+    let row = 15;
+    row <= 20;
+    row += 1
+  ) {
+    for (const column of [
+      'C',
+      'E',
+      'F'
+    ]) {
+      clearWorksheetCell(
+        files,
+        HOME_SHEET,
+        `${column}${row}`
+      )
+    }
+  }
+}
+
+function populateHome(
+  files: OfficialXlsmFiles,
+  snapshot: AssessmentWorkspaceSnapshot,
+  completionDate: string | null
 ) {
   const model =
     buildUfcdCfpModel(snapshot)
-  const matrix =
-    createMatrix(40, 16)
 
-  put(XLSX, matrix, 'N2', 'Designação')
-  put(
-    XLSX,
-    matrix,
-    'N3',
-    'Instrumentos de recolha de dados'
+  clearHomeInputs(files)
+
+  const fields: Array<
+    [string, string]
+  > = [
+    ['D6', model.academicYear],
+    ['D7', model.subject],
+    ['D8', model.gradeLevel],
+    ['D9', model.group],
+    ['D10', model.course],
+    ['D11', model.moduleLabel]
+  ]
+
+  for (const [address, value] of fields) {
+    setWorksheetString(
+      files,
+      HOME_SHEET,
+      address,
+      value
+    )
+  }
+
+  const formattedCompletionDate =
+    formatIsoDate(completionDate)
+
+  model.rows.forEach(
+    (student, index) => {
+      const row = 6 + index
+
+      // Nº Processo fica intencionalmente em branco
+      // até existir uma fonte segura para este dado.
+      setWorksheetString(
+        files,
+        HOME_SHEET,
+        `I${row}`,
+        student.studentNumber
+      )
+      setWorksheetString(
+        files,
+        HOME_SHEET,
+        `J${row}`,
+        student.studentName
+      )
+
+      if (student.usesAcs) {
+        setWorksheetString(
+          files,
+          HOME_SHEET,
+          `K${row}`,
+          'sim'
+        )
+      }
+
+      if (formattedCompletionDate) {
+        setWorksheetString(
+          files,
+          HOME_SHEET,
+          `L${row}`,
+          formattedCompletionDate
+        )
+      }
+    }
   )
-  put(XLSX, matrix, 'H4', 'DADOS DA TURMA')
-  put(XLSX, matrix, 'H5', 'Nº PROCESSO')
-  put(XLSX, matrix, 'I5', 'Nº')
-  put(XLSX, matrix, 'J5', 'Nome do aluno')
-  put(XLSX, matrix, 'K5', 'Medidas')
-
-  put(XLSX, matrix, 'B6', 'Ano letivo')
-  put(XLSX, matrix, 'D6', model.academicYear)
-  put(XLSX, matrix, 'B7', 'Disciplina')
-  put(XLSX, matrix, 'D7', model.subject)
-  put(XLSX, matrix, 'B8', 'Ano do curso')
-  put(XLSX, matrix, 'D8', model.gradeLevel)
-  put(XLSX, matrix, 'B9', 'Turma')
-  put(XLSX, matrix, 'D9', model.group)
-  put(XLSX, matrix, 'B10', 'Curso')
-  put(XLSX, matrix, 'D10', model.course)
-  put(XLSX, matrix, 'B11', 'Módulo / UFCD')
-  put(XLSX, matrix, 'D11', model.moduleLabel)
-
-  put(
-    XLSX,
-    matrix,
-    'B13',
-    'Domínios / Temas da disciplina'
-  )
-  put(XLSX, matrix, 'B14', 'Nº')
-  put(XLSX, matrix, 'C14', 'Designação')
-  put(XLSX, matrix, 'E14', 'Abreviatura')
-  put(XLSX, matrix, 'F14', 'Ponderação')
 
   model.criteria.forEach(
     (criterion, index) => {
       const row = 15 + index
-      put(
-        XLSX,
-        matrix,
-        `B${row}`,
-        index + 1
-      )
-      put(
-        XLSX,
-        matrix,
+
+      setWorksheetString(
+        files,
+        HOME_SHEET,
         `C${row}`,
         criterion.name
       )
-      put(
-        XLSX,
-        matrix,
+      setWorksheetString(
+        files,
+        HOME_SHEET,
         `E${row}`,
         criterion.label
       )
-      put(
-        XLSX,
-        matrix,
+      setWorksheetNumber(
+        files,
+        HOME_SHEET,
         `F${row}`,
         criterion.weightPercent
       )
@@ -360,698 +406,331 @@ function buildHomeSheet(
   const acsRow =
     15 + model.criteria.length
 
-  put(XLSX, matrix, `B${acsRow}`, model.criteria.length + 1)
-  put(
-    XLSX,
-    matrix,
+  setWorksheetString(
+    files,
+    HOME_SHEET,
     `C${acsRow}`,
     'Medidas para Adaptações Curriculares Significativas'
   )
-  put(XLSX, matrix, `E${acsRow}`, 'ACS')
-  put(XLSX, matrix, `F${acsRow}`, 100)
-
-  model.rows.forEach(
-    (row, index) => {
-      const targetRow = 6 + index
-      put(
-        XLSX,
-        matrix,
-        `H${targetRow}`,
-        row.processNumber
-      )
-      put(
-        XLSX,
-        matrix,
-        `I${targetRow}`,
-        row.studentNumber
-      )
-      put(
-        XLSX,
-        matrix,
-        `J${targetRow}`,
-        row.studentName
-      )
-      put(
-        XLSX,
-        matrix,
-        `K${targetRow}`,
-        row.usesAcs
-          ? 'sim'
-          : ''
-      )
-    }
+  setWorksheetString(
+    files,
+    HOME_SHEET,
+    `E${acsRow}`,
+    'ACS'
   )
-
-  const sheet =
-    XLSX.utils.aoa_to_sheet(matrix)
-
-  sheet['!cols'] = [
-    { wch: 3 },
-    { wch: 18 },
-    { wch: 42 },
-    { wch: 4 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 3 },
-    { wch: 14 },
-    { wch: 7 },
-    { wch: 38 },
-    { wch: 12 }
-  ]
-
-  return sheet
+  setWorksheetNumber(
+    files,
+    HOME_SHEET,
+    `F${acsRow}`,
+    100
+  )
 }
 
-function buildMomentSheet(
-  XLSX: XlsxModule,
-  snapshot: AssessmentWorkspaceSnapshot,
-  moment: EvaluationMoment | null,
-  fallbackName: string
+function clearMomentInputs(
+  files: OfficialXlsmFiles,
+  sheetPath: string
+) {
+  clearWorksheetCell(
+    files,
+    sheetPath,
+    'G2'
+  )
+
+  for (
+    let columnIndex = 4;
+    columnIndex <= 49;
+    columnIndex += 1
+  ) {
+    const column =
+      columnName(columnIndex)
+
+    for (const row of [8, 9, 12, 13]) {
+      clearWorksheetCell(
+        files,
+        sheetPath,
+        `${column}${row}`
+      )
+    }
+
+    for (
+      let row = 14;
+      row <= 43;
+      row += 1
+    ) {
+      clearWorksheetCell(
+        files,
+        sheetPath,
+        `${column}${row}`
+      )
+    }
+  }
+}
+
+function populateMoment(
+  files: OfficialXlsmFiles,
+  sheetPath: string,
+  moment: EvaluationMoment,
+  snapshot: AssessmentWorkspaceSnapshot
 ) {
   const model =
     buildUfcdCfpModel(snapshot)
-  const matrix =
-    createMatrix(
-      Math.max(55, 15 + model.rows.length),
-      36
+  const criteriaById =
+    new Map(
+      model.criteria.map(
+        (criterion, index) => [
+          criterion.id,
+          {
+            criterion,
+            index
+          }
+        ]
+      )
     )
 
-  put(
-    XLSX,
-    matrix,
-    'E1',
-    'DESIGNAÇÃO DO INSTRUMENTO DE AVALIAÇÃO'
-  )
-  put(XLSX, matrix, 'P1', 'CURSO')
-  put(XLSX, matrix, 'Z1', 'MÓDULO / UFCD')
-  put(XLSX, matrix, 'E2', 'Nome:')
-  put(
-    XLSX,
-    matrix,
-    'G2',
-    moment?.title ||
-      `${fallbackName} · sem avaliação registada`
-  )
-  put(XLSX, matrix, 'P2', model.course)
-  put(XLSX, matrix, 'Z2', model.moduleLabel)
-  put(
-    XLSX,
-    matrix,
-    'E5',
-    `Disciplina: ${model.subject}`
-  )
-  put(
-    XLSX,
-    matrix,
-    'Z5',
-    `Ano: ${model.gradeLevel}`
-  )
-  put(
-    XLSX,
-    matrix,
-    'AD5',
-    `Turma: ${model.group}`
-  )
-  put(
-    XLSX,
-    matrix,
-    'AH5',
-    `Ano Letivo: ${model.academicYear}`
-  )
-  put(XLSX, matrix, 'B7', 'Geral')
-  put(XLSX, matrix, 'C7', 'Nº do item')
-  put(XLSX, matrix, 'D7', 'MEDIDAS')
-  put(XLSX, matrix, 'C8', 'Nº do domínio / tema')
-  put(XLSX, matrix, 'C9', 'Pontuação')
-
-  model.criteria.forEach(
-    (criterion, index) => {
-      const column =
-        XLSX.utils.encode_col(
-          4 + index
-        )
-      put(
-        XLSX,
-        matrix,
-        `${column}8`,
-        criterion.label
-      )
-      put(
-        XLSX,
-        matrix,
-        `${column}9`,
-        criterion.weightPercent
-      )
-    }
-  )
-
-  model.rows.forEach(
-    (student, studentIndex) => {
-      const row = 14 + studentIndex
-
-      put(
-        XLSX,
-        matrix,
-        `A${row}`,
-        student.processNumber
-      )
-      put(
-        XLSX,
-        matrix,
-        `B${row}`,
-        student.studentNumber
-      )
-      put(
-        XLSX,
-        matrix,
-        `C${row}`,
-        student.studentName
-      )
-      put(
-        XLSX,
-        matrix,
-        `D${row}`,
-        student.usesAcs
-          ? 'sim'
-          : ''
-      )
-
-      model.criteria.forEach(
-        (criterion, criterionIndex) => {
-          const column =
-            XLSX.utils.encode_col(
-              4 + criterionIndex
+  const criterionEntries =
+    [...moment.resultsByCriterion.entries()]
+      .flatMap(
+        ([criterionId, results]) => {
+          const resolved =
+            criteriaById.get(
+              criterionId
             )
 
-          const result =
-            moment
-              ?.resultsByCriterion
-              .get(criterion.id)
-              ?.get(
-                snapshot.studentRows[
-                  studentIndex
-                ]?.student.id ?? ''
-              )
+          return resolved
+            ? [
+                {
+                  ...resolved,
+                  criterionId,
+                  results
+                }
+              ]
+            : []
+        }
+      )
+      .sort(
+        (left, right) =>
+          left.index - right.index
+      )
 
-          let value:
-            MatrixValue = ''
+  setWorksheetString(
+    files,
+    sheetPath,
+    'G2',
+    moment.title || moment.date
+  )
+
+  const acsInternalDomain =
+    `D${model.criteria.length + 1}`
+
+  criterionEntries.forEach(
+    (entry, itemIndex) => {
+      const column =
+        columnName(
+          4 + itemIndex
+        )
+
+      setWorksheetString(
+        files,
+        sheetPath,
+        `${column}8`,
+        entry.criterion.label
+      )
+      setWorksheetNumber(
+        files,
+        sheetPath,
+        `${column}9`,
+        20
+      )
+      setWorksheetString(
+        files,
+        sheetPath,
+        `${column}12`,
+        acsInternalDomain
+      )
+      setWorksheetNumber(
+        files,
+        sheetPath,
+        `${column}13`,
+        20
+      )
+
+      snapshot.studentRows.forEach(
+        (studentRow, studentIndex) => {
+          const result =
+            entry.results.get(
+              studentRow.student.id
+            )
 
           if (
-            result?.status ===
+            result?.status !==
             'evaluated'
           ) {
-            value =
-              Math.round(
-                (
-                  result.score /
-                  20 *
-                  criterion.weightPercent
-                ) * 100
-              ) / 100
-          } else if (
-            result?.status ===
-            'absent'
-          ) {
-            value = 'F'
-          } else if (
-            result?.status ===
-            'exempt'
-          ) {
-            value = '—'
+            return
           }
 
-          put(
-            XLSX,
-            matrix,
-            `${column}${row}`,
-            value
+          setWorksheetNumber(
+            files,
+            sheetPath,
+            `${column}${14 + studentIndex}`,
+            result.score
           )
         }
       )
     }
   )
-
-  put(
-    XLSX,
-    matrix,
-    'E45',
-    'SOMA DAS PONTUAÇÕES POR DOMÍNIO + TOTAL (informação para o professor)'
-  )
-
-  if (moment?.date) {
-    put(
-      XLSX,
-      matrix,
-      'E46',
-      `Data: ${moment.date}`
-    )
-  }
-
-  const sheet =
-    XLSX.utils.aoa_to_sheet(matrix)
-
-  sheet['!cols'] = [
-    { wch: 13 },
-    { wch: 7 },
-    { wch: 38 },
-    { wch: 12 },
-    ...model.criteria.map(
-      () => ({ wch: 11 })
-    )
-  ]
-
-  sheet['!merges'] = [
-    {
-      s: { r: 0, c: 4 },
-      e: { r: 0, c: 13 }
-    },
-    {
-      s: { r: 0, c: 15 },
-      e: { r: 0, c: 23 }
-    },
-    {
-      s: { r: 0, c: 25 },
-      e: { r: 0, c: 34 }
-    }
-  ]
-
-  return sheet
 }
 
-function buildCfpSheet(
-  XLSX: XlsxModule,
-  snapshot: AssessmentWorkspaceSnapshot
+function populateCfpInputs(
+  files: OfficialXlsmFiles,
+  snapshot: AssessmentWorkspaceSnapshot,
+  completionDate: string | null
 ) {
   const model =
     buildUfcdCfpModel(snapshot)
-
-  const headers = [
-    'Nº Processo',
-    'Nº',
-    'Aluno / Domínio',
-    ...model.criteria.map(
-      criterion =>
-        criterion.label
-    ),
-    'ACS',
-    'Nível Automático',
-    'Autoavaliação',
-    'Nível Final',
-    'Assinatura do Formando'
-  ]
-
-  const weights = [
-    '',
-    '',
-    '',
-    ...model.criteria.map(
-      criterion =>
-        criterion.weightPercent /
-        100
-    ),
-    1,
-    '',
-    '',
-    '',
-    ''
-  ]
-
-  const rows:
-    MatrixValue[][] = [
-      [
-        'CÁLCULOS DE FINAL DE MÓDULO/UFCD',
-        '',
-        '',
-        `CURSO: ${model.course}`,
-        '',
-        '',
-        `MÓDULO/UFCD: ${model.moduleLabel}`
-      ],
-      [
-        `Disciplina: ${model.subject}`,
-        '',
-        '',
-        `Ano: ${model.gradeLevel}`,
-        '',
-        `Turma: ${model.group}`,
-        '',
-        `Ano letivo: ${model.academicYear}`
-      ],
-      weights,
-      headers
-    ]
 
   model.rows.forEach(
-    row => {
-      rows.push([
-        row.processNumber,
-        row.studentNumber,
-        row.studentName,
-        ...row.criterionScores,
-        row.acsScore,
-        row.automaticLevel,
-        row.selfAssessmentGrade,
-        row.finalGrade,
-        ''
-      ])
+    (student, index) => {
+      const row = 12 + index
+
+      clearWorksheetCell(
+        files,
+        CFP_SHEET,
+        `AI${row}`
+      )
+
+      if (
+        student.selfAssessmentGrade !== null
+      ) {
+        setWorksheetNumber(
+          files,
+          CFP_SHEET,
+          `AI${row}`,
+          student.selfAssessmentGrade
+        )
+      }
+
+      if (student.finalGrade !== null) {
+        setWorksheetNumber(
+          files,
+          CFP_SHEET,
+          `BW${row}`,
+          student.finalGrade
+        )
+      }
     }
   )
 
-  const studentRowCount =
-    Math.max(
-      25,
-      model.rows.length
+  const serial =
+    excelSerialFromIsoDate(
+      completionDate
     )
 
-  while (
-    rows.length <
-    4 + studentRowCount
-  ) {
-    rows.push(
-      Array.from(
-        { length: headers.length },
-        () => ''
-      )
+  if (serial === null) {
+    clearWorksheetCell(
+      files,
+      CFP_SHEET,
+      'AI80'
+    )
+  } else {
+    setWorksheetNumber(
+      files,
+      CFP_SHEET,
+      'AI80',
+      serial
     )
   }
-
-  rows.push([])
-  rows.push([
-    'AVALIAÇÃO GLOBAL',
-    ...model.gradeBands.map(
-      band => band.label
-    ),
-    'NEGATIVO',
-    'POSITIVO'
-  ])
-  rows.push([
-    'Nº',
-    ...model.gradeBands.map(
-      band => band.count
-    ),
-    model.negativeCount,
-    model.positiveCount
-  ])
-  rows.push([
-    '%',
-    ...model.gradeBands.map(
-      band =>
-        band.percent /
-        100
-    ),
-    model.negativePercent / 100,
-    model.positivePercent / 100
-  ])
-  rows.push([])
-  rows.push([
-    'Formandos Avaliados',
-    model.evaluatedCount,
-    '',
-    'Data de Conclusão do Módulo',
-    model.completionDate,
-    '',
-    '',
-    'O/A Professor(a)'
-  ])
-
-  const sheet =
-    XLSX.utils.aoa_to_sheet(rows)
-
-  sheet['!cols'] = [
-    { wch: 13 },
-    { wch: 7 },
-    { wch: 38 },
-    ...model.criteria.map(
-      () => ({ wch: 11 })
-    ),
-    { wch: 11 },
-    { wch: 16 },
-    { wch: 15 },
-    { wch: 13 },
-    { wch: 24 }
-  ]
-
-  model.criteria.forEach(
-    (_, index) =>
-      setCellNumberFormat(
-        XLSX,
-        sheet,
-        XLSX.utils.encode_cell({
-          r: 2,
-          c: 3 + index
-        }),
-        '0%'
-      )
-  )
-
-  setCellNumberFormat(
-    XLSX,
-    sheet,
-    XLSX.utils.encode_cell({
-      r: 2,
-      c: 3 + model.criteria.length
-    }),
-    '0%'
-  )
-
-  const percentRow =
-    rows.findIndex(
-      row => row[0] === '%'
-    )
-
-  if (percentRow >= 0) {
-    for (
-      let column = 1;
-      column <= 7;
-      column += 1
-    ) {
-      setCellNumberFormat(
-        XLSX,
-        sheet,
-        XLSX.utils.encode_cell({
-          r: percentRow,
-          c: column
-        }),
-        '0%'
-      )
-    }
-  }
-
-  return sheet
-}
-
-function buildPrintSheet(
-  XLSX: XlsxModule,
-  moments: EvaluationMoment[]
-) {
-  return XLSX.utils.aoa_to_sheet([
-    [
-      'INSTRUMENTOS DE AVALIAÇÃO',
-      'Data',
-      'Designação'
-    ],
-    ...moments.map(
-      moment => [
-        moment.sheetName,
-        moment.date,
-        moment.title
-      ]
-    )
-  ])
-}
-
-function buildPrintCfpSheet(
-  XLSX: XlsxModule,
-  snapshot: AssessmentWorkspaceSnapshot
-) {
-  const model =
-    buildUfcdCfpModel(snapshot)
-
-  return XLSX.utils.aoa_to_sheet([
-    ['INFORMAÇÃO DE FINAL DE MÓDULO/UFCD'],
-    ['Turma:', model.group],
-    ['Disciplina:', model.subject],
-    ['Módulo / UFCD:', model.moduleLabel],
-    ['Ano letivo:', model.academicYear],
-    [],
-    [
-      'A impressão oficial corresponde à folha CFP.'
-    ]
-  ])
-}
-
-function buildAutoSheet(
-  XLSX: XlsxModule,
-  snapshot: AssessmentWorkspaceSnapshot
-) {
-  const model =
-    buildUfcdCfpModel(snapshot)
-
-  return XLSX.utils.aoa_to_sheet([
-    [
-      'Nº',
-      'Aluno',
-      'Nível Automático',
-      'Autoavaliação',
-      'Nível Final'
-    ],
-    ...model.rows.map(
-      row => [
-        row.studentNumber,
-        row.studentName,
-        row.automaticLevel,
-        row.selfAssessmentGrade,
-        row.finalGrade
-      ]
-    )
-  ])
 }
 
 export async function exportUfcdFinalGradeExcel(
   snapshot: AssessmentWorkspaceSnapshot
 ) {
-  const model =
-    buildUfcdCfpModel(snapshot)
-  const moments =
-    await loadEvaluationMoments(
-      snapshot
+  if (
+    !snapshot.selectedModule ||
+    !snapshot.selectedGroup ||
+    !snapshot.selectedSubject
+  ) {
+    throw new Error(
+      'Selecione uma turma, disciplina e UFCD/UC antes de exportar.'
     )
-  const XLSX =
-    await import('xlsx')
-
-  const workbook =
-    XLSX.utils.book_new()
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    buildHomeSheet(
-      XLSX,
-      snapshot
-    ),
-    'HOME'
-  )
-
-  const momentByName =
-    new Map(
-      moments.map(
-        moment => [
-          moment.sheetName,
-          moment
-        ]
-      )
-    )
-
-  const momentNames = [
-    ...OFFICIAL_MOMENT_SHEETS,
-    ...moments
-      .slice(
-        OFFICIAL_MOMENT_SHEETS.length
-      )
-      .map(
-        moment =>
-          moment.sheetName
-      )
-  ]
-
-  momentNames.forEach(
-    sheetName => {
-      XLSX.utils.book_append_sheet(
-        workbook,
-        buildMomentSheet(
-          XLSX,
-          snapshot,
-          momentByName.get(
-            sheetName
-          ) ?? null,
-          sheetName
-        ),
-        sheetName
-      )
-    }
-  )
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    buildPrintSheet(
-      XLSX,
-      moments
-    ),
-    'PRINT'
-  )
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    buildCfpSheet(
-      XLSX,
-      snapshot
-    ),
-    'CFP'
-  )
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    buildPrintCfpSheet(
-      XLSX,
-      snapshot
-    ),
-    'PRINTCFP'
-  )
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    buildAutoSheet(
-      XLSX,
-      snapshot
-    ),
-    'AUTO'
-  )
-
-  const hiddenSheets =
-    new Set([
-      'P2I1',
-      'P2I2',
-      'P2I3',
-      'P2I4',
-      'P2I5',
-      'P3I1',
-      'P3I2',
-      'P3I3',
-      'P3I4',
-      'P3I5',
-      'PRINT',
-      'PRINTCFP',
-      'AUTO'
-    ])
-
-  workbook.Workbook = {
-    Sheets:
-      workbook.SheetNames.map(
-        name => ({
-          Hidden:
-            hiddenSheets.has(name)
-              ? 1
-              : 0
-        })
-      )
   }
 
-  const bytes =
-    XLSX.write(
-      workbook,
-      {
-        bookType: 'xlsx',
-        type: 'array',
-        compression: true
-      }
+  if (snapshot.studentRows.length > 30) {
+    throw new Error(
+      'O modelo oficial XLSM suporta até 30 formandos nesta grelha.'
     )
+  }
+
+  if (snapshot.criteria.length > 5) {
+    throw new Error(
+      'O modelo oficial XLSM suporta até cinco domínios regulares mais ACS.'
+    )
+  }
+
+  const [
+    completionDate,
+    moments,
+    files
+  ] = await Promise.all([
+    resolveModuleCompletionDate(
+      snapshot.selectedModule
+    ),
+    loadEvaluationMoments(snapshot),
+    loadOfficialUfcdXlsmTemplate()
+  ])
+
+  if (
+    moments.length >
+    OFFICIAL_MOMENT_SHEETS.length
+  ) {
+    throw new Error(
+      'O modelo oficial XLSM suporta até 15 instrumentos de avaliação (cinco por período).'
+    )
+  }
+
+  populateHome(
+    files,
+    snapshot,
+    completionDate
+  )
+
+  OFFICIAL_MOMENT_SHEETS.forEach(
+    sheet =>
+      clearMomentInputs(
+        files,
+        sheet.path
+      )
+  )
+
+  moments.forEach(
+    (moment, index) =>
+      populateMoment(
+        files,
+        OFFICIAL_MOMENT_SHEETS[
+          index
+        ].path,
+        moment,
+        snapshot
+      )
+  )
+
+  populateCfpInputs(
+    files,
+    snapshot,
+    completionDate
+  )
+
+  const model =
+    buildUfcdCfpModel(snapshot)
+  const bytes =
+    writeOfficialUfcdXlsm(files)
 
   downloadBlob(
     new Blob(
       [bytes],
       {
-        type: XLSX_MIME
+        type: XLSM_MIME
       }
     ),
-    `${model.fileBaseName}-Completo.xlsx`
+    `${model.fileBaseName}-Completo.xlsm`
   )
 }
