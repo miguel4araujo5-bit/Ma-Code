@@ -152,6 +152,20 @@ export default function UfcdCfpPreview({
       model.criteria.length
     )
 
+  const summaryItems = [
+    ...model.gradeBands,
+    {
+      label: 'NEGATIVO',
+      count: model.negativeCount,
+      percent: model.negativePercent
+    },
+    {
+      label: 'POSITIVO',
+      count: model.positiveCount,
+      percent: model.positivePercent
+    }
+  ]
+
   return (
     <section className="overflow-hidden rounded-[2rem] border border-slate-300/20 bg-slate-950/70 shadow-xl shadow-black/20">
       <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:px-7 xl:flex-row xl:items-center xl:justify-between">
@@ -459,37 +473,51 @@ export default function UfcdCfpPreview({
             <table className="border-collapse text-center">
               <thead>
                 <tr>
-                  <th className="border border-slate-700 bg-slate-300 px-3 py-1" rowSpan={2}>
+                  <th
+                    className="border border-slate-700 bg-slate-300 px-3 py-1"
+                    rowSpan={3}
+                  >
                     AVALIAÇÃO GLOBAL
                   </th>
-                  {model.gradeBands.map(
-                    band => (
-                      <th key={band.label} className="border border-slate-700 bg-slate-300 px-2 py-1">
-                        {band.label}
+                  {summaryItems.map(
+                    item => (
+                      <th
+                        key={item.label}
+                        colSpan={2}
+                        className="border border-slate-700 bg-slate-300 px-2 py-1"
+                      >
+                        {item.label}
                       </th>
                     )
                   )}
-                  <th className="border border-slate-700 bg-slate-300 px-2 py-1">
-                    NEGATIVO
-                  </th>
-                  <th className="border border-slate-700 bg-slate-300 px-2 py-1">
-                    POSITIVO
-                  </th>
                 </tr>
                 <tr>
-                  {model.gradeBands.map(
-                    band => (
-                      <th key={band.label} className="border border-slate-700 px-2 py-1 font-medium">
-                        {band.count} · {band.percent}%
-                      </th>
+                  {summaryItems.map(
+                    item => (
+                      <Fragment key={`summary-label-${item.label}`}>
+                        <th className="border border-slate-700 px-1 py-0.5 font-semibold">
+                          Nº
+                        </th>
+                        <th className="border border-slate-700 px-1 py-0.5 font-semibold">
+                          %
+                        </th>
+                      </Fragment>
                     )
                   )}
-                  <th className="border border-slate-700 px-2 py-1 font-medium">
-                    {model.negativeCount} · {model.negativePercent}%
-                  </th>
-                  <th className="border border-slate-700 px-2 py-1 font-medium">
-                    {model.positiveCount} · {model.positivePercent}%
-                  </th>
+                </tr>
+                <tr>
+                  {summaryItems.map(
+                    item => (
+                      <Fragment key={`summary-value-${item.label}`}>
+                        <th className="border border-slate-700 px-1 py-1 font-medium">
+                          {item.count}
+                        </th>
+                        <th className="border border-slate-700 px-1 py-1 font-medium">
+                          {item.percent}%
+                        </th>
+                      </Fragment>
+                    )
+                  )}
                 </tr>
               </thead>
             </table>
