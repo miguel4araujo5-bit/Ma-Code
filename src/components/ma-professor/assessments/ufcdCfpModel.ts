@@ -57,6 +57,40 @@ function safeFilePart(
     .replace(/^-|-$/g, '')
 }
 
+function cleanModuleDisplayName(
+  value: string
+) {
+  const normalized = value
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const contaminationMarkers = [
+    /\s+fichas?\s+de\s+avalia[cç][aã]o\b/i,
+    /\s+avalia[cç][aã]o\s*[:–—-]/i
+  ]
+
+  let end = normalized.length
+
+  for (const marker of contaminationMarkers) {
+    const match = marker.exec(normalized)
+
+    if (
+      match &&
+      match.index > 0
+    ) {
+      end = Math.min(
+        end,
+        match.index
+      )
+    }
+  }
+
+  return normalized
+    .slice(0, end)
+    .replace(/[\s–—:;-]+$/g, '')
+    .trim()
+}
+
 function formatModuleLabel(
   snapshot: AssessmentWorkspaceSnapshot
 ) {
@@ -67,10 +101,14 @@ function formatModuleLabel(
   }
 
   const code = module.code.trim()
+  const name =
+    cleanModuleDisplayName(
+      module.name
+    )
 
   return code
-    ? `${code} ${module.name}`.trim()
-    : module.name.trim()
+    ? `${code} ${name}`.trim()
+    : name
 }
 
 function formatCompletionDate(
