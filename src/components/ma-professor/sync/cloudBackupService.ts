@@ -8,8 +8,8 @@ import type {
 } from '../access/accessTypes'
 
 import type {
-  MAProfessorBackup,
-  BackupValidationResult
+  BackupValidationResult,
+  MAProfessorBackup
 } from '../types'
 
 import {
@@ -63,10 +63,8 @@ interface CloudBackupKeyResult {
 interface EncryptedCloudBackupRecord {
   encryptionVersion:
     typeof ENCRYPTION_VERSION
-
   encryptionAlgorithm:
     typeof ENCRYPTION_ALGORITHM
-
   nonce: string
   ciphertext: string
   ciphertextHash: string
@@ -100,6 +98,8 @@ export interface MAProfessorDownloadedCloudBackup {
   serverRevision: number
   recordRevision: number
   updatedAt: string
+  ciphertextHash: string
+  plaintextHash: string
 }
 
 export interface MAProfessorUploadedCloudBackup {
@@ -112,17 +112,11 @@ export interface MAProfessorUploadedCloudBackup {
 
 function isObject(
   value: unknown
-): value is Record<
-  string,
-  unknown
-> {
+): value is Record<string, unknown> {
   return (
-    typeof value ===
-      'object' &&
+    typeof value === 'object' &&
     value !== null &&
-    !Array.isArray(
-      value
-    )
+    !Array.isArray(value)
   )
 }
 
@@ -130,11 +124,8 @@ function isNonNegativeInteger(
   value: unknown
 ): value is number {
   return (
-    typeof value ===
-      'number' &&
-    Number.isInteger(
-      value
-    ) &&
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
     value >= 0
   )
 }
@@ -143,11 +134,8 @@ function isPositiveInteger(
   value: unknown
 ): value is number {
   return (
-    typeof value ===
-      'number' &&
-    Number.isInteger(
-      value
-    ) &&
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
     value >= 1
   )
 }
@@ -164,6 +152,20 @@ function assertSession(
     throw new Error(
       'A sessão do MA-Professor não está disponível.'
     )
+  }
+}
+
+function sessionBody(
+  session:
+    MAProfessorAccessSession
+) {
+  assertSession(session)
+
+  return {
+    token:
+      session.token,
+    deviceId:
+      session.deviceId
   }
 }
 
@@ -194,9 +196,7 @@ function bytesToBase64(
       )
   }
 
-  return globalThis.btoa(
-    binary
-  )
+  return globalThis.btoa(binary)
 }
 
 function base64ToBytes(
@@ -206,9 +206,7 @@ function base64ToBytes(
 
   try {
     binary =
-      globalThis.atob(
-        value
-      )
+      globalThis.atob(value)
   } catch {
     throw new Error(
       'A cópia cifrada recebida não tem um formato válido.'
@@ -226,9 +224,7 @@ function base64ToBytes(
     index += 1
   ) {
     bytes[index] =
-      binary.charCodeAt(
-        index
-      )
+      binary.charCodeAt(index)
   }
 
   return bytes
@@ -242,9 +238,7 @@ function toArrayBuffer(
       bytes.byteLength
     )
 
-  copy.set(
-    bytes
-  )
+  copy.set(bytes)
 
   return copy.buffer
 }
@@ -253,20 +247,13 @@ async function sha256Base64(
   bytes: Uint8Array
 ) {
   const digest =
-    await globalThis
-      .crypto
-      .subtle
-      .digest(
-        'SHA-256',
-        toArrayBuffer(
-          bytes
-        )
-      )
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      toArrayBuffer(bytes)
+    )
 
   return bytesToBase64(
-    new Uint8Array(
-      digest
-    )
+    new Uint8Array(digest)
   )
 }
 
@@ -276,15 +263,10 @@ async function postJson(
   fallbackMessage: string
 ) {
   const serialized =
-    JSON.stringify(
-      body
-    )
+    JSON.stringify(body)
 
   if (
-    textEncoder
-      .encode(
-        serialized
-      )
+    textEncoder.encode(serialized)
       .byteLength >
     MAX_REQUEST_BYTES
   ) {
@@ -300,20 +282,15 @@ async function postJson(
       await fetch(
         `${API_PREFIX}${path}`,
         {
-          method:
-            'POST',
-
+          method: 'POST',
           headers: {
             'Content-Type':
               'application/json',
-
             Accept:
               'application/json'
           },
-
           cache:
             'no-store',
-
           body:
             serialized
         }
@@ -337,63 +314,33 @@ async function postJson(
 
   if (!response.ok) {
     const message =
-      isObject(
-        data
-      ) &&
-      typeof data.message ===
-        'string' &&
+      isObject(data) &&
+      typeof data.message === 'string' &&
       data.message.trim()
         ? data.message.trim()
         : fallbackMessage
 
-    throw new Error(
-      message
-    )
+    throw new Error(message)
   }
 
   return data
-}
-
-function sessionBody(
-  session:
-    MAProfessorAccessSession
-) {
-  assertSession(
-    session
-  )
-
-  return {
-    token:
-      session.token,
-
-    deviceId:
-      session.deviceId
-  }
 }
 
 function parseStatus(
   value: unknown
 ): MAProfessorCloudBackupStatus {
   if (
-    !isObject(
-      value
-    ) ||
-    value.success !==
-      true ||
+    !isObject(value) ||
+    value.success !== true ||
     !isNonNegativeInteger(
       value.serverRevision
     ) ||
     !isPositiveInteger(
       value.cryptoVersion
     ) ||
-    typeof value.updatedAt !==
-      'string' ||
+    typeof value.updatedAt !== 'string' ||
     !value.updatedAt ||
-    !isObject(
-      value.backup
-    ) ||
-    typeof value.backup.found !==
-      'boolean'
+    !isObject(value.backup)
   ) {
     throw new Error(
       'O serviço devolveu um estado de cópia inválido.'
@@ -402,33 +349,27 @@ function parseStatus(
 
   const backup =
     value.backup
-
+  const found =
+    backup.found
   const recordRevision =
     backup.recordRevision
-
   const backupUpdatedAt =
     backup.updatedAt
-
   const ciphertextBytes =
     backup.ciphertextBytes
 
   if (
+    typeof found !== 'boolean' ||
     !(
-      recordRevision ===
-        null ||
-      isPositiveInteger(
-        recordRevision
-      )
+      recordRevision === null ||
+      isPositiveInteger(recordRevision)
     ) ||
     !(
-      backupUpdatedAt ===
-        null ||
-      typeof backupUpdatedAt ===
-        'string'
+      backupUpdatedAt === null ||
+      typeof backupUpdatedAt === 'string'
     ) ||
     !(
-      ciphertextBytes ===
-        null ||
+      ciphertextBytes === null ||
       isNonNegativeInteger(
         ciphertextBytes
       )
@@ -440,27 +381,18 @@ function parseStatus(
   }
 
   return {
-    success:
-      true,
-
+    success: true,
     serverRevision:
       value.serverRevision,
-
     cryptoVersion:
       value.cryptoVersion,
-
     updatedAt:
       value.updatedAt,
-
     backup: {
-      found:
-        backup.found,
-
+      found,
       recordRevision,
-
       updatedAt:
         backupUpdatedAt,
-
       ciphertextBytes
     }
   }
@@ -470,18 +402,14 @@ function parseKey(
   value: unknown
 ): CloudBackupKeyResult {
   if (
-    !isObject(
-      value
-    ) ||
-    value.success !==
-      true ||
+    !isObject(value) ||
+    value.success !== true ||
     !isPositiveInteger(
       value.cryptoVersion
     ) ||
     value.keyAlgorithm !==
       ENCRYPTION_ALGORITHM ||
-    typeof value.key !==
-      'string' ||
+    typeof value.key !== 'string' ||
     !value.key
   ) {
     throw new Error(
@@ -490,10 +418,8 @@ function parseKey(
   }
 
   if (
-    base64ToBytes(
-      value.key
-    ).byteLength !==
-    32
+    base64ToBytes(value.key)
+      .byteLength !== 32
   ) {
     throw new Error(
       'A chave de cópia devolvida não tem o tamanho esperado.'
@@ -501,15 +427,11 @@ function parseKey(
   }
 
   return {
-    success:
-      true,
-
+    success: true,
     cryptoVersion:
       value.cryptoVersion,
-
     keyAlgorithm:
       ENCRYPTION_ALGORITHM,
-
     key:
       value.key
   }
@@ -519,21 +441,16 @@ function parseEncryptedRecord(
   value: unknown
 ): EncryptedCloudBackupRecord {
   if (
-    !isObject(
-      value
-    ) ||
+    !isObject(value) ||
     value.encryptionVersion !==
       ENCRYPTION_VERSION ||
     value.encryptionAlgorithm !==
       ENCRYPTION_ALGORITHM ||
-    typeof value.nonce !==
-      'string' ||
+    typeof value.nonce !== 'string' ||
     !value.nonce ||
-    typeof value.ciphertext !==
-      'string' ||
+    typeof value.ciphertext !== 'string' ||
     !value.ciphertext ||
-    typeof value.ciphertextHash !==
-      'string' ||
+    typeof value.ciphertextHash !== 'string' ||
     !value.ciphertextHash
   ) {
     throw new Error(
@@ -544,16 +461,12 @@ function parseEncryptedRecord(
   return {
     encryptionVersion:
       ENCRYPTION_VERSION,
-
     encryptionAlgorithm:
       ENCRYPTION_ALGORITHM,
-
     nonce:
       value.nonce,
-
     ciphertext:
       value.ciphertext,
-
     ciphertextHash:
       value.ciphertextHash
   }
@@ -563,15 +476,10 @@ function parseGetResult(
   value: unknown
 ): CloudBackupGetResult {
   if (
-    !isObject(
-      value
-    ) ||
-    value.success !==
-      true ||
-    typeof value.found !==
-      'boolean' ||
-    value.recordId !==
-      RECORD_ID ||
+    !isObject(value) ||
+    value.success !== true ||
+    typeof value.found !== 'boolean' ||
+    value.recordId !== RECORD_ID ||
     !isNonNegativeInteger(
       value.serverRevision
     )
@@ -581,20 +489,12 @@ function parseGetResult(
     )
   }
 
-  if (
-    value.found ===
-      false
-  ) {
+  if (value.found === false) {
     return {
-      success:
-        true,
-
-      found:
-        false,
-
+      success: true,
+      found: false,
       recordId:
         RECORD_ID,
-
       serverRevision:
         value.serverRevision
     }
@@ -604,8 +504,7 @@ function parseGetResult(
     !isPositiveInteger(
       value.recordRevision
     ) ||
-    typeof value.updatedAt !==
-      'string' ||
+    typeof value.updatedAt !== 'string' ||
     !value.updatedAt
   ) {
     throw new Error(
@@ -614,28 +513,50 @@ function parseGetResult(
   }
 
   return {
-    success:
-      true,
-
-    found:
-      true,
-
+    success: true,
+    found: true,
     recordId:
       RECORD_ID,
-
     serverRevision:
       value.serverRevision,
-
     recordRevision:
       value.recordRevision,
-
     updatedAt:
       value.updatedAt,
-
     encrypted:
       parseEncryptedRecord(
         value.encrypted
       )
+  }
+}
+
+function parsePushResult(
+  value: unknown
+) {
+  if (
+    !isObject(value) ||
+    value.success !== true ||
+    !isPositiveInteger(
+      value.serverRevision
+    ) ||
+    !isPositiveInteger(
+      value.recordRevision
+    ) ||
+    typeof value.updatedAt !== 'string' ||
+    !value.updatedAt
+  ) {
+    throw new Error(
+      'O serviço devolveu uma resposta inválida ao guardar a cópia.'
+    )
+  }
+
+  return {
+    serverRevision:
+      value.serverRevision,
+    recordRevision:
+      value.recordRevision,
+    updatedAt:
+      value.updatedAt
   }
 }
 
@@ -646,15 +567,11 @@ async function readStatus(
   const data =
     await postJson(
       '/status',
-      sessionBody(
-        session
-      ),
+      sessionBody(session),
       'Não foi possível verificar a cópia online.'
     )
 
-  return parseStatus(
-    data
-  )
+  return parseStatus(data)
 }
 
 async function readKey(
@@ -664,56 +581,43 @@ async function readKey(
   const data =
     await postJson(
       '/key',
-      sessionBody(
-        session
-      ),
+      sessionBody(session),
       'Não foi possível abrir a proteção da cópia.'
     )
 
-  return parseKey(
-    data
-  )
+  return parseKey(data)
 }
 
 async function importBackupKey(
   session:
     MAProfessorAccessSession
 ) {
-  if (
-    !globalThis.crypto?.subtle
-  ) {
+  if (!globalThis.crypto?.subtle) {
     throw new Error(
       'Este browser não suporta a proteção criptográfica necessária.'
     )
   }
 
   const keyResult =
-    await readKey(
-      session
-    )
+    await readKey(session)
 
-  return globalThis
-    .crypto
-    .subtle
-    .importKey(
-      'raw',
-      toArrayBuffer(
-        base64ToBytes(
-          keyResult.key
-        )
-      ),
-      {
-        name:
-          'AES-GCM',
-        length:
-          256
-      },
-      false,
-      [
-        'encrypt',
-        'decrypt'
-      ]
-    )
+  return globalThis.crypto.subtle.importKey(
+    'raw',
+    toArrayBuffer(
+      base64ToBytes(
+        keyResult.key
+      )
+    ),
+    {
+      name: 'AES-GCM',
+      length: 256
+    },
+    false,
+    [
+      'encrypt',
+      'decrypt'
+    ]
+  )
 }
 
 async function encryptBackup(
@@ -724,53 +628,34 @@ async function encryptBackup(
 ) {
   const plaintext =
     textEncoder.encode(
-      JSON.stringify(
-        backup
-      )
+      JSON.stringify(backup)
     )
 
   const compressed =
     zlibSync(
       plaintext,
       {
-        level:
-          6
+        level: 6
       }
     )
 
   const nonce =
-    globalThis.crypto
-      .getRandomValues(
-        new Uint8Array(
-          12
-        )
-      )
+    globalThis.crypto.getRandomValues(
+      new Uint8Array(12)
+    )
 
   const encryptedBuffer =
-    await globalThis
-      .crypto
-      .subtle
-      .encrypt(
-        {
-          name:
-            'AES-GCM',
-
-          iv:
-            nonce,
-
-          additionalData:
-            textEncoder.encode(
-              AAD
-            ),
-
-          tagLength:
-            128
-        },
-        key,
-        toArrayBuffer(
-          compressed
-        )
-      )
+    await globalThis.crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: nonce,
+        additionalData:
+          textEncoder.encode(AAD),
+        tagLength: 128
+      },
+      key,
+      toArrayBuffer(compressed)
+    )
 
   const ciphertext =
     new Uint8Array(
@@ -780,32 +665,19 @@ async function encryptBackup(
   return {
     plaintextBytes:
       plaintext.byteLength,
-
     plaintextHash:
-      await sha256Base64(
-        plaintext
-      ),
-
+      await sha256Base64(plaintext),
     encryptedBytes:
       ciphertext.byteLength,
-
     encrypted: {
       encryptionVersion:
         ENCRYPTION_VERSION,
-
       encryptionAlgorithm:
         ENCRYPTION_ALGORITHM,
-
       nonce:
-        bytesToBase64(
-          nonce
-        ),
-
+        bytesToBase64(nonce),
       ciphertext:
-        bytesToBase64(
-          ciphertext
-        ),
-
+        bytesToBase64(ciphertext),
       ciphertextHash:
         await sha256Base64(
           ciphertext
@@ -826,10 +698,7 @@ async function decryptBackup(
       encrypted.nonce
     )
 
-  if (
-    nonce.byteLength !==
-    12
-  ) {
+  if (nonce.byteLength !== 12) {
     throw new Error(
       'A cópia cifrada contém um nonce inválido.'
     )
@@ -859,30 +728,17 @@ async function decryptBackup(
 
   try {
     compressedBuffer =
-      await globalThis
-        .crypto
-        .subtle
-        .decrypt(
-          {
-            name:
-              'AES-GCM',
-
-            iv:
-              nonce,
-
-            additionalData:
-              textEncoder.encode(
-                AAD
-              ),
-
-            tagLength:
-              128
-          },
-          key,
-          toArrayBuffer(
-            ciphertext
-          )
-        )
+      await globalThis.crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: nonce,
+          additionalData:
+            textEncoder.encode(AAD),
+          tagLength: 128
+        },
+        key,
+        toArrayBuffer(ciphertext)
+      )
   } catch {
     throw new Error(
       'Não foi possível decifrar a cópia com esta sessão.'
@@ -921,13 +777,9 @@ async function decryptBackup(
   }
 
   const validation =
-    validateMAProfessorBackup(
-      parsed
-    )
+    validateMAProfessorBackup(parsed)
 
-  if (
-    !validation.valid
-  ) {
+  if (!validation.valid) {
     throw new Error(
       'A cópia online foi decifrada, mas contém erros que impedem o restauro.'
     )
@@ -936,13 +788,9 @@ async function decryptBackup(
   return {
     backup:
       parsed as MAProfessorBackup,
-
     validation,
-
     plaintextHash:
-      await sha256Base64(
-        plaintext
-      )
+      await sha256Base64(plaintext)
   }
 }
 
@@ -954,27 +802,21 @@ async function getEncryptedBackup(
     await postJson(
       '/get',
       {
-        ...sessionBody(
-          session
-        ),
+        ...sessionBody(session),
         recordId:
           RECORD_ID
       },
       'Não foi possível descarregar a cópia cifrada.'
     )
 
-  return parseGetResult(
-    data
-  )
+  return parseGetResult(data)
 }
 
 export async function inspectMAProfessorCloudBackup(
   session:
     MAProfessorAccessSession
 ) {
-  return readStatus(
-    session
-  )
+  return readStatus(session)
 }
 
 export async function uploadAndVerifyMAProfessorCloudBackup(
@@ -984,15 +826,9 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
     MAProfessorBackup
 ): Promise<MAProfessorUploadedCloudBackup> {
   const status =
-    await readStatus(
-      session
-    )
-
+    await readStatus(session)
   const key =
-    await importBackupKey(
-      session
-    )
-
+    await importBackupKey(session)
   const prepared =
     await encryptBackup(
       backup,
@@ -1000,57 +836,39 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
     )
 
   const pushData =
-    await postJson(
-      '/push',
-      {
-        ...sessionBody(
-          session
-        ),
-
-        recordId:
-          RECORD_ID,
-
-        expectedServerRevision:
-          status.serverRevision,
-
-        encrypted:
-          prepared.encrypted
-      },
-      'Não foi possível guardar a cópia cifrada.'
+    parsePushResult(
+      await postJson(
+        '/push',
+        {
+          ...sessionBody(session),
+          recordId:
+            RECORD_ID,
+          expectedServerRevision:
+            status.serverRevision,
+          encrypted:
+            prepared.encrypted
+        },
+        'Não foi possível guardar a cópia cifrada.'
+      )
     )
 
-  if (
-    !isObject(
-      pushData
-    ) ||
-    pushData.success !==
-      true ||
-    !isPositiveInteger(
-      pushData.serverRevision
-    ) ||
-    !isPositiveInteger(
-      pushData.recordRevision
-    ) ||
-    typeof pushData.updatedAt !==
-      'string' ||
-    !pushData.updatedAt
-  ) {
+  const remote =
+    await getEncryptedBackup(session)
+
+  if (remote.found === false) {
     throw new Error(
-      'O serviço devolveu uma resposta inválida ao guardar a cópia.'
+      'A cópia foi enviada, mas não pôde ser confirmada no servidor.'
     )
   }
 
-  const remote =
-    await getEncryptedBackup(
-      session
-    )
-
   if (
-    remote.found ===
-      false
+    remote.serverRevision !==
+      pushData.serverRevision ||
+    remote.recordRevision !==
+      pushData.recordRevision
   ) {
     throw new Error(
-      'A cópia foi enviada, mas não pôde ser confirmada no servidor.'
+      'A cópia online foi atualizada noutro dispositivo durante a verificação. Atualize o estado antes de continuar.'
     )
   }
 
@@ -1062,7 +880,7 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
 
   if (
     verified.plaintextHash !==
-    prepared.plaintextHash
+      prepared.plaintextHash
   ) {
     throw new Error(
       'A cópia guardada no servidor não corresponde aos dados enviados.'
@@ -1072,16 +890,12 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   return {
     serverRevision:
       pushData.serverRevision,
-
     recordRevision:
       pushData.recordRevision,
-
     updatedAt:
       pushData.updatedAt,
-
     plaintextBytes:
       prepared.plaintextBytes,
-
     encryptedBytes:
       prepared.encryptedBytes
   }
@@ -1092,22 +906,14 @@ export async function downloadMAProfessorCloudBackup(
     MAProfessorAccessSession
 ): Promise<MAProfessorDownloadedCloudBackup | null> {
   const remote =
-    await getEncryptedBackup(
-      session
-    )
+    await getEncryptedBackup(session)
 
-  if (
-    remote.found ===
-      false
-  ) {
+  if (remote.found === false) {
     return null
   }
 
   const key =
-    await importBackupKey(
-      session
-    )
-
+    await importBackupKey(session)
   const decrypted =
     await decryptBackup(
       remote.encrypted,
@@ -1117,17 +923,17 @@ export async function downloadMAProfessorCloudBackup(
   return {
     backup:
       decrypted.backup,
-
     validation:
       decrypted.validation,
-
     serverRevision:
       remote.serverRevision,
-
     recordRevision:
       remote.recordRevision,
-
     updatedAt:
-      remote.updatedAt
+      remote.updatedAt,
+    ciphertextHash:
+      remote.encrypted.ciphertextHash,
+    plaintextHash:
+      decrypted.plaintextHash
   }
 }
