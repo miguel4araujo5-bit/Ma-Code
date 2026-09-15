@@ -158,10 +158,6 @@ test(
     )
     assert.match(
       restorePanel,
-      /const safetyBackup = await createMAProfessorBackup\(\)/
-    )
-    assert.match(
-      restorePanel,
       /expectedLocalContentSignature: foundPreview\.localContentSignature/
     )
     assert.match(
@@ -175,6 +171,38 @@ test(
     assert.match(
       restoreService,
       /restoreMAProfessorDatabaseSnapshotIfLocalUnchanged\(/
+    )
+  }
+)
+
+test(
+  'cloud restore does not force a browser download before replacing local data',
+  () => {
+    const start = restorePanel.indexOf(
+      'const handleRestore ='
+    )
+    const end = restorePanel.indexOf(
+      'return (',
+      start
+    )
+    const restoreHandler = restorePanel.slice(
+      start,
+      end
+    )
+
+    assert.ok(start >= 0)
+    assert.ok(end > start)
+    assert.doesNotMatch(
+      restoreHandler,
+      /downloadTextFile\(/
+    )
+    assert.match(
+      restoreHandler,
+      /restoreMAProfessorCloudRestore\(/
+    )
+    assert.match(
+      restorePanel,
+      /Descarregar cópia atual \(opcional\)/
     )
   }
 )
