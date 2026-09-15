@@ -138,11 +138,15 @@ test(
 )
 
 test(
-  'online backup remains manual and restore keeps local and remote race guards',
+  'online backup supports automatic and manual saves while restore keeps local and remote race guards',
   () => {
     assert.match(
       syncPanel,
-      /Nada é enviado automaticamente\./
+      /Automático \+ manual/
+    )
+    assert.match(
+      syncPanel,
+      /Sem polling:/
     )
     assert.match(
       syncPanel,
