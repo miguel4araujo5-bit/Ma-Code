@@ -5,6 +5,7 @@ import {
 
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
+import GIAESummaryExportDialog from '../giae/GIAESummaryExportDialog'
 
 import './singleSidebar.css'
 
@@ -35,6 +36,7 @@ interface SidebarPanelProps {
   onClose: () => void
   onOpenToday: () => void
   onOpenDestination: (destination: ProductSidebarDestination) => void
+  onOpenSummaryExport: () => void
 }
 
 const items: Array<{
@@ -68,7 +70,6 @@ const sidebarItems: Array<{
   id: ProductSidebarDestination
   label: string
 }> = [
-  { id: 'calendar', label: 'Calendário' },
   { id: 'giae', label: 'Sumários / GIAE' },
   { id: 'assessments', label: 'Avaliações' },
   { id: 'planifications', label: 'Planificações' },
@@ -83,7 +84,8 @@ function SidebarPanel({
   showCloseButton,
   onClose,
   onOpenToday,
-  onOpenDestination
+  onOpenDestination,
+  onOpenSummaryExport
 }: SidebarPanelProps) {
   return (
     <>
@@ -133,17 +135,28 @@ function SidebarPanel({
 
       <nav className="mt-3 space-y-1.5" aria-label="Áreas do MA-Professor">
         {sidebarItems.map((item, index) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onOpenDestination(item.id)}
-            className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span>{item.label}</span>
-          </button>
+          <div key={item.id}>
+            <button
+              type="button"
+              onClick={() => onOpenDestination(item.id)}
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span>{item.label}</span>
+            </button>
+
+            {item.id === 'giae' ? (
+              <button
+                type="button"
+                onClick={onOpenSummaryExport}
+                className="ml-10 mt-1 rounded-lg px-2 py-1.5 text-left text-[0.7rem] font-bold text-cyan-200 transition hover:bg-cyan-300/[0.07] hover:text-cyan-100"
+              >
+                Exportar sumários
+              </button>
+            ) : null}
+          </div>
         ))}
       </nav>
     </>
@@ -160,6 +173,7 @@ export function ProductNavigation({
 }: ProductNavigationProps) {
   const { session } = useMAProfessorAccess()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [summaryExportOpen, setSummaryExportOpen] = useState(false)
 
   const nextThemeLabel =
     theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'
@@ -206,6 +220,11 @@ export function ProductNavigation({
   function openDestination(destination: ProductSidebarDestination) {
     setSidebarOpen(false)
     onOpenSidebarDestination(destination)
+  }
+
+  function openSummaryExport() {
+    setSidebarOpen(false)
+    setSummaryExportOpen(true)
   }
 
   return (
@@ -301,6 +320,7 @@ export function ProductNavigation({
           onClose={() => setSidebarOpen(false)}
           onOpenToday={openToday}
           onOpenDestination={openDestination}
+          onOpenSummaryExport={openSummaryExport}
         />
       </aside>
 
@@ -325,10 +345,16 @@ export function ProductNavigation({
               onClose={() => setSidebarOpen(false)}
               onOpenToday={openToday}
               onOpenDestination={openDestination}
+              onOpenSummaryExport={openSummaryExport}
             />
           </aside>
         </div>
       ) : null}
+
+      <GIAESummaryExportDialog
+        open={summaryExportOpen}
+        onClose={() => setSummaryExportOpen(false)}
+      />
     </>
   )
 }
