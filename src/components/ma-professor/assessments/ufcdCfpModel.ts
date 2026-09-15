@@ -46,6 +46,19 @@ export interface UfcdCfpModel {
   fileBaseName: string
 }
 
+const completionDateByModuleId =
+  new Map<string, string | null>()
+
+export function setUfcdCompletionDate(
+  moduleId: string,
+  completionDate: string | null
+) {
+  completionDateByModuleId.set(
+    moduleId,
+    completionDate
+  )
+}
+
 function safeFilePart(
   value: string
 ) {
@@ -114,46 +127,27 @@ function formatModuleLabel(
 function formatCompletionDate(
   snapshot: AssessmentWorkspaceSnapshot
 ) {
-  if (
-    snapshot.studentRows.length === 0 ||
-    snapshot.studentRows.some(
-      row =>
-        row.gradeSummary
-          .confirmedFinalGrade === null
+  const module = snapshot.selectedModule
+
+  if (!module) {
+    return ''
+  }
+
+  const completionDate =
+    completionDateByModuleId.get(
+      module.id
+    ) ?? null
+
+  const match =
+    completionDate?.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
     )
-  ) {
+
+  if (!match) {
     return ''
   }
 
-  const latest = snapshot.studentRows
-    .flatMap(
-      row =>
-        row.finalGradeRecord
-          ?.confirmedAt
-          ? [row.finalGradeRecord.confirmedAt]
-          : []
-    )
-    .sort()
-    .at(-1)
-
-  if (!latest) {
-    return ''
-  }
-
-  const date = new Date(latest)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(
-    'pt-PT',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }
-  ).format(date)
+  return `${match[3]}/${match[2]}/${match[1]}`
 }
 
 function bandCount(

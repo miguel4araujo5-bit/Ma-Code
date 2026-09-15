@@ -15,6 +15,10 @@ import BaseUfcdFinalGradeGrid from './UfcdFinalGradeGridBase'
 import UfcdCfpPreview from './UfcdCfpPreview'
 import UfcdFinalGradeExcelImportPanel from './UfcdFinalGradeExcelImportPanel'
 
+import {
+  resolveModuleCompletionDate
+} from './ufcdCompletionDate'
+
 export type {
   UfcdFinalGradeDraft
 } from './UfcdFinalGradeGridBase'
@@ -69,11 +73,40 @@ export default function UfcdFinalGradeGrid(
     null
   >(null)
 
+  const [
+    completionDateReady,
+    setCompletionDateReady
+  ] = useState(false)
+
   useEffect(() => {
     setCriteriaOverride(null)
   }, [
     props.snapshot.generatedAt,
     props.snapshot.scheme?.id
+  ])
+
+  useEffect(() => {
+    let active = true
+
+    setCompletionDateReady(false)
+
+    void resolveModuleCompletionDate(
+      props.snapshot.selectedModule
+    )
+      .catch(() => null)
+      .finally(() => {
+        if (active) {
+          setCompletionDateReady(true)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [
+    props.snapshot.generatedAt,
+    props.snapshot.selectedModule?.id,
+    props.snapshot.selectedModule?.plannedPeriods
   ])
 
   const effectiveSnapshot =
@@ -156,7 +189,8 @@ export default function UfcdFinalGradeGrid(
       effectiveSnapshot.selectedSubject &&
       effectiveSnapshot.selectedModule &&
       effectiveSnapshot.criteria.length > 0 &&
-      effectiveSnapshot.studentRows.length > 0 ? (
+      effectiveSnapshot.studentRows.length > 0 &&
+      completionDateReady ? (
         <UfcdCfpPreview
           snapshot={effectiveSnapshot}
           disabled={importerDisabled}

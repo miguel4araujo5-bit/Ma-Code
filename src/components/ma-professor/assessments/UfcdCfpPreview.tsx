@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -7,6 +8,10 @@ import {
 import type {
   AssessmentWorkspaceSnapshot
 } from './assessmentWorkspaceRepository'
+
+import {
+  resolveModuleCompletionDate
+} from './ufcdCompletionDate'
 
 import {
   buildUfcdCfpModel
@@ -63,13 +68,46 @@ export default function UfcdCfpPreview({
   snapshot,
   disabled = false
 }: UfcdCfpPreviewProps) {
+  const [
+    completionVersion,
+    setCompletionVersion
+  ] = useState(0)
+
+  useEffect(() => {
+    let active = true
+
+    void resolveModuleCompletionDate(
+      snapshot.selectedModule
+    )
+      .then(() => {
+        if (active) {
+          setCompletionVersion(
+            current => current + 1
+          )
+        }
+      })
+      .catch(() => {
+        // O erro volta a ser apresentado se o utilizador tentar exportar.
+      })
+
+    return () => {
+      active = false
+    }
+  }, [
+    snapshot.generatedAt,
+    snapshot.selectedModule?.id
+  ])
+
   const model =
     useMemo(
       () =>
         buildUfcdCfpModel(
           snapshot
         ),
-      [snapshot]
+      [
+        snapshot,
+        completionVersion
+      ]
     )
 
   const [
@@ -98,6 +136,13 @@ export default function UfcdCfpPreview({
     setError('')
 
     try {
+      await resolveModuleCompletionDate(
+        snapshot.selectedModule
+      )
+      setCompletionVersion(
+        current => current + 1
+      )
+
       if (kind === 'pdf') {
         await exportUfcdCfpPdf(
           snapshot
