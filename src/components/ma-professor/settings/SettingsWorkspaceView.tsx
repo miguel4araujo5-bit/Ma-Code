@@ -23,6 +23,10 @@ import {
 } from './ProfileSettingsPanel'
 
 import {
+  RestoreSettingsPanel
+} from './RestoreSettingsPanel'
+
+import {
   SearchSettingsPanel
 } from './SearchSettingsPanel'
 
@@ -202,6 +206,12 @@ export function SettingsWorkspaceView({
             {tab ===
             'backup' ? (
               <div className="space-y-6">
+                <RestoreSettingsPanel
+                  onDataChanged={
+                    onDataChanged
+                  }
+                />
+
                 <BackupLocalSafetyPanel />
 
                 <BackupSettingsPanel
