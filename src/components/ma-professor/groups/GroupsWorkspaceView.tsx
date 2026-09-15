@@ -110,6 +110,14 @@ function createEmptyGroupForm(): GroupFormState {
   }
 }
 
+function createEmptyStudentForm(): StudentFormState {
+  return {
+    number: '',
+    name: '',
+    notes: ''
+  }
+}
+
 function createGroupForm(
   snapshot: GroupsWorkspaceSnapshot
 ): GroupFormState {
@@ -191,6 +199,13 @@ function parseStudents(
   }
 
   return drafts
+}
+
+function normalizeForComparison(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-PT')
 }
 
 function FieldLabel({
@@ -312,6 +327,18 @@ export default function GroupsWorkspaceView({
   const [showCreateGroup, setShowCreateGroup] =
     useState(false)
 
+  const [showGroupEditor, setShowGroupEditor] =
+    useState(false)
+
+  const [showAddStudent, setShowAddStudent] =
+    useState(false)
+
+  const [showBulkImport, setShowBulkImport] =
+    useState(false)
+
+  const [editingStudentId, setEditingStudentId] =
+    useState<EntityId | null>(null)
+
   const [newGroup, setNewGroup] =
     useState<GroupFormState>(
       createEmptyGroupForm
@@ -325,6 +352,11 @@ export default function GroupsWorkspaceView({
   const [studentForms, setStudentForms] =
     useState<StudentForms>(
       () => persistedStudentForms
+    )
+
+  const [newStudent, setNewStudent] =
+    useState<StudentFormState>(
+      createEmptyStudentForm
     )
 
   const [importText, setImportText] =
@@ -415,10 +447,18 @@ export default function GroupsWorkspaceView({
         createEmptyGroupForm()
       )
 
+  const newStudentDirty =
+    showAddStudent &&
+    JSON.stringify(newStudent) !==
+      JSON.stringify(
+        createEmptyStudentForm()
+      )
+
   const hasGroupsUnsavedChanges =
     groupFormDirty ||
     studentFormsDirty ||
     newGroupDirty ||
+    newStudentDirty ||
     Boolean(importText.trim())
 
   function confirmDiscardUnsavedChanges() {
@@ -469,10 +509,17 @@ export default function GroupsWorkspaceView({
   function discardLocalDraftsOnNextSnapshot() {
     discardOnNextSnapshotRef.current = true
     setImportText('')
+    setNewStudent(
+      createEmptyStudentForm()
+    )
     setNewGroup(
       createEmptyGroupForm()
     )
     setShowCreateGroup(false)
+    setShowGroupEditor(false)
+    setShowAddStudent(false)
+    setShowBulkImport(false)
+    setEditingStudentId(null)
   }
 
   function handleGroupFilterChange(
@@ -529,13 +576,86 @@ export default function GroupsWorkspaceView({
     setFeedback(null)
   }
 
+  function handleGroupEditorToggle() {
+    if (
+      showGroupEditor &&
+      groupFormDirty &&
+      !window.confirm(
+        'Existem alterações da turma por guardar. Pretende descartá-las?'
+      )
+    ) {
+      return
+    }
+
+    if (showGroupEditor) {
+      setGroupForm(
+        persistedGroupForm
+      )
+      setShowGroupEditor(false)
+    } else {
+      setGroupForm(
+        persistedGroupForm
+      )
+      setShowGroupEditor(true)
+    }
+
+    setFeedback(null)
+  }
+
+  function handleAddStudentToggle() {
+    if (
+      showAddStudent &&
+      newStudentDirty &&
+      !window.confirm(
+        'Existem dados do novo aluno por guardar. Pretende descartá-los?'
+      )
+    ) {
+      return
+    }
+
+    if (showAddStudent) {
+      setNewStudent(
+        createEmptyStudentForm()
+      )
+      setShowAddStudent(false)
+    } else {
+      setNewStudent(
+        createEmptyStudentForm()
+      )
+      setShowAddStudent(true)
+    }
+
+    setFeedback(null)
+  }
+
+  function handleBulkImportToggle() {
+    if (
+      showBulkImport &&
+      importText.trim() &&
+      !window.confirm(
+        'Existe uma lista de alunos por guardar. Pretende descartá-la?'
+      )
+    ) {
+      return
+    }
+
+    if (showBulkImport) {
+      setImportText('')
+      setShowBulkImport(false)
+    } else {
+      setShowBulkImport(true)
+    }
+
+    setFeedback(null)
+  }
+
   async function runAction(
     actionId: string,
     action: () => Promise<void> | void,
     successMessage: string
   ) {
     if (busyAction) {
-      return
+      return false
     }
 
     setBusyAction(actionId)
@@ -547,12 +667,14 @@ export default function GroupsWorkspaceView({
         tone: 'success',
         message: successMessage
       })
+      return true
     } catch (actionError) {
       setFeedback({
         tone: 'error',
         message:
           getErrorMessage(actionError)
       })
+      return false
     } finally {
       setBusyAction(null)
     }
@@ -582,6 +704,15 @@ export default function GroupsWorkspaceView({
     }))
   }
 
+  function updateNewStudent(
+    changes: Partial<StudentFormState>
+  ) {
+    setNewStudent(current => ({
+      ...current,
+      ...changes
+    }))
+  }
+
   function updateStudentForm(
     studentId: EntityId,
     changes: Partial<StudentFormState>
@@ -603,15 +734,100 @@ export default function GroupsWorkspaceView({
     }))
   }
 
+  function isStudentFormDirty(
+    studentId: EntityId
+  ) {
+    return JSON.stringify(
+      studentForms[studentId]
+    ) !==
+      JSON.stringify(
+        persistedStudentForms[studentId]
+      )
+  }
+
+  function startStudentEdit(
+    student: Student
+  ) {
+    if (
+      editingStudentId &&
+      editingStudentId !== student.id &&
+      isStudentFormDirty(
+        editingStudentId
+      ) &&
+      !window.confirm(
+        'Existem alterações noutro aluno por guardar. Pretende descartá-las?'
+      )
+    ) {
+      return
+    }
+
+    if (
+      editingStudentId &&
+      editingStudentId !== student.id
+    ) {
+      setStudentForms(current => ({
+        ...current,
+        [editingStudentId]:
+          persistedStudentForms[
+            editingStudentId
+          ] ??
+          current[editingStudentId]
+      }))
+    }
+
+    setStudentForms(current => ({
+      ...current,
+      [student.id]:
+        persistedStudentForms[
+          student.id
+        ] ?? {
+          number: student.number,
+          name: student.name,
+          notes: student.notes
+        }
+    }))
+    setEditingStudentId(student.id)
+    setFeedback(null)
+  }
+
+  function cancelStudentEdit(
+    student: Student
+  ) {
+    if (
+      isStudentFormDirty(
+        student.id
+      ) &&
+      !window.confirm(
+        'Existem alterações deste aluno por guardar. Pretende descartá-las?'
+      )
+    ) {
+      return
+    }
+
+    setStudentForms(current => ({
+      ...current,
+      [student.id]:
+        persistedStudentForms[
+          student.id
+        ] ?? {
+          number: student.number,
+          name: student.name,
+          notes: student.notes
+        }
+    }))
+    setEditingStudentId(null)
+    setFeedback(null)
+  }
+
   async function createGroup(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault()
 
-    await runAction(
+    const saved = await runAction(
       'create-group',
-      async () => {
-        await onCreateGroup({
+      () =>
+        onCreateGroup({
           academicYearId:
             snapshot.academicYear.id,
           name: newGroup.name,
@@ -621,15 +837,16 @@ export default function GroupsWorkspaceView({
             newGroup.gradeLevel,
           educationType:
             newGroup.educationType
-        })
-
-        setNewGroup(
-          createEmptyGroupForm()
-        )
-        setShowCreateGroup(false)
-      },
+        }),
       'A turma foi criada.'
     )
+
+    if (saved) {
+      setNewGroup(
+        createEmptyGroupForm()
+      )
+      setShowCreateGroup(false)
+    }
   }
 
   async function saveGroup(
@@ -641,7 +858,7 @@ export default function GroupsWorkspaceView({
       return
     }
 
-    await runAction(
+    const saved = await runAction(
       'save-group',
       () =>
         onUpdateGroup(
@@ -650,6 +867,62 @@ export default function GroupsWorkspaceView({
         ),
       'Os dados da turma foram guardados.'
     )
+
+    if (saved) {
+      setShowGroupEditor(false)
+    }
+  }
+
+  async function addStudent(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    const group = snapshot.selectedGroup
+
+    if (!group) {
+      return
+    }
+
+    const normalizedNumber =
+      normalizeForComparison(
+        newStudent.number
+      )
+
+    const existingStudent =
+      snapshot.students.find(
+        student =>
+          normalizeForComparison(
+            student.number
+          ) === normalizedNumber
+      )
+
+    if (existingStudent) {
+      setFeedback({
+        tone: 'error',
+        message:
+          `Já existe o aluno n.º ${existingStudent.number} nesta turma. Edite esse aluno na lista em vez de criar um duplicado.`
+      })
+      return
+    }
+
+    const saved = await runAction(
+      'add-student',
+      () =>
+        onSaveStudents(
+          snapshot.academicYear.id,
+          group.id,
+          [newStudent]
+        ),
+      `${newStudent.name.trim()} foi adicionado à turma.`
+    )
+
+    if (saved) {
+      setNewStudent(
+        createEmptyStudentForm()
+      )
+      setShowAddStudent(false)
+    }
   }
 
   async function importStudents(
@@ -678,20 +951,23 @@ export default function GroupsWorkspaceView({
       return
     }
 
-    await runAction(
+    const saved = await runAction(
       'import-students',
-      async () => {
-        await onSaveStudents(
+      () =>
+        onSaveStudents(
           snapshot.academicYear.id,
           group.id,
           drafts
-        )
-        setImportText('')
-      },
+        ),
       drafts.length === 1
         ? 'O aluno foi guardado.'
         : `${drafts.length} alunos foram guardados.`
     )
+
+    if (saved) {
+      setImportText('')
+      setShowBulkImport(false)
+    }
   }
 
   async function saveStudent(
@@ -704,7 +980,7 @@ export default function GroupsWorkspaceView({
       return
     }
 
-    await runAction(
+    const saved = await runAction(
       `student-${student.id}`,
       () =>
         onUpdateStudent(
@@ -713,6 +989,10 @@ export default function GroupsWorkspaceView({
         ),
       `Os dados de ${student.name} foram guardados.`
     )
+
+    if (saved) {
+      setEditingStudentId(null)
+    }
   }
 
   async function toggleStudent(
@@ -750,11 +1030,11 @@ export default function GroupsWorkspaceView({
               </div>
 
               <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                Gestão das turmas
+                Gerir turmas e alunos
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Consulte a turma, atualize os alunos e acrescente novas turmas sem repetir a configuração inicial.
+                Escolha uma turma para corrigir os seus dados, adicionar alunos novos ou atualizar a lista existente.
               </p>
             </div>
 
@@ -787,7 +1067,7 @@ export default function GroupsWorkspaceView({
         <div className="px-5 py-6 sm:px-7">
           <label className="block">
             <span className="mb-2 block text-sm font-bold text-slate-200">
-              Turma
+              Turma a gerir
             </span>
 
             <select
@@ -996,152 +1276,574 @@ export default function GroupsWorkspaceView({
         </section>
       ) : (
         <>
-          <form
-            onSubmit={saveGroup}
-            className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-                  Dados da turma
+                  Turma selecionada
                 </p>
+
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-black text-white">
+                  <h2 className="text-2xl font-black text-white">
                     {snapshot.selectedGroup.name}
                   </h2>
+
                   <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-black text-slate-300">
                     {getEducationTypeLabel(
                       selectedEducationType
                     )}
                   </span>
+
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[0.65rem] font-black ${
+                      snapshot.selectedGroup.active
+                        ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
+                        : 'border-slate-300/15 bg-slate-300/[0.07] text-slate-300'
+                    }`}
+                  >
+                    {snapshot.selectedGroup.active
+                      ? 'Ativa'
+                      : 'Inativa'}
+                  </span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Alterar estes dados não elimina aulas, avaliações ou faltas já registadas.
+
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  {[
+                    snapshot.selectedGroup.gradeLevel,
+                    snapshot.selectedGroup.courseName
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') ||
+                    'Sem ano ou curso adicional indicado.'}
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  {selectedGroupRow?.activeStudentCount ?? 0} alunos ativos nesta turma.
                 </p>
               </div>
 
-              <span
-                className={`rounded-full border px-3 py-1.5 text-xs font-black ${
-                  groupForm.active
-                    ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
-                    : 'border-slate-300/15 bg-slate-300/[0.07] text-slate-300'
-                }`}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleGroupEditorToggle}
+                  disabled={busy}
+                  className="rounded-2xl border border-violet-200/25 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-60"
+                >
+                  {showGroupEditor
+                    ? 'Cancelar edição'
+                    : 'Editar turma'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddStudentToggle}
+                  disabled={busy}
+                  className="rounded-2xl border border-emerald-200/30 bg-gradient-to-r from-emerald-300 to-teal-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {showAddStudent
+                    ? 'Cancelar aluno'
+                    : '+ Adicionar aluno'}
+                </button>
+              </div>
+            </div>
+
+            {showGroupEditor ? (
+              <form
+                onSubmit={saveGroup}
+                className="mt-6 border-t border-white/10 pt-6"
               >
-                {groupForm.active
-                  ? 'Turma ativa'
-                  : 'Turma inativa'}
-              </span>
-            </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <label>
+                    <FieldLabel>Nome da turma</FieldLabel>
+                    <input
+                      type="text"
+                      value={groupForm.name}
+                      onChange={event =>
+                        updateGroupForm(
+                          'name',
+                          event.target.value
+                        )
+                      }
+                      disabled={busy}
+                      required
+                      className={fieldClass}
+                    />
+                  </label>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <label>
-                <FieldLabel>Nome da turma</FieldLabel>
-                <input
-                  type="text"
-                  value={groupForm.name}
-                  onChange={event =>
-                    updateGroupForm(
-                      'name',
-                      event.target.value
-                    )
-                  }
-                  disabled={busy}
-                  required
-                  className={fieldClass}
-                />
-              </label>
+                  <label>
+                    <FieldLabel>Tipo de ensino</FieldLabel>
+                    <EducationTypeSelect
+                      value={groupForm.educationType}
+                      disabled={
+                        busy ||
+                        selectedGroupHasAssignments
+                      }
+                      onChange={value =>
+                        updateGroupForm(
+                          'educationType',
+                          value
+                        )
+                      }
+                    />
+                  </label>
 
-              <label>
-                <FieldLabel>Tipo de ensino</FieldLabel>
-                <EducationTypeSelect
-                  value={groupForm.educationType}
-                  disabled={
-                    busy ||
-                    selectedGroupHasAssignments
-                  }
-                  onChange={value =>
-                    updateGroupForm(
-                      'educationType',
-                      value
-                    )
-                  }
-                />
-              </label>
+                  <label>
+                    <FieldLabel optional>Curso ou área</FieldLabel>
+                    <input
+                      type="text"
+                      value={groupForm.courseName}
+                      onChange={event =>
+                        updateGroupForm(
+                          'courseName',
+                          event.target.value
+                        )
+                      }
+                      disabled={busy}
+                      className={fieldClass}
+                    />
+                  </label>
 
-              <label>
-                <FieldLabel optional>Curso ou área</FieldLabel>
-                <input
-                  type="text"
-                  value={groupForm.courseName}
-                  onChange={event =>
-                    updateGroupForm(
-                      'courseName',
-                      event.target.value
-                    )
-                  }
-                  disabled={busy}
-                  className={fieldClass}
-                />
-              </label>
+                  <label>
+                    <FieldLabel optional>Ano</FieldLabel>
+                    <input
+                      type="text"
+                      value={groupForm.gradeLevel}
+                      onChange={event =>
+                        updateGroupForm(
+                          'gradeLevel',
+                          event.target.value
+                        )
+                      }
+                      disabled={busy}
+                      className={fieldClass}
+                    />
+                  </label>
+                </div>
 
-              <label>
-                <FieldLabel optional>Ano</FieldLabel>
-                <input
-                  type="text"
-                  value={groupForm.gradeLevel}
-                  onChange={event =>
-                    updateGroupForm(
-                      'gradeLevel',
-                      event.target.value
-                    )
-                  }
-                  disabled={busy}
-                  className={fieldClass}
-                />
-              </label>
-            </div>
+                {selectedGroupHasAssignments ? (
+                  <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-xs leading-5 text-amber-100/80">
+                    O tipo de ensino fica bloqueado depois de existirem disciplinas associadas, para preservar a organização curricular já criada.
+                  </p>
+                ) : null}
 
-            {selectedGroupHasAssignments ? (
-              <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-xs leading-5 text-amber-100/80">
-                O tipo de ensino fica bloqueado depois de existirem disciplinas associadas, para preservar a organização curricular já criada.
-              </p>
+                <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+                  <input
+                    type="checkbox"
+                    checked={groupForm.active}
+                    onChange={event =>
+                      updateGroupForm(
+                        'active',
+                        event.target.checked
+                      )
+                    }
+                    disabled={busy}
+                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+                  />
+                  <span>
+                    <span className="block text-sm font-black text-white">
+                      Turma ativa
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-slate-500">
+                      Desative apenas quando já não pretende utilizar a turma. O histórico será preservado.
+                    </span>
+                  </span>
+                </label>
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={busy || !groupFormDirty}
+                    className="rounded-xl border border-violet-200/25 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-45"
+                  >
+                    {busyAction === 'save-group'
+                      ? 'A guardar...'
+                      : 'Guardar alterações'}
+                  </button>
+                </div>
+              </form>
             ) : null}
 
-            <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-              <input
-                type="checkbox"
-                checked={groupForm.active}
-                onChange={event =>
-                  updateGroupForm(
-                    'active',
-                    event.target.checked
-                  )
-                }
-                disabled={busy}
-                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
-              />
-              <span>
-                <span className="block text-sm font-black text-white">
-                  Turma ativa
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-slate-500">
-                  Desative apenas quando já não pretende utilizar a turma. O histórico será preservado.
-                </span>
-              </span>
-            </label>
-
-            <div className="mt-5 flex justify-end">
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-xl border border-violet-200/25 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-50 transition hover:bg-violet-300/15 disabled:opacity-60"
+            {showAddStudent ? (
+              <form
+                onSubmit={addStudent}
+                className="mt-6 border-t border-white/10 pt-6"
               >
-                {busyAction === 'save-group'
-                  ? 'A guardar...'
-                  : 'Guardar turma'}
-              </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">
+                      Novo aluno
+                    </p>
+                    <h3 className="mt-2 text-lg font-black text-white">
+                      Adicionar à turma
+                    </h3>
+                  </div>
+                  <p className="max-w-xl text-xs leading-5 text-slate-500">
+                    O aluno fica ligado a esta turma e passa a estar disponível nas áreas da aplicação que usam a lista da turma.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[7rem_1fr_1fr_auto] lg:items-end">
+                  <label>
+                    <FieldLabel>Número</FieldLabel>
+                    <input
+                      type="text"
+                      value={newStudent.number}
+                      onChange={event =>
+                        updateNewStudent({
+                          number:
+                            event.target.value
+                        })
+                      }
+                      disabled={busy}
+                      autoFocus
+                      required
+                      placeholder="Ex.: 12"
+                      className={fieldClass}
+                    />
+                  </label>
+
+                  <label>
+                    <FieldLabel>Nome</FieldLabel>
+                    <input
+                      type="text"
+                      value={newStudent.name}
+                      onChange={event =>
+                        updateNewStudent({
+                          name:
+                            event.target.value
+                        })
+                      }
+                      disabled={busy}
+                      required
+                      placeholder="Nome do aluno"
+                      className={fieldClass}
+                    />
+                  </label>
+
+                  <label>
+                    <FieldLabel optional>Observação</FieldLabel>
+                    <input
+                      type="text"
+                      value={newStudent.notes}
+                      onChange={event =>
+                        updateNewStudent({
+                          notes:
+                            event.target.value
+                        })
+                      }
+                      disabled={busy}
+                      placeholder="Opcional"
+                      className={fieldClass}
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="rounded-xl border border-emerald-200/30 bg-emerald-300/10 px-5 py-3 text-sm font-black text-emerald-50 transition hover:bg-emerald-300/15 disabled:opacity-60"
+                  >
+                    {busyAction === 'add-student'
+                      ? 'A adicionar...'
+                      : 'Adicionar'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </section>
+
+          <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
+                  Alunos
+                </p>
+                <h2 className="mt-3 text-xl font-black text-white">
+                  Lista da turma
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Consulte a lista atual e escolha Editar apenas no aluno que pretende alterar.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={handleBulkImportToggle}
+                  disabled={busy}
+                  className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-black text-slate-300 transition hover:bg-white/[0.07] disabled:opacity-60"
+                >
+                  {showBulkImport
+                    ? 'Cancelar lista'
+                    : 'Adicionar vários'}
+                </button>
+
+                <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={includeInactive}
+                    onChange={event =>
+                      setIncludeInactive(
+                        event.target.checked
+                      )
+                    }
+                    className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+                  />
+                  Mostrar inativos
+                </label>
+              </div>
             </div>
-          </form>
+
+            {showBulkImport ? (
+              <form
+                onSubmit={importStudents}
+                className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-4 sm:p-5"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-white">
+                      Adicionar vários alunos
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Uma linha por aluno: número; nome; observação. Também pode colar colunas do Excel ou Google Sheets.
+                    </p>
+                  </div>
+                  <p className="text-xs leading-5 text-slate-500">
+                    Um número já existente atualiza esse aluno.
+                  </p>
+                </div>
+
+                <label className="mt-4 block">
+                  <FieldLabel>Lista de alunos</FieldLabel>
+                  <textarea
+                    value={importText}
+                    onChange={event =>
+                      setImportText(
+                        event.target.value
+                      )
+                    }
+                    disabled={busy}
+                    rows={6}
+                    placeholder={'1; Ana Silva\n2; Bruno Costa\n3; Carla Sousa; apoio adicional'}
+                    className={`${fieldClass} resize-y`}
+                  />
+                </label>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={
+                      busy ||
+                      !importText.trim()
+                    }
+                    className="rounded-xl border border-emerald-200/25 bg-emerald-300/10 px-5 py-3 text-sm font-black text-emerald-50 transition hover:bg-emerald-300/15 disabled:opacity-45"
+                  >
+                    {busyAction === 'import-students'
+                      ? 'A guardar...'
+                      : 'Guardar lista'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {visibleStudents.length === 0 ? (
+              <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
+                <p className="text-sm font-black text-white">
+                  A turma ainda não possui alunos ativos.
+                </p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Use “Adicionar aluno” para introduzir um aluno ou “Adicionar vários” para colar uma lista.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {visibleStudents.map(student => {
+                  const form =
+                    studentForms[student.id] ?? {
+                      number: student.number,
+                      name: student.name,
+                      notes: student.notes
+                    }
+
+                  const editing =
+                    editingStudentId ===
+                    student.id
+
+                  return (
+                    <article
+                      key={student.id}
+                      className={`rounded-2xl border p-4 ${
+                        student.active
+                          ? 'border-white/10 bg-white/[0.03]'
+                          : 'border-slate-300/10 bg-slate-300/[0.025] opacity-75'
+                      }`}
+                    >
+                      {editing ? (
+                        <div className="grid gap-4 lg:grid-cols-[7rem_1fr_1fr_auto] lg:items-end">
+                          <label>
+                            <FieldLabel>Número</FieldLabel>
+                            <input
+                              type="text"
+                              value={form.number}
+                              onChange={event =>
+                                updateStudentForm(
+                                  student.id,
+                                  {
+                                    number:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              disabled={busy}
+                              required
+                              className={fieldClass}
+                            />
+                          </label>
+
+                          <label>
+                            <FieldLabel>Nome</FieldLabel>
+                            <input
+                              type="text"
+                              value={form.name}
+                              onChange={event =>
+                                updateStudentForm(
+                                  student.id,
+                                  {
+                                    name:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              disabled={busy}
+                              required
+                              className={fieldClass}
+                            />
+                          </label>
+
+                          <label>
+                            <FieldLabel optional>Observação</FieldLabel>
+                            <input
+                              type="text"
+                              value={form.notes}
+                              onChange={event =>
+                                updateStudentForm(
+                                  student.id,
+                                  {
+                                    notes:
+                                      event.target.value
+                                  }
+                                )
+                              }
+                              disabled={busy}
+                              className={fieldClass}
+                            />
+                          </label>
+
+                          <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void saveStudent(student)
+                              }
+                              disabled={
+                                busy ||
+                                !isStudentFormDirty(
+                                  student.id
+                                )
+                              }
+                              className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:opacity-45"
+                            >
+                              {busyAction === `student-${student.id}`
+                                ? 'A guardar...'
+                                : 'Guardar'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                cancelStudentEdit(
+                                  student
+                                )
+                              }
+                              disabled={busy}
+                              className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-black text-slate-300 transition hover:bg-white/[0.07] disabled:opacity-60"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[6rem_1fr] sm:items-center">
+                            <div>
+                              <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">
+                                Número
+                              </p>
+                              <p className="mt-1 text-base font-black text-white">
+                                {student.number}
+                              </p>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-black text-white sm:text-base">
+                                  {student.name}
+                                </p>
+                                {!student.active ? (
+                                  <span className="rounded-full border border-slate-300/15 bg-slate-300/[0.07] px-2 py-1 text-[0.6rem] font-black uppercase tracking-[0.08em] text-slate-300">
+                                    Inativo
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {student.notes ? (
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                  {student.notes}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startStudentEdit(
+                                  student
+                                )
+                              }
+                              disabled={busy}
+                              className="rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/12 disabled:opacity-60"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void toggleStudent(student)
+                              }
+                              disabled={busy}
+                              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-60 ${
+                                student.active
+                                  ? 'border-rose-300/20 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/10'
+                                  : 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100 hover:bg-emerald-300/10'
+                              }`}
+                            >
+                              {busyAction === `toggle-${student.id}`
+                                ? 'A atualizar...'
+                                : student.active
+                                  ? 'Desativar'
+                                  : 'Reativar'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
@@ -1152,6 +1854,9 @@ export default function GroupsWorkspaceView({
             <h2 className="mt-3 text-xl font-black text-white">
               Organização letiva da turma
             </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Esta informação é mantida aqui apenas para confirmar a estrutura associada à turma enquanto a gere.
+            </p>
 
             {snapshot.teachingRows.length === 0 ? (
               <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-5 text-sm leading-6 text-slate-500">
@@ -1194,211 +1899,6 @@ export default function GroupsWorkspaceView({
                     ) : null}
                   </article>
                 ))}
-              </div>
-            )}
-          </section>
-
-          <form
-            onSubmit={importStudents}
-            className="rounded-[2rem] border border-emerald-300/15 bg-emerald-300/[0.035] p-5 sm:p-7"
-          >
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">
-              Adicionar alunos
-            </p>
-            <h2 className="mt-3 text-xl font-black text-white">
-              Colar lista da turma
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Use uma linha por aluno no formato número; nome; observação. Também pode colar colunas do Excel ou Google Sheets.
-            </p>
-
-            <label className="mt-5 block">
-              <FieldLabel>Lista de alunos</FieldLabel>
-              <textarea
-                value={importText}
-                onChange={event =>
-                  setImportText(
-                    event.target.value
-                  )
-                }
-                disabled={busy}
-                rows={7}
-                placeholder={'1; Ana Silva\n2; Bruno Costa\n3; Carla Sousa; apoio adicional'}
-                className={`${fieldClass} resize-y`}
-              />
-            </label>
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-slate-500">
-                Um número já existente atualiza o aluno em vez de criar um duplicado.
-              </p>
-              <button
-                type="submit"
-                disabled={
-                  busy ||
-                  !importText.trim()
-                }
-                className="rounded-2xl border border-emerald-200/30 bg-gradient-to-r from-emerald-300 to-teal-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:opacity-45"
-              >
-                {busyAction === 'import-students'
-                  ? 'A guardar...'
-                  : 'Guardar alunos'}
-              </button>
-            </div>
-          </form>
-
-          <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
-                  Alunos
-                </p>
-                <h2 className="mt-3 text-xl font-black text-white">
-                  Lista da turma
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Edite cada aluno diretamente e mantenha inativos no histórico quando necessário.
-                </p>
-              </div>
-
-              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={includeInactive}
-                  onChange={event =>
-                    setIncludeInactive(
-                      event.target.checked
-                    )
-                  }
-                  className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
-                />
-                Mostrar inativos
-              </label>
-            </div>
-
-            {visibleStudents.length === 0 ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
-                <p className="text-sm font-black text-white">
-                  A turma ainda não possui alunos ativos.
-                </p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Cole a lista acima para começar.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {visibleStudents.map(student => {
-                  const form =
-                    studentForms[student.id] ?? {
-                      number: student.number,
-                      name: student.name,
-                      notes: student.notes
-                    }
-
-                  return (
-                    <article
-                      key={student.id}
-                      className={`rounded-2xl border p-4 ${
-                        student.active
-                          ? 'border-white/10 bg-white/[0.03]'
-                          : 'border-slate-300/10 bg-slate-300/[0.025] opacity-75'
-                      }`}
-                    >
-                      <div className="grid gap-4 lg:grid-cols-[7rem_1fr_1fr_auto] lg:items-end">
-                        <label>
-                          <FieldLabel>Número</FieldLabel>
-                          <input
-                            type="text"
-                            value={form.number}
-                            onChange={event =>
-                              updateStudentForm(
-                                student.id,
-                                {
-                                  number:
-                                    event.target.value
-                                }
-                              )
-                            }
-                            disabled={busy}
-                            className={fieldClass}
-                          />
-                        </label>
-
-                        <label>
-                          <FieldLabel>Nome</FieldLabel>
-                          <input
-                            type="text"
-                            value={form.name}
-                            onChange={event =>
-                              updateStudentForm(
-                                student.id,
-                                {
-                                  name:
-                                    event.target.value
-                                }
-                              )
-                            }
-                            disabled={busy}
-                            className={fieldClass}
-                          />
-                        </label>
-
-                        <label>
-                          <FieldLabel optional>Observação</FieldLabel>
-                          <input
-                            type="text"
-                            value={form.notes}
-                            onChange={event =>
-                              updateStudentForm(
-                                student.id,
-                                {
-                                  notes:
-                                    event.target.value
-                                }
-                              )
-                            }
-                            disabled={busy}
-                            className={fieldClass}
-                          />
-                        </label>
-
-                        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void saveStudent(student)
-                            }
-                            disabled={busy}
-                            className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:opacity-60"
-                          >
-                            {busyAction === `student-${student.id}`
-                              ? 'A guardar...'
-                              : 'Guardar'}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void toggleStudent(student)
-                            }
-                            disabled={busy}
-                            className={`rounded-xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-60 ${
-                              student.active
-                                ? 'border-rose-300/20 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/10'
-                                : 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100 hover:bg-emerald-300/10'
-                            }`}
-                          >
-                            {busyAction === `toggle-${student.id}`
-                              ? 'A atualizar...'
-                              : student.active
-                                ? 'Desativar'
-                                : 'Reativar'}
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  )
-                })}
               </div>
             )}
           </section>
