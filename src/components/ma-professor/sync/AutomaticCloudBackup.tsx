@@ -112,6 +112,9 @@ export default function AutomaticCloudBackup() {
     let blockedByDivergence =
       false
 
+    let retryNotBefore =
+      0
+
     const clearTimer =
       () => {
         if (!timer) {
@@ -134,6 +137,8 @@ export default function AutomaticCloudBackup() {
 
         blockedByDivergence =
           false
+        retryNotBefore =
+          0
 
         return trust
       }
@@ -229,27 +234,6 @@ export default function AutomaticCloudBackup() {
       })
     }
 
-    function scheduleRetry() {
-      if (
-        disposed ||
-        blockedByDivergence ||
-        dirtySince === null
-      ) {
-        return
-      }
-
-      clearTimer()
-
-      timer =
-        setTimeout(
-          () => {
-            timer = null
-            void runBackup()
-          },
-          AUTO_BACKUP_RETRY_MS
-        )
-    }
-
     function scheduleBackup() {
       if (
         disposed ||
@@ -300,6 +284,14 @@ export default function AutomaticCloudBackup() {
           )
       }
 
+      if (retryNotBefore) {
+        dueAt =
+          Math.max(
+            dueAt,
+            retryNotBefore
+          )
+      }
+
       timer =
         setTimeout(
           () => {
@@ -327,6 +319,15 @@ export default function AutomaticCloudBackup() {
         typeof navigator !== 'undefined' &&
         navigator.onLine === false
       ) {
+        return
+      }
+
+      if (
+        retryNotBefore &&
+        Date.now() <
+          retryNotBefore
+      ) {
+        scheduleBackup()
         return
       }
 
@@ -417,7 +418,9 @@ export default function AutomaticCloudBackup() {
           return
         }
 
-        scheduleRetry()
+        retryNotBefore =
+          Date.now() +
+          AUTO_BACKUP_RETRY_MS
       } finally {
         running =
           false
@@ -463,6 +466,8 @@ export default function AutomaticCloudBackup() {
 
     const handleOnline =
       () => {
+        retryNotBefore =
+          0
         scheduleBackup()
       }
 
@@ -475,6 +480,8 @@ export default function AutomaticCloudBackup() {
         ) {
           blockedByDivergence =
             false
+          retryNotBefore =
+            0
           scheduleBackup()
         }
       }
