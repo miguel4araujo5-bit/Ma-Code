@@ -1,20 +1,11 @@
 import {
-  type ChangeEvent,
-  useRef,
   useState
 } from 'react'
-
-import type {
-  BackupValidationResult,
-  MAProfessorBackup
-} from '../types'
 
 import {
   createMAProfessorBackup,
   getBackupFileName,
-  parseMAProfessorBackupFile,
-  resetMAProfessorDatabase,
-  restoreMAProfessorBackup
+  resetMAProfessorDatabase
 } from './backupRepository'
 
 import {
@@ -26,15 +17,27 @@ import {
 } from './csvExport'
 
 import {
+  BackupLocalSafetyPanel
+} from './BackupLocalSafetyPanel'
+
+import {
   EncryptedSyncPanel
 } from './EncryptedSyncPanel'
 
 import {
-  OnlineRestorePanel
-} from './OnlineRestorePanel'
+  RestoreSettingsPanel
+} from './RestoreSettingsPanel'
+
+export type SecuritySection =
+  | 'protection'
+  | 'backup'
+  | 'restore'
+  | 'export'
+  | 'advanced'
 
 interface BackupSettingsPanelProps {
   onDataChanged?: () => void
+  initialSection?: SecuritySection
 }
 
 function getErrorMessage(
@@ -54,14 +57,42 @@ function today() {
     )
 }
 
-export function BackupSettingsPanel({
-  onDataChanged
-}: BackupSettingsPanelProps) {
-  const fileInputRef =
-    useRef<HTMLInputElement | null>(
-      null
-    )
+const sectionLinks: Array<{
+  id: SecuritySection
+  label: string
+}> = [
+  {
+    id: 'protection',
+    label: 'Proteção'
+  },
+  {
+    id: 'backup',
+    label: 'Cópias'
+  },
+  {
+    id: 'restore',
+    label: 'Restaurar'
+  },
+  {
+    id: 'export',
+    label: 'Exportar'
+  },
+  {
+    id: 'advanced',
+    label: 'Avançado'
+  }
+]
 
+function sectionAnchor(
+  section: SecuritySection
+) {
+  return `ma-professor-security-${section}`
+}
+
+export function BackupSettingsPanel({
+  onDataChanged,
+  initialSection = 'protection'
+}: BackupSettingsPanelProps) {
   const [
     busy,
     setBusy
@@ -82,28 +113,6 @@ export function BackupSettingsPanel({
     } | null>(
       null
     )
-
-  const [
-    pendingBackup,
-    setPendingBackup
-  ] =
-    useState<MAProfessorBackup | null>(
-      null
-    )
-
-  const [
-    validation,
-    setValidation
-  ] =
-    useState<BackupValidationResult | null>(
-      null
-    )
-
-  const [
-    restoreConfirmation,
-    setRestoreConfirmation
-  ] =
-    useState('')
 
   const [
     resetConfirmation,
@@ -255,138 +264,6 @@ export function BackupSettingsPanel({
         'Ficheiro CSV exportado.'
       )
 
-  const handleFile =
-    async (
-      event:
-        ChangeEvent<HTMLInputElement>
-    ) => {
-      const file =
-        event.target
-          .files?.[0]
-
-      event.target.value =
-        ''
-
-      if (!file) {
-        return
-      }
-
-      setBusy(
-        'validate'
-      )
-
-      setFeedback(
-        null
-      )
-
-      setPendingBackup(
-        null
-      )
-
-      setValidation(
-        null
-      )
-
-      setRestoreConfirmation(
-        ''
-      )
-
-      try {
-        const parsed =
-          await parseMAProfessorBackupFile(
-            file
-          )
-
-        setPendingBackup(
-          parsed.backup
-        )
-
-        setValidation(
-          parsed.validation
-        )
-
-        if (
-          !parsed.validation
-            .valid
-        ) {
-          setFeedback({
-            tone:
-              'error',
-
-            message:
-              'O ficheiro foi lido, mas contém erros que impedem o restauro.'
-          })
-        }
-      } catch (
-        error
-      ) {
-        setFeedback({
-          tone:
-            'error',
-
-          message:
-            getErrorMessage(
-              error
-            )
-        })
-      } finally {
-        setBusy('')
-      }
-    }
-
-  const handleRestore =
-    () => {
-      if (
-        !pendingBackup ||
-        !validation?.valid
-      ) {
-        return
-      }
-
-      if (
-        restoreConfirmation
-          .trim()
-          .toUpperCase() !==
-        'RESTAURAR'
-      ) {
-        setFeedback({
-          tone:
-            'error',
-
-          message:
-            'Escreva RESTAURAR para confirmar.'
-        })
-
-        return
-      }
-
-      void run(
-        'restore',
-
-        async () => {
-          await restoreMAProfessorBackup(
-            pendingBackup
-          )
-
-          setPendingBackup(
-            null
-          )
-
-          setValidation(
-            null
-          )
-
-          setRestoreConfirmation(
-            ''
-          )
-
-          onDataChanged?.()
-        },
-
-        'Cópia de segurança restaurada. A aplicação já pode ser recarregada.'
-      )
-    }
-
   const handleReset =
     () => {
       if (
@@ -423,27 +300,115 @@ export function BackupSettingsPanel({
       )
     }
 
-  return (
-    <div className="space-y-6">
-      <EncryptedSyncPanel />
+  const restoreSection = (
+    <div
+      id={
+        sectionAnchor(
+          'restore'
+        )
+      }
+      className="scroll-mt-24 space-y-3"
+    >
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+          Restaurar
+        </p>
+        <p className="mt-1 text-sm leading-6 text-slate-400">
+          Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.
+        </p>
+      </div>
 
-      <OnlineRestorePanel
+      <RestoreSettingsPanel
         onDataChanged={
           onDataChanged
         }
       />
+    </div>
+  )
 
-      <section className="rounded-3xl border border-cyan-300/15 bg-slate-900/70 p-5 sm:p-6">
+  return (
+    <div className="space-y-8">
+      <nav
+        aria-label="Secções de segurança e recuperação"
+        className="rounded-3xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"
+      >
         <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-          Cópia para guardar consigo
+          Acesso rápido
+        </p>
+        <p className="mt-1 text-sm leading-6 text-slate-400">
+          Escolha diretamente o que pretende fazer.
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {sectionLinks.map(
+            item => (
+              <a
+                key={
+                  item.id
+                }
+                href={`#${sectionAnchor(
+                  item.id
+                )}`}
+                className={`rounded-xl border px-3 py-2.5 text-center text-xs font-black transition ${
+                  initialSection === item.id
+                    ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
+                    : 'border-white/10 bg-slate-950/55 text-slate-300 hover:border-cyan-300/25 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </a>
+            )
+          )}
+        </div>
+      </nav>
+
+      {initialSection ===
+      'restore'
+        ? restoreSection
+        : null}
+
+      <div
+        id={
+          sectionAnchor(
+            'protection'
+          )
+        }
+        className="scroll-mt-24 space-y-3"
+      >
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+            Proteção automática
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Consulte o estado da proteção online e faça uma cópia imediata quando precisar.
+          </p>
+        </div>
+
+        <EncryptedSyncPanel />
+      </div>
+
+      <section
+        id={
+          sectionAnchor(
+            'backup'
+          )
+        }
+        className="scroll-mt-24 rounded-3xl border border-cyan-300/15 bg-slate-900/70 p-5 sm:p-6"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+          Cópias de segurança
         </p>
 
         <h2 className="mt-2 text-xl font-black text-white">
-          Descarregar uma cópia completa
+          Guardar uma cópia neste dispositivo
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-          O ficheiro JSON inclui anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições. Guarde-o num local seguro como cópia adicional controlada por si.
+          O ficheiro JSON inclui anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições. É uma cópia adicional controlada por si.
+        </p>
+
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-200/80">
+          Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
         </p>
 
         <button
@@ -465,9 +430,21 @@ export function BackupSettingsPanel({
         </button>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6">
+      {initialSection !==
+      'restore'
+        ? restoreSection
+        : null}
+
+      <section
+        id={
+          sectionAnchor(
+            'export'
+          )
+        }
+        className="scroll-mt-24 rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6"
+      >
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
-          Exportações CSV
+          Exportar
         </p>
 
         <h2 className="mt-2 text-xl font-black text-white">
@@ -475,7 +452,7 @@ export function BackupSettingsPanel({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Os CSV usam ponto e vírgula e são compatíveis com o Excel em português.
+          Exporte apenas os dados de que precisa. Os CSV usam ponto e vírgula e são compatíveis com o Excel em português.
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -535,161 +512,81 @@ export function BackupSettingsPanel({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-          Restauro local
+      <section
+        id={
+          sectionAnchor(
+            'advanced'
+          )
+        }
+        className="scroll-mt-24 rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
+          Opções avançadas
         </p>
 
         <h2 className="mt-2 text-xl font-black text-white">
-          Recuperar uma cópia JSON
+          Armazenamento local e operações sensíveis
         </h2>
 
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          O ficheiro é validado antes de qualquer alteração. O restauro substitui todos os dados escolares atualmente guardados neste browser.
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+          Estas opções não são necessárias no uso normal. Abra-as apenas quando precisar de verificar o armazenamento do browser ou eliminar os dados locais.
         </p>
 
-        <input
-          ref={
-            fileInputRef
-          }
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={
-            event =>
-              void handleFile(
-                event
-              )
-          }
-        />
+        <div className="mt-5 space-y-3">
+          <details className="group rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+            <summary className="cursor-pointer list-none text-sm font-black text-slate-200">
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  Armazenamento local e navegação privada
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-slate-500 transition group-open:rotate-180"
+                >
+                  ↓
+                </span>
+              </span>
+            </summary>
 
-        <button
-          type="button"
-          disabled={
-            Boolean(
-              busy
-            )
-          }
-          onClick={() =>
-            fileInputRef.current
-              ?.click()
-          }
-          className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-300/15 disabled:cursor-wait disabled:opacity-60"
-        >
-          {busy ===
-          'validate'
-            ? 'A validar…'
-            : 'Escolher ficheiro JSON'}
-        </button>
-
-        {validation ? (
-          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <div className="grid gap-3 text-center sm:grid-cols-4">
-              <div>
-                <p className="text-2xl font-black text-white">
-                  {
-                    validation
-                      .summary
-                      .academicYears
-                  }
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Anos letivos
-                </p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-black text-white">
-                  {
-                    validation
-                      .summary
-                      .students
-                  }
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Alunos
-                </p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-black text-white">
-                  {
-                    validation
-                      .summary
-                      .lessons
-                  }
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Aulas
-                </p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-black text-white">
-                  {
-                    validation
-                      .summary
-                      .assessmentResults
-                  }
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Resultados
-                </p>
-              </div>
+            <div className="mt-4">
+              <BackupLocalSafetyPanel />
             </div>
+          </details>
 
-            {validation
-              .issues
-              .length >
-            0 ? (
-              <ul className="mt-4 space-y-2">
-                {validation
-                  .issues
-                  .map(
-                    (
-                      issue,
-                      index
-                    ) => (
-                      <li
-                        key={`${issue.path}-${index}`}
-                        className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                          issue.severity ===
-                          'error'
-                            ? 'bg-rose-400/10 text-rose-200'
-                            : 'bg-amber-400/10 text-amber-200'
-                        }`}
-                      >
-                        {issue.path}: {issue.message}
-                      </li>
-                    )
-                  )}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm font-bold text-emerald-300">
-                Ficheiro válido e pronto a restaurar.
+          <details className="group rounded-2xl border border-rose-400/20 bg-rose-400/[0.04] p-4">
+            <summary className="cursor-pointer list-none text-sm font-black text-rose-200">
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  Apagar dados deste browser
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-rose-300/60 transition group-open:rotate-180"
+                >
+                  ↓
+                </span>
+              </span>
+            </summary>
+
+            <div className="mt-4 border-t border-rose-400/10 pt-4">
+              <p className="text-sm leading-6 text-slate-400">
+                Esta operação não pode ser anulada. Confirme que tem uma cópia de segurança antes de continuar.
               </p>
-            )}
 
-            {validation
-              .valid ? (
-              <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                 <input
                   type="text"
                   value={
-                    restoreConfirmation
+                    resetConfirmation
                   }
                   onChange={
                     event =>
-                      setRestoreConfirmation(
+                      setResetConfirmation(
                         event.target.value
                       )
                   }
-                  placeholder="Escreva RESTAURAR"
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-300/50"
+                  placeholder="Escreva APAGAR"
+                  className="rounded-xl border border-rose-400/20 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-rose-300/50"
                 />
 
                 <button
@@ -700,67 +597,18 @@ export function BackupSettingsPanel({
                     )
                   }
                   onClick={
-                    handleRestore
+                    handleReset
                   }
-                  className="rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950 disabled:cursor-wait disabled:opacity-60"
+                  className="rounded-xl bg-rose-400 px-4 py-2.5 text-sm font-black text-slate-950 disabled:cursor-wait disabled:opacity-60"
                 >
                   {busy ===
-                  'restore'
-                    ? 'A restaurar…'
-                    : 'Restaurar'}
+                  'reset'
+                    ? 'A apagar…'
+                    : 'Apagar tudo'}
                 </button>
               </div>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="rounded-3xl border border-rose-400/20 bg-rose-400/5 p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
-          Zona de risco
-        </p>
-
-        <h2 className="mt-2 text-xl font-black text-white">
-          Apagar dados deste browser
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          Esta operação não pode ser anulada. Crie primeiro uma cópia de segurança completa.
-        </p>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <input
-            type="text"
-            value={
-              resetConfirmation
-            }
-            onChange={
-              event =>
-                setResetConfirmation(
-                  event.target.value
-                )
-            }
-            placeholder="Escreva APAGAR"
-            className="rounded-xl border border-rose-400/20 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-rose-300/50"
-          />
-
-          <button
-            type="button"
-            disabled={
-              Boolean(
-                busy
-              )
-            }
-            onClick={
-              handleReset
-            }
-            className="rounded-xl bg-rose-400 px-4 py-2.5 text-sm font-black text-slate-950 disabled:cursor-wait disabled:opacity-60"
-          >
-            {busy ===
-            'reset'
-              ? 'A apagar…'
-              : 'Apagar tudo'}
-          </button>
+            </div>
+          </details>
         </div>
       </section>
 

@@ -10,10 +10,12 @@ const read = path =>
 
 const [
   restoreSource,
-  settingsSource
+  settingsSource,
+  backupSource
 ] = await Promise.all([
   read('src/components/ma-professor/settings/RestoreSettingsPanel.tsx'),
-  read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx')
+  read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx'),
+  read('src/components/ma-professor/settings/BackupSettingsPanel.tsx')
 ])
 
 test(
@@ -65,25 +67,27 @@ test(
 )
 
 test(
-  'data and copies screen surfaces source choice before the legacy backup tools',
+  'security area owns a single restore source selector',
   () => {
-    const restorePosition =
-      settingsSource.indexOf(
-        '<RestoreSettingsPanel'
-      )
-    const safetyPosition =
-      settingsSource.indexOf(
-        '<BackupLocalSafetyPanel />'
-      )
-    const backupPosition =
-      settingsSource.indexOf(
-        '<BackupSettingsPanel'
-      )
-
-    assert.ok(restorePosition >= 0)
-    assert.ok(safetyPosition >= 0)
-    assert.ok(backupPosition >= 0)
-    assert.ok(restorePosition < safetyPosition)
-    assert.ok(restorePosition < backupPosition)
+    assert.match(
+      settingsSource,
+      /<BackupSettingsPanel/
+    )
+    assert.doesNotMatch(
+      settingsSource,
+      /<RestoreSettingsPanel/
+    )
+    assert.match(
+      backupSource,
+      /<RestoreSettingsPanel/
+    )
+    assert.doesNotMatch(
+      backupSource,
+      /<OnlineRestorePanel/
+    )
+    assert.match(
+      backupSource,
+      /initialSection ===[\s\S]*'restore'[\s\S]*restoreSection/
+    )
   }
 )

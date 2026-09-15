@@ -55,8 +55,8 @@ const items: Array<{
   },
   {
     id: 'backup',
-    label: 'Cópia',
-    icon: '⇩'
+    label: 'Segurança',
+    icon: '◈'
   },
   {
     id: 'menu',

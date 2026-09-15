@@ -69,11 +69,15 @@ test(
       safetySource,
       /nomes de alunos, faltas, avaliações/i
     )
+    assert.match(
+      backupSource,
+      /Esta cópia local não está cifrada/
+    )
   }
 )
 
 test(
-  'the backup screen exposes only one local JSON download action',
+  'the security screen exposes only one local JSON download action',
   () => {
     assert.doesNotMatch(
       safetySource,
@@ -89,11 +93,11 @@ test(
     )
     assert.match(
       backupSource,
-      /Cópia para guardar consigo/
+      /Cópias de segurança/
     )
     assert.match(
       backupSource,
-      /Descarregar uma cópia completa/
+      /Descarregar cópia completa/
     )
     assert.match(
       backupSource,
@@ -103,28 +107,68 @@ test(
 )
 
 test(
-  'backup safety is shown before the existing backup and restore workspace',
+  'security and recovery page has one clear task-based organization',
   () => {
-    const safetyPosition =
-      settingsSource.indexOf(
-        '<BackupLocalSafetyPanel />'
+    assert.match(
+      settingsSource,
+      /Segurança e recuperação/
+    )
+    assert.match(
+      settingsSource,
+      /Proteção, cópias, restauro e exportações/
+    )
+
+    const protectionPosition =
+      backupSource.indexOf(
+        'Proteção automática'
       )
     const backupPosition =
-      settingsSource.indexOf(
-        '<BackupSettingsPanel'
+      backupSource.indexOf(
+        'Cópias de segurança'
+      )
+    const restorePosition =
+      backupSource.indexOf(
+        '<RestoreSettingsPanel'
+      )
+    const exportPosition =
+      backupSource.indexOf(
+        'Abrir dados no Excel'
+      )
+    const advancedPosition =
+      backupSource.indexOf(
+        'Opções avançadas'
       )
 
-    assert.ok(safetyPosition >= 0)
+    assert.ok(protectionPosition >= 0)
     assert.ok(backupPosition >= 0)
-    assert.ok(
-      safetyPosition < backupPosition,
-      'O aviso de segurança deve surgir antes das operações de backup/restauro.'
+    assert.ok(restorePosition >= 0)
+    assert.ok(exportPosition >= 0)
+    assert.ok(advancedPosition >= 0)
+    assert.ok(protectionPosition < backupPosition)
+    assert.ok(backupPosition < exportPosition)
+    assert.ok(exportPosition < advancedPosition)
+
+    assert.match(
+      backupSource,
+      /<EncryptedSyncPanel \/>/
+    )
+    assert.match(
+      backupSource,
+      /<BackupLocalSafetyPanel \/>/
+    )
+    assert.doesNotMatch(
+      backupSource,
+      /<OnlineRestorePanel/
+    )
+    assert.doesNotMatch(
+      backupSource,
+      /parseMAProfessorBackupFile\(/
     )
   }
 )
 
 test(
-  'JSON restore is directly discoverable from the menu and during an incomplete setup',
+  'JSON restore remains directly discoverable from the menu and during an incomplete setup',
   () => {
     assert.match(
       productMenuSource,
@@ -150,41 +194,7 @@ test(
 )
 
 test(
-  'the direct restore shortcut opens the existing backup tab instead of creating a second restore path',
-  () => {
-    assert.match(
-      settingsSource,
-      /initialTab\?:[\s\S]*SettingsTab/
-    )
-    assert.match(
-      settingsSource,
-      /initialTab = 'profile'/
-    )
-    assert.match(
-      settingsSource,
-      /useState<SettingsTab>\([\s\S]*initialTab/
-    )
-    assert.match(
-      productMenuSource,
-      /initialTab=\{[\s\S]*isRestore[\s\S]*\? 'backup'[\s\S]*: 'profile'/
-    )
-    assert.match(
-      backupSource,
-      /parseMAProfessorBackupFile\(/
-    )
-    assert.match(
-      backupSource,
-      /restoreMAProfessorBackup\(/
-    )
-    assert.match(
-      backupSource,
-      /Escreva RESTAURAR para confirmar\./
-    )
-  }
-)
-
-test(
-  'backup is directly reachable from the global product navigation and works before setup is complete',
+  'security is directly reachable from the global product navigation and works before setup is complete',
   () => {
     assert.match(
       productNavigationSource,
@@ -192,7 +202,7 @@ test(
     )
     assert.match(
       productNavigationSource,
-      /id:\s*'backup'[\s\S]*label:\s*'Cópia'/
+      /id:\s*'backup'[\s\S]*label:\s*'Segurança'/
     )
     assert.match(
       productNavigationSource,
@@ -208,13 +218,13 @@ test(
     )
     assert.match(
       productSource,
-      /workspace ===[\s\S]*'backup' \? \(\s*<SettingsWorkspaceView[\s\S]*initialTab=\"backup\"/
+      /workspace ===[\s\S]*'backup' \? \(\s*<SettingsWorkspaceView[\s\S]*initialTab="backup"/
     )
   }
 )
 
 test(
-  'backup screen warns about private browsing and keeps both local and encrypted-online choices',
+  'security screen warns about private browsing and keeps both local and encrypted-online choices',
   () => {
     assert.match(
       safetySource,
@@ -230,7 +240,7 @@ test(
     )
     assert.match(
       backupSource,
-      /Descarregar uma cópia completa/
+      /Descarregar cópia completa/
     )
     assert.match(
       backupSource,
@@ -238,7 +248,7 @@ test(
     )
     assert.match(
       backupSource,
-      /Guardar cópia cifrada agora|EncryptedSyncPanel/
+      /<RestoreSettingsPanel/
     )
   }
 )
@@ -300,8 +310,16 @@ test(
 )
 
 test(
-  'backup safety panel explains persistent-storage state and origin-wide usage estimate',
+  'storage details remain available under advanced security options',
   () => {
+    assert.match(
+      backupSource,
+      /Opções avançadas/
+    )
+    assert.match(
+      backupSource,
+      /Armazenamento local e navegação privada/
+    )
     assert.match(
       safetySource,
       /Proteção do armazenamento local/
