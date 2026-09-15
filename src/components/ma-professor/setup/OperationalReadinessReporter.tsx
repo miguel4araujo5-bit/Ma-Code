@@ -18,6 +18,8 @@ import {
   maProfessorRepository
 } from '../repository'
 
+import AutomaticCloudBackup from '../sync/AutomaticCloudBackup'
+
 import {
   getMAProfessorSetupReadiness
 } from './setupReadiness'
@@ -132,5 +134,5 @@ export default function OperationalReadinessReporter() {
     }
   }, [])
 
-  return null
+  return <AutomaticCloudBackup />
 }

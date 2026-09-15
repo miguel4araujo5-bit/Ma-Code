@@ -15,6 +15,10 @@ import {
 } from '../sync/cloudBackupService'
 
 import {
+  writeMAProfessorCloudBackupTrust
+} from '../sync/cloudBackupTrust'
+
+import {
   createMAProfessorBackup
 } from './backupRepository'
 
@@ -223,6 +227,18 @@ export function EncryptedSyncPanel() {
             backup
           )
 
+        writeMAProfessorCloudBackupTrust(
+          session,
+          {
+            serverRevision:
+              result.serverRevision,
+            recordRevision:
+              result.recordRevision,
+            updatedAt:
+              result.updatedAt
+          }
+        )
+
         setFeedback({
           tone:
             'success',
@@ -270,7 +286,7 @@ export function EncryptedSyncPanel() {
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Quando guardar uma cópia, os dados são cifrados neste dispositivo antes de saírem do browser. A nuvem recebe apenas conteúdo cifrado. Para decifrar ou restaurar a cópia é necessária uma sessão válida da conta MA-Professor.
+            Os dados são cifrados neste dispositivo antes de saírem do browser. A nuvem recebe apenas conteúdo cifrado. Depois de uma alteração, o MA-Professor pode atualizar automaticamente a cópia quando este dispositivo continua alinhado com a última revisão online.
           </p>
         </div>
 
@@ -280,7 +296,7 @@ export function EncryptedSyncPanel() {
           </p>
 
           <p className="mt-1 text-[0.68rem] text-emerald-100/70">
-            Envio manual
+            Automático + manual
           </p>
         </div>
       </div>
@@ -351,8 +367,8 @@ export function EncryptedSyncPanel() {
           {busy
             ? 'A cifrar, enviar e verificar…'
             : found
-              ? 'Atualizar cópia cifrada'
-              : 'Guardar primeira cópia cifrada'}
+              ? 'Atualizar cópia cifrada agora'
+              : 'Guardar primeira cópia cifrada agora'}
         </button>
 
         <button
@@ -374,7 +390,7 @@ export function EncryptedSyncPanel() {
       </div>
 
       <p className="mt-4 text-xs leading-5 text-slate-500">
-        Nada é enviado automaticamente. A cópia online só muda quando carrega no botão para guardar ou atualizar.
+        Sem polling: as alterações são agrupadas no próprio browser. A cópia automática espera um curto período de estabilidade e nunca envia mais do que uma atualização automática a cada 10 minutos. Se outro dispositivo tiver atualizado a nuvem, o automático pára para não sobrescrever essa versão.
       </p>
 
       {feedback ? (
