@@ -810,7 +810,7 @@ export default function AssessmentWorkspaceView({
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <MetricCard
-              label="Atividades"
+              label="Momentos de avaliação"
               value={
                 snapshot.totals
                   .activityCount
