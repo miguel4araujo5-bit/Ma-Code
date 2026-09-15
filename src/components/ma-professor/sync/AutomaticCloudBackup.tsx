@@ -26,6 +26,7 @@ import {
 import {
   clearMAProfessorCloudBackupTrust,
   createMAProfessorBackupContentSignature,
+  markMAProfessorCloudBackupDirty,
   MA_PROFESSOR_CLOUD_BACKUP_TRUST_EVENT,
   readMAProfessorCloudBackupTrust,
   writeMAProfessorCloudBackupTrust,
@@ -45,7 +46,7 @@ const AUTO_BACKUP_RETRY_MS =
   5 * 60 * 1000
 
 function readTimestamp(
-  value: string | null
+  value: string | null | undefined
 ) {
   if (!value) {
     return 0
@@ -452,6 +453,11 @@ export default function AutomaticCloudBackup() {
             now
         }
 
+        markMAProfessorCloudBackupDirty(
+          session,
+          new Date(now).toISOString()
+        )
+
         scheduleBackup()
       }
 
@@ -489,7 +495,20 @@ export default function AutomaticCloudBackup() {
     )
 
     void reconcileTrust()
-      .then(() => {
+      .then(trust => {
+        const pendingSince =
+          readTimestamp(
+            trust?.dirtyAt
+          )
+
+        if (pendingSince) {
+          dirtySince =
+            pendingSince
+          lastMutationAt =
+            Date.now()
+          mutationSequence += 1
+        }
+
         scheduleBackup()
       })
       .catch(() => {
