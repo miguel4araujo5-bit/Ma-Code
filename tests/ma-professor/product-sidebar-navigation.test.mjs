@@ -153,17 +153,25 @@ test(
 )
 
 test(
-  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer without a recursive Painel entry',
+  'the MA-Code logo stays in the global product bar and opens the complete sidebar drawer without redundant Painel or Calendário entries',
   () => {
     assert.match(productNavigationSource, /aria-label=\"Abrir navegação completa do MA-Professor\"/)
     assert.match(productNavigationSource, /src=\"\/ma-code\.png\"/)
     assert.match(productNavigationSource, /sidebarOpen[\s\S]*role=\"dialog\"[\s\S]*aria-label=\"Navegação completa do MA-Professor\"/)
-    for (const label of ['Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
+    for (const label of ['Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
       assert.ok(productNavigationSource.includes(label), `missing global drawer entry: ${label}`)
     }
     assert.doesNotMatch(
       productNavigationSource,
       /\{ id: 'dashboard', label: 'Painel' \}/
+    )
+    assert.doesNotMatch(
+      productNavigationSource,
+      /sidebarItems[\s\S]*\{ id: 'calendar', label: 'Calendário' \}/
+    )
+    assert.match(
+      productNavigationSource,
+      /id: 'calendar'[\s\S]*label: 'Calendário'/
     )
   }
 )
