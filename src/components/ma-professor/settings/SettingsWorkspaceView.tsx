@@ -7,12 +7,9 @@ import type {
 } from '../types'
 
 import {
-  BackupSettingsPanel
+  BackupSettingsPanel,
+  type SecuritySection
 } from './BackupSettingsPanel'
-
-import {
-  BackupLocalSafetyPanel
-} from './BackupLocalSafetyPanel'
 
 import {
   LicenseSettingsPanel
@@ -21,10 +18,6 @@ import {
 import {
   ProfileSettingsPanel
 } from './ProfileSettingsPanel'
-
-import {
-  RestoreSettingsPanel
-} from './RestoreSettingsPanel'
 
 import {
   SearchSettingsPanel
@@ -45,6 +38,9 @@ interface SettingsWorkspaceViewProps {
 
   initialTab?:
     SettingsTab
+
+  initialSecuritySection?:
+    SecuritySection
 }
 
 const tabs: Array<{
@@ -73,10 +69,10 @@ const tabs: Array<{
       'backup',
 
     label:
-      'Dados e cópias',
+      'Segurança e recuperação',
 
     description:
-      'Cópia cifrada online, backup, restauro e CSV'
+      'Proteção, cópias, restauro e exportações'
   },
 
   {
@@ -105,7 +101,8 @@ const tabs: Array<{
 export function SettingsWorkspaceView({
   academicYearId,
   onDataChanged,
-  initialTab = 'profile'
+  initialTab = 'profile',
+  initialSecuritySection = 'protection'
 }: SettingsWorkspaceViewProps) {
   const [
     tab,
@@ -114,6 +111,9 @@ export function SettingsWorkspaceView({
     useState<SettingsTab>(
       initialTab
     )
+
+  const securitySelected =
+    tab === 'backup'
 
   return (
     <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-4 py-6 text-white sm:px-6 lg:px-8">
@@ -126,21 +126,29 @@ export function SettingsWorkspaceView({
               </p>
 
               <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-                Definições e proteção dos dados
+                {securitySelected
+                  ? 'Segurança e recuperação'
+                  : 'Definições do MA-Professor'}
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-                Personalize a aplicação, procure informação e mantenha cópias do seu trabalho. A cópia online é protegida no seu dispositivo antes do envio e continua sempre sob o seu controlo.
+                {securitySelected
+                  ? 'Proteja o trabalho, acompanhe a cópia cifrada online, guarde cópias locais, restaure informação e exporte apenas o que precisa.'
+                  : 'Personalize o perfil, consulte a pesquisa global e acompanhe a licença da aplicação.'}
               </p>
             </div>
 
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-right">
               <p className="text-xs font-black text-emerald-200">
-                Proteção ativa
+                {securitySelected
+                  ? 'Proteção dos dados'
+                  : 'Configuração local'}
               </p>
 
               <p className="mt-1 text-[0.65rem] leading-4 text-emerald-100/70">
-                Dados locais + cópia cifrada opcional
+                {securitySelected
+                  ? 'Dados locais + cópia cifrada online'
+                  : 'Alterações guardadas neste dispositivo'}
               </p>
             </div>
           </div>
@@ -205,21 +213,14 @@ export function SettingsWorkspaceView({
 
             {tab ===
             'backup' ? (
-              <div className="space-y-6">
-                <RestoreSettingsPanel
-                  onDataChanged={
-                    onDataChanged
-                  }
-                />
-
-                <BackupLocalSafetyPanel />
-
-                <BackupSettingsPanel
-                  onDataChanged={
-                    onDataChanged
-                  }
-                />
-              </div>
+              <BackupSettingsPanel
+                onDataChanged={
+                  onDataChanged
+                }
+                initialSection={
+                  initialSecuritySection
+                }
+              />
             ) : null}
 
             {tab ===
