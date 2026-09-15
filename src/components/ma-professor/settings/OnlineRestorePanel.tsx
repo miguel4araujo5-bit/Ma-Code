@@ -90,7 +90,7 @@ export function OnlineRestorePanel({
     busy,
     setBusy
   ] =
-    useState<'' | 'preview' | 'restore'>('')
+    useState<'' | 'preview' | 'download' | 'restore'>('')
   const [
     confirmation,
     setConfirmation
@@ -149,6 +149,50 @@ export function OnlineRestorePanel({
       }
     }
 
+  const handleDownloadCurrentBackup =
+    async () => {
+      if (busy) {
+        return
+      }
+
+      setBusy('download')
+      setFeedback(null)
+
+      try {
+        const currentBackup =
+          await createMAProfessorBackup()
+
+        downloadTextFile(
+          getBackupFileName(
+            currentBackup.exportedAt
+          ).replace(
+            '.json',
+            '-antes-restauro.json'
+          ),
+          JSON.stringify(
+            currentBackup,
+            null,
+            2
+          ),
+          'application/json;charset=utf-8'
+        )
+
+        setFeedback({
+          tone: 'success',
+          message:
+            'Cópia atual preparada para descarregar. O restauro da nuvem continua pronto quando quiser avançar.'
+        })
+      } catch (error) {
+        setFeedback({
+          tone: 'error',
+          message:
+            getErrorMessage(error)
+        })
+      } finally {
+        setBusy('')
+      }
+    }
+
   const handleRestore =
     async () => {
       if (!preview || busy) {
@@ -176,24 +220,6 @@ export function OnlineRestorePanel({
       setFeedback(null)
 
       try {
-        const safetyBackup =
-          await createMAProfessorBackup()
-
-        downloadTextFile(
-          getBackupFileName(
-            safetyBackup.exportedAt
-          ).replace(
-            '.json',
-            '-antes-restauro.json'
-          ),
-          JSON.stringify(
-            safetyBackup,
-            null,
-            2
-          ),
-          'application/json;charset=utf-8'
-        )
-
         await restoreMAProfessorCloudRestore(
           session,
           {
@@ -227,7 +253,7 @@ export function OnlineRestorePanel({
         setFeedback({
           tone: 'success',
           message:
-            'Cópia online restaurada. Foi também descarregada uma cópia local de segurança dos dados que existiam antes do restauro. Este dispositivo ficou alinhado para futuras cópias automáticas.'
+            'Cópia online restaurada com sucesso. Este dispositivo ficou alinhado para futuras cópias automáticas.'
         })
         onDataChanged?.()
       } catch (error) {
@@ -319,9 +345,23 @@ export function OnlineRestorePanel({
             </div>
           </div>
 
-          <p className="mt-4 text-xs leading-5 text-amber-200/85">
-            Antes do restauro será descarregada automaticamente uma cópia JSON dos dados que estão agora neste dispositivo.
-          </p>
+          <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3">
+            <p className="text-xs leading-5 text-amber-100/80">
+              O restauro substitui os dados atuais deste dispositivo. Se quiser guardar o estado atual antes de avançar, pode descarregar uma cópia separadamente. Esta ação é opcional e não é necessária para restaurar.
+            </p>
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void handleDownloadCurrentBackup()
+              }
+              className="mt-3 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-3 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-200/10 disabled:cursor-wait disabled:opacity-60"
+            >
+              {busy === 'download'
+                ? 'A preparar cópia…'
+                : 'Descarregar cópia atual (opcional)'}
+            </button>
+          </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input
