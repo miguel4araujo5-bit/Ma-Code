@@ -68,7 +68,6 @@ const sidebarItems: Array<{
   id: ProductSidebarDestination
   label: string
 }> = [
-  { id: 'calendar', label: 'Calendário' },
   { id: 'giae', label: 'Sumários / GIAE' },
   { id: 'assessments', label: 'Avaliações' },
   { id: 'planifications', label: 'Planificações' },
