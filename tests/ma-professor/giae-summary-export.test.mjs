@@ -10,6 +10,14 @@ const navigationSource = await readFile(
   'utf8'
 )
 
+const pageActionSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/giae/GIAESummaryExportPageAction.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dialogSource = await readFile(
   new URL(
     '../../src/components/ma-professor/giae/GIAESummaryExportDialog.tsx',
@@ -27,18 +35,26 @@ const exportSource = await readFile(
 )
 
 test(
-  'summary export is exposed from the Sumários / GIAE entry without restoring a duplicate Calendar sidebar entry',
+  'summary export is exposed inside the Sumários / GIAE page without restoring a duplicate Calendar sidebar entry',
   () => {
     assert.match(
       navigationSource,
       /Sumários \/ GIAE/
     )
-    assert.match(
+    assert.doesNotMatch(
       navigationSource,
-      /Exportar sumários/
+      /onOpenSummaryExport|summaryExportOpen|openSummaryExport/
     )
     assert.match(
       navigationSource,
+      /<GIAESummaryExportPageAction\s*\/>/
+    )
+    assert.match(
+      pageActionSource,
+      /Exportar sumários/
+    )
+    assert.match(
+      pageActionSource,
       /<GIAESummaryExportDialog/
     )
     assert.doesNotMatch(
