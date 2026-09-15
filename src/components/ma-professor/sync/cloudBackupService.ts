@@ -110,6 +110,22 @@ export interface MAProfessorUploadedCloudBackup {
   encryptedBytes: number
 }
 
+export interface MAProfessorCloudBackupUploadOptions {
+  expectedServerRevision?: number
+}
+
+export class MAProfessorCloudBackupRevisionConflictError
+  extends Error {
+  constructor(
+    message =
+      'Existe uma cópia online mais recente. Por segurança, a cópia automática foi interrompida.'
+  ) {
+    super(message)
+    this.name =
+      'MAProfessorCloudBackupRevisionConflictError'
+  }
+}
+
 function isObject(
   value: unknown
 ): value is Record<string, unknown> {
@@ -823,10 +839,35 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   session:
     MAProfessorAccessSession,
   backup:
-    MAProfessorBackup
+    MAProfessorBackup,
+  options:
+    MAProfessorCloudBackupUploadOptions = {}
 ): Promise<MAProfessorUploadedCloudBackup> {
+  const expectedServerRevision =
+    options.expectedServerRevision
+
+  if (
+    expectedServerRevision !== undefined &&
+    !isNonNegativeInteger(
+      expectedServerRevision
+    )
+  ) {
+    throw new Error(
+      'A revisão esperada da cópia online não é válida.'
+    )
+  }
+
   const status =
     await readStatus(session)
+
+  if (
+    expectedServerRevision !== undefined &&
+    status.serverRevision !==
+      expectedServerRevision
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError()
+  }
+
   const key =
     await importBackupKey(session)
   const prepared =
@@ -835,22 +876,41 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
       key
     )
 
-  const pushData =
-    parsePushResult(
-      await postJson(
-        '/push',
-        {
-          ...sessionBody(session),
-          recordId:
-            RECORD_ID,
-          expectedServerRevision:
-            status.serverRevision,
-          encrypted:
-            prepared.encrypted
-        },
-        'Não foi possível guardar a cópia cifrada.'
+  let pushData:
+    ReturnType<typeof parsePushResult>
+
+  try {
+    pushData =
+      parsePushResult(
+        await postJson(
+          '/push',
+          {
+            ...sessionBody(session),
+            recordId:
+              RECORD_ID,
+            expectedServerRevision:
+              status.serverRevision,
+            encrypted:
+              prepared.encrypted
+          },
+          'Não foi possível guardar a cópia cifrada.'
+        )
       )
-    )
+  } catch (error) {
+    if (
+      expectedServerRevision !== undefined &&
+      error instanceof Error &&
+      error.message.includes(
+        'cópia online mais recente'
+      )
+    ) {
+      throw new MAProfessorCloudBackupRevisionConflictError(
+        error.message
+      )
+    }
+
+    throw error
+  }
 
   const remote =
     await getEncryptedBackup(session)
@@ -867,6 +927,14 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
     remote.recordRevision !==
       pushData.recordRevision
   ) {
+    if (
+      expectedServerRevision !== undefined
+    ) {
+      throw new MAProfessorCloudBackupRevisionConflictError(
+        'A cópia online foi atualizada noutro dispositivo durante a verificação. A cópia automática foi interrompida.'
+      )
+    }
+
     throw new Error(
       'A cópia online foi atualizada noutro dispositivo durante a verificação. Atualize o estado antes de continuar.'
     )
