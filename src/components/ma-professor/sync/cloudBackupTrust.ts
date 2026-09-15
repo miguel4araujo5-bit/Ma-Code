@@ -16,6 +16,7 @@ export interface MAProfessorCloudBackupTrust {
   serverRevision: number
   recordRevision: number | null
   updatedAt: string | null
+  dirtyAt?: string | null
 }
 
 function getStorageKey(
@@ -71,6 +72,11 @@ function isTrust(
     (
       record.updatedAt === null ||
       typeof record.updatedAt === 'string'
+    ) &&
+    (
+      record.dirtyAt === undefined ||
+      record.dirtyAt === null ||
+      typeof record.dirtyAt === 'string'
     )
   )
 }
@@ -87,6 +93,38 @@ function notifyTrustChanged() {
       MA_PROFESSOR_CLOUD_BACKUP_TRUST_EVENT
     )
   )
+}
+
+function storeTrust(
+  session:
+    Pick<
+      MAProfessorAccessSession,
+      'email' | 'deviceId'
+    >,
+  trust:
+    MAProfessorCloudBackupTrust,
+  notify: boolean
+) {
+  if (
+    typeof window === 'undefined'
+  ) {
+    return false
+  }
+
+  try {
+    window.localStorage.setItem(
+      getStorageKey(session),
+      JSON.stringify(trust)
+    )
+  } catch {
+    return false
+  }
+
+  if (notify) {
+    notifyTrustChanged()
+  }
+
+  return true
 }
 
 export function readMAProfessorCloudBackupTrust(
@@ -139,22 +177,43 @@ export function writeMAProfessorCloudBackupTrust(
   trust:
     MAProfessorCloudBackupTrust
 ) {
-  if (
-    typeof window === 'undefined'
-  ) {
-    return
-  }
+  storeTrust(
+    session,
+    {
+      ...trust,
+      dirtyAt:
+        null
+    },
+    true
+  )
+}
 
-  try {
-    window.localStorage.setItem(
-      getStorageKey(session),
-      JSON.stringify(trust)
+export function markMAProfessorCloudBackupDirty(
+  session:
+    Pick<
+      MAProfessorAccessSession,
+      'email' | 'deviceId'
+    >,
+  dirtyAt =
+    new Date().toISOString()
+) {
+  const trust =
+    readMAProfessorCloudBackupTrust(
+      session
     )
-  } catch {
+
+  if (!trust) {
     return
   }
 
-  notifyTrustChanged()
+  storeTrust(
+    session,
+    {
+      ...trust,
+      dirtyAt
+    },
+    false
+  )
 }
 
 export function clearMAProfessorCloudBackupTrust(
