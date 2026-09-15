@@ -38,6 +38,7 @@ export function readRuledPlanificationTable(
   const lines: PlanificationPdfLine[] = []
   let recognized = precedingTableRecognized
   let hasCells = false
+  let tableTop = -Infinity
   const makeLine = (cells: string[]) => ({
     text: cells.join(' '), cells,
     positionedCells: cells.map((text, index) => ({ text, x: index * 100, width: 80 }))
@@ -50,6 +51,7 @@ export function readRuledPlanificationTable(
     const band = items.filter(item => item.transform[5] < top && item.transform[5] > bottom && item.str.trim())
     if (xs.length === 7) {
       hasCells = true
+      tableTop = Math.max(tableTop, top)
       const cells = xs.slice(0, -1).map((left, index) => textInCell(
         band.filter(item => item.transform[4] >= left - 1 && item.transform[4] < xs[index + 1] - 1)
       ))
@@ -67,7 +69,10 @@ export function readRuledPlanificationTable(
     }
   }
   if (!recognized || !hasCells) return null
-  // Keep title metadata outside the table, without inventing a discipline.
-  const titles = items.filter(item => /planifica[çc][ãa]o de|curso profissional/i.test(item.str))
-  return [...titles.map(item => makeLine([item.str])), ...lines]
+  // PDF text runs can split a title, discipline or course across several items.
+  // Reconstruct the complete header above the table; a keyword inside a cell
+  // belongs to that cell and must not be promoted to document metadata.
+  const headerLines = textInCell(items.filter(item => item.transform[5] >= tableTop))
+    .split('\n').filter(Boolean)
+  return [...headerLines.map(text => makeLine([text])), ...lines]
 }
