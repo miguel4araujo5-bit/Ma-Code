@@ -13,6 +13,10 @@ import {
 } from '../sync/cloudBackupRestoreService'
 
 import {
+  writeMAProfessorCloudBackupTrust
+} from '../sync/cloudBackupTrust'
+
+import {
   createMAProfessorBackup,
   getBackupFileName
 } from './backupRepository'
@@ -206,12 +210,24 @@ export function OnlineRestorePanel({
           }
         )
 
+        writeMAProfessorCloudBackupTrust(
+          session,
+          {
+            serverRevision:
+              foundPreview.serverRevision,
+            recordRevision:
+              foundPreview.recordRevision,
+            updatedAt:
+              foundPreview.updatedAt
+          }
+        )
+
         setPreview(null)
         setConfirmation('')
         setFeedback({
           tone: 'success',
           message:
-            'Cópia online restaurada. Foi também descarregada uma cópia local de segurança dos dados que existiam antes do restauro.'
+            'Cópia online restaurada. Foi também descarregada uma cópia local de segurança dos dados que existiam antes do restauro. Este dispositivo ficou alinhado para futuras cópias automáticas.'
         })
         onDataChanged?.()
       } catch (error) {
