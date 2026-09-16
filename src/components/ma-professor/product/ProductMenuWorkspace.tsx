@@ -593,28 +593,7 @@ export function ProductMenuWorkspace({
             title="Sumários, avaliações e planificações"
             onBack={() => setSection('home')}
           />
-        ) : (
-          <div className="border-b border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:px-6">
-            <div className="mx-auto flex max-w-[1800px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-black text-emerald-200">
-                  Quer recuperar os seus dados?
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
-                  Pode restaurar a cópia cifrada da nuvem ou escolher um ficheiro deste dispositivo antes de voltar a configurar tudo manualmente.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSection('restore')}
-                className="rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2.5 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15"
-              >
-                Restaurar dados
-              </button>
-            </div>
-          </div>
-        )}
+        ) : null}
 
         <MAProfessorApp
           workspaceRequest={
