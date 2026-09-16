@@ -1230,7 +1230,7 @@ export async function recoverMAProfessorOnNewDevice(
         0,
 
       message:
-        'Este dispositivo ficou autorizado, mas não foi possível descarregar a cópia online agora. Pode recuperá-la mais tarde em Definições → Dados e cópias.'
+        'Este dispositivo ficou autorizado, mas não foi possível descarregar a cópia online agora. Pode recuperá-la mais tarde em Segurança → Restaurar.'
     }
   }
 
@@ -1361,7 +1361,7 @@ export async function recoverMAProfessorOnNewDevice(
         0,
 
       message:
-        'Este dispositivo ficou autorizado, mas já contém dados locais diferentes. Por segurança, nada foi substituído. Compare as cópias em Definições → Dados e cópias.'
+        'Este dispositivo ficou autorizado, mas já contém dados locais diferentes. Por segurança, nada foi substituído. Compare as cópias em Segurança → Restaurar.'
     }
   }
 
@@ -1393,7 +1393,7 @@ export async function recoverMAProfessorOnNewDevice(
           0,
 
         message:
-          'Este dispositivo ficou autorizado, mas os dados locais foram alterados durante a recuperação. Por segurança, nada foi substituído. Compare as cópias em Definições → Dados e cópias.'
+          'Este dispositivo ficou autorizado, mas os dados locais foram alterados durante a recuperação. Por segurança, nada foi substituído. Compare as cópias em Segurança → Restaurar.'
       }
     }
 
