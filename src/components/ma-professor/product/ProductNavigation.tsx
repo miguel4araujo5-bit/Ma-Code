@@ -81,6 +81,11 @@ const items: Array<{
 
 const sidebarItems: SidebarItem[] = [
   {
+    key: 'calendar',
+    workspace: 'calendar',
+    label: 'Calendário'
+  },
+  {
     key: 'giae',
     destination: 'giae',
     label: 'Sumários / GIAE'
