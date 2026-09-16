@@ -270,13 +270,13 @@ export function OnlineRestorePanel({
   return (
     <section className="rounded-3xl border border-violet-300/15 bg-slate-900/70 p-5 sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
-        Restauro da nuvem
+        Nuvem
       </p>
       <h2 className="mt-2 text-xl font-black text-white">
-        Decifrar e restaurar a sua cópia
+        Restaurar cópia cifrada da nuvem
       </h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-        A cópia só é decifrada neste dispositivo depois de a sessão da sua conta MA-Professor ser validada. Pode inspecioná-la antes de substituir qualquer dado local.
+        Descarrega a cópia cifrada da sua conta, decifra-a neste dispositivo e valida-a antes de substituir qualquer dado local.
       </p>
 
       <button
@@ -285,7 +285,7 @@ export function OnlineRestorePanel({
         onClick={() =>
           void handlePreview()
         }
-        className="mt-5 rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
+        className="mt-5 w-full rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
       >
         {busy === 'preview'
           ? 'A decifrar e validar…'

@@ -34,6 +34,14 @@ const restoreSource = await readFile(
   'utf8'
 )
 
+const onlineRestoreSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/OnlineRestorePanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const encryptedSyncSource = await readFile(
   new URL(
     '../../src/components/ma-professor/settings/EncryptedSyncPanel.tsx',
@@ -157,6 +165,10 @@ test(
 
     assert.match(
       restoreSource,
+      /<OnlineRestorePanel/
+    )
+    assert.match(
+      onlineRestoreSource,
       /Restaurar cópia cifrada da nuvem/
     )
     assert.match(

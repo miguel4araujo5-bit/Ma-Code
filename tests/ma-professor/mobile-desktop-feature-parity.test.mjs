@@ -19,6 +19,7 @@ const [
   settingsSource,
   backupSource,
   restoreSource,
+  onlineRestoreSource,
   licenseSource
 ] = await Promise.all([
   read('src/components/ma-professor/product/ProductNavigation.tsx'),
@@ -28,6 +29,7 @@ const [
   read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx'),
   read('src/components/ma-professor/settings/BackupSettingsPanel.tsx'),
   read('src/components/ma-professor/settings/RestoreSettingsPanel.tsx'),
+  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
   read('src/components/ma-professor/settings/LicenseSettingsPanel.tsx')
 ])
 
@@ -103,7 +105,7 @@ test(
 )
 
 test(
-  'the shared restore shortcut opens the existing security workspace without duplicating restore logic',
+  'the shared restore shortcut opens the existing security workspace with direct cloud and device actions',
   () => {
     assert.match(
       productSource,
@@ -117,7 +119,15 @@ test(
 
     assert.match(
       restoreSource,
+      /<OnlineRestorePanel[\s\S]*onDataChanged=/
+    )
+    assert.match(
+      onlineRestoreSource,
       /Restaurar cópia cifrada da nuvem/
+    )
+    assert.match(
+      onlineRestoreSource,
+      /Decifrar e preparar restauro/
     )
     assert.match(
       restoreSource,
@@ -125,7 +135,11 @@ test(
     )
     assert.match(
       restoreSource,
-      /source === 'cloud'[\s\S]*<OnlineRestorePanel/
+      /Escolher cópia do dispositivo/
+    )
+    assert.doesNotMatch(
+      restoreSource,
+      /source === 'cloud'|source === 'device'|chooseSource/
     )
 
     assert.doesNotMatch(
