@@ -35,15 +35,22 @@ interface SidebarPanelProps {
   showCloseButton: boolean
   onClose: () => void
   onOpenToday: () => void
+  onOpenWorkspace: (workspace: ProductWorkspace) => void
   onOpenDestination: (destination: ProductSidebarDestination) => void
 }
 
-interface SidebarItem {
-  key: string
-  id: ProductSidebarDestination
-  label: string
-  criteriaManagement?: boolean
-}
+type SidebarItem =
+  | {
+      key: string
+      label: string
+      destination: ProductSidebarDestination
+      criteriaManagement?: boolean
+    }
+  | {
+      key: string
+      label: string
+      workspace: ProductWorkspace
+    }
 
 const items: Array<{
   id: ProductWorkspace
@@ -73,19 +80,52 @@ const items: Array<{
 ]
 
 const sidebarItems: SidebarItem[] = [
-  { key: 'giae', id: 'giae', label: 'Sumários / GIAE' },
-  { key: 'assessments', id: 'assessments', label: 'Avaliações' },
+  {
+    key: 'giae',
+    destination: 'giae',
+    label: 'Sumários / GIAE'
+  },
+  {
+    key: 'assessments',
+    destination: 'assessments',
+    label: 'Avaliações'
+  },
   {
     key: 'assessment-criteria',
-    id: 'assessments',
+    destination: 'assessments',
     label: 'Critérios de avaliação',
     criteriaManagement: true
   },
-  { key: 'planifications', id: 'planifications', label: 'Planificações' },
-  { key: 'groups', id: 'groups', label: 'Turmas e alunos' },
-  { key: 'attendance', id: 'attendance', label: 'Faltas e recuperações' },
-  { key: 'schedule', id: 'schedule', label: 'Horários' },
-  { key: 'settings', id: 'settings', label: 'Definições' }
+  {
+    key: 'planifications',
+    destination: 'planifications',
+    label: 'Planificações'
+  },
+  {
+    key: 'groups',
+    destination: 'groups',
+    label: 'Turmas e alunos'
+  },
+  {
+    key: 'attendance',
+    destination: 'attendance',
+    label: 'Faltas e recuperações'
+  },
+  {
+    key: 'schedule',
+    destination: 'schedule',
+    label: 'Horários'
+  },
+  {
+    key: 'settings',
+    destination: 'settings',
+    label: 'Definições'
+  },
+  {
+    key: 'restore',
+    workspace: 'backup',
+    label: 'Restaurar dados'
+  }
 ]
 
 function scrollToCriteriaManagement() {
@@ -126,13 +166,23 @@ function SidebarPanel({
   showCloseButton,
   onClose,
   onOpenToday,
+  onOpenWorkspace,
   onOpenDestination
 }: SidebarPanelProps) {
   function openSidebarItem(
     item: SidebarItem
   ) {
+    if (
+      'workspace' in item
+    ) {
+      onOpenWorkspace(
+        item.workspace
+      )
+      return
+    }
+
     onOpenDestination(
-      item.id
+      item.destination
     )
 
     if (item.criteriaManagement) {
@@ -262,6 +312,13 @@ export function ProductNavigation({
     onSelect('daily')
   }
 
+  function openWorkspace(
+    destination: ProductWorkspace
+  ) {
+    setSidebarOpen(false)
+    onSelect(destination)
+  }
+
   function openDestination(destination: ProductSidebarDestination) {
     setSidebarOpen(false)
     onOpenSidebarDestination(destination)
@@ -359,6 +416,7 @@ export function ProductNavigation({
           showCloseButton={false}
           onClose={() => setSidebarOpen(false)}
           onOpenToday={openToday}
+          onOpenWorkspace={openWorkspace}
           onOpenDestination={openDestination}
         />
       </aside>
@@ -383,6 +441,7 @@ export function ProductNavigation({
               showCloseButton
               onClose={() => setSidebarOpen(false)}
               onOpenToday={openToday}
+              onOpenWorkspace={openWorkspace}
               onOpenDestination={openDestination}
             />
           </aside>
