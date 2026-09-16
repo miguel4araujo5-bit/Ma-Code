@@ -160,6 +160,7 @@ jobs:
         run: |
           node tests/ma-professor/browser-critical-path.e2e.mjs
           node tests/ma-professor/browser-integrated-regression.e2e.mjs
+          node tests/ma-professor/browser-cloud-restore.e2e.mjs
 
   build:
     name: Validate build
