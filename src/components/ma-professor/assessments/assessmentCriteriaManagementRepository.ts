@@ -38,20 +38,6 @@ export interface UpdatedAssessmentCriteriaScheme {
   criteria: AssessmentCriterion[]
 }
 
-export class AssessmentCriteriaHistoryError extends Error {
-  readonly code = 'ASSESSMENT_CRITERIA_HISTORY_EXISTS'
-
-  constructor(
-    readonly evidence: AssessmentCriteriaEvidence
-  ) {
-    super(
-      'Este conjunto de critérios já é usado por avaliações ou classificações. Para preservar o histórico, pode consultá-lo mas já não pode alterar nomes ou ponderações.'
-    )
-
-    this.name = 'AssessmentCriteriaHistoryError'
-  }
-}
-
 const WEIGHT_TOLERANCE = 0.001
 
 function now() {
@@ -253,16 +239,6 @@ async function readEvidence(
   }
 }
 
-function hasEvidence(
-  evidence: AssessmentCriteriaEvidence
-) {
-  return (
-    evidence.lessonAssessmentCount > 0 ||
-    evidence.assessmentResultCount > 0 ||
-    evidence.finalGradeCount > 0
-  )
-}
-
 function assertInputCriterionIdsBelongToScheme(
   input: UpdateAssessmentCriteriaSchemeInput,
   existingCriteria: AssessmentCriterion[]
@@ -343,6 +319,27 @@ function buildCriteria(
   )
 }
 
+async function assertDeletedCriteriaHaveNoAssessments(
+  deletedIds: EntityId[]
+) {
+  if (deletedIds.length === 0) {
+    return
+  }
+
+  const usedAssessment =
+    await maProfessorDb
+      .lessonAssessments
+      .where('criterionId')
+      .anyOf(deletedIds)
+      .first()
+
+  if (usedAssessment) {
+    throw new Error(
+      'Não é possível remover um critério que já tenha avaliações associadas, porque isso quebraria o histórico. Pode alterar o nome, a descrição e a ponderação desse critério. Se deixar de o usar, mantenha-o no conjunto e ajuste as ponderações dos critérios ativos.'
+    )
+  }
+}
+
 export class AssessmentCriteriaManagementRepository {
   async getEditability(
     schemeId: EntityId
@@ -361,8 +358,7 @@ export class AssessmentCriteriaManagementRepository {
       )
 
     return {
-      editable:
-        !hasEvidence(evidence),
+      editable: true,
       evidence
     }
   }
@@ -404,17 +400,13 @@ export class AssessmentCriteriaManagementRepository {
           existingCriteria
         )
 
-        const evidence =
-          await readEvidence(
-            scheme,
-            existingCriteria
-          )
-
-        if (hasEvidence(evidence)) {
-          throw new AssessmentCriteriaHistoryError(
-            evidence
-          )
-        }
+        // O histórico é relido dentro da transação para que a interface
+        // possa avisar com dados atuais, sem transformar esse histórico
+        // num bloqueio à edição de nomes, descrições ou ponderações.
+        await readEvidence(
+          scheme,
+          existingCriteria
+        )
 
         const timestamp = now()
         const updatedScheme: AssessmentScheme = {
@@ -441,6 +433,7 @@ export class AssessmentCriteriaManagementRepository {
           existingCriteria
             .filter(
               criterion =>
+                criterion.active &&
                 !nextIds.has(
                   criterion.id
                 )
@@ -448,6 +441,10 @@ export class AssessmentCriteriaManagementRepository {
             .map(
               criterion => criterion.id
             )
+
+        await assertDeletedCriteriaHaveNoAssessments(
+          deletedIds
+        )
 
         await maProfessorDb
           .assessmentSchemes

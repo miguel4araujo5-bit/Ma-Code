@@ -57,11 +57,11 @@ test(
 )
 
 test(
-  'criteria edits are rejected once evaluation history exists and evidence is rechecked in the write transaction',
+  'existing evaluation history warns but no longer blocks names descriptions or weights',
   () => {
     assert.match(
       repositorySource,
-      /ASSESSMENT_CRITERIA_HISTORY_EXISTS/
+      /editable:\s*true/
     )
     assert.match(
       repositorySource,
@@ -69,29 +69,73 @@ test(
     )
     assert.match(
       repositorySource,
-      /maProfessorDb\.lessonAssessments/
+      /await readEvidence\([\s\S]*scheme,[\s\S]*existingCriteria/
+    )
+    assert.doesNotMatch(
+      repositorySource,
+      /ASSESSMENT_CRITERIA_HISTORY_EXISTS/
+    )
+    assert.doesNotMatch(
+      panelSource,
+      /Histórico protegido/
     )
     assert.match(
-      repositorySource,
-      /maProfessorDb\.assessmentResults/
+      panelSource,
+      /Pode continuar a editar/
     )
     assert.match(
-      repositorySource,
-      /maProfessorDb\.moduleFinalGrades/
-    )
-    assert.match(
-      repositorySource,
-      /const evidence\s*=\s*await readEvidence/
-    )
-    assert.match(
-      repositorySource,
-      /if \(hasEvidence\(evidence\)\)/
+      panelSource,
+      /Alterar apenas o nome ou a descrição não muda os cálculos/
     )
   }
 )
 
 test(
-  'criteria manager exposes configurable weights with unsaved-work protection and a read-only history state',
+  'calculation-impacting changes require confirmation and preserve confirmed final grades',
+  () => {
+    assert.match(
+      panelSource,
+      /calculationImpactingChange/
+    )
+    assert.match(
+      panelSource,
+      /window\.confirm/
+    )
+    assert.match(
+      panelSource,
+      /pode recalcular as médias provisórias e as classificações sugeridas/
+    )
+    assert.match(
+      panelSource,
+      /classificações finais já confirmadas pelo professor não serão alteradas automaticamente/
+    )
+    assert.doesNotMatch(
+      repositorySource,
+      /moduleFinalGrades\.(?:delete|bulkDelete|clear|put|bulkPut)/
+    )
+  }
+)
+
+test(
+  'a criterion already referenced by lesson assessments cannot be deleted from history',
+  () => {
+    assert.match(
+      repositorySource,
+      /assertDeletedCriteriaHaveNoAssessments/
+    )
+    assert.match(
+      repositorySource,
+      /lessonAssessments[\s\S]*anyOf\(deletedIds\)[\s\S]*\.first\(\)/
+    )
+    assert.match(
+      repositorySource,
+      /Não é possível remover um critério que já tenha avaliações associadas/
+    )
+  }
+)
+
+test(
+  'criteria manager exposes configurable weights with unsaved-work protection and a direct navigation anchor',
   () => {
     assert.match(
       panelSource,
@@ -107,7 +151,7 @@ test(
     )
     assert.match(
       panelSource,
-      /Histórico protegido/
+      /id="ma-professor-criteria-management"/
     )
     assert.match(
       panelSource,

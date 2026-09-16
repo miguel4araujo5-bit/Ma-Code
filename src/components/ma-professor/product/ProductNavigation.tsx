@@ -38,6 +38,13 @@ interface SidebarPanelProps {
   onOpenDestination: (destination: ProductSidebarDestination) => void
 }
 
+interface SidebarItem {
+  key: string
+  id: ProductSidebarDestination
+  label: string
+  criteriaManagement?: boolean
+}
+
 const items: Array<{
   id: ProductWorkspace
   label: string
@@ -65,18 +72,54 @@ const items: Array<{
   }
 ]
 
-const sidebarItems: Array<{
-  id: ProductSidebarDestination
-  label: string
-}> = [
-  { id: 'giae', label: 'Sumários / GIAE' },
-  { id: 'assessments', label: 'Avaliações' },
-  { id: 'planifications', label: 'Planificações' },
-  { id: 'groups', label: 'Turmas e alunos' },
-  { id: 'attendance', label: 'Faltas e recuperações' },
-  { id: 'schedule', label: 'Horários' },
-  { id: 'settings', label: 'Definições' }
+const sidebarItems: SidebarItem[] = [
+  { key: 'giae', id: 'giae', label: 'Sumários / GIAE' },
+  { key: 'assessments', id: 'assessments', label: 'Avaliações' },
+  {
+    key: 'assessment-criteria',
+    id: 'assessments',
+    label: 'Critérios de avaliação',
+    criteriaManagement: true
+  },
+  { key: 'planifications', id: 'planifications', label: 'Planificações' },
+  { key: 'groups', id: 'groups', label: 'Turmas e alunos' },
+  { key: 'attendance', id: 'attendance', label: 'Faltas e recuperações' },
+  { key: 'schedule', id: 'schedule', label: 'Horários' },
+  { key: 'settings', id: 'settings', label: 'Definições' }
 ]
+
+function scrollToCriteriaManagement() {
+  let attempts = 0
+
+  const tryScroll = () => {
+    const target =
+      document.getElementById(
+        'ma-professor-criteria-management'
+      )
+
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+      return
+    }
+
+    attempts += 1
+
+    if (attempts < 30) {
+      window.setTimeout(
+        tryScroll,
+        100
+      )
+    }
+  }
+
+  window.setTimeout(
+    tryScroll,
+    0
+  )
+}
 
 function SidebarPanel({
   academicYearName,
@@ -85,6 +128,18 @@ function SidebarPanel({
   onOpenToday,
   onOpenDestination
 }: SidebarPanelProps) {
+  function openSidebarItem(
+    item: SidebarItem
+  ) {
+    onOpenDestination(
+      item.id
+    )
+
+    if (item.criteriaManagement) {
+      scrollToCriteriaManagement()
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-between gap-3">
@@ -134,9 +189,13 @@ function SidebarPanel({
       <nav className="mt-3 space-y-1.5" aria-label="Áreas do MA-Professor">
         {sidebarItems.map((item, index) => (
           <button
-            key={item.id}
+            key={item.key}
             type="button"
-            onClick={() => onOpenDestination(item.id)}
+            onClick={() =>
+              openSidebarItem(
+                item
+              )
+            }
             className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">

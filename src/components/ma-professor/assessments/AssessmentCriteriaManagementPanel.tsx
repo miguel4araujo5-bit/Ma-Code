@@ -21,7 +21,6 @@ import type {
 import {
   assessmentCriteriaManagementRepository,
   type AssessmentCriteriaEditability,
-  type AssessmentCriteriaEvidence,
   type UpdatedAssessmentCriteriaScheme
 } from './assessmentCriteriaManagementRepository'
 
@@ -77,49 +76,18 @@ function formatPercent(
   ).format(value)
 }
 
-function readHistoryEvidence(
-  error: unknown
-): AssessmentCriteriaEvidence | null {
-  if (
-    !error ||
-    typeof error !== 'object' ||
-    !('evidence' in error)
-  ) {
-    return null
+function hasHistory(
+  editability: AssessmentCriteriaEditability | null
+) {
+  if (!editability) {
+    return false
   }
 
-  const evidence =
-    error.evidence
-
-  if (
-    !evidence ||
-    typeof evidence !== 'object' ||
-    !('lessonAssessmentCount' in evidence) ||
-    !('assessmentResultCount' in evidence) ||
-    !('finalGradeCount' in evidence)
-  ) {
-    return null
-  }
-
-  const candidate =
-    evidence as Partial<AssessmentCriteriaEvidence>
-
-  if (
-    typeof candidate.lessonAssessmentCount !== 'number' ||
-    typeof candidate.assessmentResultCount !== 'number' ||
-    typeof candidate.finalGradeCount !== 'number'
-  ) {
-    return null
-  }
-
-  return {
-    lessonAssessmentCount:
-      candidate.lessonAssessmentCount,
-    assessmentResultCount:
-      candidate.assessmentResultCount,
-    finalGradeCount:
-      candidate.finalGradeCount
-  }
+  return (
+    editability.evidence.lessonAssessmentCount > 0 ||
+    editability.evidence.assessmentResultCount > 0 ||
+    editability.evidence.finalGradeCount > 0
+  )
 }
 
 export default function AssessmentCriteriaManagementPanel({
@@ -229,7 +197,7 @@ export default function AssessmentCriteriaManagementPanel({
           setError(
             loadError instanceof Error
               ? loadError.message
-              : 'Não foi possível verificar se estes critérios podem ser alterados.'
+              : 'Não foi possível verificar o histórico destes critérios.'
           )
         }
       })
@@ -295,6 +263,77 @@ export default function AssessmentCriteriaManagementPanel({
       )
     )
 
+  const calculationImpactingChange =
+    useMemo(
+      () => {
+        if (!editing) {
+          return false
+        }
+
+        const originalById =
+          new Map(
+            snapshot.criteria.map(
+              criterion => [
+                criterion.id,
+                criterion
+              ]
+            )
+          )
+
+        const currentIds =
+          new Set(
+            criteria.flatMap(
+              criterion =>
+                criterion.id
+                  ? [criterion.id]
+                  : []
+            )
+          )
+
+        const addedOrReweighted =
+          criteria.some(criterion => {
+            if (!criterion.id) {
+              return true
+            }
+
+            const original =
+              originalById.get(
+                criterion.id
+              )
+
+            return (
+              !original ||
+              Number(
+                criterion.weightPercent
+              ) !== original.weightPercent
+            )
+          })
+
+        const removed =
+          snapshot.criteria.some(
+            criterion =>
+              !currentIds.has(
+                criterion.id
+              )
+          )
+
+        return (
+          addedOrReweighted ||
+          removed
+        )
+      },
+      [
+        criteria,
+        editing,
+        snapshot.criteria
+      ]
+    )
+
+  const historyPresent =
+    hasHistory(
+      editability
+    )
+
   useMAProfessorUnsavedWorkspaceProtection(
     dirty,
     rootRef,
@@ -304,9 +343,6 @@ export default function AssessmentCriteriaManagementPanel({
   if (!scheme) {
     return null
   }
-
-  const locked =
-    editability?.editable === false
 
   function updateCriterion(
     localId: string,
@@ -425,8 +461,17 @@ export default function AssessmentCriteriaManagementPanel({
     if (
       !persistedSchemeId ||
       saving ||
-      disabled ||
-      locked
+      disabled
+    ) {
+      return
+    }
+
+    if (
+      historyPresent &&
+      calculationImpactingChange &&
+      !window.confirm(
+        'Este conjunto já tem avaliações ou classificações associadas. Alterar ponderações, adicionar critérios ou remover critérios pode recalcular as médias provisórias e as classificações sugeridas. As classificações finais já confirmadas pelo professor não serão alteradas automaticamente. Pretende guardar estas alterações?'
+      )
     ) {
       return
     }
@@ -461,14 +506,15 @@ export default function AssessmentCriteriaManagementPanel({
       setCriteria(
         result.criteria.map(toDraft)
       )
-      setEditability({
+      setEditability(current => ({
         editable: true,
-        evidence: {
-          lessonAssessmentCount: 0,
-          assessmentResultCount: 0,
-          finalGradeCount: 0
-        }
-      })
+        evidence:
+          current?.evidence ?? {
+            lessonAssessmentCount: 0,
+            assessmentResultCount: 0,
+            finalGradeCount: 0
+          }
+      }))
       setEditing(false)
       setSuccess(
         'Critérios atualizados com sucesso.'
@@ -480,31 +526,6 @@ export default function AssessmentCriteriaManagementPanel({
           ? saveError.message
           : 'Não foi possível guardar os critérios.'
       )
-
-      if (
-        saveError &&
-        typeof saveError === 'object' &&
-        'code' in saveError &&
-        saveError.code ===
-          'ASSESSMENT_CRITERIA_HISTORY_EXISTS'
-      ) {
-        const actualEvidence =
-          readHistoryEvidence(
-            saveError
-          )
-
-        setEditability(current => ({
-          editable: false,
-          evidence:
-            actualEvidence ??
-            current?.evidence ?? {
-              lessonAssessmentCount: 0,
-              assessmentResultCount: 0,
-              finalGradeCount: 0
-            }
-        }))
-        setEditing(false)
-      }
     } finally {
       setSaving(false)
     }
@@ -512,8 +533,9 @@ export default function AssessmentCriteriaManagementPanel({
 
   return (
     <div
+      id="ma-professor-criteria-management"
       ref={rootRef}
-      className="border-t border-white/10 px-5 py-5 sm:px-7"
+      className="scroll-mt-24 border-t border-white/10 px-5 py-5 sm:px-7"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -544,16 +566,13 @@ export default function AssessmentCriteriaManagementPanel({
             }}
             disabled={
               disabled ||
-              checking ||
-              locked
+              checking
             }
             className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2.5 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
           >
             {checking
               ? 'A verificar...'
-              : locked
-                ? 'Histórico protegido'
-                : 'Editar critérios'}
+              : 'Editar critérios'}
           </button>
         ) : null}
       </div>
@@ -564,9 +583,9 @@ export default function AssessmentCriteriaManagementPanel({
         </p>
       ) : null}
 
-      {locked && editability ? (
-        <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100/85">
-          Este conjunto já tem histórico associado e está bloqueado para edição: {editability.evidence.lessonAssessmentCount} atividade(s), {editability.evidence.assessmentResultCount} resultado(s) e {editability.evidence.finalGradeCount} nota(s) final(is). Pode continuar a consultá-lo normalmente.
+      {historyPresent && editability ? (
+        <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100/90">
+          Este conjunto já tem histórico associado: {editability.evidence.lessonAssessmentCount} atividade(s), {editability.evidence.assessmentResultCount} resultado(s) e {editability.evidence.finalGradeCount} nota(s) final(is). Pode continuar a editar. Alterar apenas o nome ou a descrição não muda os cálculos. Alterar ponderações ou adicionar/remover critérios pode recalcular médias provisórias e sugestões; as notas finais já confirmadas não são alteradas automaticamente.
         </div>
       ) : null}
 
