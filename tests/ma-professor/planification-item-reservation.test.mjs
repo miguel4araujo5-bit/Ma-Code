@@ -259,7 +259,20 @@ test(
     )
     assert.match(
       dashboardRepositorySource,
-      /projectedSnapshot\.assignments\.map[\s\S]*lessonRepository\.getNextPlanificationItem\([\s\S]*row\.currentModule\.id/
+      /applyActualProgressToDashboard\([\s\S]*projectedSnapshot/
+    )
+    assert.match(
+      dashboardRepositorySource,
+      /progressSnapshot\.assignments\.map[\s\S]*lessonRepository\.getNextPlanificationItem\([\s\S]*row\.currentModule\.id/
+    )
+    assert.ok(
+      dashboardRepositorySource.indexOf(
+        'applyActualProgressToDashboard('
+      ) <
+      dashboardRepositorySource.indexOf(
+        'progressSnapshot.assignments.map('
+      ),
+      'O painel deve resolver primeiro a UFCD atual validada e só depois pedir o próximo item da planificação.'
     )
   }
 )

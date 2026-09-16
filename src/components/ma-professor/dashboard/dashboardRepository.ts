@@ -1,6 +1,9 @@
 import {
   lessonRepository
 } from '../lessons/lessonRepository'
+import {
+  ufcdProgressRepository
+} from '../lessons/ufcdProgressRepository'
 import type {
   EntityId,
   ISODate
@@ -31,9 +34,15 @@ export class DashboardRepository
         snapshot
       )
 
+    const progressSnapshot =
+      await ufcdProgressRepository
+        .applyActualProgressToDashboard(
+          projectedSnapshot
+        )
+
     const assignments =
       await Promise.all(
-        projectedSnapshot.assignments.map(
+        progressSnapshot.assignments.map(
           async row => ({
             ...row,
             nextPlanificationItem:
@@ -47,7 +56,7 @@ export class DashboardRepository
       )
 
     return {
-      ...projectedSnapshot,
+      ...progressSnapshot,
       assignments
     }
   }
