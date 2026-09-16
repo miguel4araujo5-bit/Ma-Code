@@ -19,19 +19,15 @@ const [
 ])
 
 test(
-  'restore entry offers cloud and device file as explicit sources',
+  'restore entry offers cloud and device as explicit user actions',
   () => {
     assert.match(
       restoreSource,
-      /De onde quer restaurar a cópia\?/
+      /Restaurar cópia cifrada da nuvem/
     )
     assert.match(
       restoreSource,
-      /Restaurar da nuvem/
-    )
-    assert.match(
-      restoreSource,
-      /Restaurar de um ficheiro/
+      /Restaurar cópia do seu dispositivo/
     )
     assert.match(
       restoreSource,
@@ -87,7 +83,7 @@ test(
     )
     assert.match(
       backupSource,
-      /initialSection ===[\s\S]*'restore'[\s\S]*restoreSection/
+      /id="ma-professor-security-restore"/
     )
   }
 )
