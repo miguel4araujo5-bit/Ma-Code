@@ -10,20 +10,30 @@ const read = path =>
 
 const [
   restoreSource,
+  onlineRestoreSource,
   settingsSource,
   backupSource
 ] = await Promise.all([
   read('src/components/ma-professor/settings/RestoreSettingsPanel.tsx'),
+  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
   read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx'),
   read('src/components/ma-professor/settings/BackupSettingsPanel.tsx')
 ])
 
 test(
-  'restore entry offers cloud and device as explicit user actions',
+  'restore entry exposes cloud and device actions directly without a source selector',
   () => {
     assert.match(
-      restoreSource,
+      onlineRestoreSource,
       /Restaurar cópia cifrada da nuvem/
+    )
+    assert.match(
+      onlineRestoreSource,
+      /Decifrar e preparar restauro/
+    )
+    assert.match(
+      restoreSource,
+      /<OnlineRestorePanel[\s\S]*onDataChanged=/
     )
     assert.match(
       restoreSource,
@@ -31,11 +41,15 @@ test(
     )
     assert.match(
       restoreSource,
-      /source === 'cloud'[\s\S]*<OnlineRestorePanel/
+      /Escolher cópia do dispositivo/
     )
     assert.match(
       restoreSource,
-      /source === 'device'[\s\S]*type="file"[\s\S]*accept="application\/json,\.json"/
+      /type="file"[\s\S]*accept="application\/json,\.json"/
+    )
+    assert.doesNotMatch(
+      restoreSource,
+      /RestoreSource|chooseSource|source === 'cloud'|source === 'device'/
     )
   }
 )
@@ -63,7 +77,7 @@ test(
 )
 
 test(
-  'security area owns a single restore source selector',
+  'security area owns one restore panel and does not duplicate cloud restore logic',
   () => {
     assert.match(
       settingsSource,
