@@ -153,7 +153,7 @@ jobs:
         if: steps.scope.outputs.professor == 'true'
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
 
       - name: Run MA-Professor browser critical paths
         if: steps.scope.outputs.professor == 'true'
@@ -161,6 +161,7 @@ jobs:
           node tests/ma-professor/browser-critical-path.e2e.mjs
           node tests/ma-professor/browser-integrated-regression.e2e.mjs
           node tests/ma-professor/browser-cloud-restore-v2.e2e.mjs
+          node tests/ma-professor/browser-cloud-restore-webkit.e2e.mjs
 
   build:
     name: Validate build
