@@ -34,6 +34,7 @@ const [
 ])
 
 const fullNavigationLabels = [
+  'Calendário',
   'Sumários / GIAE',
   'Avaliações',
   'Critérios de avaliação',
@@ -74,6 +75,24 @@ test(
 )
 
 test(
+  'Calendar is directly available from the complete mobile drawer',
+  () => {
+    assert.match(
+      productNavigationSource,
+      /key:\s*'calendar'[\s\S]*workspace:\s*'calendar'[\s\S]*label:\s*'Calendário'/
+    )
+    assert.match(
+      productNavigationSource,
+      /'workspace' in item[\s\S]*onOpenWorkspace\([\s\S]*item\.workspace/
+    )
+    assert.match(
+      productSource,
+      /workspace ===[\s\S]*'calendar'[\s\S]*<CalendarProductWorkspace/
+    )
+  }
+)
+
+test(
   'restore is added as an extra shared shortcut and never replaces a desktop capability',
   () => {
     assert.match(
@@ -87,6 +106,7 @@ test(
     )
 
     for (const label of [
+      'Calendário',
       'Sumários / GIAE',
       'Avaliações',
       'Critérios de avaliação',
@@ -209,6 +229,7 @@ test(
     )
 
     for (const label of [
+      'Calendário',
       'Faltas e recuperações',
       'Horários',
       'Definições',
