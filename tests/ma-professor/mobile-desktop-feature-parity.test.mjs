@@ -1,0 +1,209 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+const read = path =>
+  readFile(
+    new URL(
+      `../../${path}`,
+      import.meta.url
+    ),
+    'utf8'
+  )
+
+const [
+  productNavigationSource,
+  productSource,
+  legacyAppSource,
+  setupWizardSource,
+  settingsSource,
+  backupSource,
+  restoreSource,
+  licenseSource
+] = await Promise.all([
+  read('src/components/ma-professor/product/ProductNavigation.tsx'),
+  read('src/components/ma-professor/product/MAProfessorProduct.tsx'),
+  read('src/components/ma-professor/MAProfessorApp.tsx'),
+  read('src/components/ma-professor/setup/SetupWizard.tsx'),
+  read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx'),
+  read('src/components/ma-professor/settings/BackupSettingsPanel.tsx'),
+  read('src/components/ma-professor/settings/RestoreSettingsPanel.tsx'),
+  read('src/components/ma-professor/settings/LicenseSettingsPanel.tsx')
+])
+
+const fullNavigationLabels = [
+  'Sumários / GIAE',
+  'Avaliações',
+  'Critérios de avaliação',
+  'Planificações',
+  'Turmas e alunos',
+  'Faltas e recuperações',
+  'Horários',
+  'Definições',
+  'Restaurar dados'
+]
+
+test(
+  'desktop and mobile use the same complete MA-Professor sidebar instead of separate capability lists',
+  () => {
+    for (const label of fullNavigationLabels) {
+      assert.ok(
+        productNavigationSource.includes(label),
+        `missing shared navigation capability: ${label}`
+      )
+    }
+
+    assert.match(
+      productNavigationSource,
+      /<aside[\s\S]*aria-label="Navegação completa do MA-Professor"[\s\S]*<SidebarPanel[\s\S]*onOpenWorkspace=\{openWorkspace\}[\s\S]*onOpenDestination=\{openDestination\}/
+    )
+
+    assert.match(
+      productNavigationSource,
+      /role="dialog"[\s\S]*aria-label="Navegação completa do MA-Professor"[\s\S]*<SidebarPanel[\s\S]*onOpenWorkspace=\{openWorkspace\}[\s\S]*onOpenDestination=\{openDestination\}/
+    )
+
+    assert.equal(
+      (productNavigationSource.match(/<SidebarPanel/g) ?? []).length,
+      2,
+      'the full desktop sidebar and the mobile drawer must keep reusing the same SidebarPanel'
+    )
+  }
+)
+
+test(
+  'restore is added as an extra shared shortcut and never replaces a desktop capability',
+  () => {
+    assert.match(
+      productNavigationSource,
+      /key: 'restore'[\s\S]*workspace: 'backup'[\s\S]*label: 'Restaurar dados'/
+    )
+
+    assert.match(
+      productNavigationSource,
+      /'workspace' in item[\s\S]*onOpenWorkspace\([\s\S]*item\.workspace/
+    )
+
+    for (const label of [
+      'Sumários / GIAE',
+      'Avaliações',
+      'Critérios de avaliação',
+      'Planificações',
+      'Turmas e alunos',
+      'Faltas e recuperações',
+      'Horários',
+      'Definições'
+    ]) {
+      assert.ok(
+        productNavigationSource.includes(label),
+        `existing desktop shortcut was removed while adding mobile parity: ${label}`
+      )
+    }
+  }
+)
+
+test(
+  'the shared restore shortcut opens the existing security workspace without duplicating restore logic',
+  () => {
+    assert.match(
+      productSource,
+      /workspace ===[\s\S]*'backup' \? \(\s*<SettingsWorkspaceView[\s\S]*initialTab="backup"/
+    )
+
+    assert.match(
+      backupSource,
+      /id="ma-professor-security-restore"[\s\S]*<RestoreSettingsPanel/
+    )
+
+    assert.match(
+      restoreSource,
+      /Restaurar cópia cifrada da nuvem/
+    )
+    assert.match(
+      restoreSource,
+      /Restaurar cópia do seu dispositivo/
+    )
+    assert.match(
+      restoreSource,
+      /source === 'cloud'[\s\S]*<OnlineRestorePanel/
+    )
+
+    assert.doesNotMatch(
+      productNavigationSource,
+      /OnlineRestorePanel|restoreMAProfessorCloudRestore|previewMAProfessorCloudRestore/
+    )
+  }
+)
+
+test(
+  'responsive settings keep the same tabs and expose sign-out through Settings on small screens',
+  () => {
+    for (const label of [
+      'Perfil e regras',
+      'Segurança e recuperação',
+      'Pesquisa',
+      'Licença'
+    ]) {
+      assert.ok(
+        settingsSource.includes(label),
+        `missing settings tab: ${label}`
+      )
+    }
+
+    assert.match(
+      settingsSource,
+      /tabs\.map/
+    )
+    assert.doesNotMatch(
+      settingsSource,
+      /mobileTabs|desktopTabs|isMobile/
+    )
+    assert.match(
+      licenseSource,
+      /Terminar sessão neste dispositivo/
+    )
+    assert.ok(
+      productNavigationSource.includes('Definições')
+    )
+  }
+)
+
+test(
+  'advanced setup changes layout on mobile but keeps exactly the same setup step source',
+  () => {
+    assert.match(
+      setupWizardSource,
+      /className="mt-6 lg:hidden"[\s\S]*<select[\s\S]*setupSteps\.map/
+    )
+    assert.match(
+      setupWizardSource,
+      /className="mt-6 hidden grid-cols-2 gap-3 lg:grid xl:grid-cols-8"[\s\S]*setupSteps\.map/
+    )
+  }
+)
+
+test(
+  'the legacy mobile bottom bar remains only a shortcut bar while the global drawer carries the complete capabilities',
+  () => {
+    assert.match(
+      legacyAppSource,
+      /const mobileNavigationItems =\s*navigationItems\.filter/
+    )
+    assert.match(
+      legacyAppSource,
+      /aria-label="Navegação móvel do MA-Professor"/
+    )
+
+    for (const label of [
+      'Faltas e recuperações',
+      'Horários',
+      'Definições',
+      'Restaurar dados'
+    ]) {
+      assert.ok(
+        productNavigationSource.includes(label),
+        `capability missing from the complete mobile drawer: ${label}`
+      )
+    }
+  }
+)
