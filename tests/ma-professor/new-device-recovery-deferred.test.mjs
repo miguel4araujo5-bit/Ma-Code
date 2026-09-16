@@ -239,6 +239,14 @@ test(
       result.message,
       /recuperá-la mais tarde/i
     )
+    assert.match(
+      result.message,
+      /Segurança → Restaurar/
+    )
+    assert.doesNotMatch(
+      result.message,
+      /Dados e cópias/
+    )
 
     assert.deepEqual(
       globalThis.__deferredRecovery,
@@ -251,6 +259,26 @@ test(
         restoreCalls: 0,
         syncStateSaveCalls: 0
       }
+    )
+  }
+)
+
+test(
+  'all manual-recovery guidance points to the current Security restore area',
+  () => {
+    assert.doesNotMatch(
+      deviceRecoverySource,
+      /Dados e cópias/
+    )
+
+    const currentDestinations =
+      deviceRecoverySource.match(
+        /Segurança → Restaurar/g
+      ) ?? []
+
+    assert.equal(
+      currentDestinations.length,
+      3
     )
   }
 )
