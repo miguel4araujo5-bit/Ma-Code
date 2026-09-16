@@ -51,42 +51,7 @@ function getErrorMessage(
 function today() {
   return new Date()
     .toISOString()
-    .slice(
-      0,
-      10
-    )
-}
-
-const sectionLinks: Array<{
-  id: SecuritySection
-  label: string
-}> = [
-  {
-    id: 'protection',
-    label: 'Proteção'
-  },
-  {
-    id: 'backup',
-    label: 'Cópias'
-  },
-  {
-    id: 'restore',
-    label: 'Restaurar'
-  },
-  {
-    id: 'export',
-    label: 'Exportar'
-  },
-  {
-    id: 'advanced',
-    label: 'Avançado'
-  }
-]
-
-function sectionAnchor(
-  section: SecuritySection
-) {
-  return `ma-professor-security-${section}`
+    .slice(0, 10)
 }
 
 export function BackupSettingsPanel({
@@ -104,15 +69,9 @@ export function BackupSettingsPanel({
     setFeedback
   ] =
     useState<{
-      tone:
-        'success' |
-        'error'
-
-      message:
-        string
-    } | null>(
-      null
-    )
+      tone: 'success' | 'error'
+      message: string
+    } | null>(null)
 
   const [
     resetConfirmation,
@@ -123,44 +82,26 @@ export function BackupSettingsPanel({
   const run =
     async (
       key: string,
-      operation:
-        () =>
-          Promise<void>,
+      operation: () => Promise<void>,
       successMessage?: string
     ) => {
-      setBusy(
-        key
-      )
-
-      setFeedback(
-        null
-      )
+      setBusy(key)
+      setFeedback(null)
 
       try {
         await operation()
 
-        if (
-          successMessage
-        ) {
+        if (successMessage) {
           setFeedback({
-            tone:
-              'success',
-
-            message:
-              successMessage
+            tone: 'success',
+            message: successMessage
           })
         }
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setFeedback({
-          tone:
-            'error',
-
+          tone: 'error',
           message:
-            getErrorMessage(
-              error
-            )
+            getErrorMessage(error)
         })
       } finally {
         setBusy('')
@@ -171,7 +112,6 @@ export function BackupSettingsPanel({
     () =>
       run(
         'json',
-
         async () => {
           const backup =
             await createMAProfessorBackup()
@@ -188,8 +128,7 @@ export function BackupSettingsPanel({
             'application/json;charset=utf-8'
           )
         },
-
-        'Cópia de segurança criada.'
+        'Cópia de segurança descarregada para este dispositivo.'
       )
 
   const handleCsvExport =
@@ -202,7 +141,6 @@ export function BackupSettingsPanel({
     ) =>
       run(
         `csv-${kind}`,
-
         async () => {
           const backup =
             await createMAProfessorBackup()
@@ -211,37 +149,30 @@ export function BackupSettingsPanel({
             students: {
               name:
                 `ma-professor-alunos-${today()}.csv`,
-
               content:
                 exportStudentsCsv(
                   backup.data
                 )
             },
-
             lessons: {
               name:
                 `ma-professor-sumarios-${today()}.csv`,
-
               content:
                 exportLessonsCsv(
                   backup.data
                 )
             },
-
             attendance: {
               name:
                 `ma-professor-faltas-${today()}.csv`,
-
               content:
                 exportAttendanceCsv(
                   backup.data
                 )
             },
-
             grades: {
               name:
                 `ma-professor-avaliacoes-${today()}.csv`,
-
               content:
                 exportGradesCsv(
                   backup.data
@@ -250,9 +181,7 @@ export function BackupSettingsPanel({
           }
 
           const selected =
-            exports[
-              kind
-            ]
+            exports[kind]
 
           downloadTextFile(
             selected.name,
@@ -260,7 +189,6 @@ export function BackupSettingsPanel({
             'text/csv;charset=utf-8'
           )
         },
-
         'Ficheiro CSV exportado.'
       )
 
@@ -273,174 +201,111 @@ export function BackupSettingsPanel({
         'APAGAR'
       ) {
         setFeedback({
-          tone:
-            'error',
-
+          tone: 'error',
           message:
             'Escreva APAGAR para confirmar.'
         })
-
         return
       }
 
       void run(
         'reset',
-
         async () => {
           await resetMAProfessorDatabase()
-
-          setResetConfirmation(
-            ''
-          )
-
+          setResetConfirmation('')
           onDataChanged?.()
         },
-
         'Todos os dados escolares foram eliminados deste browser.'
       )
     }
 
-  const restoreSection = (
-    <div
-      id={
-        sectionAnchor(
-          'restore'
-        )
-      }
-      className="scroll-mt-24 space-y-3"
-    >
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-          Restaurar
-        </p>
-        <p className="mt-1 text-sm leading-6 text-slate-400">
-          Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.
-        </p>
-      </div>
-
-      <RestoreSettingsPanel
-        onDataChanged={
-          onDataChanged
-        }
-      />
-    </div>
-  )
-
   return (
-    <div className="space-y-8">
-      <nav
-        aria-label="Secções de segurança e recuperação"
-        className="rounded-3xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"
+    <div
+      className="space-y-8"
+      data-initial-security-section={
+        initialSection
+      }
+    >
+      <section
+        id="ma-professor-security-restore"
+        className="scroll-mt-24 space-y-4"
       >
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-          Acesso rápido
-        </p>
-        <p className="mt-1 text-sm leading-6 text-slate-400">
-          Escolha diretamente o que pretende fazer.
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {sectionLinks.map(
-            item => (
-              <a
-                key={
-                  item.id
-                }
-                href={`#${sectionAnchor(
-                  item.id
-                )}`}
-                className={`rounded-xl border px-3 py-2.5 text-center text-xs font-black transition ${
-                  initialSection === item.id
-                    ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
-                    : 'border-white/10 bg-slate-950/55 text-slate-300 hover:border-cyan-300/25 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </a>
-            )
-          )}
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+            Restaurar
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Restaurar uma cópia
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+            Escolha onde está a cópia que pretende recuperar. Nenhum dado atual é substituído sem validação e confirmação.
+          </p>
         </div>
-      </nav>
 
-      {initialSection ===
-      'restore'
-        ? restoreSection
-        : null}
+        <RestoreSettingsPanel
+          onDataChanged={
+            onDataChanged
+          }
+        />
+      </section>
 
-      <div
-        id={
-          sectionAnchor(
-            'protection'
-          )
-        }
-        className="scroll-mt-24 space-y-3"
+      <section
+        id="ma-professor-security-backup"
+        className="scroll-mt-24 space-y-4"
       >
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-            Proteção automática
+            Cópias de segurança
           </p>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            Consulte o estado da proteção online e faça uma cópia imediata quando precisar.
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Criar uma cópia de segurança
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+            Escolha se quer guardar a cópia na nuvem ou descarregá-la para este dispositivo.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Proteção automática: a cópia cifrada online continua a ser atualizada automaticamente quando o dispositivo está alinhado com a versão guardada na nuvem.
           </p>
         </div>
 
-        <EncryptedSyncPanel />
-      </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <EncryptedSyncPanel />
 
-      <section
-        id={
-          sectionAnchor(
-            'backup'
-          )
-        }
-        className="scroll-mt-24 rounded-3xl border border-cyan-300/15 bg-slate-900/70 p-5 sm:p-6"
-      >
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-          Cópias de segurança
-        </p>
+          <section className="h-full rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/20 p-5 sm:p-6">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+              Dispositivo
+            </p>
 
-        <h2 className="mt-2 text-xl font-black text-white">
-          Guardar uma cópia neste dispositivo
-        </h2>
+            <h3 className="mt-2 text-xl font-black text-white">
+              Descarregar cópia de segurança para o seu dispositivo
+            </h3>
 
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-          O ficheiro JSON inclui anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições. É uma cópia adicional controlada por si.
-        </p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Cria um ficheiro completo com anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições para guardar onde quiser.
+            </p>
 
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-200/80">
-          Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
-        </p>
+            <p className="mt-2 text-xs leading-5 text-amber-200/80">
+              Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
+            </p>
 
-        <button
-          type="button"
-          disabled={
-            Boolean(
-              busy
-            )
-          }
-          onClick={() =>
-            void handleJsonExport()
-          }
-          className="mt-5 rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
-        >
-          {busy ===
-          'json'
-            ? 'A criar cópia…'
-            : 'Descarregar cópia completa'}
-        </button>
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void handleJsonExport()
+              }
+              className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+            >
+              {busy === 'json'
+                ? 'A criar e descarregar…'
+                : 'Descarregar cópia de segurança para o seu dispositivo'}
+            </button>
+          </section>
+        </div>
       </section>
 
-      {initialSection !==
-      'restore'
-        ? restoreSection
-        : null}
-
       <section
-        id={
-          sectionAnchor(
-            'export'
-          )
-        }
+        id="ma-professor-security-export"
         className="scroll-mt-24 rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6"
       >
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
@@ -452,58 +317,29 @@ export function BackupSettingsPanel({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Exporte apenas os dados de que precisa. Os CSV usam ponto e vírgula e são compatíveis com o Excel em português.
+          Esta área não cria uma cópia de segurança. Serve apenas para exportar listas ou registos específicos em CSV.
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
-              [
-                'students',
-                'Alunos'
-              ],
-
-              [
-                'lessons',
-                'Sumários'
-              ],
-
-              [
-                'attendance',
-                'Faltas'
-              ],
-
-              [
-                'grades',
-                'Avaliações'
-              ]
+              ['students', 'Alunos'],
+              ['lessons', 'Sumários'],
+              ['attendance', 'Faltas'],
+              ['grades', 'Avaliações']
             ] as const
           ).map(
-            (
-              [
-                kind,
-                label
-              ]
-            ) => (
+            ([kind, label]) => (
               <button
-                key={
-                  kind
-                }
+                key={kind}
                 type="button"
-                disabled={
-                  Boolean(
-                    busy
-                  )
-                }
+                disabled={Boolean(busy)}
                 onClick={() =>
-                  void handleCsvExport(
-                    kind
-                  )
+                  void handleCsvExport(kind)
                 }
                 className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-black text-slate-200 transition hover:border-violet-300/30 hover:bg-violet-300/10 disabled:cursor-wait disabled:opacity-60"
               >
-                {busy ===
-                `csv-${kind}`
+                {busy === `csv-${kind}`
                   ? 'A exportar…'
                   : label}
               </button>
@@ -513,11 +349,7 @@ export function BackupSettingsPanel({
       </section>
 
       <section
-        id={
-          sectionAnchor(
-            'advanced'
-          )
-        }
+        id="ma-professor-security-advanced"
         className="scroll-mt-24 rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6"
       >
         <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
@@ -576,14 +408,11 @@ export function BackupSettingsPanel({
               <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                 <input
                   type="text"
-                  value={
-                    resetConfirmation
-                  }
-                  onChange={
-                    event =>
-                      setResetConfirmation(
-                        event.target.value
-                      )
+                  value={resetConfirmation}
+                  onChange={event =>
+                    setResetConfirmation(
+                      event.target.value
+                    )
                   }
                   placeholder="Escreva APAGAR"
                   className="rounded-xl border border-rose-400/20 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-rose-300/50"
@@ -591,18 +420,11 @@ export function BackupSettingsPanel({
 
                 <button
                   type="button"
-                  disabled={
-                    Boolean(
-                      busy
-                    )
-                  }
-                  onClick={
-                    handleReset
-                  }
+                  disabled={Boolean(busy)}
+                  onClick={handleReset}
                   className="rounded-xl bg-rose-400 px-4 py-2.5 text-sm font-black text-slate-950 disabled:cursor-wait disabled:opacity-60"
                 >
-                  {busy ===
-                  'reset'
+                  {busy === 'reset'
                     ? 'A apagar…'
                     : 'Apagar tudo'}
                 </button>
@@ -615,8 +437,7 @@ export function BackupSettingsPanel({
       {feedback ? (
         <p
           className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-            feedback.tone ===
-              'success'
+            feedback.tone === 'success'
               ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
               : 'border-rose-400/20 bg-rose-400/10 text-rose-200'
           }`}
