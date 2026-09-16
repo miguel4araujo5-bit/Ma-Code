@@ -136,17 +136,17 @@ const menuCards: Array<{
   {
     id: 'settings',
     eyebrow: 'Configuração',
-    title: 'Definições, pesquisa e cópias',
+    title: 'Definições e segurança',
     description:
-      'Aceda ao perfil, pesquisa global, cópias de segurança, restauro e licença.',
+      'Aceda ao perfil, pesquisa global, segurança e recuperação, exportações e licença.',
     icon: '⚙'
   },
   {
     id: 'restore',
     eyebrow: 'Recuperação',
-    title: 'Tenho uma cópia JSON',
+    title: 'Restaurar dados',
     description:
-      'Escolha uma cópia de segurança, valide-a e restaure os dados guardados nesse ficheiro.',
+      'Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.',
     icon: '↺'
   }
 ]
@@ -598,10 +598,10 @@ export function ProductMenuWorkspace({
             <div className="mx-auto flex max-w-[1800px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-black text-emerald-200">
-                  Já tem uma cópia de segurança?
+                  Quer recuperar os seus dados?
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-400">
-                  Pode recuperar um ficheiro JSON antes de voltar a configurar tudo manualmente.
+                  Pode restaurar a cópia cifrada da nuvem ou escolher um ficheiro deste dispositivo antes de voltar a configurar tudo manualmente.
                 </p>
               </div>
 
@@ -610,7 +610,7 @@ export function ProductMenuWorkspace({
                 onClick={() => setSection('restore')}
                 className="rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2.5 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15"
               >
-                Tenho uma cópia JSON
+                Restaurar dados
               </button>
             </div>
           </div>
@@ -736,8 +736,8 @@ export function ProductMenuWorkspace({
         <MenuHeader
           title={
             isRestore
-              ? 'Recuperar cópia JSON'
-              : 'Definições e dados'
+              ? 'Restaurar dados'
+              : 'Definições'
           }
           onBack={() =>
             setSection(
@@ -755,6 +755,11 @@ export function ProductMenuWorkspace({
             isRestore
               ? 'backup'
               : 'profile'
+          }
+          initialSecuritySection={
+            isRestore
+              ? 'restore'
+              : 'protection'
           }
         />
       </div>

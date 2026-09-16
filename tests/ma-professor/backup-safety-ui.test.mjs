@@ -168,7 +168,7 @@ test(
 )
 
 test(
-  'JSON restore remains directly discoverable from the menu and during an incomplete setup',
+  'restore remains directly discoverable from the menu and opens the restore section',
   () => {
     assert.match(
       productMenuSource,
@@ -176,11 +176,11 @@ test(
     )
     assert.match(
       productMenuSource,
-      /id:\s*'restore'[\s\S]*title:\s*'Tenho uma cópia JSON'/
+      /id:\s*'restore'[\s\S]*title:\s*'Restaurar dados'/
     )
     assert.match(
       productMenuSource,
-      /Já tem uma cópia de segurança\?/
+      /Quer recuperar os seus dados\?/
     )
     assert.match(
       productMenuSource,
@@ -189,6 +189,32 @@ test(
     assert.match(
       productMenuSource,
       /section === 'settings' \|\|[\s\S]*section === 'restore'/
+    )
+    assert.match(
+      productMenuSource,
+      /initialSecuritySection=\{[\s\S]*isRestore[\s\S]*\? 'restore'[\s\S]*: 'protection'/
+    )
+    assert.doesNotMatch(
+      productMenuSource,
+      /Tenho uma cópia JSON|Recuperar cópia JSON|Definições e dados/
+    )
+  }
+)
+
+test(
+  'menu terminology reflects security and recovery instead of the former copies-only label',
+  () => {
+    assert.match(
+      productMenuSource,
+      /title:\s*'Definições e segurança'/
+    )
+    assert.match(
+      productMenuSource,
+      /segurança e recuperação, exportações e licença/
+    )
+    assert.match(
+      productMenuSource,
+      /\? 'Restaurar dados'[\s\S]*: 'Definições'/
     )
   }
 )
