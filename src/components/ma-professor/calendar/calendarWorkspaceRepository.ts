@@ -4,6 +4,9 @@ import {
 import {
   scheduledLessonReconciliationRepository
 } from '../lessons/scheduledLessonReconciliationRepository'
+import {
+  ufcdProgressRepository
+} from '../lessons/ufcdProgressRepository'
 import type {
   EntityId,
   ISODate
@@ -93,6 +96,11 @@ export class CalendarWorkspaceRepository
   override async getLessonEditorContext(
     lessonId: EntityId
   ) {
+    await ufcdProgressRepository
+      .ensureLessonUsesCurrentUfcd(
+        lessonId
+      )
+
     const context =
       await super.getLessonEditorContext(
         lessonId
