@@ -26,6 +26,22 @@ const backupSource = await readFile(
   'utf8'
 )
 
+const restoreSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/RestoreSettingsPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const encryptedSyncSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/EncryptedSyncPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const productMenuSource = await readFile(
   new URL(
     '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',
@@ -97,7 +113,7 @@ test(
     )
     assert.match(
       backupSource,
-      /Descarregar cópia completa/
+      /Descarregar cópia de segurança para o seu dispositivo/
     )
     assert.match(
       backupSource,
@@ -107,28 +123,20 @@ test(
 )
 
 test(
-  'security and recovery page has one clear task-based organization',
+  'security and recovery page is organized around the four primary user actions',
   () => {
     assert.match(
       settingsSource,
       /Segurança e recuperação/
     )
-    assert.match(
-      settingsSource,
-      /Proteção, cópias, restauro e exportações/
-    )
 
-    const protectionPosition =
+    const restorePosition =
       backupSource.indexOf(
-        'Proteção automática'
+        'Restaurar uma cópia'
       )
     const backupPosition =
       backupSource.indexOf(
-        'Cópias de segurança'
-      )
-    const restorePosition =
-      backupSource.indexOf(
-        '<RestoreSettingsPanel'
+        'Criar uma cópia de segurança'
       )
     const exportPosition =
       backupSource.indexOf(
@@ -139,15 +147,39 @@ test(
         'Opções avançadas'
       )
 
-    assert.ok(protectionPosition >= 0)
-    assert.ok(backupPosition >= 0)
     assert.ok(restorePosition >= 0)
+    assert.ok(backupPosition >= 0)
     assert.ok(exportPosition >= 0)
     assert.ok(advancedPosition >= 0)
-    assert.ok(protectionPosition < backupPosition)
+    assert.ok(restorePosition < backupPosition)
     assert.ok(backupPosition < exportPosition)
     assert.ok(exportPosition < advancedPosition)
 
+    assert.match(
+      restoreSource,
+      /Restaurar cópia cifrada da nuvem/
+    )
+    assert.match(
+      restoreSource,
+      /Restaurar cópia do seu dispositivo/
+    )
+    assert.match(
+      encryptedSyncSource,
+      /Fazer cópia de segurança para a nuvem/
+    )
+    assert.match(
+      backupSource,
+      /Descarregar cópia de segurança para o seu dispositivo/
+    )
+    assert.doesNotMatch(
+      encryptedSyncSource,
+      /Atualizar estado|Atualizar cópia cifrada agora|Guardar primeira cópia cifrada agora/
+    )
+
+    assert.match(
+      backupSource,
+      /Proteção automática/
+    )
     assert.match(
       backupSource,
       /<EncryptedSyncPanel \/>/
@@ -155,6 +187,10 @@ test(
     assert.match(
       backupSource,
       /<BackupLocalSafetyPanel \/>/
+    )
+    assert.match(
+      backupSource,
+      /<RestoreSettingsPanel/
     )
     assert.doesNotMatch(
       backupSource,
@@ -266,7 +302,11 @@ test(
     )
     assert.match(
       backupSource,
-      /Descarregar cópia completa/
+      /Descarregar cópia de segurança para o seu dispositivo/
+    )
+    assert.match(
+      encryptedSyncSource,
+      /Fazer cópia de segurança para a nuvem/
     )
     assert.match(
       backupSource,

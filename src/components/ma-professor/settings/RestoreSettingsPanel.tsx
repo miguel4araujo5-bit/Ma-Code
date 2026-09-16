@@ -203,64 +203,58 @@ export function RestoreSettingsPanel({
     }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-          Recuperar dados
-        </p>
-        <h2 className="mt-2 text-2xl font-black text-white">
-          De onde quer restaurar a cópia?
-        </h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-          Escolha a cópia cifrada guardada na nuvem ou um ficheiro JSON que tenha neste dispositivo. Nenhuma opção altera os dados antes da validação e da confirmação final.
-        </p>
+    <div className="space-y-5">
+      <div className="grid gap-3 lg:grid-cols-2">
+        <button
+          type="button"
+          onClick={() =>
+            chooseSource('cloud')
+          }
+          aria-pressed={
+            source === 'cloud'
+          }
+          className={`rounded-3xl border p-5 text-left transition sm:p-6 ${
+            source === 'cloud'
+              ? 'border-violet-300/50 bg-violet-300/10'
+              : 'border-white/10 bg-slate-900/70 hover:border-violet-300/30'
+          }`}
+        >
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
+            Nuvem
+          </span>
+          <span className="mt-2 block text-xl font-black text-white">
+            Restaurar cópia cifrada da nuvem
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-slate-400">
+            Descarrega a cópia cifrada da sua conta, decifra-a neste dispositivo e só substitui os dados depois da validação e confirmação final.
+          </span>
+        </button>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() =>
-              chooseSource('cloud')
-            }
-            aria-pressed={
-              source === 'cloud'
-            }
-            className={`rounded-2xl border p-5 text-left transition ${
-              source === 'cloud'
-                ? 'border-violet-300/50 bg-violet-300/10'
-                : 'border-white/10 bg-slate-950/55 hover:border-violet-300/30'
-            }`}
-          >
-            <span className="block text-sm font-black text-violet-200">
-              Restaurar da nuvem
-            </span>
-            <span className="mt-2 block text-xs leading-5 text-slate-400">
-              Descarrega a cópia cifrada da sua conta, decifra-a neste dispositivo e valida-a antes do restauro.
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              chooseSource('device')
-            }
-            aria-pressed={
-              source === 'device'
-            }
-            className={`rounded-2xl border p-5 text-left transition ${
-              source === 'device'
-                ? 'border-emerald-300/50 bg-emerald-300/10'
-                : 'border-white/10 bg-slate-950/55 hover:border-emerald-300/30'
-            }`}
-          >
-            <span className="block text-sm font-black text-emerald-200">
-              Restaurar de um ficheiro
-            </span>
-            <span className="mt-2 block text-xs leading-5 text-slate-400">
-              Escolhe uma cópia JSON guardada no iPhone, Mac, iCloud Drive, Downloads ou outro local acessível neste dispositivo.
-            </span>
-          </button>
-        </div>
-      </section>
+        <button
+          type="button"
+          onClick={() =>
+            chooseSource('device')
+          }
+          aria-pressed={
+            source === 'device'
+          }
+          className={`rounded-3xl border p-5 text-left transition sm:p-6 ${
+            source === 'device'
+              ? 'border-emerald-300/50 bg-emerald-300/10'
+              : 'border-white/10 bg-slate-900/70 hover:border-emerald-300/30'
+          }`}
+        >
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+            Dispositivo
+          </span>
+          <span className="mt-2 block text-xl font-black text-white">
+            Restaurar cópia do seu dispositivo
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-slate-400">
+            Escolhe uma cópia guardada no iPhone, Mac, iCloud Drive, Downloads ou outro local acessível neste dispositivo e valida-a antes do restauro.
+          </span>
+        </button>
+      </div>
 
       {source === 'cloud' ? (
         <OnlineRestorePanel
@@ -273,11 +267,11 @@ export function RestoreSettingsPanel({
       {source === 'device' ? (
         <section className="rounded-3xl border border-emerald-300/15 bg-slate-900/70 p-5 sm:p-6">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-            Ficheiro deste dispositivo
+            Cópia deste dispositivo
           </p>
-          <h2 className="mt-2 text-xl font-black text-white">
-            Escolher e validar cópia JSON
-          </h2>
+          <h3 className="mt-2 text-xl font-black text-white">
+            Escolher e validar ficheiro de cópia
+          </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             O ficheiro é lido e validado primeiro. Só depois de escrever RESTAURAR é que os dados atuais são substituídos.
           </p>
@@ -302,7 +296,7 @@ export function RestoreSettingsPanel({
           >
             {busy === 'validate'
               ? 'A validar…'
-              : 'Escolher ficheiro JSON'}
+              : 'Escolher cópia do dispositivo'}
           </button>
 
           {validation ? (
