@@ -204,7 +204,7 @@ test(
 )
 
 test(
-  'restore remains directly discoverable from the menu and opens the restore section',
+  'restore remains discoverable from the menu without a duplicate setup banner',
   () => {
     assert.match(
       productMenuSource,
@@ -216,19 +216,15 @@ test(
     )
     assert.match(
       productMenuSource,
-      /Quer recuperar os seus dados\?/
-    )
-    assert.match(
-      productMenuSource,
-      /onClick=\{\(\) => setSection\('restore'\)\}/
-    )
-    assert.match(
-      productMenuSource,
       /section === 'settings' \|\|[\s\S]*section === 'restore'/
     )
     assert.match(
       productMenuSource,
       /initialSecuritySection=\{[\s\S]*isRestore[\s\S]*\? 'restore'[\s\S]*: 'protection'/
+    )
+    assert.doesNotMatch(
+      productMenuSource,
+      /Quer recuperar os seus dados\?|antes de voltar a configurar tudo manualmente/
     )
     assert.doesNotMatch(
       productMenuSource,
