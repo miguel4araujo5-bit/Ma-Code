@@ -3,6 +3,9 @@ import {
   lessonRepository,
   type PreviousLessonTemplate
 } from '../lessons/lessonRepository'
+import {
+  lessonCountsTowardUfcdProgress
+} from '../lessons/ufcdProgress'
 import type {
   AcademicYear,
   ClassGroup,
@@ -247,11 +250,7 @@ function selectSuggestedModule(
           ) ?? 0
         ) <
         module.plannedPeriods
-    ) ??
-    orderedModules[
-      orderedModules.length - 1
-    ] ??
-    null
+    ) ?? null
   )
 }
 
@@ -673,11 +672,11 @@ export class ExtraLessonRepository {
       >()
 
     lessons
-      .filter(
-        (lesson) =>
-          lesson.status ===
-            'taught' &&
-          lesson.countTowardProgress
+      .filter(lesson =>
+        lessonCountsTowardUfcdProgress(
+          lesson,
+          todayISO()
+        )
       )
       .forEach(
         (lesson) => {
