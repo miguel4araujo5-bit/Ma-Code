@@ -8,6 +8,7 @@ import type {
   ISODate
 } from '../types'
 
+import DailyUfcdProgressNotice from './DailyUfcdProgressNotice'
 import DailyUnifiedWeekOverview from './DailyUnifiedWeekOverview'
 import DailyWorkspaceView from './DailyWorkspaceView'
 
@@ -130,6 +131,21 @@ export default function DailyWorkspaceWithDuties({
         }}
         onSaved={
           handleSaved
+        }
+      />
+
+      <DailyUfcdProgressNotice
+        academicYearId={
+          academicYearId
+        }
+        date={
+          activeDate
+        }
+        lessonId={
+          activeLessonId
+        }
+        refreshToken={
+          refreshToken
         }
       />
 
