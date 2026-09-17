@@ -313,19 +313,27 @@ test(
 )
 
 test(
-  'the Daily warning covers five remaining lessons and the final auto/hetero-evaluation reminder',
+  'the Daily summary shows validated time progress and the final evaluation reminders',
   () => {
     assert.match(
       noticeSource,
-      /Faltam \$\{notice\.lessonsRemaining\} aulas para terminar a UFCD/
+      /buildUfcdModuleProgress/
     )
     assert.match(
       noticeSource,
-      /elementos de avaliação suficientes/
+      /snapshot\.periodsRemaining <= 5/
     )
     assert.match(
       noticeSource,
-      /Faça a auto e heteroavaliação\. Esta UFCD termina nesta aula\./
+      /já tem elementos necessários para a avaliação\?/
+    )
+    assert.match(
+      noticeSource,
+      /Realizar auto e heteroavaliação/
+    )
+    assert.match(
+      noticeSource,
+      /createPortal/
     )
   }
 )
