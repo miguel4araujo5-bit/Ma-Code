@@ -46,6 +46,9 @@ export function resolveLessonStatusForDate(
   return status
 }
 
+// Regra comum a aulas normais e extra:
+// hoje/passado + sumário => dada;
+// futuro + sumário => planeada até submissão explícita no GIAE.
 export function resolveLessonStatusFromEvidence(
   lessonDate: ISODate,
   requestedStatus: LessonStatus,
