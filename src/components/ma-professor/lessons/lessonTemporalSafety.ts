@@ -1,4 +1,5 @@
 import type {
+  GIAEStatus,
   ISODate,
   LessonStatus
 } from '../types'
@@ -37,12 +38,56 @@ export function isFutureLessonDate(
 }
 
 export function resolveLessonStatusForDate(
-  _lessonDate: ISODate,
+  lessonDate: ISODate,
   status: LessonStatus,
-  _referenceDate: ISODate =
+  referenceDate: ISODate =
     todayISO()
 ): LessonStatus {
+  if (
+    status === 'taught' &&
+    isFutureLessonDate(
+      lessonDate,
+      referenceDate
+    )
+  ) {
+    return 'planned'
+  }
+
   return status
+}
+
+export function resolveLessonStatusFromEvidence(
+  lessonDate: ISODate,
+  requestedStatus: LessonStatus,
+  summary: string,
+  giaeStatus: GIAEStatus,
+  referenceDate: ISODate =
+    todayISO()
+): LessonStatus {
+  if (
+    requestedStatus ===
+    'cancelled'
+  ) {
+    return 'cancelled'
+  }
+
+  if (!summary.trim()) {
+    return 'planned'
+  }
+
+  if (
+    !isFutureLessonDate(
+      lessonDate,
+      referenceDate
+    )
+  ) {
+    return 'taught'
+  }
+
+  return giaeStatus ===
+    'submitted'
+    ? 'taught'
+    : 'planned'
 }
 
 export function assertLessonNotTaughtInFuture(
