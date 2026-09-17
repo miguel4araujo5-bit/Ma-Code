@@ -17,6 +17,11 @@ import type {
 } from './assessmentWorkspaceRepository'
 
 import {
+  prepareOfficialEvaluationMomentSheets,
+  type EvaluationMomentSheetLocation
+} from './ufcdDynamicMomentSheets'
+
+import {
   resolveModuleCompletionDate
 } from './ufcdCompletionDate'
 
@@ -27,6 +32,7 @@ import {
 import {
   clearWorksheetCell,
   loadOfficialUfcdXlsmTemplate,
+  setWorksheetFormula,
   setWorksheetNumber,
   setWorksheetString,
   writeOfficialUfcdXlsm,
@@ -40,6 +46,15 @@ const HOME_SHEET =
   'xl/worksheets/sheet1.xml'
 const CFP_SHEET =
   'xl/worksheets/sheet14.xml'
+
+const CFP_DOMAIN_COLUMNS = [
+  'H',
+  'K',
+  'N',
+  'Q',
+  'T',
+  'W'
+] as const
 
 type MomentSheetDefinition = {
   name: string
@@ -61,26 +76,8 @@ const P23_LAYOUT = {
   lastItemColumn: 48
 } as const
 
-const OFFICIAL_MOMENT_SHEETS: MomentSheetDefinition[] = [
-  { name: 'P1I1', path: 'xl/worksheets/sheet2.xml', ...P1_LAYOUT },
-  { name: 'P1I2', path: 'xl/worksheets/sheet17.xml', ...P1_LAYOUT },
-  { name: 'P1I3', path: 'xl/worksheets/sheet18.xml', ...P1_LAYOUT },
-  { name: 'P1I4', path: 'xl/worksheets/sheet19.xml', ...P1_LAYOUT },
-  { name: 'P1I5', path: 'xl/worksheets/sheet20.xml', ...P1_LAYOUT },
-  { name: 'P2I1', path: 'xl/worksheets/sheet3.xml', ...P23_LAYOUT },
-  { name: 'P2I2', path: 'xl/worksheets/sheet4.xml', ...P23_LAYOUT },
-  { name: 'P2I3', path: 'xl/worksheets/sheet5.xml', ...P23_LAYOUT },
-  { name: 'P2I4', path: 'xl/worksheets/sheet6.xml', ...P23_LAYOUT },
-  { name: 'P2I5', path: 'xl/worksheets/sheet7.xml', ...P23_LAYOUT },
-  { name: 'P3I1', path: 'xl/worksheets/sheet8.xml', ...P23_LAYOUT },
-  { name: 'P3I2', path: 'xl/worksheets/sheet9.xml', ...P23_LAYOUT },
-  { name: 'P3I3', path: 'xl/worksheets/sheet10.xml', ...P23_LAYOUT },
-  { name: 'P3I4', path: 'xl/worksheets/sheet11.xml', ...P23_LAYOUT },
-  { name: 'P3I5', path: 'xl/worksheets/sheet12.xml', ...P23_LAYOUT }
-]
-
 type EvaluationMoment = {
-  lessonId: EntityId
+  key: string
   date: string
   title: string
   resultsByCriterion: Map<
@@ -107,8 +104,7 @@ async function loadEvaluationMoments(
 
   const assessmentIds =
     snapshot.activities.map(
-      activity =>
-        activity.assessment.id
+      activity => activity.assessment.id
     )
 
   const results =
@@ -159,9 +155,22 @@ async function loadEvaluationMoments(
     )
 
   const moments =
-    new Map<EntityId, EvaluationMoment>()
+    new Map<string, EvaluationMoment>()
 
   for (const activity of orderedActivities) {
+    const title =
+      activity.assessment.description
+        .trim() ||
+      cleanMomentTitle(
+        activity.assessment.title
+      ) ||
+      activity.assessment.title
+
+    // Uma aula pode conter mais do que um momento. O título/descrição
+    // mantém juntos apenas os registos dos vários critérios do mesmo momento.
+    const key =
+      `${activity.lesson.id}::${title}`
+
     const resultsForCriterion =
       new Map<EntityId, AssessmentResult>(
         (
@@ -176,18 +185,8 @@ async function loadEvaluationMoments(
         )
       )
 
-    const title =
-      activity.assessment.description
-        .trim() ||
-      cleanMomentTitle(
-        activity.assessment.title
-      ) ||
-      activity.assessment.title
-
     const existing =
-      moments.get(
-        activity.lesson.id
-      )
+      moments.get(key)
 
     if (existing) {
       existing.resultsByCriterion.set(
@@ -198,12 +197,10 @@ async function loadEvaluationMoments(
     }
 
     moments.set(
-      activity.lesson.id,
+      key,
       {
-        lessonId:
-          activity.lesson.id,
-        date:
-          activity.lesson.date,
+        key,
+        date: activity.lesson.date,
         title,
         resultsByCriterion:
           new Map([
@@ -219,11 +216,32 @@ async function loadEvaluationMoments(
   return [...moments.values()]
 }
 
+function materializeMomentSheets(
+  files: OfficialXlsmFiles,
+  count: number
+): MomentSheetDefinition[] {
+  return prepareOfficialEvaluationMomentSheets(
+    files,
+    count
+  ).map(
+    (
+      location: EvaluationMomentSheetLocation
+    ) => ({
+      name: location.name,
+      path: location.path,
+      ...(
+        location.layout === 'p1'
+          ? P1_LAYOUT
+          : P23_LAYOUT
+      )
+    })
+  )
+}
+
 function columnName(
   zeroBasedColumn: number
 ) {
-  let value =
-    zeroBasedColumn + 1
+  let value = zeroBasedColumn + 1
   let result = ''
 
   while (value > 0) {
@@ -235,10 +253,9 @@ function columnName(
         65 + remainder
       ) + result
 
-    value =
-      Math.floor(
-        (value - 1) / 26
-      )
+    value = Math.floor(
+      (value - 1) / 26
+    )
   }
 
   return result
@@ -247,21 +264,19 @@ function columnName(
 function excelSerialFromIsoDate(
   value: string | null
 ) {
-  const match =
-    value?.match(
-      /^(\d{4})-(\d{2})-(\d{2})$/
-    )
+  const match = value?.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  )
 
   if (!match) {
     return null
   }
 
-  const timestamp =
-    Date.UTC(
-      Number(match[1]),
-      Number(match[2]) - 1,
-      Number(match[3])
-    )
+  const timestamp = Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3])
+  )
   const excelEpoch =
     Date.UTC(1899, 11, 30)
 
@@ -273,10 +288,9 @@ function excelSerialFromIsoDate(
 function formatIsoDate(
   value: string | null
 ) {
-  const match =
-    value?.match(
-      /^(\d{4})-(\d{2})-(\d{2})$/
-    )
+  const match = value?.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  )
 
   return match
     ? `${match[3]}/${match[2]}/${match[1]}`
@@ -292,11 +306,7 @@ function clearHomeInputs(
     row += 1
   ) {
     for (const column of [
-      'H',
-      'I',
-      'J',
-      'K',
-      'L'
+      'H', 'I', 'J', 'K', 'L'
     ]) {
       clearWorksheetCell(
         files,
@@ -312,9 +322,7 @@ function clearHomeInputs(
     row += 1
   ) {
     for (const column of [
-      'C',
-      'E',
-      'F'
+      'C', 'E', 'F'
     ]) {
       clearWorksheetCell(
         files,
@@ -362,8 +370,7 @@ function populateHome(
     (student, index) => {
       const row = 6 + index
 
-      // Nº Processo fica intencionalmente em branco
-      // até existir uma fonte segura para este dado.
+      // Nº Processo fica vazio até existir uma fonte segura.
       setWorksheetString(
         files,
         HOME_SHEET,
@@ -498,10 +505,7 @@ function populateMoment(
       model.criteria.map(
         (criterion, index) => [
           criterion.id,
-          {
-            criterion,
-            index
-          }
+          { criterion, index }
         ]
       )
     )
@@ -511,18 +515,14 @@ function populateMoment(
       .flatMap(
         ([criterionId, results]) => {
           const resolved =
-            criteriaById.get(
-              criterionId
-            )
+            criteriaById.get(criterionId)
 
           return resolved
-            ? [
-                {
-                  ...resolved,
-                  criterionId,
-                  results
-                }
-              ]
+            ? [{
+                ...resolved,
+                criterionId,
+                results
+              }]
             : []
         }
       )
@@ -542,6 +542,19 @@ function populateMoment(
     return
   }
 
+  const requiredColumns =
+    criterionEntries.length * 2
+  const availableColumns =
+    sheet.lastItemColumn -
+    sheet.firstItemColumn +
+    1
+
+  if (requiredColumns > availableColumns) {
+    throw new Error(
+      `O momento "${moment.title}" tem mais critérios do que cabem na folha oficial.`
+    )
+  }
+
   const acsInternalDomain =
     `D${model.criteria.length + 1}`
   const adaptationStartColumn =
@@ -552,13 +565,11 @@ function populateMoment(
     (entry, itemIndex) => {
       const generalColumn =
         columnName(
-          sheet.firstItemColumn +
-          itemIndex
+          sheet.firstItemColumn + itemIndex
         )
       const adaptationColumn =
         columnName(
-          adaptationStartColumn +
-          itemIndex
+          adaptationStartColumn + itemIndex
         )
 
       setWorksheetString(
@@ -594,8 +605,7 @@ function populateMoment(
             )
 
           if (
-            result?.status !==
-            'evaluated'
+            result?.status !== 'evaluated'
           ) {
             return
           }
@@ -633,16 +643,90 @@ function populateCfpInputs(
     index < 30;
     index += 1
   ) {
+    const row = 12 + index
+
+    for (const column of CFP_DOMAIN_COLUMNS) {
+      clearWorksheetCell(
+        files,
+        CFP_SHEET,
+        `${column}${row}`
+      )
+    }
+
     clearWorksheetCell(
       files,
       CFP_SHEET,
-      `AI${12 + index}`
+      `AA${row}`
+    )
+    clearWorksheetCell(
+      files,
+      CFP_SHEET,
+      `AI${row}`
+    )
+
+    // A avaliação final deixa de depender do limite histórico de 5 instrumentos
+    // por período. A CFP recebe diretamente os resultados agregados do MA-Professor.
+    setWorksheetFormula(
+      files,
+      CFP_SHEET,
+      `BW${row}`,
+      `IF(AA${row}="","",ROUNDUP(AA${row},0))`
     )
   }
 
   model.rows.forEach(
     (student, index) => {
       const row = 12 + index
+
+      student.criterionScores.forEach(
+        (score, criterionIndex) => {
+          if (score === null) {
+            return
+          }
+
+          const column =
+            CFP_DOMAIN_COLUMNS[
+              criterionIndex
+            ]
+
+          if (column) {
+            setWorksheetNumber(
+              files,
+              CFP_SHEET,
+              `${column}${row}`,
+              score
+            )
+          }
+        }
+      )
+
+      if (
+        student.usesAcs &&
+        student.acsScore !== null
+      ) {
+        const acsColumn =
+          CFP_DOMAIN_COLUMNS[
+            model.criteria.length
+          ]
+
+        if (acsColumn) {
+          setWorksheetNumber(
+            files,
+            CFP_SHEET,
+            `${acsColumn}${row}`,
+            student.acsScore
+          )
+        }
+      }
+
+      if (student.automaticLevel !== null) {
+        setWorksheetNumber(
+          files,
+          CFP_SHEET,
+          `AA${row}`,
+          student.automaticLevel
+        )
+      }
 
       if (
         student.selfAssessmentGrade !== null
@@ -655,8 +739,6 @@ function populateCfpInputs(
         )
       }
 
-      // A fórmula original de BW calcula o nível final automaticamente.
-      // Só é substituída quando o professor confirmou explicitamente a nota.
       if (student.finalGrade !== null) {
         setWorksheetNumber(
           files,
@@ -726,22 +808,19 @@ export async function exportUfcdFinalGradeExcel(
     loadOfficialUfcdXlsmTemplate()
   ])
 
-  if (
-    moments.length >
-    OFFICIAL_MOMENT_SHEETS.length
-  ) {
-    throw new Error(
-      'O modelo oficial XLSM suporta até 15 instrumentos de avaliação (cinco por período).'
-    )
-  }
-
   populateHome(
     files,
     snapshot,
     completionDate
   )
 
-  OFFICIAL_MOMENT_SHEETS.forEach(
+  const momentSheets =
+    materializeMomentSheets(
+      files,
+      moments.length
+    )
+
+  momentSheets.forEach(
     sheet =>
       clearMomentInputs(
         files,
@@ -753,9 +832,7 @@ export async function exportUfcdFinalGradeExcel(
     (moment, index) =>
       populateMoment(
         files,
-        OFFICIAL_MOMENT_SHEETS[
-          index
-        ],
+        momentSheets[index],
         moment,
         snapshot
       )
