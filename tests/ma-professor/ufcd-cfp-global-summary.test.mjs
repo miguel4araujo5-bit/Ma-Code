@@ -26,6 +26,14 @@ const excelSource = await readFile(
   'utf8'
 )
 
+const templateSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/ufcdOfficialXlsmTemplate.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'CFP preview keeps Nº and % as separate subcolumns for every global assessment band',
   () => {
@@ -110,15 +118,23 @@ test(
 )
 
 test(
-  'CFP Excel keeps Nº and % on separate summary rows',
+  'CFP Excel preserves the summary layout from the official XLSM instead of rebuilding it',
   () => {
     assert.match(
       excelSource,
-      /rows\.push\(\[\s*'Nº'/
+      /loadOfficialUfcdXlsmTemplate/
     )
     assert.match(
       excelSource,
-      /rows\.push\(\[\s*'%'/
+      /const CFP_SHEET =\s*\n\s*'xl\/worksheets\/sheet14\.xml'/
+    )
+    assert.match(
+      templateSource,
+      /Grelha_Avaliacao_UFCD_UC_Modelo\.xlsm/
+    )
+    assert.doesNotMatch(
+      excelSource,
+      /rows\.push\(\[/
     )
   }
 )
