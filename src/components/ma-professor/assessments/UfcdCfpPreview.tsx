@@ -6,8 +6,16 @@ import {
 } from 'react'
 
 import type {
+  EntityId
+} from '../types'
+
+import type {
   AssessmentWorkspaceSnapshot
 } from './assessmentWorkspaceRepository'
+
+import type {
+  UfcdFinalGradeDraft
+} from './UfcdFinalGradeGridBase'
 
 import {
   resolveModuleCompletionDate
@@ -27,7 +35,21 @@ import {
 
 interface UfcdCfpPreviewProps {
   snapshot: AssessmentWorkspaceSnapshot
-  disabled?: boolean
+  gradeDrafts: Record<
+    EntityId,
+    UfcdFinalGradeDraft
+  >
+  loading?: boolean
+  savingStudentId: EntityId | null
+  exportDisabled?: boolean
+  onDraftChange: (
+    studentId: EntityId,
+    changes: Partial<UfcdFinalGradeDraft>
+  ) => void
+  onSaveStudent: (
+    studentId: EntityId,
+    studentName: string
+  ) => Promise<void> | void
 }
 
 const criterionColors = [
@@ -64,9 +86,99 @@ function formatScore(
   ).format(value)
 }
 
+function buildPersistedDraft(
+  row: AssessmentWorkspaceSnapshot['studentRows'][number]
+): UfcdFinalGradeDraft {
+  const confirmedGrade =
+    row.gradeSummary
+      .confirmedFinalGrade
+
+  const suggestedGrade =
+    row.gradeSummary
+      .suggestedGrade
+
+  const selfAssessmentGrade =
+    row.finalGradeRecord
+      ?.selfAssessmentGrade ??
+    null
+
+  return {
+    finalGrade:
+      confirmedGrade !== null
+        ? String(confirmedGrade)
+        : suggestedGrade !== null
+          ? String(suggestedGrade)
+          : '',
+    selfAssessmentGrade:
+      selfAssessmentGrade === null
+        ? ''
+        : String(selfAssessmentGrade),
+    usesAcs:
+      row.finalGradeRecord
+        ?.usesAcs ??
+      false
+  }
+}
+
+function isDraftDirty(
+  current: UfcdFinalGradeDraft,
+  persisted: UfcdFinalGradeDraft
+) {
+  return (
+    current.finalGrade !==
+      persisted.finalGrade ||
+    current.selfAssessmentGrade !==
+      persisted.selfAssessmentGrade ||
+    current.usesAcs !==
+      persisted.usesAcs
+  )
+}
+
+function parseFinalGrade(
+  value: string
+) {
+  const normalized =
+    value.trim()
+
+  if (!normalized) {
+    return null
+  }
+
+  const grade =
+    Number(normalized)
+
+  if (
+    !Number.isInteger(grade) ||
+    grade < 0 ||
+    grade > 20
+  ) {
+    return null
+  }
+
+  return grade
+}
+
+function percentage(
+  count: number,
+  total: number
+) {
+  if (total === 0) {
+    return 0
+  }
+
+  return Math.round(
+    (count / total) * 100
+  )
+}
+
 export default function UfcdCfpPreview({
   snapshot,
-  disabled = false
+  gradeDrafts,
+  loading = false,
+  savingStudentId,
+  exportDisabled = false,
+  onDraftChange,
+  onSaveStudent
 }: UfcdCfpPreviewProps) {
   const [
     completionVersion,
@@ -118,16 +230,185 @@ export default function UfcdCfpPreview({
   >(null)
 
   const [
+    savingAll,
+    setSavingAll
+  ] = useState(false)
+
+  const [
     error,
     setError
   ] = useState('')
+
+  const pendingRows =
+    snapshot.studentRows.filter(
+      row => {
+        const persisted =
+          buildPersistedDraft(row)
+
+        const current =
+          gradeDrafts[
+            row.student.id
+          ] ?? persisted
+
+        const requiresConfirmation =
+          row.gradeSummary
+            .confirmedFinalGrade === null &&
+          Boolean(
+            current.finalGrade.trim()
+          )
+
+        return (
+          isDraftDirty(
+            current,
+            persisted
+          ) ||
+          requiresConfirmation
+        )
+      }
+    )
+
+  const hasUnsavedDraftChanges =
+    snapshot.studentRows.some(
+      row => {
+        const persisted =
+          buildPersistedDraft(row)
+
+        const current =
+          gradeDrafts[
+            row.student.id
+          ] ?? persisted
+
+        return isDraftDirty(
+          current,
+          persisted
+        )
+      }
+    )
+
+  const finalGrades =
+    snapshot.studentRows.flatMap(
+      row => {
+        const persisted =
+          buildPersistedDraft(row)
+
+        const current =
+          gradeDrafts[
+            row.student.id
+          ] ?? persisted
+
+        const grade =
+          parseFinalGrade(
+            current.finalGrade
+          )
+
+        return grade === null
+          ? []
+          : [grade]
+      }
+    )
+
+  const gradeBandDefinitions = [
+    ['1 - 6', 1, 6],
+    ['7 - 9', 7, 9],
+    ['10 - 13', 10, 13],
+    ['14 - 17', 14, 17],
+    ['18 - 20', 18, 20]
+  ] as const
+
+  const summaryItems = [
+    ...gradeBandDefinitions.map(
+      ([label, minimum, maximum]) => {
+        const count =
+          finalGrades.filter(
+            grade =>
+              grade >= minimum &&
+              grade <= maximum
+          ).length
+
+        return {
+          label,
+          count,
+          percent:
+            percentage(
+              count,
+              finalGrades.length
+            )
+        }
+      }
+    ),
+    {
+      label: 'NEGATIVO',
+      count:
+        finalGrades.filter(
+          grade => grade < 10
+        ).length,
+      percent:
+        percentage(
+          finalGrades.filter(
+            grade => grade < 10
+          ).length,
+          finalGrades.length
+        )
+    },
+    {
+      label: 'POSITIVO',
+      count:
+        finalGrades.filter(
+          grade => grade >= 10
+        ).length,
+      percent:
+        percentage(
+          finalGrades.filter(
+            grade => grade >= 10
+          ).length,
+          finalGrades.length
+        )
+    }
+  ]
+
+  const editingDisabled =
+    loading ||
+    Boolean(savingStudentId) ||
+    savingAll
+
+  async function saveAllChanges() {
+    if (
+      editingDisabled ||
+      pendingRows.length === 0
+    ) {
+      return
+    }
+
+    setSavingAll(true)
+    setError('')
+
+    try {
+      for (const row of pendingRows) {
+        await onSaveStudent(
+          row.student.id,
+          row.student.name
+        )
+      }
+    } catch (
+      currentError
+    ) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : 'Não foi possível guardar a avaliação final.'
+      )
+    } finally {
+      setSavingAll(false)
+    }
+  }
 
   async function runExport(
     kind: 'pdf' | 'excel'
   ) {
     if (
-      disabled ||
-      exporting
+      exportDisabled ||
+      exporting ||
+      savingAll
     ) {
       return
     }
@@ -198,41 +479,46 @@ export default function UfcdCfpPreview({
       model.criteria.length
     )
 
-  const summaryItems = [
-    ...model.gradeBands,
-    {
-      label: 'NEGATIVO',
-      count: model.negativeCount,
-      percent: model.negativePercent
-    },
-    {
-      label: 'POSITIVO',
-      count: model.positiveCount,
-      percent: model.positivePercent
-    }
-  ]
-
   return (
     <section className="overflow-hidden rounded-[2rem] border border-slate-300/20 bg-slate-950/70 shadow-xl shadow-black/20">
       <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:px-7 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-            Modelo de avaliação
+            Avaliação final · UFCD/UC
           </p>
           <h2 className="mt-2 text-xl font-black text-white">
-            Pré-visualização da folha CFP
+            Folha de avaliação final
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            O PDF contém apenas a CFP. O Excel contém o livro completo, incluindo HOME, P1I1, P1I2… CFP e as folhas auxiliares do modelo.
+            Edite a autoavaliação, a classificação final e a indicação ACS diretamente na folha oficial. O PDF contém apenas a CFP; o Excel contém o livro XLSM completo.
           </p>
         </div>
 
-        <div className="grid shrink-0 gap-2 sm:grid-cols-2">
+        <div className="grid shrink-0 gap-2 sm:grid-cols-3">
           <button
             type="button"
             disabled={
-              disabled ||
-              Boolean(exporting)
+              editingDisabled ||
+              pendingRows.length === 0
+            }
+            onClick={() =>
+              void saveAllChanges()
+            }
+            className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+          >
+            {savingAll
+              ? 'A guardar…'
+              : pendingRows.length > 0
+                ? `Guardar / confirmar · ${pendingRows.length}`
+                : 'Avaliação guardada'}
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              exportDisabled ||
+              Boolean(exporting) ||
+              savingAll
             }
             onClick={() =>
               void runExport('pdf')
@@ -247,8 +533,9 @@ export default function UfcdCfpPreview({
           <button
             type="button"
             disabled={
-              disabled ||
-              Boolean(exporting)
+              exportDisabled ||
+              Boolean(exporting) ||
+              savingAll
             }
             onClick={() =>
               void runExport('excel')
@@ -262,9 +549,9 @@ export default function UfcdCfpPreview({
         </div>
       </div>
 
-      {disabled ? (
+      {hasUnsavedDraftChanges ? (
         <div className="border-b border-amber-200/15 bg-amber-300/[0.05] px-5 py-3 text-xs font-semibold text-amber-100 sm:px-7">
-          Guarde primeiro as alterações pendentes para garantir que o PDF e o Excel usam apenas valores persistidos.
+          Existem alterações por guardar. O PDF e o Excel ficam bloqueados até guardar a avaliação final.
         </div>
       ) : null}
 
@@ -383,7 +670,7 @@ export default function UfcdCfpPreview({
                   )
                 )}
                 <th
-                  className="w-14 border border-slate-700 px-1 py-1.5"
+                  className="w-16 border border-slate-700 px-1 py-1.5"
                   style={{
                     backgroundColor:
                       acsColor
@@ -424,93 +711,219 @@ export default function UfcdCfpPreview({
 
             <tbody>
               {previewRows.map(
-                (row, rowIndex) => (
-                  <tr key={row?.studentNumber || `blank-${rowIndex}`}>
-                    <td className="border border-slate-700 px-1 py-[3px] text-center">
-                      {row?.processNumber || ''}
-                    </td>
-                    <td className="border border-slate-700 px-1 py-[3px] text-center">
-                      {row?.studentNumber || ''}
-                    </td>
-                    <td className="border border-slate-700 px-2 py-[3px] font-medium">
-                      {row?.studentName || ''}
-                    </td>
-                    {model.criteria.map(
-                      (criterion, index) => (
-                        <td
-                          key={criterion.id}
-                          className="border border-slate-700 px-1 py-[3px] text-center"
-                          style={{
-                            backgroundColor:
-                              criterionColor(index)
-                          }}
-                        >
-                          {row
-                            ? formatScore(
-                                row.criterionScores[
-                                  index
-                                ] ?? null
-                              )
-                            : ''}
-                        </td>
-                      )
-                    )}
-                    <td
-                      className="border border-slate-700 px-1 py-[3px] text-center"
-                      style={{
-                        backgroundColor:
-                          acsColor
-                      }}
+                (row, rowIndex) => {
+                  const sourceRow =
+                    snapshot.studentRows[
+                      rowIndex
+                    ] ?? null
+
+                  const persistedDraft =
+                    sourceRow
+                      ? buildPersistedDraft(
+                          sourceRow
+                        )
+                      : null
+
+                  const currentDraft =
+                    sourceRow &&
+                    persistedDraft
+                      ? gradeDrafts[
+                          sourceRow.student.id
+                        ] ?? persistedDraft
+                      : null
+
+                  const ready =
+                    Boolean(
+                      sourceRow?.gradeSummary
+                        .allActiveCriteriaAssessed &&
+                      sourceRow.gradeSummary
+                        .provisionalAverage !== null &&
+                      sourceRow.gradeSummary
+                        .suggestedGrade !== null
+                    )
+
+                  const rowDisabled =
+                    editingDisabled ||
+                    !ready
+
+                  return (
+                    <tr
+                      key={
+                        sourceRow?.student.id ||
+                        row?.studentNumber ||
+                        `blank-${rowIndex}`
+                      }
                     >
-                      {row
-                        ? formatScore(
-                            row.acsScore
+                      <td className="border border-slate-700 px-1 py-[3px] text-center">
+                        {row?.processNumber || ''}
+                      </td>
+                      <td className="border border-slate-700 px-1 py-[3px] text-center">
+                        {row?.studentNumber || ''}
+                      </td>
+                      <td className="border border-slate-700 px-2 py-[3px] font-medium">
+                        {row?.studentName || ''}
+                      </td>
+
+                      {model.criteria.map(
+                        (criterion, index) => {
+                          const criterionScore =
+                            sourceRow?.gradeSummary
+                              .criteria.find(
+                                current =>
+                                  current.criterionId ===
+                                  criterion.id
+                              )?.average ?? null
+
+                          return (
+                            <td
+                              key={criterion.id}
+                              className="border border-slate-700 px-1 py-[3px] text-center"
+                              style={{
+                                backgroundColor:
+                                  criterionColor(index)
+                              }}
+                            >
+                              {currentDraft?.usesAcs
+                                ? ''
+                                : formatScore(
+                                    criterionScore
+                                  )}
+                            </td>
                           )
-                        : ''}
-                    </td>
-                    {blankDomainSlots.map(
-                      slotIndex => (
-                        <td
-                          key={`blank-cell-${rowIndex}-${slotIndex}`}
-                          className="border border-slate-700 px-1 py-[3px]"
-                          style={{
-                            backgroundColor:
-                              criterionColor(
-                                model.criteria.length +
-                                  1 +
-                                  slotIndex
+                        }
+                      )}
+
+                      <td
+                        className="border border-slate-700 px-1 py-[3px] text-center"
+                        style={{
+                          backgroundColor:
+                            acsColor
+                        }}
+                      >
+                        {sourceRow &&
+                        currentDraft ? (
+                          <label className="flex items-center justify-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={
+                                currentDraft.usesAcs
+                              }
+                              onChange={event =>
+                                onDraftChange(
+                                  sourceRow.student.id,
+                                  {
+                                    usesAcs:
+                                      event.target.checked
+                                  }
+                                )
+                              }
+                              disabled={
+                                rowDisabled
+                              }
+                              aria-label={`ACS de ${sourceRow.student.name}`}
+                              className="h-3 w-3 accent-slate-900 disabled:opacity-40"
+                            />
+                            <span className="font-bold">
+                              {currentDraft.usesAcs
+                                ? formatScore(
+                                    sourceRow.gradeSummary
+                                      .provisionalAverage
+                                  )
+                                : ''}
+                            </span>
+                          </label>
+                        ) : ''}
+                      </td>
+
+                      {blankDomainSlots.map(
+                        slotIndex => (
+                          <td
+                            key={`blank-cell-${rowIndex}-${slotIndex}`}
+                            className="border border-slate-700 px-1 py-[3px]"
+                            style={{
+                              backgroundColor:
+                                criterionColor(
+                                  model.criteria.length +
+                                    1 +
+                                    slotIndex
+                                )
+                            }}
+                          />
+                        )
+                      )}
+
+                      <td className="border border-slate-700 px-1 py-[3px] text-center">
+                        {sourceRow
+                          ? formatScore(
+                              sourceRow.gradeSummary
+                                .provisionalAverage,
+                              1
+                            )
+                          : ''}
+                      </td>
+
+                      <td className="border border-slate-700 p-0.5 text-center">
+                        {sourceRow &&
+                        currentDraft ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value={
+                              currentDraft.selfAssessmentGrade
+                            }
+                            onChange={event =>
+                              onDraftChange(
+                                sourceRow.student.id,
+                                {
+                                  selfAssessmentGrade:
+                                    event.target.value
+                                }
                               )
-                          }}
-                        />
-                      )
-                    )}
-                    <td className="border border-slate-700 px-1 py-[3px] text-center">
-                      {row
-                        ? formatScore(
-                            row.automaticLevel,
-                            1
-                          )
-                        : ''}
-                    </td>
-                    <td className="border border-slate-700 px-1 py-[3px] text-center">
-                      {row
-                        ? formatScore(
-                            row.selfAssessmentGrade,
-                            0
-                          )
-                        : ''}
-                    </td>
-                    <td className="border border-slate-700 px-1 py-[3px] text-center font-bold">
-                      {row
-                        ? formatScore(
-                            row.finalGrade,
-                            0
-                          )
-                        : ''}
-                    </td>
-                    <td className="border border-slate-700 px-1 py-[3px]" />
-                  </tr>
-                )
+                            }
+                            disabled={
+                              rowDisabled
+                            }
+                            aria-label={`Autoavaliação de ${sourceRow.student.name}`}
+                            className="h-7 w-full min-w-[3rem] border border-slate-400 bg-white px-1 text-center text-[9px] font-bold text-slate-950 outline-none focus:border-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        ) : ''}
+                      </td>
+
+                      <td className="border border-slate-700 p-0.5 text-center font-bold">
+                        {sourceRow &&
+                        currentDraft ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value={
+                              currentDraft.finalGrade
+                            }
+                            onChange={event =>
+                              onDraftChange(
+                                sourceRow.student.id,
+                                {
+                                  finalGrade:
+                                    event.target.value
+                                }
+                              )
+                            }
+                            disabled={
+                              rowDisabled
+                            }
+                            aria-label={`Nível final de ${sourceRow.student.name}`}
+                            className="h-7 w-full min-w-[3rem] border border-slate-400 bg-white px-1 text-center text-[9px] font-black text-slate-950 outline-none focus:border-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        ) : ''}
+                      </td>
+
+                      <td className="border border-slate-700 px-1 py-[3px]" />
+                    </tr>
+                  )
+                }
               )}
             </tbody>
           </table>
@@ -573,7 +986,7 @@ export default function UfcdCfpPreview({
                 Formandos Avaliados
               </div>
               <div className="border-x border-b border-slate-700 px-2 py-1.5 font-medium">
-                {model.evaluatedCount}
+                {finalGrades.length}
               </div>
             </div>
 
