@@ -13,6 +13,10 @@ import {
 } from '../repository'
 
 import {
+  RestoreSettingsPanel
+} from '../settings/RestoreSettingsPanel'
+
+import {
   isSBentoSchoolName
 } from '../setup/schoolDutyDatePolicy'
 
@@ -31,6 +35,7 @@ type SchoolSelectionStage =
   | 'checking'
   | 'selecting'
   | 'other-school'
+  | 'restore'
   | 'ready'
   | 'error'
 
@@ -312,6 +317,39 @@ export default function InitialSchoolCalendarBootstrap({
       }
     }
 
+  const handleRestoreCompleted =
+    async () => {
+      setError('')
+
+      try {
+        const profile =
+          await maProfessorRepository
+            .getTeacherProfile()
+
+        setDisplayName(
+          profile?.displayName ??
+          ''
+        )
+
+        if (
+          profile?.schoolName
+            ?.trim()
+        ) {
+          setStage('ready')
+          return
+        }
+
+        setStage('selecting')
+      } catch (restoreError) {
+        setError(
+          getErrorMessage(
+            restoreError
+          )
+        )
+        setStage('error')
+      }
+    }
+
   if (stage === 'ready') {
     return children
   }
@@ -350,6 +388,41 @@ export default function InitialSchoolCalendarBootstrap({
         >
           Tentar novamente
         </button>
+      </SelectionShell>
+    )
+  }
+
+  if (stage === 'restore') {
+    return (
+      <SelectionShell>
+        <button
+          type="button"
+          onClick={() => {
+            setError('')
+            setStage('selecting')
+          }}
+          className="text-xs font-black uppercase tracking-[0.14em] text-slate-400 transition hover:text-white"
+        >
+          ← Voltar
+        </button>
+
+        <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+          Recuperação
+        </p>
+        <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">
+          Restaurar uma cópia
+        </h1>
+        <p className="mt-3 text-sm leading-7 text-slate-400">
+          Se já utilizava o MA-Professor, restaure primeiro a sua cópia. Não precisa de escolher uma escola nem de iniciar uma nova configuração antes do restauro.
+        </p>
+
+        <div className="mt-6">
+          <RestoreSettingsPanel
+            onDataChanged={() =>
+              void handleRestoreCompleted()
+            }
+          />
+        </div>
       </SelectionShell>
     )
   }
@@ -486,6 +559,23 @@ export default function InitialSchoolCalendarBootstrap({
           <span className="mt-4 block text-xs font-black text-violet-200">
             Indicar outra escola →
           </span>
+        </button>
+      </div>
+
+      <div className="mt-6 border-t border-white/10 pt-5 text-center">
+        <p className="text-xs leading-5 text-slate-500">
+          Já utilizava o MA-Professor neste ou noutro dispositivo?
+        </p>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => {
+            setError('')
+            setStage('restore')
+          }}
+          className="mt-2 text-sm font-black text-cyan-200 underline decoration-cyan-300/30 underline-offset-4 transition hover:text-cyan-100 disabled:opacity-50"
+        >
+          Restaurar uma cópia existente →
         </button>
       </div>
 
