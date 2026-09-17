@@ -3,6 +3,10 @@ import {
   openMAProfessorDatabase
 } from './db'
 
+import {
+  lessonRepository
+} from './lessons/lessonRepository'
+
 import type {
   EntityId,
   Lesson
@@ -80,45 +84,9 @@ export class GIAEExplicitSubmissionRepository {
   ) {
     await this.initialize()
 
-    return maProfessorDb.transaction(
-      'rw',
-      maProfessorDb.lessons,
-      async () => {
-        const lesson =
-          await maProfessorDb
-            .lessons
-            .get(
-              input.lessonId
-            )
-
-        if (!lesson) {
-          throw new Error(
-            'A aula indicada não existe.'
-          )
-        }
-
-        assertExpectedVersion(
-          lesson,
-          input.expectedUpdatedAt
-        )
-        assertCanSubmit(
-          lesson
-        )
-
-        const updated =
-          buildSubmittedLesson(
-            lesson,
-            now()
-          )
-
-        await maProfessorDb
-          .lessons
-          .put(
-            updated
-          )
-
-        return updated
-      }
+    return lessonRepository.markGIAESubmittedExplicit(
+      input.lessonId,
+      input.expectedUpdatedAt
     )
   }
 
