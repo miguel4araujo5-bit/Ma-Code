@@ -1,0 +1,43 @@
+export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
+export type ManagementWorkspace = 'dashboard' | 'giae' | 'assessments' | 'planifications' | 'groups'
+export type ProductMenuTarget = ManagementWorkspace | 'attendance' | 'schedule' | 'configuration' | 'settings' | 'restore'
+export type ProductSidebarDestination = ProductMenuTarget | 'calendar'
+
+export interface ProductMenuNavigationRequest {
+  id: number
+  target: ProductMenuTarget
+}
+
+export const primaryNavigation: Array<{ id: ProductWorkspace; label: string; icon: string }> = [
+  { id: 'daily', label: 'Hoje', icon: '▤' },
+  { id: 'calendar', label: 'Calendário', icon: '▦' },
+  { id: 'backup', label: 'Segurança', icon: '◈' },
+  { id: 'menu', label: 'Menu', icon: '☰' }
+]
+
+export const menuDestinations: Array<{
+  id: ProductMenuTarget
+  label: string
+  eyebrow: string
+  description: string
+  icon: string
+}> = [
+  { id: 'dashboard', label: 'Visão geral', eyebrow: 'Pedagogia', description: 'Consulte sumários pendentes, a agenda, o progresso das UFCD e os indicadores do ano letivo.', icon: '▤' },
+  { id: 'giae', label: 'Sumários / GIAE', eyebrow: 'Pedagogia', description: 'Consulte, copie e acompanhe a entrega dos sumários.', icon: '▤' },
+  { id: 'assessments', label: 'Avaliações', eyebrow: 'Pedagogia', description: 'Consulte avaliações, classificações e critérios de avaliação.', icon: '✓' },
+  { id: 'planifications', label: 'Planificações', eyebrow: 'Pedagogia', description: 'Consulte e organize as planificações e o progresso das aprendizagens.', icon: '▤' },
+  { id: 'groups', label: 'Turmas e alunos', eyebrow: 'Pedagogia', description: 'Edite as turmas e as listas de alunos.', icon: '▤' },
+  { id: 'attendance', label: 'Faltas e recuperações', eyebrow: 'Acompanhamento', description: 'Consulte percentagens de faltas, alertas e atividades de recuperação.', icon: '✓' },
+  { id: 'schedule', label: 'Horários', eyebrow: 'Organização', description: 'Altere o horário semanal e registe feriados, interrupções e outros eventos.', icon: '▦' },
+  { id: 'configuration', label: 'Corrigir configuração inicial', eyebrow: 'Configuração pedagógica', description: 'Reabra o assistente simples ou a configuração avançada para corrigir horário, planificações, critérios, turmas ou alunos sem reiniciar o ano letivo.', icon: '↶' },
+  { id: 'settings', label: 'Definições', eyebrow: 'Configuração', description: 'Aceda ao perfil, pesquisa global, segurança e recuperação, exportações e licença.', icon: '⚙' },
+  { id: 'restore', label: 'Restaurar dados', eyebrow: 'Recuperação', description: 'Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.', icon: '↺' }
+]
+
+export function isManagementWorkspaceTarget(target: string): target is ManagementWorkspace {
+  return ['dashboard', 'giae', 'assessments', 'planifications', 'groups'].includes(target)
+}
+
+export function getMenuDestinationLabel(target: ProductMenuTarget) {
+  return menuDestinations.find(item => item.id === target)!.label
+}

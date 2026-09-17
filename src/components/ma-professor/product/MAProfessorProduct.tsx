@@ -461,7 +461,9 @@ function ProductContent() {
         workspace ===
           nextWorkspace &&
         nextWorkspace !==
-          'daily'
+          'daily' &&
+        nextWorkspace !==
+          'menu'
       ) {
         return
       }
@@ -738,6 +740,7 @@ function ProductContent() {
       }
     >
       <ProductNavigation
+        activeDestination={workspace === 'menu' ? menuNavigationRequest?.target ?? null : null}
         workspace={
           workspace
         }
@@ -850,6 +853,8 @@ function ProductContent() {
           onDataChanged={
             handleDataChanged
           }
+          onOpenMenu={() => void handleSelect('menu')}
+          onNavigate={next => void handleSidebarDestination(next)}
           onOpenDaily={() =>
             void handleSelect(
               'daily'

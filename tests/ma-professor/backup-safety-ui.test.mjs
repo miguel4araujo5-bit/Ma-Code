@@ -74,6 +74,8 @@ const productSource = await readFile(
   'utf8'
 )
 
+const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
+
 const dbSource = await readFile(
   new URL(
     '../../src/components/ma-professor/db.ts',
@@ -219,12 +221,12 @@ test(
   'restore remains discoverable from the menu without a duplicate setup banner',
   () => {
     assert.match(
-      productMenuSource,
+      navigationModelSource,
       /\| 'restore'/
     )
     assert.match(
-      productMenuSource,
-      /id:\s*'restore'[\s\S]*title:\s*'Restaurar dados'/
+      navigationModelSource,
+      /id:\s*'restore'[\s\S]*label:\s*'Restaurar dados'/
     )
     assert.match(
       productMenuSource,
@@ -249,11 +251,11 @@ test(
   'menu terminology reflects security and recovery instead of the former copies-only label',
   () => {
     assert.match(
-      productMenuSource,
-      /title:\s*'Definições e segurança'/
+      navigationModelSource,
+      /id: 'settings',[\s\S]*label: 'Definições'/
     )
     assert.match(
-      productMenuSource,
+      navigationModelSource,
       /segurança e recuperação, exportações e licença/
     )
     assert.match(
@@ -267,11 +269,11 @@ test(
   'security is directly reachable from the global product navigation and works before setup is complete',
   () => {
     assert.match(
-      productNavigationSource,
+      navigationModelSource,
       /ProductWorkspace = 'daily' \| 'calendar' \| 'backup' \| 'menu'/
     )
     assert.match(
-      productNavigationSource,
+      navigationModelSource,
       /id:\s*'backup'[\s\S]*label:\s*'Segurança'/
     )
     assert.match(

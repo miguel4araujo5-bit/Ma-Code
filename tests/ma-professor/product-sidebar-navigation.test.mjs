@@ -12,7 +12,7 @@ const menuSource = await readFile(
 
 const bridgeSource = await readFile(
   new URL(
-    '../../src/components/ma-professor/product/ManagementSidebarBridge.tsx',
+    '../../src/components/ma-professor/product/SavedScheduleActions.tsx',
     import.meta.url
   ),
   'utf8'
@@ -50,13 +50,7 @@ const productSource = await readFile(
   'utf8'
 )
 
-const singleSidebarCssSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/product/singleSidebar.css',
-    import.meta.url
-  ),
-  'utf8'
-)
+const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
 const dailyCssSource = await readFile(
   new URL(
@@ -74,153 +68,39 @@ const dailyWeekSource = await readFile(
   'utf8'
 )
 
-test(
-  'management sidebar replaces only the three legacy unavailable entries with real actions',
-  () => {
-    assert.match(
-      bridgeSource,
-      /button\[title="Em breve"\]/
-    )
-    assert.match(
-      bridgeSource,
-      /externalLabels\.has/
-    )
-    assert.match(
-      bridgeSource,
-      /Faltas e recuperações/
-    )
-    assert.match(
-      bridgeSource,
-      /Horários/
-    )
-    assert.match(
-      bridgeSource,
-      /Definições/
-    )
-    assert.match(
-      bridgeSource,
-      /data-management-external-nav=\{item\.id\}/
-    )
-    assert.match(
-      bridgeSource,
-      /createPortal/
-    )
-    assert.match(
-      bridgeSource,
-      /style\.setProperty\([\s\S]*'display'[\s\S]*'none'[\s\S]*'important'/
-    )
-    assert.match(
-      legacyAppSource,
-      /aria-label="Navegação do MA-Professor"/
-    )
-  }
-)
+test('all menu and sidebar destinations share one definition and parent navigation state', () => {
+  assert.match(menuSource, /menuDestinations\.map/)
+  assert.match(productNavigationSource, /menuDestinations\.flatMap/)
+  assert.match(menuSource, /const target = navigationRequest\?\.target \?\? 'home'/)
+  assert.doesNotMatch(menuSource, /setSection|setActiveWorkspace/)
+  assert.match(productSource, /onNavigate=\{next => void handleSidebarDestination\(next\)\}/)
+  assert.match(productSource, /onOpenMenu=\{\(\) => void handleSelect\('menu'\)\}/)
+  assert.match(legacyAppSource, /const activeWorkspace = workspaceRequest\?\.workspace \?\? 'dashboard'/)
+})
 
-test(
-  'external sidebar actions open the existing attendance schedule and settings workspaces',
-  () => {
-    assert.match(
-      menuSource,
-      /<ManagementSidebarBridge[\s\S]*onOpenAttendance=\{\(\) => setSection\('attendance'\)\}[\s\S]*onOpenSchedule=\{\(\) => setSection\('schedule'\)\}[\s\S]*onOpenSettings=\{\(\) => setSection\('settings'\)\}/
-    )
-    assert.match(
-      menuSource,
-      /<AttendanceProductWorkspace academicYearId=\{academicYear\.id\}/
-    )
-    assert.match(
-      menuSource,
-      /<ScheduleProductWorkspace academicYearId=\{academicYear\.id\}/
-    )
-    assert.match(
-      menuSource,
-      /<SettingsWorkspaceView[\s\S]*academicYearId=\{academicYear\?\.id \?\? null\}/
-    )
-  }
-)
+test('obsolete navigation and DOM replacements are removed from management screens', () => {
+  assert.doesNotMatch(legacyAppSource, /navigationItems|mobileNavigationItems|<nav|<aside|Em breve/)
+  assert.doesNotMatch(bridgeSource, /NAVIGATION_SELECTOR|externalItems|hiddenButtons|target\.nav/)
+  assert.doesNotMatch(productNavigationSource, /singleSidebar\.css/)
+  assert.match(menuSource, /<SavedScheduleActions/)
+})
 
-test(
-  'the bridge restores hidden legacy buttons when the management workspace unmounts',
-  () => {
-    assert.match(
-      bridgeSource,
-      /currentTarget\?\.hiddenButtons \?\? \[\]/
-    )
-    assert.match(
-      bridgeSource,
-      /button\.hidden = false/
-    )
+test('the existing teaching workspaces remain reachable', () => {
+  for (const target of ['dashboard', 'giae', 'assessments', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
+    assert.ok(navigationModelSource.includes(`id: '${target}'`), `missing destination: ${target}`)
   }
-)
+  assert.match(menuSource, /<MAProfessorApp/)
+  assert.match(menuSource, /<AttendanceProductWorkspace academicYearId=\{academicYear\.id\}/)
+  assert.match(menuSource, /<ScheduleProductWorkspace academicYearId=\{academicYear\.id\}/)
+  assert.match(menuSource, /<SettingsWorkspaceView/)
+})
 
-test(
-  'the MA-Code logo opens complete navigation with Calendar available on mobile and desktop',
-  () => {
-    assert.match(productNavigationSource, /aria-label=\"Abrir navegação completa do MA-Professor\"/)
-    assert.match(productNavigationSource, /src=\"\/ma-code\.png\"/)
-    assert.match(productNavigationSource, /sidebarOpen[\s\S]*role=\"dialog\"[\s\S]*aria-label=\"Navegação completa do MA-Professor\"/)
-    for (const label of ['Calendário', 'Sumários / GIAE', 'Avaliações', 'Planificações', 'Turmas e alunos', 'Faltas e recuperações', 'Horários', 'Definições']) {
-      assert.ok(productNavigationSource.includes(label), `missing global drawer entry: ${label}`)
-    }
-    assert.doesNotMatch(
-      productNavigationSource,
-      /\{ id: 'dashboard', label: 'Painel' \}/
-    )
-    assert.match(
-      productNavigationSource,
-      /key:\s*'calendar'[\s\S]*workspace:\s*'calendar'[\s\S]*label:\s*'Calendário'/
-    )
-    assert.match(
-      productNavigationSource,
-      /id: 'calendar'[\s\S]*label: 'Calendário'/
-    )
-  }
-)
-
-test(
-  'wide product shell keeps only the global persistent sidebar visible',
-  () => {
-    assert.match(
-      productNavigationSource,
-      /import '\.\/singleSidebar\.css'/
-    )
-    assert.match(
-      singleSidebarCssSource,
-      /@media \(min-width: 1280px\)/
-    )
-    assert.match(
-      singleSidebarCssSource,
-      /lg:grid-cols-\[17rem_1fr\]/
-    )
-    assert.match(
-      singleSidebarCssSource,
-      /> aside:first-child[\s\S]*display: none !important/
-    )
-    assert.match(
-      singleSidebarCssSource,
-      /grid-template-columns: minmax\(0, 1fr\) !important/
-    )
-  }
-)
-
-test(
-  'global sidebar destinations reuse existing workspaces instead of duplicating screens',
-  () => {
-    assert.match(productSource, /handleSidebarDestination[\s\S]*destination ===[\s\S]*'calendar'[\s\S]*handleSelect/)
-    assert.match(productSource, /setMenuNavigationRequest\([\s\S]*target:[\s\S]*destination[\s\S]*setWorkspace\([\s\S]*'menu'/)
-    assert.match(productSource, /navigationRequest=\{[\s\S]*menuNavigationRequest/)
-    assert.match(menuSource, /isManagementWorkspaceTarget[\s\S]*setSection\('management'\)/)
-    assert.match(menuSource, /<MAProfessorApp[\s\S]*workspaceRequest=/)
-    assert.match(legacyAppSource, /handleWorkspaceChange\([\s\S]*workspaceRequest\.workspace/)
-  }
-)
-
-test(
-  'opening the global sidebar from Daily preserves the unsaved-work navigation guard',
-  () => {
-    assert.match(productSource, /handleSidebarDestination[\s\S]*workspace ===[\s\S]*'daily'[\s\S]*dailyNavigationGuardRef\.current/)
-    assert.match(productSource, /if \(!canLeave\) \{[\s\S]*return/)
-  }
-)
+test('Calendar uses one product workspace and daily navigation keeps its unsaved-work guard', () => {
+  assert.doesNotMatch(legacyAppSource, /<CalendarWorkspaceView|calendarSnapshot/)
+  assert.match(productSource, /handleSidebarDestination[\s\S]*destination ===[\s\S]*'calendar'[\s\S]*handleSelect/)
+  assert.match(productSource, /handleSidebarDestination[\s\S]*workspace ===[\s\S]*'daily'[\s\S]*dailyNavigationGuardRef\.current/)
+  assert.match(productSource, /if \(!canLeave\) \{[\s\S]*return/)
+})
 
 test(
   'saved guided schedule can be edited or reset before a replacement import',

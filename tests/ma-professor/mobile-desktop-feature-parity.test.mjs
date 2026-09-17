@@ -33,6 +33,9 @@ const [
   read('src/components/ma-professor/settings/LicenseSettingsPanel.tsx')
 ])
 
+const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
+const navigationLabelsSource = productNavigationSource + navigationModelSource
+
 const fullNavigationLabels = [
   'Calendário',
   'Sumários / GIAE',
@@ -51,7 +54,7 @@ test(
   () => {
     for (const label of fullNavigationLabels) {
       assert.ok(
-        productNavigationSource.includes(label),
+        navigationLabelsSource.includes(label),
         `missing shared navigation capability: ${label}`
       )
     }
@@ -96,8 +99,8 @@ test(
   'restore is added as an extra shared shortcut and never replaces a desktop capability',
   () => {
     assert.match(
-      productNavigationSource,
-      /key: 'restore'[\s\S]*workspace: 'backup'[\s\S]*label: 'Restaurar dados'/
+      navigationModelSource,
+      /id: 'restore',[\s\S]*label: 'Restaurar dados'/
     )
 
     assert.match(
@@ -117,7 +120,7 @@ test(
       'Definições'
     ]) {
       assert.ok(
-        productNavigationSource.includes(label),
+        navigationLabelsSource.includes(label),
         `existing desktop shortcut was removed while adding mobile parity: ${label}`
       )
     }
@@ -197,7 +200,7 @@ test(
       /Terminar sessão neste dispositivo/
     )
     assert.ok(
-      productNavigationSource.includes('Definições')
+      navigationLabelsSource.includes('Definições')
     )
   }
 )
@@ -216,29 +219,9 @@ test(
   }
 )
 
-test(
-  'the legacy mobile bottom bar remains only a shortcut bar while the global drawer carries the complete capabilities',
-  () => {
-    assert.match(
-      legacyAppSource,
-      /const mobileNavigationItems =\s*navigationItems\.filter/
-    )
-    assert.match(
-      legacyAppSource,
-      /aria-label="Navegação móvel do MA-Professor"/
-    )
-
-    for (const label of [
-      'Calendário',
-      'Faltas e recuperações',
-      'Horários',
-      'Definições',
-      'Restaurar dados'
-    ]) {
-      assert.ok(
-        productNavigationSource.includes(label),
-        `capability missing from the complete mobile drawer: ${label}`
-      )
-    }
+test('management screens have no second sidebar or mobile navigation', () => {
+  assert.doesNotMatch(legacyAppSource, /mobileNavigationItems|navigationItems|<nav|<aside/)
+  for (const label of fullNavigationLabels) {
+    assert.ok(navigationLabelsSource.includes(label), `missing capability: ${label}`)
   }
-)
+})

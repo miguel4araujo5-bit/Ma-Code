@@ -10,6 +10,8 @@ const source = await readFile(
   'utf8'
 )
 
+const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
+
 test(
   'product menu observes persisted setup completion and refreshes outer state',
   () => {
@@ -39,7 +41,7 @@ test(
 
     assert.match(
       source,
-      /setSection\(\s*'home'\s*\)/,
+      /onOpenMenu\(\)/,
       'Depois da conclusão persistida, o utilizador deve regressar ao menu normal.'
     )
 
@@ -61,8 +63,8 @@ test(
   'completed setup can be reopened for corrections without resetting completion',
   () => {
     assert.match(
-      source,
-      /id: 'configuration',[\s\S]*title: 'Corrigir configuração inicial'/,
+      navigationModelSource,
+      /id: 'configuration',[\s\S]*label: 'Corrigir configuração inicial'/,
       'O menu deve disponibilizar uma entrada explícita para corrigir a configuração já concluída.'
     )
 

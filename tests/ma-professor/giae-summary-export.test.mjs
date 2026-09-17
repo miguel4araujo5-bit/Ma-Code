@@ -34,11 +34,13 @@ const exportSource = await readFile(
   'utf8'
 )
 
+const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
+
 test(
   'summary export is exposed inside the Sumários / GIAE page without restoring a duplicate Calendar sidebar entry',
   () => {
     assert.match(
-      navigationSource,
+      navigationModelSource,
       /Sumários \/ GIAE/
     )
     assert.doesNotMatch(
