@@ -79,7 +79,8 @@ const temporalSafetyModule = await import(
 const {
   assertLessonNotTaughtInFuture,
   isFutureLessonDate,
-  resolveLessonStatusForDate
+  resolveLessonStatusForDate,
+  resolveLessonStatusFromEvidence
 } = temporalSafetyModule
 
 test(
@@ -112,7 +113,7 @@ test(
 )
 
 test(
-  'future dates preserve the lesson status selected by the professor',
+  'legacy date helper preserves the status requested by the professor',
   () => {
     const referenceDate = '2026-09-06'
 
@@ -152,7 +153,85 @@ test(
 )
 
 test(
-  'future dates no longer reject a taught status',
+  'summary and GIAE evidence determine whether the lesson is planned or taught',
+  () => {
+    const today = '2026-09-06'
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        '2026-09-05',
+        'planned',
+        'Sumário.',
+        'pending',
+        today
+      ),
+      'taught',
+      'Uma aula passada com sumário deve contar como dada.'
+    )
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        today,
+        'planned',
+        'Sumário.',
+        'pending',
+        today
+      ),
+      'taught',
+      'Uma aula de hoje com sumário deve contar imediatamente como dada.'
+    )
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        '2026-09-07',
+        'taught',
+        'Sumário preparado.',
+        'pending',
+        today
+      ),
+      'planned',
+      'Uma aula futura com sumário mas sem submissão no GIAE deve continuar planeada.'
+    )
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        '2026-09-07',
+        'planned',
+        'Sumário preparado.',
+        'submitted',
+        today
+      ),
+      'taught',
+      'Uma aula futura explicitamente submetida no GIAE deve passar a dada.'
+    )
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        '2026-09-07',
+        'taught',
+        '',
+        'submitted',
+        today
+      ),
+      'planned',
+      'Sem sumário a aula não pode ser dada.'
+    )
+
+    assert.equal(
+      resolveLessonStatusFromEvidence(
+        '2026-09-07',
+        'cancelled',
+        'Sumário.',
+        'submitted',
+        today
+      ),
+      'cancelled'
+    )
+  }
+)
+
+test(
+  'future dates no longer reject a taught status at the legacy assertion layer',
   () => {
     assert.doesNotThrow(() =>
       assertLessonNotTaughtInFuture(
@@ -173,15 +252,19 @@ test(
 )
 
 test(
-  'lesson repository keeps temporal helpers while future-date policy is permissive',
+  'lesson repository applies the evidence rule on create and update',
   () => {
     assert.match(
       lessonRepositorySource,
-      /override async createLesson\([\s\S]*resolveLessonStatusForDate\(/s
+      /override async createLesson\([\s\S]*resolveLessonStatusFromEvidence\(/s
     )
     assert.match(
       lessonRepositorySource,
-      /override async updateLesson\([\s\S]*const nextStatus =[\s\S]*resolveLessonStatusForDate\(/s
+      /override async updateLesson\([\s\S]*const nextStatus =[\s\S]*resolveLessonStatusFromEvidence\(/s
+    )
+    assert.match(
+      lessonRepositorySource,
+      /markGIAESubmittedExplicit\(/
     )
 
     const submittedStart =
@@ -204,6 +287,14 @@ test(
         submittedStart,
         manyStart
       ),
+      /markGIAESubmittedExplicit\(/s
+    )
+
+    assert.match(
+      lessonRepositorySource.slice(
+        submittedStart,
+        manyStart
+      ),
       /assertLessonNotTaughtInFuture\(\s*lesson\.date,\s*lesson\.status\s*\)/s
     )
 
@@ -217,7 +308,7 @@ test(
 )
 
 test(
-  'Daily does not add future-date blocks for GIAE attendance or assessment',
+  'Daily keeps using the central repository without future-date attendance or assessment bypasses',
   () => {
     const saveStart =
       dailyRepositorySource.indexOf(
