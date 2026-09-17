@@ -79,15 +79,15 @@ test(
 )
 
 test(
-  'CFP footer keeps evaluated trainees separate and uses non-overlapping PDF geometry',
+  'CFP footer keeps evaluated trainees reactive to final-sheet edits and uses non-overlapping PDF geometry',
   () => {
     assert.match(
       previewSource,
-      /Formandos Avaliados[\s\S]*\{model\.evaluatedCount\}/
+      /Formandos Avaliados[\s\S]*\{finalGrades\.length\}/
     )
     assert.doesNotMatch(
       previewSource,
-      /Formandos Avaliados:\s*\{model\.evaluatedCount\}/
+      /Formandos Avaliados:\s*\{finalGrades\.length\}/
     )
 
     assert.match(
