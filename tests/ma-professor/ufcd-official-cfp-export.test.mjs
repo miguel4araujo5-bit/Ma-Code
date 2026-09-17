@@ -94,14 +94,26 @@ test('module completion date comes from taught periods that count toward progres
   assert.match(wrapperSource, /completionDateReady/)
 })
 
-test('PDF and preview are CFP-only while exposing both export choices', () => {
+test('PDF and final assessment sheet expose the official CFP and both export choices', () => {
   assert.match(pdfSource, /buildUfcdCfpModel/)
   assert.match(pdfSource, /-CFP\.pdf/)
   assert.match(pdfSource, /O\/A Professor\(a\)/)
-  assert.match(previewSource, /Pré-visualização da folha CFP/)
+  assert.match(previewSource, /Folha de avaliação final/)
+  assert.match(previewSource, /Avaliação final · UFCD\/UC/)
   assert.match(previewSource, /Exportar PDF · CFP/)
   assert.match(previewSource, /Exportar Excel completo/)
   assert.match(previewSource, /O PDF contém apenas a CFP/)
+})
+
+test('final assessment sheet edits ACS, self-assessment and final grade in the CFP', () => {
+  assert.match(previewSource, /type="checkbox"/)
+  assert.match(previewSource, /ACS de \$\{sourceRow\.student\.name\}/)
+  assert.match(previewSource, /Autoavaliação de \$\{sourceRow\.student\.name\}/)
+  assert.match(previewSource, /Nível final de \$\{sourceRow\.student\.name\}/)
+  assert.match(previewSource, /onDraftChange/)
+  assert.match(previewSource, /pendingRows/)
+  assert.match(previewSource, /Guardar \/ confirmar/)
+  assert.match(previewSource, /finalGrades\.length/)
 })
 
 test('CFP preview and PDF preserve six coloured domain slots', () => {
@@ -113,8 +125,10 @@ test('CFP preview and PDF preserve six coloured domain slots', () => {
   assert.match(pdfSource, /criterionColor\(\s*model\.criteria\.length\s*\)/)
 })
 
-test('final-grade wrapper shows CFP preview and hides legacy duplicate export control', () => {
+test('final-grade wrapper uses the CFP as the only final-grade sheet', () => {
   assert.match(wrapperSource, /UfcdCfpPreview/)
-  assert.match(wrapperSource, /ma-professor-cfp-editor/)
-  assert.match(wrapperSource, /div:first-child button \{ display: none; \}/)
+  assert.match(wrapperSource, /gradeDrafts=\{props\.gradeDrafts\}/)
+  assert.match(wrapperSource, /onSaveStudent=\{[\s\S]*props\.onSaveStudent/)
+  assert.doesNotMatch(wrapperSource, /ma-professor-cfp-editor/)
+  assert.doesNotMatch(wrapperSource, /<BaseUfcdFinalGradeGrid/)
 })

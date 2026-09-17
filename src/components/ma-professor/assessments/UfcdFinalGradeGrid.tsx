@@ -193,20 +193,22 @@ export default function UfcdFinalGradeGrid(
       completionDateReady ? (
         <UfcdCfpPreview
           snapshot={effectiveSnapshot}
-          disabled={importerDisabled}
+          gradeDrafts={props.gradeDrafts}
+          loading={props.loading}
+          savingStudentId={
+            props.savingStudentId
+          }
+          exportDisabled={
+            importerDisabled
+          }
+          onDraftChange={
+            props.onDraftChange
+          }
+          onSaveStudent={
+            props.onSaveStudent
+          }
         />
       ) : null}
-
-      <style>{
-        '.ma-professor-cfp-editor > section > div:first-child button { display: none; }'
-      }</style>
-
-      <div className="ma-professor-cfp-editor">
-        <BaseUfcdFinalGradeGrid
-          {...props}
-          snapshot={effectiveSnapshot}
-        />
-      </div>
     </>
   )
 }
