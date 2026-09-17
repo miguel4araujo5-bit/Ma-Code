@@ -9,7 +9,8 @@ import {
 } from '../planifications/planificationItemReservation'
 
 import type {
-  EntityId
+  EntityId,
+  Lesson
 } from '../types'
 
 import {
@@ -29,7 +30,7 @@ import {
 
 import {
   assertLessonNotTaughtInFuture,
-  resolveLessonStatusForDate
+  resolveLessonStatusFromEvidence
 } from './lessonTemporalSafety'
 
 export type {
@@ -46,6 +47,88 @@ export {
   formatLessonSummaryForGIAE,
   formatLessonsForBulkGIAE
 } from './lessonRepositoryBase'
+
+function normalizeSummaryForComparison(
+  value: string | undefined
+) {
+  return (
+    value ??
+    ''
+  )
+    .replace(
+      /\r\n/g,
+      '\n'
+    )
+    .split('\n')
+    .map(
+      line =>
+        line
+          .trim()
+          .replace(
+            /\s+/g,
+            ' '
+          )
+    )
+    .filter(Boolean)
+    .join('\n')
+}
+
+function hasGIAERelevantRequestedChanges(
+  lesson: Lesson,
+  changes: LessonChanges
+) {
+  return (
+    (
+      changes.teachingAssignmentId !==
+        undefined &&
+      changes.teachingAssignmentId !==
+        lesson.teachingAssignmentId
+    ) ||
+    (
+      changes.moduleId !==
+        undefined &&
+      changes.moduleId !==
+        lesson.moduleId
+    ) ||
+    (
+      changes.date !==
+        undefined &&
+      changes.date !==
+        lesson.date
+    ) ||
+    (
+      changes.startTime !==
+        undefined &&
+      changes.startTime !==
+        lesson.startTime
+    ) ||
+    (
+      changes.endTime !==
+        undefined &&
+      changes.endTime !==
+        lesson.endTime
+    ) ||
+    (
+      changes.periodCount !==
+        undefined &&
+      changes.periodCount !==
+        lesson.periodCount
+    ) ||
+    (
+      changes.status !==
+        undefined &&
+      changes.status !==
+        lesson.status
+    ) ||
+    (
+      changes.summary !==
+        undefined &&
+      normalizeSummaryForComparison(
+        changes.summary
+      ) !== lesson.summary
+    )
+  )
+}
 
 async function assertPlanificationItemsAvailable(
   moduleId: EntityId,
@@ -94,9 +177,11 @@ export class LessonRepository
     const safeInput: LessonDraft = {
       ...input,
       status:
-        resolveLessonStatusForDate(
+        resolveLessonStatusFromEvidence(
           input.date,
-          requestedStatus
+          requestedStatus,
+          input.summary ?? '',
+          'pending'
         )
     }
 
@@ -160,10 +245,26 @@ export class LessonRepository
           changes.status ??
           latest.status
 
+        const nextSummary =
+          changes.summary ??
+          latest.summary
+
+        const nextGIAEStatus =
+          latest.giaeStatus ===
+            'submitted' &&
+          hasGIAERelevantRequestedChanges(
+            latest,
+            changes
+          )
+            ? 'pending'
+            : latest.giaeStatus
+
         const nextStatus =
-          resolveLessonStatusForDate(
+          resolveLessonStatusFromEvidence(
             nextDate,
-            requestedStatus
+            requestedStatus,
+            nextSummary,
+            nextGIAEStatus
           )
 
         const safeChanges:
@@ -356,6 +457,89 @@ export class LessonRepository
     return selectNextAvailablePlanificationItem(
       items,
       reservedIds
+    )
+  }
+
+  async markGIAESubmittedExplicit(
+    id: EntityId,
+    expectedUpdatedAt: string
+  ) {
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.tables,
+      async () => {
+        let lesson =
+          await maProfessorDb.lessons.get(
+            id
+          )
+
+        if (!lesson) {
+          throw new Error(
+            'A aula indicada não existe.'
+          )
+        }
+
+        if (
+          !expectedUpdatedAt ||
+          lesson.updatedAt !==
+            expectedUpdatedAt
+        ) {
+          throw new Error(
+            'Esta aula foi alterada desde a cópia para o GIAE. Copie novamente o sumário antes de o marcar como submetido.'
+          )
+        }
+
+        if (
+          lesson.status ===
+            'cancelled' ||
+          !lesson.summary.trim()
+        ) {
+          throw new Error(
+            'Apenas aulas com sumário podem ser marcadas como submetidas no GIAE.'
+          )
+        }
+
+        if (
+          lesson.status !==
+          'taught'
+        ) {
+          lesson =
+            await super.updateLesson(
+              id,
+              {
+                status:
+                  'taught'
+              },
+              {
+                expectedUpdatedAt:
+                  lesson.updatedAt
+              }
+            )
+        }
+
+        const timestamp =
+          new Date().toISOString()
+
+        const submitted: Lesson = {
+          ...lesson,
+          status:
+            'taught',
+          giaeStatus:
+            'submitted',
+          giaeSubmittedAt:
+            timestamp,
+          updatedAt:
+            timestamp
+        }
+
+        await maProfessorDb.lessons.put(
+          submitted
+        )
+
+        return submitted
+      }
     )
   }
 
