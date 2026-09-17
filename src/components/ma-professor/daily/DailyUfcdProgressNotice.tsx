@@ -1,15 +1,28 @@
 import {
   useEffect,
+  useRef,
   useState
 } from 'react'
+import {
+  createPortal
+} from 'react-dom'
 
 import {
-  ufcdProgressRepository,
-  type UfcdEndingNotice
+  maProfessorDb,
+  openMAProfessorDatabase
+} from '../db'
+import {
+  buildUfcdModuleProgress,
+  compareLessonsChronologically,
+  todayISO
+} from '../lessons/ufcdProgress'
+import {
+  ufcdProgressRepository
 } from '../lessons/ufcdProgressRepository'
 import type {
   EntityId,
-  ISODate
+  ISODate,
+  Lesson
 } from '../types'
 
 interface DailyUfcdProgressNoticeProps {
@@ -19,12 +32,202 @@ interface DailyUfcdProgressNoticeProps {
   refreshToken?: number
 }
 
+interface DailyUfcdProgressSnapshot {
+  moduleCode: string
+  moduleName: string
+  periodsTaught: number
+  plannedPeriods: number
+  periodsRemaining: number
+}
+
+function getCurrentTime() {
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }
+  ).format(new Date())
+}
+
+async function resolveLesson(
+  academicYearId: EntityId,
+  date: ISODate,
+  requestedLessonId: EntityId | null
+): Promise<Lesson | null> {
+  if (requestedLessonId) {
+    const requestedLesson =
+      await maProfessorDb.lessons.get(
+        requestedLessonId
+      )
+
+    if (
+      requestedLesson &&
+      requestedLesson.academicYearId ===
+        academicYearId
+    ) {
+      return requestedLesson
+    }
+  }
+
+  const lessons =
+    await maProfessorDb.lessons
+      .where('academicYearId')
+      .equals(academicYearId)
+      .toArray()
+
+  const dayLessons =
+    lessons
+      .filter(
+        lesson =>
+          lesson.date === date &&
+          lesson.status !== 'cancelled'
+      )
+      .sort(
+        compareLessonsChronologically
+      )
+
+  if (dayLessons.length === 0) {
+    return null
+  }
+
+  if (date === todayISO()) {
+    const currentTime =
+      getCurrentTime()
+
+    return (
+      dayLessons.find(
+        lesson =>
+          lesson.startTime <=
+            currentTime &&
+          lesson.endTime >=
+            currentTime
+      ) ??
+      dayLessons[0]
+    )
+  }
+
+  return dayLessons[0]
+}
+
+async function loadProgressSnapshot(
+  academicYearId: EntityId,
+  date: ISODate,
+  requestedLessonId: EntityId | null
+): Promise<DailyUfcdProgressSnapshot | null> {
+  await openMAProfessorDatabase()
+
+  let lesson =
+    await resolveLesson(
+      academicYearId,
+      date,
+      requestedLessonId
+    )
+
+  if (!lesson) {
+    return null
+  }
+
+  await ufcdProgressRepository
+    .ensureLessonUsesCurrentUfcd(
+      lesson.id
+    )
+
+  lesson =
+    await maProfessorDb.lessons.get(
+      lesson.id
+    ) ?? null
+
+  if (!lesson) {
+    return null
+  }
+
+  const [
+    modules,
+    lessons
+  ] = await Promise.all([
+    maProfessorDb.modules
+      .where('teachingAssignmentId')
+      .equals(
+        lesson.teachingAssignmentId
+      )
+      .toArray(),
+    maProfessorDb.lessons
+      .where('teachingAssignmentId')
+      .equals(
+        lesson.teachingAssignmentId
+      )
+      .toArray()
+  ])
+
+  const module =
+    modules.find(
+      candidate =>
+        candidate.id === lesson.moduleId
+    )
+
+  if (
+    !module ||
+    module.plannedPeriods <= 0
+  ) {
+    return null
+  }
+
+  const progress =
+    buildUfcdModuleProgress(
+      modules,
+      lessons,
+      todayISO()
+    ).find(
+      row =>
+        row.moduleId === module.id
+    )
+
+  const periodsTaught =
+    progress?.periodsTaught ?? 0
+
+  return {
+    moduleCode: module.code,
+    moduleName: module.name,
+    periodsTaught,
+    plannedPeriods:
+      module.plannedPeriods,
+    periodsRemaining:
+      Math.max(
+        0,
+        module.plannedPeriods -
+          periodsTaught
+      )
+  }
+}
+
 function getModuleLabel(
-  notice: UfcdEndingNotice
+  snapshot: DailyUfcdProgressSnapshot
 ) {
-  return notice.moduleCode.trim()
-    ? `${notice.moduleCode.trim()} · ${notice.moduleName}`
-    : notice.moduleName
+  return snapshot.moduleCode.trim()
+    ? `${snapshot.moduleCode.trim()} · ${snapshot.moduleName}`
+    : snapshot.moduleName
+}
+
+function findSummaryStatusTarget(
+  root: HTMLElement
+) {
+  const summaryLabel =
+    Array.from(
+      root.querySelectorAll('p')
+    ).find(
+      element =>
+        element.textContent?.trim() ===
+        'Sumário'
+    )
+
+  const statusRow =
+    summaryLabel?.nextElementSibling
+
+  return statusRow instanceof HTMLElement
+    ? statusRow
+    : null
 }
 
 export default function DailyUfcdProgressNotice({
@@ -33,30 +236,42 @@ export default function DailyUfcdProgressNotice({
   lessonId = null,
   refreshToken = 0
 }: DailyUfcdProgressNoticeProps) {
+  const sentinelRef =
+    useRef<HTMLSpanElement | null>(
+      null
+    )
+
   const [
-    notice,
-    setNotice
-  ] = useState<UfcdEndingNotice | null>(
+    snapshot,
+    setSnapshot
+  ] =
+    useState<DailyUfcdProgressSnapshot | null>(
+      null
+    )
+
+  const [
+    portalTarget,
+    setPortalTarget
+  ] = useState<HTMLElement | null>(
     null
   )
 
   useEffect(() => {
     let cancelled = false
 
-    void ufcdProgressRepository
-      .getEndingNoticeForDate(
-        academicYearId,
-        date,
-        lessonId
-      )
+    void loadProgressSnapshot(
+      academicYearId,
+      date,
+      lessonId
+    )
       .then(result => {
         if (!cancelled) {
-          setNotice(result)
+          setSnapshot(result)
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setNotice(null)
+          setSnapshot(null)
         }
       })
 
@@ -70,55 +285,120 @@ export default function DailyUfcdProgressNotice({
     refreshToken
   ])
 
-  if (!notice) {
-    return null
-  }
+  useEffect(() => {
+    const sentinel =
+      sentinelRef.current
+    const root =
+      sentinel?.closest(
+        '.ma-professor-unified-daily'
+      )
 
-  const lastLesson =
-    notice.lessonsRemaining === 1
+    if (!(root instanceof HTMLElement)) {
+      setPortalTarget(null)
+      return
+    }
+
+    const syncTarget = () => {
+      const nextTarget =
+        findSummaryStatusTarget(root)
+
+      setPortalTarget(current =>
+        current === nextTarget
+          ? current
+          : nextTarget
+      )
+    }
+
+    syncTarget()
+
+    const observer =
+      new MutationObserver(
+        syncTarget
+      )
+
+    observer.observe(
+      root,
+      {
+        childList: true,
+        subtree: true
+      }
+    )
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [
+    academicYearId,
+    date,
+    lessonId
+  ])
+
+  const badge =
+    snapshot && portalTarget
+      ? (() => {
+          const completed =
+            snapshot.periodsTaught >=
+            snapshot.plannedPeriods
+
+          const nearEnd =
+            !completed &&
+            snapshot.periodsRemaining <= 5
+
+          const stateClasses =
+            completed
+              ? 'border-rose-300/35 bg-rose-300/10 text-rose-100'
+              : nearEnd
+                ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+                : 'border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-100'
+
+          return createPortal(
+            <span
+              role="status"
+              aria-live="polite"
+              title={getModuleLabel(
+                snapshot
+              )}
+              className={`inline-flex max-w-full flex-wrap items-center gap-x-1.5 rounded-lg border px-2.5 py-1 text-[0.68rem] font-black ${stateClasses}`}
+            >
+              <span>
+                {snapshot.periodsTaught} /{' '}
+                {snapshot.plannedPeriods}{' '}
+                tempos
+              </span>
+
+              {completed ? (
+                <>
+                  <span aria-hidden="true">
+                    ·
+                  </span>
+                  <span>
+                    Realizar auto e heteroavaliação
+                  </span>
+                </>
+              ) : nearEnd ? (
+                <>
+                  <span aria-hidden="true">
+                    ·
+                  </span>
+                  <span>
+                    já tem elementos necessários para a avaliação?
+                  </span>
+                </>
+              ) : null}
+            </span>,
+            portalTarget
+          )
+        })()
+      : null
 
   return (
-    <div className="px-3 pt-2 sm:px-5 lg:px-7">
-      <section
-        role="status"
-        className={`mx-auto max-w-[1600px] rounded-2xl border px-4 py-4 shadow-lg shadow-black/10 sm:px-5 ${
-          lastLesson
-            ? 'border-rose-300/25 bg-rose-300/[0.08]'
-            : 'border-amber-300/25 bg-amber-300/[0.07]'
-        }`}
-      >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p
-              className={`text-xs font-black uppercase tracking-[0.14em] ${
-                lastLesson
-                  ? 'text-rose-100'
-                  : 'text-amber-100'
-              }`}
-            >
-              {lastLesson
-                ? 'Última aula da UFCD'
-                : `Faltam ${notice.lessonsRemaining} aulas para terminar a UFCD`}
-            </p>
-
-            <p className="mt-2 text-sm font-black text-white">
-              {getModuleLabel(notice)}
-            </p>
-
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              {lastLesson
-                ? 'Faça a auto e heteroavaliação. Esta UFCD termina nesta aula.'
-                : notice.assessmentSufficient
-                  ? `Já existem elementos de avaliação suficientes para todos os critérios. Esta UFCD termina em ${notice.lessonsRemaining} aulas.`
-                  : `Esta UFCD termina em ${notice.lessonsRemaining} aulas. Confirme se já tem elementos de avaliação suficientes para todos os critérios.`}
-            </p>
-          </div>
-
-          <span className="shrink-0 rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-xs font-black text-slate-200">
-            {notice.periodsTaughtBeforeLesson}/{notice.plannedPeriods} tempos antes desta aula
-          </span>
-        </div>
-      </section>
-    </div>
+    <>
+      <span
+        ref={sentinelRef}
+        aria-hidden="true"
+        className="hidden"
+      />
+      {badge}
+    </>
   )
 }
