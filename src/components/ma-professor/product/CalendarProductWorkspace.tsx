@@ -110,6 +110,35 @@ function formatDate(
   )
 }
 
+function findExtraLessonAction(
+  scope: Element | null
+) {
+  if (!scope) {
+    return null
+  }
+
+  const labelledAction =
+    scope.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Adicionar aula extra em "]'
+    )
+
+  if (labelledAction) {
+    return labelledAction
+  }
+
+  return Array.from(
+    scope.querySelectorAll<HTMLButtonElement>(
+      'button'
+    )
+  ).find(
+    button =>
+      button.textContent
+        ?.includes(
+          'Adicionar aula extra'
+        )
+  ) ?? null
+}
+
 export function CalendarProductWorkspace({
   academicYearId,
   onOpenLesson
@@ -227,26 +256,38 @@ export function CalendarProductWorkspace({
       return
     }
 
-    const dayCell =
+    const article =
       target.closest('article')
 
-    if (!(dayCell instanceof HTMLElement)) {
+    if (article) {
+      const articleAction =
+        findExtraLessonAction(
+          article
+        )
+
+      if (
+        articleAction &&
+        !articleAction.disabled
+      ) {
+        articleAction.click()
+      }
+
       return
     }
 
-    const addLessonButton =
-      dayCell.querySelector<HTMLButtonElement>(
-        'button[aria-label^="Adicionar aula extra em "]'
+    const sectionAction =
+      findExtraLessonAction(
+        target.closest('section')
       )
 
     if (
-      !addLessonButton ||
-      addLessonButton.disabled
+      !sectionAction ||
+      sectionAction.disabled
     ) {
       return
     }
 
-    addLessonButton.click()
+    sectionAction.click()
   }
 
   function closeEventEditor() {
