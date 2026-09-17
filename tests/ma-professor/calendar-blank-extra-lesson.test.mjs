@@ -19,11 +19,15 @@ const dialogSource = await readFile(
 )
 
 test(
-  'blank calendar space reuses the existing extra-lesson action without stealing interactive clicks',
+  'blank calendar areas reuse the existing extra-lesson action without stealing interactive clicks',
   () => {
     assert.match(
       calendarSource,
       /function handleCalendarBlankSpaceClick/
+    )
+    assert.match(
+      calendarSource,
+      /function findExtraLessonAction/
     )
     assert.match(
       calendarSource,
@@ -35,7 +39,15 @@ test(
     )
     assert.match(
       calendarSource,
-      /addLessonButton\.click\(\)/
+      /Adicionar aula extra/
+    )
+    assert.match(
+      calendarSource,
+      /articleAction\.click\(\)/
+    )
+    assert.match(
+      calendarSource,
+      /sectionAction\.click\(\)/
     )
     assert.match(
       calendarSource,
