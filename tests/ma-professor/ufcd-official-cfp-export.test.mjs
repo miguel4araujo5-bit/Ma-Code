@@ -10,6 +10,10 @@ const excelSource = await readFile(
   new URL('../../src/components/ma-professor/assessments/ufcdFinalGradeExcelExport.ts', import.meta.url),
   'utf8'
 )
+const dynamicMomentSource = await readFile(
+  new URL('../../src/components/ma-professor/assessments/ufcdDynamicMomentSheets.ts', import.meta.url),
+  'utf8'
+)
 const templateSource = await readFile(
   new URL('../../src/components/ma-professor/assessments/ufcdOfficialXlsmTemplate.ts', import.meta.url),
   'utf8'
@@ -39,19 +43,35 @@ test('CFP model preserves configured criteria, ACS and defensive module-name cle
   assert.match(modelSource, /processNumber:\s*''/)
 })
 
-test('official Excel export uses the supplied macro-enabled workbook', () => {
+test('official Excel export uses the supplied macro-enabled workbook and dynamic evaluation sheets', () => {
+  assert.match(excelSource, /loadOfficialUfcdXlsmTemplate/)
+  assert.match(excelSource, /prepareOfficialEvaluationMomentSheets/)
+  assert.match(excelSource, /materializeMomentSheets/)
+  assert.match(excelSource, /moments\.length/)
+  assert.match(excelSource, /writeOfficialUfcdXlsm/)
+  assert.match(excelSource, /macroEnabled\.12/)
+  assert.match(excelSource, /-Completo\.xlsm/)
+  assert.doesNotMatch(excelSource, /moments\.length\s*>\s*OFFICIAL_MOMENT_SHEETS\.length/)
+  assert.doesNotMatch(excelSource, /até 15 instrumentos de avaliação/)
+  assert.doesNotMatch(excelSource, /book_new/)
+})
+
+test('dynamic moment builder reuses the official pages then clones more moments without duplicating VBA codenames', () => {
   for (const sheetName of [
     'P1I1', 'P1I2', 'P1I3', 'P1I4', 'P1I5',
     'P2I1', 'P2I2', 'P2I3', 'P2I4', 'P2I5',
     'P3I1', 'P3I2', 'P3I3', 'P3I4', 'P3I5'
   ]) {
-    assert.match(excelSource, new RegExp(`['\"]${sheetName}['\"]`))
+    assert.match(dynamicMomentSource, new RegExp(`['\"]${sheetName}['\"]`))
   }
-  assert.match(excelSource, /loadOfficialUfcdXlsmTemplate/)
-  assert.match(excelSource, /writeOfficialUfcdXlsm/)
-  assert.match(excelSource, /macroEnabled\.12/)
-  assert.match(excelSource, /-Completo\.xlsm/)
-  assert.doesNotMatch(excelSource, /book_new/)
+  assert.match(dynamicMomentSource, /prepareOfficialEvaluationMomentSheets/)
+  assert.match(dynamicMomentSource, /extraCount/)
+  assert.match(dynamicMomentSource, /`AV\$\{momentNumber\}`/)
+  assert.match(dynamicMomentSource, /stripWorksheetCodeName/)
+  assert.match(dynamicMomentSource, /WORKSHEET_RELATIONSHIP_TYPE/)
+  assert.match(dynamicMomentSource, /WORKSHEET_CONTENT_TYPE/)
+  assert.match(dynamicMomentSource, /DRAWING_CONTENT_TYPE/)
+  assert.match(dynamicMomentSource, /setSheetVisibility/)
 })
 
 test('instrument layouts preserve P1 versus P2/P3 offsets and ACS rows', () => {
@@ -60,6 +80,21 @@ test('instrument layouts preserve P1 versus P2/P3 offsets and ACS rows', () => {
   assert.match(excelSource, /adaptationStartColumn/)
   assert.match(excelSource, /usesAcs[\s\S]*adaptationColumn[\s\S]*generalColumn/)
   assert.match(excelSource, /studentRows\.length > 30/)
+})
+
+test('one lesson can keep several separately titled evaluation moments', () => {
+  assert.match(excelSource, /const key =\s*\n\s*`\$\{activity\.lesson\.id\}::\$\{title\}`/)
+  assert.match(excelSource, /new Map<string, EvaluationMoment>/)
+  assert.match(excelSource, /existing\.resultsByCriterion\.set/)
+})
+
+test('CFP values are populated directly from the aggregate model so extra moments are included', () => {
+  assert.match(excelSource, /CFP_DOMAIN_COLUMNS/)
+  assert.match(excelSource, /student\.criterionScores\.forEach/)
+  assert.match(excelSource, /student\.acsScore/)
+  assert.match(excelSource, /student\.automaticLevel/)
+  assert.match(excelSource, /`AA\$\{row\}`/)
+  assert.match(excelSource, /ROUNDUP\(AA\$\{row\},0\)/)
 })
 
 test('official XLSM loader uses the canonical template, normalizes sheet paths by name and repairs references', () => {
