@@ -9,8 +9,6 @@ import {
 import AccessVerificationNotice from '../components/ma-professor/access/AccessVerificationNotice'
 import MAProfessorActivationLinkGate from '../components/ma-professor/access/MAProfessorActivationLinkGate'
 import MAProfessorAuthGate from '../components/ma-professor/access/MAProfessorAuthGate'
-import SnapshotCapacityNotice from '../components/ma-professor/sync/SnapshotCapacityNotice'
-import SyncStatePersistenceNotice from '../components/ma-professor/sync/SyncStatePersistenceNotice'
 
 const siteUrl =
   'https://ma-code.pt'
@@ -188,8 +186,6 @@ export default function MAProfessorPage() {
       <MAProfessorAuthGate>
         <>
           <AccessVerificationNotice />
-          <SyncStatePersistenceNotice />
-          <SnapshotCapacityNotice />
           <MAProfessorProduct />
         </>
       </MAProfessorAuthGate>

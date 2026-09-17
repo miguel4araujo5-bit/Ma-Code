@@ -38,16 +38,6 @@ import {
 } from './maProfessorAccessAdminNotifier'
 
 import {
-  handleMAProfessorRecoveryApiRequest,
-  isMAProfessorRecoveryApiPath,
-  type MaProfessorRecoveryEnv
-} from './maProfessorRecovery'
-import {
-  handleMAProfessorSnapshotApiRequest,
-  isMAProfessorSnapshotApiPath,
-  type MaProfessorSnapshotEnv
-} from './maProfessorSnapshot'
-import {
   handleMAProfessorSyncApiRequest,
   isMAProfessorSyncApiPath,
   type MaProfessorSyncEnv
@@ -88,8 +78,6 @@ export type Env =
   MaProfessorAdminEnv &
   MAProfessorAccessAdminNotifierEnv &
   MaProfessorSyncEnv &
-  MaProfessorSnapshotEnv &
-  MaProfessorRecoveryEnv &
   MaProfessorCloudBackupEnv &
   ConquistadorMatchmakingEnv &
   ConquistadorGameSessionEnv
@@ -501,27 +489,6 @@ export default {
       )
     ) {
       return handleMAProfessorSyncApiRequest(
-        request,
-        env
-      )
-    }
-    if (
-      isMAProfessorRecoveryApiPath(
-        url.pathname
-      )
-    ) {
-      return handleMAProfessorRecoveryApiRequest(
-        request,
-        env
-      )
-    }
-
-    if (
-      isMAProfessorSnapshotApiPath(
-        url.pathname
-      )
-    ) {
-      return handleMAProfessorSnapshotApiRequest(
         request,
         env
       )
