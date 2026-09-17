@@ -553,6 +553,20 @@ export class LessonRepository
         id
       )
 
+    if (
+      lesson &&
+      lesson.status !==
+        'taught' &&
+      lesson.status !==
+        'cancelled' &&
+      lesson.summary.trim()
+    ) {
+      return this.markGIAESubmittedExplicit(
+        lesson.id,
+        lesson.updatedAt
+      )
+    }
+
     if (lesson) {
       assertLessonNotTaughtInFuture(
         lesson.date,
