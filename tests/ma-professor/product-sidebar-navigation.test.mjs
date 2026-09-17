@@ -137,25 +137,37 @@ test(
 )
 
 test(
-  'reset confirmation explicitly warns that downstream setup will be lost',
+  'reset confirmation warns clearly but always leaves a final APAGAR action',
   () => {
     assert.match(
       bridgeSource,
-      /⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados/
+      /Esta operação apaga o horário importado e reinicia a configuração do ano letivo/
     )
     assert.match(
       bridgeSource,
-      /Deseja mesmo apagar tudo e começar de novo\?/
+      /aulas, presenças, avaliações, classificações e recuperações/
     )
     assert.match(
       bridgeSource,
-      /window\.confirm\([\s\S]*RESET_SCHEDULE_CONFIRMATION/
+      /Esta ação não pode ser anulada/
+    )
+    assert.match(
+      bridgeSource,
+      /role="alertdialog"/
+    )
+    assert.match(
+      bridgeSource,
+      /'APAGAR'/
+    )
+    assert.doesNotMatch(
+      bridgeSource,
+      /window\.confirm/
     )
   }
 )
 
 test(
-  'schedule reset clears schedule plus planifications criteria and students while preserving historical safeguards',
+  'confirmed schedule reset removes downstream data and reopens setup without historical blockers',
   () => {
     assert.match(
       resetSource,
@@ -191,19 +203,43 @@ test(
     )
     assert.match(
       resetSource,
+      /lessons\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /summarySuggestions\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /lessonAttendance\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /lessonAssessments\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /assessmentResults\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /moduleFinalGrades\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
+      /learningRecoveries\.bulkDelete/
+    )
+    assert.match(
+      resetSource,
       /isDutyEvent\(event\)/
     )
     assert.match(
       resetSource,
-      /academicYear\.setupCompletedAt[\s\S]*progress\.completedAt/
+      /setupCompletedAt: null/
     )
     assert.match(
       resetSource,
-      /lessons[\s\S]*scheduleSlotId[\s\S]*count\(\)/
-    )
-    assert.match(
-      resetSource,
-      /event\.description/
+      /completedAt: null/
     )
     assert.match(
       resetSource,
@@ -211,7 +247,11 @@ test(
     )
     assert.doesNotMatch(
       resetSource,
-      /groups\.(?:delete|bulkDelete)|subjects\.(?:delete|bulkDelete)|teachingAssignments\.(?:delete|bulkDelete)/
+      /linkedLessonCount|dutyWithRecordedWork/
+    )
+    assert.doesNotMatch(
+      resetSource,
+      /groups\.(?:delete|bulkDelete)|subjects\.(?:delete|bulkDelete)|teachingAssignments\.(?:delete|bulkDelete)|modules\.(?:delete|bulkDelete)/
     )
   }
 )
