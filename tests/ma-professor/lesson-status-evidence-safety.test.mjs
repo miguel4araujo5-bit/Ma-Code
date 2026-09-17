@@ -111,7 +111,7 @@ const historicalSafetyUrl = transpile(`
 
 const temporalSafetyUrl = transpile(`
   export function assertLessonNotTaughtInFuture(){}
-  export function resolveLessonStatusForDate(_date, status){return status}
+  export function resolveLessonStatusFromEvidence(_date, status){return status}
 `)
 
 const reservationSource = await readFile(
