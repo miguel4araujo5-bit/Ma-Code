@@ -111,7 +111,7 @@ test(
 )
 
 test(
-  'a broken foreign reference blocks an online snapshot',
+  'a broken foreign reference blocks a snapshot',
   () => {
     const tables =
       createEmptyTables()
@@ -196,7 +196,7 @@ test(
 )
 
 test(
-  'warning-only backup integrity findings do not block an online snapshot',
+  'warning-only backup integrity findings do not block a snapshot',
   () => {
     const tables =
       createEmptyTables()
@@ -233,7 +233,7 @@ test(
 
     const acceptedPosition =
       snapshotServiceSource.indexOf(
-        'return snapshot',
+        'return {',
         integrityPosition
       )
 
@@ -244,7 +244,7 @@ test(
 
     const restoreValidationPosition =
       snapshotServiceSource.indexOf(
-        'validateDatabaseSnapshot(',
+        'assertSnapshot(',
         restoreFunctionPosition
       )
 
