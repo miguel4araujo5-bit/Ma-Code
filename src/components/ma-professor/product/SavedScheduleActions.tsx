@@ -16,8 +16,8 @@ import {
   ScheduleProductWorkspace
 } from './ScheduleProductWorkspace'
 
-const RESET_SCHEDULE_CONFIRMATION =
-  '⚠️ Atenção: ao apagar o horário, irá perder também as planificações, os critérios de avaliação e os alunos já configurados. Deseja mesmo apagar tudo e começar de novo?'
+const RESET_SCHEDULE_WARNING =
+  'Esta operação apaga o horário importado e reinicia a configuração do ano letivo. Serão apagadas as planificações, os critérios de avaliação, os alunos e todo o trabalho já associado a este ano, incluindo aulas, presenças, avaliações, classificações e recuperações.'
 
 function getErrorMessage(
   error: unknown
@@ -46,6 +46,9 @@ export function SavedScheduleActions() {
 
   const [editingAcademicYearId, setEditingAcademicYearId] =
     useState<string | null>(null)
+
+  const [confirmingScheduleReset, setConfirmingScheduleReset] =
+    useState(false)
 
   const [scheduleActionBusy, setScheduleActionBusy] =
     useState(false)
@@ -120,13 +123,17 @@ export function SavedScheduleActions() {
     }
   }
 
-  async function handleResetSavedSchedule() {
-    if (
-      scheduleActionBusy ||
-      !window.confirm(
-        RESET_SCHEDULE_CONFIRMATION
-      )
-    ) {
+  function handleRequestScheduleReset() {
+    if (scheduleActionBusy) {
+      return
+    }
+
+    setScheduleActionError('')
+    setConfirmingScheduleReset(true)
+  }
+
+  async function handleConfirmScheduleReset() {
+    if (scheduleActionBusy) {
       return
     }
 
@@ -146,6 +153,7 @@ export function SavedScheduleActions() {
       setScheduleActionError(
         getErrorMessage(error)
       )
+      setConfirmingScheduleReset(false)
       setScheduleActionBusy(false)
     }
   }
@@ -170,9 +178,7 @@ export function SavedScheduleActions() {
                 <button
                   type="button"
                   disabled={scheduleActionBusy}
-                  onClick={() =>
-                    void handleResetSavedSchedule()
-                  }
+                  onClick={handleRequestScheduleReset}
                   className="rounded-xl border border-rose-300/25 bg-rose-300/[0.07] px-4 py-2.5 text-sm font-black text-rose-100 transition hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-50"
                 >
                   Apagar horário importado e importar outro
@@ -189,6 +195,72 @@ export function SavedScheduleActions() {
               ) : null}
             </div>,
             scheduleActionTarget
+          )
+        : null}
+
+      {confirmingScheduleReset
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-950/85 px-4 py-8 backdrop-blur-sm"
+              role="presentation"
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="reset-schedule-title"
+                aria-describedby="reset-schedule-description"
+                className="w-full max-w-xl rounded-2xl border border-rose-300/25 bg-slate-950 p-6 shadow-2xl shadow-black/50"
+              >
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
+                  Atenção
+                </p>
+
+                <h2
+                  id="reset-schedule-title"
+                  className="mt-2 text-xl font-black text-white"
+                >
+                  Apagar o horário e começar de novo?
+                </h2>
+
+                <p
+                  id="reset-schedule-description"
+                  className="mt-3 text-sm font-semibold leading-6 text-slate-300"
+                >
+                  {RESET_SCHEDULE_WARNING}
+                </p>
+
+                <p className="mt-3 text-sm font-black leading-6 text-rose-200">
+                  Esta ação não pode ser anulada. Se pretende apenas corrigir o horário, use “Editar horário guardado”.
+                </p>
+
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    disabled={scheduleActionBusy}
+                    onClick={() =>
+                      setConfirmingScheduleReset(false)
+                    }
+                    className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={scheduleActionBusy}
+                    onClick={() =>
+                      void handleConfirmScheduleReset()
+                    }
+                    className="rounded-xl border border-rose-300/40 bg-rose-500/20 px-5 py-2.5 text-sm font-black text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-wait disabled:opacity-50"
+                  >
+                    {scheduleActionBusy
+                      ? 'A apagar…'
+                      : 'APAGAR'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
           )
         : null}
 
