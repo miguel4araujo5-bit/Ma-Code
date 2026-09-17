@@ -1,4 +1,5 @@
 import {
+  type MouseEvent,
   useCallback,
   useEffect,
   useRef,
@@ -209,6 +210,45 @@ export function CalendarProductWorkspace({
     setEventError('')
   }
 
+  function handleCalendarBlankSpaceClick(
+    event: MouseEvent<HTMLDivElement>
+  ) {
+    const target = event.target
+
+    if (!(target instanceof Element)) {
+      return
+    }
+
+    if (
+      target.closest(
+        'button, a, input, select, textarea, label'
+      )
+    ) {
+      return
+    }
+
+    const dayCell =
+      target.closest('article')
+
+    if (!(dayCell instanceof HTMLElement)) {
+      return
+    }
+
+    const addLessonButton =
+      dayCell.querySelector<HTMLButtonElement>(
+        'button[aria-label^="Adicionar aula extra em "]'
+      )
+
+    if (
+      !addLessonButton ||
+      addLessonButton.disabled
+    ) {
+      return
+    }
+
+    addLessonButton.click()
+  }
+
   function closeEventEditor() {
     setSelectedEvent(null)
     setEventText('')
@@ -311,19 +351,23 @@ export function CalendarProductWorkspace({
   return (
     <>
       {extraLesson.dialog}
-      <CalendarWorkspaceView
-        snapshot={snapshot}
-        loading={loading}
-        error={error}
-        onRefresh={() => setRefreshToken(current => current + 1)}
-        onModeChange={nextMode => setMode(nextMode)}
-        onNavigate={nextAnchorDate => setAnchorDate(nextAnchorDate)}
-        onGoToday={() => setAnchorDate(todayISO())}
-        onFiltersChange={nextFilters => setFilters(nextFilters)}
-        onLessonSelect={handleLessonSelect}
-        onEventSelect={handleEventSelect}
-        onCreateLesson={extraLesson.createLesson}
-      />
+      <div
+        onClick={handleCalendarBlankSpaceClick}
+      >
+        <CalendarWorkspaceView
+          snapshot={snapshot}
+          loading={loading}
+          error={error}
+          onRefresh={() => setRefreshToken(current => current + 1)}
+          onModeChange={nextMode => setMode(nextMode)}
+          onNavigate={nextAnchorDate => setAnchorDate(nextAnchorDate)}
+          onGoToday={() => setAnchorDate(todayISO())}
+          onFiltersChange={nextFilters => setFilters(nextFilters)}
+          onLessonSelect={handleLessonSelect}
+          onEventSelect={handleEventSelect}
+          onCreateLesson={extraLesson.createLesson}
+        />
+      </div>
 
       <CalendarRecoveriesPanel
         snapshot={snapshot}
