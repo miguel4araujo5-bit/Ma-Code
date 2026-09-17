@@ -26,6 +26,22 @@ const snapshotSource = await readFile(
   'utf8'
 )
 
+const backupSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/backupRepository.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const cloudBackupSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/sync/cloudBackupService.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'UFCD final-grid metadata remains non-indexed and needs no Dexie schema migration',
   () => {
@@ -55,15 +71,27 @@ test(
 )
 
 test(
-  'online snapshot continues to carry complete ModuleFinalGrade records without a new network path',
+  'UFCD final grades remain covered by local snapshots and the current encrypted cloud backup',
   () => {
     assert.match(
       snapshotSource,
-      /moduleFinalGrades:\s*\n\s*ModuleFinalGrade\[\]/
+      /database\.moduleFinalGrades\.toArray\(\)/
     )
     assert.match(
       snapshotSource,
-      /JSON\.stringify\([\s\S]*snapshot/
+      /database\.moduleFinalGrades\.bulkPut\(/
+    )
+    assert.match(
+      backupSource,
+      /maProfessorDb\.moduleFinalGrades\.toArray\(\)/
+    )
+    assert.match(
+      cloudBackupSource,
+      /JSON\.stringify\(backup\)/
+    )
+    assert.match(
+      cloudBackupSource,
+      /subtle\.encrypt\(/
     )
     assert.doesNotMatch(
       repositorySource,

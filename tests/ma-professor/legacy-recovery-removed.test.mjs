@@ -12,12 +12,14 @@ const [
   workerEntry,
   professorPage,
   cloudRestore,
-  restorePanel
+  restorePanel,
+  snapshotService
 ] = await Promise.all([
   read('worker/entry.ts'),
   read('src/pages/MAProfessorPage.tsx'),
   read('src/components/ma-professor/sync/cloudBackupRestoreService.ts'),
-  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx')
+  read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
+  read('src/components/ma-professor/sync/databaseSnapshotService.ts')
 ])
 
 test(
@@ -41,6 +43,26 @@ test(
     assert.doesNotMatch(
       professorPage,
       /SnapshotCapacityNotice|SyncStatePersistenceNotice/
+    )
+  }
+)
+
+test(
+  'database snapshot service is now local-only and contains no v1 transport or key recovery',
+  () => {
+    assert.doesNotMatch(
+      snapshotService,
+      /cryptoStorage|cryptoService|snapshotApi|encryptMAProfessorRecord|decryptMAProfessorRecord|pushMAProfessorEncryptedSnapshot|getMAProfessorEncryptedSnapshot|unlockMAProfessorLocalMasterKey/
+    )
+
+    assert.match(
+      snapshotService,
+      /createMAProfessorDatabaseSnapshot/
+    )
+
+    assert.match(
+      snapshotService,
+      /restoreMAProfessorDatabaseSnapshot/
     )
   }
 )

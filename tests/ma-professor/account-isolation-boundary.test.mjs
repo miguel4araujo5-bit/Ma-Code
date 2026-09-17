@@ -26,22 +26,6 @@ const isolationSource = await readFile(
   'utf8'
 )
 
-const cryptoStorageSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/sync/cryptoStorage.ts',
-    import.meta.url
-  ),
-  'utf8'
-)
-
-const syncStateSource = await readFile(
-  new URL(
-    '../../src/components/ma-professor/sync/syncStateStorage.ts',
-    import.meta.url
-  ),
-  'utf8'
-)
-
 test(
   'pedagogical database consumers mount only after account isolation succeeds',
   () => {
@@ -142,51 +126,6 @@ test(
     assert.match(
       isolationSource,
       /esta conta não pode abrir, alterar ou sincronizar esses dados/i
-    )
-  }
-)
-
-test(
-  'crypto material remains scoped by account and device',
-  () => {
-    assert.match(
-      cryptoStorageSource,
-      /ma-professor-local-account-v1:\$\{normalizedEmail\}/
-    )
-
-    assert.match(
-      cryptoStorageSource,
-      /`\$\{accountScopeId\}:\$\{deviceIdHash\}`/
-    )
-
-    assert.match(
-      cryptoStorageSource,
-      /result\.accountScopeId !==\s*identity\.accountScopeId/
-    )
-
-    assert.match(
-      cryptoStorageSource,
-      /result\.deviceIdHash !==\s*identity\.deviceIdHash/
-    )
-  }
-)
-
-test(
-  'manual sync metadata remains scoped by account and device',
-  () => {
-    assert.match(
-      syncStateSource,
-      /encodeURIComponent\(\s*normalizedEmail\s*\)/
-    )
-
-    assert.match(
-      syncStateSource,
-      /encodeURIComponent\(\s*normalizedDeviceId\s*\)/
-    )
-
-    assert.match(
-      syncStateSource,
-      /STORAGE_PREFIX/
     )
   }
 )
