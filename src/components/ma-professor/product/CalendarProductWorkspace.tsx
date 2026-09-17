@@ -14,6 +14,7 @@ import {
   type CalendarRecoveryWorkspaceSnapshot
 } from '../calendar/calendarRecoveryWorkspace'
 import CalendarWorkspaceView from '../calendar/CalendarWorkspaceView'
+import { useCalendarExtraLesson } from './useCalendarExtraLesson'
 import {
   calendarWorkspaceRepository,
   type CalendarViewMode,
@@ -126,6 +127,16 @@ export function CalendarProductWorkspace({
   const [eventSaving, setEventSaving] = useState(false)
   const [eventError, setEventError] = useState('')
   const eventEditorRef = useRef<HTMLDivElement>(null)
+
+  const extraLesson = useCalendarExtraLesson(
+    academicYearId,
+    anchorDate,
+    filters.teachingAssignmentId ?? null,
+    lesson => {
+      setAnchorDate(lesson.date)
+      setRefreshToken(current => current + 1)
+    }
+  )
 
   const hasUnsavedEventText = Boolean(
     selectedEvent &&
@@ -299,6 +310,7 @@ export function CalendarProductWorkspace({
 
   return (
     <>
+      {extraLesson.dialog}
       <CalendarWorkspaceView
         snapshot={snapshot}
         loading={loading}
@@ -310,6 +322,7 @@ export function CalendarProductWorkspace({
         onFiltersChange={nextFilters => setFilters(nextFilters)}
         onLessonSelect={handleLessonSelect}
         onEventSelect={handleEventSelect}
+        onCreateLesson={extraLesson.createLesson}
       />
 
       <CalendarRecoveriesPanel

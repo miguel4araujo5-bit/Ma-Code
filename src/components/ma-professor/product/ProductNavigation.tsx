@@ -7,22 +7,19 @@ import { useMAProfessorAccess } from '../access/AccessGate'
 import { getLicenseStatusLabel } from '../access/accessTypes'
 import GIAESummaryExportPageAction from '../giae/GIAESummaryExportPageAction'
 
-import './singleSidebar.css'
-
-export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
+import {
+  menuDestinations,
+  primaryNavigation,
+  type ProductMenuTarget,
+  type ProductWorkspace,
+  type ProductSidebarDestination
+} from './productNavigationModel'
+export type { ProductWorkspace, ProductSidebarDestination } from './productNavigationModel'
 export type ProductTheme = 'light' | 'dark'
-export type ProductSidebarDestination =
-  | 'calendar'
-  | 'giae'
-  | 'assessments'
-  | 'planifications'
-  | 'groups'
-  | 'attendance'
-  | 'schedule'
-  | 'settings'
 
 interface ProductNavigationProps {
   workspace: ProductWorkspace
+  activeDestination?: ProductMenuTarget | null
   academicYearName: string | null
   theme: ProductTheme
   onSelect: (workspace: ProductWorkspace) => void
@@ -31,6 +28,8 @@ interface ProductNavigationProps {
 }
 
 interface SidebarPanelProps {
+  workspace: ProductWorkspace
+  activeDestination: ProductMenuTarget | null
   academicYearName: string | null
   showCloseButton: boolean
   onClose: () => void
@@ -52,85 +51,14 @@ type SidebarItem =
       workspace: ProductWorkspace
     }
 
-const items: Array<{
-  id: ProductWorkspace
-  label: string
-  icon: string
-}> = [
-  {
-    id: 'daily',
-    label: 'Hoje',
-    icon: '▤'
-  },
-  {
-    id: 'calendar',
-    label: 'Calendário',
-    icon: '▦'
-  },
-  {
-    id: 'backup',
-    label: 'Segurança',
-    icon: '◈'
-  },
-  {
-    id: 'menu',
-    label: 'Menu',
-    icon: '☰'
-  }
-]
-
 const sidebarItems: SidebarItem[] = [
-  {
-    key: 'calendar',
-    workspace: 'calendar',
-    label: 'Calendário'
-  },
-  {
-    key: 'giae',
-    destination: 'giae',
-    label: 'Sumários / GIAE'
-  },
-  {
-    key: 'assessments',
-    destination: 'assessments',
-    label: 'Avaliações'
-  },
-  {
-    key: 'assessment-criteria',
-    destination: 'assessments',
-    label: 'Critérios de avaliação',
-    criteriaManagement: true
-  },
-  {
-    key: 'planifications',
-    destination: 'planifications',
-    label: 'Planificações'
-  },
-  {
-    key: 'groups',
-    destination: 'groups',
-    label: 'Turmas e alunos'
-  },
-  {
-    key: 'attendance',
-    destination: 'attendance',
-    label: 'Faltas e recuperações'
-  },
-  {
-    key: 'schedule',
-    destination: 'schedule',
-    label: 'Horários'
-  },
-  {
-    key: 'settings',
-    destination: 'settings',
-    label: 'Definições'
-  },
-  {
-    key: 'restore',
-    workspace: 'backup',
-    label: 'Restaurar dados'
-  }
+  { key: 'calendar', workspace: 'calendar', label: 'Calendário' },
+  ...menuDestinations.flatMap(item => {
+    const destination: SidebarItem = { key: item.id, destination: item.id, label: item.label }
+    return item.id === 'assessments'
+      ? [destination, { key: 'assessment-criteria', destination: 'assessments' as const, label: 'Critérios de avaliação', criteriaManagement: true }]
+      : [destination]
+  })
 ]
 
 function scrollToCriteriaManagement() {
@@ -167,6 +95,8 @@ function scrollToCriteriaManagement() {
 }
 
 function SidebarPanel({
+  workspace,
+  activeDestination,
   academicYearName,
   showCloseButton,
   onClose,
@@ -194,6 +124,10 @@ function SidebarPanel({
       scrollToCriteriaManagement()
     }
   }
+
+  const isActive = (item: SidebarItem) => 'workspace' in item
+    ? workspace === item.workspace
+    : workspace === 'menu' && activeDestination === item.destination && !item.criteriaManagement
 
   return (
     <>
@@ -233,7 +167,8 @@ function SidebarPanel({
       <button
         type="button"
         onClick={onOpenToday}
-        className="mt-7 flex w-full items-center gap-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-3 text-left text-sm font-black text-cyan-100 transition hover:bg-cyan-300/10"
+        aria-current={workspace === 'daily' ? 'page' : undefined}
+        className={`mt-7 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-black transition ${workspace === 'daily' ? 'border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-100' : 'border-transparent text-slate-300 hover:bg-white/[0.04]'}`}
       >
         <span className="grid h-7 w-7 place-items-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-xs">
           ▤
@@ -251,7 +186,8 @@ function SidebarPanel({
                 item
               )
             }
-            className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+            aria-current={isActive(item) ? 'page' : undefined}
+            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${isActive(item) ? 'border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-100' : 'border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04] hover:text-white'}`}
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
               {String(index + 1).padStart(2, '0')}
@@ -260,12 +196,16 @@ function SidebarPanel({
           </button>
         ))}
       </nav>
+      <a href="/" className="mt-5 px-3 py-3 text-sm font-semibold text-slate-400 hover:text-white">
+        Voltar à MA-Code
+      </a>
     </>
   )
 }
 
 export function ProductNavigation({
   workspace,
+  activeDestination = null,
   academicYearName,
   theme,
   onSelect,
@@ -358,8 +298,8 @@ export function ProductNavigation({
             </span>
           </button>
 
-          <nav className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
-            {items.map(item => {
+          <nav aria-label="Navegação principal do MA-Professor" className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
+            {primaryNavigation.map(item => {
               const active = workspace === item.id
 
               return (
@@ -368,13 +308,13 @@ export function ProductNavigation({
                   type="button"
                   onClick={() => onSelect(item.id)}
                   aria-current={active ? 'page' : undefined}
-                  className={`min-w-0 rounded-xl px-1.5 py-2 text-center text-[0.68rem] font-black transition sm:px-4 sm:text-xs ${
+                  className={`min-w-0 rounded-xl px-0.5 py-2 text-center text-[0.625rem] font-black transition sm:px-4 sm:text-xs ${
                     active
                       ? 'bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/30'
                       : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className="mr-1 sm:mr-1.5" aria-hidden="true">
+                  <span className="hidden sm:mr-1.5 sm:inline" aria-hidden="true">
                     {item.icon}
                   </span>
 
@@ -417,6 +357,8 @@ export function ProductNavigation({
         className="fixed inset-y-0 left-0 z-[110] hidden w-80 flex-col overflow-y-auto border-r border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-black/30 xl:flex"
       >
         <SidebarPanel
+          workspace={workspace}
+          activeDestination={activeDestination}
           academicYearName={academicYearName}
           showCloseButton={false}
           onClose={() => setSidebarOpen(false)}
@@ -442,6 +384,8 @@ export function ProductNavigation({
             className="absolute inset-y-0 left-0 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto border-r border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-black/60"
           >
             <SidebarPanel
+              workspace={workspace}
+              activeDestination={activeDestination}
               academicYearName={academicYearName}
               showCloseButton
               onClose={() => setSidebarOpen(false)}

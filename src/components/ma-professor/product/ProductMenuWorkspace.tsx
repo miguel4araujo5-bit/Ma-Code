@@ -7,9 +7,7 @@ import {
   useState
 } from 'react'
 
-import MAProfessorApp, {
-  type MAProfessorWorkspaceView
-} from '../MAProfessorApp'
+import MAProfessorApp from '../MAProfessorApp'
 import {
   maProfessorRepository,
   type SetupSnapshot
@@ -26,31 +24,20 @@ import {
   AttendanceProductWorkspace
 } from './AttendanceProductWorkspace'
 import {
-  ManagementSidebarBridge
-} from './ManagementSidebarBridge'
+  SavedScheduleActions
+} from './SavedScheduleActions'
 import {
   ScheduleProductWorkspace
 } from './ScheduleProductWorkspace'
 
-type MenuSection =
-  | 'home'
-  | 'management'
-  | 'attendance'
-  | 'schedule'
-  | 'configuration'
-  | 'settings'
-  | 'restore'
-
-export type ProductMenuNavigationTarget =
-  | MAProfessorWorkspaceView
-  | 'attendance'
-  | 'schedule'
-  | 'settings'
-
-export interface ProductMenuNavigationRequest {
-  id: number
-  target: ProductMenuNavigationTarget
-}
+import {
+  getMenuDestinationLabel,
+  isManagementWorkspaceTarget,
+  menuDestinations,
+  type ProductMenuTarget,
+  type ProductMenuNavigationRequest
+} from './productNavigationModel'
+export type { ProductMenuNavigationRequest } from './productNavigationModel'
 
 interface ProductMenuWorkspaceProps {
   academicYear: AcademicYear | null
@@ -58,28 +45,14 @@ interface ProductMenuWorkspaceProps {
   onDataChanged: () => void | Promise<void>
   onOpenDaily: () => void
   onOpenCalendar: () => void
+  onOpenMenu: () => void
+  onNavigate: (target: ProductMenuTarget) => void
 }
 
 interface SuggestedAcademicYear {
   name: string
   startDate: string
   endDate: string
-}
-
-const managementWorkspaceTargets: MAProfessorWorkspaceView[] = [
-  'dashboard',
-  'giae',
-  'assessments',
-  'planifications',
-  'groups'
-]
-
-function isManagementWorkspaceTarget(
-  target: ProductMenuNavigationTarget
-): target is MAProfessorWorkspaceView {
-  return managementWorkspaceTargets.includes(
-    target as MAProfessorWorkspaceView
-  )
 }
 
 const correctionCompletedSteps: SetupStepId[] = [
@@ -92,63 +65,6 @@ const correctionCompletedSteps: SetupStepId[] = [
   'planifications',
   'students',
   'confirmation'
-]
-
-const menuCards: Array<{
-  id: Exclude<MenuSection, 'home'>
-  eyebrow: string
-  title: string
-  description: string
-  icon: string
-}> = [
-  {
-    id: 'management',
-    eyebrow: 'Pedagogia',
-    title: 'Sumários, avaliações e planificações',
-    description:
-      'Consulte os sumários pendentes, as médias, o progresso das UFCD, as turmas e as planificações.',
-    icon: '▤'
-  },
-  {
-    id: 'attendance',
-    eyebrow: 'Acompanhamento',
-    title: 'Faltas e recuperações',
-    description:
-      'Consulte percentagens de faltas, alertas e atividades de recuperação.',
-    icon: '✓'
-  },
-  {
-    id: 'schedule',
-    eyebrow: 'Organização',
-    title: 'Horário e calendário escolar',
-    description:
-      'Altere o horário semanal e registe feriados, interrupções e outros eventos.',
-    icon: '▦'
-  },
-  {
-    id: 'configuration',
-    eyebrow: 'Configuração pedagógica',
-    title: 'Corrigir configuração inicial',
-    description:
-      'Reabra o assistente simples ou a configuração avançada para corrigir horário, planificações, critérios, turmas ou alunos sem reiniciar o ano letivo.',
-    icon: '↶'
-  },
-  {
-    id: 'settings',
-    eyebrow: 'Configuração',
-    title: 'Definições e segurança',
-    description:
-      'Aceda ao perfil, pesquisa global, segurança e recuperação, exportações e licença.',
-    icon: '⚙'
-  },
-  {
-    id: 'restore',
-    eyebrow: 'Recuperação',
-    title: 'Restaurar dados',
-    description:
-      'Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.',
-    icon: '↺'
-  }
 ]
 
 let academicYearPreparationPromise: Promise<AcademicYear> | null = null
@@ -305,9 +221,10 @@ export function ProductMenuWorkspace({
   navigationRequest = null,
   onDataChanged,
   onOpenDaily,
-  onOpenCalendar
+  onOpenCalendar,
+  onOpenMenu,
+  onNavigate
 }: ProductMenuWorkspaceProps) {
-  const [section, setSection] = useState<MenuSection>('home')
   const [preparingYear, setPreparingYear] = useState(!academicYear)
   const [yearError, setYearError] = useState('')
   const [retryKey, setRetryKey] = useState(0)
@@ -321,31 +238,11 @@ export function ProductMenuWorkspace({
 
   const setupCompleted = Boolean(academicYear?.setupCompletedAt)
 
-  useEffect(() => {
-    if (!setupCompleted) {
-      setSection('management')
-    }
-  }, [setupCompleted])
-
-  useEffect(() => {
-    const target =
-      navigationRequest?.target
-
-    if (!target) {
-      return
-    }
-
-    if (
-      isManagementWorkspaceTarget(
-        target
-      )
-    ) {
-      setSection('management')
-      return
-    }
-
-    setSection(target)
-  }, [navigationRequest?.id])
+  const target = navigationRequest?.target ?? 'home'
+  const section = isManagementWorkspaceTarget(target) ||
+    (!setupCompleted && (target === 'home' || target === 'configuration'))
+    ? 'management'
+    : target
 
   useEffect(() => {
     if (
@@ -373,7 +270,7 @@ export function ProductMenuWorkspace({
           }
 
           disposed = true
-          setSection('home')
+          onOpenMenu()
           subscription.unsubscribe()
 
           void Promise.resolve(
@@ -395,6 +292,7 @@ export function ProductMenuWorkspace({
   }, [
     academicYear,
     onDataChanged,
+    onOpenMenu,
     setupCompleted
   ])
 
@@ -535,7 +433,7 @@ export function ProductMenuWorkspace({
       // As correções já ficaram persistidas localmente. Um refresh posterior
       // volta a sincronizar o estado exterior do produto.
     } finally {
-      setSection('home')
+      onOpenMenu()
     }
   }
 
@@ -590,12 +488,13 @@ export function ProductMenuWorkspace({
       <div className="min-h-[calc(100vh-58px)] bg-slate-950">
         {setupCompleted ? (
           <MenuHeader
-            title="Sumários, avaliações e planificações"
-            onBack={() => setSection('home')}
+            title={getMenuDestinationLabel(isManagementWorkspaceTarget(target) ? target : 'dashboard')}
+            onBack={onOpenMenu}
           />
         ) : null}
 
         <MAProfessorApp
+          key={academicYear?.id}
           workspaceRequest={
             navigationRequest &&
             isManagementWorkspaceTarget(
@@ -610,11 +509,7 @@ export function ProductMenuWorkspace({
               : null
           }
         />
-        <ManagementSidebarBridge
-          onOpenAttendance={() => setSection('attendance')}
-          onOpenSchedule={() => setSection('schedule')}
-          onOpenSettings={() => setSection('settings')}
-        />
+        <SavedScheduleActions />
       </div>
     )
   }
@@ -624,7 +519,7 @@ export function ProductMenuWorkspace({
       <div className="min-h-[calc(100vh-58px)] bg-slate-950">
         <MenuHeader
           title="Faltas e recuperações"
-          onBack={() => setSection('home')}
+          onBack={onOpenMenu}
         />
 
         <AttendanceProductWorkspace academicYearId={academicYear.id} />
@@ -637,7 +532,7 @@ export function ProductMenuWorkspace({
       <div className="min-h-[calc(100vh-58px)] bg-slate-950">
         <MenuHeader
           title="Horário e calendário escolar"
-          onBack={() => setSection('home')}
+          onBack={onOpenMenu}
         />
 
         <ScheduleProductWorkspace academicYearId={academicYear.id} />
@@ -697,6 +592,7 @@ export function ProductMenuWorkspace({
                 initialMode="advanced"
               />
             ) : null}
+            <SavedScheduleActions />
           </div>
         </div>
       </div>
@@ -718,16 +614,11 @@ export function ProductMenuWorkspace({
               ? 'Restaurar dados'
               : 'Definições'
           }
-          onBack={() =>
-            setSection(
-              setupCompleted
-                ? 'home'
-                : 'management'
-            )
-          }
+          onBack={onOpenMenu}
         />
 
         <SettingsWorkspaceView
+          key={section}
           academicYearId={academicYear?.id ?? null}
           onDataChanged={onDataChanged}
           initialTab={
@@ -811,11 +702,12 @@ export function ProductMenuWorkspace({
         </section>
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
-          {menuCards.map(card => (
+          {menuDestinations.map(card => (
             <button
               key={card.id}
               type="button"
-              onClick={() => setSection(card.id)}
+              aria-label={card.label}
+              onClick={() => onNavigate(card.id)}
               className="group rounded-3xl border border-white/10 bg-slate-900/55 p-5 text-left transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-slate-900 sm:p-6"
             >
               <div className="flex items-start gap-4">
@@ -829,7 +721,7 @@ export function ProductMenuWorkspace({
                   </span>
 
                   <span className="mt-1 block text-lg font-black text-white">
-                    {card.title}
+                    {card.label}
                   </span>
 
                   <span className="mt-2 block text-sm leading-6 text-slate-400">

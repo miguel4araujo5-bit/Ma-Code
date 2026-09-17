@@ -14,22 +14,12 @@ import {
   type SaveModuleFinalGradeInput
 } from './assessments/assessmentWorkspaceRepository'
 
-import CalendarWorkspaceView from './calendar/CalendarWorkspaceView'
-import ExtraLessonDialog from './calendar/ExtraLessonDialog'
 import LessonEditorDialog from './calendar/LessonEditorDialog'
 
 import {
   calendarWorkspaceRepository,
-  type CalendarLessonEditorContext,
-  type CalendarViewMode,
-  type CalendarWorkspaceFilters,
-  type CalendarWorkspaceSnapshot
+  type CalendarLessonEditorContext
 } from './calendar/calendarWorkspaceRepository'
-
-import {
-  extraLessonRepository,
-  type ExtraLessonCreateContext
-} from './calendar/extraLessonRepository'
 
 import DashboardView from './dashboard/DashboardView'
 
@@ -84,8 +74,6 @@ import SetupWizard from './setup/SetupWizard'
 import type {
   AcademicYear,
   EntityId,
-  ISODate,
-  Lesson,
   PlanificationItemStatus
 } from './types'
 
@@ -101,95 +89,17 @@ type AcademicYearFormState = {
   endDate: string
 }
 
-export type MAProfessorWorkspaceView =
-  | 'dashboard'
-  | 'calendar'
-  | 'giae'
-  | 'assessments'
-  | 'planifications'
-  | 'groups'
-
-type WorkspaceView =
-  MAProfessorWorkspaceView
+export type { ManagementWorkspace as MAProfessorWorkspaceView } from './product/productNavigationModel'
+import type { ManagementWorkspace } from './product/productNavigationModel'
 
 export interface MAProfessorWorkspaceRequest {
   id: number
-  workspace: MAProfessorWorkspaceView
+  workspace: ManagementWorkspace
 }
 
 interface MAProfessorAppProps {
-  workspaceRequest?:
-    MAProfessorWorkspaceRequest | null
+  workspaceRequest?: MAProfessorWorkspaceRequest | null
 }
-
-type NavigationItem = {
-  id: string
-  label: string
-  shortLabel: string
-  workspace?: WorkspaceView
-}
-
-const navigationItems: NavigationItem[] = [
-  {
-    id: 'dashboard',
-    label: 'Painel',
-    shortLabel: 'Painel',
-    workspace: 'dashboard'
-  },
-  {
-    id: 'calendar',
-    label: 'Calendário',
-    shortLabel: 'Calendário',
-    workspace: 'calendar'
-  },
-  {
-    id: 'giae',
-    label: 'Sumários / GIAE',
-    shortLabel: 'GIAE',
-    workspace: 'giae'
-  },
-  {
-    id: 'assessments',
-    label: 'Avaliações',
-    shortLabel: 'Avaliar',
-    workspace: 'assessments'
-  },
-  {
-    id: 'planifications',
-    label: 'Planificações',
-    shortLabel: 'Planos',
-    workspace: 'planifications'
-  },
-  {
-    id: 'groups',
-    label: 'Turmas e alunos',
-    shortLabel: 'Turmas',
-    workspace: 'groups'
-  },
-  {
-    id: 'attendance',
-    label: 'Faltas e recuperações',
-    shortLabel: 'Faltas'
-  },
-  {
-    id: 'schedule',
-    label: 'Horários',
-    shortLabel: 'Horário'
-  },
-  {
-    id: 'settings',
-    label: 'Definições',
-    shortLabel: 'Menu'
-  }
-]
-
-const mobileNavigationItems =
-  navigationItems.filter(
-    item =>
-      Boolean(
-        item.workspace
-      )
-  )
 
 function toISODate(
   year: number,
@@ -210,17 +120,6 @@ function toISODate(
       '0'
     )
   ].join('-')
-}
-
-function getTodayISODate(): ISODate {
-  const today =
-    new Date()
-
-  return toISODate(
-    today.getFullYear(),
-    today.getMonth() + 1,
-    today.getDate()
-  )
 }
 
 function getSuggestedAcademicYear(): AcademicYearFormState {
@@ -636,13 +535,7 @@ export default function MAProfessorApp({
   ] =
     useState(0)
 
-  const [
-    activeWorkspace,
-    setActiveWorkspace
-  ] =
-    useState<WorkspaceView>(
-      'dashboard'
-    )
+  const activeWorkspace = workspaceRequest?.workspace ?? 'dashboard'
 
   const [
     dashboardSnapshot,
@@ -667,58 +560,6 @@ export default function MAProfessorApp({
   const [
     dashboardReloadKey,
     setDashboardReloadKey
-  ] =
-    useState(0)
-
-  const [
-    calendarSnapshot,
-    setCalendarSnapshot
-  ] =
-    useState<CalendarWorkspaceSnapshot | null>(
-      null
-    )
-
-  const [
-    calendarMode,
-    setCalendarMode
-  ] =
-    useState<CalendarViewMode>(
-      'week'
-    )
-
-  const [
-    calendarAnchorDate,
-    setCalendarAnchorDate
-  ] =
-    useState<ISODate | undefined>(
-      undefined
-    )
-
-  const [
-    calendarFilters,
-    setCalendarFilters
-  ] =
-    useState<CalendarWorkspaceFilters>({
-      groupId: null,
-      teachingAssignmentId: null,
-      lessonStatus: null
-    })
-
-  const [
-    calendarLoading,
-    setCalendarLoading
-  ] =
-    useState(false)
-
-  const [
-    calendarError,
-    setCalendarError
-  ] =
-    useState('')
-
-  const [
-    calendarReloadKey,
-    setCalendarReloadKey
   ] =
     useState(0)
 
@@ -886,26 +727,6 @@ export default function MAProfessorApp({
   ] =
     useState('')
 
-  const [
-    extraLessonContext,
-    setExtraLessonContext
-  ] =
-    useState<ExtraLessonCreateContext | null>(
-      null
-    )
-
-  const [
-    extraLessonLoading,
-    setExtraLessonLoading
-  ] =
-    useState(false)
-
-  const [
-    extraLessonError,
-    setExtraLessonError
-  ] =
-    useState('')
-
   const setupCompleted =
     Boolean(
       snapshot
@@ -1070,90 +891,6 @@ export default function MAProfessorApp({
     }
   }, [
     dashboardReloadKey,
-    setupCompleted,
-    snapshot?.academicYear.id
-  ])
-
-  useEffect(() => {
-    let cancelled =
-      false
-
-    if (
-      !snapshot ||
-      !setupCompleted ||
-      activeWorkspace !==
-        'calendar'
-    ) {
-      if (
-        !snapshot ||
-        !setupCompleted
-      ) {
-        setCalendarSnapshot(null)
-        setCalendarError('')
-        setLessonEditorContext(null)
-        setLessonEditorError('')
-        setExtraLessonContext(null)
-        setExtraLessonError('')
-      }
-
-      setCalendarLoading(false)
-
-      return () => {
-        cancelled = true
-      }
-    }
-
-    setCalendarLoading(true)
-    setCalendarError('')
-
-    void calendarWorkspaceRepository
-      .getWorkspace(
-        snapshot.academicYear.id,
-        calendarMode,
-        calendarAnchorDate,
-        calendarFilters
-      )
-      .then(
-        nextSnapshot => {
-          if (
-            !cancelled
-          ) {
-            setCalendarSnapshot(
-              nextSnapshot
-            )
-          }
-        }
-      )
-      .catch(
-        loadError => {
-          if (
-            !cancelled
-          ) {
-            setCalendarError(
-              getErrorMessage(
-                loadError
-              )
-            )
-          }
-        }
-      )
-      .finally(() => {
-        if (
-          !cancelled
-        ) {
-          setCalendarLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    activeWorkspace,
-    calendarAnchorDate,
-    calendarFilters,
-    calendarMode,
-    calendarReloadKey,
     setupCompleted,
     snapshot?.academicYear.id
   ])
@@ -1470,16 +1207,8 @@ export default function MAProfessorApp({
         academicYear.id
       )
 
-    setActiveWorkspace(
-      'dashboard'
-    )
-
     setDashboardSnapshot(null)
     setDashboardError('')
-
-    setCalendarSnapshot(null)
-    setCalendarError('')
-    setCalendarAnchorDate(undefined)
 
     setGIAESnapshot(null)
     setGIAEError('')
@@ -1515,8 +1244,6 @@ export default function MAProfessorApp({
 
     setLessonEditorContext(null)
     setLessonEditorError('')
-    setExtraLessonContext(null)
-    setExtraLessonError('')
     setSnapshot(nextSnapshot)
   }
 
@@ -1529,13 +1256,6 @@ export default function MAProfessorApp({
 
   function handleDashboardRefresh() {
     setDashboardReloadKey(
-      current =>
-        current + 1
-    )
-  }
-
-  function handleCalendarRefresh() {
-    setCalendarReloadKey(
       current =>
         current + 1
     )
@@ -1668,7 +1388,6 @@ export default function MAProfessorApp({
   }
 
   function refreshLessonWorkspaces() {
-    handleCalendarRefresh()
     handleDashboardRefresh()
     handleGIAERefresh()
     handleAssessmentRefresh()
@@ -1678,7 +1397,6 @@ export default function MAProfessorApp({
   function refreshConfigurationWorkspaces() {
     handleGroupsRefresh()
     handleDashboardRefresh()
-    handleCalendarRefresh()
     handleGIAERefresh()
     handleAssessmentRefresh()
     handlePlanificationRefresh()
@@ -1739,7 +1457,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
     handleDashboardRefresh()
   }
 
@@ -1753,7 +1470,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleAddPlanificationItem(
@@ -1766,7 +1482,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleUpdatePlanificationItem(
@@ -1779,7 +1494,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleDeletePlanificationItem(
@@ -1790,7 +1504,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleReorderPlanificationItems(
@@ -1803,7 +1516,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleSetPlanificationItemStatus(
@@ -1819,7 +1531,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleImportPlanificationLines(
@@ -1832,7 +1543,6 @@ export default function MAProfessorApp({
     )
 
     handlePlanificationRefresh()
-    handleCalendarRefresh()
   }
 
   async function handleCreateGroup(
@@ -1905,89 +1615,20 @@ export default function MAProfessorApp({
     refreshConfigurationWorkspaces()
   }
 
-  function handleWorkspaceChange(
-    workspace: WorkspaceView
-  ) {
+  useEffect(() => {
     setLessonEditorContext(null)
     setLessonEditorError('')
-
-    if (
-      workspace !==
-      'calendar'
-    ) {
-      setExtraLessonContext(null)
-      setExtraLessonError('')
-    }
-
-    setActiveWorkspace(
-      workspace
-    )
-  }
-
-  useEffect(() => {
-    if (
-      !workspaceRequest ||
-      !setupCompleted
-    ) {
-      return
-    }
-
-    handleWorkspaceChange(
-      workspaceRequest.workspace
-    )
-  }, [
-    setupCompleted,
-    workspaceRequest?.id
-  ])
-
-  function handleCalendarModeChange(
-    mode: CalendarViewMode
-  ) {
-    setCalendarMode(mode)
-
-    if (
-      calendarSnapshot
-    ) {
-      setCalendarAnchorDate(
-        calendarSnapshot.anchorDate
-      )
-    }
-  }
-
-  function handleCalendarNavigate(
-    anchorDate: ISODate
-  ) {
-    setCalendarAnchorDate(
-      anchorDate
-    )
-  }
-
-  function handleCalendarGoToday() {
-    setCalendarAnchorDate(
-      getTodayISODate()
-    )
-  }
-
-  function handleCalendarFiltersChange(
-    filters: CalendarWorkspaceFilters
-  ) {
-    setCalendarFilters(
-      filters
-    )
-  }
+  }, [workspaceRequest?.id])
 
   async function handleCalendarLessonSelect(
     lessonId: EntityId
   ) {
     if (
-      lessonEditorLoading ||
-      extraLessonLoading
+      lessonEditorLoading
     ) {
       return
     }
 
-    setExtraLessonContext(null)
-    setExtraLessonError('')
     setLessonEditorLoading(true)
     setLessonEditorError('')
 
@@ -2030,68 +1671,6 @@ export default function MAProfessorApp({
     refreshLessonWorkspaces()
   }
 
-  async function handleExtraLessonCreate(
-    requestedDate?: ISODate
-  ) {
-    if (
-      !snapshot ||
-      extraLessonLoading ||
-      lessonEditorLoading
-    ) {
-      return
-    }
-
-    setLessonEditorContext(null)
-    setLessonEditorError('')
-    setExtraLessonLoading(true)
-    setExtraLessonError('')
-
-    try {
-      const nextContext =
-        await extraLessonRepository.getCreateContext(
-          snapshot.academicYear.id,
-          requestedDate ??
-            calendarSnapshot?.anchorDate,
-          calendarFilters.teachingAssignmentId ??
-            null
-        )
-
-      setExtraLessonContext(
-        nextContext
-      )
-    } catch (
-      loadError
-    ) {
-      setExtraLessonError(
-        getErrorMessage(
-          loadError
-        )
-      )
-    } finally {
-      setExtraLessonLoading(false)
-    }
-  }
-
-  function handleExtraLessonClose() {
-    if (
-      extraLessonLoading
-    ) {
-      return
-    }
-
-    setExtraLessonContext(null)
-    setExtraLessonError('')
-  }
-
-  function handleExtraLessonCreated(
-    lesson: Lesson
-  ) {
-    setExtraLessonContext(null)
-    setExtraLessonError('')
-    setCalendarAnchorDate(lesson.date)
-    refreshLessonWorkspaces()
-  }
-
   function renderWorkspace() {
     if (
       !snapshot
@@ -2114,61 +1693,6 @@ export default function MAProfessorApp({
           onSnapshotChange={setSnapshot}
           onCompleted={setSnapshot}
         />
-      )
-    }
-
-    if (
-      activeWorkspace ===
-      'calendar'
-    ) {
-      if (
-        !calendarSnapshot
-      ) {
-        return calendarError
-          ? (
-              <ErrorView
-                message={calendarError}
-                onRetry={handleCalendarRefresh}
-              />
-            )
-          : (
-              <LoadingView />
-            )
-      }
-
-      return (
-        <div>
-          {lessonEditorError ? (
-            <WorkspaceWarning
-              message={`Não foi possível abrir a aula: ${lessonEditorError}`}
-              onClose={() =>
-                setLessonEditorError('')
-              }
-            />
-          ) : null}
-
-          {extraLessonError ? (
-            <WorkspaceWarning
-              message={`Não foi possível preparar a aula extra: ${extraLessonError}`}
-              onClose={() =>
-                setExtraLessonError('')
-              }
-            />
-          ) : null}
-
-          <CalendarWorkspaceView
-            snapshot={calendarSnapshot}
-            loading={calendarLoading}
-            error={calendarError}
-            onRefresh={handleCalendarRefresh}
-            onModeChange={handleCalendarModeChange}
-            onNavigate={handleCalendarNavigate}
-            onGoToday={handleCalendarGoToday}
-            onFiltersChange={handleCalendarFiltersChange}
-            onLessonSelect={handleCalendarLessonSelect}
-            onCreateLesson={handleExtraLessonCreate}
-          />
-        </div>
       )
     }
 
@@ -2421,221 +1945,22 @@ export default function MAProfessorApp({
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute -left-32 top-10 h-96 w-96 rounded-full bg-cyan-500/10 blur-[120px]" />
-        <div className="absolute right-[-8rem] top-[-4rem] h-[30rem] w-[30rem] rounded-full bg-violet-600/10 blur-[140px]" />
-        <div className="absolute bottom-[-10rem] left-1/3 h-[28rem] w-[28rem] rounded-full bg-sky-500/[0.07] blur-[140px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.025)_1px,transparent_1px)] bg-[size:42px_42px]" />
+    <main className="min-h-[calc(100vh-58px)] bg-slate-950 text-white">
+      <div className="mx-auto max-w-[100rem] px-4 py-6 sm:px-6 lg:px-8">
+        {renderWorkspace()}
       </div>
 
-      <div className="relative z-10 min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
-        <aside className="hidden min-h-screen border-r border-white/10 bg-slate-950/80 p-5 backdrop-blur-xl lg:flex lg:flex-col">
-          <a
-            href="/"
-            className="flex items-center gap-3"
-            aria-label="MA-Code.pt"
-          >
-            <img
-              src="/ma-code.png"
-              alt="MA-Code.pt"
-              className="h-11 w-11 rounded-xl object-contain"
-            />
-
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                MA-Code
-              </p>
-
-              <p className="font-black text-white">
-                MA-Professor
-              </p>
-            </div>
-          </a>
-
-          <nav
-            className="mt-9 space-y-2"
-            aria-label="Navegação do MA-Professor"
-          >
-            {navigationItems.map(
-              (
-                item,
-                index
-              ) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    if (
-                      item.workspace
-                    ) {
-                      handleWorkspaceChange(
-                        item.workspace
-                      )
-                    }
-                  }}
-                  disabled={
-                    !setupCompleted ||
-                    !item.workspace
-                  }
-                  title={
-                    item.workspace
-                      ? undefined
-                      : 'Em breve'
-                  }
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
-                    item.workspace ===
-                    activeWorkspace
-                      ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50'
-                      : 'border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white'
-                  } disabled:cursor-not-allowed disabled:opacity-45`}
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.65rem] font-black">
-                    {String(
-                      index + 1
-                    ).padStart(
-                      2,
-                      '0'
-                    )}
-                  </span>
-
-                  <span>
-                    {item.label}
-                  </span>
-                </button>
-              )
-            )}
-          </nav>
-
-          <div className="mt-auto rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-              Dados protegidos
-            </p>
-
-            <p className="mt-2 text-xs leading-6 text-slate-400">
-              Os dados escolares ficam guardados localmente e podem ter uma cópia cifrada online.
-            </p>
-          </div>
-        </aside>
-
-        <section className="min-w-0 pb-24 lg:pb-0">
-          <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 px-5 py-4 backdrop-blur-xl sm:px-7 lg:px-9">
-            <div className="mx-auto flex max-w-[100rem] items-center justify-between gap-4">
-              <div className="flex items-center gap-3 lg:hidden">
-                <img
-                  src="/ma-code.png"
-                  alt="MA-Code.pt"
-                  className="h-10 w-10 rounded-xl object-contain"
-                />
-
-                <div>
-                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    MA-Code
-                  </p>
-
-                  <p className="text-sm font-black text-white">
-                    MA-Professor
-                  </p>
-                </div>
-              </div>
-
-              <div className="hidden lg:block">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                  Área de trabalho
-                </p>
-
-                <p className="mt-1 text-sm font-semibold text-slate-200">
-                  {snapshot
-                    ? snapshot.academicYear.name
-                    : 'Configuração inicial'}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-100">
-                  Beta gratuita
-                </span>
-
-                <a
-                  href="/"
-                  className="hidden rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/[0.08] hover:text-white sm:inline-flex"
-                >
-                  Sair
-                </a>
-              </div>
-            </div>
-          </header>
-
-          <div className="px-5 py-7 sm:px-7 lg:px-9 lg:py-9">
-            <div className="mx-auto max-w-[100rem]">
-              {renderWorkspace()}
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-white/10 bg-slate-950/95 px-1 py-2 backdrop-blur-xl lg:hidden"
-        aria-label="Navegação móvel do MA-Professor"
-      >
-        {mobileNavigationItems.map(
-          (
-            item,
-            index
-          ) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                if (
-                  item.workspace
-                ) {
-                  handleWorkspaceChange(
-                    item.workspace
-                  )
-                }
-              }}
-              disabled={!setupCompleted}
-              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[0.6rem] font-bold transition ${
-                item.workspace ===
-                activeWorkspace
-                  ? 'bg-cyan-300/10 text-cyan-100'
-                  : 'text-slate-500'
-              } disabled:cursor-not-allowed disabled:opacity-40`}
-            >
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-[0.58rem]">
-                {String(
-                  index + 1
-                ).padStart(
-                  2,
-                  '0'
-                )}
-              </span>
-
-              <span className="max-w-full truncate">
-                {item.shortLabel}
-              </span>
-            </button>
-          )
-        )}
-      </nav>
-
-      {lessonEditorLoading ||
-      extraLessonLoading ? (
+      {lessonEditorLoading ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 p-5 backdrop-blur-sm">
           <div className="rounded-[1.75rem] border border-cyan-300/20 bg-slate-950/95 p-7 text-center shadow-2xl shadow-black/50">
             <span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-cyan-100/20 border-t-cyan-200" />
 
             <p className="mt-4 text-sm font-black text-white">
-              {extraLessonLoading
-                ? 'A preparar a aula extra...'
-                : 'A abrir a aula...'}
+              A abrir a aula...
             </p>
 
             <p className="mt-2 text-xs text-slate-500">
-              {extraLessonLoading
-                ? 'A carregar turmas, UFCD e sugestões.'
-                : 'A carregar o sumário e a planificação.'}
+              A carregar o sumário e a planificação.
             </p>
           </div>
         </div>
@@ -2649,13 +1974,6 @@ export default function MAProfessorApp({
         />
       ) : null}
 
-      {extraLessonContext ? (
-        <ExtraLessonDialog
-          context={extraLessonContext}
-          onClose={handleExtraLessonClose}
-          onCreated={handleExtraLessonCreated}
-        />
-      ) : null}
     </main>
   )
 }
