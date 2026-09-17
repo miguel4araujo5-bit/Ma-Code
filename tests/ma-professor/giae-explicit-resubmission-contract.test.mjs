@@ -71,6 +71,44 @@ const dbUrl = transpile(`
   export async function openMAProfessorDatabase() {}
 `)
 
+const lessonRepositoryUrl = transpile(`
+  const state = () => globalThis.__giaeExplicitState;
+  const clone = value => structuredClone(value);
+
+  export const lessonRepository = {
+    async markGIAESubmittedExplicit(id, expectedUpdatedAt) {
+      const lesson = state().lessons.get(id);
+
+      if (!lesson) {
+        throw new Error('A aula indicada não existe.');
+      }
+
+      if (!expectedUpdatedAt || lesson.updatedAt !== expectedUpdatedAt) {
+        throw new Error(
+          'Esta aula foi alterada desde a cópia para o GIAE. Copie novamente o sumário antes de o marcar como submetido.'
+        );
+      }
+
+      if (lesson.status === 'cancelled' || !lesson.summary.trim()) {
+        throw new Error(
+          'Apenas aulas com sumário podem ser marcadas como submetidas no GIAE.'
+        );
+      }
+
+      const updated = {
+        ...lesson,
+        status: 'taught',
+        giaeStatus: 'submitted',
+        giaeSubmittedAt: 'explicit-submitted',
+        updatedAt: 'explicit-submitted'
+      };
+
+      state().lessons.set(id, clone(updated));
+      return clone(updated);
+    }
+  };
+`)
+
 const temporalSafetyUrl = transpile(`
   export function assertLessonNotTaughtInFuture(date, status) {
     if (status === 'taught' && date > '2026-09-07') {
@@ -89,6 +127,10 @@ const source = await readFile(
 
 const runtime = source
   .replaceAll("'./db'", `'${dbUrl}'`)
+  .replaceAll(
+    "'./lessons/lessonRepository'",
+    `'${lessonRepositoryUrl}'`
+  )
   .replaceAll(
     "'./lessons/lessonTemporalSafety'",
     `'${temporalSafetyUrl}'`
@@ -333,40 +375,92 @@ test(
 )
 
 test(
-  'future or non-taught lessons cannot use the explicit GIAE path',
+  'future planned lesson with summary becomes taught only when explicitly submitted to GIAE',
   { concurrency: false },
   async () => {
     const future = buildLesson({
       id: 'future',
       date: '2026-09-08',
+      status: 'planned',
+      giaeStatus: 'pending',
       updatedAt: 'future-v1'
     })
-    const planned = buildLesson({
-      id: 'planned',
+    const state = resetState([
+      future
+    ])
+    const repository =
+      new module.GIAEExplicitSubmissionRepository()
+
+    assert.equal(
+      state.lessons.get(future.id).status,
+      'planned'
+    )
+    assert.equal(
+      state.lessons.get(future.id).giaeStatus,
+      'pending'
+    )
+
+    const submitted =
+      await repository.markSubmitted({
+        lessonId: future.id,
+        expectedUpdatedAt: 'future-v1'
+      })
+
+    assert.equal(
+      submitted.status,
+      'taught'
+    )
+    assert.equal(
+      submitted.giaeStatus,
+      'submitted'
+    )
+    assert.equal(
+      state.lessons.get(future.id).status,
+      'taught'
+    )
+    assert.equal(
+      state.lessons.get(future.id).giaeStatus,
+      'submitted'
+    )
+  }
+)
+
+test(
+  'cancelled or empty-summary lessons cannot use the explicit GIAE path',
+  { concurrency: false },
+  async () => {
+    const cancelled = buildLesson({
+      id: 'cancelled',
+      status: 'cancelled',
+      updatedAt: 'cancelled-v1'
+    })
+    const empty = buildLesson({
+      id: 'empty',
       status: 'planned',
-      updatedAt: 'planned-v1'
+      summary: '',
+      updatedAt: 'empty-v1'
     })
     resetState([
-      future,
-      planned
+      cancelled,
+      empty
     ])
     const repository =
       new module.GIAEExplicitSubmissionRepository()
 
     await assert.rejects(
       () => repository.markSubmitted({
-        lessonId: future.id,
-        expectedUpdatedAt: 'future-v1'
+        lessonId: cancelled.id,
+        expectedUpdatedAt: 'cancelled-v1'
       }),
-      /futura/i
+      /aulas com sumário/i
     )
 
     await assert.rejects(
       () => repository.markSubmitted({
-        lessonId: planned.id,
-        expectedUpdatedAt: 'planned-v1'
+        lessonId: empty.id,
+        expectedUpdatedAt: 'empty-v1'
       }),
-      /aulas dadas com sumário/i
+      /aulas com sumário/i
     )
   }
 )
