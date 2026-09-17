@@ -216,11 +216,29 @@ function findSummaryStatusTarget(
   const summaryLabel =
     Array.from(
       root.querySelectorAll('p')
-    ).find(
-      element =>
-        element.textContent?.trim() ===
+    ).find(element => {
+      if (
+        element.textContent?.trim() !==
         'Sumário'
-    )
+      ) {
+        return false
+      }
+
+      const statusRow =
+        element.nextElementSibling
+
+      if (!(statusRow instanceof HTMLElement)) {
+        return false
+      }
+
+      const statusText =
+        statusRow.textContent ?? ''
+
+      return (
+        statusText.includes('Guardado') ||
+        statusText.includes('Por guardar')
+      )
+    })
 
   const statusRow =
     summaryLabel?.nextElementSibling
