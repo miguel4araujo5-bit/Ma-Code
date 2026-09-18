@@ -62,35 +62,49 @@ const sidebarItems: SidebarItem[] = [
 ]
 
 function scrollToCriteriaManagement() {
-  let attempts = 0
+  const findTarget = () =>
+    document.getElementById(
+      'ma-professor-criteria-management'
+    ) ??
+    document.getElementById(
+      'ma-professor-criteria-section'
+    )
 
-  const tryScroll = () => {
+  const scrollToTarget = () => {
     const target =
-      document.getElementById(
-        'ma-professor-criteria-management'
-      )
+      findTarget()
 
-    if (target) {
-      target.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      })
-      return
+    if (!target) {
+      return false
     }
 
-    attempts += 1
+    target.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
 
-    if (attempts < 30) {
-      window.setTimeout(
-        tryScroll,
-        100
-      )
-    }
+    return true
   }
 
-  window.setTimeout(
-    tryScroll,
-    0
+  if (scrollToTarget()) {
+    return
+  }
+
+  const observer =
+    new MutationObserver(
+      () => {
+        if (scrollToTarget()) {
+          observer.disconnect()
+        }
+      }
+    )
+
+  observer.observe(
+    document.body,
+    {
+      childList: true,
+      subtree: true
+    }
   )
 }
 
