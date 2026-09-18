@@ -1,5 +1,5 @@
 export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
-export type ManagementWorkspace = 'dashboard' | 'giae' | 'assessments' | 'planifications' | 'groups'
+export type ManagementWorkspace = 'dashboard' | 'giae' | 'assessments' | 'criteria' | 'planifications' | 'groups'
 export type ProductMenuTarget = ManagementWorkspace | 'attendance' | 'schedule' | 'configuration' | 'settings' | 'restore'
 export type ProductSidebarDestination = ProductMenuTarget | 'calendar'
 
@@ -24,7 +24,8 @@ export const menuDestinations: Array<{
 }> = [
   { id: 'dashboard', label: 'Visão geral', eyebrow: 'Pedagogia', description: 'Consulte sumários pendentes, a agenda, o progresso das UFCD e os indicadores do ano letivo.', icon: '▤' },
   { id: 'giae', label: 'Sumários / GIAE', eyebrow: 'Pedagogia', description: 'Consulte, copie e acompanhe a entrega dos sumários.', icon: '▤' },
-  { id: 'assessments', label: 'Avaliações', eyebrow: 'Pedagogia', description: 'Consulte avaliações, classificações e critérios de avaliação.', icon: '✓' },
+  { id: 'assessments', label: 'Avaliações', eyebrow: 'Pedagogia', description: 'Consulte atividades, classificações e fechos de avaliação.', icon: '✓' },
+  { id: 'criteria', label: 'Critérios de avaliação', eyebrow: 'Pedagogia', description: 'Consulte e edite critérios, ponderações e conjuntos de avaliação.', icon: '≡' },
   { id: 'planifications', label: 'Planificações', eyebrow: 'Pedagogia', description: 'Consulte e organize as planificações e o progresso das aprendizagens.', icon: '▤' },
   { id: 'groups', label: 'Turmas e alunos', eyebrow: 'Pedagogia', description: 'Edite as turmas e as listas de alunos.', icon: '▤' },
   { id: 'attendance', label: 'Faltas e recuperações', eyebrow: 'Acompanhamento', description: 'Consulte percentagens de faltas, alertas e atividades de recuperação.', icon: '✓' },
@@ -35,7 +36,7 @@ export const menuDestinations: Array<{
 ]
 
 export function isManagementWorkspaceTarget(target: string): target is ManagementWorkspace {
-  return ['dashboard', 'giae', 'assessments', 'planifications', 'groups'].includes(target)
+  return ['dashboard', 'giae', 'assessments', 'criteria', 'planifications', 'groups'].includes(target)
 }
 
 export function getMenuDestinationLabel(target: ProductMenuTarget) {
