@@ -43,7 +43,6 @@ type SidebarItem =
       key: string
       label: string
       destination: ProductSidebarDestination
-      criteriaManagement?: boolean
     }
   | {
       key: string
@@ -53,60 +52,14 @@ type SidebarItem =
 
 const sidebarItems: SidebarItem[] = [
   { key: 'calendar', workspace: 'calendar', label: 'Calendário' },
-  ...menuDestinations.flatMap(item => {
-    const destination: SidebarItem = { key: item.id, destination: item.id, label: item.label }
-    return item.id === 'assessments'
-      ? [destination, { key: 'assessment-criteria', destination: 'assessments' as const, label: 'Critérios de avaliação', criteriaManagement: true }]
-      : [destination]
-  })
-]
-
-function scrollToCriteriaManagement() {
-  const findTarget = () =>
-    document.getElementById(
-      'ma-professor-criteria-management'
-    ) ??
-    document.getElementById(
-      'ma-professor-criteria-section'
-    )
-
-  const scrollToTarget = () => {
-    const target =
-      findTarget()
-
-    if (!target) {
-      return false
-    }
-
-    target.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    })
-
-    return true
-  }
-
-  if (scrollToTarget()) {
-    return
-  }
-
-  const observer =
-    new MutationObserver(
-      () => {
-        if (scrollToTarget()) {
-          observer.disconnect()
-        }
-      }
-    )
-
-  observer.observe(
-    document.body,
-    {
-      childList: true,
-      subtree: true
-    }
+  ...menuDestinations.map(
+    item => ({
+      key: item.id,
+      destination: item.id,
+      label: item.label
+    } satisfies SidebarItem)
   )
-}
+]
 
 function SidebarPanel({
   workspace,
@@ -133,15 +86,11 @@ function SidebarPanel({
     onOpenDestination(
       item.destination
     )
-
-    if (item.criteriaManagement) {
-      scrollToCriteriaManagement()
-    }
   }
 
   const isActive = (item: SidebarItem) => 'workspace' in item
     ? workspace === item.workspace
-    : workspace === 'menu' && activeDestination === item.destination && !item.criteriaManagement
+    : workspace === 'menu' && activeDestination === item.destination
 
   return (
     <>
