@@ -66,6 +66,14 @@ const professionalAssessmentSource = await readFile(
   'utf8'
 )
 
+const criteriaWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/CriteriaWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
 const dailyCssSource = await readFile(
@@ -94,34 +102,30 @@ test('all menu and sidebar destinations share one definition and parent navigati
   assert.match(legacyAppSource, /const activeWorkspace = workspaceRequest\?\.workspace \?\? 'dashboard'/)
 })
 
-test('assessment criteria sidebar waits for the mounted criteria destination', () => {
+test('assessment criteria are a dedicated destination instead of a section inside assessments', () => {
   assert.match(
-    productNavigationSource,
-    /key: 'assessment-criteria'[\s\S]*criteriaManagement: true/
+    navigationModelSource,
+    /id: 'criteria', label: 'Critérios de avaliação'/
   )
   assert.match(
-    productNavigationSource,
-    /ma-professor-criteria-management/
+    legacyAppSource,
+    /activeWorkspace ===[\s\S]*'criteria'[\s\S]*<CriteriaWorkspaceView/
   )
   assert.match(
-    productNavigationSource,
-    /ma-professor-criteria-section/
-  )
-  assert.match(
-    productNavigationSource,
-    /new MutationObserver/
+    criteriaWorkspaceSource,
+    /AssessmentCriteriaManagementPanel/
   )
   assert.doesNotMatch(
     productNavigationSource,
-    /attempts < 30/
+    /criteriaManagement|scrollToCriteriaManagement|MutationObserver|ma-professor-criteria-section/
   )
-  assert.match(
+  assert.doesNotMatch(
     regularAssessmentSource,
-    /id="ma-professor-criteria-section"[\s\S]*Critérios e ponderações/
+    /AssessmentCriteriaManagementPanel|ma-professor-criteria-section|Critérios e ponderações/
   )
-  assert.match(
+  assert.doesNotMatch(
     professionalAssessmentSource,
-    /id="ma-professor-criteria-section"[\s\S]*Critérios e ponderações/
+    /ma-professor-criteria-section|Critérios e ponderações/
   )
 })
 
@@ -133,7 +137,7 @@ test('obsolete navigation and DOM replacements are removed from management scree
 })
 
 test('the existing teaching workspaces remain reachable', () => {
-  for (const target of ['dashboard', 'giae', 'assessments', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
+  for (const target of ['dashboard', 'giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
     assert.ok(navigationModelSource.includes(`id: '${target}'`), `missing destination: ${target}`)
   }
   assert.match(menuSource, /<MAProfessorApp/)
