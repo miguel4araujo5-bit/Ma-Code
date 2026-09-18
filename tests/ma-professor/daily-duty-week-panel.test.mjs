@@ -161,6 +161,18 @@ test(
       wrapperSource,
       /<DailyWorkspaceView/
     )
+    assert.match(
+      wrapperSource,
+      /dashboardRepository\.getDashboard/
+    )
+    assert.match(
+      wrapperSource,
+      /<DashboardDutyPendingPanel/
+    )
+    assert.match(
+      wrapperSource,
+      /<DashboardViewBase[\s\S]*showDailyWorkspace=[\s\S]*false/
+    )
     assert.doesNotMatch(
       wrapperSource,
       /DailyDutyWeekPanel/
@@ -208,6 +220,21 @@ test(
     assert.match(
       dutyHelperSource,
       /DUTY_TIME_RANGE/
+    )
+  }
+)
+
+
+test(
+  'unified Daily week highlights the lesson that is running now until the user selects another lesson',
+  () => {
+    assert.match(
+      unifiedSource,
+      /const highlightedLessonId =[\s\S]*selectedLessonId[\s\S]*date !== todayISO\(\)[\s\S]*currentTime[\s\S]*row\.lesson\.startTime <=[\s\S]*currentTime[\s\S]*row\.lesson\.endTime >=[\s\S]*currentTime/
+    )
+    assert.match(
+      unifiedSource,
+      /row\.lesson\.id ===[\s\S]*highlightedLessonId/
     )
   }
 )
