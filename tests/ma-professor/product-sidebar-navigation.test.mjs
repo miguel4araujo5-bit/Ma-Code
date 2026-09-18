@@ -50,6 +50,22 @@ const productSource = await readFile(
   'utf8'
 )
 
+const regularAssessmentSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/RegularAssessmentWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const professionalAssessmentSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
 const dailyCssSource = await readFile(
@@ -76,6 +92,37 @@ test('all menu and sidebar destinations share one definition and parent navigati
   assert.match(productSource, /onNavigate=\{next => void handleSidebarDestination\(next\)\}/)
   assert.match(productSource, /onOpenMenu=\{\(\) => void handleSelect\('menu'\)\}/)
   assert.match(legacyAppSource, /const activeWorkspace = workspaceRequest\?\.workspace \?\? 'dashboard'/)
+})
+
+test('assessment criteria sidebar waits for the mounted criteria destination', () => {
+  assert.match(
+    productNavigationSource,
+    /key: 'assessment-criteria'[\s\S]*criteriaManagement: true/
+  )
+  assert.match(
+    productNavigationSource,
+    /ma-professor-criteria-management/
+  )
+  assert.match(
+    productNavigationSource,
+    /ma-professor-criteria-section/
+  )
+  assert.match(
+    productNavigationSource,
+    /new MutationObserver/
+  )
+  assert.doesNotMatch(
+    productNavigationSource,
+    /attempts < 30/
+  )
+  assert.match(
+    regularAssessmentSource,
+    /id="ma-professor-criteria-section"[\s\S]*Critérios e ponderações/
+  )
+  assert.match(
+    professionalAssessmentSource,
+    /id="ma-professor-criteria-section"[\s\S]*Critérios e ponderações/
+  )
 })
 
 test('obsolete navigation and DOM replacements are removed from management screens', () => {
