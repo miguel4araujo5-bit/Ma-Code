@@ -285,16 +285,14 @@ export default function CriteriaWorkspaceView({
             Confirme a turma, a disciplina e a componente curricular na configuração do ano letivo.
           </p>
         </section>
-      ) : !effectiveSnapshot.scheme ||
-        effectiveSnapshot.criteria
-          .length === 0 ? (
+      ) : !effectiveSnapshot.scheme ? (
         <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6">
           <p className="text-sm font-black text-amber-100">
-            Não existem critérios ativos para esta seleção.
+            Não existe um conjunto de critérios ativo para esta seleção.
           </p>
 
           <p className="mt-2 text-sm leading-6 text-amber-100/75">
-            Pode criá-los ou corrigir a configuração pedagógica em “Corrigir configuração inicial”.
+            Crie o conjunto na configuração pedagógica em “Corrigir configuração inicial”. Depois poderá geri-lo diretamente nesta página.
           </p>
         </section>
       ) : (
