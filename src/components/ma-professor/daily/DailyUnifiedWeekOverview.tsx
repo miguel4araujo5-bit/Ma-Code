@@ -472,6 +472,58 @@ export default function DailyUnifiedWeekOverview({
       [duties]
     )
 
+  const highlightedLessonId =
+    useMemo(
+      () => {
+        if (selectedLessonId) {
+          return selectedLessonId
+        }
+
+        if (
+          !snapshot ||
+          date !== todayISO()
+        ) {
+          return null
+        }
+
+        const currentTime =
+          new Intl.DateTimeFormat(
+            'pt-PT',
+            {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }
+          ).format(
+            new Date()
+          )
+
+        return (
+          snapshot.days
+            .find(
+              day =>
+                day.date === date
+            )
+            ?.lessons.find(
+              row =>
+                row.lesson.status !==
+                  'cancelled' &&
+                row.lesson.startTime <=
+                  currentTime &&
+                row.lesson.endTime >=
+                  currentTime
+            )
+            ?.lesson.id ??
+          null
+        )
+      },
+      [
+        date,
+        selectedLessonId,
+        snapshot
+      ]
+    )
+
   function openDuty(
     duty: DutyOccurrence
   ) {
@@ -801,7 +853,7 @@ export default function DailyUnifiedWeekOverview({
                                   row => {
                                     const active =
                                       row.lesson.id ===
-                                        selectedLessonId
+                                        highlightedLessonId
                                     const cancelled =
                                       row.lesson.status ===
                                         'cancelled'
