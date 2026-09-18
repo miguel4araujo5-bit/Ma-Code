@@ -20,12 +20,6 @@ import type {
   ISODate
 } from '../types'
 
-import AssessmentCriteriaManagementPanel from './AssessmentCriteriaManagementPanel'
-
-import type {
-  UpdatedAssessmentCriteriaScheme
-} from './assessmentCriteriaManagementRepository'
-
 import type {
   AssessmentWorkspaceFilters,
   AssessmentWorkspaceSnapshot,
@@ -155,22 +149,6 @@ function buildGradeDrafts(
   ) as GradeDrafts
 }
 
-function getSubjectLabel(
-  snapshot: AssessmentWorkspaceSnapshot
-) {
-  const subject =
-    snapshot.selectedSubject
-
-  if (!subject) {
-    return 'Disciplina'
-  }
-
-  return (
-    subject.shortName.trim() ||
-    subject.name
-  )
-}
-
 function MetricCard({
   label,
   value,
@@ -245,14 +223,6 @@ export default function RegularAssessmentWorkspaceView({
     setFeedback
   ] = useState<Feedback>(null)
 
-  const [
-    criteriaOverride,
-    setCriteriaOverride
-  ] = useState<
-    UpdatedAssessmentCriteriaScheme |
-    null
-  >(null)
-
   useEffect(() => {
     const previousPersisted =
       previousPersistedDraftsRef.current
@@ -275,13 +245,6 @@ export default function RegularAssessmentWorkspaceView({
     snapshot.generatedAt
   ])
 
-  useEffect(() => {
-    setCriteriaOverride(null)
-  }, [
-    snapshot.generatedAt,
-    snapshot.scheme?.id
-  ])
-
   const hasUnsavedChanges =
     useMemo(
       () =>
@@ -294,17 +257,6 @@ export default function RegularAssessmentWorkspaceView({
         persistedDrafts
       ]
     )
-
-  const criteriaSnapshot =
-    criteriaOverride
-      ? {
-          ...snapshot,
-          scheme:
-            criteriaOverride.scheme,
-          criteria:
-            criteriaOverride.criteria
-        }
-      : snapshot
 
   useMAProfessorUnsavedWorkspaceProtection(
     hasUnsavedChanges,
@@ -492,9 +444,6 @@ export default function RegularAssessmentWorkspaceView({
     }
   }
 
-  const subjectLabel =
-    getSubjectLabel(criteriaSnapshot)
-
   return (
     <div
       ref={rootRef}
@@ -644,39 +593,6 @@ export default function RegularAssessmentWorkspaceView({
               value={`${snapshot.totals.confirmedGradeCount}/${snapshot.totals.studentCount}`}
               detail={scale.description}
             />
-          </section>
-
-          <section id="ma-professor-criteria-section" className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-xl shadow-black/20">
-            <div className="px-5 pt-5 sm:px-7 sm:pt-7">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                Critérios e ponderações
-              </p>
-              <h2 className="mt-3 text-xl font-black text-white">
-                {subjectLabel}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {snapshot.selectedGroup.name} · componente anual
-              </p>
-            </div>
-
-            {criteriaSnapshot.criteria.length === 0 ||
-            !criteriaSnapshot.scheme ? (
-              <div className="px-5 pb-5 sm:px-7 sm:pb-7">
-                <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm leading-6 text-amber-100">
-                  Ainda não existem critérios ativos para esta disciplina.
-                </div>
-              </div>
-            ) : (
-              <AssessmentCriteriaManagementPanel
-                snapshot={criteriaSnapshot}
-                disabled={
-                  loading ||
-                  savingStudentId !== null ||
-                  hasUnsavedChanges
-                }
-                onSaved={setCriteriaOverride}
-              />
-            )}
           </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
