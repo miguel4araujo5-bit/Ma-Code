@@ -13,6 +13,7 @@ interface DashboardViewProps {
   snapshot: DashboardSnapshot
   refreshing?: boolean
   onRefresh?: () => void
+  showDailyWorkspace?: boolean
 }
 
 function formatDate(value: string | null) {
@@ -434,16 +435,19 @@ function AttendanceAlertItem({
 export default function DashboardView({
   snapshot,
   refreshing = false,
-  onRefresh
+  onRefresh,
+  showDailyWorkspace = true
 }: DashboardViewProps) {
   const { totals } = snapshot
 
   return (
     <div className="mx-auto max-w-[110rem]">
-      <DailyWorkspaceView
-        academicYearId={snapshot.academicYear.id}
-        onSaved={onRefresh}
-      />
+      {showDailyWorkspace ? (
+        <DailyWorkspaceView
+          academicYearId={snapshot.academicYear.id}
+          onSaved={onRefresh}
+        />
+      ) : null}
 
       <section className="mt-8 rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
