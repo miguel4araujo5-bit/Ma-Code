@@ -52,7 +52,7 @@ A configuração avançada mantém nove passos: ano letivo, turmas, disciplinas,
 | Menu / Visão geral | `DashboardView` existente, incluindo os seus indicadores e área diária. |
 | Menu / Sumários/GIAE, Avaliações, Planificações, Turmas e alunos | Os mesmos componentes e repositórios, apresentados por `MAProfessorApp` sem shell própria. |
 | Menu / Faltas e recuperações, Horários, Corrigir configuração, Definições, Restaurar dados | Os componentes já existentes. Todas as entradas também estão na navegação lateral comum. |
-| Critérios de avaliação | Atalho lateral para a área existente em Avaliações. |
+| Critérios de avaliação | Área própria para consultar e editar critérios, ponderações e conjuntos de avaliação, separada da página Avaliações. |
 | Voltar à MA-Code | Ligação ao site preservada na navegação comum. |
 
 `MAProfessorApp` foi conservado como contentor funcional; eliminar o ficheiro inteiro destruiria capacidades reais. O nome do ficheiro não implica uma segunda aplicação: deixou de possuir menu, barra lateral, barra móvel e calendário próprios.
