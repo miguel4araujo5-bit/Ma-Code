@@ -94,7 +94,7 @@ const dailyWeekSource = await readFile(
 
 test('all menu and sidebar destinations share one definition and parent navigation state', () => {
   assert.match(menuSource, /menuDestinations\.map/)
-  assert.match(productNavigationSource, /menuDestinations\.flatMap/)
+  assert.match(productNavigationSource, /menuDestinations\.map/)
   assert.match(menuSource, /const target = navigationRequest\?\.target \?\? 'home'/)
   assert.doesNotMatch(menuSource, /setSection|setActiveWorkspace/)
   assert.match(productSource, /onNavigate=\{next => void handleSidebarDestination\(next\)\}/)
