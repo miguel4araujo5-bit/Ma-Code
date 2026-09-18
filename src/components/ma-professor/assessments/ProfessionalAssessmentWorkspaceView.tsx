@@ -117,24 +117,6 @@ function formatScore(
   )
 }
 
-function getSubjectLabel(
-  snapshot: AssessmentWorkspaceSnapshot
-) {
-  const subject =
-    snapshot.selectedSubject
-
-  if (
-    !subject
-  ) {
-    return 'Sem disciplina selecionada'
-  }
-
-  return (
-    subject.shortName.trim() ||
-    subject.name
-  )
-}
-
 function buildGradeDrafts(
   snapshot: AssessmentWorkspaceSnapshot
 ): GradeDrafts {
@@ -594,20 +576,6 @@ export default function AssessmentWorkspaceView({
     }
   }
 
-  const subjectLabel =
-    getSubjectLabel(
-      snapshot
-    )
-
-  const moduleLabel =
-    snapshot.moduleOptions.find(
-      option =>
-        option.module.id ===
-        snapshot.selectedModule
-          ?.id
-    )?.label ??
-    'Sem UFCD selecionada'
-
   return (
     <div
       ref={
@@ -857,77 +825,6 @@ export default function AssessmentWorkspaceView({
               detail="Classificações finais confirmadas."
               className="border-fuchsia-300/15 bg-fuchsia-300/[0.035]"
             />
-          </section>
-
-          <section id="ma-professor-criteria-section" className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                  Critérios e ponderações
-                </p>
-
-                <h2 className="mt-3 text-xl font-black text-white">
-                  {subjectLabel}
-                </h2>
-
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  {snapshot.selectedGroup?.name}{' '}
-                  · {moduleLabel}
-                </p>
-              </div>
-
-              {snapshot.scheme ? (
-                <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100">
-                  {snapshot.scheme.name}
-                </span>
-              ) : null}
-            </div>
-
-            {!snapshot.scheme ||
-            snapshot.criteria.length ===
-              0 ? (
-              <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
-                <p className="text-sm font-black text-amber-100">
-                  Não existem critérios ativos para esta UFCD.
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-amber-100/70">
-                  Configure os critérios de avaliação antes de registar ou calcular classificações.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {snapshot.criteria.map(
-                  criterion => (
-                    <article
-                      key={
-                        criterion.id
-                      }
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-black leading-6 text-white">
-                          {criterion.name}
-                        </p>
-
-                        <span className="shrink-0 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-xs font-black text-amber-100">
-                          {formatScore(
-                            criterion.weightPercent
-                          )}
-                          %
-                        </span>
-                      </div>
-
-                      {criterion.description ? (
-                        <p className="mt-2 text-xs leading-5 text-slate-500">
-                          {criterion.description}
-                        </p>
-                      ) : null}
-                    </article>
-                  )
-                )}
-              </div>
-            )}
           </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
