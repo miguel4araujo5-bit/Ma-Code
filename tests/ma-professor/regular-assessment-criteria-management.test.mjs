@@ -11,6 +11,14 @@ const regularWorkspaceSource = await readFile(
   'utf8'
 )
 
+const criteriaWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/CriteriaWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const managementPanelSource = await readFile(
   new URL(
     '../../src/components/ma-professor/assessments/AssessmentCriteriaManagementPanel.tsx',
@@ -58,45 +66,58 @@ function assertTranspiles(
 }
 
 test(
-  'regular assessment workspace compiles after reusing the protected criteria manager',
+  'criteria management compiles as a dedicated workspace and is no longer embedded in regular assessments',
   () => {
     assertTranspiles(
       regularWorkspaceSource,
       'RegularAssessmentWorkspaceView.tsx'
     )
     assertTranspiles(
+      criteriaWorkspaceSource,
+      'CriteriaWorkspaceView.tsx'
+    )
+    assertTranspiles(
       managementPanelSource,
       'AssessmentCriteriaManagementPanel.tsx'
+    )
+
+    assert.doesNotMatch(
+      regularWorkspaceSource,
+      /AssessmentCriteriaManagementPanel|criteriaOverride|Critérios e ponderações/
     )
   }
 )
 
 test(
-  'regular assessment exposes the same post-setup criteria manager without duplicating its persistence logic',
+  'dedicated criteria workspace reuses the protected criteria manager without duplicating persistence logic',
   () => {
     assert.match(
-      regularWorkspaceSource,
+      criteriaWorkspaceSource,
       /AssessmentCriteriaManagementPanel/
     )
     assert.match(
-      regularWorkspaceSource,
+      criteriaWorkspaceSource,
       /criteriaOverride/
     )
     assert.match(
-      regularWorkspaceSource,
-      /onSaved=\{setCriteriaOverride\}/
+      criteriaWorkspaceSource,
+      /onSaved=\{[\s\S]*setCriteriaOverride[\s\S]*\}/
     )
     assert.match(
-      regularWorkspaceSource,
-      /disabled=\{[\s\S]*loading[\s\S]*savingStudentId\s*!==\s*null[\s\S]*hasUnsavedChanges[\s\S]*\}/
+      criteriaWorkspaceSource,
+      /onFiltersChange/
     )
     assert.match(
-      regularWorkspaceSource,
-      /criteriaSnapshot\.criteria\.length\s*===\s*0/
+      criteriaWorkspaceSource,
+      /Turma e disciplina/
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      /UFCD, módulo ou componente/
     )
     assert.doesNotMatch(
-      regularWorkspaceSource,
-      /snapshot\.criteria\.map/
+      criteriaWorkspaceSource,
+      /assessmentCriteriaManagementRepository\s*\.updateScheme/
     )
   }
 )
@@ -124,10 +145,10 @@ test(
 )
 
 test(
-  'regular criteria management remains local-first and adds no Cloudflare or remote path',
+  'criteria management remains local-first and adds no Cloudflare or remote path',
   () => {
     const combined = [
-      regularWorkspaceSource,
+      criteriaWorkspaceSource,
       managementPanelSource
     ].join('\n')
 
