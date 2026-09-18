@@ -296,7 +296,7 @@ let apiRequests = []
 const pageErrors = []
 const evidence = []
 const destinations = [
-  'Visão geral', 'Sumários / GIAE', 'Avaliações', 'Planificações',
+  'Sumários / GIAE', 'Avaliações', 'Planificações',
   'Turmas e alunos', 'Faltas e recuperações', 'Horários',
   'Corrigir configuração inicial', 'Definições', 'Restaurar dados'
 ]
@@ -401,7 +401,6 @@ try {
         : label === 'Corrigir configuração inicial' ? 'Corrigir configuração' : label
       await page.getByRole('heading', { name: heading, exact: true }).first().waitFor()
       await assertSingleNavigation(page)
-      if (label === 'Visão geral') await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
       if (label === 'Sumários / GIAE') await page.getByRole('button', { name: 'Exportar sumários', exact: true }).waitFor()
       if (label === 'Restaurar dados') await page.getByRole('button', { name: 'Escolher cópia do dispositivo' }).waitFor()
       if (width >= 1280) {
@@ -452,6 +451,14 @@ try {
   evidence.push('aula extra no calendário único, proteção do rascunho e persistência')
 
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  assert.equal(
+    await page.getByRole('complementary', { name: 'Navegação completa do MA-Professor' })
+      .getByRole('button')
+      .filter({ hasText: 'Visão geral' })
+      .count(),
+    0
+  )
   assert.equal((await persistedLesson(page)).matchCount, 1)
   await page.reload()
   assert.equal((await persistedLesson(page)).matchCount, 1)
