@@ -1,15 +1,8 @@
 import {
   type ComponentProps,
   useEffect,
-  useMemo,
   useState
 } from 'react'
-
-import AssessmentCriteriaManagementPanel from './AssessmentCriteriaManagementPanel'
-
-import type {
-  UpdatedAssessmentCriteriaScheme
-} from './assessmentCriteriaManagementRepository'
 
 import BaseUfcdFinalGradeGrid from './UfcdFinalGradeGridBase'
 import UfcdCfpPreview from './UfcdCfpPreview'
@@ -66,24 +59,9 @@ export default function UfcdFinalGradeGrid(
   props: UfcdFinalGradeGridProps
 ) {
   const [
-    criteriaOverride,
-    setCriteriaOverride
-  ] = useState<
-    UpdatedAssessmentCriteriaScheme |
-    null
-  >(null)
-
-  const [
     completionDateReady,
     setCompletionDateReady
   ] = useState(false)
-
-  useEffect(() => {
-    setCriteriaOverride(null)
-  }, [
-    props.snapshot.generatedAt,
-    props.snapshot.scheme?.id
-  ])
 
   useEffect(() => {
     let active = true
@@ -108,24 +86,6 @@ export default function UfcdFinalGradeGrid(
     props.snapshot.selectedModule?.id,
     props.snapshot.selectedModule?.plannedPeriods
   ])
-
-  const effectiveSnapshot =
-    useMemo(
-      () =>
-        criteriaOverride
-          ? {
-              ...props.snapshot,
-              scheme:
-                criteriaOverride.scheme,
-              criteria:
-                criteriaOverride.criteria
-            }
-          : props.snapshot,
-      [
-        criteriaOverride,
-        props.snapshot
-      ]
-    )
 
   const hasDirtyGradeDrafts =
     props.snapshot.studentRows.some(
@@ -156,23 +116,8 @@ export default function UfcdFinalGradeGrid(
 
   return (
     <>
-      {effectiveSnapshot.scheme &&
-      effectiveSnapshot.criteria.length > 0 ? (
-        <section className="overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-slate-950/70 shadow-xl shadow-black/20">
-          <AssessmentCriteriaManagementPanel
-            snapshot={effectiveSnapshot}
-            disabled={
-              importerDisabled
-            }
-            onSaved={
-              setCriteriaOverride
-            }
-          />
-        </section>
-      ) : null}
-
       <UfcdFinalGradeExcelImportPanel
-        snapshot={effectiveSnapshot}
+        snapshot={props.snapshot}
         disabled={importerDisabled}
         onApplyDraft={(
           studentId,
@@ -185,14 +130,14 @@ export default function UfcdFinalGradeGrid(
         }
       />
 
-      {effectiveSnapshot.selectedGroup &&
-      effectiveSnapshot.selectedSubject &&
-      effectiveSnapshot.selectedModule &&
-      effectiveSnapshot.criteria.length > 0 &&
-      effectiveSnapshot.studentRows.length > 0 &&
+      {props.snapshot.selectedGroup &&
+      props.snapshot.selectedSubject &&
+      props.snapshot.selectedModule &&
+      props.snapshot.criteria.length > 0 &&
+      props.snapshot.studentRows.length > 0 &&
       completionDateReady ? (
         <UfcdCfpPreview
-          snapshot={effectiveSnapshot}
+          snapshot={props.snapshot}
           gradeDrafts={props.gradeDrafts}
           loading={props.loading}
           savingStudentId={
