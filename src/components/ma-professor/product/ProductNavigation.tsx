@@ -51,7 +51,6 @@ type SidebarItem =
     }
 
 const sidebarItems: SidebarItem[] = [
-  { key: 'calendar', workspace: 'calendar', label: 'Calendário' },
   ...menuDestinations.map(
     item => ({
       key: item.id,
