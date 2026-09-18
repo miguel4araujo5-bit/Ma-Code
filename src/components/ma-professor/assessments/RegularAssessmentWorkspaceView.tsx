@@ -646,7 +646,7 @@ export default function RegularAssessmentWorkspaceView({
             />
           </section>
 
-          <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-xl shadow-black/20">
+          <section id="ma-professor-criteria-section" className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-xl shadow-black/20">
             <div className="px-5 pt-5 sm:px-7 sm:pt-7">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
                 Critérios e ponderações
