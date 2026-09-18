@@ -78,15 +78,15 @@ test(
 )
 
 test(
-  'Calendar is directly available from the complete mobile drawer',
+  'Calendar stays in primary navigation without a duplicate sidebar shortcut',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       productNavigationSource,
       /key:\s*'calendar'[\s\S]*workspace:\s*'calendar'[\s\S]*label:\s*'Calendário'/
     )
     assert.match(
-      productNavigationSource,
-      /'workspace' in item[\s\S]*onOpenWorkspace\([\s\S]*item\.workspace/
+      navigationModelSource,
+      /id:\s*'calendar',[\s\S]*label:\s*'Calendário'/
     )
     assert.match(
       productSource,
