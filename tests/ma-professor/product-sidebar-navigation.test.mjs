@@ -136,10 +136,18 @@ test('obsolete navigation and DOM replacements are removed from management scree
   assert.match(menuSource, /<SavedScheduleActions/)
 })
 
-test('the existing teaching workspaces remain reachable', () => {
-  for (const target of ['dashboard', 'giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
+test('the existing teaching workspaces remain reachable without a duplicate overview destination', () => {
+  for (const target of ['giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
     assert.ok(navigationModelSource.includes(`id: '${target}'`), `missing destination: ${target}`)
   }
+  assert.doesNotMatch(
+    navigationModelSource,
+    /\{ id: 'dashboard', label:/
+  )
+  assert.match(
+    navigationModelSource,
+    /ManagementWorkspace = 'dashboard'/
+  )
   assert.match(menuSource, /<MAProfessorApp/)
   assert.match(menuSource, /<AttendanceProductWorkspace academicYearId=\{academicYear\.id\}/)
   assert.match(menuSource, /<ScheduleProductWorkspace academicYearId=\{academicYear\.id\}/)
