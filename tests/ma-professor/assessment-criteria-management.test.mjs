@@ -26,6 +26,14 @@ const managedGridSource = await readFile(
   'utf8'
 )
 
+const criteriaWorkspaceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/assessments/CriteriaWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'criteria management reuses the applied assessment scheme and preserves the 100-percent contract',
   () => {
@@ -165,11 +173,19 @@ test(
 )
 
 test(
-  'final UFCD grid integrates criteria management without replacing the existing grade grid',
+  'criteria management lives in its own workspace while the UFCD grade flow remains intact',
   () => {
     assert.match(
-      managedGridSource,
+      criteriaWorkspaceSource,
       /AssessmentCriteriaManagementPanel/
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      /onSaved=\{[\s\S]*setCriteriaOverride[\s\S]*\}/
+    )
+    assert.doesNotMatch(
+      managedGridSource,
+      /AssessmentCriteriaManagementPanel|criteriaOverride/
     )
     assert.match(
       managedGridSource,
@@ -177,15 +193,15 @@ test(
     )
     assert.match(
       managedGridSource,
-      /criteriaOverride/
+      /UfcdFinalGradeExcelImportPanel/
+    )
+    assert.match(
+      managedGridSource,
+      /UfcdCfpPreview/
     )
     assert.match(
       managedGridSource,
       /hasDirtyGradeDrafts/
-    )
-    assert.match(
-      managedGridSource,
-      /onSaved=\{\s*setCriteriaOverride\s*\}/
     )
   }
 )
@@ -194,7 +210,7 @@ test(
   'criteria management stays local-first and does not add Cloudflare or network infrastructure',
   () => {
     const implementation =
-      `${repositorySource}\n${panelSource}\n${managedGridSource}`
+      `${repositorySource}\n${panelSource}\n${criteriaWorkspaceSource}\n${managedGridSource}`
 
     assert.doesNotMatch(
       implementation,
