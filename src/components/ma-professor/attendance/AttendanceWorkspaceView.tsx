@@ -289,7 +289,7 @@ export default function AttendanceWorkspaceView({
   const [
     onlyProblems,
     setOnlyProblems
-  ] = useState(false)
+  ] = useState(true)
 
   const [
     expandedStudentId,
