@@ -22,7 +22,6 @@ export const menuDestinations: Array<{
   description: string
   icon: string
 }> = [
-  { id: 'dashboard', label: 'Visão geral', eyebrow: 'Pedagogia', description: 'Consulte sumários pendentes, a agenda, o progresso das UFCD e os indicadores do ano letivo.', icon: '▤' },
   { id: 'giae', label: 'Sumários / GIAE', eyebrow: 'Pedagogia', description: 'Consulte, copie e acompanhe a entrega dos sumários.', icon: '▤' },
   { id: 'assessments', label: 'Avaliações', eyebrow: 'Pedagogia', description: 'Consulte atividades, classificações e fechos de avaliação.', icon: '✓' },
   { id: 'criteria', label: 'Critérios de avaliação', eyebrow: 'Pedagogia', description: 'Consulte e edite critérios, ponderações e conjuntos de avaliação.', icon: '≡' },
@@ -40,5 +39,9 @@ export function isManagementWorkspaceTarget(target: string): target is Managemen
 }
 
 export function getMenuDestinationLabel(target: ProductMenuTarget) {
+  if (target === 'dashboard') {
+    return 'Painel do ano letivo'
+  }
+
   return menuDestinations.find(item => item.id === target)!.label
 }
