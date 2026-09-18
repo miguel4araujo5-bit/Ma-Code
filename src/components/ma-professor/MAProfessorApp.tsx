@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import AssessmentWorkspaceView from './assessments/AssessmentWorkspaceView'
+import CriteriaWorkspaceView from './assessments/CriteriaWorkspaceView'
 
 import {
   assessmentWorkspaceRepository,
@@ -978,8 +979,12 @@ export default function MAProfessorApp({
     if (
       !snapshot ||
       !setupCompleted ||
-      activeWorkspace !==
-        'assessments'
+      (
+        activeWorkspace !==
+          'assessments' &&
+        activeWorkspace !==
+          'criteria'
+      )
     ) {
       if (
         !snapshot ||
@@ -1738,6 +1743,36 @@ export default function MAProfessorApp({
             onMarkManySubmitted={handleGIAEMarkManySubmitted}
           />
         </div>
+      )
+    }
+
+    if (
+      activeWorkspace ===
+      'criteria'
+    ) {
+      if (
+        !assessmentSnapshot
+      ) {
+        return assessmentError
+          ? (
+              <ErrorView
+                message={assessmentError}
+                onRetry={handleAssessmentRefresh}
+              />
+            )
+          : (
+              <LoadingView />
+            )
+      }
+
+      return (
+        <CriteriaWorkspaceView
+          snapshot={assessmentSnapshot}
+          loading={assessmentLoading}
+          error={assessmentError}
+          onRefresh={handleAssessmentRefresh}
+          onFiltersChange={handleAssessmentFiltersChange}
+        />
       )
     }
 
