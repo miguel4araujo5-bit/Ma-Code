@@ -45,8 +45,7 @@ const fullNavigationLabels = [
   'Turmas e alunos',
   'Faltas e recuperações',
   'Horários',
-  'Definições',
-  'Restaurar dados'
+  'Definições'
 ]
 
 test(
@@ -96,16 +95,16 @@ test(
 )
 
 test(
-  'restore is added as an extra shared shortcut and never replaces a desktop capability',
+  'restore is not duplicated as a standalone navigation shortcut',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       navigationModelSource,
       /id: 'restore',[\s\S]*label: 'Restaurar dados'/
     )
 
     assert.match(
-      productNavigationSource,
-      /'workspace' in item[\s\S]*onOpenWorkspace\([\s\S]*item\.workspace/
+      settingsSource,
+      /id:\s*'backup'[\s\S]*label:\s*'Segurança e recuperação'/
     )
 
     for (const label of [
@@ -121,14 +120,13 @@ test(
     ]) {
       assert.ok(
         navigationLabelsSource.includes(label),
-        `existing desktop shortcut was removed while adding mobile parity: ${label}`
+        `existing navigation shortcut was removed while cleaning restore duplication: ${label}`
       )
     }
   }
 )
-
 test(
-  'the shared restore shortcut opens the existing security workspace with direct cloud and device actions',
+  'Settings security exposes the existing restore actions on desktop and mobile',
   () => {
     assert.match(
       productSource,

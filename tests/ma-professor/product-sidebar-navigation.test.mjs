@@ -102,11 +102,16 @@ const dailyWeekSource = await readFile(
 
 test('all menu and sidebar destinations share one definition and parent navigation state', () => {
   assert.match(menuSource, /menuDestinations\.map/)
-  assert.match(productNavigationSource, /menuDestinations[\s\S]*\.filter\(item => item\.id !== 'restore'\)[\s\S]*\.map/)
-  assert.match(
+  assert.match(productNavigationSource, /menuDestinations\.map/)
+  assert.doesNotMatch(
     navigationModelSource,
     /id: 'restore', label: 'Restaurar dados'/,
-    'Restaurar dados deve continuar disponível no Menu e na área de Definições.'
+    'Restaurar dados não deve aparecer como destino autónomo do Menu ou da barra lateral.'
+  )
+  assert.match(
+    navigationModelSource,
+    /ProductMenuTarget =[^\n]*'restore'/,
+    'A rota interna de restauro deve manter-se disponível para compatibilidade.'
   )
   assert.match(menuSource, /const target = navigationRequest\?\.target \?\? 'home'/)
   assert.doesNotMatch(menuSource, /setSection|setActiveWorkspace/)

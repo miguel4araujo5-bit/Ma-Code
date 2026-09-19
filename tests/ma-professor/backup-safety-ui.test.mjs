@@ -218,23 +218,27 @@ test(
 )
 
 test(
-  'restore remains discoverable from the menu without a duplicate setup banner',
+  'restore remains available inside Settings without a duplicate Menu destination',
   () => {
     assert.match(
       navigationModelSource,
       /\| 'restore'/
     )
-    assert.match(
+    assert.doesNotMatch(
       navigationModelSource,
       /id:\s*'restore'[\s\S]*label:\s*'Restaurar dados'/
     )
     assert.match(
-      productMenuSource,
-      /section === 'settings' \|\|[\s\S]*section === 'restore'/
+      settingsSource,
+      /id:\s*'backup'[\s\S]*label:\s*'Segurança e recuperação'/
+    )
+    assert.match(
+      backupSource,
+      /<RestoreSettingsPanel/
     )
     assert.match(
       productMenuSource,
-      /initialSecuritySection=\{[\s\S]*isRestore[\s\S]*\? 'restore'[\s\S]*: 'protection'/
+      /section === 'settings' \|\|[\s\S]*section === 'restore'/
     )
     assert.doesNotMatch(
       productMenuSource,

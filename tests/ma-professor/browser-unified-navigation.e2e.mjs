@@ -424,7 +424,7 @@ try {
     console.log(evidence.at(-1))
   }
 
-  // Restore is intentionally absent from the sidebar and remains reachable from Menu.
+  // Restore is intentionally absent from standalone navigation and remains inside Settings.
   await page.setViewportSize({ width: 390, height: 900 })
   await page.getByRole('button', { name: 'Abrir navegação completa do MA-Professor' }).click()
   const mobileNavigation = page.getByRole('dialog', { name: 'Navegação completa do MA-Professor' })
@@ -435,11 +435,9 @@ try {
   await mobileNavigation.getByRole('button', { name: 'Fechar navegação' }).click()
 
   await openDestination(page, 'Definições', 390)
-  await primary(page).getByRole('button', { name: 'Menu', exact: false }).click()
-  await waitHeading(page, 'Tudo o que não precisa todos os dias.')
-  await page.getByRole('main').getByRole('button', { name: 'Restaurar dados', exact: true }).click()
+  await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
   await page.getByRole('button', { name: 'Escolher cópia do dispositivo' }).waitFor()
-  await openDestination(page, 'Definições', 390)
+  await page.getByRole('button', { name: /Perfil e regras/ }).click()
   await page.getByRole('button', { name: /Perfil e regras/ }).waitFor()
   await page.getByRole('button', { name: /Corrigir configuração inicial/ }).click()
   await waitHeading(page, 'Corrigir configuração')

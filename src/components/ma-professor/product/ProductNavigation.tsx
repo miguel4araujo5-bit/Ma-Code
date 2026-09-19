@@ -51,9 +51,7 @@ type SidebarItem =
     }
 
 const sidebarItems: SidebarItem[] = [
-  ...menuDestinations
-    .filter(item => item.id !== 'restore')
-    .map(
+  ...menuDestinations.map(
     item => ({
       key: item.id,
       destination: item.id,

@@ -28,8 +28,7 @@ export const menuDestinations: Array<{
   { id: 'groups', label: 'Turmas e alunos', eyebrow: 'Pedagogia', description: 'Edite as turmas e as listas de alunos.', icon: '▤' },
   { id: 'attendance', label: 'Faltas e recuperações', eyebrow: 'Acompanhamento', description: 'Consulte percentagens de faltas, alertas e atividades de recuperação.', icon: '✓' },
   { id: 'schedule', label: 'Horários', eyebrow: 'Organização', description: 'Altere o horário semanal e registe feriados, interrupções e outros eventos.', icon: '▦' },
-  { id: 'settings', label: 'Definições', eyebrow: 'Configuração', description: 'Aceda ao perfil, pesquisa global, segurança e recuperação, exportações e licença.', icon: '⚙' },
-  { id: 'restore', label: 'Restaurar dados', eyebrow: 'Recuperação', description: 'Recupere a cópia cifrada da nuvem ou escolha uma cópia guardada neste dispositivo.', icon: '↺' }
+  { id: 'settings', label: 'Definições', eyebrow: 'Configuração', description: 'Aceda ao perfil, pesquisa global, segurança e recuperação, exportações e licença.', icon: '⚙' }
 ]
 
 export function isManagementWorkspaceTarget(target: string): target is ManagementWorkspace {
