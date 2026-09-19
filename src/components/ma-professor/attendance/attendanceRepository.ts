@@ -206,9 +206,11 @@ async function hasStudentAbsenceInModule(
       lessons
         .filter(
           lesson =>
-            lesson.status ===
-              'taught' &&
-            lesson.countTowardProgress
+            lesson.status !==
+              'cancelled' &&
+            Boolean(
+              lesson.summary.trim()
+            )
         )
         .map(
           lesson =>
@@ -342,9 +344,11 @@ export class AttendanceRepository
         lessons
           .filter(
             lesson =>
-              lesson.status ===
-                'taught' &&
-              lesson.countTowardProgress &&
+              lesson.status !==
+                'cancelled' &&
+              Boolean(
+                lesson.summary.trim()
+              ) &&
               (
                 isStudentMemberOnDate(
                   student,
@@ -375,7 +379,10 @@ export class AttendanceRepository
             lesson.status ===
               'planned' &&
             lesson.countTowardProgress &&
-            lesson.periodCount > 0
+            lesson.periodCount > 0 &&
+            !attendanceByLesson.has(
+              lesson.id
+            )
         )
         .sort(
           (
