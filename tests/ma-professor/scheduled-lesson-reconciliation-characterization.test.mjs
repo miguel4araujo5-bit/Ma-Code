@@ -261,7 +261,7 @@ test(
 
     assert.match(
       dailyWorkspaceViewSource,
-      /educationType ===\s*'professional'/
+      /educationType !==\s*'regular'/
     )
     assert.equal(
       dailyWorkspaceViewSource.includes(
