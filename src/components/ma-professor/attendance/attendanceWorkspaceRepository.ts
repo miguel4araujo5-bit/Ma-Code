@@ -743,6 +743,58 @@ export class AttendanceWorkspaceRepository {
     )
   }
 
+  async synchronizeAcademicYearRecoveries(
+    academicYearId: EntityId
+  ) {
+    const setup =
+      await maProfessorRepository.getSetupSnapshot(
+        academicYearId
+      )
+
+    const activeAssignmentIds =
+      new Set(
+        setup.teachingAssignments
+          .filter(
+            assignment =>
+              assignment.active
+          )
+          .map(
+            assignment =>
+              assignment.id
+          )
+      )
+
+    const modules =
+      sortModules(
+        setup.modules.filter(
+          module =>
+            module.active &&
+            activeAssignmentIds.has(
+              module.teachingAssignmentId
+            )
+        )
+      )
+
+    const created:
+      LearningRecovery[] = []
+
+    for (
+      const module
+      of modules
+    ) {
+      const moduleCreated =
+        await attendanceRepository.synchronizeRecoveriesForModule(
+          module.id
+        )
+
+      created.push(
+        ...moduleCreated
+      )
+    }
+
+    return created
+  }
+
   async synchronizeModuleRecoveries(
     moduleId: EntityId
   ) {
