@@ -2191,12 +2191,6 @@ export default function CalendarWorkspaceView({
             onEventSelect={
               onEventSelect
             }
-            paaActivities={
-              paaActivities
-            }
-            onPAAActivitySelect={
-              onPAAActivitySelect
-            }
           />
         ) : (
           <MonthView
@@ -2211,6 +2205,12 @@ export default function CalendarWorkspaceView({
             }
             onEventSelect={
               onEventSelect
+            }
+            paaActivities={
+              paaActivities
+            }
+            onPAAActivitySelect={
+              onPAAActivitySelect
             }
           />
         )
