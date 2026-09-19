@@ -85,7 +85,7 @@ test(
 )
 
 test(
-  'planned lessons may keep assessments but never persisted attendance, while cancelled lessons reject both',
+  'planned lessons may keep saved attendance when a summary exists, while cancelled lessons reject related data',
   async () => {
     assert.ok(saveSafetySource)
 
@@ -97,7 +97,8 @@ test(
       safety.assertCalendarLessonRelatedDataCompatibility(
         'taught',
         3,
-        2
+        2,
+        true
       )
     )
 
@@ -105,7 +106,17 @@ test(
       safety.assertCalendarLessonRelatedDataCompatibility(
         'planned',
         0,
-        2
+        2,
+        false
+      )
+    )
+
+    assert.doesNotThrow(() =>
+      safety.assertCalendarLessonRelatedDataCompatibility(
+        'planned',
+        1,
+        0,
+        true
       )
     )
 
@@ -113,7 +124,8 @@ test(
       safety.assertCalendarLessonRelatedDataCompatibility(
         'cancelled',
         0,
-        0
+        0,
+        false
       )
     )
 
@@ -122,9 +134,21 @@ test(
         safety.assertCalendarLessonRelatedDataCompatibility(
           'planned',
           1,
-          0
+          0,
+          false
         ),
-      /faltas[\s\S]*marcada como dada/i
+      /faltas[\s\S]*sumário/i
+    )
+
+    assert.throws(
+      () =>
+        safety.assertCalendarLessonRelatedDataCompatibility(
+          'cancelled',
+          1,
+          0,
+          true
+        ),
+      /faltas[\s\S]*cancelar/i
     )
 
     assert.throws(
@@ -132,7 +156,8 @@ test(
         safety.assertCalendarLessonRelatedDataCompatibility(
           'cancelled',
           0,
-          1
+          1,
+          false
         ),
       /avaliações[\s\S]*cancelar/i
     )
@@ -154,17 +179,17 @@ test(
     assert.ok(safetyIndex > updateIndex)
     assert.match(
       editorSource.slice(safetyIndex),
-      /assertCalendarLessonRelatedDataCompatibility\(\s*savedLesson\.status,\s*attendanceCount,\s*assessmentCount\s*\)/s
+      /assertCalendarLessonRelatedDataCompatibility\(\s*savedLesson\.status,\s*attendanceCount,\s*assessmentCount,\s*Boolean\([\s\S]*savedLesson\.summary\.trim\(\)[\s\S]*\)\s*\)/s
     )
   }
 )
 
 test(
-  'calendar keeps attendance taught-only but saves assessments for planned or taught lessons',
+  'calendar saves attendance for non-cancelled lessons with a summary, including future lessons that remain planned',
   () => {
     assert.match(
       editorSource,
-      /if \(savedLesson\.status === 'taught'\)[\s\S]*saveAttendanceWhenReady/s
+      /savedLesson\.status !== 'cancelled'[\s\S]*savedLesson\.summary\.trim\(\)[\s\S]*saveAttendanceWhenReady/s
     )
     assert.match(
       editorSource,
@@ -172,7 +197,7 @@ test(
     )
     assert.match(
       editorSource,
-      /form\.status === 'taught'[\s\S]*<LessonAttendanceSection/s
+      /form\.status !== 'cancelled'[\s\S]*form\.summary\.trim\(\)[\s\S]*<LessonAttendanceSection/s
     )
     assert.match(
       editorSource,
@@ -180,7 +205,7 @@ test(
     )
     assert.match(
       editorSource,
-      /Pode registar avaliações nesta aula sem a marcar[\s\S]*como dada/
+      /Se guardar um sumário,[\s\S]*faltas assinaladas ficam[\s\S]*contam imediatamente,[\s\S]*data futura/i
     )
   }
 )
