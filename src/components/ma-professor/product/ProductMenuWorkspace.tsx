@@ -601,10 +601,14 @@ export function ProductMenuWorkspace({
 
   if (
     section === 'settings' ||
-    section === 'restore'
+    section === 'restore' ||
+    section === 'license'
   ) {
     const isRestore =
       section === 'restore'
+
+    const isLicense =
+      section === 'license'
 
     return (
       <div className="min-h-[calc(100vh-58px)] bg-slate-950">
@@ -623,9 +627,11 @@ export function ProductMenuWorkspace({
           onOpenConfiguration={() => onNavigate('configuration')}
           onDataChanged={onDataChanged}
           initialTab={
-            isRestore
-              ? 'backup'
-              : 'profile'
+            isLicense
+              ? 'license'
+              : isRestore
+                ? 'backup'
+                : 'profile'
           }
           initialSecuritySection={
             isRestore
