@@ -30,6 +30,7 @@ import {
 
 import {
   assertLessonNotTaughtInFuture,
+  isFutureLessonDate,
   resolveLessonStatusFromEvidence
 } from './lessonTemporalSafety'
 
@@ -539,6 +540,68 @@ export class LessonRepository
         )
 
         return submitted
+      }
+    )
+  }
+
+  async markGIAEPendingExplicit(
+    id: EntityId,
+    expectedUpdatedAt: string
+  ) {
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.tables,
+      async () => {
+        const lesson =
+          await maProfessorDb.lessons.get(
+            id
+          )
+
+        if (!lesson) {
+          throw new Error(
+            'A aula indicada não existe.'
+          )
+        }
+
+        if (
+          !expectedUpdatedAt ||
+          lesson.updatedAt !==
+            expectedUpdatedAt
+        ) {
+          throw new Error(
+            'Esta aula foi alterada entretanto. Atualize a página antes de alterar o estado de submissão no GIAE.'
+          )
+        }
+
+        let pending =
+          await super.markGIAEPending(
+            id
+          )
+
+        if (
+          isFutureLessonDate(
+            pending.date
+          ) &&
+          pending.status ===
+            'taught'
+        ) {
+          pending =
+            await super.updateLesson(
+              id,
+              {
+                status:
+                  'planned'
+              },
+              {
+                expectedUpdatedAt:
+                  pending.updatedAt
+              }
+            )
+        }
+
+        return pending
       }
     )
   }
