@@ -26,7 +26,8 @@ import type {
 } from './attendanceRepositoryBase'
 
 import {
-  calculateAnnualAttendancePeriodMetrics
+  calculateAnnualAttendancePeriodMetrics,
+  getAttendanceWarningLevel
 } from './attendancePeriodMetrics'
 
 import {
@@ -367,15 +368,64 @@ export class AttendanceRepository
           )
       )
 
+    const nextPlannedLesson =
+      lessons
+        .filter(
+          lesson =>
+            lesson.status ===
+              'planned' &&
+            lesson.countTowardProgress &&
+            lesson.periodCount > 0
+        )
+        .sort(
+          (
+            left,
+            right
+          ) =>
+            left.date.localeCompare(
+              right.date
+            ) ||
+            left.startTime.localeCompare(
+              right.startTime
+            )
+        )[0] ??
+      lessons
+        .filter(
+          lesson =>
+            lesson.status ===
+              'taught' &&
+            lesson.countTowardProgress &&
+            lesson.periodCount > 0
+        )
+        .sort(
+          (
+            left,
+            right
+          ) =>
+            right.date.localeCompare(
+              left.date
+            ) ||
+            right.startTime.localeCompare(
+              left.startTime
+            )
+        )[0] ??
+      null
+
     const warningLevel:
       StudentAbsenceSummary['warningLevel'] =
-      metrics.absencePercent >=
-      settings.learningRecoveryThresholdPercent
-        ? 'recovery_required'
-        : metrics.absencePercent >=
-            settings.absenceWarningPercent
-          ? 'warning'
-          : 'regular'
+      getAttendanceWarningLevel({
+        plannedPeriods:
+          annualPlannedPeriods,
+        absencePeriods:
+          metrics.absencePeriods,
+        nextLessonPeriods:
+          nextPlannedLesson?.periodCount ??
+          1,
+        warningPercent:
+          settings.absenceWarningPercent,
+        recoveryThresholdPercent:
+          settings.learningRecoveryThresholdPercent
+      })
 
     return {
       ...baseline,
