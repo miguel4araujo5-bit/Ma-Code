@@ -90,6 +90,17 @@ export class GIAEExplicitSubmissionRepository {
     )
   }
 
+  async markPending(
+    input: GIAEExplicitSubmissionInput
+  ) {
+    await this.initialize()
+
+    return lessonRepository.markGIAEPendingExplicit(
+      input.lessonId,
+      input.expectedUpdatedAt
+    )
+  }
+
   async markManySubmitted(
     inputs: GIAEExplicitSubmissionInput[]
   ) {
