@@ -58,8 +58,68 @@ interface WeekTimeSlot {
 const DUTY_DISCARD_MESSAGE =
   'Existem alterações por guardar neste sumário de Cargo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
+function runtimeNow() {
+  if (
+    typeof window !==
+    'undefined'
+  ) {
+    const override =
+      new URLSearchParams(
+        window.location.search
+      ).get(
+        'maProfessorNow'
+      )
+
+    if (
+      override &&
+      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(
+        override
+      )
+    ) {
+      const [
+        datePart,
+        timePart
+      ] = override.split('T')
+      const [
+        year,
+        month,
+        day
+      ] = datePart
+        .split('-')
+        .map(Number)
+      const [
+        hour,
+        minute
+      ] = timePart
+        .split(':')
+        .map(Number)
+
+      const simulated =
+        new Date(
+          year,
+          month - 1,
+          day,
+          hour,
+          minute,
+          0,
+          0
+        )
+
+      if (
+        !Number.isNaN(
+          simulated.getTime()
+        )
+      ) {
+        return simulated
+      }
+    }
+  }
+
+  return new Date()
+}
+
 function todayISO(): ISODate {
-  const date = new Date()
+  const date = runtimeNow()
 
   return [
     String(
@@ -173,7 +233,7 @@ function timeToMinuteOfDay(
 
 function currentMinuteOfDay() {
   const current =
-    new Date()
+    runtimeNow()
 
   return (
     current.getHours() * 60 +
@@ -946,7 +1006,8 @@ export default function DailyUnifiedWeekOverview({
                           const currentSlotProgress =
                             date ===
                               todayISO() &&
-                            day.isToday
+                            day.date ===
+                              todayISO()
                               ? getCurrentSlotProgress(
                                   slot,
                                   currentMinute
