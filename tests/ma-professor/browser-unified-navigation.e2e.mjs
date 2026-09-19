@@ -298,7 +298,7 @@ const evidence = []
 const destinations = [
   'Sumários / GIAE', 'Avaliações', 'Planificações',
   'Turmas e alunos', 'Faltas e recuperações', 'Horários',
-  'Corrigir configuração inicial', 'Definições', 'Restaurar dados'
+  'Definições', 'Restaurar dados'
 ]
 
 function primary(page) {
@@ -397,8 +397,7 @@ try {
     await page.setViewportSize({ width, height: 900 })
     for (const label of destinations) {
       await openDestination(page, label, width)
-      const heading = label === 'Horários' ? 'Horário e calendário escolar'
-        : label === 'Corrigir configuração inicial' ? 'Corrigir configuração' : label
+      const heading = label === 'Horários' ? 'Horário e calendário escolar' : label
       await page.getByRole('heading', { name: heading, exact: true }).first().waitFor()
       await assertSingleNavigation(page)
       if (label === 'Sumários / GIAE') await page.getByRole('button', { name: 'Exportar sumários', exact: true }).waitFor()
@@ -430,6 +429,11 @@ try {
   await page.getByRole('button', { name: 'Escolher cópia do dispositivo' }).waitFor()
   await openDestination(page, 'Definições', 390)
   await page.getByRole('button', { name: /Perfil e regras/ }).waitFor()
+  await page.getByRole('button', { name: /Corrigir configuração inicial/ }).click()
+  await waitHeading(page, 'Corrigir configuração')
+  await page.getByRole('button', { name: '← Menu', exact: true }).click()
+  await waitHeading(page, 'Tudo o que não precisa todos os dias.')
+  evidence.push('Corrigir configuração inicial dentro de Definições, entre Pesquisa e Licença')
 
   await page.setViewportSize({ width: 1366, height: 900 })
   await primary(page).getByRole('button', { name: 'Calendário', exact: false }).click()

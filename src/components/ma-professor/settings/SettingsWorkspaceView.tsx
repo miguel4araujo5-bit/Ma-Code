@@ -29,11 +29,18 @@ type SettingsTab =
   | 'search'
   | 'license'
 
+type SettingsNavigationItem =
+  | SettingsTab
+  | 'configuration'
+
 interface SettingsWorkspaceViewProps {
   academicYearId:
     EntityId | null
 
   onDataChanged?:
+    () => void
+
+  onOpenConfiguration?:
     () => void
 
   initialTab?:
@@ -45,7 +52,7 @@ interface SettingsWorkspaceViewProps {
 
 const tabs: Array<{
   id:
-    SettingsTab
+    SettingsNavigationItem
 
   label:
     string
@@ -88,6 +95,17 @@ const tabs: Array<{
 
   {
     id:
+      'configuration',
+
+    label:
+      'Corrigir configuração inicial',
+
+    description:
+      'Corrigir horário, planificações, critérios, turmas ou alunos'
+  },
+
+  {
+    id:
       'license',
 
     label:
@@ -101,6 +119,7 @@ const tabs: Array<{
 export function SettingsWorkspaceView({
   academicYearId,
   onDataChanged,
+  onOpenConfiguration,
   initialTab = 'profile',
   initialSecuritySection = 'protection'
 }: SettingsWorkspaceViewProps) {
@@ -160,8 +179,10 @@ export function SettingsWorkspaceView({
               {tabs.map(
                 item => {
                   const active =
+                    item.id !==
+                      'configuration' &&
                     tab ===
-                    item.id
+                      item.id
 
                   return (
                     <button
@@ -169,11 +190,19 @@ export function SettingsWorkspaceView({
                         item.id
                       }
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        if (
+                          item.id ===
+                          'configuration'
+                        ) {
+                          onOpenConfiguration?.()
+                          return
+                        }
+
                         setTab(
                           item.id
                         )
-                      }
+                      }}
                       aria-current={
                         active
                           ? 'page'

@@ -76,6 +76,14 @@ const criteriaWorkspaceSource = await readFile(
 
 const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
+const settingsSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/SettingsWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const dailyCssSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/dailyUnifiedWeek.css',
@@ -137,9 +145,29 @@ test('obsolete navigation and DOM replacements are removed from management scree
 })
 
 test('the existing teaching workspaces remain reachable without a duplicate overview destination', () => {
-  for (const target of ['giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'configuration', 'restore']) {
+  for (const target of ['giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'restore']) {
     assert.ok(navigationModelSource.includes(`id: '${target}'`), `missing destination: ${target}`)
   }
+  assert.match(
+    navigationModelSource,
+    /ProductMenuTarget =[^\n]*'configuration'/,
+    'A rota de correção deve continuar disponível internamente.'
+  )
+  assert.doesNotMatch(
+    navigationModelSource,
+    /\{ id: 'configuration', label: 'Corrigir configuração inicial'/,
+    'A correção não deve continuar como destino autónomo do Menu/barra lateral.'
+  )
+  assert.match(
+    settingsSource,
+    /id:\s*'configuration',[\s\S]*label:\s*'Corrigir configuração inicial'/,
+    'A correção deve aparecer dentro de Definições.'
+  )
+  assert.match(
+    settingsSource,
+    /id:\s*'search'[\s\S]*id:\s*'configuration'[\s\S]*id:\s*'license'/,
+    'A correção deve ficar entre Pesquisa e Licença.'
+  )
   assert.doesNotMatch(
     navigationModelSource,
     /\{ id: 'dashboard', label:/

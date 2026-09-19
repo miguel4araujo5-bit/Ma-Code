@@ -12,6 +12,14 @@ const source = await readFile(
 
 const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
+const settingsSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/SettingsWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'product menu observes persisted setup completion and refreshes outer state',
   () => {
@@ -62,10 +70,22 @@ test(
 test(
   'completed setup can be reopened for corrections without resetting completion',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       navigationModelSource,
-      /id: 'configuration',[\s\S]*label: 'Corrigir configuração inicial'/,
-      'O menu deve disponibilizar uma entrada explícita para corrigir a configuração já concluída.'
+      /\{ id: 'configuration', label: 'Corrigir configuração inicial'/,
+      'A correção não deve continuar como entrada autónoma do Menu.'
+    )
+
+    assert.match(
+      settingsSource,
+      /id:\s*'search'[\s\S]*id:\s*'configuration'[\s\S]*label:\s*'Corrigir configuração inicial'[\s\S]*id:\s*'license'/,
+      'A correção deve ficar dentro de Definições, entre Pesquisa e Licença.'
+    )
+
+    assert.match(
+      source,
+      /onOpenConfiguration=\{\(\) => onNavigate\('configuration'\)\}/,
+      'O novo botão deve reutilizar a rota de correção já existente.'
     )
 
     assert.match(

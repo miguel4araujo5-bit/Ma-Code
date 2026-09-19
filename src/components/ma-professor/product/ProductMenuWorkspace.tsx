@@ -620,6 +620,7 @@ export function ProductMenuWorkspace({
         <SettingsWorkspaceView
           key={section}
           academicYearId={academicYear?.id ?? null}
+          onOpenConfiguration={() => onNavigate('configuration')}
           onDataChanged={onDataChanged}
           initialTab={
             isRestore
