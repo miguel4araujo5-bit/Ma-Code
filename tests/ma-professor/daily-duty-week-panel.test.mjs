@@ -281,6 +281,21 @@ test(
 )
 
 
+
+test(
+  'Daily wrapper honors the local maProfessorNow test date too',
+  () => {
+    assert.match(
+      wrapperSource,
+      /URLSearchParams\([\s\S]*window\.location\.search[\s\S]*maProfessorNow/
+    )
+    assert.match(
+      wrapperSource,
+      /initialDate \?\? todayISO\(\)/
+    )
+  }
+)
+
 test(
   'weekend users can preview the Today time line locally without changing persisted data',
   () => {
