@@ -144,6 +144,7 @@ interface StoredRenewalRequestSnapshot {
   requestedPlan:
     | 'paid_30_days'
     | 'school_year'
+    | 'courtesy_30_days'
   amountCents: number
   currency: 'EUR'
   status:
