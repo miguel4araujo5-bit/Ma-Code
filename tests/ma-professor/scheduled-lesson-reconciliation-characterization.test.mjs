@@ -259,9 +259,9 @@ test(
       /maProfessorDb\.lessons/
     )
 
-    assert.match(
+    assert.doesNotMatch(
       dailyWorkspaceViewSource,
-      /educationType !==\s*'regular'/
+      /educationType/
     )
     assert.equal(
       dailyWorkspaceViewSource.includes(
