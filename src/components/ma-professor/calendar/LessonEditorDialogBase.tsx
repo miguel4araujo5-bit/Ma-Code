@@ -1150,7 +1150,8 @@ export default function LessonEditorDialog({
                     <p className="mt-3 text-sm leading-7 text-slate-400">
                       Pode preparar avaliações sem marcar a aula como dada.
                       Se guardar um sumário, as faltas assinaladas ficam
-                      guardadas e contam imediatamente, mesmo numa data futura.
+                      guardadas. Numa aula futura, só entram no cálculo depois
+                      de a cópia para o GIAE ficar confirmada como submetida.
                     </p>
 
                     <button
