@@ -1,6 +1,6 @@
 export type ProductWorkspace = 'daily' | 'calendar' | 'backup' | 'menu'
 export type ManagementWorkspace = 'dashboard' | 'giae' | 'assessments' | 'criteria' | 'planifications' | 'groups'
-export type ProductMenuTarget = ManagementWorkspace | 'attendance' | 'schedule' | 'configuration' | 'settings' | 'restore'
+export type ProductMenuTarget = ManagementWorkspace | 'attendance' | 'schedule' | 'configuration' | 'settings' | 'restore' | 'license'
 export type ProductSidebarDestination = ProductMenuTarget | 'calendar'
 
 export interface ProductMenuNavigationRequest {
@@ -42,6 +42,10 @@ export function getMenuDestinationLabel(target: ProductMenuTarget) {
 
   if (target === 'configuration') {
     return 'Corrigir configuração inicial'
+  }
+
+  if (target === 'license') {
+    return 'Licença'
   }
 
   return menuDestinations.find(item => item.id === target)!.label
