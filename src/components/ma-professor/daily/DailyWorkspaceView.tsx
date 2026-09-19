@@ -994,12 +994,9 @@ export default function DailyWorkspaceView({
         lessonRow?.lesson
             .scheduleSlotId ?? null;
 
-    const isProfessionalScheduledLesson =
+    const hasWeeklySummaryReminder =
         Boolean(
-            lessonRow?.group
-                .educationType !==
-                'regular' &&
-                scheduleSlotId
+            scheduleSlotId
         );
 
     const summaryReminderText =
@@ -1016,7 +1013,7 @@ export default function DailyWorkspaceView({
         );
 
         if (
-            !isProfessionalScheduledLesson ||
+            !hasWeeklySummaryReminder ||
             !scheduleSlotId
         ) {
             setSummaryReminder(null);
@@ -1065,7 +1062,7 @@ export default function DailyWorkspaceView({
             cancelled = true;
         };
     }, [
-        isProfessionalScheduledLesson,
+        hasWeeklySummaryReminder,
         scheduleSlotId
     ]);
 
@@ -1452,7 +1449,7 @@ export default function DailyWorkspaceView({
 
     async function handleSaveSummaryReminder() {
         if (
-            !isProfessionalScheduledLesson ||
+            !hasWeeklySummaryReminder ||
             !scheduleSlotId ||
             summaryReminderSaving
         ) {
@@ -2970,7 +2967,7 @@ export default function DailyWorkspaceView({
                                 </div>
                             ) : null}
 
-                            {isProfessionalScheduledLesson &&
+                            {hasWeeklySummaryReminder &&
                             showSummaryReminderEditor ? (
                                 <div className="mb-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] p-3">
                                     <label className="block text-[0.62rem] font-black uppercase tracking-[0.14em] text-cyan-200">
@@ -3040,7 +3037,7 @@ export default function DailyWorkspaceView({
                                 </div>
                             ) : null}
 
-                            {isProfessionalScheduledLesson &&
+                            {hasWeeklySummaryReminder &&
                             summaryReminderText.trim() ? (
                                 <div className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.08] px-4 py-3">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3096,7 +3093,7 @@ export default function DailyWorkspaceView({
                                         </div>
 
                                         <div className="flex flex-wrap gap-1.5">
-                                            {isProfessionalScheduledLesson ? (
+                                            {hasWeeklySummaryReminder ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => {
