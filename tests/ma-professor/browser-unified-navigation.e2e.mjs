@@ -333,7 +333,8 @@ try {
   apiRequests = await installOfflineApi(page)
   await page.goto(`${BASE_URL}/produtos/ma-professor?acesso=ativar&email=${encodeURIComponent(EMAIL)}#senha=${encodeURIComponent(ACTIVATION_PASSWORD)}`)
   await selectSchool(page)
-  await primary(page).getByRole('button', { name: 'Segurança', exact: false }).click()
+  await openDestination(page, 'Definições', 1366)
+  await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
   await page.getByRole('button', { name: 'Escolher cópia do dispositivo' }).waitFor()
   await primary(page).getByRole('button', { name: 'Menu', exact: false }).click()
   await configureMinimumSetup(page)
@@ -343,7 +344,7 @@ try {
   await editor.section.getByRole('button', { name: 'Guardar', exact: true }).click()
   await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
   assert.equal((await persistedLesson(page)).matchCount, 1)
-  evidence.push('onboarding, segurança antes da conclusão, sumário guardado')
+  evidence.push('onboarding, segurança em Definições antes da conclusão, sumário guardado')
 
   // Complete the fixture after testing real onboarding; no production data or API is used.
   await page.evaluate(async () => {

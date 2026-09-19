@@ -262,7 +262,7 @@ export function ProductNavigation({
             </span>
           </button>
 
-          <nav aria-label="Navegação principal do MA-Professor" className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
+          <nav aria-label="Navegação principal do MA-Professor" className="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-900/80 p-1">
             {primaryNavigation.map(item => {
               const active = workspace === item.id
 

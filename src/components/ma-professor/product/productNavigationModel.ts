@@ -11,7 +11,6 @@ export interface ProductMenuNavigationRequest {
 export const primaryNavigation: Array<{ id: ProductWorkspace; label: string; icon: string }> = [
   { id: 'daily', label: 'Hoje', icon: '▤' },
   { id: 'calendar', label: 'Calendário', icon: '▦' },
-  { id: 'backup', label: 'Segurança', icon: '◈' },
   { id: 'menu', label: 'Menu', icon: '☰' }
 ]
 

@@ -266,19 +266,23 @@ test(
 )
 
 test(
-  'security is directly reachable from the global product navigation and works before setup is complete',
+  'security remains available in settings without a duplicate primary-navigation button',
   () => {
     assert.match(
       navigationModelSource,
       /ProductWorkspace = 'daily' \| 'calendar' \| 'backup' \| 'menu'/
     )
-    assert.match(
+    assert.doesNotMatch(
       navigationModelSource,
       /id:\s*'backup'[\s\S]*label:\s*'Segurança'/
     )
     assert.match(
       productNavigationSource,
-      /grid-cols-4/
+      /grid-cols-3/
+    )
+    assert.match(
+      settingsSource,
+      /id:\s*'backup'[\s\S]*label:\s*'Segurança e recuperação'/
     )
     assert.match(
       productSource,
@@ -294,7 +298,6 @@ test(
     )
   }
 )
-
 test(
   'security screen warns about private browsing and keeps both local and encrypted-online choices',
   () => {
