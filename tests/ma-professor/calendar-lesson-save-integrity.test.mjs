@@ -205,7 +205,7 @@ test(
     )
     assert.match(
       editorSource,
-      /Se guardar um sumário,[\s\S]*faltas assinaladas ficam[\s\S]*contam imediatamente,[\s\S]*data futura/i
+      /Se guardar um sumário,[\s\S]*faltas assinaladas ficam[\s\S]*Numa aula futura,[\s\S]*só entram no cálculo[\s\S]*GIAE[\s\S]*submetida/i
     )
   }
 )
