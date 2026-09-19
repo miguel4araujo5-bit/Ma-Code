@@ -30,6 +30,10 @@ import {
     downloadTextFile
 } from '../settings/csvExport';
 
+import {
+    scheduleWorkspaceRepository
+} from '../schedule/scheduleWorkspaceRepository';
+
 import type {
     EntityId,
     GIAEStatus,
@@ -588,6 +592,29 @@ export default function DailyWorkspaceView({
         setShowStudentDetails
     ] = useState(false);
 
+    const [
+        summaryReminder,
+        setSummaryReminder
+    ] = useState<{
+        slotId: EntityId;
+        text: string;
+    } | null>(null);
+
+    const [
+        summaryReminderDraft,
+        setSummaryReminderDraft
+    ] = useState('');
+
+    const [
+        showSummaryReminderEditor,
+        setShowSummaryReminderEditor
+    ] = useState(false);
+
+    const [
+        summaryReminderSaving,
+        setSummaryReminderSaving
+    ] = useState(false);
+
     const loadRequestRef = useRef(0);
     const savingRef = useRef(false);
     const draftWriteEpochRef =
@@ -962,6 +989,85 @@ export default function DailyWorkspaceView({
     const lessonRow =
         selectedLesson?.context
             .lessonRow ?? null;
+
+    const scheduleSlotId =
+        lessonRow?.lesson
+            .scheduleSlotId ?? null;
+
+    const isProfessionalScheduledLesson =
+        Boolean(
+            lessonRow?.group
+                .educationType ===
+                'professional' &&
+                scheduleSlotId
+        );
+
+    const summaryReminderText =
+        summaryReminder?.slotId ===
+        scheduleSlotId
+            ? summaryReminder.text
+            : '';
+
+    useEffect(() => {
+        let cancelled = false;
+
+        setShowSummaryReminderEditor(
+            false
+        );
+
+        if (
+            !isProfessionalScheduledLesson ||
+            !scheduleSlotId
+        ) {
+            setSummaryReminder(null);
+            setSummaryReminderDraft('');
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        void scheduleWorkspaceRepository
+            .getScheduleSlot(
+                scheduleSlotId
+            )
+            .then(slot => {
+                if (cancelled) {
+                    return;
+                }
+
+                const text =
+                    slot?.summaryReminderText ??
+                    '';
+
+                setSummaryReminder(
+                    text
+                        ? {
+                              slotId:
+                                  scheduleSlotId,
+                              text
+                          }
+                        : null
+                );
+                setSummaryReminderDraft(
+                    text
+                );
+            })
+            .catch(() => {
+                if (cancelled) {
+                    return;
+                }
+
+                setSummaryReminder(null);
+                setSummaryReminderDraft('');
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        isProfessionalScheduledLesson,
+        scheduleSlotId
+    ]);
 
     const lessonIsFuture =
         Boolean(
@@ -1342,6 +1448,115 @@ export default function DailyWorkspaceView({
                   }
                 : current
         );
+    }
+
+    async function handleSaveSummaryReminder() {
+        if (
+            !isProfessionalScheduledLesson ||
+            !scheduleSlotId ||
+            summaryReminderSaving
+        ) {
+            return;
+        }
+
+        const text =
+            summaryReminderDraft.trim();
+
+        if (!text) {
+            setError(
+                'Escreva o texto do lembrete.'
+            );
+            setSuccess('');
+            return;
+        }
+
+        setSummaryReminderSaving(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const updated =
+                await scheduleWorkspaceRepository.updateSummaryReminder(
+                    scheduleSlotId,
+                    text
+                );
+
+            const nextText =
+                updated.summaryReminderText ??
+                '';
+
+            setSummaryReminder({
+                slotId: scheduleSlotId,
+                text: nextText
+            });
+            setSummaryReminderDraft(
+                nextText
+            );
+            setShowSummaryReminderEditor(
+                false
+            );
+            setSuccess(
+                'Lembrete semanal guardado para esta aula.'
+            );
+        } catch (reminderError) {
+            setError(
+                reminderError instanceof Error
+                    ? reminderError.message
+                    : 'Não foi possível guardar o lembrete.'
+            );
+            setSuccess('');
+        } finally {
+            setSummaryReminderSaving(
+                false
+            );
+        }
+    }
+
+    function handleAddSummaryReminderToSummary() {
+        const reminder =
+            summaryReminderText.trim();
+
+        if (
+            !lessonForm ||
+            !reminder
+        ) {
+            return;
+        }
+
+        setLessonForm(current => {
+            if (!current) {
+                return current;
+            }
+
+            const existingSummary =
+                current.summary.replace(
+                    /\s+$/,
+                    ''
+                );
+
+            const nextSummary =
+                existingSummary
+                    ? `${existingSummary}\n${reminder}`
+                    : reminder;
+
+            return {
+                ...current,
+                summary: nextSummary,
+                summarySource: 'manual',
+                status:
+                    current.status ===
+                        'planned' &&
+                    nextSummary.trim()
+                        ? 'taught'
+                        : current.status,
+                giaeStatus:
+                    resolveGIAEStatusAfterSummaryChange(
+                        current.giaeStatus,
+                        current.summary,
+                        nextSummary
+                    )
+            };
+        });
     }
 
     function updateStudent(
@@ -2755,6 +2970,108 @@ export default function DailyWorkspaceView({
                                 </div>
                             ) : null}
 
+                            {isProfessionalScheduledLesson &&
+                            showSummaryReminderEditor ? (
+                                <div className="mb-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] p-3">
+                                    <label className="block text-[0.62rem] font-black uppercase tracking-[0.14em] text-cyan-200">
+                                        Lembrete semanal desta aula
+                                    </label>
+
+                                    <textarea
+                                        value={
+                                            summaryReminderDraft
+                                        }
+                                        onChange={event =>
+                                            setSummaryReminderDraft(
+                                                event
+                                                    .target
+                                                    .value
+                                            )
+                                        }
+                                        disabled={
+                                            summaryReminderSaving
+                                        }
+                                        rows={2}
+                                        placeholder="Ex.: Relembrar trabalho de casa ou material a trazer."
+                                        className={`${inputClassName} mt-2 min-h-20 resize-y text-sm leading-6`}
+                                    />
+
+                                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="text-[0.68rem] leading-4 text-slate-400">
+                                            Repete todas as semanas neste mesmo bloco do horário.
+                                        </p>
+
+                                        <div className="flex flex-wrap justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSummaryReminderDraft(
+                                                        summaryReminderText
+                                                    );
+                                                    setShowSummaryReminderEditor(
+                                                        false
+                                                    );
+                                                }}
+                                                disabled={
+                                                    summaryReminderSaving
+                                                }
+                                                className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-35"
+                                            >
+                                                Cancelar
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void handleSaveSummaryReminder()
+                                                }
+                                                disabled={
+                                                    summaryReminderSaving ||
+                                                    !summaryReminderDraft.trim()
+                                                }
+                                                className="rounded-lg bg-cyan-300 px-3 py-1.5 text-[0.68rem] font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                {summaryReminderSaving
+                                                    ? 'A guardar…'
+                                                    : 'Guardar lembrete'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {isProfessionalScheduledLesson &&
+                            summaryReminderText.trim() ? (
+                                <div className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.08] px-4 py-3">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="min-w-0">
+                                            <p className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-amber-200">
+                                                Lembrete semanal
+                                            </p>
+
+                                            <p className="mt-1 whitespace-pre-line text-sm leading-6 text-amber-50">
+                                                {summaryReminderText}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                handleAddSummaryReminderToSummary
+                                            }
+                                            disabled={
+                                                saving ||
+                                                lessonForm.status ===
+                                                    'cancelled'
+                                            }
+                                            className="shrink-0 rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-35"
+                                        >
+                                            Adicionar ao sumário
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <div className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
                                 <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
@@ -2779,6 +3096,29 @@ export default function DailyWorkspaceView({
                                         </div>
 
                                         <div className="flex flex-wrap gap-1.5">
+                                            {isProfessionalScheduledLesson ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSummaryReminderDraft(
+                                                            summaryReminderText
+                                                        );
+                                                        setShowSummaryReminderEditor(
+                                                            true
+                                                        );
+                                                    }}
+                                                    disabled={
+                                                        saving ||
+                                                        summaryReminderSaving ||
+                                                        lessonForm.status ===
+                                                            'cancelled'
+                                                    }
+                                                    className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:border-amber-300/40 disabled:cursor-not-allowed disabled:opacity-35"
+                                                >
+                                                    Criar lembrete
+                                                </button>
+                                            ) : null}
+
                                             <button
                                                 type="button"
                                                 onClick={

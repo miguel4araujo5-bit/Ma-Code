@@ -26,6 +26,22 @@ const scheduleRepositorySource = await readFile(
   'utf8'
 )
 
+const dailyWorkspaceViewSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const typesSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/types.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const lessonRepositorySource = await readFile(
   new URL(
     '../../src/components/ma-professor/lessons/lessonRepositoryBase.ts',
@@ -210,6 +226,87 @@ test(
     assert.doesNotMatch(
       updateSlot,
       /maProfessorDb\.lessons|deletePlannedLesson/
+    )
+  }
+)
+
+test(
+  'professional summary reminders reuse the existing weekly schedule slot without creating a parallel workflow',
+  () => {
+    assert.equal(
+      typesSource.includes(
+        'summaryReminderText?: string'
+      ),
+      true
+    )
+
+    const reminderRepository = getSection(
+      scheduleRepositorySource,
+      'async getScheduleSlot(',
+      'async deleteScheduleSlot('
+    )
+
+    assert.match(
+      reminderRepository,
+      /async updateSummaryReminder\(/
+    )
+    assert.match(
+      reminderRepository,
+      /weeklyScheduleSlots\.put\(/
+    )
+    assert.doesNotMatch(
+      reminderRepository,
+      /maProfessorDb\.lessons/
+    )
+
+    assert.match(
+      dailyWorkspaceViewSource,
+      /educationType ===\s*'professional'/
+    )
+    assert.equal(
+      dailyWorkspaceViewSource.includes(
+        'scheduleSlotId'
+      ),
+      true
+    )
+    assert.equal(
+      dailyWorkspaceViewSource.includes(
+        'Criar lembrete'
+      ),
+      true
+    )
+    assert.equal(
+      dailyWorkspaceViewSource.includes(
+        'Adicionar ao sumário'
+      ),
+      true
+    )
+    assert.equal(
+      dailyWorkspaceViewSource.includes(
+        'scheduleWorkspaceRepository.updateSummaryReminder'
+      ),
+      true
+    )
+
+    const appendReminder = getSection(
+      dailyWorkspaceViewSource,
+      'function handleAddSummaryReminderToSummary()',
+      'function updateStudent('
+    )
+
+    assert.equal(
+      appendReminder.includes(
+        '${existingSummary}\\n${reminder}'
+      ),
+      true
+    )
+    assert.match(
+      appendReminder,
+      /resolveGIAEStatusAfterSummaryChange\(/
+    )
+    assert.doesNotMatch(
+      appendReminder,
+      /saveAll\(/
     )
   }
 )
