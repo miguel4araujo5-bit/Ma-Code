@@ -349,16 +349,16 @@ test(
 )
 
 test(
-  'Daily persists attendance only for taught lessons while assessment can continue for planned lessons',
+  'Daily persists attendance for any non-cancelled lesson with a saved summary, including future planned lessons',
   () => {
-    const taughtAttendanceGuard =
+    const attendanceGuard =
       dailyRepositorySource.indexOf(
-        "updated.status ===\n          'taught'"
+        "updated.status !==\n            'cancelled'"
       )
     const attendanceSave =
       dailyRepositorySource.indexOf(
         'attendanceRepository.saveLessonAttendance(',
-        taughtAttendanceGuard
+        attendanceGuard
       )
     const assessmentMode =
       dailyRepositorySource.indexOf(
@@ -372,17 +372,24 @@ test(
       )
 
     assert.ok(
-      taughtAttendanceGuard >= 0,
-      'A assiduidade deve continuar condicionada a aula dada.'
+      attendanceGuard >= 0,
+      'A assiduidade deve depender apenas de a aula não estar cancelada.'
+    )
+    assert.match(
+      dailyRepositorySource.slice(
+        attendanceGuard,
+        attendanceSave
+      ),
+      /updated\.summary\.trim\(\)/
     )
     assert.ok(
-      attendanceSave > taughtAttendanceGuard,
-      'A assiduidade só deve ser guardada dentro da verificação de aula dada.'
+      attendanceSave > attendanceGuard,
+      'A assiduidade deve ser guardada quando existe sumário, mesmo que a aula futura permaneça planeada.'
     )
     assert.ok(
       assessmentMode > attendanceSave &&
       assessmentCreate > assessmentMode,
-      'A avaliação deve continuar depois do bloco de assiduidade, também para aulas planeadas.'
+      'A avaliação deve continuar depois do bloco de assiduidade.'
     )
     assert.match(
       dailyRepositorySource,
@@ -392,11 +399,19 @@ test(
 )
 
 test(
-  'attendance still requires taught while assessment repositories allow planned and protect cancelled lessons',
+  'attendance requires a saved summary instead of a taught status, while cancelled lessons remain protected',
   () => {
     assert.match(
       attendanceRepositorySource,
-      /async saveLessonAttendance\([\s\S]*lesson\.status !==[\s\S]*'taught'[\s\S]*assiduidade só pode ser guardada depois de a aula ser marcada como dada/i
+      /async saveLessonAttendance\([\s\S]*lesson\.status ===[\s\S]*'cancelled'[\s\S]*Não é possível guardar assiduidade numa aula cancelada/i
+    )
+    assert.match(
+      attendanceRepositorySource,
+      /!lesson\.summary\.trim\(\)[\s\S]*Guarde primeiro o sumário da aula antes de registar faltas/i
+    )
+    assert.doesNotMatch(
+      attendanceRepositorySource,
+      /lesson\.status !==[\s\S]{0,80}'taught'[\s\S]{0,180}assiduidade só pode/i
     )
 
     assert.match(
@@ -410,10 +425,6 @@ test(
     assert.match(
       assessmentRepositorySource,
       /async saveAssessmentResults\([\s\S]*lesson\.status ===[\s\S]*'cancelled'[\s\S]*Não é possível guardar classificações numa aula cancelada/i
-    )
-    assert.doesNotMatch(
-      assessmentRepositorySource,
-      /lesson\.status !==[\s\S]{0,80}'taught'[\s\S]{0,160}avaliação só pode/i
     )
   }
 )
