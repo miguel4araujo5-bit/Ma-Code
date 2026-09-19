@@ -2,7 +2,6 @@ import {
   type ChangeEvent,
   type FormEvent,
   useEffect,
-  useMemo,
   useState
 } from 'react'
 
@@ -322,21 +321,6 @@ export default function AttendanceWorkspaceView({
     snapshot.generatedAt
   ])
 
-  const visibleRows = useMemo(
-    () =>
-      onlyProblems
-        ? snapshot.rows.filter(
-            row =>
-              row.summary.warningLevel !==
-              'regular'
-          )
-        : snapshot.rows,
-    [
-      onlyProblems,
-      snapshot.rows
-    ]
-  )
-
   const busy =
     loading ||
     Boolean(
@@ -538,33 +522,39 @@ export default function AttendanceWorkspaceView({
               </div>
 
               <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                {regularEducation
-                  ? 'Acompanhamento da disciplina'
-                  : 'Acompanhamento por UFCD'}
+                {onlyProblems
+                  ? 'Avisos de assiduidade'
+                  : regularEducation
+                    ? 'Acompanhamento da disciplina'
+                    : 'Acompanhamento por UFCD'}
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Consulte as faltas de cada aluno e organize as atividades de recuperação sem perder o histórico.
+                {onlyProblems
+                  ? 'Veja de imediato os avisos de todas as turmas, disciplinas e UFCD antes de entrar no detalhe.'
+                  : 'Consulte as faltas de cada aluno e organize as atividades de recuperação sem perder o histórico.'}
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() =>
-                  void synchronize()
-                }
-                disabled={
-                  busy ||
-                  !snapshot.selectedModule
-                }
-                className="rounded-2xl border border-amber-200/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {busyAction ===
-                'synchronize'
-                  ? 'A verificar...'
-                  : 'Verificar recuperações'}
-              </button>
+              {!onlyProblems ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void synchronize()
+                  }
+                  disabled={
+                    busy ||
+                    !snapshot.selectedModule
+                  }
+                  className="rounded-2xl border border-amber-200/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {busyAction ===
+                  'synchronize'
+                    ? 'A verificar...'
+                    : 'Verificar recuperações'}
+                </button>
+              ) : null}
 
               <button
                 type="button"
@@ -583,6 +573,7 @@ export default function AttendanceWorkspaceView({
           </div>
         </div>
 
+        {!onlyProblems ? (
         <div className="grid gap-5 px-5 py-6 sm:px-7 xl:grid-cols-2">
           <label>
             <span className="mb-2 block text-sm font-bold text-slate-200">
@@ -685,6 +676,8 @@ export default function AttendanceWorkspaceView({
             </select>
           </label>
         </div>
+
+        ) : null}
       </section>
 
       {error ? (
@@ -710,8 +703,158 @@ export default function AttendanceWorkspaceView({
         </div>
       ) : null}
 
-      {!snapshot.selectedAssignment ||
-      !snapshot.selectedModule ? (
+      {onlyProblems ? (
+        <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+                Avisos globais
+              </p>
+
+              <h2 className="mt-3 text-xl font-black text-white">
+                Situação de assiduidade
+              </h2>
+
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                Os avisos abaixo reúnem todas as turmas, disciplinas e UFCD do ano letivo. Abra um aviso para entrar diretamente na disciplina certa e gerir a recuperação.
+              </p>
+            </div>
+
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs font-bold text-slate-300">
+              <input
+                type="checkbox"
+                checked={onlyProblems}
+                onChange={(
+                  event: ChangeEvent<HTMLInputElement>
+                ) =>
+                  setOnlyProblems(
+                    event.target.checked
+                  )
+                }
+                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+              />
+
+              Mostrar apenas avisos
+            </label>
+          </div>
+
+          {snapshot.alertRows.length ===
+          0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
+              <p className="text-sm font-black text-white">
+                Não existem avisos de assiduidade em nenhuma disciplina.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              {snapshot.alertRows.map(
+                row => {
+                  const activeRecovery =
+                    row.recovery &&
+                    row.recovery.status !==
+                      'completed'
+                      ? row.recovery
+                      : null
+
+                  const subjectName =
+                    row.subject.shortName.trim() ||
+                    row.subject.name
+
+                  const moduleName =
+                    row.module.code.trim()
+                      ? `${row.module.code.trim()} · ${row.module.name}`
+                      : row.module.name
+
+                  return (
+                    <article
+                      key={`${row.module.id}-${row.student.id}`}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
+                    >
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">
+                            N.º {row.student.number}
+                          </p>
+
+                          <h3 className="mt-1 truncate text-base font-black text-white">
+                            {row.student.name}
+                          </h3>
+
+                          <p className="mt-2 text-sm font-bold text-cyan-100">
+                            {row.group.name} · {subjectName}
+                          </p>
+
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            {moduleName}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1.5 text-xs font-black text-slate-300">
+                            {row.summary.absences}/{row.summary.lessonsTaught} faltas
+                          </span>
+
+                          <span
+                            className={`rounded-full border px-3 py-1.5 text-xs font-black ${warningClass(
+                              row.summary.warningLevel
+                            )}`}
+                          >
+                            {formatPercent(
+                              row.summary
+                                .absencePercent
+                            )}% ·{' '}
+                            {getAbsenceWarningLevelLabel(
+                              row.summary.warningLevel
+                            )}
+                          </span>
+
+                          {activeRecovery ? (
+                            <span
+                              className={`rounded-full border px-3 py-1.5 text-xs font-black ${recoveryClass(
+                                activeRecovery.status
+                              )}`}
+                            >
+                              {getRecoveryStatusLabel(
+                                activeRecovery.status
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedStudentId(
+                              row.student.id
+                            )
+                            setOnlyProblems(false)
+                            onFiltersChange({
+                              teachingAssignmentId:
+                                row.assignment.id,
+                              moduleId:
+                                row.module.id
+                            })
+                          }}
+                          disabled={busy}
+                          className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] px-4 py-2.5 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/10 disabled:opacity-60"
+                        >
+                          Abrir disciplina e gerir
+                        </button>
+                      </div>
+                    </article>
+                  )
+                }
+              )}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {!onlyProblems ? (
+        !snapshot.selectedAssignment ||
+        !snapshot.selectedModule ? (
         <section className="rounded-[2rem] border border-dashed border-white/15 bg-slate-950/60 p-8 text-center">
           <p className="text-lg font-black text-white">
             Ainda não existem dados de assiduidade disponíveis.
@@ -820,7 +963,7 @@ export default function AttendanceWorkspaceView({
               </label>
             </div>
 
-            {visibleRows.length ===
+            {snapshot.rows.length ===
             0 ? (
               <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
                 <p className="text-sm font-black text-white">
@@ -829,7 +972,7 @@ export default function AttendanceWorkspaceView({
               </div>
             ) : (
               <div className="mt-5 space-y-4">
-                {visibleRows.map(
+                {snapshot.rows.map(
                   row => {
                     const recovery =
                       row.recovery
@@ -1252,7 +1395,8 @@ export default function AttendanceWorkspaceView({
             )}
           </section>
         </>
-      )}
+        )
+      ) : null}
     </div>
   )
 }
