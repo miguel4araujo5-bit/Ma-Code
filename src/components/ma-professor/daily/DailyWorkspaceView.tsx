@@ -986,6 +986,22 @@ export default function DailyWorkspaceView({
     const selectedLesson =
         workspace?.selectedLesson ?? null;
 
+    const persistedAttendanceByStudent =
+        useMemo(
+            () =>
+                new Map(
+                    (
+                        selectedLesson
+                            ?.students ??
+                        []
+                    ).map(row => [
+                        row.student.id,
+                        row.attendanceStatus
+                    ])
+                ),
+            [selectedLesson]
+        );
+
     const lessonRow =
         selectedLesson?.context
             .lessonRow ?? null;
@@ -3483,6 +3499,12 @@ export default function DailyWorkspaceView({
                                                             ?.absencePercent ??
                                                         null;
 
+                                                    const annualPlannedPeriods =
+                                                        row
+                                                            .absenceSummary
+                                                            ?.annualPlannedPeriods ??
+                                                        0;
+
                                                     const annualAbsencePeriods =
                                                         row
                                                             .absenceSummary
@@ -3492,19 +3514,79 @@ export default function DailyWorkspaceView({
                                                             ?.absences ??
                                                         0;
 
+                                                    const persistedAttendanceStatus =
+                                                        persistedAttendanceByStudent.get(
+                                                            row
+                                                                .student
+                                                                .id
+                                                        ) ??
+                                                        'present';
+
+                                                    const currentLessonPeriods =
+                                                        Math.max(
+                                                            0,
+                                                            Number(
+                                                                lessonForm?.periodCount ??
+                                                                    0
+                                                            ) ||
+                                                                0
+                                                        );
+
+                                                    const currentLessonCounts =
+                                                        Boolean(
+                                                            lessonForm?.countTowardProgress
+                                                        ) &&
+                                                        lessonForm?.status !==
+                                                            'cancelled' &&
+                                                        currentLessonPeriods >
+                                                            0;
+
+                                                    const attendanceDelta =
+                                                        currentLessonCounts &&
+                                                        row.attendanceStatus !==
+                                                            persistedAttendanceStatus
+                                                            ? row.attendanceStatus ===
+                                                              'absent'
+                                                                ? currentLessonPeriods
+                                                                : -currentLessonPeriods
+                                                            : 0;
+
+                                                    const displayedAbsencePeriods =
+                                                        Math.max(
+                                                            0,
+                                                            annualAbsencePeriods +
+                                                                attendanceDelta
+                                                        );
+
+                                                    const displayedAbsencePercent =
+                                                        annualPlannedPeriods >
+                                                        0
+                                                            ? (displayedAbsencePeriods /
+                                                                  annualPlannedPeriods) *
+                                                              100
+                                                            : absencePercent;
+
                                                     const hasAbsences =
-                                                        annualAbsencePeriods >
+                                                        displayedAbsencePeriods >
                                                         0;
 
                                                     const hasAbsenceWarning =
-                                                        row
-                                                            .absenceSummary
-                                                            ?.warningLevel !==
-                                                            undefined &&
-                                                        row
-                                                            .absenceSummary
-                                                            .warningLevel !==
-                                                            'regular';
+                                                        (
+                                                            row
+                                                                .absenceSummary
+                                                                ?.warningLevel !==
+                                                                undefined &&
+                                                            row
+                                                                .absenceSummary
+                                                                .warningLevel !==
+                                                                'regular'
+                                                        ) ||
+                                                        (
+                                                            displayedAbsencePercent !==
+                                                                null &&
+                                                            displayedAbsencePercent >=
+                                                                10
+                                                        );
 
                                                     return (
                                                         <div
@@ -3572,11 +3654,11 @@ export default function DailyWorkspaceView({
                                                                                 >
                                                                                     Faltas{' '}
                                                                                     {
-                                                                                        annualAbsencePeriods
+                                                                                        displayedAbsencePeriods
                                                                                     }{' '}
                                                                                     (
                                                                                     {formatPercent(
-                                                                                        absencePercent
+                                                                                        displayedAbsencePercent
                                                                                     )}
                                                                                     )
                                                                                 </span>
