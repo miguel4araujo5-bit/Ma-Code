@@ -431,6 +431,10 @@ export class AttendanceRepository
       ...baseline,
       absencePercent:
         metrics.absencePercent,
+      annualAbsencePeriods:
+        metrics.absencePeriods,
+      annualPlannedPeriods:
+        metrics.plannedPeriods,
       warningLevel
     }
   }
