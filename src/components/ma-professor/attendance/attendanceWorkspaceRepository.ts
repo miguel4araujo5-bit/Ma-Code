@@ -450,110 +450,173 @@ export class AttendanceWorkspaceRepository {
         )
       )
 
-    const alertRows:
-      AttendanceWorkspaceAlertRow[] =
-      allOverview
-        .flatMap(
-          row => {
-            if (
-              row.summary.warningLevel ===
-              'regular'
-            ) {
-              return []
-            }
+    const alertRowsByAssignmentStudent =
+      new Map<
+        string,
+        AttendanceWorkspaceAlertRow
+      >()
 
-            const option =
-              assignmentOptionById.get(
-                row.assignment.id
-              )
+    allOverview.forEach(
+      row => {
+        if (
+          row.summary.warningLevel ===
+          'regular'
+        ) {
+          return
+        }
 
-            if (
-              !option
-            ) {
-              return []
-            }
+        const option =
+          assignmentOptionById.get(
+            row.assignment.id
+          )
 
-            return [
-              {
-                student:
-                  row.student,
-                assignment:
-                  row.assignment,
-                group:
-                  option.group,
-                subject:
-                  option.subject,
-                module:
-                  row.module,
-                summary:
-                  row.summary,
-                recovery:
-                  row.recovery
-              }
-            ]
-          }
-        )
-        .sort(
+        if (
+          !option
+        ) {
+          return
+        }
+
+        const nextRow:
+          AttendanceWorkspaceAlertRow = {
+          student:
+            row.student,
+          assignment:
+            row.assignment,
+          group:
+            option.group,
+          subject:
+            option.subject,
+          module:
+            row.module,
+          summary:
+            row.summary,
+          recovery:
+            row.recovery
+        }
+
+        const key =
+          `${row.assignment.id}::${row.student.id}`
+
+        const current =
+          alertRowsByAssignmentStudent.get(
+            key
+          )
+
+        if (
+          !current
+        ) {
+          alertRowsByAssignmentStudent.set(
+            key,
+            nextRow
+          )
+          return
+        }
+
+        const currentHasActiveRecovery =
+          Boolean(
+            current.recovery &&
+            current.recovery.status !==
+              'completed'
+          )
+
+        const nextHasActiveRecovery =
+          Boolean(
+            nextRow.recovery &&
+            nextRow.recovery.status !==
+              'completed'
+          )
+
+        const currentHasAbsence =
+          current.summary.absences > 0
+
+        const nextHasAbsence =
+          nextRow.summary.absences > 0
+
+        const shouldReplace =
           (
-            left,
-            right
-          ) => {
-            const warningOrder = {
-              recovery_required: 0,
-              warning: 1,
-              regular: 2
-            } as const
+            nextHasActiveRecovery &&
+            !currentHasActiveRecovery
+          ) ||
+          (
+            nextHasActiveRecovery ===
+              currentHasActiveRecovery &&
+            nextHasAbsence &&
+            !currentHasAbsence
+          ) ||
+          (
+            nextHasActiveRecovery ===
+              currentHasActiveRecovery &&
+            nextHasAbsence ===
+              currentHasAbsence &&
+            nextRow.module.order <
+              current.module.order
+          )
 
-            return (
+        if (
+          shouldReplace
+        ) {
+          alertRowsByAssignmentStudent.set(
+            key,
+            nextRow
+          )
+        }
+      }
+    )
+
+    const alertRows =
+      [
+        ...alertRowsByAssignmentStudent.values()
+      ].sort(
+        (
+          left,
+          right
+        ) => {
+          const warningOrder = {
+            recovery_required: 0,
+            warning: 1,
+            regular: 2
+          } as const
+
+          return (
+            warningOrder[
+              left.summary.warningLevel
+            ] -
               warningOrder[
-                left.summary.warningLevel
-              ] -
-                warningOrder[
-                  right.summary.warningLevel
-                ] ||
-              left.group.name.localeCompare(
-                right.group.name,
-                'pt-PT',
-                {
-                  numeric: true,
-                  sensitivity: 'base'
-                }
-              ) ||
+                right.summary.warningLevel
+              ] ||
+            right.summary.absencePercent -
+              left.summary.absencePercent ||
+            left.group.name.localeCompare(
+              right.group.name,
+              'pt-PT',
+              {
+                numeric: true,
+                sensitivity: 'base'
+              }
+            ) ||
+            subjectLabel(
+              left.subject
+            ).localeCompare(
               subjectLabel(
-                left.subject
-              ).localeCompare(
-                subjectLabel(
-                  right.subject
-                ),
-                'pt-PT',
-                {
-                  numeric: true,
-                  sensitivity: 'base'
-                }
-              ) ||
-              moduleLabel(
-                left.module
-              ).localeCompare(
-                moduleLabel(
-                  right.module
-                ),
-                'pt-PT',
-                {
-                  numeric: true,
-                  sensitivity: 'base'
-                }
-              ) ||
-              left.student.number.localeCompare(
-                right.student.number,
-                'pt-PT',
-                {
-                  numeric: true,
-                  sensitivity: 'base'
-                }
-              )
+                right.subject
+              ),
+              'pt-PT',
+              {
+                numeric: true,
+                sensitivity: 'base'
+              }
+            ) ||
+            left.student.number.localeCompare(
+              right.student.number,
+              'pt-PT',
+              {
+                numeric: true,
+                sensitivity: 'base'
+              }
             )
-          }
-        )
+          )
+        }
+      )
 
     const recoveriesByStudent =
       new Map<
