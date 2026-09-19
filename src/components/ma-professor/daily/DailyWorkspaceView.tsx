@@ -3483,11 +3483,28 @@ export default function DailyWorkspaceView({
                                                             ?.absencePercent ??
                                                         null;
 
+                                                    const annualAbsencePeriods =
+                                                        row
+                                                            .absenceSummary
+                                                            ?.annualAbsencePeriods ??
+                                                        row
+                                                            .absenceSummary
+                                                            ?.absences ??
+                                                        0;
+
+                                                    const hasAbsences =
+                                                        annualAbsencePeriods >
+                                                        0;
+
                                                     const hasAbsenceWarning =
-                                                        absencePercent !==
-                                                            null &&
-                                                        absencePercent >=
-                                                            10;
+                                                        row
+                                                            .absenceSummary
+                                                            ?.warningLevel !==
+                                                            undefined &&
+                                                        row
+                                                            .absenceSummary
+                                                            .warningLevel !==
+                                                            'regular';
 
                                                     return (
                                                         <div
@@ -3523,29 +3540,48 @@ export default function DailyWorkspaceView({
                                                                         }
                                                                     </p>
 
-                                                                    {(hasAbsenceWarning ||
+                                                                    {(hasAbsences ||
                                                                         row.provisionalAverage !==
                                                                             null) && (
-                                                                        <p className="truncate text-[0.58rem] font-semibold text-slate-500">
+                                                                        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 text-[0.58rem] font-semibold">
                                                                             {row.provisionalAverage !==
-                                                                            null
-                                                                                ? `Média UFCD ${formatScore(
-                                                                                      row.provisionalAverage
-                                                                                  )}`
-                                                                                : ''}
+                                                                            null ? (
+                                                                                <span className="text-slate-500">
+                                                                                    Média UFCD{' '}
+                                                                                    {formatScore(
+                                                                                        row.provisionalAverage
+                                                                                    )}
+                                                                                </span>
+                                                                            ) : null}
 
                                                                             {row.provisionalAverage !==
                                                                                 null &&
-                                                                            hasAbsenceWarning
-                                                                                ? ' · '
-                                                                                : ''}
+                                                                            hasAbsences ? (
+                                                                                <span className="text-slate-600">
+                                                                                    ·
+                                                                                </span>
+                                                                            ) : null}
 
-                                                                            {hasAbsenceWarning
-                                                                                ? `Faltas ${formatPercent(
-                                                                                      absencePercent
-                                                                                  )}`
-                                                                                : ''}
-                                                                        </p>
+                                                                            {hasAbsences ? (
+                                                                                <span
+                                                                                    className={
+                                                                                        hasAbsenceWarning
+                                                                                            ? 'font-black text-rose-300'
+                                                                                            : 'text-rose-300'
+                                                                                    }
+                                                                                >
+                                                                                    Faltas{' '}
+                                                                                    {
+                                                                                        annualAbsencePeriods
+                                                                                    }{' '}
+                                                                                    (
+                                                                                    {formatPercent(
+                                                                                        absencePercent
+                                                                                    )}
+                                                                                    )
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </div>
                                                                     )}
                                                                 </div>
 
