@@ -230,11 +230,33 @@ test(
   () => {
     assert.match(
       unifiedSource,
-      /const highlightedLessonId =[\s\S]*selectedLessonId[\s\S]*date !== todayISO\(\)[\s\S]*currentTime[\s\S]*row\.lesson\.startTime <=[\s\S]*currentTime[\s\S]*row\.lesson\.endTime >=[\s\S]*currentTime/
+      /const highlightedLessonId =[\s\S]*selectedLessonId[\s\S]*date !== todayISO\(\)[\s\S]*getCurrentSlotProgress\([\s\S]*row\.lesson\.startTime[\s\S]*row\.lesson\.endTime[\s\S]*currentMinute/
     )
     assert.match(
       unifiedSource,
       /row\.lesson\.id ===[\s\S]*highlightedLessonId/
+    )
+  }
+)
+
+test(
+  'Today timetable shows a live red line descending through the current time cell',
+  () => {
+    assert.match(
+      unifiedSource,
+      /window\.setInterval\([\s\S]*updateCurrentMinute[\s\S]*15_000/
+    )
+    assert.match(
+      unifiedSource,
+      /date ===[\s\S]*todayISO\(\)[\s\S]*day\.isToday[\s\S]*getCurrentSlotProgress\([\s\S]*slot[\s\S]*currentMinute/
+    )
+    assert.match(
+      unifiedSource,
+      /currentSlotProgress !==[\s\S]*null[\s\S]*bg-rose-300/
+    )
+    assert.match(
+      unifiedSource,
+      /border-t-2 border-rose-400[\s\S]*currentSlotProgress \*[\s\S]*100/
     )
   }
 )
