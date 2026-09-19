@@ -240,7 +240,7 @@ test(
 )
 
 test(
-  'Today timetable shows a live red line descending through the current time cell',
+  'Today timetable illuminates the current cell in confirmation blue and shows a live red progress line',
   () => {
     assert.match(
       unifiedSource,
@@ -248,11 +248,15 @@ test(
     )
     assert.match(
       unifiedSource,
-      /date ===[\s\S]*todayISO\(\)[\s\S]*day\.isToday[\s\S]*getCurrentSlotProgress\([\s\S]*slot[\s\S]*currentMinute/
+      /date ===[\s\S]*todayISO\(\)[\s\S]*day\.date ===[\s\S]*todayISO\(\)[\s\S]*getCurrentSlotProgress\([\s\S]*slot[\s\S]*currentMinute/
     )
     assert.match(
       unifiedSource,
-      /currentSlotProgress !==[\s\S]*null[\s\S]*bg-rose-300/
+      /currentSlotProgress !==[\s\S]*null[\s\S]*bg-cyan-300/
+    )
+    assert.match(
+      unifiedSource,
+      /ring-cyan-300/
     )
     assert.match(
       unifiedSource,
@@ -261,59 +265,16 @@ test(
   }
 )
 
-
 test(
-  'Today timeline can be tested locally with a URL date and time override without backend calls',
+  'temporary Today timeline test controls and URL override are removed',
   () => {
-    assert.match(
-      unifiedSource,
-      /URLSearchParams\([\s\S]*window\.location\.search[\s\S]*maProfessorNow/
-    )
-    assert.match(
-      unifiedSource,
-      /day\.date ===[\s\S]*todayISO\(\)[\s\S]*getCurrentSlotProgress/
-    )
     assert.doesNotMatch(
       unifiedSource,
-      /maProfessorNow[\s\S]{0,500}fetch\(/
+      /Testar linha|Terminar teste|maProfessorNow|timelinePreview/
     )
-  }
-)
-
-
-
-test(
-  'Daily wrapper honors the local maProfessorNow test date too',
-  () => {
-    assert.match(
+    assert.doesNotMatch(
       wrapperSource,
-      /URLSearchParams\([\s\S]*window\.location\.search[\s\S]*maProfessorNow/
-    )
-    assert.match(
-      wrapperSource,
-      /initialDate \?\? todayISO\(\)/
-    )
-  }
-)
-
-test(
-  'weekend users can preview the Today time line locally without changing persisted data',
-  () => {
-    assert.match(
-      unifiedSource,
-      /const canPreviewTimeline =[\s\S]*!weekDays\.some\([\s\S]*todayISO\(\)/
-    )
-    assert.match(
-      unifiedSource,
-      /function toggleTimelinePreview\(\)[\s\S]*setTimelinePreview\([\s\S]*minute:[\s\S]*start[\s\S]*end/
-    )
-    assert.match(
-      unifiedSource,
-      /Testar linha/
-    )
-    assert.match(
-      unifiedSource,
-      /timelinePreview\?\.date[\s\S]*timelinePreview\?\.minute[\s\S]*getCurrentSlotProgress/
+      /maProfessorNow|runtimeDate/
     )
   }
 )
