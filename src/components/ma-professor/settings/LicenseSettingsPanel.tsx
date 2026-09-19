@@ -158,7 +158,18 @@ export function LicenseSettingsPanel() {
           pela MA-CODE. O botão não efetua cobrança automática.
         </p>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={Boolean(busyPlan)}
+          onClick={() => void handleRenewal('courtesy_30_days')}
+          className="mt-5 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15 disabled:cursor-wait disabled:opacity-60"
+        >
+          {busyPlan === 'courtesy_30_days'
+            ? 'A pedir…'
+            : 'Pedir extensão de período gratuito'}
+        </button>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <button
             type="button"
             disabled={Boolean(busyPlan)}
