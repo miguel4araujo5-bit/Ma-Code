@@ -185,6 +185,13 @@ export function AttendanceProductWorkspace({
             )
           )
         }
+        onSynchronizeAllRecoveries={() =>
+          mutate(() =>
+            attendanceWorkspaceRepository.synchronizeAcademicYearRecoveries(
+              academicYearId
+            )
+          )
+        }
         onSynchronizeRecoveries={(
           moduleId: EntityId
         ) =>
