@@ -162,9 +162,27 @@ const LessonAttendanceSection =
             lesson
           ) {
             if (
-              lesson.status !==
-              'taught'
+              lesson.status ===
+              'cancelled'
             ) {
+              return
+            }
+
+            if (
+              !lesson.summary.trim()
+            ) {
+              if (
+                rows.some(
+                  row =>
+                    row.effectiveStatus ===
+                    'absent'
+                )
+              ) {
+                throw new Error(
+                  'Guarde o sumário antes de registar faltas.'
+                )
+              }
+
               return
             }
 
