@@ -260,3 +260,22 @@ test(
     )
   }
 )
+
+
+test(
+  'Today timeline can be tested locally with a URL date and time override without backend calls',
+  () => {
+    assert.match(
+      unifiedSource,
+      /URLSearchParams\([\s\S]*window\.location\.search[\s\S]*maProfessorNow/
+    )
+    assert.match(
+      unifiedSource,
+      /day\.date ===[\s\S]*todayISO\(\)[\s\S]*getCurrentSlotProgress/
+    )
+    assert.doesNotMatch(
+      unifiedSource,
+      /maProfessorNow[\s\S]{0,500}fetch\(/
+    )
+  }
+)
