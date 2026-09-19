@@ -279,3 +279,26 @@ test(
     )
   }
 )
+
+
+test(
+  'weekend users can preview the Today time line locally without changing persisted data',
+  () => {
+    assert.match(
+      unifiedSource,
+      /const canPreviewTimeline =[\s\S]*!weekDays\.some\([\s\S]*todayISO\(\)/
+    )
+    assert.match(
+      unifiedSource,
+      /function toggleTimelinePreview\(\)[\s\S]*setTimelinePreview\([\s\S]*minute:[\s\S]*start[\s\S]*end/
+    )
+    assert.match(
+      unifiedSource,
+      /Testar linha/
+    )
+    assert.match(
+      unifiedSource,
+      /timelinePreview\?\.date[\s\S]*timelinePreview\?\.minute[\s\S]*getCurrentSlotProgress/
+    )
+  }
+)
