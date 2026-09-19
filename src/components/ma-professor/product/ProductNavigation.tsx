@@ -304,12 +304,17 @@ export function ProductNavigation({
               {session.email}
             </p>
 
-            <p className="text-[0.65rem] font-semibold text-emerald-300">
+            <button
+              type="button"
+              onClick={() => openDestination('license')}
+              aria-label="Abrir Licença nas Definições"
+              className="text-[0.65rem] font-semibold text-emerald-300 transition hover:text-emerald-200 hover:underline"
+            >
               {getLicenseStatusLabel(session.license.status)}
               {session.license.daysRemaining !== null
                 ? ` · ${session.license.daysRemaining} dias`
                 : ''}
-            </p>
+            </button>
           </div>
         </div>
       </header>
