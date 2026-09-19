@@ -563,7 +563,10 @@ export default function LessonEditorDialog({
           assertCalendarLessonRelatedDataCompatibility(
             savedLesson.status,
             attendanceCount,
-            assessmentCount
+            assessmentCount,
+            Boolean(
+              savedLesson.summary.trim()
+            )
           )
 
           if (
@@ -591,7 +594,10 @@ export default function LessonEditorDialog({
           const assessmentSection =
             assessmentSectionRef.current
 
-          if (savedLesson.status === 'taught') {
+          if (
+            savedLesson.status !== 'cancelled' &&
+            savedLesson.summary.trim()
+          ) {
             const attendanceSection =
               attendanceSectionRef.current
 
@@ -1142,9 +1148,9 @@ export default function LessonEditorDialog({
                     </h3>
 
                     <p className="mt-3 text-sm leading-7 text-slate-400">
-                      Pode registar avaliações nesta aula sem a marcar
-                      como dada. A assiduidade só fica disponível quando
-                      a aula for efetivamente dada.
+                      Pode preparar avaliações sem marcar a aula como dada.
+                      Se guardar um sumário, as faltas assinaladas ficam
+                      guardadas e contam imediatamente, mesmo numa data futura.
                     </p>
 
                     <button
@@ -1188,7 +1194,10 @@ export default function LessonEditorDialog({
 
                 <div
                   className={
-                    form.status === 'taught'
+                    form.status !== 'cancelled' &&
+                    Boolean(
+                      form.summary.trim()
+                    )
                       ? 'block'
                       : 'hidden'
                   }
