@@ -93,6 +93,7 @@ export type RenewableLicensePlan =
     LicensePlan,
     | 'paid_30_days'
     | 'school_year'
+    | 'courtesy_30_days'
   >
 
 export function isLicenseUsable(
