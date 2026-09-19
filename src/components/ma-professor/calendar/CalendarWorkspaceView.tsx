@@ -16,6 +16,11 @@ import type {
 } from './PAAActivitiesLayer'
 
 import {
+  getDutyEventDetails,
+  type DutyEventDetails
+} from './dutyEvent'
+
+import {
   getCalendarLessonStatusLabel,
   getCalendarViewModeLabel,
   type CalendarAssignmentOption,
@@ -1687,6 +1692,60 @@ function MonthLessonChip({
   )
 }
 
+function MonthDutyChip({
+  row,
+  details,
+  onSelect
+}: {
+  row:
+    CalendarEventRow
+  details:
+    DutyEventDetails
+  onSelect?: (
+    eventId: EntityId
+  ) => void
+}) {
+  const className =
+    'w-full rounded-md border border-violet-300/20 bg-violet-300/[0.07] px-2 py-1.5 text-left transition'
+
+  const content = (
+    <>
+      <p className="truncate text-[0.61rem] font-black leading-4 text-white">
+        {details.startTime
+          ? `${details.startTime} · `
+          : ''}
+        {details.name}
+      </p>
+
+      <p className="mt-0.5 truncate text-[0.54rem] font-semibold leading-3.5 text-violet-200/75">
+        {details.timeLabel ||
+          'Sem hora indicada'} · Cargo
+      </p>
+    </>
+  )
+
+  return onSelect ? (
+    <button
+      type="button"
+      onClick={() =>
+        onSelect(
+          row.event.id
+        )
+      }
+      className={
+        className +
+        ' hover:border-violet-300/40 hover:bg-violet-300/[0.1]'
+      }
+    >
+      {content}
+    </button>
+  ) : (
+    <div className={className}>
+      {content}
+    </div>
+  )
+}
+
 function MonthDayCell({
   day,
   onLessonSelect,
@@ -1707,6 +1766,11 @@ function MonthDayCell({
   onPAAActivitySelect?:
     CalendarWorkspaceViewProps['onPAAActivitySelect']
 }) {
+  const [
+    paaOpen,
+    setPAAOpen
+  ] = useState(false)
+
   const dayPAAActivities =
     paaActivities.filter(
       activity =>
@@ -1714,22 +1778,124 @@ function MonthDayCell({
         day.date
     )
 
+  const dutyRows =
+    day.events.flatMap(
+      row => {
+        const details =
+          getDutyEventDetails(
+            row.event
+          )
+
+        return details
+          ? [
+              {
+                row,
+                details
+              }
+            ]
+          : []
+      }
+    )
+
+  const dutyEventIds =
+    new Set(
+      dutyRows.map(
+        duty =>
+          duty.row.event.id
+      )
+    )
+
+  const untimedDuties =
+    dutyRows.filter(
+      duty =>
+        !duty.details.startTime ||
+        !duty.details.endTime
+    )
+
+  const timedItems = [
+    ...day.lessons.map(
+      row => ({
+        kind:
+          'lesson' as const,
+        startTime:
+          row.lesson.startTime,
+        endTime:
+          row.lesson.endTime,
+        row
+      })
+    ),
+    ...dutyRows
+      .filter(
+        duty =>
+          duty.details.startTime &&
+          duty.details.endTime
+      )
+      .map(
+        duty => ({
+          kind:
+            'duty' as const,
+          startTime:
+            duty.details.startTime,
+          endTime:
+            duty.details.endTime,
+          row:
+            duty.row,
+          details:
+            duty.details
+        })
+      )
+  ].sort(
+    (
+      left,
+      right
+    ) => {
+      const startComparison =
+        left.startTime.localeCompare(
+          right.startTime
+        )
+
+      if (
+        startComparison !==
+        0
+      ) {
+        return startComparison
+      }
+
+      return left.endTime.localeCompare(
+        right.endTime
+      )
+    }
+  )
+
+  const allDayEvents =
+    day.events.filter(
+      row =>
+        !dutyEventIds.has(
+          row.event.id
+        )
+    )
+
   const visibleEvents =
-    day.events.slice(
+    allDayEvents.slice(
       0,
       2
     )
 
-  const visibleLessons =
-    day.lessons
-
   const hiddenEventCount =
-    day.events.length -
+    allDayEvents.length -
     visibleEvents.length
+
+  const paaTitle =
+    dayPAAActivities
+      .map(
+        activity =>
+          activity.title
+      )
+      .join(' · ')
 
   return (
     <article
-      className={`flex min-h-[14rem] min-w-0 flex-col border-b border-r border-white/[0.08] p-3 ${
+      className={`relative flex min-h-[12rem] min-w-0 flex-col border-b border-r border-white/[0.08] p-3 ${
         day.isToday
           ? 'bg-cyan-300/[0.06]'
           : day.isInPrimaryPeriod
@@ -1741,62 +1907,9 @@ function MonthDayCell({
           : 'opacity-45'
       }`}
     >
-      {dayPAAActivities.length > 0 ? (
-        <div
-          aria-label={`Atividades PAA de ${formatFullDate(day.date)}`}
-          className="-mx-3 -mt-3 mb-2 overflow-hidden border-b border-fuchsia-300/20"
-        >
-          {dayPAAActivities
-            .slice(0, 2)
-            .map(activity => (
-              onPAAActivitySelect ? (
-                <button
-                  key={activity.id}
-                  type="button"
-                  onClick={() =>
-                    onPAAActivitySelect(
-                      activity.id
-                    )
-                  }
-                  title={activity.title}
-                  className="flex min-h-5 w-full min-w-0 items-center gap-1.5 border-b border-fuchsia-300/10 bg-fuchsia-300/[0.045] px-2.5 py-1 text-left last:border-b-0 hover:bg-fuchsia-300/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-fuchsia-300/70"
-                >
-                  <span className="shrink-0 text-[0.48rem] font-black uppercase tracking-[0.12em] text-fuchsia-300/75">
-                    PAA
-                  </span>
-
-                  <span className="min-w-0 flex-1 truncate text-[0.58rem] font-semibold leading-3.5 text-fuchsia-50/80">
-                    {activity.title}
-                  </span>
-                </button>
-              ) : (
-                <div
-                  key={activity.id}
-                  title={activity.title}
-                  className="flex min-h-5 min-w-0 items-center gap-1.5 border-b border-fuchsia-300/10 bg-fuchsia-300/[0.045] px-2.5 py-1 last:border-b-0"
-                >
-                  <span className="shrink-0 text-[0.48rem] font-black uppercase tracking-[0.12em] text-fuchsia-300/75">
-                    PAA
-                  </span>
-
-                  <span className="min-w-0 flex-1 truncate text-[0.58rem] font-semibold leading-3.5 text-fuchsia-50/80">
-                    {activity.title}
-                  </span>
-                </div>
-              )
-            ))}
-
-          {dayPAAActivities.length > 2 ? (
-            <div className="bg-fuchsia-300/[0.025] px-2.5 py-1 text-[0.5rem] font-bold text-fuchsia-300/55">
-              +{dayPAAActivities.length - 2} PAA
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <p
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black ${
             day.isToday
               ? 'bg-cyan-300 text-slate-950'
               : day.isInPrimaryPeriod
@@ -1809,25 +1922,176 @@ function MonthDayCell({
           )}
         </p>
 
-        {day.blockingEventCount >
-        0 ? (
-          <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-2 py-1 text-[0.55rem] font-black text-rose-100">
-            Bloqueio
-          </span>
-        ) : null}
+        <div className="flex min-w-0 items-center justify-end gap-2">
+          {dayPAAActivities.length >
+          0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setPAAOpen(
+                  current =>
+                    !current
+                )
+              }
+              aria-expanded={
+                paaOpen
+              }
+              title={paaTitle}
+              className="flex min-w-0 items-center gap-1.5 py-1 text-[0.52rem] font-black uppercase tracking-[0.1em] text-fuchsia-300/75 transition hover:text-fuchsia-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300/70"
+            >
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-fuchsia-300/80"
+              />
+
+              <span>PAA</span>
+
+              {dayPAAActivities.length >
+              1 ? (
+                <span className="text-fuchsia-300/55">
+                  {dayPAAActivities.length}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
+
+          {day.blockingEventCount >
+          0 ? (
+            <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-2 py-1 text-[0.55rem] font-black text-rose-100">
+              Bloqueio
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <div className="mt-3 space-y-1.5">
-        {visibleEvents.map(
-          (
-            row
-          ) => (
-            <MonthEventChip
+      {paaOpen &&
+      dayPAAActivities.length >
+        0 ? (
+        <div className="absolute left-2 right-2 top-11 z-30 rounded-xl border border-fuchsia-300/20 bg-slate-950/95 p-2.5 shadow-xl shadow-black/40 backdrop-blur">
+          <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] pb-2">
+            <p className="text-[0.55rem] font-black uppercase tracking-[0.12em] text-fuchsia-200">
+              Atividades PAA
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setPAAOpen(false)
+              }
+              className="grid h-6 w-6 place-items-center rounded-md text-xs font-black text-slate-500 transition hover:bg-white/[0.05] hover:text-white"
+              aria-label="Fechar atividades PAA"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="mt-1.5 space-y-1">
+            {dayPAAActivities.map(
+              activity => (
+                <button
+                  key={
+                    activity.id
+                  }
+                  type="button"
+                  onClick={() => {
+                    setPAAOpen(false)
+                    onPAAActivitySelect?.(
+                      activity.id
+                    )
+                  }}
+                  className="block w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-fuchsia-300/[0.06]"
+                >
+                  <span className="block text-[0.62rem] font-bold leading-4 text-white">
+                    {activity.title}
+                  </span>
+
+                  {activity.description ? (
+                    <span className="mt-0.5 block line-clamp-2 text-[0.54rem] leading-3.5 text-slate-500">
+                      {activity.description}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {visibleEvents.length >
+      0 ? (
+        <div className="mt-2 space-y-1">
+          {visibleEvents.map(
+            row => (
+              <MonthEventChip
+                key={
+                  row.event.id
+                }
+                row={row}
+                onSelect={
+                  onEventSelect
+                }
+              />
+            )
+          )}
+
+          {hiddenEventCount >
+          0 ? (
+            <p className="text-center text-[0.55rem] font-bold text-slate-500">
+              +{hiddenEventCount}{' '}
+              {hiddenEventCount ===
+              1
+                ? 'evento'
+                : 'eventos'}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-2 space-y-1.5">
+        {timedItems.map(
+          item =>
+            item.kind ===
+            'lesson' ? (
+              <MonthLessonChip
+                key={
+                  `lesson-${item.row.lesson.id}`
+                }
+                row={
+                  item.row
+                }
+                onSelect={
+                  onLessonSelect
+                }
+              />
+            ) : (
+              <MonthDutyChip
+                key={
+                  `duty-${item.row.event.id}`
+                }
+                row={
+                  item.row
+                }
+                details={
+                  item.details
+                }
+                onSelect={
+                  onEventSelect
+                }
+              />
+            )
+        )}
+
+        {untimedDuties.map(
+          duty => (
+            <MonthDutyChip
               key={
-                row.event.id
+                `untimed-duty-${duty.row.event.id}`
               }
               row={
-                row
+                duty.row
+              }
+              details={
+                duty.details
               }
               onSelect={
                 onEventSelect
@@ -1835,36 +2099,7 @@ function MonthDayCell({
             />
           )
         )}
-
-        {visibleLessons.map(
-          (
-            row
-          ) => (
-            <MonthLessonChip
-              key={
-                row.lesson.id
-              }
-              row={
-                row
-              }
-              onSelect={
-                onLessonSelect
-              }
-            />
-          )
-        )}
       </div>
-
-      {hiddenEventCount >
-      0 ? (
-        <p className="mt-2 text-center text-[0.58rem] font-bold text-slate-500">
-          +{hiddenEventCount}{' '}
-          {hiddenEventCount ===
-          1
-            ? 'evento'
-            : 'eventos'}
-        </p>
-      ) : null}
 
       {onCreateLesson &&
       day.isWithinAcademicYear ? (
@@ -1878,12 +2113,11 @@ function MonthDayCell({
           aria-label={`Adicionar aula extra em ${formatFullDate(
             day.date
           )}`}
-          className="mt-3 w-full rounded-lg border border-dashed border-white/[0.08] py-2 text-[0.65rem] font-bold text-slate-600 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.04] hover:text-cyan-100"
+          className="mt-2 w-full rounded-md border border-dashed border-white/[0.08] py-1.5 text-[0.58rem] font-bold text-slate-600 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.04] hover:text-cyan-100"
         >
           + Aula
         </button>
       ) : null}
-
     </article>
   )
 }
