@@ -85,16 +85,16 @@ test(
 
 
 test(
-  'annual warnings trust persisted attendance records regardless of lesson date',
+  'annual warnings count persisted attendance only after the lesson is effectively taught, including future lessons submitted to GIAE',
   () => {
     assert.match(
       repositorySource,
-      /lesson\.status !==[\s\S]*'cancelled'[\s\S]*attendanceByLesson\.has\([\s\S]*lesson\.id/s
+      /lesson\.status ===[\s\S]*'taught'[\s\S]*attendanceByLesson\.has\([\s\S]*lesson\.id/s
     )
 
     assert.doesNotMatch(
       repositorySource,
-      /attendanceByLesson\.has\([\s\S]{0,120}lesson\.id[\s\S]{0,220}lesson\.summary\.trim\(\)/s
+      /lesson\.status !==[\s\S]*'cancelled'[\s\S]*attendanceByLesson\.has\([\s\S]*lesson\.id/s
     )
   }
 )
