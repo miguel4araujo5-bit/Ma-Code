@@ -2989,7 +2989,7 @@ export default function DailyWorkspaceView({
                                             summaryReminderSaving
                                         }
                                         rows={2}
-                                        placeholder='Implementação do projeto "10 minutos a ler"'
+                                        placeholder='Ex: Implementação do projeto "10 minutos a ler"'
                                         className={`${inputClassName} mt-2 min-h-20 resize-y text-sm leading-6`}
                                     />
 
