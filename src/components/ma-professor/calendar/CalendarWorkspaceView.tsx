@@ -11,6 +11,10 @@ import type {
   LessonStatus
 } from '../types'
 
+import type {
+  PAAActivity
+} from './PAAActivitiesLayer'
+
 import {
   getCalendarLessonStatusLabel,
   getCalendarViewModeLabel,
@@ -47,6 +51,11 @@ interface CalendarWorkspaceViewProps {
   onEventSelect?: (
     eventId: EntityId
   ) => void
+  paaActivities?: PAAActivity[]
+  onPAAActivitySelect?: (
+    activityId: EntityId
+  ) => void
+  onManagePAA?: () => void
 }
 
 const weekDayLabels = [
@@ -446,7 +455,8 @@ function WorkspaceToolbar({
   onModeChange,
   onNavigate,
   onGoToday,
-  onCreateLesson
+  onCreateLesson,
+  onManagePAA
 }: Pick<
   CalendarWorkspaceViewProps,
   | 'snapshot'
@@ -456,6 +466,7 @@ function WorkspaceToolbar({
   | 'onNavigate'
   | 'onGoToday'
   | 'onCreateLesson'
+  | 'onManagePAA'
 >) {
   const title =
     snapshot.mode ===
@@ -493,6 +504,18 @@ function WorkspaceToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {snapshot.mode ===
+            'month' &&
+          onManagePAA ? (
+            <button
+              type="button"
+              onClick={onManagePAA}
+              className="rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-4 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/[0.12]"
+            >
+              PAA
+            </button>
+          ) : null}
+
           {onCreateLesson ? (
             <button
               type="button"
@@ -1575,6 +1598,49 @@ function DailyWorkspace({
   )
 }
 
+function MonthPAAChip({
+  activity,
+  onSelect
+}: {
+  activity: PAAActivity
+  onSelect?: (
+    activityId: EntityId
+  ) => void
+}) {
+  const className =
+    'w-full rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/[0.08] px-2 py-1.5 text-left text-[0.62rem] font-bold leading-4 text-fuchsia-50 transition'
+
+  const content = (
+    <>
+      <span className="mr-1 font-black uppercase tracking-[0.08em] text-fuchsia-200">
+        PAA ·
+      </span>
+      {activity.title}
+    </>
+  )
+
+  return onSelect ? (
+    <button
+      type="button"
+      onClick={() =>
+        onSelect(
+          activity.id
+        )
+      }
+      className={
+        className +
+        ' hover:brightness-110'
+      }
+    >
+      {content}
+    </button>
+  ) : (
+    <div className={className}>
+      {content}
+    </div>
+  )
+}
+
 function MonthEventChip({
   row,
   onSelect
@@ -1667,7 +1733,9 @@ function MonthDayCell({
   day,
   onLessonSelect,
   onCreateLesson,
-  onEventSelect
+  onEventSelect,
+  paaActivities = [],
+  onPAAActivitySelect
 }: {
   day:
     CalendarDayRow
@@ -1677,7 +1745,22 @@ function MonthDayCell({
     CalendarWorkspaceViewProps['onCreateLesson']
   onEventSelect?:
     CalendarWorkspaceViewProps['onEventSelect']
+  paaActivities?: PAAActivity[]
+  onPAAActivitySelect?:
+    CalendarWorkspaceViewProps['onPAAActivitySelect']
 }) {
+  const visiblePAAActivities =
+    paaActivities
+      .filter(
+        activity =>
+          activity.date ===
+          day.date
+      )
+      .slice(
+        0,
+        2
+      )
+
   const visibleEvents =
     day.events.slice(
       0,
@@ -1691,6 +1774,12 @@ function MonthDayCell({
     )
 
   const hiddenItemCount =
+    paaActivities.filter(
+      activity =>
+        activity.date ===
+        day.date
+    ).length -
+    visiblePAAActivities.length +
     day.events.length -
     visibleEvents.length +
     day.lessons.length -
@@ -1734,6 +1823,22 @@ function MonthDayCell({
       </div>
 
       <div className="mt-3 space-y-2">
+        {visiblePAAActivities.map(
+          activity => (
+            <MonthPAAChip
+              key={
+                activity.id
+              }
+              activity={
+                activity
+              }
+              onSelect={
+                onPAAActivitySelect
+              }
+            />
+          )
+        )}
+
         {visibleEvents.map(
           (
             row
@@ -1807,13 +1912,17 @@ function MonthView({
   snapshot,
   onLessonSelect,
   onCreateLesson,
-  onEventSelect
+  onEventSelect,
+  paaActivities,
+  onPAAActivitySelect
 }: Pick<
   CalendarWorkspaceViewProps,
   | 'snapshot'
   | 'onLessonSelect'
   | 'onCreateLesson'
   | 'onEventSelect'
+  | 'paaActivities'
+  | 'onPAAActivitySelect'
 >) {
   return (
     <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/65">
@@ -1856,6 +1965,12 @@ function MonthView({
                   }
                   onEventSelect={
                     onEventSelect
+                  }
+                  paaActivities={
+                    paaActivities
+                  }
+                  onPAAActivitySelect={
+                    onPAAActivitySelect
                   }
                 />
               )
@@ -1918,7 +2033,10 @@ export default function CalendarWorkspaceView({
   onFiltersChange,
   onLessonSelect,
   onCreateLesson,
-  onEventSelect
+  onEventSelect,
+  paaActivities = [],
+  onPAAActivitySelect,
+  onManagePAA
 }: CalendarWorkspaceViewProps) {
   const [
     selectedDate,
@@ -1965,13 +2083,24 @@ export default function CalendarWorkspaceView({
     snapshot
   ])
 
+  const hasVisiblePAA =
+    snapshot.mode ===
+      'month' &&
+    paaActivities.some(
+      activity =>
+        availableDates.has(
+          activity.date
+        )
+    )
+
   const hasVisibleContent =
     snapshot.totals
       .lessonCount >
       0 ||
     snapshot.totals
       .eventCount >
-      0
+      0 ||
+    hasVisiblePAA
 
   return (
     <div className="mx-auto max-w-[100rem]">
@@ -1996,6 +2125,9 @@ export default function CalendarWorkspaceView({
         }
         onCreateLesson={
           onCreateLesson
+        }
+        onManagePAA={
+          onManagePAA
         }
       />
 
@@ -2058,6 +2190,12 @@ export default function CalendarWorkspaceView({
             }
             onEventSelect={
               onEventSelect
+            }
+            paaActivities={
+              paaActivities
+            }
+            onPAAActivitySelect={
+              onPAAActivitySelect
             }
           />
         ) : (
