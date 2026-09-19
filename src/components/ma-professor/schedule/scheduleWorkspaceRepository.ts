@@ -1072,6 +1072,63 @@ export class ScheduleWorkspaceRepository {
     return updated
   }
 
+  async getScheduleSlot(
+    slotId: EntityId
+  ) {
+    await this.initialize()
+
+    return (
+      await maProfessorDb.weeklyScheduleSlots.get(
+        slotId
+      )
+    ) ?? null
+  }
+
+  async updateSummaryReminder(
+    slotId: EntityId,
+    text: string
+  ) {
+    await this.initialize()
+
+    const current =
+      await maProfessorDb.weeklyScheduleSlots.get(
+        slotId
+      )
+
+    if (
+      !current
+    ) {
+      throw new Error(
+        'O bloco de horário indicado não existe.'
+      )
+    }
+
+    const summaryReminderText =
+      normalizeMultiline(
+        text
+      )
+
+    if (
+      !summaryReminderText
+    ) {
+      throw new Error(
+        'Escreva o texto do lembrete.'
+      )
+    }
+
+    const updated: WeeklyScheduleSlot = {
+      ...current,
+      summaryReminderText,
+      updatedAt: now()
+    }
+
+    await maProfessorDb.weeklyScheduleSlots.put(
+      updated
+    )
+
+    return updated
+  }
+
   async deleteScheduleSlot(
     slotId: EntityId
   ) {
