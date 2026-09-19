@@ -733,7 +733,7 @@ export default function AttendanceWorkspaceView({
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Os avisos abaixo reúnem todas as turmas, disciplinas e UFCD do ano letivo. Abra um aviso para entrar diretamente na disciplina certa e gerir a recuperação.
+                A percentagem é calculada por disciplina sobre a carga anual total, somando todas as UFCD/UC. O aviso aparece quando o aluno se aproxima do limite — incluindo quando uma única aula pode levá-lo aos 10% — e a recuperação é necessária a partir dos 10%.
               </p>
             </div>
 
@@ -802,7 +802,11 @@ export default function AttendanceWorkspaceView({
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            UFCD / componente: {moduleName}
+                            Carga anual da disciplina · todas as UFCD/UC
+                          </p>
+
+                          <p className="mt-1 text-xs leading-5 text-slate-600">
+                            Contexto para gestão: {moduleName}
                           </p>
                         </div>
 
@@ -909,7 +913,7 @@ export default function AttendanceWorkspaceView({
             <MetricCard
               label="Atenção"
               value={snapshot.totals.warningCount}
-              detail={`A partir de ${formatPercent(
+              detail={`A uma aula do limite ou a partir de ${formatPercent(
                 snapshot.settings
                   .absenceWarningPercent
               )}%.`}
@@ -922,7 +926,7 @@ export default function AttendanceWorkspaceView({
                 snapshot.totals
                   .recoveryRequiredCount
               }
-              detail={`Acima de ${formatPercent(
+              detail={`A partir de ${formatPercent(
                 snapshot.settings
                   .learningRecoveryThresholdPercent
               )}%.`}
