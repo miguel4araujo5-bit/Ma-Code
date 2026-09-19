@@ -10,6 +10,10 @@ import {
   calendarRepository
 } from '../calendar/calendarRepository'
 import CalendarRecoveriesPanel from '../calendar/CalendarRecoveriesPanel'
+import PAAActivitiesManager, {
+  loadPAAActivities,
+  type PAAActivity
+} from '../calendar/PAAActivitiesLayer'
 import {
   enrichCalendarSnapshotWithRecoveries,
   type CalendarRecoveryWorkspaceSnapshot
@@ -156,6 +160,22 @@ export function CalendarProductWorkspace({
   const [eventText, setEventText] = useState('')
   const [eventSaving, setEventSaving] = useState(false)
   const [eventError, setEventError] = useState('')
+  const [paaActivities, setPAAActivities] =
+    useState<PAAActivity[]>(
+      () =>
+        loadPAAActivities(
+          academicYearId
+        )
+    )
+  const [paaManagerOpen, setPAAManagerOpen] =
+    useState(false)
+  const [
+    selectedPAAActivityId,
+    setSelectedPAAActivityId
+  ] =
+    useState<EntityId | null>(
+      null
+    )
   const eventEditorRef = useRef<HTMLDivElement>(null)
 
   const extraLesson = useCalendarExtraLesson(
@@ -206,6 +226,16 @@ export function CalendarProductWorkspace({
   }, [academicYearId, anchorDate, filters, mode])
 
   useEffect(() => {
+    setPAAActivities(
+      loadPAAActivities(
+        academicYearId
+      )
+    )
+    setPAAManagerOpen(false)
+    setSelectedPAAActivityId(null)
+  }, [academicYearId])
+
+  useEffect(() => {
     void loadCalendar()
   }, [loadCalendar, refreshToken])
 
@@ -219,6 +249,29 @@ export function CalendarProductWorkspace({
     }
 
     onOpenLesson(lessonRow.lesson.date, lessonId)
+  }
+
+  function handlePAAActivitySelect(
+    activityId: EntityId
+  ) {
+    setSelectedPAAActivityId(
+      activityId
+    )
+    setPAAManagerOpen(true)
+  }
+
+  function handlePAAOpen() {
+    setSelectedPAAActivityId(
+      null
+    )
+    setPAAManagerOpen(true)
+  }
+
+  function handlePAAClose() {
+    setPAAManagerOpen(false)
+    setSelectedPAAActivityId(
+      null
+    )
   }
 
   function handleEventSelect(eventId: EntityId) {
@@ -407,11 +460,25 @@ export function CalendarProductWorkspace({
           onLessonSelect={handleLessonSelect}
           onEventSelect={handleEventSelect}
           onCreateLesson={extraLesson.createLesson}
+          paaActivities={paaActivities}
+          onPAAActivitySelect={handlePAAActivitySelect}
+          onManagePAA={handlePAAOpen}
         />
       </div>
 
       <CalendarRecoveriesPanel
         snapshot={snapshot}
+      />
+
+      <PAAActivitiesManager
+        open={paaManagerOpen}
+        academicYear={snapshot.academicYear}
+        activities={paaActivities}
+        initialSelectedActivityId={
+          selectedPAAActivityId
+        }
+        onClose={handlePAAClose}
+        onChange={setPAAActivities}
       />
 
       {selectedEvent ? (
