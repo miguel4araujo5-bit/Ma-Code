@@ -3110,7 +3110,7 @@ export default function DailyWorkspaceView({
                                                         lessonForm.status ===
                                                             'cancelled'
                                                     }
-                                                    className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:border-amber-300/40 disabled:cursor-not-allowed disabled:opacity-35"
+                                                    className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[0.68rem] font-black text-slate-300 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                                                 >
                                                     Criar lembrete
                                                 </button>
