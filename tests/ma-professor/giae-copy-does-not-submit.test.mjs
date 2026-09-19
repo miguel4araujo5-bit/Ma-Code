@@ -172,7 +172,7 @@ test(
 )
 
 test(
-  'Daily and Calendar legacy save paths continue through the central GIAE guard',
+  'Daily and Calendar status changes continue through the central GIAE repositories',
   () => {
     assert.match(
       dailyRepositorySource,
@@ -189,17 +189,35 @@ test(
     )
     assert.match(
       calendarEditorSource,
-      /lessonRepository\.markGIAESubmitted\(/
+      /lessonRepository\.markGIAESubmittedExplicit\(/
+    )
+    assert.match(
+      calendarEditorSource,
+      /lessonRepository\.markGIAEPendingExplicit\(/
     )
   }
 )
 
 test(
-  'Daily no longer exposes a manual bypass for the GIAE submitted state',
+  'Daily exposes an explicit manual submitted toggle independently of copy',
   () => {
-    assert.doesNotMatch(
+    const handler = getFunctionBody(
       dailySource,
-      /updateLessonForm\(\s*['"]giaeStatus['"]/
+      'async function handleGIAESubmissionToggle(',
+      'async function handleCopySummary()'
+    )
+
+    assert.match(
+      handler,
+      /markSubmitted\(/
+    )
+    assert.match(
+      handler,
+      /markPending\(/
+    )
+    assert.doesNotMatch(
+      handler,
+      /copyTextToClipboard\(/
     )
 
     const statusMarker =
@@ -218,8 +236,8 @@ test(
     const statusControl =
       dailySource.slice(inputStart, inputEnd)
 
-    assert.match(statusControl, /\bdisabled\b/)
-    assert.match(statusControl, /\breadOnly\b/)
+    assert.match(statusControl, /onChange=/)
+    assert.doesNotMatch(statusControl, /\breadOnly\b/)
     assert.match(
       dailySource,
       /Submetido no\s+GIAE/
