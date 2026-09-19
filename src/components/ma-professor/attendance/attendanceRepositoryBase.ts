@@ -1193,11 +1193,19 @@ export class AttendanceRepository {
       )
 
     if (
-      lesson.status !==
-      'taught'
+      lesson.status ===
+      'cancelled'
     ) {
       throw new Error(
-        'A assiduidade só pode ser guardada depois de a aula ser marcada como dada.'
+        'Não é possível guardar assiduidade numa aula cancelada.'
+      )
+    }
+
+    if (
+      !lesson.summary.trim()
+    ) {
+      throw new Error(
+        'Guarde primeiro o sumário da aula antes de registar faltas.'
       )
     }
 
