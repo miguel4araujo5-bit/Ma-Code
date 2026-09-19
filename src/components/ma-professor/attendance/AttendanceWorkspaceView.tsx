@@ -759,7 +759,11 @@ export default function AttendanceWorkspaceView({
           0 ? (
             <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center">
               <p className="text-sm font-black text-white">
-                Não existem avisos de assiduidade em nenhuma disciplina.
+                Não existem alunos próximos ou acima do limite de faltas.
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Isto não significa que não existam faltas registadas: esta vista mostra apenas situações em zona de aviso ou recuperação.
               </p>
             </div>
           ) : (
