@@ -51,6 +51,16 @@ export interface AttendanceWorkspaceStudentRow {
   recoveryHistory: LearningRecovery[]
 }
 
+export interface AttendanceWorkspaceAlertRow {
+  student: AttendanceOverviewRow['student']
+  assignment: TeachingAssignment
+  group: ClassGroup
+  subject: Subject
+  module: ModuleUnit
+  summary: StudentAbsenceSummary
+  recovery: LearningRecovery | null
+}
+
 export interface AttendanceWorkspaceSnapshot {
   academicYear: AcademicYear
   settings: MAProfessorSettings
@@ -68,6 +78,7 @@ export interface AttendanceWorkspaceSnapshot {
   selectedSubject: Subject | null
   selectedModule: ModuleUnit | null
 
+  alertRows: AttendanceWorkspaceAlertRow[]
   rows: AttendanceWorkspaceStudentRow[]
 
   totals: {
@@ -384,6 +395,7 @@ export class AttendanceWorkspaceRepository {
         selectedGroup,
         selectedSubject,
         selectedModule,
+        alertRows: [],
         rows: [],
         totals: {
           studentCount: 0,
@@ -399,24 +411,149 @@ export class AttendanceWorkspaceRepository {
     }
 
     const [
-      overview,
-      recoveries
+      allOverview,
+      allRecoveries
     ] = await Promise.all([
       attendanceRepository.listAbsenceOverview({
-        academicYearId,
-        teachingAssignmentId:
-          selectedAssignment.id,
-        moduleId:
-          selectedModule.id
+        academicYearId
       }),
       attendanceRepository.listLearningRecoveries({
-        academicYearId,
-        teachingAssignmentId:
-          selectedAssignment.id,
-        moduleId:
-          selectedModule.id
+        academicYearId
       })
     ])
+
+    const overview =
+      allOverview.filter(
+        row =>
+          row.assignment.id ===
+            selectedAssignment.id &&
+          row.module.id ===
+            selectedModule.id
+      )
+
+    const recoveries =
+      allRecoveries.filter(
+        recovery =>
+          recovery.teachingAssignmentId ===
+            selectedAssignment.id &&
+          recovery.moduleId ===
+            selectedModule.id
+      )
+
+    const assignmentOptionById =
+      new Map(
+        assignmentOptions.map(
+          option => [
+            option.assignment.id,
+            option
+          ] as const
+        )
+      )
+
+    const alertRows:
+      AttendanceWorkspaceAlertRow[] =
+      allOverview
+        .flatMap(
+          row => {
+            if (
+              row.summary.warningLevel ===
+              'regular'
+            ) {
+              return []
+            }
+
+            const option =
+              assignmentOptionById.get(
+                row.assignment.id
+              )
+
+            if (
+              !option
+            ) {
+              return []
+            }
+
+            return [
+              {
+                student:
+                  row.student,
+                assignment:
+                  row.assignment,
+                group:
+                  option.group,
+                subject:
+                  option.subject,
+                module:
+                  row.module,
+                summary:
+                  row.summary,
+                recovery:
+                  row.recovery
+              }
+            ]
+          }
+        )
+        .sort(
+          (
+            left,
+            right
+          ) => {
+            const warningOrder = {
+              recovery_required: 0,
+              warning: 1,
+              regular: 2
+            } as const
+
+            return (
+              warningOrder[
+                left.summary.warningLevel
+              ] -
+                warningOrder[
+                  right.summary.warningLevel
+                ] ||
+              left.group.name.localeCompare(
+                right.group.name,
+                'pt-PT',
+                {
+                  numeric: true,
+                  sensitivity: 'base'
+                }
+              ) ||
+              subjectLabel(
+                left.subject
+              ).localeCompare(
+                subjectLabel(
+                  right.subject
+                ),
+                'pt-PT',
+                {
+                  numeric: true,
+                  sensitivity: 'base'
+                }
+              ) ||
+              moduleLabel(
+                left.module
+              ).localeCompare(
+                moduleLabel(
+                  right.module
+                ),
+                'pt-PT',
+                {
+                  numeric: true,
+                  sensitivity: 'base'
+                }
+              ) ||
+              left.student.number.localeCompare(
+                right.student.number,
+                'pt-PT',
+                {
+                  numeric: true,
+                  sensitivity: 'base'
+                }
+              )
+            )
+          }
+        )
 
     const recoveriesByStudent =
       new Map<
@@ -551,6 +688,7 @@ export class AttendanceWorkspaceRepository {
       selectedGroup,
       selectedSubject,
       selectedModule,
+      alertRows,
       rows,
       totals: {
         studentCount:
