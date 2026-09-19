@@ -202,8 +202,8 @@ async function hasStudentAbsenceInModule(
       lessons
         .filter(
           lesson =>
-            lesson.status !==
-              'cancelled'
+            lesson.status ===
+              'taught'
         )
         .map(
           lesson =>
@@ -337,8 +337,8 @@ export class AttendanceRepository
         lessons
           .filter(
             lesson =>
-              lesson.status !==
-                'cancelled' &&
+              lesson.status ===
+                'taught' &&
               attendanceByLesson.has(
                 lesson.id
               )
