@@ -309,7 +309,17 @@ export class AttendanceWorkspaceRepository {
               option.assignment.id ===
               filters.teachingAssignmentId
           ) ?? null
-        : assignmentOptions[0] ?? null
+        : assignmentOptions.find(
+            option =>
+              setup.modules.some(
+                module =>
+                  module.active &&
+                  module.teachingAssignmentId ===
+                    option.assignment.id
+              )
+          ) ??
+          assignmentOptions[0] ??
+          null
 
     if (
       filters.teachingAssignmentId &&
