@@ -997,8 +997,8 @@ export default function DailyWorkspaceView({
     const isProfessionalScheduledLesson =
         Boolean(
             lessonRow?.group
-                .educationType ===
-                'professional' &&
+                .educationType !==
+                'regular' &&
                 scheduleSlotId
         );
 
