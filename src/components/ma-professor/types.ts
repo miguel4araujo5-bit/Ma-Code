@@ -400,6 +400,8 @@ export interface StudentAbsenceSummary {
   lessonsTaught: number
   absences: number
   absencePercent: Percentage
+  annualAbsencePeriods?: number
+  annualPlannedPeriods?: number
   warningLevel:
     | 'regular'
     | 'warning'
