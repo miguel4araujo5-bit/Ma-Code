@@ -45,44 +45,8 @@ function getErrorMessage(
     : 'Não foi possível atualizar o painel do ano letivo.'
 }
 
-function runtimeDate() {
-  if (
-    typeof window !==
-    'undefined'
-  ) {
-    const override =
-      new URLSearchParams(
-        window.location.search
-      ).get(
-        'maProfessorNow'
-      )
-
-    if (
-      override &&
-      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(
-        override
-      )
-    ) {
-      const simulated =
-        new Date(
-          override
-        )
-
-      if (
-        !Number.isNaN(
-          simulated.getTime()
-        )
-      ) {
-        return simulated
-      }
-    }
-  }
-
-  return new Date()
-}
-
 function todayISO(): ISODate {
-  const date = runtimeDate()
+  const date = new Date()
 
   return [
     String(
