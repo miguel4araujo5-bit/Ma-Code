@@ -58,68 +58,8 @@ interface WeekTimeSlot {
 const DUTY_DISCARD_MESSAGE =
   'Existem alterações por guardar neste sumário de Cargo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
 
-function runtimeNow() {
-  if (
-    typeof window !==
-    'undefined'
-  ) {
-    const override =
-      new URLSearchParams(
-        window.location.search
-      ).get(
-        'maProfessorNow'
-      )
-
-    if (
-      override &&
-      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(
-        override
-      )
-    ) {
-      const [
-        datePart,
-        timePart
-      ] = override.split('T')
-      const [
-        year,
-        month,
-        day
-      ] = datePart
-        .split('-')
-        .map(Number)
-      const [
-        hour,
-        minute
-      ] = timePart
-        .split(':')
-        .map(Number)
-
-      const simulated =
-        new Date(
-          year,
-          month - 1,
-          day,
-          hour,
-          minute,
-          0,
-          0
-        )
-
-      if (
-        !Number.isNaN(
-          simulated.getTime()
-        )
-      ) {
-        return simulated
-      }
-    }
-  }
-
-  return new Date()
-}
-
 function todayISO(): ISODate {
-  const date = runtimeNow()
+  const date = new Date()
 
   return [
     String(
@@ -233,7 +173,7 @@ function timeToMinuteOfDay(
 
 function currentMinuteOfDay() {
   const current =
-    runtimeNow()
+    new Date()
 
   return (
     current.getHours() * 60 +
@@ -474,15 +414,6 @@ export default function DailyUnifiedWeekOverview({
     currentMinuteOfDay
   )
   const [
-    timelinePreview,
-    setTimelinePreview
-  ] = useState<{
-    date: ISODate
-    minute: number
-  } | null>(
-    null
-  )
-  const [
     summary,
     setSummary
   ] = useState('')
@@ -641,17 +572,6 @@ export default function DailyUnifiedWeekOverview({
             !duty.details.endTime
         ),
       [duties]
-    )
-
-  const canPreviewTimeline =
-    useMemo(
-      () =>
-        !weekDays.some(
-          day =>
-            day.date ===
-            todayISO()
-        ),
-      [weekDays]
     )
 
   const highlightedLessonId =
@@ -818,70 +738,6 @@ export default function DailyUnifiedWeekOverview({
     }
   }
 
-  function toggleTimelinePreview() {
-    if (timelinePreview) {
-      setTimelinePreview(
-        null
-      )
-      return
-    }
-
-    const previewLesson =
-      [...weekDays]
-        .reverse()
-        .flatMap(
-          day =>
-            day.lessons
-              .filter(
-                row =>
-                  row.lesson.status !==
-                    'cancelled'
-              )
-              .map(
-                row => ({
-                  date:
-                    day.date,
-                  lesson:
-                    row.lesson
-                })
-              )
-        )[0] ??
-      null
-
-    if (!previewLesson) {
-      return
-    }
-
-    const start =
-      timeToMinuteOfDay(
-        previewLesson.lesson.startTime
-      )
-    const end =
-      timeToMinuteOfDay(
-        previewLesson.lesson.endTime
-      )
-
-    if (
-      start === null ||
-      end === null ||
-      end <= start
-    ) {
-      return
-    }
-
-    setTimelinePreview({
-      date:
-        previewLesson.date,
-      minute:
-        start +
-        (
-          end -
-          start
-        ) /
-          2
-    })
-  }
-
   function moveToDate(
     nextDate: ISODate | null
   ) {
@@ -920,31 +776,6 @@ export default function DailyUnifiedWeekOverview({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {canPreviewTimeline ? (
-              <button
-                type="button"
-                onClick={
-                  toggleTimelinePreview
-                }
-                disabled={
-                  loading ||
-                  weekDays.every(
-                    day =>
-                      day.lessons.every(
-                        row =>
-                          row.lesson.status ===
-                            'cancelled'
-                      )
-                  )
-                }
-                className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-3 py-1.5 text-[0.66rem] font-black text-rose-100 disabled:opacity-35"
-              >
-                {timelinePreview
-                  ? 'Terminar teste'
-                  : 'Testar linha'}
-              </button>
-            ) : null}
-
             <button
               type="button"
               onClick={() =>
@@ -1112,26 +943,14 @@ export default function DailyUnifiedWeekOverview({
                                   slot.endTime
                             )
 
-                          const timelineDate =
-                            timelinePreview?.date ??
-                            todayISO()
-
-                          const timelineMinute =
-                            timelinePreview?.minute ??
-                            currentMinute
-
                           const currentSlotProgress =
+                            date ===
+                              todayISO() &&
                             day.date ===
-                              timelineDate &&
-                            (
-                              timelinePreview !==
-                                null ||
-                              date ===
-                                todayISO()
-                            )
+                              todayISO()
                               ? getCurrentSlotProgress(
                                   slot,
-                                  timelineMinute
+                                  currentMinute
                                 )
                               : null
 
@@ -1141,7 +960,7 @@ export default function DailyUnifiedWeekOverview({
                               className={`relative min-h-[4.5rem] overflow-hidden border-r border-white/[0.07] p-1.5 last:border-r-0 ${
                                 currentSlotProgress !==
                                 null
-                                  ? 'bg-rose-300/[0.055] ring-1 ring-inset ring-rose-300/20'
+                                  ? 'bg-cyan-300/[0.12] ring-1 ring-inset ring-cyan-300/35'
                                   : day.date ===
                                       date
                                     ? 'bg-cyan-300/[0.018]'
