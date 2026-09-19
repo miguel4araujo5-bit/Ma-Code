@@ -5,15 +5,15 @@ import type {
 export function assertCalendarLessonRelatedDataCompatibility(
   status: LessonStatus,
   attendanceCount: number,
-  assessmentCount: number
+  assessmentCount: number,
+  hasSummary: boolean
 ) {
-  if (status === 'taught') {
-    return
-  }
-
   if (
-    status === 'planned' &&
-    attendanceCount === 0
+    status !== 'cancelled' &&
+    (
+      attendanceCount === 0 ||
+      hasSummary
+    )
   ) {
     return
   }
@@ -22,7 +22,9 @@ export function assertCalendarLessonRelatedDataCompatibility(
     attendanceCount > 0
   ) {
     throw new Error(
-      'Esta aula já possui faltas. Mantenha-a marcada como dada para preservar esses registos.'
+      status === 'cancelled'
+        ? 'Esta aula já possui faltas. Remova esses registos antes de cancelar a aula.'
+        : 'Esta aula já possui faltas. Mantenha um sumário guardado para preservar esses registos.'
     )
   }
 
