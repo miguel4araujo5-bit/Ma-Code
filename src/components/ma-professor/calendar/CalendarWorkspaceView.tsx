@@ -1598,49 +1598,6 @@ function DailyWorkspace({
   )
 }
 
-function MonthPAAChip({
-  activity,
-  onSelect
-}: {
-  activity: PAAActivity
-  onSelect?: (
-    activityId: EntityId
-  ) => void
-}) {
-  const className =
-    'w-full rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/[0.08] px-2 py-1.5 text-left text-[0.62rem] font-bold leading-4 text-fuchsia-50 transition'
-
-  const content = (
-    <>
-      <span className="mr-1 font-black uppercase tracking-[0.08em] text-fuchsia-200">
-        PAA ·
-      </span>
-      {activity.title}
-    </>
-  )
-
-  return onSelect ? (
-    <button
-      type="button"
-      onClick={() =>
-        onSelect(
-          activity.id
-        )
-      }
-      className={
-        className +
-        ' hover:brightness-110'
-      }
-    >
-      {content}
-    </button>
-  ) : (
-    <div className={className}>
-      {content}
-    </div>
-  )
-}
-
 function MonthEventChip({
   row,
   onSelect
@@ -1733,9 +1690,7 @@ function MonthDayCell({
   day,
   onLessonSelect,
   onCreateLesson,
-  onEventSelect,
-  paaActivities = [],
-  onPAAActivitySelect
+  onEventSelect
 }: {
   day:
     CalendarDayRow
@@ -1745,22 +1700,7 @@ function MonthDayCell({
     CalendarWorkspaceViewProps['onCreateLesson']
   onEventSelect?:
     CalendarWorkspaceViewProps['onEventSelect']
-  paaActivities?: PAAActivity[]
-  onPAAActivitySelect?:
-    CalendarWorkspaceViewProps['onPAAActivitySelect']
 }) {
-  const visiblePAAActivities =
-    paaActivities
-      .filter(
-        activity =>
-          activity.date ===
-          day.date
-      )
-      .slice(
-        0,
-        2
-      )
-
   const visibleEvents =
     day.events.slice(
       0,
@@ -1774,12 +1714,6 @@ function MonthDayCell({
     )
 
   const hiddenItemCount =
-    paaActivities.filter(
-      activity =>
-        activity.date ===
-        day.date
-    ).length -
-    visiblePAAActivities.length +
     day.events.length -
     visibleEvents.length +
     day.lessons.length -
@@ -1823,22 +1757,6 @@ function MonthDayCell({
       </div>
 
       <div className="mt-3 space-y-2">
-        {visiblePAAActivities.map(
-          activity => (
-            <MonthPAAChip
-              key={
-                activity.id
-              }
-              activity={
-                activity
-              }
-              onSelect={
-                onPAAActivitySelect
-              }
-            />
-          )
-        )}
-
         {visibleEvents.map(
           (
             row
@@ -1908,13 +1826,150 @@ function MonthDayCell({
   )
 }
 
+function MonthPAAOverview({
+  snapshot,
+  activities,
+  onSelect,
+  onManage
+}: {
+  snapshot: CalendarWorkspaceSnapshot
+  activities: PAAActivity[]
+  onSelect?: (
+    activityId: EntityId
+  ) => void
+  onManage?: () => void
+}) {
+  const visibleActivities =
+    activities
+      .filter(
+        activity =>
+          activity.date >=
+            snapshot.primaryStartDate &&
+          activity.date <=
+            snapshot.primaryEndDate
+      )
+      .sort(
+        (
+          left,
+          right
+        ) =>
+          left.date.localeCompare(
+            right.date
+          ) ||
+          left.title.localeCompare(
+            right.title,
+            'pt-PT',
+            {
+              sensitivity:
+                'base'
+            }
+          )
+      )
+
+  if (
+    visibleActivities.length ===
+      0
+  ) {
+    return null
+  }
+
+  return (
+    <section className="mt-6 rounded-[1.5rem] border border-fuchsia-300/15 bg-fuchsia-300/[0.035] p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-fuchsia-200">
+            Plano Anual de Atividades
+          </p>
+
+          <h2 className="mt-1 text-base font-black text-white">
+            PAA deste mês
+          </h2>
+        </div>
+
+        {onManage ? (
+          <button
+            type="button"
+            onClick={onManage}
+            className="rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[0.06] px-3 py-2 text-xs font-bold text-fuchsia-100 transition hover:bg-fuchsia-300/[0.1]"
+          >
+            Gerir PAA
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+        {visibleActivities.map(
+          activity => {
+            const content = (
+              <>
+                <span className="shrink-0 rounded-lg border border-fuchsia-300/15 bg-slate-950/55 px-2.5 py-2 text-center text-[0.65rem] font-black uppercase tracking-[0.08em] text-fuchsia-200">
+                  {formatDate(
+                    activity.date,
+                    {
+                      day:
+                        '2-digit',
+                      month:
+                        'short'
+                    }
+                  )}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-white">
+                    {activity.title}
+                  </span>
+
+                  {activity.description ? (
+                    <span className="mt-1 block max-w-[22rem] truncate text-xs text-slate-500">
+                      {activity.description}
+                    </span>
+                  ) : null}
+                </span>
+              </>
+            )
+
+            const className =
+              'flex min-w-[17rem] max-w-[28rem] items-center gap-3 rounded-xl border border-white/[0.08] bg-slate-950/55 p-3 text-left transition'
+
+            return onSelect ? (
+              <button
+                key={activity.id}
+                type="button"
+                onClick={() =>
+                  onSelect(
+                    activity.id
+                  )
+                }
+                className={
+                  className +
+                  ' hover:border-fuchsia-300/20 hover:bg-fuchsia-300/[0.04]'
+                }
+              >
+                {content}
+              </button>
+            ) : (
+              <div
+                key={activity.id}
+                className={className}
+              >
+                {content}
+              </div>
+            )
+          }
+        )}
+      </div>
+    </section>
+  )
+}
+
 function MonthView({
   snapshot,
   onLessonSelect,
   onCreateLesson,
   onEventSelect,
-  paaActivities,
-  onPAAActivitySelect
+  paaActivities = [],
+  onPAAActivitySelect,
+  onManagePAA
 }: Pick<
   CalendarWorkspaceViewProps,
   | 'snapshot'
@@ -1923,9 +1978,18 @@ function MonthView({
   | 'onEventSelect'
   | 'paaActivities'
   | 'onPAAActivitySelect'
+  | 'onManagePAA'
 >) {
   return (
-    <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/65">
+    <>
+      <MonthPAAOverview
+        snapshot={snapshot}
+        activities={paaActivities}
+        onSelect={onPAAActivitySelect}
+        onManage={onManagePAA}
+      />
+
+      <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/65">
       <div className="overflow-x-auto">
         <div className="min-w-[70rem]">
           <div className="grid grid-cols-7 border-b border-white/10 bg-white/[0.025]">
@@ -1966,12 +2030,6 @@ function MonthView({
                   onEventSelect={
                     onEventSelect
                   }
-                  paaActivities={
-                    paaActivities
-                  }
-                  onPAAActivitySelect={
-                    onPAAActivitySelect
-                  }
                 />
               )
             )}
@@ -1979,6 +2037,7 @@ function MonthView({
         </div>
       </div>
     </section>
+    </>
   )
 }
 
@@ -2211,6 +2270,9 @@ export default function CalendarWorkspaceView({
             }
             onPAAActivitySelect={
               onPAAActivitySelect
+            }
+            onManagePAA={
+              onManagePAA
             }
           />
         )
