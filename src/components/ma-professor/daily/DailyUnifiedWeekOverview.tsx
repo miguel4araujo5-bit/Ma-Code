@@ -148,6 +148,79 @@ function formatWeekRange(
   return `${startLabel} — ${endLabel}`
 }
 
+function timeToMinuteOfDay(
+  value: string
+) {
+  const [
+    hour,
+    minute
+  ] = value
+    .split(':')
+    .map(Number)
+
+  if (
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute)
+  ) {
+    return null
+  }
+
+  return (
+    hour * 60 +
+    minute
+  )
+}
+
+function currentMinuteOfDay() {
+  const current =
+    new Date()
+
+  return (
+    current.getHours() * 60 +
+    current.getMinutes() +
+    current.getSeconds() / 60
+  )
+}
+
+function getCurrentSlotProgress(
+  slot: WeekTimeSlot,
+  currentMinute: number
+) {
+  const start =
+    timeToMinuteOfDay(
+      slot.startTime
+    )
+  const end =
+    timeToMinuteOfDay(
+      slot.endTime
+    )
+
+  if (
+    start === null ||
+    end === null ||
+    end <= start ||
+    currentMinute < start ||
+    currentMinute > end
+  ) {
+    return null
+  }
+
+  return Math.min(
+    1,
+    Math.max(
+      0,
+      (
+        currentMinute -
+        start
+      ) /
+        (
+          end -
+          start
+        )
+    )
+  )
+}
+
 function formatOccurrenceDate(
   value: ISODate
 ) {
@@ -335,6 +408,12 @@ export default function DailyUnifiedWeekOverview({
     null
   )
   const [
+    currentMinute,
+    setCurrentMinute
+  ] = useState(
+    currentMinuteOfDay
+  )
+  const [
     summary,
     setSummary
   ] = useState('')
@@ -434,6 +513,29 @@ export default function DailyUnifiedWeekOverview({
     void loadWeek()
   }, [loadWeek])
 
+  useEffect(() => {
+    const updateCurrentMinute =
+      () => {
+        setCurrentMinute(
+          currentMinuteOfDay()
+        )
+      }
+
+    updateCurrentMinute()
+
+    const intervalId =
+      window.setInterval(
+        updateCurrentMinute,
+        15_000
+      )
+
+    return () => {
+      window.clearInterval(
+        intervalId
+      )
+    }
+  }, [])
+
   const weekDays =
     useMemo(
       () =>
@@ -486,18 +588,6 @@ export default function DailyUnifiedWeekOverview({
           return null
         }
 
-        const currentTime =
-          new Intl.DateTimeFormat(
-            'pt-PT',
-            {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            }
-          ).format(
-            new Date()
-          )
-
         return (
           snapshot.days
             .find(
@@ -505,19 +595,33 @@ export default function DailyUnifiedWeekOverview({
                 day.date === date
             )
             ?.lessons.find(
-              row =>
-                row.lesson.status !==
-                  'cancelled' &&
-                row.lesson.startTime <=
-                  currentTime &&
-                row.lesson.endTime >=
-                  currentTime
+              row => {
+                const progress =
+                  getCurrentSlotProgress(
+                    {
+                      key:
+                        row.lesson.id,
+                      startTime:
+                        row.lesson.startTime,
+                      endTime:
+                        row.lesson.endTime
+                    },
+                    currentMinute
+                  )
+
+                return (
+                  row.lesson.status !==
+                    'cancelled' &&
+                  progress !== null
+                )
+              }
             )
             ?.lesson.id ??
           null
         )
       },
       [
+        currentMinute,
         date,
         selectedLessonId,
         snapshot
@@ -839,16 +943,47 @@ export default function DailyUnifiedWeekOverview({
                                   slot.endTime
                             )
 
+                          const currentSlotProgress =
+                            date ===
+                              todayISO() &&
+                            day.isToday
+                              ? getCurrentSlotProgress(
+                                  slot,
+                                  currentMinute
+                                )
+                              : null
+
                           return (
                             <div
                               key={`${day.date}-${slot.key}`}
-                              className={`min-h-[4.5rem] border-r border-white/[0.07] p-1.5 last:border-r-0 ${
-                                day.date === date
-                                  ? 'bg-cyan-300/[0.018]'
-                                  : ''
+                              className={`relative min-h-[4.5rem] overflow-hidden border-r border-white/[0.07] p-1.5 last:border-r-0 ${
+                                currentSlotProgress !==
+                                null
+                                  ? 'bg-rose-300/[0.055] ring-1 ring-inset ring-rose-300/20'
+                                  : day.date ===
+                                      date
+                                    ? 'bg-cyan-300/[0.018]'
+                                    : ''
                               }`}
                             >
-                              <div className="space-y-1.5">
+                              {currentSlotProgress !==
+                              null ? (
+                                <div
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-rose-400 transition-[top] duration-700 ease-linear"
+                                  style={{
+                                    top:
+                                      `${(
+                                        currentSlotProgress *
+                                        100
+                                      ).toFixed(
+                                        2
+                                      )}%`
+                                  }}
+                                />
+                              ) : null}
+
+                              <div className="relative z-10 space-y-1.5">
                                 {lessons.map(
                                   row => {
                                     const active =
