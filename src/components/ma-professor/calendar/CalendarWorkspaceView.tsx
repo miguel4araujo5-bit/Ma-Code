@@ -1647,7 +1647,7 @@ function MonthLessonChip({
       EntityId
   ) => void
 }) {
-  const className = `w-full rounded-lg border px-2 py-2 text-left transition ${
+  const className = `w-full rounded-md border px-2 py-1.5 text-left transition ${
     lessonStatusClasses[
       row.lesson.status
     ]
@@ -1655,12 +1655,12 @@ function MonthLessonChip({
 
   const content = (
     <>
-      <p className="truncate text-[0.65rem] font-black">
+      <p className="truncate text-[0.61rem] font-black leading-4">
         {row.lesson.startTime} ·{' '}
         {row.group.name}
       </p>
 
-      <p className="mt-1 truncate text-[0.58rem] opacity-70">
+      <p className="mt-0.5 truncate text-[0.54rem] leading-3.5 opacity-70">
         {getLessonSubjectLabel(
           row
         )}
@@ -1721,16 +1721,11 @@ function MonthDayCell({
     )
 
   const visibleLessons =
-    day.lessons.slice(
-      0,
-      3
-    )
+    day.lessons
 
-  const hiddenItemCount =
+  const hiddenEventCount =
     day.events.length -
-    visibleEvents.length +
-    day.lessons.length -
-    visibleLessons.length
+    visibleEvents.length
 
   return (
     <article
@@ -1822,7 +1817,7 @@ function MonthDayCell({
         ) : null}
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-1.5">
         {visibleEvents.map(
           (
             row
@@ -1860,14 +1855,14 @@ function MonthDayCell({
         )}
       </div>
 
-      {hiddenItemCount >
+      {hiddenEventCount >
       0 ? (
-        <p className="mt-3 text-center text-[0.65rem] font-bold text-slate-500">
-          +{hiddenItemCount}{' '}
-          {hiddenItemCount ===
+        <p className="mt-2 text-center text-[0.58rem] font-bold text-slate-500">
+          +{hiddenEventCount}{' '}
+          {hiddenEventCount ===
           1
-            ? 'item'
-            : 'itens'}
+            ? 'evento'
+            : 'eventos'}
         </p>
       ) : null}
 
