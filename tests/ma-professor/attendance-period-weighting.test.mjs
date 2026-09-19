@@ -129,6 +129,44 @@ test(
 )
 
 test(
+  'one lesson before the annual 10 percent limit already produces a warning even below the generic 8 percent warning',
+  () => {
+    const warningLevel =
+      metrics.getAttendanceWarningLevel({
+        plannedPeriods: 60,
+        absencePeriods: 4,
+        nextLessonPeriods: 2,
+        warningPercent: 8,
+        recoveryThresholdPercent: 10
+      })
+
+    assert.equal(
+      warningLevel,
+      'warning'
+    )
+  }
+)
+
+test(
+  'reaching the annual 10 percent limit produces recovery required',
+  () => {
+    const warningLevel =
+      metrics.getAttendanceWarningLevel({
+        plannedPeriods: 60,
+        absencePeriods: 6,
+        nextLessonPeriods: 2,
+        warningPercent: 8,
+        recoveryThresholdPercent: 10
+      })
+
+    assert.equal(
+      warningLevel,
+      'recovery_required'
+    )
+  }
+)
+
+test(
   'when the attendance record is corrected by the class director the annual percentage can return to zero',
   () => {
     const result =
@@ -176,11 +214,11 @@ test(
 )
 
 test(
-  'the recovery threshold is inclusive at 10 percent and the warning label carries the emergency marker',
+  'the repository evaluates the annual threshold and the one-lesson warning through the shared warning calculator',
   () => {
     assert.match(
       repositorySource,
-      /metrics\.absencePercent\s*>=\s*settings\.learningRecoveryThresholdPercent/
+      /getAttendanceWarningLevel\(\{[\s\S]*plannedPeriods:[\s\S]*annualPlannedPeriods[\s\S]*absencePeriods:[\s\S]*metrics\.absencePeriods[\s\S]*nextLessonPeriods:/
     )
     assert.match(
       repositorySource,
