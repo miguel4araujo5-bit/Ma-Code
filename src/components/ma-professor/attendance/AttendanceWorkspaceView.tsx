@@ -802,15 +802,11 @@ export default function AttendanceWorkspaceView({
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {moduleName}
+                            UFCD / componente: {moduleName}
                           </p>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          <span className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1.5 text-xs font-black text-slate-300">
-                            {row.summary.absences}/{row.summary.lessonsTaught} faltas
-                          </span>
-
                           <span
                             className={`rounded-full border px-3 py-1.5 text-xs font-black ${warningClass(
                               row.summary.warningLevel
