@@ -428,3 +428,19 @@ test(
     )
   }
 )
+
+
+test(
+  'manual GIAE submission can activate a future lesson and manual pending restores it to planned',
+  () => {
+    assert.match(
+      lessonRepositorySource,
+      /async markGIAESubmittedExplicit\([\s\S]*status:\s*'taught'[\s\S]*giaeStatus:\s*'submitted'/s
+    )
+
+    assert.match(
+      lessonRepositorySource,
+      /async markGIAEPendingExplicit\([\s\S]*isFutureLessonDate\([\s\S]*pending\.date[\s\S]*status:[\s\S]*'planned'/s
+    )
+  }
+)
