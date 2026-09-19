@@ -257,11 +257,28 @@ test(
 )
 
 test(
-  'GIAE status control is display-only and cannot manually bypass copy authorization',
+  'GIAE status control can be changed manually without copying the summary',
   () => {
+    const handler = dailySource.slice(
+      dailySource.indexOf(
+        'async function handleGIAESubmissionToggle('
+      ),
+      dailySource.indexOf(
+        'async function handleCopySummary()'
+      )
+    )
+
+    assert.match(
+      handler,
+      /giaeExplicitSubmissionRepository\.markSubmitted\(/
+    )
+    assert.match(
+      handler,
+      /giaeExplicitSubmissionRepository\.markPending\(/
+    )
     assert.doesNotMatch(
-      dailySource,
-      /updateLessonForm\(\s*['"]giaeStatus['"]/
+      handler,
+      /copyTextToClipboard\(/
     )
 
     const statusMarker =
@@ -280,8 +297,14 @@ test(
     const statusControl =
       dailySource.slice(inputStart, inputEnd)
 
-    assert.match(statusControl, /\bdisabled\b/)
-    assert.match(statusControl, /\breadOnly\b/)
+    assert.match(
+      statusControl,
+      /onChange=/
+    )
+    assert.doesNotMatch(
+      statusControl,
+      /\breadOnly\b/
+    )
   }
 )
 
