@@ -128,6 +128,7 @@ interface StoredRenewalRequest {
   requestedPlan:
     | 'paid_30_days'
     | 'school_year'
+    | 'courtesy_30_days'
 
   amountCents:
     number
@@ -2814,7 +2815,9 @@ export class MaProfessorAccessDurableObject {
       requestedPlan !==
         'paid_30_days' &&
       requestedPlan !==
-        'school_year'
+        'school_year' &&
+      requestedPlan !==
+        'courtesy_30_days'
     ) {
       return json(
         {
@@ -2856,7 +2859,10 @@ export class MaProfessorAccessDurableObject {
         requestedPlan ===
           'paid_30_days'
           ? 349
-          : 1500
+          : requestedPlan ===
+              'school_year'
+            ? 1500
+            : 0
 
       const renewal:
         StoredRenewalRequest = {
@@ -2928,7 +2934,10 @@ export class MaProfessorAccessDurableObject {
         ),
 
       message:
-        'Pedido registado. A MA-CODE confirmará manualmente o pagamento e a nova autorização. Não existe renovação automática.'
+        requestedPlan ===
+          'courtesy_30_days'
+          ? 'Pedido de extensão gratuita registado. A MA-CODE analisará o pedido e confirmará a extensão manualmente.'
+          : 'Pedido registado. A MA-CODE confirmará manualmente o pagamento e a nova autorização. Não existe renovação automática.'
     })
   }
 
@@ -3129,7 +3138,11 @@ export class MaProfessorAccessDurableObject {
         .requestedPlan ===
         'paid_30_days'
         ? 'Mensal · 3,49 €'
-        : 'Ano letivo · 15 €'
+        : renewal
+            .requestedPlan ===
+            'school_year'
+          ? 'Ano letivo · 15 €'
+          : 'Extensão gratuita · 30 dias'
 
     try {
       const response =
