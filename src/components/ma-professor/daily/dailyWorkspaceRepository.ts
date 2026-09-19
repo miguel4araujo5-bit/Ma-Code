@@ -1269,8 +1269,9 @@ export class DailyWorkspaceRepository {
         }
 
         if (
-          updated.status ===
-          'taught'
+          updated.status !==
+            'cancelled' &&
+          updated.summary.trim()
         ) {
           const attendanceEntries:
             AttendanceEntryDraft[] =
