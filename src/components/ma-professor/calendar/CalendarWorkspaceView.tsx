@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   useEffect,
+  useId,
   useMemo,
   useState
 } from 'react'
@@ -510,7 +511,8 @@ function WorkspaceToolbar({
             <button
               type="button"
               onClick={onManagePAA}
-              className="rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-4 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/[0.12]"
+              title="Plano Anual de Atividades"
+              className="rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-fuchsia-300/[0.12]"
             >
               PAA
             </button>
@@ -1706,6 +1708,9 @@ function MonthDayCell({
   onPAAActivitySelect?:
     CalendarWorkspaceViewProps['onPAAActivitySelect']
 }) {
+  const [paaExpanded, setPAAExpanded] = useState(false)
+  const paaListId = useId()
+
   const dayPAAActivities =
     paaActivities.filter(
       activity =>
@@ -1713,11 +1718,9 @@ function MonthDayCell({
         day.date
     )
 
-  const visiblePAAActivities =
-    dayPAAActivities.slice(
-      0,
-      2
-    )
+  const visiblePAAActivities = paaExpanded
+    ? dayPAAActivities
+    : dayPAAActivities.slice(0, 2)
 
   const hiddenPAACount =
     dayPAAActivities.length -
@@ -1743,7 +1746,7 @@ function MonthDayCell({
 
   return (
     <article
-      className={`min-h-[14rem] border-b border-r border-white/[0.08] p-3 ${
+      className={`flex min-h-[14rem] min-w-0 flex-col border-b border-r border-white/[0.08] p-3 ${
         day.isToday
           ? 'bg-cyan-300/[0.06]'
           : day.isInPrimaryPeriod
@@ -1777,59 +1780,6 @@ function MonthDayCell({
           </span>
         ) : null}
       </div>
-
-      {visiblePAAActivities.length >
-      0 ? (
-        <div className="mt-3 border-b border-fuchsia-300/10 pb-2">
-          <div className="space-y-1.5">
-            {visiblePAAActivities.map(
-              activity => (
-                <button
-                  key={
-                    activity.id
-                  }
-                  type="button"
-                  onClick={() =>
-                    onPAAActivitySelect?.(
-                      activity.id
-                    )
-                  }
-                  className="group flex w-full items-start gap-2 border-l-2 border-fuchsia-300/35 py-0.5 pl-2 text-left transition hover:border-fuchsia-200/70"
-                >
-                  <span className="mt-[0.1rem] shrink-0 text-[0.5rem] font-black uppercase tracking-[0.12em] text-fuchsia-300/80">
-                    PAA
-                  </span>
-
-                  <span className="line-clamp-2 text-[0.61rem] font-semibold leading-4 text-fuchsia-100/85 transition group-hover:text-fuchsia-50">
-                    {activity.title}
-                  </span>
-                </button>
-              )
-            )}
-          </div>
-
-          {hiddenPAACount >
-          0 ? (
-            <button
-              type="button"
-              onClick={() =>
-                onPAAActivitySelect?.(
-                  dayPAAActivities[
-                    visiblePAAActivities.length
-                  ].id
-                )
-              }
-              className="mt-1 pl-2 text-[0.55rem] font-bold text-fuchsia-300/55 transition hover:text-fuchsia-200"
-            >
-              +{hiddenPAACount}{' '}
-              {hiddenPAACount ===
-              1
-                ? 'atividade PAA'
-                : 'atividades PAA'}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
 
       <div className="mt-3 space-y-2">
         {visibleEvents.map(
@@ -1896,6 +1846,72 @@ function MonthDayCell({
         >
           + Aula
         </button>
+      ) : null}
+
+      {dayPAAActivities.length > 0 ? (
+        <div className="mt-auto pt-4">
+          <footer
+            aria-label={`Atividades PAA de ${formatFullDate(day.date)}`}
+            onClick={event => event.stopPropagation()}
+            className="-mx-3 -mb-3 border-t border-fuchsia-400/20 bg-fuchsia-400/[0.035] px-3 pb-3 pt-2.5"
+          >
+            <div className="mb-1.5 flex items-center gap-1.5 text-[0.55rem] font-bold uppercase tracking-[0.12em] text-slate-400">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3 shrink-0 text-fuchsia-400"
+              >
+                <path d="M3 14V2m0 0c3-3 7 3 10 0v7c-3 3-7-3-10 0" />
+              </svg>
+              <span>Na escola</span>
+              <span className="ml-auto text-[0.5rem] tracking-[0.08em]">PAA</span>
+            </div>
+
+            <ul id={paaListId} className="space-y-1">
+              {visiblePAAActivities.map(activity => (
+                <li key={activity.id}>
+                  {onPAAActivitySelect ? (
+                    <button
+                      type="button"
+                      onClick={() => onPAAActivitySelect(activity.id)}
+                      title={activity.title}
+                      aria-label={`Editar atividade PAA: ${activity.title}`}
+                      className="block min-h-6 w-full rounded-sm py-0.5 text-left text-[0.68rem] font-medium leading-[1.05rem] text-slate-200 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+                    >
+                      <span className={paaExpanded ? 'break-words' : 'line-clamp-2 break-words'}>
+                        {activity.title}
+                      </span>
+                    </button>
+                  ) : (
+                    <p title={activity.title} className="break-words py-0.5 text-[0.68rem] font-medium leading-[1.05rem] text-slate-200">
+                      {activity.title}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {dayPAAActivities.length > 2 ? (
+              <button
+                type="button"
+                aria-expanded={paaExpanded}
+                aria-controls={paaListId}
+                aria-label={`${paaExpanded ? 'Recolher' : 'Mostrar todas as'} atividades PAA de ${formatFullDate(day.date)}`}
+                onClick={() => setPAAExpanded(current => !current)}
+                className="mt-1 min-h-6 rounded-sm py-1 text-left text-[0.6rem] font-semibold text-slate-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+              >
+                {paaExpanded
+                  ? 'Mostrar menos'
+                  : `+ ${hiddenPAACount} ${hiddenPAACount === 1 ? 'atividade' : 'atividades'}`}
+              </button>
+            ) : null}
+          </footer>
+        </div>
       ) : null}
     </article>
   )
