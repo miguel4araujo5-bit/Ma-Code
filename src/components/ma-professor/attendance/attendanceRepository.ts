@@ -3,10 +3,6 @@ import {
   maProfessorDb
 } from '../db'
 
-import {
-  isStudentMemberOnDate
-} from '../students/studentMembership'
-
 import type {
   EntityId,
   LearningRecovery,
