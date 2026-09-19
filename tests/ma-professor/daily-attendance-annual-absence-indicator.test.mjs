@@ -44,26 +44,26 @@ test(
 )
 
 test(
-  'daily attendance previews the count while the teacher changes the current lesson attendance',
+  'daily attendance shows only persisted absence totals so the count changes after the lesson is saved',
   () => {
-    assert.match(
-      viewSource,
-      /persistedAttendanceByStudent/
-    )
-
-    assert.match(
+    assert.doesNotMatch(
       viewSource,
       /attendanceDelta/
     )
 
-    assert.match(
+    assert.doesNotMatch(
       viewSource,
       /displayedAbsencePeriods/
     )
 
     assert.match(
       viewSource,
-      /displayedAbsencePercent/
+      /annualAbsencePeriods/
+    )
+
+    assert.match(
+      viewSource,
+      /absencePercent/
     )
   }
 )
