@@ -571,13 +571,13 @@ export default function LessonEditorDialog({
 
           if (
             form.giaeStatus === 'submitted' &&
-            savedLesson.status === 'taught' &&
             savedLesson.summary.trim() &&
             savedLesson.giaeStatus !== 'submitted'
           ) {
             savedLesson =
-              await lessonRepository.markGIAESubmitted(
-                savedLesson.id
+              await lessonRepository.markGIAESubmittedExplicit(
+                savedLesson.id,
+                savedLesson.updatedAt
               )
           }
 
@@ -586,8 +586,9 @@ export default function LessonEditorDialog({
             savedLesson.giaeStatus === 'submitted'
           ) {
             savedLesson =
-              await lessonRepository.markGIAEPending(
-                savedLesson.id
+              await lessonRepository.markGIAEPendingExplicit(
+                savedLesson.id,
+                savedLesson.updatedAt
               )
           }
 
