@@ -474,6 +474,15 @@ export default function DailyUnifiedWeekOverview({
     currentMinuteOfDay
   )
   const [
+    timelinePreview,
+    setTimelinePreview
+  ] = useState<{
+    date: ISODate
+    minute: number
+  } | null>(
+    null
+  )
+  const [
     summary,
     setSummary
   ] = useState('')
@@ -632,6 +641,17 @@ export default function DailyUnifiedWeekOverview({
             !duty.details.endTime
         ),
       [duties]
+    )
+
+  const canPreviewTimeline =
+    useMemo(
+      () =>
+        !weekDays.some(
+          day =>
+            day.date ===
+            todayISO()
+        ),
+      [weekDays]
     )
 
   const highlightedLessonId =
@@ -798,6 +818,70 @@ export default function DailyUnifiedWeekOverview({
     }
   }
 
+  function toggleTimelinePreview() {
+    if (timelinePreview) {
+      setTimelinePreview(
+        null
+      )
+      return
+    }
+
+    const previewLesson =
+      [...weekDays]
+        .reverse()
+        .flatMap(
+          day =>
+            day.lessons
+              .filter(
+                row =>
+                  row.lesson.status !==
+                    'cancelled'
+              )
+              .map(
+                row => ({
+                  date:
+                    day.date,
+                  lesson:
+                    row.lesson
+                })
+              )
+        )[0] ??
+      null
+
+    if (!previewLesson) {
+      return
+    }
+
+    const start =
+      timeToMinuteOfDay(
+        previewLesson.lesson.startTime
+      )
+    const end =
+      timeToMinuteOfDay(
+        previewLesson.lesson.endTime
+      )
+
+    if (
+      start === null ||
+      end === null ||
+      end <= start
+    ) {
+      return
+    }
+
+    setTimelinePreview({
+      date:
+        previewLesson.date,
+      minute:
+        start +
+        (
+          end -
+          start
+        ) /
+          2
+    })
+  }
+
   function moveToDate(
     nextDate: ISODate | null
   ) {
@@ -836,6 +920,31 @@ export default function DailyUnifiedWeekOverview({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            {canPreviewTimeline ? (
+              <button
+                type="button"
+                onClick={
+                  toggleTimelinePreview
+                }
+                disabled={
+                  loading ||
+                  weekDays.every(
+                    day =>
+                      day.lessons.every(
+                        row =>
+                          row.lesson.status ===
+                            'cancelled'
+                      )
+                  )
+                }
+                className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-3 py-1.5 text-[0.66rem] font-black text-rose-100 disabled:opacity-35"
+              >
+                {timelinePreview
+                  ? 'Terminar teste'
+                  : 'Testar linha'}
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={() =>
@@ -1003,14 +1112,26 @@ export default function DailyUnifiedWeekOverview({
                                   slot.endTime
                             )
 
+                          const timelineDate =
+                            timelinePreview?.date ??
+                            todayISO()
+
+                          const timelineMinute =
+                            timelinePreview?.minute ??
+                            currentMinute
+
                           const currentSlotProgress =
-                            date ===
-                              todayISO() &&
                             day.date ===
-                              todayISO()
+                              timelineDate &&
+                            (
+                              timelinePreview !==
+                                null ||
+                              date ===
+                                todayISO()
+                            )
                               ? getCurrentSlotProgress(
                                   slot,
-                                  currentMinute
+                                  timelineMinute
                                 )
                               : null
 
