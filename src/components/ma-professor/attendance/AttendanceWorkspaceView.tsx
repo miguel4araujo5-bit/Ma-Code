@@ -51,6 +51,8 @@ interface AttendanceWorkspaceViewProps {
     recoveryId: EntityId
   ) => Promise<void> | void
 
+  onSynchronizeAllRecoveries: () => Promise<void> | void
+
   onSynchronizeRecoveries: (
     moduleId: EntityId
   ) => Promise<void> | void
@@ -273,6 +275,7 @@ export default function AttendanceWorkspaceView({
   onCreateRecovery,
   onUpdateRecovery,
   onDeletePendingRecovery,
+  onSynchronizeAllRecoveries,
   onSynchronizeRecoveries
 }: AttendanceWorkspaceViewProps) {
   const [
@@ -486,6 +489,17 @@ export default function AttendanceWorkspaceView({
   }
 
   async function synchronize() {
+    if (
+      onlyProblems
+    ) {
+      await runAction(
+        'synchronize-all',
+        onSynchronizeAllRecoveries,
+        'As recuperações necessárias foram verificadas em todas as disciplinas.'
+      )
+      return
+    }
+
     const moduleId =
       snapshot.selectedModule?.id
 
@@ -537,24 +551,27 @@ export default function AttendanceWorkspaceView({
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              {!onlyProblems ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    void synchronize()
-                  }
-                  disabled={
-                    busy ||
+              <button
+                type="button"
+                onClick={() =>
+                  void synchronize()
+                }
+                disabled={
+                  busy ||
+                  (
+                    !onlyProblems &&
                     !snapshot.selectedModule
-                  }
-                  className="rounded-2xl border border-amber-200/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {busyAction ===
-                  'synchronize'
-                    ? 'A verificar...'
-                    : 'Verificar recuperações'}
-                </button>
-              ) : null}
+                  )
+                }
+                className="rounded-2xl border border-amber-200/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-50 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {busyAction ===
+                  'synchronize' ||
+                busyAction ===
+                  'synchronize-all'
+                  ? 'A verificar...'
+                  : 'Verificar recuperações'}
+              </button>
 
               <button
                 type="button"
