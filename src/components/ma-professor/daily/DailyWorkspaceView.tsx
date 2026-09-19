@@ -1591,6 +1591,149 @@ export default function DailyWorkspaceView({
         }
     }
 
+    async function handleGIAESubmissionToggle(
+        submitted: boolean
+    ) {
+        if (
+            !selectedLesson ||
+            !lessonForm ||
+            !assessmentForm ||
+            savingRef.current
+        ) {
+            return;
+        }
+
+        if (
+            submitted &&
+            !lessonForm.summary.trim()
+        ) {
+            setError(
+                'Escreva e guarde primeiro o sumário antes de marcar como submetido no GIAE.'
+            );
+            setSuccess('');
+            return;
+        }
+
+        const lessonId =
+            selectedLesson.context
+                .lessonRow.lesson.id;
+
+        if (hasUnsavedChanges) {
+            const saved =
+                await saveAll({
+                    reload: false,
+                    announce: false
+                });
+
+            if (!saved) {
+                return;
+            }
+        }
+
+        savingRef.current = true;
+        setSaving(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const currentWorkspace =
+                await dailyWorkspaceRepository.getLessonWorkspace(
+                    academicYearId,
+                    lessonId,
+                    selectedAssessmentId ??
+                        undefined
+                );
+
+            const currentLesson =
+                currentWorkspace.context
+                    .lessonRow.lesson;
+
+            if (
+                submitted &&
+                !currentLesson.summary.trim()
+            ) {
+                throw new Error(
+                    'Guarde primeiro o sumário antes de marcar como submetido no GIAE.'
+                );
+            }
+
+            const updated =
+                submitted
+                    ? await giaeExplicitSubmissionRepository.markSubmitted(
+                          {
+                              lessonId,
+                              expectedUpdatedAt:
+                                  currentLesson.updatedAt
+                          }
+                      )
+                    : await giaeExplicitSubmissionRepository.markPending(
+                          {
+                              lessonId,
+                              expectedUpdatedAt:
+                                  currentLesson.updatedAt
+                          }
+                      );
+
+            const assessmentId =
+                currentWorkspace
+                    .selectedAssessment?.id ??
+                null;
+
+            const reloaded =
+                await loadDate(
+                    date,
+                    lessonId,
+                    assessmentId
+                );
+
+            if (!reloaded) {
+                const nextLessonForm:
+                    LessonFormState = {
+                    ...lessonForm,
+                    status:
+                        updated.status,
+                    giaeStatus:
+                        updated.giaeStatus
+                };
+
+                setLessonForm(
+                    nextLessonForm
+                );
+                setSavedSignature(
+                    buildEditorSignature(
+                        nextLessonForm,
+                        assessmentForm,
+                        students
+                    )
+                );
+            }
+
+            setSuccess(
+                submitted
+                    ? 'Aula assinalada manualmente como submetida no GIAE.'
+                    : 'Estado “Submetido no GIAE” anulado manualmente.'
+            );
+
+            await notifySaved();
+        } catch (statusError) {
+            await loadDate(
+                date,
+                lessonId,
+                selectedAssessmentId
+            );
+
+            setError(
+                dailyWorkspaceRepository.describeError(
+                    statusError
+                )
+            );
+            setSuccess('');
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
+        }
+    }
+
     async function handleCopySummary() {
         if (
             !selectedLesson ||
@@ -3267,8 +3410,8 @@ export default function DailyWorkspaceView({
                                                 </button>
 
                                                 <label
-                                                    title="O estado é atualizado automaticamente depois de copiar o sumário."
-                                                    className="flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300"
+                                                    title="Pode confirmar ou anular manualmente este estado, mesmo sem copiar o sumário."
+                                                    className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300"
                                                 >
                                                     <input
                                                         type="checkbox"
@@ -3276,10 +3419,17 @@ export default function DailyWorkspaceView({
                                                             lessonForm.giaeStatus ===
                                                             'submitted'
                                                         }
-                                                        disabled
-                                                        readOnly
+                                                        onChange={event =>
+                                                            void handleGIAESubmissionToggle(
+                                                                event.target.checked
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            saving ||
+                                                            !lessonForm.summary.trim()
+                                                        }
                                                         aria-label="Estado de submissão no GIAE"
-                                                        className="h-4 w-4 accent-cyan-300 disabled:opacity-100"
+                                                        className="h-4 w-4 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-45"
                                                     />
 
                                                     Submetido no
