@@ -275,7 +275,7 @@ test(
 
     assert.match(
       copyHandler,
-      /row\.canMarkSubmitted\s*&&[\s\S]*Boolean\(onMarkSubmitted\)/
+      /row\.canMarkSubmitted\s*&&[\s\S]*Boolean\(onMarkCopiedSubmitted\)/
     )
     assert.match(
       copyHandler,
