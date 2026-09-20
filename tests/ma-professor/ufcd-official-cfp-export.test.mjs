@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import * as fflate from 'fflate'
+import ts from 'typescript'
 
 const modelSource = await readFile(
   new URL('../../src/components/ma-professor/assessments/ufcdCfpModel.ts', import.meta.url),
@@ -34,6 +36,33 @@ const wrapperSource = await readFile(
   new URL('../../src/components/ma-professor/assessments/UfcdFinalGradeGrid.tsx', import.meta.url),
   'utf8'
 )
+
+async function loadExecutableTemplateModule() {
+  const executableSource =
+    templateSource.replace(
+      /import\s*\{[\s\S]*?\}\s*from 'fflate'/,
+      'const { strFromU8, strToU8, unzipSync, zipSync } = globalThis.__maProfessorFflate'
+    )
+
+  const compiled =
+    ts.transpileModule(
+      executableSource,
+      {
+        compilerOptions: {
+          module: ts.ModuleKind.ESNext,
+          target: ts.ScriptTarget.ES2022
+        }
+      }
+    ).outputText
+
+  globalThis.__maProfessorFflate = fflate
+
+  return import(
+    `data:text/javascript;base64,${Buffer
+      .from(compiled)
+      .toString('base64')}`
+  )
+}
 
 test('CFP model preserves configured criteria, ACS and defensive module-name cleanup', () => {
   assert.match(modelSource, /slice\(0, 6\)/)
@@ -95,6 +124,65 @@ test('CFP values are populated directly from the aggregate model so extra moment
   assert.match(excelSource, /student\.automaticLevel/)
   assert.match(excelSource, /`AA\$\{row\}`/)
   assert.match(excelSource, /ROUNDUP\(AA\$\{row\},0\)/)
+})
+
+test('official XLSM writer tolerates blank cells omitted by Excel and materializes them only when writing', async () => {
+  const module =
+    await loadExecutableTemplateModule()
+  const templateBytes =
+    await readFile(
+      new URL(
+        '../../public/ma-professor/templates/Grelha_Avaliacao_UFCD_UC_Modelo.xlsm',
+        import.meta.url
+      )
+    )
+  const previousFetch =
+    globalThis.fetch
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    arrayBuffer: async () =>
+      templateBytes.buffer.slice(
+        templateBytes.byteOffset,
+        templateBytes.byteOffset +
+          templateBytes.byteLength
+      )
+  })
+
+  try {
+    const files =
+      await module.loadOfficialUfcdXlsmTemplate()
+    const homePath =
+      'xl/worksheets/sheet1.xml'
+
+    assert.doesNotThrow(() => {
+      module.clearWorksheetCell(
+        files,
+        homePath,
+        'I6'
+      )
+    })
+
+    module.setWorksheetString(
+      files,
+      homePath,
+      'I6',
+      '1'
+    )
+
+    const after =
+      fflate.strFromU8(
+        files[homePath]
+      )
+
+    assert.match(
+      after,
+      /<c\b[^>]*\br="I6"[^>]*>/
+    )
+  } finally {
+    globalThis.fetch = previousFetch
+    delete globalThis.__maProfessorFflate
+  }
 })
 
 test('official XLSM loader normalizes sheet paths and repairs student references without rewriting the legacy CFP matrix', () => {

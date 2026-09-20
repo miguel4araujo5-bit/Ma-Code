@@ -93,6 +93,166 @@ function escapeRegExp(
   )
 }
 
+function parseCellAddress(
+  address: string
+) {
+  const match =
+    /^([A-Z]+)(\d+)$/.exec(address)
+
+  if (!match) {
+    throw new Error(
+      `Endereço de célula inválido no modelo XLSM: ${address}.`
+    )
+  }
+
+  return {
+    column: match[1],
+    row: Number(match[2])
+  }
+}
+
+function columnNumber(
+  column: string
+) {
+  let result = 0
+
+  for (const character of column) {
+    result =
+      result * 26 +
+      character.charCodeAt(0) -
+      64
+  }
+
+  return result
+}
+
+function nearestColumnStyle(
+  xml: string,
+  column: string,
+  row: number
+) {
+  const pattern = new RegExp(
+    `<c\\b([^>]*\\br="${column}(\\d+)"[^>]*)`,
+    'g'
+  )
+  let best:
+    | {
+        distance: number
+        style: string
+      }
+    | null = null
+
+  for (const match of xml.matchAll(pattern)) {
+    const style =
+      match[1].match(
+        /\bs="([^"]+)"/
+      )?.[1]
+
+    if (!style) {
+      continue
+    }
+
+    const distance =
+      Math.abs(
+        Number(match[2]) - row
+      )
+
+    if (
+      !best ||
+      distance < best.distance
+    ) {
+      best = {
+        distance,
+        style
+      }
+    }
+  }
+
+  return best?.style ?? null
+}
+
+function materializeCell(
+  xml: string,
+  address: string,
+  body: string,
+  type: string | null
+) {
+  const {
+    column,
+    row
+  } = parseCellAddress(address)
+  const rowPattern = new RegExp(
+    `<row\\b([^>]*\\br="${row}"[^>]*)>([\\s\\S]*?)<\\/row>`
+  )
+  const rowMatch =
+    rowPattern.exec(xml)
+
+  if (!rowMatch) {
+    throw new Error(
+      `O modelo XLSM não contém a linha esperada ${row} para a célula ${address}.`
+    )
+  }
+
+  const style =
+    nearestColumnStyle(
+      xml,
+      column,
+      row
+    )
+  const attributes = [
+    ` r="${address}"`,
+    style
+      ? ` s="${style}"`
+      : '',
+    type
+      ? ` t="${type}"`
+      : ''
+  ].join('')
+  const cell =
+    `<c${attributes}>${body}</c>`
+  const targetColumn =
+    columnNumber(column)
+  let rowBody =
+    rowMatch[2]
+  let inserted = false
+
+  rowBody = rowBody.replace(
+    /<c\b[^>]*\br="([A-Z]+)\d+"[^>]*(?:\s*\/>|>[\s\S]*?<\/c>)/g,
+    current => {
+      if (inserted) {
+        return current
+      }
+
+      const currentAddress =
+        current.match(
+          /\br="([A-Z]+)\d+"/
+        )
+
+      if (
+        currentAddress &&
+        columnNumber(
+          currentAddress[1]
+        ) > targetColumn
+      ) {
+        inserted = true
+        return `${cell}${current}`
+      }
+
+      return current
+    }
+  )
+
+  if (!inserted) {
+    rowBody += cell
+  }
+
+  return xml.replace(
+    rowPattern,
+    () =>
+      `<row${rowMatch[1]}>${rowBody}</row>`
+  )
+}
+
 function replaceCell(
   xml: string,
   address: string,
@@ -103,8 +263,11 @@ function replaceCell(
     cellPattern(address)
 
   if (!pattern.test(xml)) {
-    throw new Error(
-      `O modelo XLSM não contém a célula esperada ${address}.`
+    return materializeCell(
+      xml,
+      address,
+      body,
+      type
     )
   }
 
@@ -192,11 +355,18 @@ export function clearWorksheetCell(
   sheetPath: string,
   address: string
 ) {
+  const xml =
+    text(files, sheetPath)
+
+  if (!cellPattern(address).test(xml)) {
+    return
+  }
+
   setText(
     files,
     sheetPath,
     replaceCell(
-      text(files, sheetPath),
+      xml,
       address,
       '',
       null
