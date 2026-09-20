@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import MBWayLogo from './MBWayLogo'
 
 import type {
@@ -18,11 +20,32 @@ interface FounderAccessOfferProps {
   onActivate: () => void
   onSelectPlan: (
     plan: RenewableLicensePlan
-  ) => void
+  ) => Promise<boolean>
 }
 
 export const MBWAY_NUMBER =
   '936 840 619'
+
+function getFounderPaymentDetails(
+  plan: RenewableLicensePlan
+) {
+  switch (plan) {
+    case 'paid_30_days':
+      return {
+        title: 'Apoio Fundador · 30 dias',
+        amount: '3,49 €'
+      }
+
+    case 'school_year':
+      return {
+        title: 'Apoio Fundador · Ano letivo',
+        amount: '15 €'
+      }
+
+    default:
+      return null
+  }
+}
 
 function FounderBadge() {
   return (
@@ -52,6 +75,26 @@ export default function FounderAccessOffer({
   onActivate,
   onSelectPlan
 }: FounderAccessOfferProps) {
+  const [
+    confirmationPlan,
+    setConfirmationPlan
+  ] =
+    useState<RenewableLicensePlan | null>(
+      null
+    )
+
+  const handleSelectPlan =
+    async (
+      plan: RenewableLicensePlan
+    ) => {
+      const registered =
+        await onSelectPlan(plan)
+
+      if (registered) {
+        setConfirmationPlan(plan)
+      }
+    }
+
   if (
     requestStatus === 'rejected'
   ) {
@@ -60,6 +103,13 @@ export default function FounderAccessOffer({
 
   const requestIsApproved =
     requestStatus === 'approved'
+
+  const confirmationPayment =
+    confirmationPlan
+      ? getFounderPaymentDetails(
+          confirmationPlan
+        )
+      : null
 
   return (
     <>
@@ -92,7 +142,7 @@ export default function FounderAccessOffer({
             type="button"
             disabled={Boolean(requestingPlan)}
             onClick={() =>
-              onSelectPlan(
+              void handleSelectPlan(
                 'paid_30_days'
               )
             }
@@ -122,7 +172,7 @@ export default function FounderAccessOffer({
             type="button"
             disabled={Boolean(requestingPlan)}
             onClick={() =>
-              onSelectPlan(
+              void handleSelectPlan(
                 'school_year'
               )
             }
@@ -219,6 +269,65 @@ export default function FounderAccessOffer({
           </button>
         </div>
       </section>
+
+      {confirmationPayment ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-sm"
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="founder-payment-title"
+            className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-slate-900 p-6 text-white shadow-2xl shadow-black/50 sm:p-7"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                <MBWayLogo className="h-10 w-auto" />
+              </div>
+
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
+                  Apoio Fundador
+                </p>
+                <h2
+                  id="founder-payment-title"
+                  className="mt-1 text-xl font-black"
+                >
+                  {confirmationPayment.title}
+                </h2>
+              </div>
+            </div>
+
+            <p className="mt-5 text-sm leading-6 text-slate-300">
+              Envie{' '}
+              <strong className="text-white">
+                {confirmationPayment.amount}
+              </strong>{' '}
+              por MB WAY para:
+            </p>
+
+            <p className="mt-3 rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 text-center font-mono text-2xl font-black tracking-[0.14em] text-white">
+              {MBWAY_NUMBER}
+            </p>
+
+            <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-100">
+              Depois de efetuar o pagamento, aguarde a confirmação por email
+              da MA-CODE. A ativação é feita manualmente durante a fase piloto.
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setConfirmationPlan(null)
+              }
+              className="mt-6 w-full rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+            >
+              OK
+            </button>
+          </section>
+        </div>
+      ) : null}
     </>
   )
 }
