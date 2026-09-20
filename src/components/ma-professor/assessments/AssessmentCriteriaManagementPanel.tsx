@@ -19,6 +19,7 @@ import type {
 } from './assessmentWorkspaceRepository'
 
 import {
+  AssessmentCriteriaDeletionBlockedError,
   assessmentCriteriaManagementRepository,
   type AssessmentCriteriaEditability,
   type UpdatedAssessmentCriteriaScheme
@@ -35,6 +36,11 @@ interface CriterionDraft {
 interface AssessmentCriteriaManagementPanelProps {
   snapshot: AssessmentWorkspaceSnapshot
   disabled?: boolean
+  subjectScope?: {
+    academicYearId: EntityId
+    subjectId: EntityId
+  } | null
+  onOpenDataReset?: () => void
   onSaved?: (
     result: UpdatedAssessmentCriteriaScheme
   ) => void
@@ -93,6 +99,8 @@ function hasHistory(
 export default function AssessmentCriteriaManagementPanel({
   snapshot,
   disabled = false,
+  subjectScope = null,
+  onOpenDataReset,
   onSaved
 }: AssessmentCriteriaManagementPanelProps) {
   const rootRef =
@@ -152,6 +160,11 @@ export default function AssessmentCriteriaManagementPanel({
     setSuccess
   ] = useState('')
 
+  const [
+    destructiveBlocked,
+    setDestructiveBlocked
+  ] = useState(false)
+
   useEffect(() => {
     setSchemeName(
       persistedSchemeName
@@ -162,6 +175,7 @@ export default function AssessmentCriteriaManagementPanel({
     setEditing(false)
     setError('')
     setSuccess('')
+    setDestructiveBlocked(false)
   }, [
     persistedSchemeId,
     persistedSchemeName,
@@ -183,10 +197,21 @@ export default function AssessmentCriteriaManagementPanel({
     setChecking(true)
     setError('')
 
-    void assessmentCriteriaManagementRepository
-      .getEditability(
-        persistedSchemeId
-      )
+    const editabilityRequest =
+      scheme?.scope ===
+        'subject' &&
+      subjectScope
+        ? assessmentCriteriaManagementRepository
+            .getSubjectEditability(
+              subjectScope.academicYearId,
+              subjectScope.subjectId
+            )
+        : assessmentCriteriaManagementRepository
+            .getEditability(
+              persistedSchemeId
+            )
+
+    void editabilityRequest
       .then(result => {
         if (!cancelled) {
           setEditability(result)
@@ -212,7 +237,10 @@ export default function AssessmentCriteriaManagementPanel({
     }
   }, [
     persistedSchemeId,
-    snapshot.generatedAt
+    scheme?.scope,
+    snapshot.generatedAt,
+    subjectScope?.academicYearId,
+    subjectScope?.subjectId
   ])
 
   const weightTotal =
@@ -479,26 +507,47 @@ export default function AssessmentCriteriaManagementPanel({
     setSaving(true)
     setError('')
     setSuccess('')
+    setDestructiveBlocked(false)
 
     try {
+      const criteriaInput =
+        criteria.map(criterion => ({
+          id: criterion.id,
+          name: criterion.name,
+          description:
+            criterion.description,
+          weightPercent:
+            Number(
+              criterion.weightPercent
+            )
+        }))
+
       const result =
-        await assessmentCriteriaManagementRepository
-          .updateScheme({
-            schemeId:
-              persistedSchemeId,
-            name: schemeName,
-            criteria:
-              criteria.map(criterion => ({
-                id: criterion.id,
-                name: criterion.name,
-                description:
-                  criterion.description,
-                weightPercent:
-                  Number(
-                    criterion.weightPercent
-                  )
-              }))
-          })
+        scheme.scope ===
+          'subject' &&
+        subjectScope
+          ? await assessmentCriteriaManagementRepository
+              .updateSubjectSchemes({
+                academicYearId:
+                  subjectScope.academicYearId,
+                subjectId:
+                  subjectScope.subjectId,
+                referenceSchemeId:
+                  persistedSchemeId,
+                name:
+                  schemeName,
+                criteria:
+                  criteriaInput
+              })
+          : await assessmentCriteriaManagementRepository
+              .updateScheme({
+                schemeId:
+                  persistedSchemeId,
+                name:
+                  schemeName,
+                criteria:
+                  criteriaInput
+              })
 
       setSchemeName(
         result.scheme.name
@@ -512,15 +561,27 @@ export default function AssessmentCriteriaManagementPanel({
           current?.evidence ?? {
             lessonAssessmentCount: 0,
             assessmentResultCount: 0,
-            finalGradeCount: 0
+            finalGradeCount: 0,
+            confirmedFinalGradeCount: 0
           }
       }))
       setEditing(false)
       setSuccess(
-        'Critérios atualizados com sucesso.'
+        scheme.scope ===
+          'subject' &&
+        subjectScope
+          ? 'Critérios atualizados em todas as turmas desta disciplina que usam critérios gerais.'
+          : 'Critérios atualizados com sucesso.'
       )
       onSaved?.(result)
     } catch (saveError) {
+      const deletionBlocked =
+        saveError instanceof
+          AssessmentCriteriaDeletionBlockedError
+
+      setDestructiveBlocked(
+        deletionBlocked
+      )
       setError(
         saveError instanceof Error
           ? saveError.message
@@ -585,7 +646,7 @@ export default function AssessmentCriteriaManagementPanel({
 
       {historyPresent && editability ? (
         <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100/90">
-          Este conjunto já tem histórico associado: {editability.evidence.lessonAssessmentCount} atividade(s), {editability.evidence.assessmentResultCount} resultado(s) e {editability.evidence.finalGradeCount} nota(s) final(is). Pode continuar a editar. Alterar apenas o nome ou a descrição não muda os cálculos. Alterar ponderações ou adicionar/remover critérios pode recalcular médias provisórias e sugestões; as notas finais já confirmadas não são alteradas automaticamente.
+          Este conjunto já tem histórico associado: {editability.evidence.lessonAssessmentCount} atividade(s), {editability.evidence.assessmentResultCount} resultado(s) e {editability.evidence.finalGradeCount} registo(s) de nota final, dos quais {editability.evidence.confirmedFinalGradeCount} confirmado(s). Pode continuar a editar. Alterar apenas o nome ou a descrição não muda os cálculos. Alterar ponderações ou adicionar/remover critérios pode recalcular médias provisórias e sugestões; as notas finais já confirmadas não são alteradas automaticamente.
         </div>
       ) : null}
 
@@ -595,6 +656,28 @@ export default function AssessmentCriteriaManagementPanel({
           className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.07] p-3 text-xs leading-5 text-rose-100"
         >
           {error}
+        </div>
+      ) : null}
+
+      {destructiveBlocked ? (
+        <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100/90">
+          <p>
+            Este critério já tem avaliações associadas e não pode ser apagado sem quebrar o histórico. Pode alterar o nome, a descrição ou a ponderação.
+          </p>
+
+          {onOpenDataReset ? (
+            <p className="mt-2">
+              Se pretende eliminar toda a configuração e começar novamente, pode{' '}
+              <button
+                type="button"
+                onClick={onOpenDataReset}
+                className="font-black text-amber-200 underline decoration-amber-300/70 underline-offset-2 transition hover:text-amber-100"
+              >
+                apagar tudo e começar de novo
+              </button>
+              .
+            </p>
+          ) : null}
         </div>
       ) : null}
 
