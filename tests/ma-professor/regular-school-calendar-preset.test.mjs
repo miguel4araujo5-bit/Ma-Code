@@ -89,3 +89,38 @@ test(
     )
   }
 )
+
+
+test(
+  'legacy S. Bento Cargo occurrences are backfilled into the first teaching week starting 14 September',
+  () => {
+    assert.match(
+      source,
+      /const FIRST_TEACHING_WEEK_END_DATE: ISODate = '2026-09-18'/
+    )
+    assert.match(
+      source,
+      /const LEGACY_FIRST_FULL_WEEK_END_DATE: ISODate = '2026-09-25'/
+    )
+    assert.match(
+      source,
+      /async function ensureFirstTeachingWeekDutyOccurrences\([\s\S]*isDutyEvent\(event\)[\s\S]*event\.startDate >=[\s\S]*LEGACY_PROFESSIONAL_START_DATE[\s\S]*event\.startDate <=[\s\S]*LEGACY_FIRST_FULL_WEEK_END_DATE/
+    )
+    assert.match(
+      source,
+      /shiftISODate\([\s\S]*legacyEvent\.startDate,[\s\S]*-7[\s\S]*\)/
+    )
+    assert.match(
+      source,
+      /startDate <[\s\S]*PROFESSIONAL_START_DATE[\s\S]*startDate >[\s\S]*FIRST_TEACHING_WEEK_END_DATE/
+    )
+    assert.match(
+      source,
+      /calendarRepository\.createEvent\(\{[\s\S]*type:[\s\S]*'school_activity'[\s\S]*scope:[\s\S]*'all'[\s\S]*title:[\s\S]*legacyEvent\.title[\s\S]*description:[\s\S]*''[\s\S]*startDate[\s\S]*blocksLessons:[\s\S]*false/
+    )
+    assert.match(
+      source,
+      /const backfilledDutyOccurrences =[\s\S]*ensureFirstTeachingWeekDutyOccurrences\([\s\S]*academicYearId[\s\S]*const createdEvents =[\s\S]*presetCreatedEvents \+[\s\S]*backfilledDutyOccurrences/
+    )
+  }
+)
