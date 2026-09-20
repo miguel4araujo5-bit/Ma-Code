@@ -369,7 +369,7 @@ test(
     )
     assert.match(
       dailySource,
-      /Submetido no[\s\S]*GIAE[\s\S]*Para maior segurança, faça regularmente uma/
+      /Aula guardada'[\s\S]*<\/footer>[\s\S]*<\/article>[\s\S]*Para maior segurança, faça regularmente uma/
     )
     assert.match(
       dailySource,
