@@ -474,6 +474,93 @@ function normalizeWorksheetPaths(
   )
 }
 
+function repairP2P3StudentReferences(
+  files: OfficialXlsmFiles
+) {
+  const sheetNumbers = [
+    3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12
+  ]
+
+  for (const sheetNumber of sheetNumbers) {
+    const sheetPath =
+      `xl/worksheets/sheet${sheetNumber}.xml`
+
+    for (
+      let studentIndex = 0;
+      studentIndex < 30;
+      studentIndex += 1
+    ) {
+      const homeRow =
+        6 + studentIndex
+      const inputRow =
+        14 + studentIndex
+      const summaryRow =
+        54 + studentIndex
+
+      setWorksheetFormula(
+        files,
+        sheetPath,
+        `A${inputRow}`,
+        `IF(HOME!I${homeRow}="","",HOME!I${homeRow})`
+      )
+      setWorksheetFormula(
+        files,
+        sheetPath,
+        `B${inputRow}`,
+        `IF(HOME!J${homeRow}="","",HOME!J${homeRow})`
+      )
+      setWorksheetFormula(
+        files,
+        sheetPath,
+        `C${inputRow}`,
+        `IF(HOME!K${homeRow}="","",HOME!K${homeRow})`
+      )
+      setWorksheetFormula(
+        files,
+        sheetPath,
+        `D${summaryRow}`,
+        `IF(HOME!J${homeRow}="","",HOME!J${homeRow})`
+      )
+      setWorksheetFormula(
+        files,
+        sheetPath,
+        `AB${summaryRow}`,
+        `IF(HOME!J${homeRow}="","",HOME!J${homeRow})`
+      )
+    }
+  }
+}
+
+function repairAutoStudentReferences(
+  files: OfficialXlsmFiles
+) {
+  const sheetPath =
+    'xl/worksheets/sheet16.xml'
+
+  for (
+    let studentIndex = 0;
+    studentIndex < 30;
+    studentIndex += 1
+  ) {
+    const row = 9 + studentIndex
+    const homeRow = 6 + studentIndex
+
+    setWorksheetFormula(
+      files,
+      sheetPath,
+      `A${row}`,
+      `IF(HOME!I${homeRow}="","",HOME!I${homeRow})`
+    )
+    setWorksheetFormula(
+      files,
+      sheetPath,
+      `B${row}`,
+      `IF(HOME!J${homeRow}="","",HOME!J${homeRow})`
+    )
+  }
+}
+
 function markForRecalculation(
   files: OfficialXlsmFiles
 ) {
