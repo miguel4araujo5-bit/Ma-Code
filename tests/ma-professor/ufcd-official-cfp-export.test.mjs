@@ -174,7 +174,7 @@ test('official XLSM writer tolerates omitted cells and rows from the real templa
       fflate.strFromU8(
         files[homePath]
       ).replace(
-        /<row\\b[^>]*\\br="7"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/row>)/,
+        /<row\b[^>]*\br="7"[^>]*(?:\s*\/>|>[\s\S]*?<\/row>)/,
         ''
       )
 
@@ -199,11 +199,11 @@ test('official XLSM writer tolerates omitted cells and rows from the real templa
 
     assert.match(
       after,
-      /<c\\b[^>]*\\br="I6"[^>]*>/
+      /<c\b[^>]*\br="I6"[^>]*>/
     )
     assert.match(
       after,
-      /<row\\b[^>]*\\br="7"[^>]*>[\\s\\S]*?<c\\b[^>]*\\br="I7"[^>]*>/
+      /<row\b[^>]*\br="7"[^>]*>[\s\S]*?<c\b[^>]*\br="I7"[^>]*>/
     )
   } finally {
     globalThis.fetch = previousFetch

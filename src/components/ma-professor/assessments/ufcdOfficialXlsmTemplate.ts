@@ -177,7 +177,7 @@ function insertMaterializedRow(
   cell: string
 ) {
   const sheetDataPattern =
-    /(<sheetData\\b[^>]*>)([\\s\\S]*?)(<\\/sheetData>)/
+    /(<sheetData\b[^>]*>)([\s\S]*?)(<\/sheetData>)/
   const sheetDataMatch =
     sheetDataPattern.exec(xml)
 
@@ -192,7 +192,7 @@ function insertMaterializedRow(
   let inserted = false
 
   sheetBody = sheetBody.replace(
-    /<row\\b[^>]*\\br="(\\d+)"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/row>)/g,
+    /<row\b[^>]*\br="(\d+)"[^>]*(?:\s*\/>|>[\s\S]*?<\/row>)/g,
     current => {
       if (inserted) {
         return current
@@ -201,7 +201,7 @@ function insertMaterializedRow(
       const currentRow =
         Number(
           current.match(
-            /\\br="(\\d+)"/
+            /\br="(\d+)"/
           )?.[1] ?? 0
         )
 
@@ -288,7 +288,7 @@ function materializeCell(
   let inserted = false
 
   rowBody = rowBody.replace(
-    /<c\\b[^>]*\\br="([A-Z]+)\\d+"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/c>)/g,
+    /<c\b[^>]*\br="([A-Z]+)\d+"[^>]*(?:\s*\/>|>[\s\S]*?<\/c>)/g,
     current => {
       if (inserted) {
         return current
@@ -296,7 +296,7 @@ function materializeCell(
 
       const currentAddress =
         current.match(
-          /\\br="([A-Z]+)\\d+"/
+          /\br="([A-Z]+)\d+"/
         )
 
       if (
