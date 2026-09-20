@@ -12,6 +12,9 @@ const LOGIN_GUARD_STORAGE_KEY =
 const PUBLIC_LOGIN_PATH =
   '/api/ma-professor/access/login'
 
+const PUBLIC_OPAQUE_LOGIN_FINISH_PATH =
+  '/api/ma-professor/access/opaque/login/finish'
+
 const LOGIN_GUARD_WINDOW_MS =
   10 * 60 * 1000
 
@@ -547,8 +550,12 @@ export class MaProfessorAccessDurableObject {
 
     if (
       request.method === 'POST' &&
-      url.pathname ===
-        PUBLIC_LOGIN_PATH
+      (
+        url.pathname ===
+          PUBLIC_LOGIN_PATH ||
+        url.pathname ===
+          PUBLIC_OPAQUE_LOGIN_FINISH_PATH
+      )
     ) {
       return this.handleLogin(
         request
