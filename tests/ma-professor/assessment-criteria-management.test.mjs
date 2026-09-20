@@ -34,6 +34,38 @@ const criteriaWorkspaceSource = await readFile(
   'utf8'
 )
 
+const appSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/MAProfessorApp.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const productMenuSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const navigationModelSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/product/productNavigationModel.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const backupSettingsSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/settings/BackupSettingsPanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'criteria management reuses the applied assessment scheme and preserves the 100-percent contract',
   () => {
@@ -215,6 +247,123 @@ test(
     assert.doesNotMatch(
       implementation,
       /snapshotApi|Durable Object|wrangler|cloudflare|fetch\(|WebSocket|polling/i
+    )
+  }
+)
+
+
+test(
+  'general criteria are managed by subject while preserving the advanced class and module path',
+  () => {
+    assert.match(
+      criteriaWorkspaceSource,
+      /getSubjectContext/
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      />\s*Disciplina\s*</
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      /Gestão avançada por turma \/ UFCD/
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      /Turma e disciplina/
+    )
+    assert.match(
+      criteriaWorkspaceSource,
+      /UFCD, módulo ou componente/
+    )
+  }
+)
+
+test(
+  'subject-wide updates preserve existing criterion identities and update schemes in one local transaction',
+  () => {
+    assert.match(
+      repositorySource,
+      /updateSubjectSchemes/
+    )
+    assert.match(
+      repositorySource,
+      /sameCriterionIdentity/
+    )
+    assert.match(
+      repositorySource,
+      /existingByIdentity/
+    )
+    assert.match(
+      repositorySource,
+      /assessmentSchemes[\s\S]*bulkPut\([\s\S]*updatedSchemes/
+    )
+    assert.match(
+      repositorySource,
+      /assessmentCriteria[\s\S]*bulkPut/
+    )
+    assert.doesNotMatch(
+      repositorySource,
+      /moduleFinalGrades\s*\.\s*(?:put|bulkPut|delete|bulkDelete|clear)/
+    )
+  }
+)
+
+test(
+  'deleting a criterion with history offers the existing full reset path without deleting directly',
+  () => {
+    assert.match(
+      repositorySource,
+      /AssessmentCriteriaDeletionBlockedError/
+    )
+    assert.match(
+      panelSource,
+      /apagar tudo e começar de novo/
+    )
+    assert.match(
+      panelSource,
+      /onOpenDataReset/
+    )
+    assert.match(
+      appSource,
+      /onOpenDataReset/
+    )
+    assert.match(
+      productMenuSource,
+      /onNavigate\('reset'\)/
+    )
+    assert.match(
+      navigationModelSource,
+      /'reset'/
+    )
+    assert.match(
+      backupSettingsSource,
+      /ma-professor-security-reset/
+    )
+    assert.match(
+      backupSettingsSource,
+      /Escreva APAGAR/
+    )
+    assert.doesNotMatch(
+      panelSource,
+      /resetMAProfessorDatabase/
+    )
+  }
+)
+
+test(
+  'criteria history distinguishes final-grade records from grades already confirmed by the teacher',
+  () => {
+    assert.match(
+      repositorySource,
+      /confirmedFinalGradeCount/
+    )
+    assert.match(
+      repositorySource,
+      /grade\.confirmedAt !== null/
+    )
+    assert.match(
+      panelSource,
+      /confirmado\(s\)/
     )
   }
 )
