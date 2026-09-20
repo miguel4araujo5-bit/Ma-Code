@@ -2113,7 +2113,7 @@ function MonthDayCell({
           aria-label={`Adicionar aula extra em ${formatFullDate(
             day.date
           )}`}
-          className="mt-2 w-full rounded-md border border-dashed border-white/[0.08] py-1.5 text-[0.58rem] font-bold text-slate-600 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.04] hover:text-cyan-100"
+          className="mt-auto w-full border-t border-white/[0.045] pb-0.5 pt-2 text-[0.55rem] font-semibold text-slate-600 transition hover:border-cyan-300/15 hover:text-cyan-100"
         >
           + Aula
         </button>
