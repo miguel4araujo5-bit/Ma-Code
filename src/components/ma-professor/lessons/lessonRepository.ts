@@ -293,6 +293,7 @@ export class LessonRepository
           latest.status === 'taught' &&
           nextStatus !== 'taught'
 
+        // A normalização temporal futura não é uma remoção intencional da assiduidade.
         const futureEvidenceNormalization =
           latest.date === nextDate &&
           latest.status === 'taught' &&
