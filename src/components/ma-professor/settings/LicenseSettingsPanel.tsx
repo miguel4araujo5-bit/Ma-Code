@@ -166,7 +166,7 @@ export function LicenseSettingsPanel() {
         >
           {busyPlan === 'courtesy_30_days'
             ? 'A pedir…'
-            : 'Pedir extensão de período gratuito'}
+            : 'Pedir extensão de período gratuito (sujeito a lista de espera)'}
         </button>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
