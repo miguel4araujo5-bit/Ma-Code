@@ -63,6 +63,10 @@ const dbUrl = transpile(`
             : undefined
         );
       },
+      async put(lesson){
+        state().lesson = structuredClone(lesson);
+        return lesson.id;
+      },
       where(){
         return {
           equals(){
@@ -178,6 +182,8 @@ function resetState({
       moduleId: 'module-1',
       status,
       summary,
+      giaeStatus: 'pending',
+      giaeSubmittedAt: null,
       planificationItemIds: [],
       updatedAt: 'v1'
     }
@@ -247,6 +253,67 @@ test(
     assert.equal(
       state.lesson.status,
       'planned'
+    )
+    assert.equal(
+      state.attendanceCount,
+      1
+    )
+  }
+)
+
+test(
+  'future lesson with saved attendance becomes taught again after explicit GIAE submission',
+  { concurrency: false },
+  async () => {
+    const state = resetState({
+      status: 'taught',
+      attendanceCount: 1,
+      assessmentCount: 0,
+      date: '2026-09-21',
+      forceFutureEvidenceNormalization: true
+    })
+
+    const repository =
+      new LessonRepository()
+
+    const normalized =
+      await repository.updateLesson(
+        'lesson-1',
+        {
+          status: 'taught'
+        }
+      )
+
+    assert.equal(
+      normalized.status,
+      'planned'
+    )
+    assert.equal(
+      state.lesson.status,
+      'planned'
+    )
+
+    const submitted =
+      await repository.markGIAESubmittedExplicit(
+        'lesson-1',
+        normalized.updatedAt
+      )
+
+    assert.equal(
+      submitted.status,
+      'taught'
+    )
+    assert.equal(
+      submitted.giaeStatus,
+      'submitted'
+    )
+    assert.equal(
+      state.lesson.status,
+      'taught'
+    )
+    assert.equal(
+      state.lesson.giaeStatus,
+      'submitted'
     )
     assert.equal(
       state.attendanceCount,
