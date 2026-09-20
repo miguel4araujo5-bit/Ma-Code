@@ -114,13 +114,16 @@ async function automaticHarness(t, initialize) {
       return { serverRevision: revision, recordRevision: revision, updatedAt: new Date().toISOString() }
     }
   `)
-  const [subject, preference, service, dexie] = await Promise.all([
-    files.load(), files.load('preference.mjs'), files.load('service.mjs'), files.load('dexie.mjs')
+  const [subject, preference, service, dexie, panel] = await Promise.all([
+    files.load(), files.load('preference.mjs'), files.load('service.mjs'), files.load('dexie.mjs'), files.load('panel.mjs')
   ])
   const trust = await files.load('trust.mjs')
   if (initialize) initialize({ preference, service, trust })
   root = createRoot(document.getElementById('root'))
-  await act(async () => root.render(React.createElement(subject.default)))
+  await act(async () => root.render(React.createElement(React.Fragment, null,
+    React.createElement(subject.default),
+    React.createElement(panel.default, { onlyUnanswered: true })
+  )))
   return { preference, service, dexie, tick: async ms => act(async () => t.mock.timers.tick(ms)) }
 }
 

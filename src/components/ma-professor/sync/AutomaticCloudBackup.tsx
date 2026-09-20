@@ -1,6 +1,5 @@
 import Dexie from 'dexie'
 
-import CloudBackupPreferencePanel from './CloudBackupPreferencePanel'
 import {
   readCloudBackupPreference,
   useCloudBackupPreference
@@ -587,13 +586,5 @@ export default function AutomaticCloudBackup() {
     session.token
   ])
 
-  if (preference !== 'unset') {
-    return null
-  }
-
-  return (
-    <div className="bg-slate-950 px-4 py-3 sm:px-6">
-      <CloudBackupPreferencePanel onlyUnanswered />
-    </div>
-  )
+  return null
 }

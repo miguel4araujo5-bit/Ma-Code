@@ -29,6 +29,7 @@ import {
 } from '../settings/SettingsWorkspaceView'
 
 import OperationalReadinessReporter from '../setup/OperationalReadinessReporter'
+import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 
 import {
   isMAProfessorOperationallyReady,
@@ -773,6 +774,13 @@ function ProductContent() {
           )
         }
       />
+
+      {!showLoading && workspace !== 'backup' ? (
+        <CloudBackupPreferencePanel
+          onlyUnanswered
+          onOpenSettings={() => void handleSelect('backup')}
+        />
+      ) : null}
 
       {showLoading ? (
         <main className="flex min-h-[calc(100vh-58px)] items-center justify-center bg-slate-950 px-6 text-white">

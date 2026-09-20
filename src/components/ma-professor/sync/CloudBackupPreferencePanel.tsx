@@ -8,9 +8,11 @@ import {
 } from './cloudBackupPreference'
 
 export default function CloudBackupPreferencePanel({
-  onlyUnanswered = false
+  onlyUnanswered = false,
+  onOpenSettings
 }: {
   onlyUnanswered?: boolean
+  onOpenSettings?: () => void
 }) {
   const { session } = useMAProfessorAccess()
   const preference = useCloudBackupPreference(session)
@@ -28,6 +30,39 @@ export default function CloudBackupPreferencePanel({
     setError(saved ? '' : 'Não foi possível guardar a escolha. Verifique se o armazenamento do browser está disponível e tente novamente.')
   }
 
+  if (onOpenSettings) {
+    return (
+      <aside
+        aria-label="Preferência de cópia automática"
+        className="mx-3 mt-3 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 sm:mx-5"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-300">
+            <span className="font-semibold text-slate-200">Cópia automática desativada.</span>{' '}
+            Pode ativá-la em Segurança e recuperação.
+          </p>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/5"
+            >
+              Configurar cópias
+            </button>
+            <button
+              type="button"
+              onClick={() => choose(false)}
+              className="rounded-lg px-2 py-2 text-xs text-slate-400 transition hover:text-white"
+            >
+              Manter desativada
+            </button>
+          </div>
+        </div>
+        {error ? <p role="alert" className="mt-2 text-xs text-rose-200">{error}</p> : null}
+      </aside>
+    )
+  }
+
   return (
     <section
       aria-label="Preferência de cópia automática"
@@ -40,7 +75,7 @@ export default function CloudBackupPreferencePanel({
         {CLOUD_BACKUP_PRIVACY_NOTICE}
       </p>
       <p className="mt-2 text-xs leading-6 text-slate-400">
-        A cópia automática só começa depois de a ativar. Pode alterar esta escolha em Segurança e recuperação. Desativar impede novos envios automáticos neste dispositivo e mantém as cópias já guardadas. As cópias manuais continuam disponíveis.
+        Esta escolha aplica-se à sua conta neste dispositivo. Desativar impede novos envios automáticos e mantém as cópias já guardadas, o restauro e as cópias manuais.
       </p>
       <div className="mt-3 flex flex-wrap gap-3">
         {preference !== 'enabled' ? (
