@@ -23,6 +23,9 @@ const MODULE_NAMES = [
   'maProfessorAccessAccountAdminBridge',
   'maProfessorOperationalStateBridge',
   'maProfessorExplicitApprovalBridge',
+  'maProfessorOpaqueAuthState',
+  'maProfessorOpaqueAuthProtocol',
+  'maProfessorOpaqueServerRuntime',
   'maProfessorActivationCredentialGuardBridge'
 ]
 
@@ -167,6 +170,27 @@ async function stageProductionChain() {
     )
 
   for (const moduleName of MODULE_NAMES) {
+    if (
+      moduleName ===
+        'maProfessorOpaqueServerRuntime'
+    ) {
+      await writeFile(
+        join(
+          directory,
+          'maProfessorOpaqueServerRuntime.mjs'
+        ),
+        `
+          export async function getMAProfessorOpaqueServerRuntime() {
+            throw new Error(
+              'OPAQUE runtime is not expected in this legacy-chain test.'
+            )
+          }
+        `,
+        'utf8'
+      )
+      continue
+    }
+
     const source =
       await readFile(
         new URL(
