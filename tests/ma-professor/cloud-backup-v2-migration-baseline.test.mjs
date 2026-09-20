@@ -16,20 +16,20 @@ const [
   clientSource,
   preferenceSource,
   authWorkerSource,
-  authGateSource
+  accessApiSource
 ] = await Promise.all([
   read('worker/maProfessorCloudBackup.ts'),
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
   read('src/components/ma-professor/sync/cloudBackupPreference.ts'),
   read('worker/maProfessorAccessAuthBridge.ts'),
-  read('src/components/ma-professor/access/MAProfessorAuthGate.tsx')
+  read('src/components/ma-professor/access/accessApi.ts')
 ])
 
 const worker = compact(workerSource)
 const client = compact(clientSource)
 const preference = compact(preferenceSource)
 const authWorker = compact(authWorkerSource)
-const authGate = compact(authGateSource)
+const accessApi = compact(accessApiSource)
 
 test(
   'v2 baseline remains explicit until the password-protected v3 migration is implemented',
@@ -83,12 +83,12 @@ test(
   'v3 must change authentication as well as backup key storage because the current public flows submit the personal password',
   () => {
     assert.match(
-      authGate,
-      /accountPassword: personalPassword/
+      accessApi,
+      /body\.accountPassword = accountPassword/
     )
     assert.match(
-      authGate,
-      /password: personalPassword/
+      accessApi,
+      /postJson<MAProfessorAccessResponse>\( '\/login', \{ email, password, deviceId \}/
     )
     assert.match(
       authWorker,
