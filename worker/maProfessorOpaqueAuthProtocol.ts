@@ -16,8 +16,14 @@ export const MA_PROFESSOR_OPAQUE_LOGIN_START_PATH =
 export const MA_PROFESSOR_OPAQUE_LOGIN_FINISH_PATH =
   '/api/ma-professor/access/opaque/login/finish'
 
+const PENDING_ENROLLMENT_TTL_MS =
+  2 * 60 * 1000
+
 const PENDING_LOGIN_TTL_MS =
   2 * 60 * 1000
+
+const MAX_PENDING_ENROLLMENTS =
+  32
 
 const MAX_PENDING_LOGINS =
   64
@@ -108,6 +114,65 @@ function createOpaqueId() {
     .replaceAll('+', '-')
     .replaceAll('/', '_')
     .replaceAll('=', '')
+}
+
+function prunePendingEnrollments(
+  state:
+    MAProfessorOpaqueAuthState,
+  now: number
+) {
+  for (
+    const [id, pending] of
+    Object.entries(
+      state.pendingEnrollments
+    )
+  ) {
+    if (
+      pending.expiresAt <=
+        now
+    ) {
+      delete state
+        .pendingEnrollments[
+          id
+        ]
+    }
+  }
+
+  const entries =
+    Object.entries(
+      state.pendingEnrollments
+    )
+
+  if (
+    entries.length <
+      MAX_PENDING_ENROLLMENTS
+  ) {
+    return
+  }
+
+  entries
+    .sort(
+      (
+        left,
+        right
+      ) =>
+        left[1].createdAt -
+        right[1].createdAt
+    )
+    .slice(
+      0,
+      entries.length -
+        MAX_PENDING_ENROLLMENTS +
+        1
+    )
+    .forEach(
+      ([id]) => {
+        delete state
+          .pendingEnrollments[
+            id
+          ]
+      }
+    )
 }
 
 function prunePendingLogins(
@@ -213,13 +278,20 @@ export function startOpaqueEnrollment(
     MAProfessorOpaqueServerRuntime,
   input: {
     email: string
+    deviceId: string
     registrationRequest: string
-  }
+  },
+  now = Date.now()
 ) {
   const email =
     normalizeEmail(
       input.email
     )
+
+  const deviceId =
+    input.deviceId
+      .trim()
+      .slice(0, 180)
 
   const registrationRequest =
     normalizeOpaqueValue(
@@ -228,6 +300,7 @@ export function startOpaqueEnrollment(
 
   if (
     !email ||
+    !deviceId ||
     !registrationRequest
   ) {
     throw new Error(
@@ -245,19 +318,54 @@ export function startOpaqueEnrollment(
     )
   }
 
+  prunePendingEnrollments(
+    state,
+    now
+  )
+
   const serverSetup =
     ensureServerSetup(
       state,
       runtime
     )
 
-  return runtime
-    .createServerRegistrationResponse({
-      serverSetup,
-      userIdentifier:
-        email,
-      registrationRequest
-    })
+  const started =
+    runtime
+      .createServerRegistrationResponse({
+        serverSetup,
+        userIdentifier:
+          email,
+        registrationRequest
+      })
+
+  const enrollmentId =
+    createOpaqueId()
+
+  state.pendingEnrollments[
+    enrollmentId
+  ] = {
+    id:
+      enrollmentId,
+    email,
+    deviceId,
+    createdAt:
+      now,
+    expiresAt:
+      now +
+      PENDING_ENROLLMENT_TTL_MS
+  }
+
+  state.updatedAt =
+    now
+
+  return {
+    enrollmentId,
+    registrationResponse:
+      started.registrationResponse,
+    expiresAt:
+      now +
+      PENDING_ENROLLMENT_TTL_MS
+  }
 }
 
 export function finishOpaqueEnrollment(
@@ -265,6 +373,8 @@ export function finishOpaqueEnrollment(
     MAProfessorOpaqueAuthState,
   input: {
     email: string
+    deviceId: string
+    enrollmentId: string
     registrationRecord: string
     migratedFromV2?: boolean
   },
@@ -275,6 +385,16 @@ export function finishOpaqueEnrollment(
       input.email
     )
 
+  const deviceId =
+    input.deviceId
+      .trim()
+      .slice(0, 180)
+
+  const enrollmentId =
+    input.enrollmentId
+      .trim()
+      .slice(0, 180)
+
   const registrationRecord =
     normalizeOpaqueValue(
       input.registrationRecord
@@ -282,10 +402,44 @@ export function finishOpaqueEnrollment(
 
   if (
     !email ||
+    !deviceId ||
+    !enrollmentId ||
     !registrationRecord
   ) {
     throw new Error(
       'Registo OPAQUE inválido.'
+    )
+  }
+
+  const pending =
+    state.pendingEnrollments[
+      enrollmentId
+    ]
+
+  if (!pending) {
+    throw new Error(
+      'OPAQUE_ENROLLMENT_INVALID'
+    )
+  }
+
+  delete state
+    .pendingEnrollments[
+      enrollmentId
+    ]
+
+  state.updatedAt =
+    now
+
+  if (
+    pending.expiresAt <=
+      now ||
+    pending.email !==
+      email ||
+    pending.deviceId !==
+      deviceId
+  ) {
+    throw new Error(
+      'OPAQUE_ENROLLMENT_INVALID'
     )
   }
 
