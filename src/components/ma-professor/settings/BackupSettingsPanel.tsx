@@ -264,7 +264,7 @@ export function BackupSettingsPanel({
             Escolha se quer guardar a cópia na nuvem ou descarregá-la para este dispositivo.
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            Proteção automática: a cópia cifrada online continua a ser atualizada automaticamente quando o dispositivo está alinhado com a versão guardada na nuvem.
+            Proteção automática: escolha abaixo se pretende ativar a cópia online neste dispositivo. Desativá-la mantém disponíveis as cópias já guardadas e o restauro.
           </p>
         </div>
 

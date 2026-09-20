@@ -248,7 +248,7 @@ test(
     )
     assert.match(
       unifiedSource,
-      /date ===[\s\S]*todayISO\(\)[\s\S]*day\.date ===[\s\S]*todayISO\(\)[\s\S]*getCurrentSlotProgress\([\s\S]*slot[\s\S]*currentMinute/
+      /const today =\s*todayISO\(\)[\s\S]*date ===\s*today &&\s*!isWeekendToday &&\s*day\.date ===\s*today[\s\S]*getCurrentSlotProgress\([\s\S]*slot[\s\S]*currentMinute/
     )
     assert.match(
       unifiedSource,

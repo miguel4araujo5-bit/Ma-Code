@@ -155,9 +155,11 @@ test('obsolete navigation and DOM replacements are removed from management scree
 })
 
 test('the existing teaching workspaces remain reachable without a duplicate overview destination', () => {
-  for (const target of ['giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings', 'restore']) {
+  for (const target of ['giae', 'assessments', 'criteria', 'planifications', 'groups', 'attendance', 'schedule', 'settings']) {
     assert.ok(navigationModelSource.includes(`id: '${target}'`), `missing destination: ${target}`)
   }
+  assert.doesNotMatch(navigationModelSource, /\{ id: 'restore', label:/)
+  assert.match(settingsSource, /id:\s*'backup',[\s\S]*label:\s*'Segurança e recuperação'/)
   assert.match(
     navigationModelSource,
     /ProductMenuTarget =[^\n]*'configuration'/,

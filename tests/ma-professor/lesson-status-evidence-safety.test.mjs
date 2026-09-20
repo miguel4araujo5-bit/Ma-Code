@@ -111,6 +111,7 @@ const historicalSafetyUrl = transpile(`
 
 const temporalSafetyUrl = transpile(`
   export function assertLessonNotTaughtInFuture(){}
+  export function isFutureLessonDate(date){return date > '2026-09-20'}
   export function resolveLessonStatusFromEvidence(_date, status){return status}
 `)
 

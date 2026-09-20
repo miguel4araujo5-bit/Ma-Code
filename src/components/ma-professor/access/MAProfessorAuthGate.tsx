@@ -1,3 +1,5 @@
+import { CLOUD_BACKUP_PRIVACY_NOTICE } from '../sync/cloudBackupPreference'
+
 import {
   type FormEvent,
   type ReactNode,
@@ -686,10 +688,15 @@ export default function MAProfessorAuthGate({
                   </p>
 
                   <p className="mt-2 text-xs leading-6 text-amber-50/90">
-                    Para proteger a sua privacidade, a MA-CODE não guarda a sua password de forma que possa ser lida ou recuperada. Os dados sensíveis são protegidos e cifrados no seu dispositivo antes de serem enviados para os nossos servidores. Por isso, <strong>não conseguimos recuperar a sua password se a esquecer</strong>. Será esta a password que utilizará para entrar no MA-Professor.
+                    A MA-CODE guarda uma verificação criptográfica da sua password, não o seu texto original. Por isso, <strong>não conseguimos recuperar a sua password se a esquecer</strong>. A password serve para entrar na conta; é diferente da senha MP de ativação e da chave usada nas cópias online.
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-xs leading-6 text-slate-300">
+              <p>{CLOUD_BACKUP_PRIVACY_NOTICE}</p>
+              <p className="mt-2">A cópia automática é opcional e só começa depois de a ativar no MA-Professor. Pode desativá-la em Segurança e recuperação.</p>
             </div>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-amber-300/30">

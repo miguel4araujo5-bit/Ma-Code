@@ -1,5 +1,11 @@
 import Dexie from 'dexie'
 
+import CloudBackupPreferencePanel from './CloudBackupPreferencePanel'
+import {
+  readCloudBackupPreference,
+  useCloudBackupPreference
+} from './cloudBackupPreference'
+
 import {
   useEffect
 } from 'react'
@@ -87,9 +93,18 @@ export default function AutomaticCloudBackup() {
   } =
     useMAProfessorAccess()
 
+  const preference = useCloudBackupPreference(session)
+
   useEffect(() => {
+    if (preference !== 'enabled') {
+      return
+    }
+
     let disposed =
       false
+
+    const canRun = () =>
+      !disposed && readCloudBackupPreference(session) === 'enabled'
 
     let timer:
       ReturnType<typeof setTimeout> | null =
@@ -154,6 +169,10 @@ export default function AutomaticCloudBackup() {
           session
         )
 
+      if (!canRun()) {
+        return null
+      }
+
       if (
         existing &&
         existing.serverRevision ===
@@ -189,6 +208,10 @@ export default function AutomaticCloudBackup() {
           ),
           createMAProfessorBackup()
         ])
+
+      if (!canRun()) {
+        return null
+      }
 
       if (!remote) {
         if (existing) {
@@ -236,7 +259,7 @@ export default function AutomaticCloudBackup() {
 
     function scheduleBackup() {
       if (
-        disposed ||
+        !canRun() ||
         running ||
         blockedByDivergence ||
         dirtySince === null
@@ -307,7 +330,7 @@ export default function AutomaticCloudBackup() {
 
     async function runBackup() {
       if (
-        disposed ||
+        !canRun() ||
         running ||
         blockedByDivergence ||
         dirtySince === null
@@ -374,13 +397,18 @@ export default function AutomaticCloudBackup() {
         const backup =
           await createMAProfessorBackup()
 
+        if (!canRun()) {
+          return
+        }
+
         const result =
           await uploadAndVerifyMAProfessorCloudBackup(
             session,
             backup,
             {
               expectedServerRevision:
-                trust.serverRevision
+                trust.serverRevision,
+              canUpload: canRun
             }
           )
 
@@ -408,6 +436,10 @@ export default function AutomaticCloudBackup() {
             result.updatedAt
         })
       } catch (error) {
+        if (!canRun()) {
+          return
+        }
+
         if (
           error instanceof
             MAProfessorCloudBackupRevisionConflictError
@@ -508,9 +540,13 @@ export default function AutomaticCloudBackup() {
             trust?.dirtyAt
           )
 
-        if (pendingSince) {
+        if (!canRun()) {
+          return
+        }
+
+        if (pendingSince || trust?.recordRevision === null) {
           dirtySince =
-            pendingSince
+            pendingSince || Date.now()
           lastMutationAt =
             Date.now()
           mutationSequence += 1
@@ -545,10 +581,19 @@ export default function AutomaticCloudBackup() {
       )
     }
   }, [
+    preference,
     session.deviceId,
     session.email,
     session.token
   ])
 
-  return null
+  if (preference !== 'unset') {
+    return null
+  }
+
+  return (
+    <div className="bg-slate-950 px-4 py-3 sm:px-6">
+      <CloudBackupPreferencePanel onlyUnanswered />
+    </div>
+  )
 }

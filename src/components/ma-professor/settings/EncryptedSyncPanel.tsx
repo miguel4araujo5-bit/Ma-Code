@@ -1,3 +1,6 @@
+import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
+import { useCloudBackupPreference } from '../sync/cloudBackupPreference'
+
 import {
   useCallback,
   useEffect,
@@ -98,6 +101,8 @@ export function EncryptedSyncPanel() {
     session
   } =
     useMAProfessorAccess()
+
+  const preference = useCloudBackupPreference(session)
 
   const [
     status,
@@ -220,6 +225,10 @@ export function EncryptedSyncPanel() {
         Cria uma cópia dos dados atuais, cifra-a neste dispositivo e só depois a envia para a nuvem. No final, o MA-Professor confirma que a cópia ficou guardada corretamente.
       </p>
 
+      <div className="mt-4">
+        <CloudBackupPreferencePanel />
+      </div>
+
       <button
         type="button"
         disabled={
@@ -274,7 +283,9 @@ export function EncryptedSyncPanel() {
         </div>
 
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.
+          {preference === 'enabled'
+            ? 'A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.'
+            : 'A cópia automática está desativada neste dispositivo. O botão acima envia apenas uma cópia manual.'}
         </p>
       </div>
 

@@ -1878,7 +1878,7 @@ export default function SetupConfirmationStep({
               </span>
 
               <span className="mt-1 block text-sm leading-6 text-slate-400">
-                Os dados principais ficam guardados localmente. Posso criar cópias de segurança cifradas online e utilizar a chave de recuperação para autorizar outro dispositivo.
+                Os dados principais ficam guardados localmente. As cópias online são opcionais e cifradas com uma chave gerida pela MA-CODE, que tem capacidade técnica para as decifrar. Posso ativar ou desativar a cópia automática em Segurança e recuperação e restaurar uma cópia noutro dispositivo através da minha conta.
               </span>
             </span>
           </label>

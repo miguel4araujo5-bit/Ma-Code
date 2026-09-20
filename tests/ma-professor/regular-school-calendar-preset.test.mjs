@@ -85,7 +85,7 @@ test(
   () => {
     assert.match(
       source,
-      /const createdEvents = await ensurePresetEvents\(academicYearId\)[\s\S]*const updatedScheduleSlots = await ensureScheduleValidity\([\s\S]*await syncRegularAnnualComponentsForAcademicYear\(\s*academicYearId\s*\)[\s\S]*await generateProfessionalPresetLessons\(/
+      /const presetCreatedEvents =\s*await ensurePresetEvents\(\s*academicYearId\s*\)[\s\S]*const updatedScheduleSlots = await ensureScheduleValidity\([\s\S]*await syncRegularAnnualComponentsForAcademicYear\(\s*academicYearId\s*\)[\s\S]*await generateProfessionalPresetLessons\(/
     )
   }
 )

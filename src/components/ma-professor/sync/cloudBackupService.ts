@@ -112,6 +112,7 @@ export interface MAProfessorUploadedCloudBackup {
 
 export interface MAProfessorCloudBackupUploadOptions {
   expectedServerRevision?: number
+  canUpload?: () => boolean
 }
 
 export class MAProfessorCloudBackupRevisionConflictError
@@ -843,6 +844,14 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   options:
     MAProfessorCloudBackupUploadOptions = {}
 ): Promise<MAProfessorUploadedCloudBackup> {
+  const assertUploadAllowed = () => {
+    if (options.canUpload && !options.canUpload()) {
+      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
+    }
+  }
+
+  assertUploadAllowed()
+
   const expectedServerRevision =
     options.expectedServerRevision
 
@@ -868,13 +877,20 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
     throw new MAProfessorCloudBackupRevisionConflictError()
   }
 
+  assertUploadAllowed()
+
   const key =
     await importBackupKey(session)
+  assertUploadAllowed()
+
   const prepared =
     await encryptBackup(
       backup,
       key
     )
+
+  // A escolha pode mudar enquanto o browser cifra uma cópia grande.
+  assertUploadAllowed()
 
   let pushData:
     ReturnType<typeof parsePushResult>
