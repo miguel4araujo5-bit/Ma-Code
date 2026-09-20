@@ -271,6 +271,86 @@ function formatTimeRange(
   return `${startTime}–${endTime}`
 }
 
+function timeToMinuteOfDay(
+  value: string
+) {
+  const [
+    hour,
+    minute
+  ] = value
+    .split(':')
+    .map(Number)
+
+  if (
+    !Number.isFinite(
+      hour
+    ) ||
+    !Number.isFinite(
+      minute
+    )
+  ) {
+    return null
+  }
+
+  return (
+    hour * 60 +
+    minute
+  )
+}
+
+function currentMinuteOfDay() {
+  const current =
+    new Date()
+
+  return (
+    current.getHours() *
+      60 +
+    current.getMinutes() +
+    current.getSeconds() /
+      60
+  )
+}
+
+function getCurrentTimeProgress(
+  startTime: string,
+  endTime: string,
+  currentMinute: number
+) {
+  const start =
+    timeToMinuteOfDay(
+      startTime
+    )
+  const end =
+    timeToMinuteOfDay(
+      endTime
+    )
+
+  if (
+    start === null ||
+    end === null ||
+    end <= start ||
+    currentMinute < start ||
+    currentMinute > end
+  ) {
+    return null
+  }
+
+  return Math.min(
+    1,
+    Math.max(
+      0,
+      (
+        currentMinute -
+        start
+      ) /
+        (
+          end -
+          start
+        )
+    )
+  )
+}
+
 function getSubjectLabel(
   option:
     CalendarAssignmentOption
@@ -1643,7 +1723,8 @@ function MonthEventChip({
 
 function MonthLessonChip({
   row,
-  onSelect
+  onSelect,
+  currentProgress = null
 }: {
   row:
     CalendarLessonRow
@@ -1651,25 +1732,49 @@ function MonthLessonChip({
     lessonId:
       EntityId
   ) => void
+  currentProgress?: number | null
 }) {
-  const className = `w-full rounded-md border px-2 py-1.5 text-left transition ${
-    lessonStatusClasses[
-      row.lesson.status
-    ]
+  const isCurrent =
+    currentProgress !== null
+
+  const className = `relative w-full overflow-hidden rounded-md border px-2 py-1.5 text-left transition ${
+    isCurrent
+      ? 'border-cyan-300/60 bg-cyan-300/15 text-cyan-50 ring-1 ring-inset ring-cyan-300/20'
+      : lessonStatusClasses[
+          row.lesson.status
+        ]
   }`
 
   const content = (
     <>
-      <p className="truncate text-[0.61rem] font-black leading-4">
-        {row.lesson.startTime} ·{' '}
-        {row.group.name}
-      </p>
+      {isCurrent ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-rose-400 transition-[top] duration-700 ease-linear"
+          style={{
+            top:
+              `${(
+                currentProgress *
+                100
+              ).toFixed(
+                2
+              )}%`
+          }}
+        />
+      ) : null}
 
-      <p className="mt-0.5 truncate text-[0.54rem] leading-3.5 opacity-70">
-        {getLessonSubjectLabel(
-          row
-        )}
-      </p>
+      <div className="relative z-10">
+        <p className="truncate text-[0.61rem] font-black leading-4">
+          {row.lesson.startTime} ·{' '}
+          {row.group.name}
+        </p>
+
+        <p className="mt-0.5 truncate text-[0.54rem] leading-3.5 opacity-70">
+          {getLessonSubjectLabel(
+            row
+          )}
+        </p>
+      </div>
     </>
   )
 
@@ -1695,7 +1800,8 @@ function MonthLessonChip({
 function MonthDutyChip({
   row,
   details,
-  onSelect
+  onSelect,
+  currentProgress = null
 }: {
   row:
     CalendarEventRow
@@ -1704,23 +1810,52 @@ function MonthDutyChip({
   onSelect?: (
     eventId: EntityId
   ) => void
+  currentProgress?: number | null
 }) {
-  const className =
-    'w-full rounded-md border border-violet-300/20 bg-violet-300/[0.07] px-2 py-1.5 text-left transition'
+  const isCurrent =
+    currentProgress !== null
+
+  const className = `relative w-full overflow-hidden rounded-md border px-2 py-1.5 text-left transition ${
+    isCurrent
+      ? 'border-cyan-300/60 bg-cyan-300/15 ring-1 ring-inset ring-cyan-300/20'
+      : 'border-violet-300/20 bg-violet-300/[0.07]'
+  }`
 
   const content = (
     <>
-      <p className="truncate text-[0.61rem] font-black leading-4 text-white">
-        {details.startTime
-          ? `${details.startTime} · `
-          : ''}
-        {details.name}
-      </p>
+      {isCurrent ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-rose-400 transition-[top] duration-700 ease-linear"
+          style={{
+            top:
+              `${(
+                currentProgress *
+                100
+              ).toFixed(
+                2
+              )}%`
+          }}
+        />
+      ) : null}
 
-      <p className="mt-0.5 truncate text-[0.54rem] font-semibold leading-3.5 text-violet-200/75">
-        {details.timeLabel ||
-          'Sem hora indicada'} · Cargo
-      </p>
+      <div className="relative z-10">
+        <p className="truncate text-[0.61rem] font-black leading-4 text-white">
+          {details.startTime
+            ? `${details.startTime} · `
+            : ''}
+          {details.name}
+        </p>
+
+        <p className={`mt-0.5 truncate text-[0.54rem] font-semibold leading-3.5 ${
+          isCurrent
+            ? 'text-cyan-100/80'
+            : 'text-violet-200/75'
+        }`}>
+          {details.timeLabel ||
+            'Sem hora indicada'} · Cargo
+        </p>
+      </div>
     </>
   )
 
@@ -1734,7 +1869,11 @@ function MonthDutyChip({
       }
       className={
         className +
-        ' hover:border-violet-300/40 hover:bg-violet-300/[0.1]'
+        (
+          isCurrent
+            ? ' hover:bg-cyan-300/20'
+            : ' hover:border-violet-300/40 hover:bg-violet-300/[0.1]'
+        )
       }
     >
       {content}
@@ -1752,7 +1891,8 @@ function MonthDayCell({
   onCreateLesson,
   onEventSelect,
   paaActivities = [],
-  onPAAActivitySelect
+  onPAAActivitySelect,
+  currentMinute
 }: {
   day:
     CalendarDayRow
@@ -1765,6 +1905,7 @@ function MonthDayCell({
   paaActivities?: PAAActivity[]
   onPAAActivitySelect?:
     CalendarWorkspaceViewProps['onPAAActivitySelect']
+  currentMinute: number
 }) {
   const [
     paaOpen,
@@ -2049,9 +2190,25 @@ function MonthDayCell({
 
       <div className="mt-2 space-y-1.5">
         {timedItems.map(
-          item =>
-            item.kind ===
-            'lesson' ? (
+          item => {
+            const currentProgress =
+              day.date ===
+                getTodayISODate() &&
+              !(
+                item.kind ===
+                  'lesson' &&
+                item.row.lesson.status ===
+                  'cancelled'
+              )
+                ? getCurrentTimeProgress(
+                    item.startTime,
+                    item.endTime,
+                    currentMinute
+                  )
+                : null
+
+            return item.kind ===
+              'lesson' ? (
               <MonthLessonChip
                 key={
                   `lesson-${item.row.lesson.id}`
@@ -2061,6 +2218,9 @@ function MonthDayCell({
                 }
                 onSelect={
                   onLessonSelect
+                }
+                currentProgress={
+                  currentProgress
                 }
               />
             ) : (
@@ -2077,8 +2237,12 @@ function MonthDayCell({
                 onSelect={
                   onEventSelect
                 }
+                currentProgress={
+                  currentProgress
+                }
               />
             )
+          }
         )}
 
         {untimedDuties.map(
@@ -2138,6 +2302,36 @@ function MonthView({
   | 'paaActivities'
   | 'onPAAActivitySelect'
 >) {
+  const [
+    currentMinute,
+    setCurrentMinute
+  ] = useState(
+    currentMinuteOfDay
+  )
+
+  useEffect(() => {
+    const updateCurrentMinute =
+      () => {
+        setCurrentMinute(
+          currentMinuteOfDay()
+        )
+      }
+
+    updateCurrentMinute()
+
+    const intervalId =
+      window.setInterval(
+        updateCurrentMinute,
+        15_000
+      )
+
+    return () => {
+      window.clearInterval(
+        intervalId
+      )
+    }
+  }, [])
+
   return (
     <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/65">
       <div className="overflow-x-auto">
@@ -2185,6 +2379,9 @@ function MonthView({
                   }
                   onPAAActivitySelect={
                     onPAAActivitySelect
+                  }
+                  currentMinute={
+                    currentMinute
                   }
                 />
               )
