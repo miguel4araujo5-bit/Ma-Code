@@ -634,7 +634,7 @@ export function AccessGate({
         !session ||
         requestingPlan
       ) {
-        return
+        return false
       }
 
       setRequestingPlan(plan)
@@ -655,6 +655,8 @@ export function AccessGate({
           response.message ||
           'O pedido ficou registado.'
         )
+
+        return true
       } catch (
         planError
       ) {
@@ -663,6 +665,8 @@ export function AccessGate({
             planError
           )
         )
+
+        return false
       } finally {
         setRequestingPlan(null)
       }
@@ -953,10 +957,8 @@ export function AccessGate({
           onActivate={() =>
             void handleActivate()
           }
-          onSelectPlan={plan =>
-            void handleInitialPlan(
-              plan
-            )
+          onSelectPlan={
+            handleInitialPlan
           }
         />
 
