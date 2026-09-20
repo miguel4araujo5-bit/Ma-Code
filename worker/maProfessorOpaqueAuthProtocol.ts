@@ -427,11 +427,17 @@ export function finishOpaqueLogin(
   runtime:
     MAProfessorOpaqueServerRuntime,
   input: {
+    email: string
     loginId: string
     finishLoginRequest: string
   },
   now = Date.now()
 ) {
+  const email =
+    normalizeEmail(
+      input.email
+    )
+
   const loginId =
     input.loginId
       .trim()
@@ -443,6 +449,7 @@ export function finishOpaqueLogin(
     )
 
   if (
+    !email ||
     !loginId ||
     !finishLoginRequest
   ) {
@@ -468,7 +475,9 @@ export function finishOpaqueLogin(
 
   if (
     pending.expiresAt <=
-      now
+      now ||
+    pending.email !==
+      email
   ) {
     return null
   }
