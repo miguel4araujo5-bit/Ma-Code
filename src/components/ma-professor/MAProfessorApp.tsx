@@ -100,6 +100,7 @@ export interface MAProfessorWorkspaceRequest {
 
 interface MAProfessorAppProps {
   workspaceRequest?: MAProfessorWorkspaceRequest | null
+  onOpenDataReset?: () => void
 }
 
 function toISODate(
@@ -506,7 +507,8 @@ function AcademicYearSetup({
 }
 
 export default function MAProfessorApp({
-  workspaceRequest = null
+  workspaceRequest = null,
+  onOpenDataReset
 }: MAProfessorAppProps = {}) {
   const [
     applicationState,
@@ -1771,6 +1773,7 @@ export default function MAProfessorApp({
           loading={assessmentLoading}
           error={assessmentError}
           onRefresh={handleAssessmentRefresh}
+          onOpenDataReset={onOpenDataReset}
           onFiltersChange={handleAssessmentFiltersChange}
         />
       )
