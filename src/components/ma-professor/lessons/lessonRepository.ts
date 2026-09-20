@@ -298,6 +298,9 @@ export class LessonRepository
           latest.date === nextDate &&
           latest.status === 'taught' &&
           nextStatus === 'planned' &&
+          Boolean(
+            nextSummary.trim()
+          ) &&
           isFutureLessonDate(
             nextDate
           ) &&
