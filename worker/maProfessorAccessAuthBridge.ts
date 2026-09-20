@@ -1022,132 +1022,10 @@ export class MaProfessorAccessDurableObject {
     })
   }
 
-  private async handleLogin(
-    request: Request
+  private async issueAccountSession(
+    email: string,
+    deviceId: string
   ) {
-    if (
-      request.method !==
-      'POST'
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Método não permitido.'
-        },
-        405,
-        {
-          Allow:
-            'POST'
-        }
-      )
-    }
-
-    let body:
-      JsonObject
-
-    try {
-      body =
-        await readJson(
-          request
-        )
-    } catch (
-      error
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            error instanceof
-              Error
-              ? error.message
-              : 'Pedido inválido.'
-        },
-        400
-      )
-    }
-
-    const email =
-      normalizeEmail(
-        body.email
-      )
-
-    const password =
-      normalizePassword(
-        body.password
-      )
-
-    const deviceId =
-      normalizeDeviceId(
-        body.deviceId
-      )
-
-    if (
-      !isValidEmail(
-        email
-      ) ||
-      !password ||
-      !deviceId
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Introduza o email e a password pessoal da sua conta.'
-        },
-        400
-      )
-    }
-
-    const authState =
-      normalizeAccountAuthState(
-        await this.state.storage.get<StoredAccountAuthState>(
-          ACCOUNT_AUTH_STORAGE_KEY
-        )
-      )
-
-    const credential =
-      authState.credentials[
-        email
-      ]
-
-    if (
-      !credential
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso” para definir a sua password pessoal antes de utilizar a senha de ativação.'
-        },
-        401
-      )
-    }
-
-    const passwordMatches =
-      await verifyAccountPassword(
-        credential,
-        password
-      )
-
-    if (
-      !passwordMatches
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Email ou password pessoal incorretos.'
-        },
-        401
-      )
-    }
-
     const accessState =
       await this.state.storage.get<AccessStateSnapshot>(
         STORAGE_KEY
@@ -1304,6 +1182,139 @@ export class MaProfessorAccessDurableObject {
           license
         )
     })
+
+  }
+
+  private async handleLogin(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch (
+      error
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            error instanceof
+              Error
+              ? error.message
+              : 'Pedido inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const password =
+      normalizePassword(
+        body.password
+      )
+
+    const deviceId =
+      normalizeDeviceId(
+        body.deviceId
+      )
+
+    if (
+      !isValidEmail(
+        email
+      ) ||
+      !password ||
+      !deviceId
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Introduza o email e a password pessoal da sua conta.'
+        },
+        400
+      )
+    }
+
+    const authState =
+      normalizeAccountAuthState(
+        await this.state.storage.get<StoredAccountAuthState>(
+          ACCOUNT_AUTH_STORAGE_KEY
+        )
+      )
+
+    const credential =
+      authState.credentials[
+        email
+      ]
+
+    if (
+      !credential
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso” para definir a sua password pessoal antes de utilizar a senha de ativação.'
+        },
+        401
+      )
+    }
+
+    const passwordMatches =
+      await verifyAccountPassword(
+        credential,
+        password
+      )
+
+    if (
+      !passwordMatches
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Email ou password pessoal incorretos.'
+        },
+        401
+      )
+    }
+
+    return this.issueAccountSession(
+      email,
+      deviceId
+    )
   }
 
   private async handleRequestStatus(
