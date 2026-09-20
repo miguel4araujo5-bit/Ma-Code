@@ -212,15 +212,11 @@ test(
 )
 
 test(
-  'Hoje shows a discreet local reminder without adding network polling',
+  'daily workspace passes backup navigation to the editor without adding network polling',
   () => {
     assert.match(
       daily,
-      /activeDate === todayISO\(\)/
-    )
-    assert.match(
-      daily,
-      /faça regularmente uma cópia de segurança/
+      /<DailyWorkspaceView[\s\S]*onOpenBackup=\{ onOpenBackup \}/
     )
     assert.doesNotMatch(
       daily,
