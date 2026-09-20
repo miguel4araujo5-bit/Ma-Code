@@ -508,6 +508,9 @@ export function ProductMenuWorkspace({
                 }
               : null
           }
+          onOpenDataReset={() =>
+            onNavigate('reset')
+          }
         />
         <SavedScheduleActions />
       </div>
@@ -602,10 +605,14 @@ export function ProductMenuWorkspace({
   if (
     section === 'settings' ||
     section === 'restore' ||
+    section === 'reset' ||
     section === 'license'
   ) {
     const isRestore =
       section === 'restore'
+
+    const isReset =
+      section === 'reset'
 
     const isLicense =
       section === 'license'
@@ -629,14 +636,17 @@ export function ProductMenuWorkspace({
           initialTab={
             isLicense
               ? 'license'
-              : isRestore
+              : isRestore ||
+                  isReset
                 ? 'backup'
                 : 'profile'
           }
           initialSecuritySection={
-            isRestore
-              ? 'restore'
-              : 'protection'
+            isReset
+              ? 'reset'
+              : isRestore
+                ? 'restore'
+                : 'protection'
           }
         />
       </div>
