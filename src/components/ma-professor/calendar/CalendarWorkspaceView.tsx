@@ -2038,13 +2038,32 @@ function MonthDayCell({
       null
     )
 
+  const isWeekendDay =
+    [
+      0,
+      6
+    ].includes(
+      parseISODate(
+        day.date
+      ).getDay()
+    )
+
   const showEndOfDayLine =
     day.date ===
       getTodayISODate() &&
-    latestTimedEndMinute !==
-      null &&
-    currentMinute >
-      latestTimedEndMinute
+    (
+      (
+        isWeekendDay &&
+        latestTimedEndMinute ===
+          null
+      ) ||
+      (
+        latestTimedEndMinute !==
+          null &&
+        currentMinute >
+          latestTimedEndMinute
+      )
+    )
 
   const allDayEvents =
     day.events.filter(
