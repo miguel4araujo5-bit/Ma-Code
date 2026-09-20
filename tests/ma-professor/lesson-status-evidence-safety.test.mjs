@@ -165,6 +165,7 @@ function resetState({
   attendanceCount = 0,
   assessmentCount = 0,
   date = '2026-09-09',
+  summary = 'Sumário registado.',
   forceFutureEvidenceNormalization = false
 } = {}) {
   globalThis.__lessonStatusEvidenceState = {
@@ -176,6 +177,7 @@ function resetState({
       date,
       moduleId: 'module-1',
       status,
+      summary,
       planificationItemIds: [],
       updatedAt: 'v1'
     }
@@ -249,6 +251,41 @@ test(
     assert.equal(
       state.attendanceCount,
       1
+    )
+  }
+)
+
+test(
+  'future normalization without a summary still protects saved attendance',
+  { concurrency: false },
+  async () => {
+    const state = resetState({
+      status: 'taught',
+      attendanceCount: 1,
+      assessmentCount: 0,
+      date: '2026-09-21',
+      summary: '',
+      forceFutureEvidenceNormalization: true
+    })
+
+    const repository =
+      new LessonRepository()
+
+    await assert.rejects(
+      () =>
+        repository.updateLesson(
+          'lesson-1',
+          {
+            status: 'taught',
+            summary: ''
+          }
+        ),
+      /já possui faltas.*marcada como registada/i
+    )
+
+    assert.equal(
+      state.lesson.status,
+      'taught'
     )
   }
 )
