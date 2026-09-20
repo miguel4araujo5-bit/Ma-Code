@@ -1,0 +1,101 @@
+name: OPAQUE Worker Compatibility Spike
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/opaque-worker-spike.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout MA-CODE
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Prepare Rust/Wasm toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-bindgen-cli --version 0.2.106 --locked
+
+      - name: Build pinned Serenity OPAQUE Wasm
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/serenity-kit/opaque.git /tmp/opaque-src
+          cd /tmp/opaque-src
+          git checkout c89f6f5853b806dff1a681a7fb447316603b18d8
+          test "$(git rev-parse HEAD)" = "c89f6f5853b806dff1a681a7fb447316603b18d8"
+          cargo build --target wasm32-unknown-unknown --release
+          mkdir -p "$GITHUB_WORKSPACE/.opaque-spike/opaque"
+          wasm-bindgen             --out-dir "$GITHUB_WORKSPACE/.opaque-spike/opaque"             --target web             --omit-default-module-path             target/wasm32-unknown-unknown/release/opaque.wasm
+
+      - name: Create Worker-only static Wasm adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .opaque-spike/index.js <<'EOF'
+          import opaqueModule from './opaque/opaque_bg.wasm'
+          import init from './opaque/opaque.js'
+
+          const ready = init({
+            module_or_path: opaqueModule
+          })
+
+          export default {
+            async fetch() {
+              await ready
+              return new Response('opaque-worker-static-wasm-ok')
+            }
+          }
+          EOF
+
+          cat > .opaque-spike/wrangler.jsonc <<'EOF'
+          {
+            "name": "ma-professor-opaque-worker-spike",
+            "main": "./index.js",
+            "compatibility_date": "2026-04-03"
+          }
+          EOF
+
+      - name: Wrangler dry-run bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .opaque-spike
+          npx --yes wrangler@4.125.0 deploy             --dry-run             --outdir ./dist             --config ./wrangler.jsonc
+
+      - name: Execute in local workerd runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .opaque-spike
+
+          npx --yes wrangler@4.125.0 dev             --config ./wrangler.jsonc             --ip 127.0.0.1             --port 8788             > /tmp/opaque-wrangler.log 2>&1 &
+          WRANGLER_PID=$!
+          trap 'kill "$WRANGLER_PID" 2>/dev/null || true; cat /tmp/opaque-wrangler.log || true' EXIT
+
+          for attempt in $(seq 1 40); do
+            if body="$(curl --silent --show-error --fail http://127.0.0.1:8788/ 2>/dev/null)"; then
+              test "$body" = "opaque-worker-static-wasm-ok"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/opaque-wrangler.log
+          exit 1
