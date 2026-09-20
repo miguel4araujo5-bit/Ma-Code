@@ -226,26 +226,6 @@ export default function DailyWorkspaceWithDuties({
         }
       />
 
-      {activeDate === todayISO() ? (
-        <div className="px-3 pt-1 sm:px-5 lg:px-7">
-          <p className="mx-auto max-w-[1600px] rounded-xl border border-amber-200/10 bg-amber-200/[0.035] px-3 py-2 text-[0.68rem] font-semibold text-slate-400">
-            Para maior segurança, faça regularmente uma{' '}
-            {onOpenBackup ? (
-              <button
-                type="button"
-                onClick={onOpenBackup}
-                className="rounded-sm font-black text-amber-300 underline decoration-amber-300/70 underline-offset-2 transition hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
-              >
-                cópia de segurança
-              </button>
-            ) : (
-              <span>cópia de segurança</span>
-            )}{' '}
-            — sobretudo em navegação privada ou se surgir algum erro.
-          </p>
-        </div>
-      ) : null}
-
       <DailyWorkspaceView
         key={`${activeDate}-${
           activeLessonId ?? 'auto'
@@ -261,6 +241,9 @@ export default function DailyWorkspaceWithDuties({
         }
         onSaved={
           handleSaved
+        }
+        onOpenBackup={
+          onOpenBackup
         }
         onNavigationGuardChange={
           onNavigationGuardChange
