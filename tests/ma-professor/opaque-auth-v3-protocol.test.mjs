@@ -190,14 +190,20 @@ test(
           {
             email:
               'Teacher@Example.COM ',
+            deviceId:
+              'device-enroll',
             registrationRequest:
               'opaque-registration-request'
-          }
+          },
+          150
         )
 
     assert.match(
       started.registrationResponse,
       /teacher@example\.com/
+    )
+    assert.ok(
+      started.enrollmentId
     )
 
     const stored =
@@ -207,6 +213,10 @@ test(
           {
             email:
               'Teacher@Example.COM',
+            deviceId:
+              'device-enroll',
+            enrollmentId:
+              started.enrollmentId,
             registrationRecord:
               'opaque-record-123',
             migratedFromV2:
@@ -231,6 +241,114 @@ test(
 )
 
 test(
+  'OPAQUE enrollment is single-use, expires and is bound to email and device',
+  () => {
+    const runtime =
+      fakeRuntime()
+
+    const state =
+      opaque
+        .createFreshOpaqueAuthState(
+          100
+        )
+
+    const wrongDevice =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'teacher@example.com',
+            deviceId:
+              'device-a',
+            registrationRequest:
+              'request-a'
+          },
+          120
+        )
+
+    assert.throws(
+      () =>
+        opaque
+          .finishOpaqueEnrollment(
+            state,
+            {
+              email:
+                'teacher@example.com',
+              deviceId:
+                'device-b',
+              enrollmentId:
+                wrongDevice.enrollmentId,
+              registrationRecord:
+                'record-a'
+            },
+            130
+          ),
+      /OPAQUE_ENROLLMENT_INVALID/
+    )
+
+    assert.throws(
+      () =>
+        opaque
+          .finishOpaqueEnrollment(
+            state,
+            {
+              email:
+                'teacher@example.com',
+              deviceId:
+                'device-a',
+              enrollmentId:
+                wrongDevice.enrollmentId,
+              registrationRecord:
+                'record-a'
+            },
+            131
+          ),
+      /OPAQUE_ENROLLMENT_INVALID/,
+      'Um enrollment inválido deve ser consumido e não pode ser reutilizado.'
+    )
+
+    const expired =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'teacher@example.com',
+            deviceId:
+              'device-a',
+            registrationRequest:
+              'request-expired'
+          },
+          200
+        )
+
+    assert.throws(
+      () =>
+        opaque
+          .finishOpaqueEnrollment(
+            state,
+            {
+              email:
+                'teacher@example.com',
+              deviceId:
+                'device-a',
+              enrollmentId:
+                expired.enrollmentId,
+              registrationRecord:
+                'record-expired'
+            },
+            200 +
+              2 * 60 * 1000
+          ),
+      /OPAQUE_ENROLLMENT_INVALID/
+    )
+  }
+)
+
+test(
   'known and unknown accounts both receive an OPAQUE login start response',
   () => {
     const runtime =
@@ -242,12 +360,32 @@ test(
           100
         )
 
+    const enrollment =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-seed',
+            registrationRequest:
+              'seed-registration'
+          },
+          105
+        )
+
     opaque
       .finishOpaqueEnrollment(
         state,
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-seed',
+          enrollmentId:
+            enrollment.enrollmentId,
           registrationRecord:
             'known-record'
         },
@@ -313,12 +451,32 @@ test(
           100
         )
 
+    const enrollment =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-seed',
+            registrationRequest:
+              'seed-registration'
+          },
+          105
+        )
+
     opaque
       .finishOpaqueEnrollment(
         state,
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-seed',
+          enrollmentId:
+            enrollment.enrollmentId,
           registrationRecord:
             'known-record'
         },
@@ -388,12 +546,32 @@ test(
           100
         )
 
+    const enrollment =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-seed',
+            registrationRequest:
+              'seed-registration'
+          },
+          105
+        )
+
     opaque
       .finishOpaqueEnrollment(
         state,
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-seed',
+          enrollmentId:
+            enrollment.enrollmentId,
           registrationRecord:
             'known-record'
         },
@@ -532,12 +710,32 @@ test(
           100
         )
 
+    const enrollment =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-seed',
+            registrationRequest:
+              'seed-registration'
+          },
+          105
+        )
+
     opaque
       .finishOpaqueEnrollment(
         state,
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-seed',
+          enrollmentId:
+            enrollment.enrollmentId,
           registrationRecord:
             'known-record'
         },
