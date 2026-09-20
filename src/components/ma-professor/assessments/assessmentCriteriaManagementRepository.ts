@@ -430,6 +430,53 @@ function sameCriterionIdentity(
   )
 }
 
+function sameCriterionConfiguration(
+  reference: AssessmentCriterion[],
+  candidate: AssessmentCriterion[]
+) {
+  const left =
+    sortCriteria(
+      reference
+    )
+
+  const right =
+    sortCriteria(
+      candidate
+    )
+
+  return (
+    left.length ===
+      right.length &&
+    left.every(
+      (criterion, index) => {
+        const other =
+          right[index]
+
+        return (
+          Boolean(other) &&
+          criterionIdentity(
+            criterion
+          ) ===
+            criterionIdentity(
+              other
+            ) &&
+          normalizeText(
+            criterion.description
+          ) ===
+            normalizeText(
+              other.description
+            ) &&
+          Math.abs(
+            criterion.weightPercent -
+              other.weightPercent
+          ) <=
+            WEIGHT_TOLERANCE
+        )
+      }
+    )
+  )
+}
+
 async function readSubjectSchemeGroup(
   academicYearId: EntityId,
   subjectId: EntityId
@@ -692,7 +739,7 @@ export class AssessmentCriteriaManagementRepository {
       !referenceScheme ||
       group.schemes.every(
         scheme =>
-          sameCriterionIdentity(
+          sameCriterionConfiguration(
             referenceCriteria,
             group.criteriaByScheme.get(
               scheme.id
@@ -794,7 +841,7 @@ export class AssessmentCriteriaManagementRepository {
         if (
           !group.schemes.every(
             scheme =>
-              sameCriterionIdentity(
+              sameCriterionConfiguration(
                 referenceCriteria,
                 group.criteriaByScheme.get(
                   scheme.id
