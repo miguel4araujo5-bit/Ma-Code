@@ -54,7 +54,7 @@ function assertCanSubmit(
     !lesson.summary.trim()
   ) {
     throw new Error(
-      'Apenas aulas dadas com sumário podem ser marcadas como submetidas no GIAE.'
+      'Apenas aulas registadas com sumário podem ser marcadas como submetidas no GIAE.'
     )
   }
 }
