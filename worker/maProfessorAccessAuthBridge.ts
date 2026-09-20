@@ -2,6 +2,23 @@ import {
   MaProfessorAccessDurableObject as ExistingMaProfessorAccessDurableObject
 } from './maProfessorAccessAdminBridge'
 
+import {
+  MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+  type MAProfessorOpaqueAuthState
+} from './maProfessorOpaqueAuthState'
+
+import {
+  MA_PROFESSOR_OPAQUE_ENROLL_FINISH_PATH,
+  MA_PROFESSOR_OPAQUE_ENROLL_START_PATH,
+  createOpaqueAuthProtocolState,
+  finishOpaqueEnrollment,
+  startOpaqueEnrollment
+} from './maProfessorOpaqueAuthProtocol'
+
+import {
+  getMAProfessorOpaqueServerRuntime
+} from './maProfessorOpaqueServerRuntime'
+
 import type {
   LicensePlan,
   LicenseStatus,
@@ -266,6 +283,28 @@ function normalizeDeviceId(
     ? value
         .trim()
         .slice(0, 180)
+    : ''
+}
+
+function normalizeSessionToken(
+  value: unknown
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .trim()
+        .slice(0, 256)
+    : ''
+}
+
+function normalizeOpaquePayload(
+  value: unknown
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .trim()
+        .slice(0, 32_000)
     : ''
 }
 
@@ -556,6 +595,25 @@ async function hashToken(
       hash
     )
   )
+}
+
+async function hashLegacyToken(
+  token: string
+) {
+  const hash =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder()
+        .encode(token)
+    )
+
+  return Array.from(
+    new Uint8Array(hash),
+    byte =>
+      byte
+        .toString(16)
+        .padStart(2, '0')
+  ).join('')
 }
 
 function getDaysRemaining(
@@ -1020,6 +1078,482 @@ export class MaProfessorAccessDurableObject {
       message:
         'Período de acesso ativado. A sua password pessoal continua a ser a credencial de entrada no MA-Professor.'
     })
+  }
+
+  private async findAccountSession(
+    accessState:
+      AccessStateSnapshot,
+    token: string
+  ) {
+    const sessions =
+      accessState.sessions
+
+    if (!sessions) {
+      return null
+    }
+
+    const canonicalTokenHash =
+      await hashToken(
+        token
+      )
+
+    const canonicalSession =
+      sessions[
+        canonicalTokenHash
+      ]
+
+    if (canonicalSession) {
+      return canonicalSession
+    }
+
+    const legacyTokenHash =
+      await hashLegacyToken(
+        token
+      )
+
+    return sessions[
+      legacyTokenHash
+    ] ?? null
+  }
+
+  private async validateOpaqueEnrollmentIdentity(
+    body: JsonObject,
+    requirePassword: boolean
+  ) {
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const deviceId =
+      normalizeDeviceId(
+        body.deviceId
+      )
+
+    const token =
+      normalizeSessionToken(
+        body.token
+      )
+
+    if (
+      !isValidEmail(
+        email
+      ) ||
+      !deviceId ||
+      !token
+    ) {
+      return {
+        response:
+          json(
+            {
+              success:
+                false,
+              message:
+                'A sessão da conta não é válida.'
+            },
+            401
+          )
+      } as const
+    }
+
+    const accessState =
+      await this.state.storage.get<AccessStateSnapshot>(
+        STORAGE_KEY
+      )
+
+    if (
+      !accessState
+    ) {
+      return {
+        response:
+          json(
+            {
+              success:
+                false,
+              message:
+                'A sessão da conta não é válida.'
+            },
+            401
+          )
+      } as const
+    }
+
+    const session =
+      await this.findAccountSession(
+        accessState,
+        token
+      )
+
+    if (
+      !session ||
+      session.revokedAt !==
+        null ||
+      session.email !==
+        email ||
+      session.deviceId !==
+        deviceId
+    ) {
+      return {
+        response:
+          json(
+            {
+              success:
+                false,
+              message:
+                'A sessão da conta não é válida.'
+            },
+            401
+          )
+      } as const
+    }
+
+    if (requirePassword) {
+      const password =
+        normalizePassword(
+          body.password
+        )
+
+      if (!password) {
+        return {
+          response:
+            json(
+              {
+                success:
+                  false,
+                message:
+                  'Confirme a sua password pessoal para preparar a autenticação protegida.'
+              },
+              400
+            )
+        } as const
+      }
+
+      const authState =
+        normalizeAccountAuthState(
+          await this.state.storage.get<StoredAccountAuthState>(
+            ACCOUNT_AUTH_STORAGE_KEY
+          )
+        )
+
+      const credential =
+        authState.credentials[
+          email
+        ]
+
+      if (
+        !credential ||
+        !await verifyAccountPassword(
+          credential,
+          password
+        )
+      ) {
+        return {
+          response:
+            json(
+              {
+                success:
+                  false,
+                message:
+                  'A sessão ou a password pessoal não são válidas.'
+              },
+              401
+            )
+        } as const
+      }
+    }
+
+    return {
+      email,
+      deviceId,
+      accessState
+    } as const
+  }
+
+  private async handleOpaqueEnrollmentStart(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Pedido OPAQUE de registo inválido.'
+        },
+        400
+      )
+    }
+
+    const identity =
+      await this.validateOpaqueEnrollmentIdentity(
+        body,
+        true
+      )
+
+    if (
+      'response' in
+        identity
+    ) {
+      return identity
+        .response
+    }
+
+    const registrationRequest =
+      normalizeOpaquePayload(
+        body.registrationRequest
+      )
+
+    if (!registrationRequest) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Pedido OPAQUE de registo inválido.'
+        },
+        400
+      )
+    }
+
+    const opaqueState =
+      createOpaqueAuthProtocolState(
+        await this.state.storage.get<MAProfessorOpaqueAuthState>(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+        )
+      )
+
+    try {
+      const runtime =
+        await getMAProfessorOpaqueServerRuntime()
+
+      const started =
+        startOpaqueEnrollment(
+          opaqueState,
+          runtime,
+          {
+            email:
+              identity.email,
+            deviceId:
+              identity.deviceId,
+            registrationRequest
+          }
+        )
+
+      await this.state.storage.put(
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+        opaqueState
+      )
+
+      return json({
+        success:
+          true,
+        enrollmentId:
+          started.enrollmentId,
+        registrationResponse:
+          started.registrationResponse,
+        expiresAt:
+          new Date(
+            started.expiresAt
+          ).toISOString()
+      })
+    } catch (
+      error
+    ) {
+      if (
+        error instanceof
+          Error &&
+        error.message ===
+          'OPAQUE_ALREADY_ENROLLED'
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'A autenticação protegida desta conta já foi preparada.'
+          },
+          409
+        )
+      }
+
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não foi possível preparar a autenticação protegida.'
+        },
+        500
+      )
+    }
+  }
+
+  private async handleOpaqueEnrollmentFinish(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Registo OPAQUE inválido.'
+        },
+        400
+      )
+    }
+
+    const identity =
+      await this.validateOpaqueEnrollmentIdentity(
+        body,
+        false
+      )
+
+    if (
+      'response' in
+        identity
+    ) {
+      return identity
+        .response
+    }
+
+    const enrollmentId =
+      normalizeOpaquePayload(
+        body.enrollmentId
+      )
+
+    const registrationRecord =
+      normalizeOpaquePayload(
+        body.registrationRecord
+      )
+
+    if (
+      !enrollmentId ||
+      !registrationRecord
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Registo OPAQUE inválido.'
+        },
+        400
+      )
+    }
+
+    const opaqueState =
+      createOpaqueAuthProtocolState(
+        await this.state.storage.get<MAProfessorOpaqueAuthState>(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+        )
+      )
+
+    try {
+      finishOpaqueEnrollment(
+        opaqueState,
+        {
+          email:
+            identity.email,
+          deviceId:
+            identity.deviceId,
+          enrollmentId,
+          registrationRecord,
+          migratedFromV2:
+            true
+        }
+      )
+
+      await this.state.storage.put(
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+        opaqueState
+      )
+
+      return json({
+        success:
+          true,
+        message:
+          'Autenticação protegida preparada. O login atual mantém-se disponível durante a migração.'
+      })
+    } catch (
+      error
+    ) {
+      const message =
+        error instanceof
+          Error
+          ? error.message
+          : ''
+
+      return json(
+        {
+          success:
+            false,
+          message:
+            message ===
+              'OPAQUE_ALREADY_ENROLLED'
+              ? 'A autenticação protegida desta conta já foi preparada.'
+              : 'O registo OPAQUE expirou, já foi utilizado ou não corresponde a esta sessão.'
+        },
+        message ===
+          'OPAQUE_ALREADY_ENROLLED'
+          ? 409
+          : 401
+      )
+    }
   }
 
   private async issueAccountSession(
@@ -1849,6 +2383,24 @@ export class MaProfessorAccessDurableObject {
       PUBLIC_ACTIVATE_PATH
     ) {
       return this.handleActivation(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+        MA_PROFESSOR_OPAQUE_ENROLL_START_PATH
+    ) {
+      return this.handleOpaqueEnrollmentStart(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+        MA_PROFESSOR_OPAQUE_ENROLL_FINISH_PATH
+    ) {
+      return this.handleOpaqueEnrollmentFinish(
         request
       )
     }
