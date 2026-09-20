@@ -66,6 +66,7 @@ interface DailyWorkspaceViewProps {
     initialDate?: ISODate;
     initialLessonId?: EntityId;
     onSaved?: () => void | Promise<void>;
+    onOpenBackup?: () => void;
     onNavigationGuardChange?: (
         guard: (() => Promise<boolean>) | null
     ) => void;
@@ -507,6 +508,7 @@ export default function DailyWorkspaceView({
     initialDate,
     initialLessonId,
     onSaved,
+    onOpenBackup,
     onNavigationGuardChange
 }: DailyWorkspaceViewProps) {
     const {
@@ -3438,6 +3440,20 @@ export default function DailyWorkspaceView({
                                             </div>
                                         </div>
                                     </div>
+
+                                    {onOpenBackup ? (
+                                        <div className="border-t border-amber-200/10 bg-amber-200/[0.035] px-3 py-2 text-[0.68rem] font-semibold text-slate-400">
+                                            Para maior segurança, faça regularmente uma{' '}
+                                            <button
+                                                type="button"
+                                                onClick={onOpenBackup}
+                                                className="rounded-sm font-black text-amber-300 underline decoration-amber-300/70 underline-offset-2 transition hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+                                            >
+                                                cópia de segurança
+                                            </button>{' '}
+                                            — sobretudo em navegação privada ou se surgir algum erro.
+                                        </div>
+                                    ) : null}
                                 </section>
 
                                 <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">
