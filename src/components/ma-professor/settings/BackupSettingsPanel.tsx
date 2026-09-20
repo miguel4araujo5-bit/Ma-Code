@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState
 } from 'react'
 
@@ -34,6 +35,7 @@ export type SecuritySection =
   | 'restore'
   | 'export'
   | 'advanced'
+  | 'reset'
 
 interface BackupSettingsPanelProps {
   onDataChanged?: () => void
@@ -78,6 +80,52 @@ export function BackupSettingsPanel({
     setResetConfirmation
   ] =
     useState('')
+
+  useEffect(() => {
+    if (
+      initialSection ===
+      'protection'
+    ) {
+      return
+    }
+
+    const targetId =
+      initialSection ===
+        'reset'
+        ? 'ma-professor-security-reset'
+        : `ma-professor-security-${initialSection}`
+
+    const frame =
+      window.requestAnimationFrame(
+        () => {
+          const target =
+            document.getElementById(
+              targetId
+            )
+
+          if (
+            initialSection ===
+              'reset' &&
+            target instanceof
+              HTMLDetailsElement
+          ) {
+            target.open = true
+          }
+
+          target?.scrollIntoView({
+            block: 'start'
+          })
+        }
+      )
+
+    return () => {
+      window.cancelAnimationFrame(
+        frame
+      )
+    }
+  }, [
+    initialSection
+  ])
 
   const run =
     async (
@@ -385,7 +433,10 @@ export function BackupSettingsPanel({
             </div>
           </details>
 
-          <details className="group rounded-2xl border border-rose-400/20 bg-rose-400/[0.04] p-4">
+          <details
+            id="ma-professor-security-reset"
+            className="group scroll-mt-24 rounded-2xl border border-rose-400/20 bg-rose-400/[0.04] p-4"
+          >
             <summary className="cursor-pointer list-none text-sm font-black text-rose-200">
               <span className="flex items-center justify-between gap-3">
                 <span>
