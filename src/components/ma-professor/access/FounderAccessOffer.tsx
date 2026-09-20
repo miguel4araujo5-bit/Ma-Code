@@ -21,7 +21,7 @@ interface FounderAccessOfferProps {
   ) => void
 }
 
-const MBWAY_NUMBER =
+export const MBWAY_NUMBER =
   '936 840 619'
 
 function FounderBadge() {
