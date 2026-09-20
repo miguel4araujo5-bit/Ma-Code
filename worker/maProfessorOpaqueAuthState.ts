@@ -15,6 +15,14 @@ export interface MAProfessorOpaqueRegistration {
   migratedFromV2At: number | null
 }
 
+export interface MAProfessorOpaquePendingEnrollment {
+  id: string
+  email: string
+  deviceId: string
+  createdAt: number
+  expiresAt: number
+}
+
 export interface MAProfessorOpaquePendingLogin {
   id: string
   email: string
@@ -32,6 +40,11 @@ export interface MAProfessorOpaqueAuthState {
     Record<
       string,
       MAProfessorOpaqueRegistration
+    >
+  pendingEnrollments:
+    Record<
+      string,
+      MAProfessorOpaquePendingEnrollment
     >
   pendingLogins:
     Record<
@@ -53,6 +66,8 @@ export function createMAProfessorOpaqueAuthState(
     serverSetup:
       null,
     registrations:
+      {},
+    pendingEnrollments:
       {},
     pendingLogins:
       {},
@@ -87,5 +102,13 @@ export function normalizeMAProfessorOpaqueAuthState(
     )
   }
 
-  return value
+  return {
+    ...value,
+    pendingEnrollments:
+      value.pendingEnrollments &&
+      typeof value.pendingEnrollments ===
+        'object'
+        ? value.pendingEnrollments
+        : {}
+  }
 }
