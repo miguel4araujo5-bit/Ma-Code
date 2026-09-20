@@ -314,7 +314,7 @@ export default function CriteriaWorkspaceView({
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Os critérios gerais pertencem à disciplina e são aplicados às turmas que usam esse conjunto. Alterações ao nome, descrição ou ponderação são sincronizadas sem recriar os critérios nem perder as avaliações já associadas.
+                Os critérios gerais pertencem à disciplina e são aplicados às turmas que usam esse conjunto. Alterações ao nome, descrição ou ponderação são sincronizadas sem recriar os critérios nem perder as avaliações já associadas. As notas finais já confirmadas pelo professor mantêm-se inalteradas.
               </p>
             </div>
 
