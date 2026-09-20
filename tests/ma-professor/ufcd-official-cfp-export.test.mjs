@@ -201,6 +201,10 @@ test('official XLSM writer tolerates omitted cells and rows from the real templa
       after,
       /<c\b[^>]*\br="I6"[^>]*>/
     )
+    assert.doesNotMatch(
+      after,
+      /\/\s+t="inlineStr"/
+    )
     assert.match(
       after,
       /<row\b[^>]*\br="7"[^>]*>[\s\S]*?<c\b[^>]*\br="I7"[^>]*>/

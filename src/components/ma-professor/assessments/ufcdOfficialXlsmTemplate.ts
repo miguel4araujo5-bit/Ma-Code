@@ -69,7 +69,7 @@ function cellPattern(
   address: string
 ) {
   return new RegExp(
-    `<c\\b([^>]*\\br="${address}"[^>]*)(?:\\s*\\/>|>([\\s\\S]*?)<\\/c>)`
+    `<c\\b([^>]*?\\br="${address}"[^>]*?)(?:\\s*\\/>|>([\\s\\S]*?)<\\/c>)`
   )
 }
 
