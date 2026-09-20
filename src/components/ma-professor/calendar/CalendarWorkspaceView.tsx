@@ -2008,6 +2008,44 @@ function MonthDayCell({
     }
   )
 
+  const latestTimedEndMinute =
+    timedItems.reduce<
+      number | null
+    >(
+      (
+        latest,
+        item
+      ) => {
+        const endMinute =
+          timeToMinuteOfDay(
+            item.endTime
+          )
+
+        if (
+          endMinute ===
+          null
+        ) {
+          return latest
+        }
+
+        return latest ===
+          null ||
+          endMinute >
+            latest
+          ? endMinute
+          : latest
+      },
+      null
+    )
+
+  const showEndOfDayLine =
+    day.date ===
+      getTodayISODate() &&
+    latestTimedEndMinute !==
+      null &&
+    currentMinute >
+      latestTimedEndMinute
+
   const allDayEvents =
     day.events.filter(
       row =>
@@ -2281,6 +2319,13 @@ function MonthDayCell({
         >
           + Aula
         </button>
+      ) : null}
+
+      {showEndOfDayLine ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 border-t-2 border-rose-400"
+        />
       ) : null}
     </article>
   )
