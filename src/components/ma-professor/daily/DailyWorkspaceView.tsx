@@ -251,7 +251,7 @@ function lessonStatusLabel(
         string
     > = {
         planned: 'Planeada',
-        taught: 'Dada',
+        taught: 'Registada',
         cancelled: 'Cancelada'
     };
 
@@ -269,7 +269,7 @@ function lessonStatusClasses(
         return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
     }
 
-    return 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100';
+    return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
 }
 
 async function copyTextToClipboard(
@@ -4025,7 +4025,7 @@ export default function DailyWorkspaceView({
                                                 </option>
 
                                                 <option value="taught">
-                                                    Dada
+                                                    Registada
                                                 </option>
 
                                                 <option value="cancelled">
