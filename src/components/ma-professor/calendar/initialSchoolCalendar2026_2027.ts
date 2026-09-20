@@ -1,4 +1,5 @@
 import { calendarRepository } from './calendarRepository'
+import { isDutyEvent } from './dutyEvent'
 import {
   syncRegularAnnualComponentsForAcademicYear
 } from '../curriculum/regularAnnualComponentRepository'
@@ -38,7 +39,9 @@ export type InitialSchoolCalendarPreparationResult = {
 
 const PRESET_ACADEMIC_YEAR = '2026/2027'
 const PROFESSIONAL_START_DATE: ISODate = '2026-09-14'
+const FIRST_TEACHING_WEEK_END_DATE: ISODate = '2026-09-18'
 const LEGACY_PROFESSIONAL_START_DATE: ISODate = '2026-09-21'
+const LEGACY_FIRST_FULL_WEEK_END_DATE: ISODate = '2026-09-25'
 const TENTH_GRADE_END_DATE: ISODate = '2027-06-11'
 const ELEVENTH_TWELFTH_END_DATE: ISODate = '2027-06-04'
 const PRESET_DESCRIPTION =
@@ -254,6 +257,148 @@ function eventKey(event: {
   ].join('|')
 }
 
+function shiftISODate(
+  value: ISODate,
+  days: number
+): ISODate {
+  const [
+    year,
+    month,
+    day
+  ] = value
+    .split('-')
+    .map(Number)
+
+  const date =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day
+      )
+    )
+
+  date.setUTCDate(
+    date.getUTCDate() +
+      days
+  )
+
+  return [
+    String(
+      date.getUTCFullYear()
+    ).padStart(4, '0'),
+    String(
+      date.getUTCMonth() + 1
+    ).padStart(2, '0'),
+    String(
+      date.getUTCDate()
+    ).padStart(2, '0')
+  ].join('-')
+}
+
+async function ensureFirstTeachingWeekDutyOccurrences(
+  academicYearId: EntityId
+) {
+  const existingEvents =
+    await calendarRepository.listEvents({
+      academicYearId,
+      type:
+        'school_activity',
+      scope:
+        'all'
+    })
+
+  const existingKeys =
+    new Set(
+      existingEvents.map(
+        event =>
+          eventKey(event)
+      )
+    )
+
+  const legacyFirstFullWeekDuties =
+    existingEvents.filter(
+      event =>
+        isDutyEvent(event) &&
+        event.startDate ===
+          event.endDate &&
+        event.startDate >=
+          LEGACY_PROFESSIONAL_START_DATE &&
+        event.startDate <=
+          LEGACY_FIRST_FULL_WEEK_END_DATE
+    )
+
+  let createdEvents = 0
+
+  for (
+    const legacyEvent
+    of legacyFirstFullWeekDuties
+  ) {
+    const startDate =
+      shiftISODate(
+        legacyEvent.startDate,
+        -7
+      )
+
+    if (
+      startDate <
+        PROFESSIONAL_START_DATE ||
+      startDate >
+        FIRST_TEACHING_WEEK_END_DATE
+    ) {
+      continue
+    }
+
+    const candidate = {
+      type:
+        legacyEvent.type,
+      title:
+        legacyEvent.title,
+      startDate,
+      endDate:
+        startDate
+    }
+
+    const key =
+      eventKey(
+        candidate
+      )
+
+    if (
+      existingKeys.has(
+        key
+      )
+    ) {
+      continue
+    }
+
+    await calendarRepository.createEvent({
+      academicYearId,
+      type:
+        'school_activity',
+      scope:
+        'all',
+      title:
+        legacyEvent.title,
+      description:
+        '',
+      startDate,
+      endDate:
+        startDate,
+      blocksLessons:
+        false
+    })
+
+    existingKeys.add(
+      key
+    )
+    createdEvents +=
+      1
+  }
+
+  return createdEvents
+}
+
 async function ensurePresetEvents(academicYearId: EntityId) {
   const existingEvents = await calendarRepository.listEvents({ academicYearId })
   const existingKeys = new Set(
@@ -395,7 +540,17 @@ async function prepare(
   }
 
   const endDateByAssignment = validatePresetContext(snapshot)
-  const createdEvents = await ensurePresetEvents(academicYearId)
+  const presetCreatedEvents =
+    await ensurePresetEvents(
+      academicYearId
+    )
+  const backfilledDutyOccurrences =
+    await ensureFirstTeachingWeekDutyOccurrences(
+      academicYearId
+    )
+  const createdEvents =
+    presetCreatedEvents +
+    backfilledDutyOccurrences
   const updatedScheduleSlots = await ensureScheduleValidity(
     snapshot,
     endDateByAssignment
