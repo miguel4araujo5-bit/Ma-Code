@@ -814,6 +814,11 @@ function ProductContent() {
           initialLessonId={
             dailyTarget.lessonId
           }
+          onOpenBackup={() =>
+            void handleSelect(
+              'backup'
+            )
+          }
           onNavigationGuardChange={
             handleDailyNavigationGuardChange
           }
