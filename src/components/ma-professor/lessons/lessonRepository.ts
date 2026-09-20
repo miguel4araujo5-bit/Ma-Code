@@ -293,6 +293,16 @@ export class LessonRepository
           latest.status === 'taught' &&
           nextStatus !== 'taught'
 
+        const futureEvidenceNormalization =
+          latest.date === nextDate &&
+          latest.status === 'taught' &&
+          nextStatus === 'planned' &&
+          isFutureLessonDate(
+            nextDate
+          ) &&
+          nextGIAEStatus !==
+            'submitted'
+
         const cancelsLesson =
           latest.status !== 'cancelled' &&
           nextStatus === 'cancelled'
@@ -351,16 +361,17 @@ export class LessonRepository
           )
         ) {
           throw new Error(
-            'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como dada para preservar esses registos.'
+            'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como registada para preservar esses registos.'
           )
         }
 
         if (
           leavesTaughtStatus &&
-          attendanceCount > 0
+          attendanceCount > 0 &&
+          !futureEvidenceNormalization
         ) {
           throw new Error(
-            'Esta aula já possui faltas. Mantenha-a marcada como dada para preservar esses registos.'
+            'Esta aula já possui faltas. Mantenha-a marcada como registada para preservar esses registos.'
           )
         }
 
