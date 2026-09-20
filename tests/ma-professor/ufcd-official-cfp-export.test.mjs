@@ -126,7 +126,7 @@ test('CFP values are populated directly from the aggregate model so extra moment
   assert.match(excelSource, /ROUNDUP\(AA\$\{row\},0\)/)
 })
 
-test('official XLSM writer tolerates blank cells omitted by Excel and materializes them only when writing', async () => {
+test('official XLSM writer tolerates omitted cells and rows from the real template', async () => {
   const module =
     await loadExecutableTemplateModule()
   const templateBytes =
@@ -170,6 +170,28 @@ test('official XLSM writer tolerates blank cells omitted by Excel and materializ
       '1'
     )
 
+    const withoutRowSeven =
+      fflate.strFromU8(
+        files[homePath]
+      ).replace(
+        /<row\\b[^>]*\\br="7"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/row>)/,
+        ''
+      )
+
+    files[homePath] =
+      fflate.strToU8(
+        withoutRowSeven
+      )
+
+    assert.doesNotThrow(() => {
+      module.setWorksheetString(
+        files,
+        homePath,
+        'I7',
+        '2'
+      )
+    })
+
     const after =
       fflate.strFromU8(
         files[homePath]
@@ -177,7 +199,11 @@ test('official XLSM writer tolerates blank cells omitted by Excel and materializ
 
     assert.match(
       after,
-      /<c\b[^>]*\br="I6"[^>]*>/
+      /<c\\b[^>]*\\br="I6"[^>]*>/
+    )
+    assert.match(
+      after,
+      /<row\\b[^>]*\\br="7"[^>]*>[\\s\\S]*?<c\\b[^>]*\\br="I7"[^>]*>/
     )
   } finally {
     globalThis.fetch = previousFetch

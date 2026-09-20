@@ -171,6 +171,61 @@ function nearestColumnStyle(
   return best?.style ?? null
 }
 
+function insertMaterializedRow(
+  xml: string,
+  row: number,
+  cell: string
+) {
+  const sheetDataPattern =
+    /(<sheetData\\b[^>]*>)([\\s\\S]*?)(<\\/sheetData>)/
+  const sheetDataMatch =
+    sheetDataPattern.exec(xml)
+
+  if (!sheetDataMatch) {
+    throw new Error(
+      'O modelo XLSM não contém a zona de dados esperada.'
+    )
+  }
+
+  let sheetBody =
+    sheetDataMatch[2]
+  let inserted = false
+
+  sheetBody = sheetBody.replace(
+    /<row\\b[^>]*\\br="(\\d+)"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/row>)/g,
+    current => {
+      if (inserted) {
+        return current
+      }
+
+      const currentRow =
+        Number(
+          current.match(
+            /\\br="(\\d+)"/
+          )?.[1] ?? 0
+        )
+
+      if (currentRow > row) {
+        inserted = true
+        return `<row r="${row}">${cell}</row>${current}`
+      }
+
+      return current
+    }
+  )
+
+  if (!inserted) {
+    sheetBody +=
+      `<row r="${row}">${cell}</row>`
+  }
+
+  return xml.replace(
+    sheetDataPattern,
+    () =>
+      `${sheetDataMatch[1]}${sheetBody}${sheetDataMatch[3]}`
+  )
+}
+
 function materializeCell(
   xml: string,
   address: string,
@@ -184,14 +239,13 @@ function materializeCell(
   const rowPattern = new RegExp(
     `<row\\b([^>]*\\br="${row}"[^>]*)>([\\s\\S]*?)<\\/row>`
   )
+  const emptyRowPattern = new RegExp(
+    `<row\\b([^>]*\\br="${row}"[^>]*)\\s*\\/>`
+  )
   const rowMatch =
     rowPattern.exec(xml)
-
-  if (!rowMatch) {
-    throw new Error(
-      `O modelo XLSM não contém a linha esperada ${row} para a célula ${address}.`
-    )
-  }
+  const emptyRowMatch =
+    emptyRowPattern.exec(xml)
 
   const style =
     nearestColumnStyle(
@@ -210,6 +264,23 @@ function materializeCell(
   ].join('')
   const cell =
     `<c${attributes}>${body}</c>`
+
+  if (emptyRowMatch) {
+    return xml.replace(
+      emptyRowPattern,
+      () =>
+        `<row${emptyRowMatch[1]}>${cell}</row>`
+    )
+  }
+
+  if (!rowMatch) {
+    return insertMaterializedRow(
+      xml,
+      row,
+      cell
+    )
+  }
+
   const targetColumn =
     columnNumber(column)
   let rowBody =
@@ -217,7 +288,7 @@ function materializeCell(
   let inserted = false
 
   rowBody = rowBody.replace(
-    /<c\b[^>]*\br="([A-Z]+)\d+"[^>]*(?:\s*\/>|>[\s\S]*?<\/c>)/g,
+    /<c\\b[^>]*\\br="([A-Z]+)\\d+"[^>]*(?:\\s*\\/>|>[\\s\\S]*?<\\/c>)/g,
     current => {
       if (inserted) {
         return current
@@ -225,7 +296,7 @@ function materializeCell(
 
       const currentAddress =
         current.match(
-          /\br="([A-Z]+)\d+"/
+          /\\br="([A-Z]+)\\d+"/
         )
 
       if (
