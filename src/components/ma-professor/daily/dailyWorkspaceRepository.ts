@@ -995,7 +995,7 @@ export class DailyWorkspaceRepository {
       !input.summary.trim()
     ) {
       throw new Error(
-        'Indique o sumário antes de marcar a aula como dada.'
+        'Indique o sumário antes de marcar a aula como registada.'
       )
     }
 
@@ -1133,7 +1133,7 @@ export class DailyWorkspaceRepository {
         hasAssessments
       ) {
         throw new Error(
-          'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como dada para preservar esses registos.'
+          'Esta aula já possui faltas ou avaliações. Mantenha-a marcada como registada para preservar esses registos.'
         )
       }
     }
