@@ -209,3 +209,54 @@ jobs:
 
           cat /tmp/opaque-wrangler.log
           exit 1
+
+
+      - name: Prepare frozen OPAQUE runtime artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          VENDOR=.opaque-vendor
+          rm -rf "$VENDOR"
+          mkdir -p "$VENDOR"
+
+          cp .opaque-spike/opaque/opaque.js "$VENDOR/opaque.js"
+          cp .opaque-spike/opaque/opaque.d.ts "$VENDOR/opaque.d.ts"
+          cp .opaque-spike/opaque/opaque_bg.wasm "$VENDOR/opaque_bg.wasm"
+          cp .opaque-spike/opaque/opaque_bg.wasm.d.ts "$VENDOR/opaque_bg.wasm.d.ts"
+          cp /tmp/opaque-src/LICENSE "$VENDOR/LICENSE"
+          cp /tmp/opaque-src/Cargo.lock "$VENDOR/UPSTREAM_CARGO_LOCK"
+
+          OPAQUE_JS_SHA="$(sha256sum "$VENDOR/opaque.js" | awk '{print $1}')"
+          OPAQUE_WASM_SHA="$(sha256sum "$VENDOR/opaque_bg.wasm" | awk '{print $1}')"
+          RUSTC_VERSION="$(rustc --version)"
+          CARGO_VERSION="$(cargo --version)"
+          WASM_BINDGEN_VERSION="$(wasm-bindgen --version)"
+
+          cat > "$VENDOR/SOURCE.md" <<EOF
+          # MA-Professor OPAQUE runtime provenance
+
+          - Upstream: serenity-kit/opaque
+          - Upstream commit: c89f6f5853b806dff1a681a7fb447316603b18d8
+          - Protocol core: opaque-ke (resolved exactly in UPSTREAM_CARGO_LOCK)
+          - Rust toolchain: $RUSTC_VERSION
+          - Cargo: $CARGO_VERSION
+          - wasm-bindgen CLI: $WASM_BINDGEN_VERSION
+          - opaque.js SHA-256: $OPAQUE_JS_SHA
+          - opaque_bg.wasm SHA-256: $OPAQUE_WASM_SHA
+          - License: MIT (see LICENSE)
+
+          CI compiled these artefacts, bundled the Wasm as a static Cloudflare
+          Worker module, and completed a full OPAQUE registration/login round
+          trip in local workerd before this artifact was created.
+
+          Do not regenerate or replace these files without repeating the same
+          compatibility, protocol and regression gates.
+          EOF
+
+      - name: Upload frozen OPAQUE runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: ma-professor-opaque-vendor
+          path: .opaque-vendor
+          if-no-files-found: error
+          retention-days: 1
