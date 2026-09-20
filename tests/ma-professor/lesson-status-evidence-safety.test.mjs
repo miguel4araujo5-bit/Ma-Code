@@ -112,7 +112,14 @@ const historicalSafetyUrl = transpile(`
 const temporalSafetyUrl = transpile(`
   export function assertLessonNotTaughtInFuture(){}
   export function isFutureLessonDate(date){return date > '2026-09-20'}
-  export function resolveLessonStatusFromEvidence(_date, status){return status}
+  export function resolveLessonStatusFromEvidence(date, status){
+    const state = globalThis.__lessonStatusEvidenceState;
+    return state?.forceFutureEvidenceNormalization &&
+      isFutureLessonDate(date) &&
+      status === 'taught'
+        ? 'planned'
+        : status;
+  }
 `)
 
 const reservationSource = await readFile(
@@ -156,14 +163,17 @@ const {
 function resetState({
   status = 'taught',
   attendanceCount = 0,
-  assessmentCount = 0
+  assessmentCount = 0,
+  date = '2026-09-09',
+  forceFutureEvidenceNormalization = false
 } = {}) {
   globalThis.__lessonStatusEvidenceState = {
     attendanceCount,
     assessmentCount,
+    forceFutureEvidenceNormalization,
     lesson: {
       id: 'lesson-1',
-      date: '2026-09-09',
+      date,
       moduleId: 'module-1',
       status,
       planificationItemIds: [],
@@ -195,12 +205,50 @@ test(
             status: 'planned'
           }
         ),
-      /já possui faltas.*marcada como dada/i
+      /já possui faltas.*marcada como registada/i
     )
 
     assert.equal(
       state.lesson.status,
       'taught'
+    )
+  }
+)
+
+test(
+  'future evidence normalization preserves saved attendance before explicit GIAE submission',
+  { concurrency: false },
+  async () => {
+    const state = resetState({
+      status: 'taught',
+      attendanceCount: 1,
+      assessmentCount: 0,
+      date: '2026-09-21',
+      forceFutureEvidenceNormalization: true
+    })
+
+    const repository =
+      new LessonRepository()
+
+    const updated =
+      await repository.updateLesson(
+        'lesson-1',
+        {
+          status: 'taught'
+        }
+      )
+
+    assert.equal(
+      updated.status,
+      'planned'
+    )
+    assert.equal(
+      state.lesson.status,
+      'planned'
+    )
+    assert.equal(
+      state.attendanceCount,
+      1
     )
   }
 )
@@ -258,7 +306,7 @@ test(
             status: 'cancelled'
           }
         ),
-      /já possui faltas ou avaliações.*marcada como dada/i
+      /já possui faltas ou avaliações.*marcada como registada/i
     )
 
     assert.equal(
