@@ -574,6 +574,40 @@ export default function DailyUnifiedWeekOverview({
       [duties]
     )
 
+  const latestTimeSlotEndMinute =
+    useMemo(
+      () =>
+        timeSlots.reduce<
+          number | null
+        >(
+          (
+            latest,
+            slot
+          ) => {
+            const endMinute =
+              timeToMinuteOfDay(
+                slot.endTime
+              )
+
+            if (
+              endMinute ===
+              null
+            ) {
+              return latest
+            }
+
+            return latest ===
+              null ||
+              endMinute >
+                latest
+              ? endMinute
+              : latest
+          },
+          null
+        ),
+      [timeSlots]
+    )
+
   const highlightedLessonId =
     useMemo(
       () => {
@@ -954,6 +988,24 @@ export default function DailyUnifiedWeekOverview({
                                 )
                               : null
 
+                          const isLastTimeSlot =
+                            timeSlots[
+                              timeSlots.length -
+                                1
+                            ]?.key ===
+                            slot.key
+
+                          const showEndOfDayLine =
+                            date ===
+                              todayISO() &&
+                            day.date ===
+                              todayISO() &&
+                            isLastTimeSlot &&
+                            latestTimeSlotEndMinute !==
+                              null &&
+                            currentMinute >
+                              latestTimeSlotEndMinute
+
                           return (
                             <div
                               key={`${day.date}-${slot.key}`}
@@ -981,6 +1033,13 @@ export default function DailyUnifiedWeekOverview({
                                         2
                                       )}%`
                                   }}
+                                />
+                              ) : null}
+
+                              {showEndOfDayLine ? (
+                                <div
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-x-0 bottom-0 z-20 border-t-2 border-rose-400"
                                 />
                               ) : null}
 
