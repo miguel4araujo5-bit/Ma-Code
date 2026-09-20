@@ -50,16 +50,126 @@ jobs:
           set -euo pipefail
           cat > .opaque-spike/index.js <<'EOF'
           import opaqueModule from './opaque/opaque_bg.wasm'
-          import init from './opaque/opaque.js'
+          import init, {
+            createServerSetup,
+            startClientRegistration,
+            createServerRegistrationResponse,
+            finishClientRegistration,
+            startClientLogin,
+            startServerLogin,
+            finishClientLogin,
+            finishServerLogin
+          } from './opaque/opaque.js'
 
           const ready = init({
             module_or_path: opaqueModule
           })
 
+          const keyStretching = {
+            'argon2id-custom': {
+              memory: 8192,
+              iterations: 1,
+              parallelism: 1
+            }
+          }
+
+          async function verifyOpaqueRoundTrip() {
+            await ready
+
+            const password =
+              'compatibility-spike-only-password'
+            const userIdentifier =
+              'compatibility-spike@example.invalid'
+            const serverSetup =
+              createServerSetup()
+
+            const registrationStart =
+              startClientRegistration({
+                password
+              })
+
+            const registrationResponse =
+              createServerRegistrationResponse({
+                serverSetup,
+                userIdentifier,
+                registrationRequest:
+                  registrationStart.registrationRequest
+              })
+
+            const registrationFinish =
+              finishClientRegistration({
+                clientRegistrationState:
+                  registrationStart.clientRegistrationState,
+                registrationResponse:
+                  registrationResponse.registrationResponse,
+                password,
+                keyStretching
+              })
+
+            const loginStart =
+              startClientLogin({
+                password
+              })
+
+            const serverLoginStart =
+              startServerLogin({
+                serverSetup,
+                userIdentifier,
+                registrationRecord:
+                  registrationFinish.registrationRecord,
+                startLoginRequest:
+                  loginStart.startLoginRequest
+              })
+
+            const clientLoginFinish =
+              finishClientLogin({
+                clientLoginState:
+                  loginStart.clientLoginState,
+                loginResponse:
+                  serverLoginStart.loginResponse,
+                password,
+                keyStretching
+              })
+
+            if (!clientLoginFinish) {
+              throw new Error(
+                'OPAQUE client rejected a valid login.'
+              )
+            }
+
+            const serverLoginFinish =
+              finishServerLogin({
+                finishLoginRequest:
+                  clientLoginFinish.finishLoginRequest,
+                serverLoginState:
+                  serverLoginStart.serverLoginState
+              })
+
+            if (
+              clientLoginFinish.sessionKey !==
+                serverLoginFinish.sessionKey
+            ) {
+              throw new Error(
+                'OPAQUE session keys did not match.'
+              )
+            }
+
+            if (
+              clientLoginFinish.exportKey !==
+                registrationFinish.exportKey
+            ) {
+              throw new Error(
+                'OPAQUE export key was not stable.'
+              )
+            }
+          }
+
           export default {
             async fetch() {
-              await ready
-              return new Response('opaque-worker-static-wasm-ok')
+              await verifyOpaqueRoundTrip()
+              return new Response(
+                'opaque-worker-roundtrip-ok'
+              )
             }
           }
           EOF
@@ -91,7 +201,7 @@ jobs:
 
           for attempt in $(seq 1 40); do
             if body="$(curl --silent --show-error --fail http://127.0.0.1:8788/ 2>/dev/null)"; then
-              test "$body" = "opaque-worker-static-wasm-ok"
+              test "$body" = "opaque-worker-roundtrip-ok"
               exit 0
             fi
             sleep 1
