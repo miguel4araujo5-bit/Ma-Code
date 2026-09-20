@@ -74,9 +74,17 @@ const productSource = await readFile(
   'utf8'
 )
 
-const dailySource = await readFile(
+const dailyWrapperSource = await readFile(
   new URL(
     '../../src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const dailySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
     import.meta.url
   ),
   'utf8'
@@ -345,15 +353,27 @@ test(
 )
 
 test(
-  'daily backup reminder links directly to Security and recovery',
+  'daily backup reminder stays below the summary editor on any selected date',
   () => {
-    assert.match(
-      dailySource,
+    assert.doesNotMatch(
+      dailyWrapperSource,
       /Para maior segurança, faça regularmente uma/
     )
     assert.match(
+      dailyWrapperSource,
+      /<DailyWorkspaceView[\s\S]*onOpenBackup=\{[\s\S]*onOpenBackup/
+    )
+    assert.match(
       dailySource,
-      /onOpenBackup[\s\S]*cópia de segurança/
+      /onOpenBackup\?: \(\) => void/
+    )
+    assert.match(
+      dailySource,
+      /Submetido no[\s\S]*GIAE[\s\S]*Para maior segurança, faça regularmente uma/
+    )
+    assert.match(
+      dailySource,
+      /onClick=\{onOpenBackup\}[\s\S]*cópia de segurança/
     )
     assert.match(
       dailySource,
