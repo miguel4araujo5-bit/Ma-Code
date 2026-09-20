@@ -226,6 +226,19 @@ function normalizeSearchText(value: string) {
     .trim()
 }
 
+function isFuturePlannedReadyForGIAE(
+  lesson: Lesson,
+  referenceDate: ISODate
+) {
+  return (
+    lesson.status === 'planned' &&
+    lesson.date > referenceDate &&
+    Boolean(
+      lesson.summary.trim()
+    )
+  )
+}
+
 function getRowState(
   lesson: Lesson,
   referenceDate: ISODate
@@ -238,18 +251,27 @@ function getRowState(
     lesson.summary.trim()
   )
 
-  if (
-    lesson.status !== 'taught' ||
-    !hasSummary
-  ) {
+  if (!hasSummary) {
     return lesson.date <= referenceDate
       ? 'missing_summary'
       : null
   }
 
-  return lesson.giaeStatus === 'submitted'
-    ? 'submitted'
-    : 'pending'
+  if (
+    lesson.status === 'taught' ||
+    isFuturePlannedReadyForGIAE(
+      lesson,
+      referenceDate
+    )
+  ) {
+    return lesson.giaeStatus === 'submitted'
+      ? 'submitted'
+      : 'pending'
+  }
+
+  return lesson.date <= referenceDate
+    ? 'missing_summary'
+    : null
 }
 
 function buildRow(
@@ -310,7 +332,6 @@ function buildRow(
     canCopy,
     canMarkSubmitted:
       state === 'pending' &&
-      lesson.status === 'taught' &&
       canCopy,
     canMarkPending:
       state === 'submitted'
@@ -838,8 +859,9 @@ export class GIAEWorkspaceRepository {
     }
   }
 
-  async markSubmitted(
-    lessonId: EntityId
+  private async submitLesson(
+    lessonId: EntityId,
+    requireCopiedVersion: boolean
   ) {
     await this.initialize()
 
@@ -854,16 +876,17 @@ export class GIAEWorkspaceRepository {
       )
     }
 
-    const authorization =
-      this.assertCopiedVersion(
-        lesson
-      )
+    const expectedUpdatedAt =
+      requireCopiedVersion
+        ? this.assertCopiedVersion(
+            lesson
+          ).expectedUpdatedAt
+        : lesson.updatedAt
 
     const updated =
       await giaeExplicitSubmissionRepository.markSubmitted({
         lessonId,
-        expectedUpdatedAt:
-          authorization.expectedUpdatedAt
+        expectedUpdatedAt
       })
 
     if (updated.giaeStatus !== 'submitted') {
@@ -877,6 +900,24 @@ export class GIAEWorkspaceRepository {
     )
 
     return updated
+  }
+
+  async markSubmitted(
+    lessonId: EntityId
+  ) {
+    return this.submitLesson(
+      lessonId,
+      false
+    )
+  }
+
+  async markCopiedSubmitted(
+    lessonId: EntityId
+  ) {
+    return this.submitLesson(
+      lessonId,
+      true
+    )
   }
 
   async markPending(
@@ -902,8 +943,9 @@ export class GIAEWorkspaceRepository {
     )
   }
 
-  async markManySubmitted(
-    lessonIds: EntityId[]
+  private async submitManyLessons(
+    lessonIds: EntityId[],
+    requireCopiedVersion: boolean
   ) {
     await this.initialize()
 
@@ -931,15 +973,16 @@ export class GIAEWorkspaceRepository {
         )
       }
 
-      const authorization =
-        this.assertCopiedVersion(
-          lesson
-        )
+      const expectedUpdatedAt =
+        requireCopiedVersion
+          ? this.assertCopiedVersion(
+              lesson
+            ).expectedUpdatedAt
+          : lesson.updatedAt
 
       inputs.push({
         lessonId,
-        expectedUpdatedAt:
-          authorization.expectedUpdatedAt
+        expectedUpdatedAt
       })
     }
 
@@ -973,6 +1016,25 @@ export class GIAEWorkspaceRepository {
 
     return updated
   }
+
+  async markManySubmitted(
+    lessonIds: EntityId[]
+  ) {
+    return this.submitManyLessons(
+      lessonIds,
+      false
+    )
+  }
+
+  async markManyCopiedSubmitted(
+    lessonIds: EntityId[]
+  ) {
+    return this.submitManyLessons(
+      lessonIds,
+      true
+    )
+  }
+
 }
 
 export const giaeWorkspaceRepository =

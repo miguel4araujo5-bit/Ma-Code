@@ -1436,6 +1436,16 @@ export default function MAProfessorApp({
     refreshLessonWorkspaces()
   }
 
+  async function handleGIAEMarkCopiedSubmitted(
+    lessonId: EntityId
+  ) {
+    await giaeWorkspaceRepository.markCopiedSubmitted(
+      lessonId
+    )
+
+    refreshLessonWorkspaces()
+  }
+
   async function handleGIAEMarkPending(
     lessonId: EntityId
   ) {
@@ -1450,6 +1460,16 @@ export default function MAProfessorApp({
     lessonIds: EntityId[]
   ) {
     await giaeWorkspaceRepository.markManySubmitted(
+      lessonIds
+    )
+
+    refreshLessonWorkspaces()
+  }
+
+  async function handleGIAEMarkManyCopiedSubmitted(
+    lessonIds: EntityId[]
+  ) {
+    await giaeWorkspaceRepository.markManyCopiedSubmitted(
       lessonIds
     )
 
@@ -1741,8 +1761,10 @@ export default function MAProfessorApp({
             onFiltersChange={handleGIAEFiltersChange}
             onLessonSelect={handleCalendarLessonSelect}
             onMarkSubmitted={handleGIAEMarkSubmitted}
+            onMarkCopiedSubmitted={handleGIAEMarkCopiedSubmitted}
             onMarkPending={handleGIAEMarkPending}
             onMarkManySubmitted={handleGIAEMarkManySubmitted}
+            onMarkManyCopiedSubmitted={handleGIAEMarkManyCopiedSubmitted}
           />
         </div>
       )

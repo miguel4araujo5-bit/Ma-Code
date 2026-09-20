@@ -28,8 +28,10 @@ interface GIAEWorkspaceViewProps {
   onFiltersChange: (filters: GIAEWorkspaceFilters) => void
   onLessonSelect?: (lessonId: EntityId) => void
   onMarkSubmitted?: (lessonId: EntityId) => Promise<void> | void
+  onMarkCopiedSubmitted?: (lessonId: EntityId) => Promise<void> | void
   onMarkPending?: (lessonId: EntityId) => Promise<void> | void
   onMarkManySubmitted?: (lessonIds: EntityId[]) => Promise<void> | void
+  onMarkManyCopiedSubmitted?: (lessonIds: EntityId[]) => Promise<void> | void
 }
 
 type ActionKey =
@@ -986,8 +988,10 @@ export default function GIAEWorkspaceView({
   onFiltersChange,
   onLessonSelect,
   onMarkSubmitted,
+  onMarkCopiedSubmitted,
   onMarkPending,
-  onMarkManySubmitted
+  onMarkManySubmitted,
+  onMarkManyCopiedSubmitted
 }: GIAEWorkspaceViewProps) {
   const [
     selectedLessonIds,
@@ -1216,7 +1220,7 @@ export default function GIAEWorkspaceView({
   ) {
     const shouldAutoSubmit =
       row.canMarkSubmitted &&
-      Boolean(onMarkSubmitted)
+      Boolean(onMarkCopiedSubmitted)
 
     void runAction(
       `copy:${row.lesson.id}`,
@@ -1236,7 +1240,7 @@ export default function GIAEWorkspaceView({
         )
 
         try {
-          await onMarkSubmitted!(
+          await onMarkCopiedSubmitted!(
             row.lesson.id
           )
         } catch (submitError) {
@@ -1283,7 +1287,7 @@ export default function GIAEWorkspaceView({
 
     const shouldAutoSubmit =
       pendingLessonIds.length > 0 &&
-      Boolean(onMarkManySubmitted)
+      Boolean(onMarkManyCopiedSubmitted)
 
     void runAction(
       'copy-visible',
@@ -1309,7 +1313,7 @@ export default function GIAEWorkspaceView({
         )
 
         try {
-          await onMarkManySubmitted!(
+          await onMarkManyCopiedSubmitted!(
             pendingLessonIds
           )
 

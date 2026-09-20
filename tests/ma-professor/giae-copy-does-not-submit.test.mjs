@@ -262,7 +262,7 @@ test(
         'giaeWorkspaceRepository.recordCopiedLesson('
       )
     const submitIndex =
-      copyHandler.indexOf('await onMarkSubmitted!(')
+      copyHandler.indexOf('await onMarkCopiedSubmitted!(')
 
     assert.notEqual(clipboardIndex, -1)
     assert.notEqual(authorizationIndex, -1)
@@ -310,7 +310,7 @@ test(
       )
     const submitIndex =
       copyVisibleHandler.indexOf(
-        'await onMarkManySubmitted!('
+        'await onMarkManyCopiedSubmitted!('
       )
 
     assert.notEqual(clipboardIndex, -1)

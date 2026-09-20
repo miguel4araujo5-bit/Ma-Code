@@ -278,7 +278,7 @@ test(
     )
 
     await assert.rejects(
-      () => repository.markSubmitted(original.id),
+      () => repository.markCopiedSubmitted(original.id),
       /alterado.*copie.*novamente|copie.*novamente.*alterado/i
     )
 
@@ -304,7 +304,7 @@ test(
     const repository = new module.GIAEWorkspaceRepository()
 
     repository.recordCopiedLesson(lesson)
-    const submitted = await repository.markSubmitted(
+    const submitted = await repository.markCopiedSubmitted(
       lesson.id
     )
 
@@ -340,7 +340,7 @@ test(
     state.lessons.set(editedS1.id, editedS1)
 
     repository.recordCopiedLesson(editedS1)
-    const result = await repository.markSubmitted(
+    const result = await repository.markCopiedSubmitted(
       editedS1.id
     )
 
@@ -374,7 +374,7 @@ test(
     state.forcePendingSingleResult = true
 
     await assert.rejects(
-      () => repository.markSubmitted(lesson.id),
+      () => repository.markCopiedSubmitted(lesson.id),
       /confirmar.*submissão/i
     )
 
@@ -384,13 +384,77 @@ test(
     )
 
     state.forcePendingSingleResult = false
-    const submitted = await repository.markSubmitted(
+    const submitted = await repository.markCopiedSubmitted(
       lesson.id
     )
 
     assert.equal(submitted.giaeStatus, 'submitted')
     assert.equal(state.singleSubmitCalls, 2)
     assert.equal(state.legacySingleSubmitCalls, 0)
+  }
+)
+
+test(
+  'manual confirmation does not require a prior clipboard copy',
+  { concurrency: false },
+  async () => {
+    const lesson = buildLesson(
+      'lesson-manual',
+      'Sumário confirmado manualmente.',
+      'v1'
+    )
+    const state = resetState([lesson])
+    const repository = new module.GIAEWorkspaceRepository()
+
+    const submitted = await repository.markSubmitted(
+      lesson.id
+    )
+
+    assert.equal(submitted.giaeStatus, 'submitted')
+    assert.equal(state.singleSubmitCalls, 1)
+    assert.equal(
+      state.lessons.get(lesson.id).giaeStatus,
+      'submitted'
+    )
+  }
+)
+
+test(
+  'manual bulk confirmation does not require prior clipboard copies',
+  { concurrency: false },
+  async () => {
+    const first = buildLesson(
+      'lesson-manual-1',
+      'Primeiro sumário manual.',
+      'v1'
+    )
+    const second = buildLesson(
+      'lesson-manual-2',
+      'Segundo sumário manual.',
+      'v1'
+    )
+    const state = resetState([
+      first,
+      second
+    ])
+    const repository = new module.GIAEWorkspaceRepository()
+
+    const submitted =
+      await repository.markManySubmitted([
+        first.id,
+        second.id
+      ])
+
+    assert.equal(submitted.length, 2)
+    assert.equal(state.bulkSubmitCalls, 1)
+    assert.equal(
+      state.lessons.get(first.id).giaeStatus,
+      'submitted'
+    )
+    assert.equal(
+      state.lessons.get(second.id).giaeStatus,
+      'submitted'
+    )
   }
 )
 
@@ -455,7 +519,7 @@ test(
 
     await assert.rejects(
       () =>
-        repository.markManySubmitted([
+        repository.markManyCopiedSubmitted([
           first.id,
           second.id
         ]),
@@ -501,7 +565,7 @@ test(
     ])
 
     const submitted =
-      await repository.markManySubmitted([
+      await repository.markManyCopiedSubmitted([
         first.id,
         second.id
       ])
@@ -551,7 +615,7 @@ test(
     state.forcePendingBulkResult = true
 
     await assert.rejects(
-      () => repository.markManySubmitted([
+      () => repository.markManyCopiedSubmitted([
         first.id,
         second.id
       ]),
@@ -568,7 +632,7 @@ test(
     )
 
     state.forcePendingBulkResult = false
-    const submitted = await repository.markManySubmitted([
+    const submitted = await repository.markManyCopiedSubmitted([
       first.id,
       second.id
     ])
