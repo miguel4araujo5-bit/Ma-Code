@@ -243,7 +243,7 @@ test(
   () => {
     assert.match(
       dailyWorkspaceViewSource,
-      /lessonIsFuture[\s\S]*Nesta aula futura, guardar o sumário mantém a aula planeada\. Só passa a dada quando for submetida no GIAE\./
+      /lessonIsFuture[\s\S]*Nesta aula futura, guardar o sumário mantém a aula planeada\. Só passa a dada quando for marcada como submetida no GIAE\./
     )
     assert.match(
       dailyWorkspaceViewSource,
