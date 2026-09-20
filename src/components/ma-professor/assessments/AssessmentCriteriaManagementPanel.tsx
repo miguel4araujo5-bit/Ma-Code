@@ -486,7 +486,11 @@ export default function AssessmentCriteriaManagementPanel({
   }
 
   async function saveCriteria() {
+    const activeScheme =
+      scheme
+
     if (
+      !activeScheme ||
       !persistedSchemeId ||
       saving ||
       disabled
@@ -523,7 +527,7 @@ export default function AssessmentCriteriaManagementPanel({
         }))
 
       const result =
-        scheme.scope ===
+        activeScheme.scope ===
           'subject' &&
         subjectScope
           ? await assessmentCriteriaManagementRepository
@@ -567,7 +571,7 @@ export default function AssessmentCriteriaManagementPanel({
       }))
       setEditing(false)
       setSuccess(
-        scheme.scope ===
+        activeScheme.scope ===
           'subject' &&
         subjectScope
           ? 'Critérios atualizados em todas as turmas desta disciplina que usam critérios gerais.'
