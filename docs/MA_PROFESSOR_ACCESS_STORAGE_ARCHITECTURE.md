@@ -1,6 +1,6 @@
 # MA-Professor — arquitetura de armazenamento do acesso
 
-Estado de referência: 13/09/2026.
+Estado de referência: 20/09/2026.
 
 ## Objetivo
 
@@ -38,6 +38,14 @@ O entrypoint de produção continua a expor `MaProfessorAccessDurableObject` atr
 Os 180 dias preservam o valor de longa duração que já existia para limpeza por inatividade; esta fase apenas impede que atividade contínua transforme a sessão numa sessão sem limite absoluto.
 
 A rotação de tokens do mesmo dispositivo fica fora desta alteração. Antes de a implementar, a emissão deve substituir a sessão do mesmo dispositivo antes de aplicar o limite global, para não terminar indevidamente a sessão de outro dispositivo.
+
+## Retenção dos pedidos de acesso
+
+A limpeza existente abrange pedidos rejeitados e pendentes com mais de 180 dias sem atualização. O prazo é contado a partir da data mais recente do pedido, rejeição ou atualização. Registos sem datas válidas são preservados.
+
+Não são removidos pedidos associados a uma licença, credencial de ativação, sessão, renovação ou autorização comercial, nem pedidos com aprovação ou ativação registada. Um estado comercial ilegível também impede a limpeza. Isto preserva o tratamento administrativo e os pagamentos manuais.
+
+A limpeza remove apenas o pedido abandonado. Não elimina contas, passwords pessoais, licenças, dados escolares, cópias ou registos comerciais. A retenção das credenciais pessoais e dos registos comerciais é uma política distinta; esta alteração não encerra uma auditoria geral de retenção. A execução aproveita a primeira leitura do estado na cadeia existente, sem cron, polling ou novos recursos.
 
 ## Invariantes
 

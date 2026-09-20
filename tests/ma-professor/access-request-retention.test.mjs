@@ -443,7 +443,7 @@ async function triggerRead(
 }
 
 test(
-  'stale rejected requests without access identity are pruned during the existing access-state read',
+  'stale pending and rejected requests without access identity are pruned during the existing access-state read',
   async t => {
     const staged =
       await stageRetentionBridge()
@@ -509,10 +509,9 @@ test(
         'recent-rejected@example.com'
       ]
     )
-    assert.ok(
-      persisted.accessRequests[
-        'old-pending@example.com'
-      ]
+    assert.equal(
+      persisted.accessRequests['old-pending@example.com'],
+      undefined
     )
     assert.ok(
       persisted.accessRequests[
@@ -523,7 +522,7 @@ test(
     assert.equal(
       storage.putsFor(ACCESS_KEY).length,
       1,
-      'A limpeza deve persistir apenas quando encontrou um rejeitado elegível.'
+      'A limpeza deve persistir apenas quando encontrou um pedido elegível.'
     )
 
     assert.equal(
@@ -667,3 +666,68 @@ test(
     )
   }
 )
+
+
+test('pending retention preserves recent activity, malformed dates and all commercial or access links', async t => {
+  const staged = await stageRetentionBridge()
+  t.after(staged.dispose)
+  const now = Date.now()
+  const stale = now - 181 * DAY_MS
+  const emails = ['recent', 'updated', 'undated', 'licensed', 'credential', 'approved', 'activated', 'renewal', 'session', 'commerce']
+  const requests = Object.fromEntries(emails.map(name => {
+    const email = `${name}@example.com`
+    return [email, accessRequest(email, 'pending', stale)]
+  }))
+  requests['recent@example.com'].requestedAt = now
+  requests['updated@example.com'].updatedAt = now
+  Object.assign(requests['undated@example.com'], {requestedAt: null, updatedAt: null})
+  requests['approved@example.com'].approvedAt = stale
+  requests['activated@example.com'].activatedAt = stale
+  const initial = {
+    [ACCESS_KEY]: accessState(requests, {
+      licenses: {'licensed@example.com': {email: 'licensed@example.com'}},
+      credentials: {'credential@example.com': {email: 'credential@example.com'}},
+      sessions: {token: {email: 'session@example.com'}},
+      renewals: [{email: 'renewal@example.com', status: 'pending'}]
+    }),
+    'ma-professor-admin-commerce-v1': {
+      schemaVersion: 1,
+      authorizations: [{email: 'commerce@example.com', paymentConfirmedAt: null}]
+    }
+  }
+  const storage = new MemoryStorage(initial)
+  await triggerRead(staged.runtime, storage)
+  assert.deepEqual(storage.snapshot(ACCESS_KEY), initial[ACCESS_KEY])
+  assert.equal(storage.putCalls.length, 0)
+})
+
+test('retention only removes the request and leaves personal credentials and commerce untouched', async t => {
+  const staged = await stageRetentionBridge()
+  t.after(staged.dispose)
+  const stale = Date.now() - 181 * DAY_MS
+  const auth = {credentials: {'old@example.com': {email: 'old@example.com', passwordHash: 'existing-hash'}}}
+  const commerce = {schemaVersion: 1, authorizations: []}
+  const storage = new MemoryStorage({
+    [ACCESS_KEY]: accessState({'old@example.com': accessRequest('old@example.com', 'pending', stale)}),
+    'ma-professor-account-auth-v1': auth,
+    'ma-professor-admin-commerce-v1': commerce
+  })
+  await triggerRead(staged.runtime, storage)
+  assert.deepEqual(storage.snapshot(ACCESS_KEY).accessRequests, {})
+  assert.deepEqual(storage.snapshot('ma-professor-account-auth-v1'), auth)
+  assert.deepEqual(storage.snapshot('ma-professor-admin-commerce-v1'), commerce)
+  assert.equal(storage.putCalls.length, 1)
+})
+
+test('unreadable commercial state prevents automatic request deletion', async t => {
+  const staged = await stageRetentionBridge()
+  t.after(staged.dispose)
+  const stored = accessState({'old@example.com': accessRequest('old@example.com', 'pending', Date.now() - 181 * DAY_MS)})
+  const storage = new MemoryStorage({
+    [ACCESS_KEY]: stored,
+    'ma-professor-admin-commerce-v1': {schemaVersion: 1, authorizations: null}
+  })
+  await triggerRead(staged.runtime, storage)
+  assert.deepEqual(storage.snapshot(ACCESS_KEY), stored)
+  assert.equal(storage.putCalls.length, 0)
+})

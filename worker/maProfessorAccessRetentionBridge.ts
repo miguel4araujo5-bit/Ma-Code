@@ -33,7 +33,10 @@ import type {
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
-const REJECTED_REQUEST_RETENTION_MS =
+const COMMERCE_STORAGE_KEY =
+  'ma-professor-admin-commerce-v1'
+
+const REQUEST_RETENTION_MS =
   180 * 24 * 60 * 60 * 1000
 
 type JsonObject =
@@ -126,9 +129,10 @@ function collectProtectedEmails(
   }
 }
 
-function pruneStaleRejectedRequests(
+function pruneStaleRequests(
   stored: unknown,
-  now: number
+  now: number,
+  commerce: unknown
 ) {
   if (!isRecord(stored)) {
     return false
@@ -154,9 +158,24 @@ function pruneStaleRejectedRequests(
     protectedEmails
   )
 
-  const cutoff =
-    now -
-    REJECTED_REQUEST_RETENTION_MS
+  collectProtectedEmails(
+    stored.sessions,
+    protectedEmails
+  )
+
+  for (const record of [
+    ...(Array.isArray(stored.renewals) ? stored.renewals : []),
+    ...(isRecord(commerce) && Array.isArray(commerce.authorizations)
+      ? commerce.authorizations
+      : [])
+  ]) {
+    if (isRecord(record)) {
+      const email = normalizeEmail(record.email)
+      if (email) protectedEmails.add(email)
+    }
+  }
+
+  const cutoff = now - REQUEST_RETENTION_MS
 
   let changed = false
 
@@ -170,8 +189,7 @@ function pruneStaleRejectedRequests(
   ) {
     if (
       !isRecord(candidate) ||
-      candidate.status !==
-        'rejected'
+      (candidate.status !== 'rejected' && candidate.status !== 'pending')
     ) {
       continue
     }
@@ -262,10 +280,19 @@ function createRetentionGuardedState(
         ) {
           accessStateInspected = true
 
+          const commerce = await storage.get(COMMERCE_STORAGE_KEY)
+
+          // Um estado comercial ilegível não prova que o pedido está abandonado.
+          if (commerce !== undefined &&
+              (!isRecord(commerce) || !Array.isArray(commerce.authorizations))) {
+            return value
+          }
+
           if (
-            pruneStaleRejectedRequests(
+            pruneStaleRequests(
               value,
-              Date.now()
+              Date.now(),
+              commerce
             )
           ) {
             await storage.put(
