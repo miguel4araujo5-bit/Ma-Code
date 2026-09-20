@@ -190,7 +190,7 @@ export function LicenseSettingsPanel() {
             Escolha o período de acesso
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Durante a fase piloto, os acessos Fundador são pagos manualmente
+            Durante a fase piloto, os Apoios Fundador são pagos manualmente
             por MB WAY e confirmados pela MA-CODE. Não existe renovação
             automática.
           </p>
@@ -214,7 +214,7 @@ export function LicenseSettingsPanel() {
               className="rounded-3xl border border-cyan-300/25 bg-cyan-300/10 p-5 text-left transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-60"
             >
               <span className="text-xs font-black uppercase tracking-[0.15em] text-cyan-200">
-                Mensal
+                Apoio Fundador · 30 dias
               </span>
               <span className="mt-2 block text-3xl font-black text-white">
                 3,49 €
@@ -236,7 +236,7 @@ export function LicenseSettingsPanel() {
               className="rounded-3xl border border-violet-300/25 bg-violet-300/10 p-5 text-left transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
             >
               <span className="text-xs font-black uppercase tracking-[0.15em] text-violet-200">
-                Ano letivo
+                Apoio Fundador · Ano letivo
               </span>
               <span className="mt-2 block text-3xl font-black text-white">
                 15 €
