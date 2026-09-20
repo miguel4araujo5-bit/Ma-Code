@@ -74,6 +74,14 @@ const productSource = await readFile(
   'utf8'
 )
 
+const dailySource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const navigationModelSource = await readFile(new URL('../../src/components/ma-professor/product/productNavigationModel.ts', import.meta.url), 'utf8')
 
 const dbSource = await readFile(
@@ -332,6 +340,28 @@ test(
     assert.match(
       backupSource,
       /<RestoreSettingsPanel/
+    )
+  }
+)
+
+test(
+  'daily backup reminder links directly to Security and recovery',
+  () => {
+    assert.match(
+      dailySource,
+      /Para maior segurança, faça regularmente uma/
+    )
+    assert.match(
+      dailySource,
+      /onOpenBackup[\s\S]*cópia de segurança/
+    )
+    assert.match(
+      dailySource,
+      /text-amber-300[\s\S]*underline/
+    )
+    assert.match(
+      productSource,
+      /onOpenBackup=\{\(\) =>[\s\S]*handleSelect\([\s\S]*'backup'/
     )
   }
 )
