@@ -347,6 +347,8 @@ test(
           state,
           runtime,
           {
+            email:
+              'known@example.com',
             loginId:
               started.loginId,
             finishLoginRequest:
@@ -419,6 +421,8 @@ test(
         state,
         runtime,
         {
+          email:
+            'missing@example.com',
           loginId:
             unknown.loginId,
           finishLoginRequest:
@@ -450,6 +454,8 @@ test(
         state,
         runtime,
         {
+          email:
+            'known@example.com',
           loginId:
             wrong.loginId,
           finishLoginRequest:
@@ -465,6 +471,8 @@ test(
         state,
         runtime,
         {
+          email:
+            'known@example.com',
           loginId:
             wrong.loginId,
           finishLoginRequest:
@@ -497,6 +505,8 @@ test(
         state,
         runtime,
         {
+          email:
+            'known@example.com',
           loginId:
             expired.loginId,
           finishLoginRequest:
@@ -506,6 +516,83 @@ test(
           2 * 60 * 1000
       ),
       null
+    )
+  }
+)
+
+test(
+  'OPAQUE finish binds the proof to the email used at login start and consumes a mismatched challenge',
+  () => {
+    const runtime =
+      fakeRuntime()
+
+    const state =
+      opaque
+        .createFreshOpaqueAuthState(
+          100
+        )
+
+    opaque
+      .finishOpaqueEnrollment(
+        state,
+        {
+          email:
+            'known@example.com',
+          registrationRecord:
+            'known-record'
+        },
+        110
+      )
+
+    const started =
+      opaque
+        .startOpaqueLogin(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-known',
+            startLoginRequest:
+              'start-email-binding'
+          },
+          120
+        )
+
+    assert.equal(
+      opaque.finishOpaqueLogin(
+        state,
+        runtime,
+        {
+          email:
+            'other@example.com',
+          loginId:
+            started.loginId,
+          finishLoginRequest:
+            'proof:known-record'
+        },
+        130
+      ),
+      null
+    )
+
+    assert.equal(
+      opaque.finishOpaqueLogin(
+        state,
+        runtime,
+        {
+          email:
+            'known@example.com',
+          loginId:
+            started.loginId,
+          finishLoginRequest:
+            'proof:known-record'
+        },
+        131
+      ),
+      null,
+      'Um challenge com email divergente deve ficar consumido e não pode ser reutilizado.'
     )
   }
 )
