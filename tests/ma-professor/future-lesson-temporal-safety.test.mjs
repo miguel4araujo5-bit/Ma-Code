@@ -261,6 +261,18 @@ test(
       dailyWorkspaceViewSource,
       /Ao escrever[\s\S]*um sumário,[\s\S]*a aula passa[\s\S]*a dada quando[\s\S]*guardar\./
     )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /planned:\s*'Planeada'[\s\S]*taught:\s*'Registada'/
+    )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /return 'border-amber-300\/25 bg-amber-300\/10 text-amber-100'/
+    )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /<option value="taught">[\s\S]*Registada[\s\S]*<\/option>/
+    )
   }
 )
 
