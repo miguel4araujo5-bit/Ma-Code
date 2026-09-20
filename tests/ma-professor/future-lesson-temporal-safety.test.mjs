@@ -243,11 +243,19 @@ test(
   () => {
     assert.match(
       dailyWorkspaceViewSource,
-      /lessonIsFuture[\s\S]*Nesta aula futura, guardar o sumário mantém a aula planeada\. Só fica registada como realizada quando for marcada como submetida no GIAE\./
+      /lessonIsFuture[\s\S]*Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no GIAE\./
     )
     assert.match(
       dailyWorkspaceViewSource,
-      /Ao guardar um sumário, a aula fica registada como realizada\./
+      /Ao guardar o sumário, a aula fica registada como realizada\./
+    )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /sm:flex-1 sm:pr-3/
+    )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /flex shrink-0 flex-wrap items-center justify-end gap-2/
     )
     assert.doesNotMatch(
       dailyWorkspaceViewSource,
