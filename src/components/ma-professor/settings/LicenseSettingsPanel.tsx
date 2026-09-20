@@ -199,11 +199,22 @@ export function LicenseSettingsPanel() {
             type="button"
             disabled={Boolean(busyPlan)}
             onClick={() => void handleRenewal('courtesy_30_days')}
-            className="mt-5 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/10 px-6 py-5 text-center text-base font-black text-emerald-100 transition hover:bg-emerald-300/15 disabled:cursor-wait disabled:opacity-60"
+            className="mt-5 w-full rounded-3xl border border-emerald-300/35 bg-emerald-300/15 px-6 py-5 text-center text-emerald-100 transition hover:bg-emerald-300/20 disabled:cursor-wait disabled:opacity-60"
           >
-            {busyPlan === 'courtesy_30_days'
-              ? 'A pedir…'
-              : 'Pedir extensão de período gratuito (sujeito a lista de espera)'}
+            {busyPlan === 'courtesy_30_days' ? (
+              <span className="text-base font-black">
+                A pedir…
+              </span>
+            ) : (
+              <>
+                <span className="block text-lg font-black sm:text-xl">
+                  Continuar gratuitamente
+                </span>
+                <span className="mt-1 block text-xs font-bold text-emerald-200/70">
+                  Sujeito a lista de espera
+                </span>
+              </>
+            )}
           </button>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -225,7 +236,7 @@ export function LicenseSettingsPanel() {
               <span className="mt-5 block text-sm font-black text-cyan-200">
                 {busyPlan === 'paid_30_days'
                   ? 'A registar…'
-                  : 'Apoiar com MB WAY'}
+                  : 'Pagar por MB WAY'}
               </span>
             </button>
 
@@ -247,7 +258,7 @@ export function LicenseSettingsPanel() {
               <span className="mt-5 block text-sm font-black text-violet-200">
                 {busyPlan === 'school_year'
                   ? 'A registar…'
-                  : 'Apoiar com MB WAY'}
+                  : 'Pagar por MB WAY'}
               </span>
             </button>
           </div>
@@ -341,7 +352,7 @@ export function LicenseSettingsPanel() {
                   id="license-request-title"
                   className="mt-2 text-xl font-black"
                 >
-                  Extensão gratuita pedida
+                  Pedido de acesso gratuito enviado
                 </h2>
                 <p className="mt-4 text-sm leading-6 text-slate-300">
                   O seu pedido ficou registado e está sujeito à disponibilidade
