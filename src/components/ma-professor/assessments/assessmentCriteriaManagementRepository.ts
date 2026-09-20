@@ -13,6 +13,7 @@ export interface AssessmentCriteriaEvidence {
   lessonAssessmentCount: number
   assessmentResultCount: number
   finalGradeCount: number
+  confirmedFinalGradeCount: number
 }
 
 export interface AssessmentCriteriaEditability {
@@ -36,6 +37,33 @@ export interface UpdateAssessmentCriteriaSchemeInput {
 export interface UpdatedAssessmentCriteriaScheme {
   scheme: AssessmentScheme
   criteria: AssessmentCriterion[]
+}
+
+export interface AssessmentSubjectCriteriaContext {
+  subjectId: EntityId
+  teachingAssignmentIds: EntityId[]
+  coveredTeachingAssignmentIds: EntityId[]
+  scheme: AssessmentScheme | null
+  criteria: AssessmentCriterion[]
+  aligned: boolean
+}
+
+export interface UpdateAssessmentSubjectCriteriaInput {
+  academicYearId: EntityId
+  subjectId: EntityId
+  referenceSchemeId: EntityId
+  name: string
+  criteria: AssessmentCriteriaManagementCriterionInput[]
+}
+
+export class AssessmentCriteriaDeletionBlockedError extends Error {
+  constructor() {
+    super(
+      'Não é possível remover um critério que já tenha avaliações associadas, porque isso quebraria o histórico. Pode alterar o nome, a descrição e a ponderação desse critério.'
+    )
+    this.name =
+      'AssessmentCriteriaDeletionBlockedError'
+  }
 }
 
 const WEIGHT_TOLERANCE = 0.001
@@ -215,27 +243,33 @@ async function readEvidence(
           )
           .count()
 
-  const finalGradeCount =
+  const finalGrades =
     scheme.scope === 'module' &&
     scheme.moduleId
       ? await maProfessorDb
           .moduleFinalGrades
           .where('moduleId')
           .equals(scheme.moduleId)
-          .count()
+          .toArray()
       : await maProfessorDb
           .moduleFinalGrades
           .where('teachingAssignmentId')
           .equals(
             scheme.teachingAssignmentId
           )
-          .count()
+          .toArray()
 
   return {
     lessonAssessmentCount:
       lessonAssessments.length,
     assessmentResultCount,
-    finalGradeCount
+    finalGradeCount:
+      finalGrades.length,
+    confirmedFinalGradeCount:
+      finalGrades.filter(
+        grade =>
+          grade.confirmedAt !== null
+      ).length
   }
 }
 
@@ -334,10 +368,262 @@ async function assertDeletedCriteriaHaveNoAssessments(
       .first()
 
   if (usedAssessment) {
+    throw new AssessmentCriteriaDeletionBlockedError()
+  }
+}
+
+function sortCriteria(
+  criteria: AssessmentCriterion[]
+) {
+  return [
+    ...criteria
+  ]
+    .filter(
+      criterion =>
+        criterion.active
+    )
+    .sort(
+      (left, right) =>
+        left.order -
+        right.order
+    )
+}
+
+function criterionIdentity(
+  criterion: AssessmentCriterion
+) {
+  return normalizeText(
+    criterion.name
+  ).toLocaleLowerCase(
+    'pt-PT'
+  )
+}
+
+function sameCriterionIdentity(
+  reference: AssessmentCriterion[],
+  candidate: AssessmentCriterion[]
+) {
+  const left =
+    sortCriteria(
+      reference
+    )
+      .map(
+        criterionIdentity
+      )
+
+  const right =
+    sortCriteria(
+      candidate
+    )
+      .map(
+        criterionIdentity
+      )
+
+  return (
+    left.length ===
+      right.length &&
+    left.every(
+      (value, index) =>
+        value ===
+        right[index]
+    )
+  )
+}
+
+async function readSubjectSchemeGroup(
+  academicYearId: EntityId,
+  subjectId: EntityId
+) {
+  const assignments =
+    (
+      await maProfessorDb
+        .teachingAssignments
+        .where('academicYearId')
+        .equals(
+          academicYearId
+        )
+        .toArray()
+    )
+      .filter(
+        assignment =>
+          assignment.active &&
+          assignment.subjectId ===
+            subjectId
+      )
+
+  const teachingAssignmentIds =
+    assignments.map(
+      assignment =>
+        assignment.id
+    )
+
+  if (
+    teachingAssignmentIds.length ===
+    0
+  ) {
+    return {
+      teachingAssignmentIds,
+      schemes:
+        [] as AssessmentScheme[],
+      criteriaByScheme:
+        new Map<
+          EntityId,
+          AssessmentCriterion[]
+        >()
+    }
+  }
+
+  const schemes =
+    (
+      await maProfessorDb
+        .assessmentSchemes
+        .where(
+          'teachingAssignmentId'
+        )
+        .anyOf(
+          teachingAssignmentIds
+        )
+        .toArray()
+    )
+      .filter(
+        scheme =>
+          scheme.active &&
+          scheme.scope ===
+            'subject' &&
+          scheme.moduleId ===
+            null
+      )
+
+  const schemeCountByAssignment =
+    new Map<
+      EntityId,
+      number
+    >()
+
+  schemes.forEach(
+    scheme => {
+      const count =
+        schemeCountByAssignment.get(
+          scheme.teachingAssignmentId
+        ) ??
+        0
+
+      schemeCountByAssignment.set(
+        scheme.teachingAssignmentId,
+        count +
+          1
+      )
+    }
+  )
+
+  if (
+    [
+      ...schemeCountByAssignment
+        .values()
+    ].some(
+      count =>
+        count >
+        1
+    )
+  ) {
     throw new Error(
-      'Não é possível remover um critério que já tenha avaliações associadas, porque isso quebraria o histórico. Pode alterar o nome, a descrição e a ponderação desse critério. Se deixar de o usar, mantenha-o no conjunto e ajuste as ponderações dos critérios ativos.'
+      'Existem vários conjuntos de critérios gerais ativos para a mesma turma e disciplina. Corrija primeiro a configuração inicial.'
     )
   }
+
+  const schemeIds =
+    schemes.map(
+      scheme =>
+        scheme.id
+    )
+
+  const allCriteria =
+    schemeIds.length ===
+    0
+      ? []
+      : await maProfessorDb
+          .assessmentCriteria
+          .where('schemeId')
+          .anyOf(
+            schemeIds
+          )
+          .toArray()
+
+  const criteriaByScheme =
+    new Map<
+      EntityId,
+      AssessmentCriterion[]
+    >()
+
+  schemes.forEach(
+    scheme => {
+      criteriaByScheme.set(
+        scheme.id,
+        sortCriteria(
+          allCriteria.filter(
+            criterion =>
+              criterion.schemeId ===
+              scheme.id
+          )
+        )
+      )
+    }
+  )
+
+  return {
+    teachingAssignmentIds,
+    schemes,
+    criteriaByScheme
+  }
+}
+
+async function readSubjectEvidence(
+  schemes: AssessmentScheme[],
+  criteriaByScheme:
+    Map<
+      EntityId,
+      AssessmentCriterion[]
+    >
+): Promise<AssessmentCriteriaEvidence> {
+  const items =
+    await Promise.all(
+      schemes.map(
+        scheme =>
+          readEvidence(
+            scheme,
+            criteriaByScheme.get(
+              scheme.id
+            ) ??
+              []
+          )
+      )
+    )
+
+  return items.reduce(
+    (
+      total,
+      evidence
+    ) => ({
+      lessonAssessmentCount:
+        total.lessonAssessmentCount +
+        evidence.lessonAssessmentCount,
+      assessmentResultCount:
+        total.assessmentResultCount +
+        evidence.assessmentResultCount,
+      finalGradeCount:
+        total.finalGradeCount +
+        evidence.finalGradeCount,
+      confirmedFinalGradeCount:
+        total.confirmedFinalGradeCount +
+        evidence.confirmedFinalGradeCount
+    }),
+    {
+      lessonAssessmentCount: 0,
+      assessmentResultCount: 0,
+      finalGradeCount: 0,
+      confirmedFinalGradeCount: 0
+    }
+  )
 }
 
 export class AssessmentCriteriaManagementRepository {
@@ -361,6 +647,361 @@ export class AssessmentCriteriaManagementRepository {
       editable: true,
       evidence
     }
+  }
+
+  async getSubjectContext(
+    academicYearId: EntityId,
+    subjectId: EntityId
+  ): Promise<AssessmentSubjectCriteriaContext> {
+    await openMAProfessorDatabase()
+
+    const group =
+      await readSubjectSchemeGroup(
+        academicYearId,
+        subjectId
+      )
+
+    const referenceScheme =
+      [
+        ...group.schemes
+      ]
+        .sort(
+          (left, right) =>
+            left.teachingAssignmentId
+              .localeCompare(
+                right.teachingAssignmentId,
+                'pt-PT',
+                {
+                  numeric: true,
+                  sensitivity:
+                    'base'
+                }
+              )
+        )[0] ??
+      null
+
+    const referenceCriteria =
+      referenceScheme
+        ? group.criteriaByScheme.get(
+            referenceScheme.id
+          ) ??
+          []
+        : []
+
+    const aligned =
+      !referenceScheme ||
+      group.schemes.every(
+        scheme =>
+          sameCriterionIdentity(
+            referenceCriteria,
+            group.criteriaByScheme.get(
+              scheme.id
+            ) ??
+              []
+          )
+      )
+
+    return {
+      subjectId,
+      teachingAssignmentIds:
+        group.teachingAssignmentIds,
+      coveredTeachingAssignmentIds:
+        group.schemes.map(
+          scheme =>
+            scheme.teachingAssignmentId
+        ),
+      scheme:
+        referenceScheme,
+      criteria:
+        referenceCriteria,
+      aligned
+    }
+  }
+
+  async getSubjectEditability(
+    academicYearId: EntityId,
+    subjectId: EntityId
+  ): Promise<AssessmentCriteriaEditability> {
+    await openMAProfessorDatabase()
+
+    const group =
+      await readSubjectSchemeGroup(
+        academicYearId,
+        subjectId
+      )
+
+    return {
+      editable: true,
+      evidence:
+        await readSubjectEvidence(
+          group.schemes,
+          group.criteriaByScheme
+        )
+    }
+  }
+
+  async updateSubjectSchemes(
+    input: UpdateAssessmentSubjectCriteriaInput
+  ): Promise<UpdatedAssessmentCriteriaScheme> {
+    await openMAProfessorDatabase()
+
+    validateCriteria(
+      input.criteria
+    )
+
+    const normalizedName =
+      requireText(
+        input.name,
+        'O nome do conjunto de critérios'
+      )
+
+    return maProfessorDb.transaction(
+      'rw',
+      [
+        maProfessorDb.teachingAssignments,
+        maProfessorDb.assessmentSchemes,
+        maProfessorDb.assessmentCriteria,
+        maProfessorDb.lessonAssessments,
+        maProfessorDb.assessmentResults,
+        maProfessorDb.moduleFinalGrades
+      ],
+      async () => {
+        const group =
+          await readSubjectSchemeGroup(
+            input.academicYearId,
+            input.subjectId
+          )
+
+        const referenceScheme =
+          group.schemes.find(
+            scheme =>
+              scheme.id ===
+              input.referenceSchemeId
+          )
+
+        if (!referenceScheme) {
+          throw new Error(
+            'O conjunto de critérios gerais selecionado já não pertence a esta disciplina.'
+          )
+        }
+
+        const referenceCriteria =
+          group.criteriaByScheme.get(
+            referenceScheme.id
+          ) ??
+          []
+
+        if (
+          !group.schemes.every(
+            scheme =>
+              sameCriterionIdentity(
+                referenceCriteria,
+                group.criteriaByScheme.get(
+                  scheme.id
+                ) ??
+                  []
+              )
+          )
+        ) {
+          throw new Error(
+            'Os critérios gerais desta disciplina diferem entre turmas. Para proteger o histórico, resolva primeiro essas diferenças na gestão avançada por turma/UFCD.'
+          )
+        }
+
+        assertInputCriterionIdsBelongToScheme(
+          {
+            schemeId:
+              referenceScheme.id,
+            name:
+              input.name,
+            criteria:
+              input.criteria
+          },
+          referenceCriteria
+        )
+
+        const referenceById =
+          new Map(
+            referenceCriteria.map(
+              criterion => [
+                criterion.id,
+                criterion
+              ]
+            )
+          )
+
+        const timestamp =
+          now()
+
+        const updatedSchemes =
+          group.schemes.map(
+            scheme => ({
+              ...scheme,
+              name:
+                normalizedName,
+              updatedAt:
+                timestamp
+            })
+          )
+
+        const nextCriteriaByScheme =
+          new Map<
+            EntityId,
+            AssessmentCriterion[]
+          >()
+
+        const deletedIds:
+          EntityId[] =
+          []
+
+        for (
+          const scheme of
+          group.schemes
+        ) {
+          const existingCriteria =
+            group.criteriaByScheme.get(
+              scheme.id
+            ) ??
+            []
+
+          const existingByIdentity =
+            new Map(
+              existingCriteria.map(
+                criterion => [
+                  criterionIdentity(
+                    criterion
+                  ),
+                  criterion
+                ]
+              )
+            )
+
+          const targetInput =
+            input.criteria.map(
+              criterion => {
+                if (
+                  !criterion.id
+                ) {
+                  return criterion
+                }
+
+                const reference =
+                  referenceById.get(
+                    criterion.id
+                  )
+
+                if (!reference) {
+                  throw new Error(
+                    'Um dos critérios indicados já não pertence ao conjunto selecionado.'
+                  )
+                }
+
+                const existing =
+                  existingByIdentity.get(
+                    criterionIdentity(
+                      reference
+                    )
+                  )
+
+                if (!existing) {
+                  throw new Error(
+                    'Não foi possível relacionar com segurança um critério entre as turmas desta disciplina.'
+                  )
+                }
+
+                return {
+                  ...criterion,
+                  id:
+                    existing.id
+                }
+              }
+            )
+
+          const nextCriteria =
+            buildCriteria(
+              scheme.id,
+              targetInput,
+              existingCriteria
+            )
+
+          const nextIds =
+            new Set(
+              nextCriteria.map(
+                criterion =>
+                  criterion.id
+              )
+            )
+
+          deletedIds.push(
+            ...existingCriteria
+              .filter(
+                criterion =>
+                  criterion.active &&
+                  !nextIds.has(
+                    criterion.id
+                  )
+              )
+              .map(
+                criterion =>
+                  criterion.id
+              )
+          )
+
+          nextCriteriaByScheme.set(
+            scheme.id,
+            nextCriteria
+          )
+        }
+
+        await assertDeletedCriteriaHaveNoAssessments(
+          deletedIds
+        )
+
+        await maProfessorDb
+          .assessmentSchemes
+          .bulkPut(
+            updatedSchemes
+          )
+
+        if (
+          deletedIds.length >
+          0
+        ) {
+          await maProfessorDb
+            .assessmentCriteria
+            .bulkDelete(
+              deletedIds
+            )
+        }
+
+        await maProfessorDb
+          .assessmentCriteria
+          .bulkPut(
+            [
+              ...nextCriteriaByScheme
+                .values()
+            ].flat()
+          )
+
+        const updatedReferenceScheme =
+          updatedSchemes.find(
+            scheme =>
+              scheme.id ===
+              referenceScheme.id
+          ) ??
+          referenceScheme
+
+        return {
+          scheme:
+            updatedReferenceScheme,
+          criteria:
+            nextCriteriaByScheme.get(
+              referenceScheme.id
+            ) ??
+            []
+        }
+      }
+    )
   }
 
   async updateScheme(
