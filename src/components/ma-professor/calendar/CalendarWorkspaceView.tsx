@@ -1937,18 +1937,18 @@ function MonthDayCell({
                 paaOpen
               }
               title={paaTitle}
-              className="flex min-w-0 items-center gap-1.5 py-1 text-[0.52rem] font-black uppercase tracking-[0.1em] text-fuchsia-300/75 transition hover:text-fuchsia-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300/70"
+              className="flex min-w-0 items-center gap-2 py-1 text-sm font-black uppercase tracking-[0.08em] text-fuchsia-300/75 transition hover:text-fuchsia-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300/70"
             >
               <span
                 aria-hidden="true"
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-fuchsia-300/80"
+                className="h-2 w-2 shrink-0 rounded-full bg-fuchsia-300/80"
               />
 
               <span>PAA</span>
 
               {dayPAAActivities.length >
               1 ? (
-                <span className="text-fuchsia-300/55">
+                <span className="text-xs text-fuchsia-300/55">
                   {dayPAAActivities.length}
                 </span>
               ) : null}
