@@ -97,7 +97,7 @@ test('CFP values are populated directly from the aggregate model so extra moment
   assert.match(excelSource, /ROUNDUP\(AA\$\{row\},0\)/)
 })
 
-test('official XLSM loader uses the canonical template, normalizes sheet paths by name and repairs references', () => {
+test('official XLSM loader normalizes sheet paths and repairs student references without rewriting the legacy CFP matrix', () => {
   assert.match(templateSource, /Grelha_Avaliacao_UFCD_UC_Modelo\.xlsm/)
   assert.match(templateSource, /arrayBuffer\(\)/)
   assert.match(templateSource, /unzipSync/)
@@ -113,8 +113,7 @@ test('official XLSM loader uses the canonical template, normalizes sheet paths b
   assert.match(templateSource, /length:\s*20/)
   assert.match(templateSource, /repairP2P3StudentReferences/)
   assert.match(templateSource, /repairAutoStudentReferences/)
-  assert.match(templateSource, /'J', 'L', 'N', 'P', 'R', 'T'/)
-  assert.match(templateSource, /'I', 'K', 'M', 'O', 'Q', 'S'/)
+  assert.doesNotMatch(templateSource, /repairCfpInstrumentReferences/)
   assert.match(templateSource, /calcMode=\"auto\"/)
   assert.doesNotMatch(templateSource, /gunzipSync|TEMPLATE_PART_COUNT|cloneP1/)
 })
