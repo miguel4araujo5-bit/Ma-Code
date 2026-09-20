@@ -86,6 +86,8 @@ test(
           null,
         registrations:
           {},
+        pendingEnrollments:
+          {},
         pendingLogins:
           {},
         createdAt:
