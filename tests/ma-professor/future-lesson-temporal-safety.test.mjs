@@ -56,6 +56,14 @@ const dailyRepositorySource = await readFile(
   'utf8'
 )
 
+const dailyWorkspaceViewSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/daily/DailyWorkspaceView.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const attendanceRepositorySource = await readFile(
   new URL(
     '../../src/components/ma-professor/attendance/attendanceRepositoryBase.ts',
@@ -226,6 +234,24 @@ test(
         today
       ),
       'cancelled'
+    )
+  }
+)
+
+test(
+  'Daily explains future-summary behaviour without changing the temporal rule',
+  () => {
+    assert.match(
+      dailyWorkspaceViewSource,
+      /lessonIsFuture[\s\S]*Nesta aula futura, guardar o sumário mantém a aula planeada\. Só passa a dada quando for submetida no GIAE\./
+    )
+    assert.match(
+      dailyWorkspaceViewSource,
+      /Ao guardar um sumário, a aula passa a dada\./
+    )
+    assert.doesNotMatch(
+      dailyWorkspaceViewSource,
+      /Ao escrever[\s\S]*um sumário,[\s\S]*a aula passa[\s\S]*a dada quando[\s\S]*guardar\./
     )
   }
 )
