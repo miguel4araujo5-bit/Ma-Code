@@ -278,3 +278,30 @@ test(
     )
   }
 )
+
+
+test(
+  'Today keeps a five-day grid and anchors the weekend timeline to Friday',
+  () => {
+    assert.match(
+      unifiedSource,
+      /getISOWeekday\([\s\S]*day\.date[\s\S]*\) <= 5/
+    )
+    assert.match(
+      unifiedSource,
+      /const isWeekendToday =[\s\S]*todayWeekday > 5/
+    )
+    assert.match(
+      unifiedSource,
+      /const weekendTimelineDate =[\s\S]*getISOWeekday\([\s\S]*day\.date[\s\S]*\) === 5/
+    )
+    assert.match(
+      unifiedSource,
+      /isWeekendToday[\s\S]*day\.date ===[\s\S]*weekendTimelineDate/
+    )
+    assert.doesNotMatch(
+      unifiedSource,
+      /currentWeekendDay|repeat\(6,minmax/
+    )
+  }
+)
