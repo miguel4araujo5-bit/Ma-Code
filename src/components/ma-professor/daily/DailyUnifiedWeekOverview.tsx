@@ -538,15 +538,50 @@ export default function DailyUnifiedWeekOverview({
 
   const weekDays =
     useMemo(
-      () =>
-        snapshot?.days.filter(
-          day =>
-            getISOWeekday(
-              day.date
-            ) <= 5
-        ) ?? [],
-      [snapshot]
+      () => {
+        const days =
+          snapshot?.days ?? []
+
+        const weekdays =
+          days.filter(
+            day =>
+              getISOWeekday(
+                day.date
+              ) <= 5
+          )
+
+        const today =
+          todayISO()
+
+        const currentWeekendDay =
+          date === today &&
+          getISOWeekday(
+            today
+          ) > 5
+            ? days.find(
+                day =>
+                  day.date ===
+                  today
+              ) ?? null
+            : null
+
+        return currentWeekendDay
+          ? [
+              ...weekdays,
+              currentWeekendDay
+            ]
+          : weekdays
+      },
+      [
+        date,
+        snapshot
+      ]
     )
+
+  const weekGridColumnsClass =
+    weekDays.length > 5
+      ? 'grid-cols-[6.5rem_repeat(6,minmax(9rem,1fr))]'
+      : 'grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))]'
 
   const timeSlots =
     useMemo(
@@ -893,7 +928,7 @@ export default function DailyUnifiedWeekOverview({
         ) : (
           <div className="overflow-x-auto">
             <div className="min-w-[880px]">
-              <div className="grid grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))] border-b border-white/10 bg-slate-950/55">
+              <div className={`grid ${weekGridColumnsClass} border-b border-white/10 bg-slate-950/55`}>
                 <div className="border-r border-white/10 px-2 py-2 text-[0.6rem] font-black uppercase tracking-[0.12em] text-slate-600">
                   Tempos
                 </div>
@@ -944,7 +979,7 @@ export default function DailyUnifiedWeekOverview({
                   slot => (
                     <div
                       key={slot.key}
-                      className="grid grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))] border-b border-white/[0.07] last:border-b-0"
+                      className={`grid ${weekGridColumnsClass} border-b border-white/[0.07] last:border-b-0`}
                     >
                       <div className="border-r border-white/10 bg-slate-950/35 px-2 py-2">
                         <span className="block text-[0.62rem] font-black text-slate-300">
