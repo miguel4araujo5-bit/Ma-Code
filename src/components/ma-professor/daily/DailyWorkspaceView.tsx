@@ -3369,8 +3369,8 @@ export default function DailyWorkspaceView({
                                         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="text-[0.68rem] leading-4 text-slate-500">
                                                 {lessonIsFuture
-                                                    ? 'Nesta aula futura, guardar o sumário mantém a aula planeada. Só passa a dada quando for marcada como submetida no GIAE.'
-                                                    : 'Ao guardar um sumário, a aula passa a dada.'}
+                                                    ? 'Nesta aula futura, guardar o sumário mantém a aula planeada. Só fica registada como realizada quando for marcada como submetida no GIAE.'
+                                                    : 'Ao guardar um sumário, a aula fica registada como realizada.'}
                                             </p>
 
                                             <div className="flex flex-wrap items-center justify-end gap-2">
