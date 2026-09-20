@@ -538,50 +538,40 @@ export default function DailyUnifiedWeekOverview({
 
   const weekDays =
     useMemo(
-      () => {
-        const days =
-          snapshot?.days ?? []
-
-        const weekdays =
-          days.filter(
-            day =>
-              getISOWeekday(
-                day.date
-              ) <= 5
-          )
-
-        const today =
-          todayISO()
-
-        const currentWeekendDay =
-          date === today &&
-          getISOWeekday(
-            today
-          ) > 5
-            ? days.find(
-                day =>
-                  day.date ===
-                  today
-              ) ?? null
-            : null
-
-        return currentWeekendDay
-          ? [
-              ...weekdays,
-              currentWeekendDay
-            ]
-          : weekdays
-      },
-      [
-        date,
-        snapshot
-      ]
+      () =>
+        snapshot?.days.filter(
+          day =>
+            getISOWeekday(
+              day.date
+            ) <= 5
+        ) ?? [],
+      [snapshot]
     )
 
-  const weekGridColumnsClass =
-    weekDays.length > 5
-      ? 'grid-cols-[6.5rem_repeat(6,minmax(9rem,1fr))]'
-      : 'grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))]'
+  const today =
+    todayISO()
+
+  const todayWeekday =
+    getISOWeekday(
+      today
+    )
+
+  const isWeekendToday =
+    todayWeekday > 5
+
+  const weekendTimelineDate =
+    isWeekendToday
+      ? weekDays.find(
+          day =>
+            getISOWeekday(
+              day.date
+            ) === 5
+        )?.date ??
+        weekDays[
+          weekDays.length - 1
+        ]?.date ??
+        null
+      : null
 
   const timeSlots =
     useMemo(
@@ -928,7 +918,7 @@ export default function DailyUnifiedWeekOverview({
         ) : (
           <div className="overflow-x-auto">
             <div className="min-w-[880px]">
-              <div className={`grid ${weekGridColumnsClass} border-b border-white/10 bg-slate-950/55`}>
+              <div className="grid grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))] border-b border-white/10 bg-slate-950/55">
                 <div className="border-r border-white/10 px-2 py-2 text-[0.6rem] font-black uppercase tracking-[0.12em] text-slate-600">
                   Tempos
                 </div>
@@ -979,7 +969,7 @@ export default function DailyUnifiedWeekOverview({
                   slot => (
                     <div
                       key={slot.key}
-                      className={`grid ${weekGridColumnsClass} border-b border-white/[0.07] last:border-b-0`}
+                      className="grid grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))] border-b border-white/[0.07] last:border-b-0"
                     >
                       <div className="border-r border-white/10 bg-slate-950/35 px-2 py-2">
                         <span className="block text-[0.62rem] font-black text-slate-300">
@@ -1014,9 +1004,10 @@ export default function DailyUnifiedWeekOverview({
 
                           const currentSlotProgress =
                             date ===
-                              todayISO() &&
+                              today &&
+                            !isWeekendToday &&
                             day.date ===
-                              todayISO()
+                              today
                               ? getCurrentSlotProgress(
                                   slot,
                                   currentMinute
@@ -1032,14 +1023,26 @@ export default function DailyUnifiedWeekOverview({
 
                           const showEndOfDayLine =
                             date ===
-                              todayISO() &&
-                            day.date ===
-                              todayISO() &&
+                              today &&
                             isLastTimeSlot &&
-                            latestTimeSlotEndMinute !==
-                              null &&
-                            currentMinute >
-                              latestTimeSlotEndMinute
+                            (
+                              (
+                                isWeekendToday &&
+                                weekendTimelineDate !==
+                                  null &&
+                                day.date ===
+                                  weekendTimelineDate
+                              ) ||
+                              (
+                                !isWeekendToday &&
+                                day.date ===
+                                  today &&
+                                latestTimeSlotEndMinute !==
+                                  null &&
+                                currentMinute >
+                                  latestTimeSlotEndMinute
+                              )
+                            )
 
                           return (
                             <div
