@@ -3013,6 +3013,7 @@ export default function DailyWorkspaceView({
                 lessonForm &&
                 assessmentForm &&
                 selectedLesson ? (
+                    <>
                     <article className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-xl shadow-black/15">
                         <header className="border-b border-white/10 bg-slate-900 px-4 py-2.5 sm:px-5">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -3441,19 +3442,6 @@ export default function DailyWorkspaceView({
                                         </div>
                                     </div>
 
-                                    {onOpenBackup ? (
-                                        <div className="border-t border-amber-200/10 bg-amber-200/[0.035] px-3 py-2 text-[0.68rem] font-semibold text-slate-400">
-                                            Para maior segurança, faça regularmente uma{' '}
-                                            <button
-                                                type="button"
-                                                onClick={onOpenBackup}
-                                                className="rounded-sm font-black text-amber-300 underline decoration-amber-300/70 underline-offset-2 transition hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
-                                            >
-                                                cópia de segurança
-                                            </button>{' '}
-                                            — sobretudo em navegação privada ou se surgir algum erro.
-                                        </div>
-                                    ) : null}
                                 </section>
 
                                 <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">
@@ -4289,6 +4277,21 @@ export default function DailyWorkspaceView({
                             </div>
                         </footer>
                     </article>
+
+                    {onOpenBackup ? (
+                        <div className="mt-2 rounded-xl border border-amber-200/10 bg-amber-200/[0.035] px-4 py-2 text-[0.68rem] font-semibold text-slate-400">
+                            Para maior segurança, faça regularmente uma{' '}
+                            <button
+                                type="button"
+                                onClick={onOpenBackup}
+                                className="rounded-sm font-black text-amber-300 underline decoration-amber-300/70 underline-offset-2 transition hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+                            >
+                                cópia de segurança
+                            </button>{' '}
+                            — sobretudo em navegação privada ou se surgir algum erro.
+                        </div>
+                    ) : null}
+                    </>
                 ) : !loading &&
                   error ? (
                     <section className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-5 py-8 text-center text-sm font-bold text-rose-100">
