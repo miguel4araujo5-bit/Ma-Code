@@ -11,11 +11,10 @@ import type {
   MAProfessorOpaqueServerRuntime
 } from './maProfessorOpaqueAuthProtocol'
 
-const opaqueReady =
-  init({
-    module_or_path:
-      opaqueModule
-  })
+let opaqueReady:
+  Promise<unknown> |
+  null =
+  null
 
 const serverRuntime:
   MAProfessorOpaqueServerRuntime = {
@@ -25,9 +24,21 @@ const serverRuntime:
     finishServerLogin
   }
 
+function ensureOpaqueReady() {
+  if (!opaqueReady) {
+    opaqueReady =
+      init({
+        module_or_path:
+          opaqueModule
+      })
+  }
+
+  return opaqueReady
+}
+
 export async function getMAProfessorOpaqueServerRuntime():
   Promise<MAProfessorOpaqueServerRuntime> {
-  await opaqueReady
+  await ensureOpaqueReady()
 
   return serverRuntime
 }
