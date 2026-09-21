@@ -28,18 +28,20 @@ Não instalar a dependência em produção antes de existir um spike de build/ru
 
 ## Separação de segredos
 
-- Password pessoal: usada apenas no cliente para OPAQUE.
+- Password pessoal: no protocolo OPAQUE v3, é usada apenas no cliente e não faz parte dos payloads de login OPAQUE.
+- Durante a transição, os fluxos legados v2 ainda podem enviar a password pessoal ao servidor para pedido/login e para a verificação final necessária ao enrollment v2 -> v3. Esta exceção desaparece apenas quando a compatibilidade v2 for retirada.
 - Senha MP: apenas ativação/licença; nunca deriva chaves.
 - OPAQUE export key: apenas cliente.
 - Master key do backup: aleatória, 256 bits, criada no cliente.
 - Wrapping key v3: derivada no cliente da OPAQUE export key com HKDF-SHA-256 e contexto versionado.
 - Dados: continuam cifrados localmente com AES-256-GCM antes do envio.
 
-O servidor nunca recebe:
-- password pessoal;
+No caminho OPAQUE/backup v3, o servidor não recebe:
 - OPAQUE export key;
 - master key v3;
 - wrapping key v3.
+
+A password pessoal também deixa de ser enviada no login v3; contudo, enquanto existirem os caminhos legados v2 acima descritos, não é correto afirmar que o servidor nunca recebe a password pessoal em qualquer fluxo da aplicação.
 
 ## Separação formal de domínios — passo 12
 
