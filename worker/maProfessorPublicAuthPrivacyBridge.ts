@@ -9,14 +9,8 @@ import type {
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
-const ACCOUNT_AUTH_STORAGE_KEY =
-  'ma-professor-account-auth-v1'
-
 const ACTIVATION_GUARD_STORAGE_KEY =
   'ma-professor-activation-guard-v1'
-
-const PUBLIC_LOGIN_PATH =
-  '/api/ma-professor/access/login'
 
 const PUBLIC_ACTIVATE_PATH =
   '/api/ma-professor/access/activate'
@@ -74,13 +68,6 @@ interface AccessStateSnapshot {
   sessions?: Record<
     string,
     StoredSessionSnapshot
-  >
-}
-
-interface AccountAuthStateSnapshot {
-  credentials?: Record<
-    string,
-    unknown
   >
 }
 
@@ -722,64 +709,6 @@ export class MaProfessorAccessDurableObject {
     return response
   }
 
-  private async handleLogin(
-    request: Request
-  ) {
-    const body =
-      await readRequestBody(
-        request
-      )
-
-    const email =
-      normalizeEmail(
-        body?.email
-      )
-
-    const password =
-      normalizePassword(
-        body?.password
-      )
-
-    if (
-      !isValidEmail(email) ||
-      !password
-    ) {
-      return this.existing.fetch(
-        request
-      )
-    }
-
-    const authState =
-      await this.state.storage.get<AccountAuthStateSnapshot>(
-        ACCOUNT_AUTH_STORAGE_KEY
-      )
-
-    const hasCredential =
-      Boolean(
-        authState?.credentials &&
-        Object.prototype.hasOwnProperty.call(
-          authState.credentials,
-          email
-        )
-      )
-
-    const response =
-      await this.existing.fetch(
-        request
-      )
-
-    if (
-      response.status === 401 &&
-      !hasCredential
-    ) {
-      await consumeDummyPasswordCost(
-        password
-      )
-    }
-
-    return response
-  }
-
   private async handleActivation(
     request: Request
   ) {
@@ -795,8 +724,7 @@ export class MaProfessorAccessDurableObject {
 
     const password =
       normalizePassword(
-        body?.activationPassword ??
-        body?.password
+        body?.activationPassword
       )
 
     if (
@@ -1016,16 +944,6 @@ export class MaProfessorAccessDurableObject {
   ): Promise<Response> {
     const url =
       new URL(request.url)
-
-    if (
-      request.method === 'POST' &&
-      url.pathname ===
-        PUBLIC_LOGIN_PATH
-    ) {
-      return this.handleLogin(
-        request
-      )
-    }
 
     if (
       request.method === 'POST' &&
