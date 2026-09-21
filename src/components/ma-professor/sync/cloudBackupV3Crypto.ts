@@ -13,6 +13,13 @@ const KDF_SALT_BYTES =
 const NONCE_BYTES =
   12
 
+const AES_GCM_TAG_BYTES =
+  16
+
+const WRAPPED_MASTER_KEY_BYTES =
+  MASTER_KEY_BYTES +
+  AES_GCM_TAG_BYTES
+
 export const MA_PROFESSOR_BACKUP_V3_KDF_ALGORITHM =
   'OPAQUE-RFC9807-EXPORT-HKDF-SHA256' as const
 
@@ -456,7 +463,9 @@ export async function unwrapMAProfessorBackupV3MasterKey(
     salt.byteLength !==
       KDF_SALT_BYTES ||
     nonce.byteLength !==
-      NONCE_BYTES
+      NONCE_BYTES ||
+    ciphertext.byteLength !==
+      WRAPPED_MASTER_KEY_BYTES
   ) {
     throw new Error(
       'A proteção da chave de cópia contém parâmetros inválidos.'
