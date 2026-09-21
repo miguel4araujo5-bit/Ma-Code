@@ -1348,6 +1348,12 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
     )
   }
 
+  if (remote.encrypted.encryptionVersion !== ENCRYPTION_VERSION) {
+    throw new Error(
+      'A cópia devolvida durante a verificação já não usa o formato v2 esperado.'
+    )
+  }
+
   const verified =
     await decryptBackup(
       remote.encrypted,
@@ -1592,6 +1598,12 @@ export async function downloadMAProfessorCloudBackup(
   ) {
     throw new Error(
       'Esta cópia online usa proteção v3 e não pode ser aberta pelo fluxo legado v2.'
+    )
+  }
+
+  if (remote.encrypted.encryptionVersion !== ENCRYPTION_VERSION) {
+    throw new Error(
+      'Esta cópia online não contém um envelope v2 válido.'
     )
   }
 
