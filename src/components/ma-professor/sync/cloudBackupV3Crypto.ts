@@ -420,6 +420,151 @@ export async function createMAProfessorBackupV3KeyMaterial(
   }
 }
 
+export interface MAProfessorBackupV3EncryptedData {
+  encryptionVersion:
+    typeof CRYPTO_VERSION
+  encryptionAlgorithm:
+    typeof MA_PROFESSOR_BACKUP_V3_KEY_WRAP_ALGORITHM
+  nonce: string
+  ciphertext: string
+}
+
+function createDataAad(
+  context: string
+) {
+  const normalized =
+    context.trim()
+
+  if (!normalized) {
+    throw new Error(
+      'O contexto da cópia cifrada não é válido.'
+    )
+  }
+
+  return textEncoder.encode(
+    `${MA_PROFESSOR_BACKUP_V3_DATA_AAD_PREFIX}/${normalized}`
+  )
+}
+
+export async function encryptMAProfessorBackupV3Data(
+  masterKey: CryptoKey,
+  plaintext: Uint8Array,
+  context: string
+): Promise<MAProfessorBackupV3EncryptedData> {
+  assertWebCrypto()
+
+  const nonce =
+    globalThis.crypto.getRandomValues(
+      new Uint8Array(
+        NONCE_BYTES
+      )
+    )
+
+  const ciphertext =
+    await globalThis.crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: nonce,
+        additionalData:
+          createDataAad(
+            context
+          ),
+        tagLength: 128
+      },
+      masterKey,
+      toArrayBuffer(
+        plaintext
+      )
+    )
+
+  return {
+    encryptionVersion:
+      CRYPTO_VERSION,
+    encryptionAlgorithm:
+      MA_PROFESSOR_BACKUP_V3_KEY_WRAP_ALGORITHM,
+    nonce:
+      bytesToBase64Url(
+        nonce
+      ),
+    ciphertext:
+      bytesToBase64Url(
+        new Uint8Array(
+          ciphertext
+        )
+      )
+  }
+}
+
+export async function decryptMAProfessorBackupV3Data(
+  masterKey: CryptoKey,
+  encrypted:
+    MAProfessorBackupV3EncryptedData,
+  context: string
+) {
+  assertWebCrypto()
+
+  if (
+    encrypted.encryptionVersion !==
+      CRYPTO_VERSION ||
+    encrypted.encryptionAlgorithm !==
+      MA_PROFESSOR_BACKUP_V3_KEY_WRAP_ALGORITHM
+  ) {
+    throw new Error(
+      'A cópia cifrada utiliza uma versão incompatível.'
+    )
+  }
+
+  const nonce =
+    base64UrlToBytes(
+      encrypted.nonce,
+      'O nonce da cópia cifrada'
+    )
+
+  const ciphertext =
+    base64UrlToBytes(
+      encrypted.ciphertext,
+      'A cópia cifrada'
+    )
+
+  if (
+    nonce.byteLength !==
+      NONCE_BYTES ||
+    ciphertext.byteLength <
+      AES_GCM_TAG_BYTES
+  ) {
+    throw new Error(
+      'A cópia cifrada contém parâmetros inválidos.'
+    )
+  }
+
+  try {
+    const plaintext =
+      await globalThis.crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: nonce,
+          additionalData:
+            createDataAad(
+              context
+            ),
+          tagLength: 128
+        },
+        masterKey,
+        toArrayBuffer(
+          ciphertext
+        )
+      )
+
+    return new Uint8Array(
+      plaintext
+    )
+  } catch {
+    throw new Error(
+      'Não foi possível decifrar a cópia protegida.'
+    )
+  }
+}
+
 export async function unwrapMAProfessorBackupV3MasterKey(
   exportKey: string,
   wrapped:
