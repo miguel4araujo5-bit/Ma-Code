@@ -6,6 +6,10 @@ import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
 
+import {
+  MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+} from './maProfessorOpaqueAuthState'
+
 const STORAGE_KEY =
   'ma-professor-access-state-v1'
 
@@ -83,6 +87,25 @@ interface CommerceStateSnapshot {
 
 interface AccountAuthStateSnapshot {
   credentials?: Record<
+    string,
+    JsonObject
+  >
+
+  updatedAt?: number
+}
+
+interface OpaqueAuthStateSnapshot {
+  registrations?: Record<
+    string,
+    JsonObject
+  >
+
+  pendingEnrollments?: Record<
+    string,
+    JsonObject
+  >
+
+  pendingLogins?: Record<
     string,
     JsonObject
   >
@@ -443,6 +466,36 @@ function removeAccountAuthentication(
 
   removeRecordEntries(
     state.credentials,
+    targetEmails
+  )
+
+  state.updatedAt =
+    Date.now()
+}
+
+function removeOpaqueAuthentication(
+  state:
+    | OpaqueAuthStateSnapshot
+    | undefined,
+  targetEmails:
+    Set<string>
+) {
+  if (!state) {
+    return
+  }
+
+  removeRecordEntries(
+    state.registrations,
+    targetEmails
+  )
+
+  removeRecordEntries(
+    state.pendingEnrollments,
+    targetEmails
+  )
+
+  removeRecordEntries(
+    state.pendingLogins,
     targetEmails
   )
 
@@ -1353,6 +1406,11 @@ export class MaProfessorAccessDurableObject {
         ACCOUNT_AUTH_STORAGE_KEY
       )
 
+    const opaqueAuthState =
+      await this.state.storage.get<OpaqueAuthStateSnapshot>(
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+      )
+
     const loginThrottleState =
       normalizeLoginThrottleState(
         await this.state.storage.get<LoginThrottleState>(
@@ -1372,6 +1430,11 @@ export class MaProfessorAccessDurableObject {
 
     removeAccountAuthentication(
       accountAuthState,
+      targetEmails
+    )
+
+    removeOpaqueAuthentication(
+      opaqueAuthState,
       targetEmails
     )
 
@@ -1416,6 +1479,15 @@ export class MaProfessorAccessDurableObject {
         accountAuthState
     }
 
+    if (
+      opaqueAuthState
+    ) {
+      updates[
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+      ] =
+        opaqueAuthState
+    }
+
     await this.state.storage.put(
       updates
     )
@@ -1436,7 +1508,7 @@ export class MaProfessorAccessDurableObject {
       message:
         multiple
           ? `${emails.length} utilizador(es) removido(s) do estado de acesso do MA-Professor.`
-          : 'O acesso desta conta foi reposto. Pedido, licença, sessões, senhas e password pessoal foram removidos.'
+          : 'O acesso desta conta foi reposto. Pedido, licença, sessões, senhas e registo de autenticação protegido foram removidos.'
     })
   }
 
