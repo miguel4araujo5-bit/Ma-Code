@@ -573,6 +573,39 @@ function parseGetResult(
   }
 }
 
+function parsePromoteV3Result(
+  value: unknown
+) {
+  if (
+    !isObject(value) ||
+    value.success !== true ||
+    value.cryptoVersion !== 3 ||
+    value.recordId !== RECORD_ID ||
+    !isPositiveInteger(
+      value.serverRevision
+    ) ||
+    !isPositiveInteger(
+      value.recordRevision
+    ) ||
+    typeof value.updatedAt !== 'string' ||
+    !value.updatedAt
+  ) {
+    throw new Error(
+      'O serviço devolveu uma resposta inválida ao promover a cópia v3.'
+    )
+  }
+
+  return {
+    cryptoVersion: 3 as const,
+    serverRevision:
+      value.serverRevision,
+    recordRevision:
+      value.recordRevision,
+    updatedAt:
+      value.updatedAt
+  }
+}
+
 function parsePushResult(
   value: unknown
 ) {
@@ -964,6 +997,44 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     encryptedBytes:
       encrypted.ciphertext.length
   }
+}
+
+export async function promotePreparedMAProfessorCloudBackupV3(
+  session: MAProfessorAccessSession,
+  prepared: MAProfessorPreparedCloudBackupV3Promotion,
+  expectedServerRevision: number
+) {
+  assertSession(session)
+
+  if (
+    !isNonNegativeInteger(
+      expectedServerRevision
+    )
+  ) {
+    throw new Error(
+      'A revisão esperada da cópia v3 não é válida.'
+    )
+  }
+
+  const data =
+    await postJson(
+      '/promote-v3',
+      {
+        ...sessionBody(session),
+        recordId:
+          RECORD_ID,
+        expectedServerRevision,
+        profile:
+          prepared.profile,
+        encrypted:
+          prepared.encrypted
+      },
+      'Não foi possível promover a cópia protegida para v3.'
+    )
+
+  return parsePromoteV3Result(
+    data
+  )
 }
 
 export async function uploadAndVerifyMAProfessorCloudBackup(
