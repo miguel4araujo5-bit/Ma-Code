@@ -338,6 +338,41 @@ test(
 )
 
 test(
+  'v3 rejects a truncated wrapped master key before decrypt',
+  async () => {
+    const exportKey =
+      randomExportKey()
+
+    const created =
+      await cryptoV3
+        .createMAProfessorBackupV3KeyMaterial(
+          exportKey
+        )
+
+    const truncated = {
+      ...created.wrapped,
+      recoveryWrappedMasterKey:
+        toBase64Url(
+          fromBase64Url(
+            created.wrapped
+              .recoveryWrappedMasterKey
+          ).subarray(0, 47)
+        )
+    }
+
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .unwrapMAProfessorBackupV3MasterKey(
+            exportKey,
+            truncated
+          ),
+      /parâmetros inválidos/
+    )
+  }
+)
+
+test(
   'v3 rejects incompatible HKDF domain parameters before attempting unwrap',
   async () => {
     const exportKey =
