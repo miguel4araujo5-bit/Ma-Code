@@ -35,9 +35,6 @@ const STORAGE_KEY =
 const COMMERCE_STORAGE_KEY =
   'ma-professor-admin-commerce-v1'
 
-const ACCOUNT_AUTH_STORAGE_KEY =
-  'ma-professor-account-auth-v1'
-
 const PUBLIC_REQUEST_PATH =
   '/api/ma-professor/access/request'
 
@@ -55,12 +52,6 @@ const INTERNAL_COMMERCE_STATUS_PATH =
 
 const INTERNAL_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
-
-const PASSWORD_HASH_ITERATIONS =
-  100_000
-
-const PASSWORD_SALT_BYTES =
-  16
 
 const SESSION_TOKEN_BYTES =
   32
@@ -160,27 +151,6 @@ interface StoredCommerceState {
 
   authorizations:
     StoredCommercialAuthorization[]
-
-  createdAt: number
-  updatedAt: number
-}
-
-interface StoredAccountCredential {
-  email: string
-  passwordSalt: string
-  passwordHash: string
-  passwordIterations: number
-  createdAt: number
-  updatedAt: number
-}
-
-interface StoredAccountAuthState {
-  schemaVersion: 1
-
-  credentials: Record<
-    string,
-    StoredAccountCredential
-  >
 
   createdAt: number
   updatedAt: number
@@ -461,51 +431,14 @@ function base64ToBytes(
   return bytes
 }
 
-async function createAccountCredential(
-  email: string,
-  password: string
-): Promise<StoredAccountCredential> {
-  const salt =
-    new Uint8Array(
-      PASSWORD_SALT_BYTES
-    )
-
-  globalThis.crypto.getRandomValues(
-    salt
-  )
-
-  const now =
-    Date.now()
-
-  return {
-    email,
-    passwordSalt:
-      bytesToBase64(
-        salt
-      ),
-    passwordHash:
-      await hashPassword(
-        password,
-        salt,
-        PASSWORD_HASH_ITERATIONS
-      ),
-    passwordIterations:
-      PASSWORD_HASH_ITERATIONS,
-    createdAt:
-      now,
-    updatedAt:
-      now
-  }
-}
-
-async function verifyAccountPassword(
+async function verifyStoredCredential(
   credential:
-    StoredAccountCredential,
-  password: string
+    StoredAccessCredentialSnapshot,
+  secret: string
 ) {
   const calculated =
     await hashPassword(
-      password,
+      secret,
       base64ToBytes(
         credential
           .passwordSalt
@@ -516,42 +449,6 @@ async function verifyAccountPassword(
 
   return calculated ===
     credential.passwordHash
-}
-
-function createAccountAuthState():
-  StoredAccountAuthState {
-  const now =
-    Date.now()
-
-  return {
-    schemaVersion:
-      1,
-    credentials:
-      {},
-    createdAt:
-      now,
-    updatedAt:
-      now
-  }
-}
-
-function normalizeAccountAuthState(
-  stored:
-    StoredAccountAuthState |
-    undefined
-) {
-  if (
-    !stored ||
-    stored.schemaVersion !==
-      1 ||
-    !stored.credentials ||
-    typeof stored.credentials !==
-      'object'
-  ) {
-    return createAccountAuthState()
-  }
-
-  return stored
 }
 
 function createToken() {
@@ -1186,7 +1083,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     const activationMatches =
-      await verifyAccountPassword(
+      await verifyStoredCredential(
         credential,
         activationPassword
       )
@@ -1934,138 +1831,6 @@ export class MaProfessorAccessDurableObject {
 
   }
 
-  private async handleLogin(
-    request: Request
-  ) {
-    if (
-      request.method !==
-      'POST'
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Método não permitido.'
-        },
-        405,
-        {
-          Allow:
-            'POST'
-        }
-      )
-    }
-
-    let body:
-      JsonObject
-
-    try {
-      body =
-        await readJson(
-          request
-        )
-    } catch (
-      error
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            error instanceof
-              Error
-              ? error.message
-              : 'Pedido inválido.'
-        },
-        400
-      )
-    }
-
-    const email =
-      normalizeEmail(
-        body.email
-      )
-
-    const password =
-      normalizePassword(
-        body.password
-      )
-
-    const deviceId =
-      normalizeDeviceId(
-        body.deviceId
-      )
-
-    if (
-      !isValidEmail(
-        email
-      ) ||
-      !password ||
-      !deviceId
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Introduza o email e a password pessoal da sua conta.'
-        },
-        400
-      )
-    }
-
-    const authState =
-      normalizeAccountAuthState(
-        await this.state.storage.get<StoredAccountAuthState>(
-          ACCOUNT_AUTH_STORAGE_KEY
-        )
-      )
-
-    const credential =
-      authState.credentials[
-        email
-      ]
-
-    if (
-      !credential
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso” para definir a sua password pessoal antes de utilizar a senha de ativação.'
-        },
-        401
-      )
-    }
-
-    const passwordMatches =
-      await verifyAccountPassword(
-        credential,
-        password
-      )
-
-    if (
-      !passwordMatches
-    ) {
-      return json(
-        {
-          success:
-            false,
-          message:
-            'Email ou password pessoal incorretos.'
-        },
-        401
-      )
-    }
-
-    return this.issueAccountSession(
-      email,
-      deviceId
-    )
-  }
-
   private async handleRequestStatus(
     request: Request
   ) {
@@ -2405,8 +2170,14 @@ export class MaProfessorAccessDurableObject {
       url.pathname ===
       PUBLIC_LOGIN_PATH
     ) {
-      return this.handleLogin(
-        request
+      return json(
+        {
+          success:
+            false,
+          message:
+            'O login legado foi descontinuado. Utilize o login protegido.'
+        },
+        410
       )
     }
 
