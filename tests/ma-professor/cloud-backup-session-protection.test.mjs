@@ -18,7 +18,8 @@ const [
   entrySource,
   syncPanelSource,
   restorePanelSource,
-  dailySource
+  dailySource,
+  accessSource
 ] = await Promise.all([
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
   read('src/components/ma-professor/sync/cloudBackupRestoreService.ts'),
@@ -26,13 +27,15 @@ const [
   read('worker/entry.ts'),
   read('src/components/ma-professor/settings/EncryptedSyncPanel.tsx'),
   read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
-  read('src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx')
+  read('src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx'),
+  read('worker/maProfessorAccess.ts')
 ])
 
 const client = compact(clientSource)
 const restoreService = compact(restoreServiceSource)
 const worker = compact(workerSource)
 const entry = compact(entrySource)
+const access = compact(accessSource)
 const syncPanel = compact(syncPanelSource)
 const restorePanel = compact(restorePanelSource)
 const daily = compact(dailySource)
@@ -138,6 +141,17 @@ test(
   }
 )
 
+
+test(
+  'cloud backup writes are not serialized by the access durable object',
+  () => {
+    assert.match(worker, /await durableObject\.fetch\(/)
+    assert.match(worker, /ACCESS_VERIFY_PATH/)
+    assert.match(entry, /handleMAProfessorCloudBackupApiRequest\( request, env \)/)
+    assert.doesNotMatch(entry, /MA_PROFESSOR_ACCESS[\s\S]{0,200}handleMAProfessorCloudBackupApiRequest/)
+    assert.match(access, /this\.operation = response\.then/)
+  }
+)
 
 test(
   'v3 record upsert applies recordRevision CAS inside the atomic batch',
