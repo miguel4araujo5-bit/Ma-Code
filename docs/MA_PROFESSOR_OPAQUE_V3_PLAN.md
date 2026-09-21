@@ -1,6 +1,6 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado: implementação em curso. Passos 7 a 12 concluídos; o backup ativo continua v2 até aos passos seguintes.
+Estado: implementação em curso. A autenticação OPAQUE e o corte 12B estão integrados na `main`; o backup ativo continua v2 até à migração criptográfica dos passos seguintes.
 
 ## Objetivo
 
@@ -9,7 +9,7 @@ Migrar o MA-Professor para uma arquitetura em que:
 - a password pessoal não seja enviada ao servidor;
 - a MA-CODE não possua material suficiente para decifrar uma cópia v3;
 - a senha MP continue apenas a ativar/licenciar períodos;
-- contas e cópias v2 continuem funcionais durante a migração;
+- as cópias v2 continuem funcionais até à promoção atómica para backup v3;
 - uma falha a meio nunca destrua a cópia v2 existente;
 - o desenho continue compatível com o plano Free da Cloudflare para pelo menos 20 professores.
 
@@ -28,9 +28,10 @@ Não instalar a dependência em produção antes de existir um spike de build/ru
 
 ## Separação de segredos
 
-- Password pessoal: no protocolo OPAQUE v3, é usada apenas no cliente e não faz parte dos payloads de login OPAQUE.
-- Durante a transição, os fluxos legados v2 ainda podem enviar a password pessoal ao servidor para pedido/login e para a verificação final necessária ao enrollment v2 -> v3. Esta exceção desaparece apenas quando a compatibilidade v2 for retirada.
-- Senha MP: apenas ativação/licença; nunca deriva chaves.
+- Password pessoal: é usada apenas no cliente pelo protocolo OPAQUE e não faz parte dos payloads públicos de pedido, ativação ou login.
+- O pedido inicial é email-only. A password pessoal só é criada no dispositivo depois da aprovação, durante a ativação protegida por senha MP.
+- Os caminhos públicos legados que recebiam password pessoal/PBKDF2 foram descontinuados; o login público é exclusivamente OPAQUE.
+- Senha MP: apenas autoriza a criação inicial do registo OPAQUE e ativa/licencia o período; nunca deriva chaves.
 - OPAQUE export key: apenas cliente.
 - Master key do backup: aleatória, 256 bits, criada no cliente.
 - Wrapping key v3: derivada no cliente da OPAQUE export key com HKDF-SHA-256 e contexto versionado.
@@ -41,7 +42,7 @@ No caminho OPAQUE/backup v3, o servidor não recebe:
 - master key v3;
 - wrapping key v3.
 
-A password pessoal também deixa de ser enviada no login v3; contudo, enquanto existirem os caminhos legados v2 acima descritos, não é correto afirmar que o servidor nunca recebe a password pessoal em qualquer fluxo da aplicação.
+No fluxo público atual, a password pessoal não é enviada ao servidor. Esta garantia aplica-se à autenticação OPAQUE; não deve ser confundida com a garantia do backup v3, que só existe depois de a cópia ativa ter sido efetivamente migrada.
 
 ## Separação formal de domínios — passo 12
 
@@ -109,41 +110,45 @@ Fluxo obrigatório:
 
 Não é necessário persistir uma segunda chave v2 depois de uma promoção v3 bem sucedida. Assim que a transação v3 confirma, o servidor deixa de manter a chave v2 dessa conta.
 
-## Migração da autenticação
+## Autenticação — corte 12B
 
-O estado de credenciais no Durable Object passa a aceitar dois contratos durante a transição:
-
-- v2: PBKDF2 atual;
-- v3: OPAQUE registration record.
+O corte de autenticação deixou de manter uma migração pública PBKDF2 -> OPAQUE.
 
 Contas novas:
-- registam diretamente OPAQUE;
-- não criam um novo verificador PBKDF2 v2.
+- fazem o pedido apenas com email;
+- depois da aprovação recebem uma senha MP;
+- criam a password pessoal localmente durante o enrollment OPAQUE;
+- o servidor guarda o `registrationRecord` OPAQUE, nunca a password pessoal;
+- a ativação do período só é concluída depois de existir esse registo OPAQUE.
 
-Contas existentes:
-- podem autenticar uma última vez pelo contrato v2;
-- o browser, que ainda conhece a password, inicia o registo OPAQUE autenticado pela sessão v2;
-- o servidor guarda apenas o OPAQUE registration record;
-- após confirmação, a conta passa a `authVersion = 3`;
-- o login seguinte usa OPAQUE e já não envia a password.
+Login:
+- usa exclusivamente OPAQUE;
+- não existe fallback público para login v2/PBKDF2;
+- a password pessoal não é enviada ao Worker;
+- logout revoga a sessão normal; um novo login volta a executar OPAQUE.
 
-A senha MP e o contrato de licença não mudam.
+Contas de teste anteriores ao corte podem ser repostas/apagadas. A ação administrativa de reposição remove também o registo OPAQUE e os desafios pendentes da conta selecionada, sem afetar os restantes utilizadores.
+
+Este corte de autenticação **não promove automaticamente o backup para v3**. Uma conta pode autenticar por OPAQUE enquanto a sua cópia cloud ativa continua v2 até ao passo de migração específico do backup.
 
 ## Rotas
 
-Não substituir silenciosamente `/request`, `/login` e `/activate`.
+O fluxo público atual preserva a mesma cadeia de proteção administrativa, mas separa responsabilidades:
 
-Adicionar endpoints versionados/etapas OPAQUE dentro da mesma cadeia de bridges para preservar:
+- `/request`: pedido email-only; campos antigos de password pessoal são rejeitados;
+- `/opaque/enroll/start` e `/opaque/enroll/finish`: criação do registo OPAQUE autorizada pela senha MP;
+- `/activate`: ativa o período apenas depois de existir o registo OPAQUE;
+- `/opaque/login/start` e `/opaque/login/finish`: login protegido sem transmitir a password pessoal;
+- `/login` legado: não é um caminho válido para autenticação pessoal.
 
+Continuam obrigatórios:
 - rate limiting;
 - anti-enumeração;
-- privacidade de respostas;
+- privacidade das respostas públicas;
 - sessão/device binding;
 - aprovação explícita;
 - renovação e comércio;
 - notificações administrativas.
-
-A remoção dos campos plaintext-password dos endpoints legados só acontece quando a compatibilidade v2 puder ser retirada.
 
 ## Conflitos e restauro
 
