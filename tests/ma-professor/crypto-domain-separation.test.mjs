@@ -224,7 +224,7 @@ test(
     const enrollmentStart =
       opaqueAccessSource
         .indexOf(
-          'export async function enrollMAProfessorOpaqueFromLegacySession'
+          'export async function enrollMAProfessorOpaqueForActivation'
         )
 
     const enrollmentServerFinish =
