@@ -427,6 +427,21 @@ export interface MAProfessorBackupV3EncryptedData {
     typeof MA_PROFESSOR_BACKUP_V3_KEY_WRAP_ALGORITHM
   nonce: string
   ciphertext: string
+  ciphertextHash: string
+}
+
+async function sha256Base64Url(
+  bytes: Uint8Array
+) {
+  const digest =
+    await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      toArrayBuffer(bytes)
+    )
+
+  return bytesToBase64Url(
+    new Uint8Array(digest)
+  )
 }
 
 function createDataAad(
@@ -477,6 +492,11 @@ export async function encryptMAProfessorBackupV3Data(
       )
     )
 
+  const ciphertextBytes =
+    new Uint8Array(
+      ciphertext
+    )
+
   return {
     encryptionVersion:
       CRYPTO_VERSION,
@@ -488,9 +508,11 @@ export async function encryptMAProfessorBackupV3Data(
       ),
     ciphertext:
       bytesToBase64Url(
-        new Uint8Array(
-          ciphertext
-        )
+        ciphertextBytes
+      ),
+    ciphertextHash:
+      await sha256Base64Url(
+        ciphertextBytes
       )
   }
 }
@@ -525,12 +547,18 @@ export async function decryptMAProfessorBackupV3Data(
       encrypted.ciphertext,
       'A cópia cifrada'
     )
+  const ciphertextHash =
+    base64UrlToBytes(
+      encrypted.ciphertextHash,
+      'A assinatura da cópia cifrada'
+    )
 
   if (
     nonce.byteLength !==
       NONCE_BYTES ||
     ciphertext.byteLength <
-      AES_GCM_TAG_BYTES
+      AES_GCM_TAG_BYTES ||
+    ciphertextHash.byteLength !== 32
   ) {
     throw new Error(
       'A cópia cifrada contém parâmetros inválidos.'
