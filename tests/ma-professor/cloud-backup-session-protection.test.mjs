@@ -388,7 +388,21 @@ test(
     assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
     assert.match(syncPanelSource, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(syncPanelSource, /\buploadAndVerifyMAProfessorCloudBackup\(/)
-    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
+  }
+)
+
+test(
+  'manual save is the only production trigger for v2 to v3 migration and records migrated trust',
+  () => {
+    assert.match(syncPanelSource, /currentStatus\.cryptoVersion === 2/)
+    assert.match(syncPanelSource, /currentStatus\.backup\.found/)
+    assert.match(syncPanelSource, /await migrateMAProfessorCloudBackupV2ToV3\( session \)/)
+    assert.match(syncPanelSource, /serverRevision: migrated\.serverRevision/)
+    assert.match(syncPanelSource, /recordRevision: migrated\.recordRevision/)
+    assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(restoreService, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(restorePanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(dailySource, /migrateMAProfessorCloudBackupV2ToV3/)
   }
 )
 
