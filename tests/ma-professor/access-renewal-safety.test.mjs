@@ -444,7 +444,8 @@ test(
             },
             body: JSON.stringify({
               email,
-              password,
+              activationPassword:
+                password,
               deviceId
             })
           }
