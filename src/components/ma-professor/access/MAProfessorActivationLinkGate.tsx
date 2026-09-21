@@ -50,6 +50,27 @@ export default function MAProfessorActivationLinkGate({
       []
     )
 
+  const hasMatchingStoredAccess =
+    useMemo(
+      () => {
+        if (!activationLink) {
+          return false
+        }
+
+        const stored =
+          readMAProfessorStoredAccess()
+
+        return Boolean(
+          stored &&
+          stored.email
+            .trim()
+            .toLowerCase() ===
+            activationLink.email
+        )
+      },
+      [activationLink]
+    )
+
   const [
     state,
     setState
@@ -58,7 +79,8 @@ export default function MAProfessorActivationLinkGate({
     | 'activating'
     | 'failed'
   >(
-    activationLink
+    activationLink &&
+    hasMatchingStoredAccess
       ? 'activating'
       : 'idle'
   )
@@ -156,7 +178,10 @@ export default function MAProfessorActivationLinkGate({
 
   useEffect(
     () => {
-      if (!activationLink) {
+      if (
+        !activationLink ||
+        !hasMatchingStoredAccess
+      ) {
         return
       }
 
@@ -172,12 +197,17 @@ export default function MAProfessorActivationLinkGate({
       )
 
       void activate()
-    // activationLink é calculado uma única vez a partir do URL inicial.
+    // O link sem sessão existente fica intacto para o MAProfessorAuthGate
+    // criar primeiro a password local e concluir o enrollment OPAQUE.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activationLink])
+    }, [
+      activationLink,
+      hasMatchingStoredAccess
+    ])
 
   if (
     !activationLink ||
+    !hasMatchingStoredAccess ||
     state === 'idle'
   ) {
     return <>{children}</>
