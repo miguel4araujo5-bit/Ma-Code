@@ -16,6 +16,16 @@ import {
   validateMAProfessorBackup
 } from '../settings/backupRepository'
 
+import {
+  readMAProfessorOpaqueExportKey
+} from '../access/accessStorage'
+
+import {
+  createMAProfessorBackupV3KeyMaterial,
+  decryptMAProfessorBackupV3Data,
+  encryptMAProfessorBackupV3Data
+} from './cloudBackupV3Crypto'
+
 const API_PREFIX =
   '/api/ma-professor/cloud-backup'
 
@@ -106,6 +116,22 @@ export interface MAProfessorUploadedCloudBackup {
   serverRevision: number
   recordRevision: number
   updatedAt: string
+  plaintextBytes: number
+  encryptedBytes: number
+}
+
+export interface MAProfessorPreparedCloudBackupV3Promotion {
+  profile: Awaited<
+    ReturnType<
+      typeof createMAProfessorBackupV3KeyMaterial
+    >
+  >['wrapped']
+  encrypted: Awaited<
+    ReturnType<
+      typeof encryptMAProfessorBackupV3Data
+    >
+  >
+  plaintextHash: string
   plaintextBytes: number
   encryptedBytes: number
 }
@@ -834,6 +860,93 @@ export async function inspectMAProfessorCloudBackup(
     MAProfessorAccessSession
 ) {
   return readStatus(session)
+}
+
+export async function prepareMAProfessorCloudBackupV3Promotion(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup
+): Promise<MAProfessorPreparedCloudBackupV3Promotion> {
+  assertSession(session)
+
+  const exportKey =
+    readMAProfessorOpaqueExportKey(
+      session.email
+    )
+
+  if (!exportKey) {
+    throw new Error(
+      'A sessão OPAQUE necessária para proteger a cópia v3 já não está disponível. Inicie sessão novamente antes de migrar a cópia.'
+    )
+  }
+
+  const plaintext =
+    textEncoder.encode(
+      JSON.stringify(backup)
+    )
+  const compressed =
+    zlibSync(
+      plaintext,
+      {
+        level: 6
+      }
+    )
+  const plaintextHash =
+    await sha256Base64(
+      plaintext
+    )
+  const keyMaterial =
+    await createMAProfessorBackupV3KeyMaterial(
+      exportKey
+    )
+  const encrypted =
+    await encryptMAProfessorBackupV3Data(
+      keyMaterial.masterKey,
+      compressed,
+      RECORD_ID
+    )
+  const decryptedCompressed =
+    await decryptMAProfessorBackupV3Data(
+      keyMaterial.masterKey,
+      encrypted,
+      RECORD_ID
+    )
+  const decrypted =
+    unzlibSync(
+      decryptedCompressed
+    )
+  const decryptedHash =
+    await sha256Base64(
+      decrypted
+    )
+
+  if (
+    decryptedHash !==
+      plaintextHash
+  ) {
+    throw new Error(
+      'A validação local da cópia v3 falhou. A cópia online anterior foi preservada.'
+    )
+  }
+
+  const parsed =
+    parseBackupBytes(
+      decrypted
+    )
+
+  validateMAProfessorBackup(
+    parsed
+  )
+
+  return {
+    profile:
+      keyMaterial.wrapped,
+    encrypted,
+    plaintextHash,
+    plaintextBytes:
+      plaintext.byteLength,
+    encryptedBytes:
+      encrypted.ciphertext.length
+  }
 }
 
 export async function uploadAndVerifyMAProfessorCloudBackup(
