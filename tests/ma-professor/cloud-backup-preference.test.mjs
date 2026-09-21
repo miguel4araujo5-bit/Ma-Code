@@ -195,6 +195,7 @@ test('v3 preparation fails closed without an in-memory OPAQUE export key and per
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("must not run") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }',
     'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
@@ -221,6 +222,7 @@ test('v3 preparation validates locally and never contacts the server', async t =
     'export const createMAProfessorBackupV3KeyMaterial = async key => ({ masterKey: { key }, wrapped: { cryptoVersion: 3 } })',
     'export const encryptMAProfessorBackupV3Data = async (_key, value, context) => { bytes = value; return { encryptionVersion: 3, encryptionAlgorithm: "AES-256-GCM", nonce: "nonce", ciphertext: "ciphertext", ciphertextHash: "hash", context } }',
     'export const decryptMAProfessorBackupV3Data = async (_key, _encrypted, context) => { if (context !== "database-v1") throw new Error("wrong context"); return bytes }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
@@ -247,6 +249,7 @@ test('explicit v3 promotion sends only the prepared envelope with CAS revision',
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   const prepared = {
@@ -286,6 +289,7 @@ test('v3 promotion exposes a typed conflict on 409 and does not retry or fall ba
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   const paths = []
@@ -320,6 +324,7 @@ test('v3 promotion rejects an invalid record revision before making a request', 
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
@@ -348,6 +353,7 @@ test('revoking the choice while encryption is in progress prevents push; manual 
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
   let allowed = true
