@@ -1878,7 +1878,7 @@ export default function SetupConfirmationStep({
               </span>
 
               <span className="mt-1 block text-sm leading-6 text-slate-400">
-                Os dados principais ficam guardados localmente. As cópias online são opcionais e cifradas com uma chave gerida pela MA-CODE, que tem capacidade técnica para as decifrar. Posso ativar ou desativar a cópia automática em Segurança e recuperação e restaurar uma cópia noutro dispositivo através da minha conta.
+                Os dados principais ficam guardados localmente. As cópias online são opcionais e cifradas neste dispositivo antes do envio. Nas cópias com proteção v3, a MA-CODE não guarda no servidor o material necessário para decifrar os dados; uma conta ainda em v2 mantém a proteção anterior até à migração explícita. Posso ativar ou desativar a cópia automática em Segurança e recuperação e restaurar uma cópia através da minha conta.
               </span>
             </span>
           </label>
