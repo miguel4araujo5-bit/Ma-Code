@@ -568,7 +568,26 @@ test(
             },
             'database-v1'
           ),
-      /Não foi possível decifrar/
+      /assinatura da cópia cifrada não corresponde/
+    )
+
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .decryptMAProfessorBackupV3Data(
+            created.masterKey,
+            {
+              ...encrypted,
+              ciphertextHash:
+                toBase64Url(
+                  crypto.getRandomValues(
+                    new Uint8Array(32)
+                  )
+                )
+            },
+            'database-v1'
+          ),
+      /assinatura da cópia cifrada não corresponde/
     )
   }
 )
