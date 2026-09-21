@@ -175,6 +175,66 @@ function prunePendingEnrollments(
     )
 }
 
+
+function prunePendingEnrollments(
+  state:
+    MAProfessorOpaqueAuthState,
+  now: number
+) {
+  for (
+    const [id, pending] of
+    Object.entries(
+      state.pendingEnrollments
+    )
+  ) {
+    if (
+      pending.expiresAt <=
+        now
+    ) {
+      delete state
+        .pendingEnrollments[
+          id
+        ]
+    }
+  }
+
+  const entries =
+    Object.entries(
+      state.pendingEnrollments
+    )
+
+  if (
+    entries.length <
+      MAX_PENDING_ENROLLMENTS
+  ) {
+    return
+  }
+
+  entries
+    .sort(
+      (
+        left,
+        right
+      ) =>
+        left[1].createdAt -
+        right[1].createdAt
+    )
+    .slice(
+      0,
+      entries.length -
+        MAX_PENDING_ENROLLMENTS +
+        1
+    )
+    .forEach(
+      ([id]) => {
+        delete state
+          .pendingEnrollments[
+            id
+          ]
+      }
+    )
+}
+
 function prunePendingLogins(
   state:
     MAProfessorOpaqueAuthState,
@@ -287,6 +347,11 @@ export function startOpaqueEnrollment(
     normalizeEmail(
       input.email
     )
+
+  const deviceId =
+    input.deviceId
+      .trim()
+      .slice(0, 180)
 
   const deviceId =
     input.deviceId
@@ -450,6 +515,38 @@ export function finishOpaqueEnrollment(
   ) {
     throw new Error(
       'OPAQUE_ALREADY_ENROLLED'
+    )
+  }
+
+  const pending =
+    state.pendingEnrollments[
+      enrollmentId
+    ]
+
+  if (!pending) {
+    throw new Error(
+      'OPAQUE_ENROLLMENT_INVALID'
+    )
+  }
+
+  delete state
+    .pendingEnrollments[
+      enrollmentId
+    ]
+
+  state.updatedAt =
+    now
+
+  if (
+    pending.expiresAt <=
+      now ||
+    pending.email !==
+      email ||
+    pending.deviceId !==
+      deviceId
+  ) {
+    throw new Error(
+      'OPAQUE_ENROLLMENT_INVALID'
     )
   }
 
