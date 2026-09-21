@@ -23,7 +23,8 @@ import {
 import {
   createMAProfessorBackupV3KeyMaterial,
   decryptMAProfessorBackupV3Data,
-  encryptMAProfessorBackupV3Data
+  encryptMAProfessorBackupV3Data,
+  unwrapMAProfessorBackupV3MasterKey
 } from './cloudBackupV3Crypto'
 
 const API_PREFIX =
@@ -55,6 +56,7 @@ export interface MAProfessorCloudBackupStatus {
   serverRevision: number
   cryptoVersion: number
   updatedAt: string
+  protection: import('./cloudBackupV3Crypto').MAProfessorBackupV3WrappedMasterKey | null
   backup: {
     found: boolean
     recordRevision: number | null
@@ -393,6 +395,10 @@ function parseStatus(
     ) ||
     typeof value.updatedAt !== 'string' ||
     !value.updatedAt ||
+    !(
+      value.protection === null ||
+      isObject(value.protection)
+    ) ||
     !isObject(value.backup)
   ) {
     throw new Error(
@@ -441,6 +447,8 @@ function parseStatus(
       value.cryptoVersion,
     updatedAt:
       value.updatedAt,
+    protection:
+      value.protection as MAProfessorCloudBackupStatus['protection'],
     backup: {
       found,
       recordRevision,
