@@ -32,6 +32,9 @@ export const MA_PROFESSOR_BACKUP_V3_KDF_CONTEXT =
 export const MA_PROFESSOR_BACKUP_V3_WRAP_AAD =
   'MA-CODE/MA-Professor/cloud-backup/v3/master-key-wrap' as const
 
+export const MA_PROFESSOR_BACKUP_V3_DATA_AAD_PREFIX =
+  'MA-CODE/MA-Professor/cloud-backup/v3/data' as const
+
 const textEncoder =
   new TextEncoder()
 
