@@ -7,7 +7,9 @@ import test from 'node:test'
 const [
   apiSource,
   clientSource,
-  accessSource
+  accessSource,
+  storageSource,
+  authGateSource
 ] =
   await Promise.all([
     readFile(
@@ -27,6 +29,20 @@ const [
     readFile(
       new URL(
         '../../src/components/ma-professor/access/opaqueAccess.ts',
+        import.meta.url
+      ),
+      'utf8'
+    ),
+    readFile(
+      new URL(
+        '../../src/components/ma-professor/access/accessStorage.ts',
+        import.meta.url
+      ),
+      'utf8'
+    ),
+    readFile(
+      new URL(
+        '../../src/components/ma-professor/access/MAProfessorAuthGate.tsx',
         import.meta.url
       ),
       'utf8'
@@ -121,6 +137,48 @@ test(
     assert.match(
       accessSource,
       /exportKey:\s*clientFinish\.exportKey/
+    )
+  }
+)
+
+test(
+  'OPAQUE export key is kept only in memory, scoped by email and cleared with the access session',
+  () => {
+    assert.match(
+      storageSource,
+      /let memoryOpaqueExportKey:/
+    )
+    assert.match(
+      storageSource,
+      /export function saveMAProfessorOpaqueExportKey\(/
+    )
+    assert.match(
+      storageSource,
+      /export function readMAProfessorOpaqueExportKey\(/
+    )
+    assert.match(
+      storageSource,
+      /export function clearMAProfessorOpaqueExportKey\(/
+    )
+
+    const saveFunction =
+      storageSource.match(
+        /export function saveMAProfessorOpaqueExportKey[\s\S]*?\n}\n/
+      )?.[0] ?? ''
+
+    assert.doesNotMatch(
+      saveFunction,
+      /writeStoredValue|localStorage|sessionStorage|setItem/
+    )
+
+    assert.match(
+      storageSource,
+      /export function clearMAProfessorStoredAccess\(\)[\s\S]*?clearMAProfessorOpaqueExportKey\(\)/
+    )
+
+    assert.match(
+      authGateSource,
+      /if \(exportKey\)[\s\S]*?saveMAProfessorOpaqueExportKey\(\s*normalizedEmail,\s*exportKey\s*\)[\s\S]*?else \{\s*clearMAProfessorOpaqueExportKey\(\)/
     )
   }
 )
