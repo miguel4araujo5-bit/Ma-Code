@@ -262,13 +262,14 @@ test('explicit v3 promotion sends only the prepared envelope with CAS revision',
       deviceId: session.deviceId,
       recordId: 'database-v1',
       expectedServerRevision: 7,
+      expectedRecordRevision: 3,
       profile: prepared.profile,
       encrypted: prepared.encrypted
     })
     assert.equal(JSON.stringify(body).includes('local-only'), false)
     return Response.json({ success: true, cryptoVersion: 3, recordId: 'database-v1', serverRevision: 8, recordRevision: 4, updatedAt: '2026-09-21T13:00:00Z' })
   })
-  const result = await service.promotePreparedMAProfessorCloudBackupV3(session, prepared, 7)
+  const result = await service.promotePreparedMAProfessorCloudBackupV3(session, prepared, 7, 3)
   assert.deepEqual(result, { cryptoVersion: 3, serverRevision: 8, recordRevision: 4, updatedAt: '2026-09-21T13:00:00Z' })
   assert.equal(fetchMock.mock.callCount(), 1)
 })
