@@ -107,6 +107,7 @@ async function automaticHarness(t, initialize) {
       return { serverRevision: revision, backup: { found: revision > 0 } }
     }
     export async function downloadMAProfessorCloudBackup() { calls.download++; return null }
+    export async function downloadCompatibleMAProfessorCloudBackup() { calls.download++; return null }
     export async function uploadAndVerifyMAProfessorCloudBackup(session, backup, options) {
       if (!options.canUpload()) throw new Error('disabled')
       calls.upload++
@@ -381,7 +382,7 @@ test('revoking the choice while encryption is in progress prevents push; manual 
     const body = JSON.parse(options.body)
     assert.equal(body.token, session.token)
     assert.equal(body.deviceId, session.deviceId)
-    if (path === 'status') return Response.json({ success: true, serverRevision: revision, cryptoVersion: 2, updatedAt: '2026-09-20T12:00:00Z', backup: { found: false, recordRevision: null, updatedAt: null, ciphertextBytes: null } })
+    if (path === 'status') return Response.json({ success: true, serverRevision: revision, cryptoVersion: 2, protection: null, updatedAt: '2026-09-20T12:00:00Z', backup: { found: false, recordRevision: null, updatedAt: null, ciphertextBytes: null } })
     if (path === 'key') return Response.json({ success: true, cryptoVersion: 2, keyAlgorithm: 'AES-256-GCM', key })
     if (path === 'push') {
       assert.equal(body.backup, undefined)
