@@ -189,6 +189,28 @@ test(
       promote,
       /results\[1\]\?\.meta\?\.changes === 1/
     )
+    const recordCas =
+      promote.match(
+        /AND server_revision = \?/g
+      ) || []
+    const versionCas =
+      promote.match(
+        /AND crypto_version = \?/g
+      ) || []
+    const kdfCas =
+      promote.match(
+        /AND recovery_kdf_algorithm = \?/g
+      ) || []
+    const wrapCas =
+      promote.match(
+        /AND recovery_key_wrap_algorithm = \?/g
+      ) || []
+
+    assert.equal(recordCas.length, 2)
+    assert.equal(versionCas.length, 2)
+    assert.equal(kdfCas.length, 2)
+    assert.equal(wrapCas.length, 2)
+
     assert.match(
       promote,
       /parseV3EncryptedPayload\(\s*body\.encrypted\s*\)/
