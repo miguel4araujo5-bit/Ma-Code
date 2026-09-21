@@ -579,3 +579,194 @@ test(
     )
   }
 )
+
+
+test(
+  'account reset removes OPAQUE registration and pending challenges only for the selected account',
+  async t => {
+    const {
+      runtime,
+      dispose
+    } = await stageProductionChain()
+
+    t.after(dispose)
+
+    const targetEmail =
+      'reset-opaque@example.com'
+    const otherEmail =
+      'keep-opaque@example.com'
+    const now =
+      Date.now()
+
+    const storage =
+      new MemoryStorage({
+        [OPAQUE_KEY]: {
+          schemaVersion:
+            1,
+          protocol:
+            'OPAQUE-RFC9807',
+          serverSetup:
+            'server-setup',
+          registrations: {
+            [targetEmail]: {
+              email:
+                targetEmail,
+              registrationRecord:
+                'target-record',
+              createdAt:
+                now,
+              updatedAt:
+                now,
+              migratedFromV2At:
+                null
+            },
+            [otherEmail]: {
+              email:
+                otherEmail,
+              registrationRecord:
+                'other-record',
+              createdAt:
+                now,
+              updatedAt:
+                now,
+              migratedFromV2At:
+                null
+            }
+          },
+          pendingEnrollments: {
+            'target-enrollment': {
+              id:
+                'target-enrollment',
+              email:
+                targetEmail,
+              deviceId:
+                'target-device',
+              createdAt:
+                now,
+              expiresAt:
+                now + 60_000
+            },
+            'other-enrollment': {
+              id:
+                'other-enrollment',
+              email:
+                otherEmail,
+              deviceId:
+                'other-device',
+              createdAt:
+                now,
+              expiresAt:
+                now + 60_000
+            }
+          },
+          pendingLogins: {
+            'target-login': {
+              id:
+                'target-login',
+              email:
+                targetEmail,
+              deviceId:
+                'target-device',
+              serverLoginState:
+                'target-state',
+              createdAt:
+                now,
+              expiresAt:
+                now + 60_000
+            },
+            'other-login': {
+              id:
+                'other-login',
+              email:
+                otherEmail,
+              deviceId:
+                'other-device',
+              serverLoginState:
+                'other-state',
+              createdAt:
+                now,
+              expiresAt:
+                now + 60_000
+            }
+          },
+          createdAt:
+            now,
+          updatedAt:
+            now
+        }
+      })
+
+    const access =
+      new runtime.MaProfessorAccessDurableObject(
+        createState(storage),
+        {}
+      )
+
+    const response =
+      await access.fetch(
+        request(
+          '/__internal/ma-professor/admin/accounts/reset-access',
+          {
+            email:
+              targetEmail
+          }
+        )
+      )
+
+    assert.equal(
+      response.status,
+      200
+    )
+
+    const responseBody =
+      await body(
+        response
+      )
+
+    assert.match(
+      responseBody.message,
+      /registo de autenticação protegido/i
+    )
+
+    const opaqueState =
+      storage.snapshot(
+        OPAQUE_KEY
+      )
+
+    assert.equal(
+      opaqueState.registrations[
+        targetEmail
+      ],
+      undefined
+    )
+    assert.ok(
+      opaqueState.registrations[
+        otherEmail
+      ]
+    )
+
+    assert.equal(
+      opaqueState.pendingEnrollments[
+        'target-enrollment'
+      ],
+      undefined
+    )
+    assert.ok(
+      opaqueState.pendingEnrollments[
+        'other-enrollment'
+      ]
+    )
+
+    assert.equal(
+      opaqueState.pendingLogins[
+        'target-login'
+      ],
+      undefined
+    )
+    assert.ok(
+      opaqueState.pendingLogins[
+        'other-login'
+      ]
+    )
+  }
+)
