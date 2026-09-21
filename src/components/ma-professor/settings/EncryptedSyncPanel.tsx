@@ -13,7 +13,7 @@ import {
 
 import {
   inspectMAProfessorCloudBackup,
-  uploadAndVerifyMAProfessorCloudBackup,
+  uploadAndVerifyCompatibleMAProfessorCloudBackup,
   type MAProfessorCloudBackupStatus
 } from '../sync/cloudBackupService'
 
@@ -171,7 +171,7 @@ export function EncryptedSyncPanel() {
           await createMAProfessorBackup()
 
         const result =
-          await uploadAndVerifyMAProfessorCloudBackup(
+          await uploadAndVerifyCompatibleMAProfessorCloudBackup(
             session,
             backup
           )
