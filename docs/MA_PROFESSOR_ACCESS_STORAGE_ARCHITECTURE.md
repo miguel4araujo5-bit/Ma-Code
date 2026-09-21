@@ -16,8 +16,9 @@ O MA-Professor mantém um contrato lógico único (`AccessState`) para autentica
 | Renovações | `ma-professor-access-renewals-v1` |
 | Credenciais de ativação/comerciais | `ma-professor-access-credentials-v1` |
 | Licenças | `ma-professor-access-licenses-v1` |
+| Autenticação OPAQUE | `ma-professor-opaque-auth-v1` |
 
-A password pessoal da conta continua em `ma-professor-account-auth-v1`.
+A password pessoal não é armazenada pelo servidor. O Durable Object guarda apenas o material servidor necessário ao protocolo OPAQUE — nomeadamente o `serverSetup`, os `registrationRecord` e desafios temporários. O store legado `ma-professor-account-auth-v1` deixou de ser fonte de autenticação pública e é mantido apenas enquanto for necessário para limpeza/compatibilidade interna durante este corte.
 
 ## Ordem obrigatória da composição
 
@@ -45,7 +46,7 @@ A limpeza existente abrange pedidos rejeitados e pendentes com mais de 180 dias 
 
 Não são removidos pedidos associados a uma licença, credencial de ativação, sessão, renovação ou autorização comercial, nem pedidos com aprovação ou ativação registada. Um estado comercial ilegível também impede a limpeza. Isto preserva o tratamento administrativo e os pagamentos manuais.
 
-A limpeza remove apenas o pedido abandonado. Não elimina contas, passwords pessoais, licenças, dados escolares, cópias ou registos comerciais. A retenção das credenciais pessoais e dos registos comerciais é uma política distinta; esta alteração não encerra uma auditoria geral de retenção. A execução aproveita a primeira leitura do estado na cadeia existente, sem cron, polling ou novos recursos.
+A limpeza remove apenas o pedido abandonado. Não elimina contas, registos de autenticação OPAQUE, licenças, dados escolares, cópias ou registos comerciais. A retenção das credenciais pessoais e dos registos comerciais é uma política distinta; esta alteração não encerra uma auditoria geral de retenção. A execução aproveita a primeira leitura do estado na cadeia existente, sem cron, polling ou novos recursos.
 
 ## Invariantes
 
