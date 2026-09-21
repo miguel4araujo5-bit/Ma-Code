@@ -74,6 +74,16 @@ function randomExportKey() {
   )
 }
 
+function fromBase64Url(
+  value
+) {
+  return Buffer.from(
+    value,
+    'base64url'
+  )
+}
+
+
 async function proveSameMasterKey(
   first,
   second
@@ -152,6 +162,116 @@ test(
     await proveSameMasterKey(
       created.masterKey,
       restored
+    )
+  }
+)
+
+test(
+  'v3 envelope has expected sizes and never exposes raw secrets',
+  async () => {
+    const exportKey =
+      randomExportKey()
+
+    const created =
+      await cryptoV3
+        .createMAProfessorBackupV3KeyMaterial(
+          exportKey
+        )
+
+    assert.equal(
+      created.masterKey.extractable,
+      false
+    )
+
+    assert.deepEqual(
+      [...created.masterKey.usages].sort(),
+      ['decrypt', 'encrypt']
+    )
+
+    assert.equal(
+      fromBase64Url(
+        created.wrapped.recoveryKdfSalt
+      ).byteLength,
+      32
+    )
+
+    assert.equal(
+      fromBase64Url(
+        created.wrapped.recoveryWrappedMasterKeyNonce
+      ).byteLength,
+      12
+    )
+
+    assert.equal(
+      fromBase64Url(
+        created.wrapped.recoveryWrappedMasterKey
+      ).byteLength,
+      48
+    )
+
+    assert.doesNotMatch(
+      created.wrapped.recoveryKdfSalt,
+      /=/
+    )
+    assert.doesNotMatch(
+      created.wrapped.recoveryWrappedMasterKeyNonce,
+      /=/
+    )
+    assert.doesNotMatch(
+      created.wrapped.recoveryWrappedMasterKey,
+      /=/
+    )
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        created.wrapped,
+        'exportKey'
+      ),
+      false
+    )
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        created.wrapped,
+        'masterKey'
+      ),
+      false
+    )
+
+    assert.equal(
+      JSON.stringify(
+        created.wrapped
+      ).includes(
+        exportKey
+      ),
+      false
+    )
+  }
+)
+
+test(
+  'v3 rejects malformed or wrong-sized OPAQUE export keys before HKDF',
+  async () => {
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .createMAProfessorBackupV3KeyMaterial(
+            'not+base64url'
+          ),
+      /formato válido/
+    )
+
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .createMAProfessorBackupV3KeyMaterial(
+            toBase64Url(
+              crypto.getRandomValues(
+                new Uint8Array(32)
+              )
+            )
+          ),
+      /tamanho esperado/
     )
   }
 )
