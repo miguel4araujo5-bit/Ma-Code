@@ -50,7 +50,7 @@ Estas regras são de funcionamento e de manutenção do produto. Não devem ser 
 
 A secção de manutenção existe para operações raras e deve ficar recolhida por defeito no MA-ADMIN.
 
-- **Repor acesso**: limpa o estado de acesso da conta para permitir um novo ciclo de teste/ativação. Remove pedido, licença, sessões, senhas de ativação, password pessoal, renovações e autorizações de acesso, preservando a cópia cifrada dos dados escolares guardados na cloud.
+- **Repor acesso**: limpa o estado de acesso da conta para permitir um novo ciclo de teste/ativação. Remove pedido, licença, sessões, senhas de ativação, registo e desafios de autenticação OPAQUE, renovações e autorizações de acesso, preservando a cópia cifrada dos dados escolares guardados na cloud.
 - **Apagar utilizador**: remove a identidade de acesso e também a cópia cloud cifrada associada ao email selecionado. Dados que existam apenas localmente no dispositivo do professor não podem ser apagados remotamente.
 
 Estas diferenças devem permanecer documentadas e protegidas pelas confirmações das próprias ações, sem ocupar espaço visual permanente em cartões informativos dentro da secção de manutenção.
