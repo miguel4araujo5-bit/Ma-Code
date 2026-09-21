@@ -105,6 +105,40 @@ const opaque =
     protocolUrl
   )
 
+function enroll(
+  state,
+  runtime,
+  email,
+  registrationRecord,
+  now = 110,
+  deviceId = 'device-enroll'
+) {
+  const started =
+    opaque.startOpaqueEnrollment(
+      state,
+      runtime,
+      {
+        email,
+        deviceId,
+        registrationRequest:
+          'registration-request'
+      },
+      now - 1
+    )
+
+  return opaque.finishOpaqueEnrollment(
+    state,
+    {
+      email,
+      deviceId,
+      enrollmentId:
+        started.enrollmentId,
+      registrationRecord
+    },
+    now
+  )
+}
+
 function fakeRuntime() {
   let sequence = 0
 
@@ -343,6 +377,111 @@ test(
             200 +
               2 * 60 * 1000
           ),
+      /OPAQUE_ENROLLMENT_INVALID/
+    )
+  }
+)
+
+test(
+  'enrollment requires a live single-use id bound to email and device',
+  () => {
+    const runtime =
+      fakeRuntime()
+
+    const state =
+      opaque
+        .createFreshOpaqueAuthState(
+          100
+        )
+
+    const first =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-a',
+            registrationRequest:
+              'registration-request'
+          },
+          120
+        )
+
+    assert.throws(
+      () =>
+        opaque.finishOpaqueEnrollment(
+          state,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-b',
+            enrollmentId:
+              first.enrollmentId,
+            registrationRecord:
+              'record'
+          },
+          130
+        ),
+      /OPAQUE_ENROLLMENT_INVALID/
+    )
+
+    assert.throws(
+      () =>
+        opaque.finishOpaqueEnrollment(
+          state,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-a',
+            enrollmentId:
+              first.enrollmentId,
+            registrationRecord:
+              'record'
+          },
+          131
+        ),
+      /OPAQUE_ENROLLMENT_INVALID/,
+      'Uma tentativa divergente deve consumir o enrollmentId.'
+    )
+
+    const expired =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'expired@example.com',
+            deviceId:
+              'device-expired',
+            registrationRequest:
+              'registration-request'
+          },
+          200
+        )
+
+    assert.throws(
+      () =>
+        opaque.finishOpaqueEnrollment(
+          state,
+          {
+            email:
+              'expired@example.com',
+            deviceId:
+              'device-expired',
+            enrollmentId:
+              expired.enrollmentId,
+            registrationRecord:
+              'record-expired'
+          },
+          200 +
+            2 * 60 * 1000
+        ),
       /OPAQUE_ENROLLMENT_INVALID/
     )
   }
