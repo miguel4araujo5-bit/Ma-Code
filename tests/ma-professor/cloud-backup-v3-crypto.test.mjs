@@ -422,9 +422,21 @@ test(
       source,
       /localStorage|sessionStorage/
     )
+    assert.match(
+      source,
+      /createMAProfessorBackupV3KeyMaterial\(\s*exportKey:\s*string/
+    )
+    assert.match(
+      source,
+      /unwrapMAProfessorBackupV3MasterKey\(\s*exportKey:\s*string/
+    )
     assert.doesNotMatch(
       source,
-      /\bpassword\b/i
+      /\bpassword\s*:/
+    )
+    assert.doesNotMatch(
+      source,
+      /indexedDB|setItem\s*\(/
     )
   }
 )
