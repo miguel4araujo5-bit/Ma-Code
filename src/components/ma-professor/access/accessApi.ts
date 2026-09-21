@@ -119,7 +119,6 @@ async function postJson<T>(
 
 export async function requestMAProfessorAccess(
   email: string,
-  accountPassword?: string,
   plan?: RenewableLicensePlan
 ) {
   const normalizedEmail =
@@ -127,11 +126,7 @@ export async function requestMAProfessorAccess(
       .trim()
       .toLowerCase()
 
-  if (
-    typeof accountPassword !==
-      'string' &&
-    !plan
-  ) {
+  if (!plan) {
     const stored =
       readMAProfessorStoredAccess()
 
@@ -163,14 +158,6 @@ export async function requestMAProfessorAccess(
       email:
         normalizedEmail
     }
-
-  if (
-    typeof accountPassword ===
-    'string'
-  ) {
-    body.accountPassword =
-      accountPassword
-  }
 
   if (plan) {
     const stored =
@@ -220,17 +207,16 @@ export async function reportMAProfessorOperationalState(
   )
 }
 
-export async function activateMAProfessorAccess(
-  email: string,
-  password: string,
-  deviceId: string
+export async function submitMAProfessorAccessRequest(
+  email: string
 ) {
-  return postJson<MAProfessorAccessResponse>(
-    '/activate',
+  return postJson<MAProfessorAccessRequestResponse>(
+    '/request',
     {
-      email,
-      password,
-      deviceId
+      email:
+        email
+          .trim()
+          .toLowerCase()
     }
   )
 }
@@ -250,22 +236,6 @@ export async function activateMAProfessorAccessPeriod(
   )
 }
 
-export async function loginMAProfessorAccess(
-  email: string,
-  password: string,
-  deviceId: string
-) {
-  return postJson<MAProfessorAccessResponse>(
-    '/login',
-    {
-      email,
-      password,
-      deviceId
-    }
-  )
-}
-
-
 export interface MAProfessorOpaqueEnrollmentStartResponse {
   success: true
   enrollmentId: string
@@ -282,18 +252,16 @@ export interface MAProfessorOpaqueLoginStartResponse {
 
 export async function startMAProfessorOpaqueEnrollment(
   email: string,
-  password: string,
+  activationPassword: string,
   deviceId: string,
-  token: string,
   registrationRequest: string
 ) {
   return postJson<MAProfessorOpaqueEnrollmentStartResponse>(
     '/opaque/enroll/start',
     {
       email,
-      password,
+      activationPassword,
       deviceId,
-      token,
       registrationRequest
     }
   )
@@ -302,7 +270,6 @@ export async function startMAProfessorOpaqueEnrollment(
 export async function finishMAProfessorOpaqueEnrollment(
   email: string,
   deviceId: string,
-  token: string,
   enrollmentId: string,
   registrationRecord: string
 ) {
@@ -314,7 +281,6 @@ export async function finishMAProfessorOpaqueEnrollment(
     {
       email,
       deviceId,
-      token,
       enrollmentId,
       registrationRecord
     }
