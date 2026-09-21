@@ -401,8 +401,8 @@ test(
     assert.doesNotMatch(restore, /\bdownloadMAProfessorCloudBackup\(/)
     assert.match(automatic, /downloadCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(automatic, /\bdownloadMAProfessorCloudBackup\(/)
-    assert.match(automatic, /uploadAndVerifyMAProfessorCloudBackup\(/)
-    assert.doesNotMatch(automatic, /promotePreparedMAProfessorCloudBackupV3|prepareMAProfessorCloudBackupV3Promotion/)
+    assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(automatic, /promotePreparedMAProfessorCloudBackupV3|prepareMAProfessorCloudBackupV3Promotion|migrateMAProfessorCloudBackupV2ToV3/)
   }
 )
 
