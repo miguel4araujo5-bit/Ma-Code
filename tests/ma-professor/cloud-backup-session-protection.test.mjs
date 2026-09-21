@@ -490,6 +490,22 @@ test(
 )
 
 test(
+  'migration fails closed on remote revision races before promotion',
+  () => {
+    const start = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
+    const end = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup', start)
+    const migration = client.slice(start, end)
+    const conflict = migration.indexOf('legacy.serverRevision !== status.serverRevision')
+    const prepare = migration.indexOf('prepareMAProfessorCloudBackupV3Promotion')
+    const promote = migration.indexOf('promotePreparedMAProfessorCloudBackupV3')
+
+    assert.ok(conflict >= 0 && prepare > conflict && promote > prepare)
+    assert.match(migration, /legacy\.recordRevision !== expectedRecordRevision/)
+    assert.match(migration, /MAProfessorCloudBackupRevisionConflictError/)
+  }
+)
+
+test(
   'compatible download dispatches only from the declared profile crypto version',
   () => {
     const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
