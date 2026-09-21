@@ -1,42 +1,63 @@
-# MA-Professor — estado da correção de privacidade das cópias
+# MA-Professor — estado da privacidade das cópias
 
-Referência: 20/09/2026. Este documento não declara a auditoria encerrada.
+Referência: 21/09/2026.
 
-## Correções integradas
+Este documento descreve o contrato de privacidade efetivamente implementado após o fecho técnico do backup v3. Não substitui os testes nem o plano arquitetural em `MA_PROFESSOR_OPAQUE_V3_PLAN.md`.
 
-- Cópias automáticas desligadas até existir uma escolha explícita por conta e dispositivo. Falhas de leitura da preferência impedem o envio.
-- Verificação da preferência durante a preparação da cópia e imediatamente antes do envio.
-- Informação explícita de que a chave atual é gerida pelo servidor e permite à MA-CODE decifrar a cópia.
-- Aviso inicial curto, dentro do layout do produto. A explicação completa e a ativação estão em Segurança e recuperação.
-- Retenção de pedidos pendentes e rejeitados abandonados após 180 dias, com proteção de relações de acesso e comerciais. Ver limites em `MA_PROFESSOR_ACCESS_STORAGE_ARCHITECTURE.md`.
+## Estado atual
 
-## OPAQUE integrado; backup v3 ainda pendente
+- O pedido público de acesso é apenas por email.
+- A password pessoal é definida no dispositivo depois da aprovação e não é enviada nem guardada pela MA-CODE.
+- O enrollment e o login usam OPAQUE; o servidor mantém apenas o material criptográfico necessário ao protocolo, não a password pessoal.
+- A senha MP permanece separada: autoriza a ativação/licenciamento e não substitui a password pessoal nem deriva chaves de backup.
+- As cópias automáticas começam desligadas e exigem escolha explícita por conta e dispositivo.
+- A preferência é verificada durante a preparação e novamente antes do envio; falha de leitura da preferência impede o upload automático.
+- A cópia online é cifrada no dispositivo antes do envio.
+- Nas cópias com proteção v3, a OPAQUE export key, a master key e a wrapping key permanecem no cliente; o Worker/D1 recebem apenas ciphertext, envelope público de proteção, hashes e metadados/revisões.
+- Por essa razão, para uma cópia v3 a MA-CODE não guarda no servidor material suficiente para decifrar os dados.
+- A compatibilidade v2 é mantida para contas ainda não migradas. Uma cópia v2 conserva a proteção anterior até à migração explícita e atómica para v3.
+- A migração v2 -> v3 é acionada apenas pela ação manual de cópia; não ocorre por login, abertura da aplicação, restauro ou backup automático.
+- A migração preserva `serverRevision`, `recordRevision`, CAS/409 e a cópia v2 se a promoção não for concluída.
+- O endpoint legado `/key` permanece restrito a perfis v2 e não abre cópias v3.
+- Um novo login OPAQUE repõe a export key apenas em memória para permitir abrir uma cópia v3; não existe persistência dessa chave em `localStorage`, `sessionStorage`, D1 ou Durable Objects.
 
-A autenticação deixou de ser o bloqueio arquitetural inicial:
+## Contrato de texto público
 
-- o pedido público é email-only;
-- a password pessoal é criada no browser apenas depois da aprovação;
-- o enrollment e o login usam OPAQUE;
-- a password pessoal não é enviada nos payloads públicos de pedido, ativação ou login;
-- a senha MP continua separada e serve apenas para autorizar/ativar o período.
+Os textos apresentados ao professor devem distinguir claramente duas situações:
 
-Isto **não torna por si só a cópia cloud ponta-a-ponta nem zero-knowledge**.
+1. **Proteção v3** — a MA-CODE não recebe a password pessoal e não possui no servidor material suficiente para decifrar a cópia.
+2. **Compatibilidade v2** — uma conta que ainda tenha uma cópia v2 mantém temporariamente a proteção anterior até à migração explícita.
 
-O backup ativo continua na versão 2: o servidor mantém material suficiente para recuperar a chave AES da cópia através de uma sessão autorizada. O aviso de privacidade atual deve continuar a descrever essa realidade até a promoção efetiva para v3.
+Enquanto puder existir uma cópia v2, não se deve apresentar uma promessa genérica de “zero-knowledge”, “ponta-a-ponta” ou equivalente para todas as contas.
 
-O trabalho restante é do domínio do backup: usar a `exportKey` OPAQUE exclusivamente no cliente para derivar a wrapping key, criar uma master key v3 aleatória, cifrar a cópia localmente, validar o envelope e promover v2 -> v3 de forma atómica sem destruir a revisão anterior em caso de falha. O restauro noutro dispositivo com a mesma password pessoal também tem de ser validado antes de reforçar a promessa pública de privacidade.
+Também não se deve dizer que a MA-CODE “apaga a password pessoal” numa operação administrativa: a password pessoal não está guardada no servidor. A operação pode apagar o registo OPAQUE e o restante estado de autenticação associado à conta.
 
-## Contrato para implementar e validar a migração
+## Password pessoal e recuperação
 
-- Manter a password pessoal, a senha MP, a licença e o tratamento administrativo como responsabilidades distintas.
-- Manter OPAQUE conforme RFC 9807 como protocolo de autenticação estabelecido e usar derivação independente para o domínio do backup; não criar provas criptográficas próprias nem reutilizar a senha MP.
-- Criar uma nova master key aleatória no cliente. Guardar no servidor apenas essa chave cifrada com uma wrapping key derivada localmente da `exportKey` OPAQUE, com salt/contexto e parâmetros versionados.
-- Preservar o opt-in e as verificações de revisão. A migração não autoriza um novo envio de dados locais nem a substituição de uma cópia remota divergente.
-- Migrar chave e conteúdo de forma atómica, mantendo a revisão anterior utilizável até a nova cópia ter sido preparada e verificada. Prever interrupções, concorrência entre dispositivos e clientes antigos.
-- Permitir o restauro noutro dispositivo com a mesma password pessoal. Resolver explicitamente as sessões antigas e a ativação MP sem guardar a password em texto nem introduzir uma segunda password.
-- Validar password incorreta, repetição de provas, expiração de desafios, isolamento entre contas, logout, perda de armazenamento local, migração interrompida, conflito de revisão e restauro completo num dispositivo novo.
-- Informar corretamente sobre as consequências de perder a password e sobre cópias anteriores à migração. Não alterar o texto para uma promessa de cifragem ponta a ponta antes de estes percursos estarem implementados e testados.
+A comunicação pública deve manter estes pontos:
 
-## Limite desta revisão
+- a password pessoal é usada pelo protocolo OPAQUE no cliente;
+- não é enviada nem armazenada pela MA-CODE;
+- a MA-CODE não a consegue recuperar;
+- um novo login OPAQUE volta a obter localmente a export key necessária à proteção v3;
+- a senha MP serve para ativação/licenciamento e não é uma password de login;
+- perder a password pessoal impede um novo login protegido até existir um fluxo administrativo de reposição/novo enrollment, não uma recuperação da password anterior.
 
-O relatório completo dos alegados 12 achados abertos não foi disponibilizado. Não é possível atribuir-lhes estado de correção apenas a partir das referências parciais. Os achados retirados sobre enumeração e rate limiting de `/request` não justificam duplicar as proteções existentes.
+## Cópias locais
+
+As cópias JSON descarregadas para o dispositivo continuam sem cifragem própria. O aviso de segurança local deve continuar explícito: o professor deve guardar esse ficheiro apenas num local seguro.
+
+## Passo 15 — fecho de copy de privacidade
+
+Em 21/09/2026 foram revistos e alinhados os textos visíveis de:
+
+- pedido e ativação de acesso;
+- apresentação inicial;
+- Apoio Fundador/senha MP;
+- consentimento de cópia automática;
+- confirmação da configuração inicial;
+- manutenção administrativa de contas.
+
+O aviso cloud passou a descrever v3 sem esconder a compatibilidade v2. A manutenção administrativa deixou de afirmar que o servidor guarda/remove a password pessoal.
+
+O passo 15 só fica operacionalmente fechado depois de o build e a suite MA-Professor correspondentes a estas alterações passarem no CI.
