@@ -1,6 +1,6 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado: implementação em curso. A autenticação OPAQUE e o corte 12B estão integrados na `main`; o backup ativo continua v2 até à migração criptográfica dos passos seguintes.
+Estado: passo 13 implementado na `main`, sujeito ao gate final de CI. A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
 
 ## Objetivo
 
@@ -196,6 +196,23 @@ Cenário conservador de autenticação:
 Isto é < 1% do limite de 100 000 requests/dia.
 
 O risco principal é CPU por request, não volume. Argon2/key stretching deve permanecer no cliente. O spike deve medir/validar apenas as operações servidor OPAQUE no Worker antes de produção.
+
+## Fecho técnico do passo 13
+
+Implementado:
+
+- cifragem manual v3 no cliente com master key aleatória AES-256-GCM;
+- wrapping da master key a partir da OPAQUE export key via HKDF-SHA-256;
+- promoção v2 -> v3 com CAS de serverRevision e recordRevision e acoplamento transacional perfil/registo;
+- leitura, restauro e upload v3 sem acesso ao endpoint legado `/key`;
+- dispatcher compatível v2/v3 para leitura e escrita;
+- migração acionada apenas pela ação manual de cópia, nunca por login, abertura, restauro ou automático;
+- preservação do estado v3 se o upload posterior à promoção falhar;
+- novo login OPAQUE repõe a export key apenas em memória para abrir a cópia v3;
+- testes de adulteração de ciphertext, hash, wrapped master key e nonces;
+- endpoint legado `/key` permanece restrito a perfis v2.
+
+O passo só deve ser marcado operacionalmente como fechado quando o HEAD final tiver build e suite completa verdes.
 
 ## Gates antes de ativar v3
 
