@@ -580,6 +580,23 @@ function assertSessionProfile(
   return profile
 }
 
+async function readExistingProfile(
+  accountId: string,
+  env: MaProfessorCloudBackupEnv
+) {
+  const existing =
+    await readProfile(accountId, env)
+
+  if (!existing) {
+    throw new CloudBackupApiError(
+      'A proteção da cópia online não está disponível.',
+      409
+    )
+  }
+
+  return existing
+}
+
 async function ensureSessionProfile(
   accountId: string,
   env: MaProfessorCloudBackupEnv
@@ -1114,7 +1131,7 @@ async function handleStatus(
   const authenticated =
     await verifyAccessSession(body, env)
   const profile =
-    await ensureSessionProfile(
+    await readExistingProfile(
       authenticated.accountId,
       env
     )
@@ -1157,10 +1174,12 @@ async function handleKey(
   const authenticated =
     await verifyAccessSession(body, env)
   const profile =
-    await ensureSessionProfile(
+    await readExistingProfile(
       authenticated.accountId,
       env
     )
+
+  assertSessionProfile(profile)
 
   return json({
     success: true,
@@ -1190,7 +1209,7 @@ async function handleGet(
   const authenticated =
     await verifyAccessSession(body, env)
   const profile =
-    await ensureSessionProfile(
+    await readExistingProfile(
       authenticated.accountId,
       env
     )
