@@ -80,6 +80,65 @@ test(
 )
 
 
+
+test(
+  'v3 client preparation fails closed and stays local before promotion',
+  () => {
+    assert.match(
+      client,
+      /readMAProfessorOpaqueExportKey\( session\.email \)/
+    )
+    assert.match(
+      client,
+      /if \(!exportKey\) \{[\s\S]*?Inicie sessão novamente antes de migrar a cópia\./
+    )
+
+    const start = client.indexOf(
+      'export async function prepareMAProfessorCloudBackupV3Promotion'
+    )
+    const end = client.indexOf(
+      'export async function ',
+      start + 20
+    )
+    const preparation = client.slice(
+      start,
+      end === -1
+        ? client.length
+        : end
+    )
+
+    assert.ok(start >= 0)
+    assert.match(
+      preparation,
+      /zlibSync\(/
+    )
+    assert.match(
+      preparation,
+      /createMAProfessorBackupV3KeyMaterial\( exportKey \)/
+    )
+    assert.match(
+      preparation,
+      /encryptMAProfessorBackupV3Data\([\s\S]*?RECORD_ID/
+    )
+    assert.match(
+      preparation,
+      /decryptMAProfessorBackupV3Data\([\s\S]*?RECORD_ID/
+    )
+    assert.match(
+      preparation,
+      /if \(!validation\.valid\)/
+    )
+    assert.doesNotMatch(
+      preparation,
+      /postJson\(/
+    )
+    assert.doesNotMatch(
+      preparation,
+      /\/promote-v3/
+    )
+  }
+)
+
 test(
   'v3 promotion remains additive until the client migration is explicitly enabled',
   () => {
