@@ -1,6 +1,6 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado: decisão de arquitetura antes da implementação.
+Estado: implementação em curso. Passos 7 a 12 concluídos; o backup ativo continua v2 até aos passos seguintes.
 
 ## Objetivo
 
@@ -40,6 +40,24 @@ O servidor nunca recebe:
 - OPAQUE export key;
 - master key v3;
 - wrapping key v3.
+
+## Separação formal de domínios — passo 12
+
+A separação entre autenticação e backup fica explícita e protegida por testes:
+
+- OPAQUE `session_key`: pertence apenas à sessão autenticada do protocolo. O adaptador cliente não a expõe à aplicação e o Worker verifica-a no `finishServerLogin` sem a devolver nem persistir como chave da aplicação.
+- OPAQUE `export_key`: continua exclusivamente no cliente e só é disponibilizada ao MA-Professor depois de o login ou enrollment terminar no servidor.
+- Wrapping key do backup: derivada da `export_key` com HKDF-SHA-256 e `info = MA-CODE/MA-Professor/cloud-backup/v3/wrapping-key`.
+- Cifragem da master key: usa AAD `MA-CODE/MA-Professor/cloud-backup/v3/master-key-wrap`.
+- Cifragem dos dados v3: fica reservado o domínio `MA-CODE/MA-Professor/cloud-backup/v3/data`; este domínio só passa a ser usado quando a cifragem manual v3 for implementada no passo 13.
+
+Os três domínios são intencionalmente diferentes. A master key aleatória do backup não é a OPAQUE `session_key` nem a OPAQUE `export_key`.
+
+O contrato `tests/ma-professor/crypto-domain-separation.test.mjs` impede regressões em que:
+- a `exportKey` passe a aparecer no Worker;
+- a OPAQUE `sessionKey` passe a escapar dos adaptadores;
+- a aplicação receba a `exportKey` antes da conclusão do protocolo;
+- os domínios de HKDF, wrapping e dados sejam reutilizados por engano.
 
 ## Estrutura v3 do backup
 
