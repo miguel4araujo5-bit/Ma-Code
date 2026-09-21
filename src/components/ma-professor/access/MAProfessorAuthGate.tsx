@@ -21,9 +21,11 @@ import {
 
 import {
   MA_PROFESSOR_ACCESS_SESSION_EVENT,
+  clearMAProfessorOpaqueExportKey,
   clearMAProfessorStoredAccess,
   getOrCreateMAProfessorDeviceId,
   readMAProfessorStoredAccess,
+  saveMAProfessorOpaqueExportKey,
   saveMAProfessorStoredAccess
 } from './accessStorage'
 
@@ -476,7 +478,8 @@ export default function MAProfessorAuthGate({
           getOrCreateMAProfessorDeviceId()
 
         const {
-          response
+          response,
+          exportKey
         } =
           await loginMAProfessorPreferOpaque(
             normalizedEmail,
@@ -489,6 +492,15 @@ export default function MAProfessorAuthGate({
           deviceId,
           normalizedEmail
         )
+
+        if (exportKey) {
+          saveMAProfessorOpaqueExportKey(
+            normalizedEmail,
+            exportKey
+          )
+        } else {
+          clearMAProfessorOpaqueExportKey()
+        }
 
         setStoredAccess(
           readMAProfessorStoredAccess()
