@@ -808,8 +808,7 @@ export class MaProfessorAccessDurableObject {
 
     const activationPassword =
       normalizePassword(
-        body.activationPassword ??
-        body.password
+        body.activationPassword
       )
 
     const deviceId =
@@ -909,8 +908,7 @@ export class MaProfessorAccessDurableObject {
           body:
             JSON.stringify({
               email,
-              password:
-                activationPassword,
+              activationPassword,
               deviceId
             })
         }
