@@ -391,7 +391,7 @@ test('revoking the choice while encryption is in progress prevents push; manual 
       revision++
       return Response.json({ success: true, serverRevision: revision, recordRevision: revision, updatedAt: '2026-09-20T12:00:00Z' })
     }
-    if (path === 'get') return Response.json({ success: true, found: true, recordId: 'database-v1', serverRevision: revision, recordRevision: revision, updatedAt: '2026-09-20T12:00:00Z', encrypted })
+    if (path === 'get') return Response.json({ success: true, found: true, recordId: 'database-v1', serverRevision: revision, cryptoVersion: 2, recordRevision: revision, updatedAt: '2026-09-20T12:00:00Z', encrypted })
     throw new Error(`Unexpected route: ${path}`)
   })
   const backup = { product: 'ma-professor', data: { students: [{ name: 'Private student' }] } }
