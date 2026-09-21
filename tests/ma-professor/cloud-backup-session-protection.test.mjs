@@ -392,6 +392,26 @@ test(
 )
 
 test(
+  'v3 client upload unwraps locally, uses push-v3 and verifies by downloading v3',
+  () => {
+    const start = client.indexOf('export async function uploadAndVerifyMAProfessorCloudBackupV3')
+    const end = client.indexOf('export async function uploadAndVerifyMAProfessorCloudBackup(', start)
+    const upload = client.slice(start, end)
+
+    assert.match(upload, /await readStatus\(session\)/)
+    assert.match(upload, /status\.cryptoVersion !== 3/)
+    assert.match(upload, /readMAProfessorOpaqueExportKey\(session\.email\)/)
+    assert.match(upload, /unwrapMAProfessorBackupV3MasterKey\(exportKey, status\.protection\)/)
+    assert.match(upload, /encryptMAProfessorBackupV3Data\(masterKey, compressed, RECORD_ID\)/)
+    assert.match(upload, /postJson\('\/push-v3'/)
+    assert.match(upload, /expectedRecordRevision: status\.backup\.recordRevision/)
+    assert.match(upload, /downloadMAProfessorCloudBackupV3\(session\)/)
+    assert.match(upload, /verified\.plaintextHash !== plaintextHash/)
+    assert.doesNotMatch(upload, /importBackupKey|readKey|\/key/)
+  }
+)
+
+test(
   'v2 to v3 migration stays explicit and verifies the promoted copy before returning',
   () => {
     const start = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
