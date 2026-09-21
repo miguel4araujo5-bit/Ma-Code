@@ -167,6 +167,18 @@ test(
     )
     assert.match(
       promote,
+      /parseExpectedRevision\( body\.expectedRecordRevision \)/
+    )
+    assert.match(
+      promote,
+      /currentRecordRevision !== expectedRecordRevision/
+    )
+    assert.match(
+      promote,
+      /nextRecordRevision = expectedRecordRevision \+ 1/
+    )
+    assert.match(
+      promote,
       /MA_PROFESSOR_DB\.batch\(\[/
     )
     assert.match(
