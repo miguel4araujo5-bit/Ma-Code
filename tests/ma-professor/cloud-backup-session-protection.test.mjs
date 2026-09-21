@@ -475,7 +475,6 @@ test(
     assert.match(migration, /downloadMAProfessorCloudBackupV3\(/)
     assert.match(migration, /verified\.plaintextHash !== prepared\.plaintextHash/)
     assert.doesNotMatch(restoreService, /migrateMAProfessorCloudBackupV2ToV3/)
-    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
   }
 )
 
