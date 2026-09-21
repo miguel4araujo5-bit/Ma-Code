@@ -1250,6 +1250,75 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   }
 }
 
+export async function migrateMAProfessorCloudBackupV2ToV3(
+  session: MAProfessorAccessSession
+): Promise<MAProfessorDownloadedCloudBackup | null> {
+  const status =
+    await readStatus(session)
+
+  if (status.cryptoVersion !== 2) {
+    throw new Error(
+      'A migração v3 só pode começar a partir de uma cópia v2 válida.'
+    )
+  }
+
+  if (!status.backup.found) {
+    return null
+  }
+
+  const legacy =
+    await downloadMAProfessorCloudBackup(
+      session
+    )
+
+  if (!legacy) {
+    throw new MAProfessorCloudBackupRevisionConflictError(
+      'A cópia v2 deixou de estar disponível durante a preparação da migração.'
+    )
+  }
+
+  if (
+    legacy.serverRevision !== status.serverRevision ||
+    legacy.recordRevision !== status.backup.recordRevision
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError(
+      'A cópia v2 mudou durante a preparação da migração.'
+    )
+  }
+
+  const prepared =
+    await prepareMAProfessorCloudBackupV3Promotion(
+      session,
+      legacy.backup
+    )
+
+  const promoted =
+    await promotePreparedMAProfessorCloudBackupV3(
+      session,
+      prepared,
+      legacy.serverRevision,
+      legacy.recordRevision
+    )
+
+  const verified =
+    await downloadMAProfessorCloudBackupV3(
+      session
+    )
+
+  if (
+    !verified ||
+    verified.serverRevision !== promoted.serverRevision ||
+    verified.recordRevision !== promoted.recordRevision ||
+    verified.plaintextHash !== prepared.plaintextHash
+  ) {
+    throw new Error(
+      'A promoção v3 terminou, mas a verificação local da cópia promovida não corresponde aos dados preparados.'
+    )
+  }
+
+  return verified
+}
+
 export async function downloadCompatibleMAProfessorCloudBackup(
   session: MAProfessorAccessSession
 ): Promise<MAProfessorDownloadedCloudBackup | null> {
