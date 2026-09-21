@@ -22,6 +22,13 @@ let memoryAccess:
 let memoryDeviceId:
   string | null = null
 
+let memoryOpaqueExportKey:
+  {
+    email: string
+    exportKey: string
+  } |
+  null = null
+
 function notifySessionChange() {
   if (
     typeof window !==
@@ -266,8 +273,63 @@ export function saveMAProfessorStoredAccess(
   notifySessionChange()
 }
 
+export function saveMAProfessorOpaqueExportKey(
+  email: string,
+  exportKey: string
+) {
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase()
+
+  const normalizedExportKey =
+    exportKey.trim()
+
+  if (
+    !normalizedEmail ||
+    !normalizedExportKey
+  ) {
+    memoryOpaqueExportKey =
+      null
+    return
+  }
+
+  memoryOpaqueExportKey = {
+    email:
+      normalizedEmail,
+    exportKey:
+      normalizedExportKey
+  }
+}
+
+export function readMAProfessorOpaqueExportKey(
+  email: string
+) {
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase()
+
+  if (
+    !memoryOpaqueExportKey ||
+    memoryOpaqueExportKey.email !==
+      normalizedEmail
+  ) {
+    return null
+  }
+
+  return memoryOpaqueExportKey
+    .exportKey
+}
+
+export function clearMAProfessorOpaqueExportKey() {
+  memoryOpaqueExportKey =
+    null
+}
+
 export function clearMAProfessorStoredAccess() {
   memoryAccess = null
+  clearMAProfessorOpaqueExportKey()
 
   removeStoredValue(
     ACCESS_STORAGE_KEY
