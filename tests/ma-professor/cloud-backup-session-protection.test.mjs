@@ -447,6 +447,18 @@ test(
 )
 
 test(
+  'legacy key endpoint remains v2-only after a profile is promoted to v3',
+  () => {
+    const start = worker.indexOf('async function handleKey')
+    const end = worker.indexOf('async function handleGet', start)
+    const keyHandler = worker.slice(start, end)
+    assert.match(keyHandler, /assertSessionProfile\(profile\)/)
+    assert.match(worker, /profile\.crypto_version !== CRYPTO_VERSION/)
+    assert.match(worker, /const CRYPTO_VERSION = 2/)
+  }
+)
+
+test(
   'v3 automatic writer fails on stale CAS instead of overwriting a newer remote copy',
   () => {
     const start = worker.indexOf('async function handlePushV3')
