@@ -1383,7 +1383,7 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   }
 }
 
-// A migração permanece explícita: nunca é acionada por login, restauro ou abertura da aplicação.
+// A migração permanece explícita e exclusiva da ação manual: nunca é acionada por login, restauro ou abertura da aplicação.
 export async function migrateMAProfessorCloudBackupV2ToV3(
   session: MAProfessorAccessSession
 ): Promise<MAProfessorDownloadedCloudBackup | null> {
