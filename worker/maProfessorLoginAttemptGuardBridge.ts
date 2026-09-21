@@ -340,12 +340,16 @@ function getConnectingIp(
     .slice(0, 64)
 }
 
-function createGenericLoginFailure() {
+function createGenericLoginFailure(
+  opaque = false
+) {
   return json(
     {
       success: false,
       message:
-        'Email ou password pessoal incorretos.'
+        opaque
+          ? 'Não foi possível iniciar sessão com estas credenciais.'
+          : 'Email ou password pessoal incorretos.'
     },
     401
   )
@@ -427,6 +431,15 @@ export class MaProfessorAccessDurableObject {
   private async handleLogin(
     request: Request
   ) {
+    const pathname =
+      new URL(
+        request.url
+      ).pathname
+
+    const opaque =
+      pathname ===
+        PUBLIC_OPAQUE_LOGIN_FINISH_PATH
+
     const body =
       await readRequestBody(
         request
@@ -510,7 +523,9 @@ export class MaProfessorAccessDurableObject {
       !guardState ||
       !originKey
     ) {
-      return createGenericLoginFailure()
+      return createGenericLoginFailure(
+        opaque
+      )
     }
 
     const now =
@@ -539,7 +554,9 @@ export class MaProfessorAccessDurableObject {
       guardState
     )
 
-    return createGenericLoginFailure()
+    return createGenericLoginFailure(
+        opaque
+      )
   }
 
   private async handleRequest(
