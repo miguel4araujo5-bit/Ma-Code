@@ -176,65 +176,6 @@ function prunePendingEnrollments(
 }
 
 
-function prunePendingEnrollments(
-  state:
-    MAProfessorOpaqueAuthState,
-  now: number
-) {
-  for (
-    const [id, pending] of
-    Object.entries(
-      state.pendingEnrollments
-    )
-  ) {
-    if (
-      pending.expiresAt <=
-        now
-    ) {
-      delete state
-        .pendingEnrollments[
-          id
-        ]
-    }
-  }
-
-  const entries =
-    Object.entries(
-      state.pendingEnrollments
-    )
-
-  if (
-    entries.length <
-      MAX_PENDING_ENROLLMENTS
-  ) {
-    return
-  }
-
-  entries
-    .sort(
-      (
-        left,
-        right
-      ) =>
-        left[1].createdAt -
-        right[1].createdAt
-    )
-    .slice(
-      0,
-      entries.length -
-        MAX_PENDING_ENROLLMENTS +
-        1
-    )
-    .forEach(
-      ([id]) => {
-        delete state
-          .pendingEnrollments[
-            id
-          ]
-      }
-    )
-}
-
 function prunePendingLogins(
   state:
     MAProfessorOpaqueAuthState,
@@ -347,11 +288,6 @@ export function startOpaqueEnrollment(
     normalizeEmail(
       input.email
     )
-
-  const deviceId =
-    input.deviceId
-      .trim()
-      .slice(0, 180)
 
   const deviceId =
     input.deviceId
