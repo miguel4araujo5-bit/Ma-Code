@@ -210,6 +210,25 @@ test(
     assert.equal(versionCas.length, 2)
     assert.equal(kdfCas.length, 2)
     assert.equal(wrapCas.length, 2)
+    const firstWrite =
+      promote.indexOf(
+        'INSERT INTO ma_professor_encrypted_records'
+      )
+    const profileWrite =
+      promote.indexOf(
+        'UPDATE ma_professor_sync_profiles'
+      )
+
+    assert.ok(firstWrite >= 0)
+    assert.ok(profileWrite > firstWrite)
+    assert.match(
+      promote,
+      /if \(!recordChanged \|\| !profileChanged\)/
+    )
+    assert.match(
+      promote,
+      /A promoção segura da cópia v3 não foi concluída\. A proteção anterior foi preservada\./
+    )
 
     assert.match(
       promote,
