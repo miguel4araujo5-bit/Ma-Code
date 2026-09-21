@@ -370,6 +370,25 @@ test(
 )
 
 test(
+  'v2 to v3 migration stays explicit and verifies the promoted copy before returning',
+  () => {
+    const start = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
+    const end = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup', start)
+    const migration = client.slice(start, end)
+
+    assert.match(migration, /await readStatus\(session\)/)
+    assert.match(migration, /status\.cryptoVersion !== 2/)
+    assert.match(migration, /downloadMAProfessorCloudBackup\(/)
+    assert.match(migration, /prepareMAProfessorCloudBackupV3Promotion\(/)
+    assert.match(migration, /promotePreparedMAProfessorCloudBackupV3\(/)
+    assert.match(migration, /downloadMAProfessorCloudBackupV3\(/)
+    assert.match(migration, /verified\.plaintextHash !== prepared\.plaintextHash/)
+    assert.doesNotMatch(restoreService, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
+  }
+)
+
+test(
   'compatible download dispatches only from the declared profile crypto version',
   () => {
     const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
