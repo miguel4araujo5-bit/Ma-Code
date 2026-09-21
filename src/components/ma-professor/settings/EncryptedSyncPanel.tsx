@@ -13,6 +13,7 @@ import {
 
 import {
   inspectMAProfessorCloudBackup,
+  migrateMAProfessorCloudBackupV2ToV3,
   uploadAndVerifyCompatibleMAProfessorCloudBackup,
   type MAProfessorCloudBackupStatus
 } from '../sync/cloudBackupService'
@@ -167,6 +168,20 @@ export function EncryptedSyncPanel() {
       setFeedback(null)
 
       try {
+        const currentStatus =
+          await inspectMAProfessorCloudBackup(
+            session
+          )
+
+        if (
+          currentStatus.cryptoVersion === 2 &&
+          currentStatus.backup.found
+        ) {
+          await migrateMAProfessorCloudBackupV2ToV3(
+            session
+          )
+        }
+
         const backup =
           await createMAProfessorBackup()
 
