@@ -419,44 +419,26 @@ async function createCredential(
 
 async function createStorage({
   email,
-  password,
-  deviceId,
-  token
+  activationPassword
 }) {
-  const tokenHash =
-    await hashSessionToken(
-      token
-    )
-
   return new MemoryStorage({
     [ACCESS_KEY]: {
-      sessions: {
-        [tokenHash]: {
-          tokenHash,
+      sessions:
+        {},
+      accessRequests: {
+        [email]: {
           email,
-          deviceId,
-          createdAt:
-            1,
-          lastSeenAt:
-            1,
-          revokedAt:
+          activatedAt:
             null
         }
       },
-      updatedAt:
-        1
-    },
-    [ACCOUNT_AUTH_KEY]: {
-      schemaVersion: 1,
       credentials: {
         [email]:
           await createCredential(
             email,
-            password
+            activationPassword
           )
       },
-      createdAt:
-        1,
       updatedAt:
         1
     }
@@ -509,7 +491,7 @@ async function responseBody(
 }
 
 test(
-  'v2 authenticated account can complete OPAQUE enrollment without deleting the v2 credential',
+  'valid MP activation secret can authorize first OPAQUE enrollment without a personal password payload',
   async t => {
     const staged =
       await stageAuthBridge()
@@ -520,25 +502,16 @@ test(
 
     const email =
       'teacher@example.com'
-    const password =
-      'Personal-pass-123!'
+    const activationPassword =
+      'MP-TEST-1234'
     const deviceId =
       'device-opaque-01'
-    const token =
-      'session-token-opaque-01'
 
     const storage =
       await createStorage({
         email,
-        password,
-        deviceId,
-        token
+        activationPassword
       })
-
-    const beforeCredential =
-      storage.snapshot(
-        ACCOUNT_AUTH_KEY
-      ).credentials[email]
 
     const access =
       createAccess(
@@ -552,9 +525,8 @@ test(
           '/api/ma-professor/access/opaque/enroll/start',
           {
             email,
-            password,
+            activationPassword,
             deviceId,
-            token,
             registrationRequest:
               'client-registration-request'
           }
@@ -603,7 +575,6 @@ test(
           {
             email,
             deviceId,
-            token,
             enrollmentId:
               startBody.enrollmentId,
             registrationRecord:
@@ -630,15 +601,16 @@ test(
         .registrationRecord,
       'opaque-registration-record'
     )
+
     assert.equal(
       opaqueState
         .registrations[
           email
         ]
-        .migratedFromV2At >
-        0,
-      true
+        .migratedFromV2At,
+      null
     )
+
     assert.equal(
       Object.keys(
         opaqueState
@@ -646,19 +618,11 @@ test(
       ).length,
       0
     )
-
-    assert.deepEqual(
-      storage.snapshot(
-        ACCOUNT_AUTH_KEY
-      ).credentials[email],
-      beforeCredential,
-      'O enrollment v3 não pode apagar a credencial v2 antes do login OPAQUE estar comprovado.'
-    )
   }
 )
 
 test(
-  'wrong personal password cannot create OPAQUE enrollment state',
+  'wrong MP activation secret cannot create OPAQUE enrollment state',
   async t => {
     const staged =
       await stageAuthBridge()
@@ -669,18 +633,12 @@ test(
 
     const email =
       'teacher@example.com'
-    const deviceId =
-      'device-opaque-02'
-    const token =
-      'session-token-opaque-02'
 
     const storage =
       await createStorage({
         email,
-        password:
-          'correct-password',
-        deviceId,
-        token
+        activationPassword:
+          'MP-CORRECT-1234'
       })
 
     const access =
@@ -695,10 +653,10 @@ test(
           '/api/ma-professor/access/opaque/enroll/start',
           {
             email,
-            password:
-              'wrong-password',
-            deviceId,
-            token,
+            activationPassword:
+              'MP-WRONG-9999',
+            deviceId:
+              'device-opaque-02',
             registrationRequest:
               'client-registration-request'
           }
@@ -709,12 +667,14 @@ test(
       response.status,
       401
     )
+
     assert.equal(
       storage.snapshot(
         OPAQUE_KEY
       ),
       undefined
     )
+
     assert.equal(
       staged
         .opaqueRuntime
@@ -726,7 +686,7 @@ test(
 )
 
 test(
-  'OPAQUE enrollment token is bound to the original account and device',
+  'OPAQUE enrollment finish is bound to the device and consumes a mismatched challenge',
   async t => {
     const staged =
       await stageAuthBridge()
@@ -737,19 +697,15 @@ test(
 
     const email =
       'teacher@example.com'
-    const password =
-      'correct-password'
+    const activationPassword =
+      'MP-BOUND-1234'
     const deviceId =
       'device-opaque-03'
-    const token =
-      'session-token-opaque-03'
 
     const storage =
       await createStorage({
         email,
-        password,
-        deviceId,
-        token
+        activationPassword
       })
 
     const access =
@@ -758,53 +714,121 @@ test(
         storage
       )
 
-    const wrongDevice =
+    const started =
       await access.fetch(
         post(
           '/api/ma-professor/access/opaque/enroll/start',
           {
             email,
-            password,
-            deviceId:
-              'other-device',
-            token,
+            activationPassword,
+            deviceId,
             registrationRequest:
               'client-registration-request'
           }
         )
       )
 
-    assert.equal(
-      wrongDevice.status,
-      401
-    )
+    const startBody =
+      await responseBody(
+        started
+      )
 
-    const wrongEmail =
+    const mismatch =
       await access.fetch(
         post(
-          '/api/ma-professor/access/opaque/enroll/start',
+          '/api/ma-professor/access/opaque/enroll/finish',
           {
-            email:
-              'other@example.com',
-            password,
-            deviceId,
-            token,
-            registrationRequest:
-              'client-registration-request'
+            email,
+            deviceId:
+              'other-device',
+            enrollmentId:
+              startBody.enrollmentId,
+            registrationRecord:
+              'opaque-registration-record'
           }
         )
       )
 
     assert.equal(
-      wrongEmail.status,
+      mismatch.status,
       401
     )
 
+    const replay =
+      await access.fetch(
+        post(
+          '/api/ma-professor/access/opaque/enroll/finish',
+          {
+            email,
+            deviceId,
+            enrollmentId:
+              startBody.enrollmentId,
+            registrationRecord:
+              'opaque-registration-record'
+          }
+        )
+      )
+
     assert.equal(
-      storage.snapshot(
-        OPAQUE_KEY
-      ),
-      undefined
+      replay.status,
+      401
+    )
+  }
+)
+
+test(
+  'activation cannot complete before OPAQUE registration exists',
+  async t => {
+    const staged =
+      await stageAuthBridge()
+
+    t.after(
+      staged.dispose
+    )
+
+    const email =
+      'teacher@example.com'
+    const activationPassword =
+      'MP-FIRST-1234'
+
+    const storage =
+      await createStorage({
+        email,
+        activationPassword
+      })
+
+    const access =
+      createAccess(
+        staged.runtime,
+        storage
+      )
+
+    const response =
+      await access.fetch(
+        post(
+          '/api/ma-professor/access/activate',
+          {
+            email,
+            activationPassword,
+            deviceId:
+              'device-first-activation'
+          }
+        )
+      )
+
+    assert.equal(
+      response.status,
+      409
+    )
+
+    const payload =
+      await responseBody(
+        response
+      )
+
+    assert.match(
+      payload.message,
+      /Crie primeiro a sua password pessoal/
     )
   }
 )
