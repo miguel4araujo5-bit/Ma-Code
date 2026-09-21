@@ -236,7 +236,7 @@ export default function FounderAccessOffer({
         </p>
 
         <p className="mt-2 text-xs leading-5 text-slate-400">
-          Se já recebeu uma senha MP-..., pode utilizá-la aqui. A sua password pessoal continua a ser utilizada apenas para entrar na conta.
+          Se já recebeu uma senha MP-..., pode utilizá-la aqui. A senha MP serve apenas para ativar o período. A sua password pessoal é usada no login protegido e nunca é enviada à MA-CODE.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
