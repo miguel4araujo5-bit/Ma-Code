@@ -507,6 +507,8 @@ test(
           {
             email:
               'known@example.com',
+            deviceId:
+              'device-123',
             loginId:
               started.loginId,
             finishLoginRequest:
@@ -601,6 +603,8 @@ test(
         {
           email:
             'missing@example.com',
+          deviceId:
+            'device-missing',
           loginId:
             unknown.loginId,
           finishLoginRequest:
@@ -634,6 +638,8 @@ test(
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-known',
           loginId:
             wrong.loginId,
           finishLoginRequest:
@@ -651,6 +657,8 @@ test(
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-known',
           loginId:
             wrong.loginId,
           finishLoginRequest:
@@ -685,6 +693,8 @@ test(
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-known',
           loginId:
             expired.loginId,
           finishLoginRequest:
@@ -694,6 +704,107 @@ test(
           2 * 60 * 1000
       ),
       null
+    )
+  }
+)
+
+test(
+  'OPAQUE finish binds the proof to the device used at login start and consumes a mismatched challenge',
+  () => {
+    const runtime =
+      fakeRuntime()
+
+    const state =
+      opaque
+        .createFreshOpaqueAuthState(
+          100
+        )
+
+    const enrollment =
+      opaque
+        .startOpaqueEnrollment(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-seed',
+            registrationRequest:
+              'seed-registration'
+          },
+          105
+        )
+
+    opaque
+      .finishOpaqueEnrollment(
+        state,
+        {
+          email:
+            'known@example.com',
+          deviceId:
+            'device-seed',
+          enrollmentId:
+            enrollment.enrollmentId,
+          registrationRecord:
+            'known-record'
+        },
+        110
+      )
+
+    const started =
+      opaque
+        .startOpaqueLogin(
+          state,
+          runtime,
+          {
+            email:
+              'known@example.com',
+            deviceId:
+              'device-known',
+            startLoginRequest:
+              'start-device-binding'
+          },
+          120
+        )
+
+    assert.equal(
+      opaque.finishOpaqueLogin(
+        state,
+        runtime,
+        {
+          email:
+            'known@example.com',
+          deviceId:
+            'device-other',
+          loginId:
+            started.loginId,
+          finishLoginRequest:
+            'proof:known-record'
+        },
+        130
+      ),
+      null
+    )
+
+    assert.equal(
+      opaque.finishOpaqueLogin(
+        state,
+        runtime,
+        {
+          email:
+            'known@example.com',
+          deviceId:
+            'device-known',
+          loginId:
+            started.loginId,
+          finishLoginRequest:
+            'proof:known-record'
+        },
+        131
+      ),
+      null,
+      'Um challenge com dispositivo divergente deve ficar consumido e não pode ser reutilizado.'
     )
   }
 )
@@ -765,6 +876,8 @@ test(
         {
           email:
             'other@example.com',
+          deviceId:
+            'device-known',
           loginId:
             started.loginId,
           finishLoginRequest:
@@ -782,6 +895,8 @@ test(
         {
           email:
             'known@example.com',
+          deviceId:
+            'device-known',
           loginId:
             started.loginId,
           finishLoginRequest:
