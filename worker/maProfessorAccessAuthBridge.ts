@@ -10,9 +10,13 @@ import {
 import {
   MA_PROFESSOR_OPAQUE_ENROLL_FINISH_PATH,
   MA_PROFESSOR_OPAQUE_ENROLL_START_PATH,
+  MA_PROFESSOR_OPAQUE_LOGIN_FINISH_PATH,
+  MA_PROFESSOR_OPAQUE_LOGIN_START_PATH,
   createOpaqueAuthProtocolState,
   finishOpaqueEnrollment,
-  startOpaqueEnrollment
+  finishOpaqueLogin,
+  startOpaqueEnrollment,
+  startOpaqueLogin
 } from './maProfessorOpaqueAuthProtocol'
 
 import {
@@ -1556,6 +1560,267 @@ export class MaProfessorAccessDurableObject {
     }
   }
 
+  private async handleOpaqueLoginStart(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Pedido OPAQUE de login inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const deviceId =
+      normalizeDeviceId(
+        body.deviceId
+      )
+
+    const startLoginRequest =
+      normalizeOpaquePayload(
+        body.startLoginRequest
+      )
+
+    if (
+      !isValidEmail(
+        email
+      ) ||
+      !deviceId ||
+      !startLoginRequest
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Pedido OPAQUE de login inválido.'
+        },
+        400
+      )
+    }
+
+    const opaqueState =
+      createOpaqueAuthProtocolState(
+        await this.state.storage.get<MAProfessorOpaqueAuthState>(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+        )
+      )
+
+    try {
+      const runtime =
+        await getMAProfessorOpaqueServerRuntime()
+
+      const started =
+        startOpaqueLogin(
+          opaqueState,
+          runtime,
+          {
+            email,
+            deviceId,
+            startLoginRequest
+          }
+        )
+
+      await this.state.storage.put(
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+        opaqueState
+      )
+
+      return json({
+        success:
+          true,
+        loginId:
+          started.loginId,
+        loginResponse:
+          started.loginResponse,
+        expiresAt:
+          new Date(
+            started.expiresAt
+          ).toISOString()
+      })
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não foi possível iniciar a autenticação protegida.'
+        },
+        500
+      )
+    }
+  }
+
+  private async handleOpaqueLoginFinish(
+    request: Request
+  ) {
+    if (
+      request.method !==
+        'POST'
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow:
+            'POST'
+        }
+      )
+    }
+
+    let body:
+      JsonObject
+
+    try {
+      body =
+        await readJson(
+          request
+        )
+    } catch {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não foi possível iniciar sessão com estas credenciais.'
+        },
+        401
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const deviceId =
+      normalizeDeviceId(
+        body.deviceId
+      )
+
+    const loginId =
+      normalizeOpaquePayload(
+        body.loginId
+      )
+
+    const finishLoginRequest =
+      normalizeOpaquePayload(
+        body.finishLoginRequest
+      )
+
+    if (
+      !isValidEmail(
+        email
+      ) ||
+      !deviceId ||
+      !loginId ||
+      !finishLoginRequest
+    ) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não foi possível iniciar sessão com estas credenciais.'
+        },
+        401
+      )
+    }
+
+    const opaqueState =
+      createOpaqueAuthProtocolState(
+        await this.state.storage.get<MAProfessorOpaqueAuthState>(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
+        )
+      )
+
+    let authenticated:
+      ReturnType<
+        typeof finishOpaqueLogin
+      > =
+      null
+
+    try {
+      const runtime =
+        await getMAProfessorOpaqueServerRuntime()
+
+      authenticated =
+        finishOpaqueLogin(
+          opaqueState,
+          runtime,
+          {
+            email,
+            deviceId,
+            loginId,
+            finishLoginRequest
+          }
+        )
+    } finally {
+      await this.state.storage.put(
+        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+        opaqueState
+      )
+    }
+
+    if (!authenticated) {
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Não foi possível iniciar sessão com estas credenciais.'
+        },
+        401
+      )
+    }
+
+    return this.issueAccountSession(
+      authenticated.email,
+      authenticated.deviceId
+    )
+  }
+
   private async issueAccountSession(
     email: string,
     deviceId: string
@@ -2401,6 +2666,24 @@ export class MaProfessorAccessDurableObject {
         MA_PROFESSOR_OPAQUE_ENROLL_FINISH_PATH
     ) {
       return this.handleOpaqueEnrollmentFinish(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+        MA_PROFESSOR_OPAQUE_LOGIN_START_PATH
+    ) {
+      return this.handleOpaqueLoginStart(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
+        MA_PROFESSOR_OPAQUE_LOGIN_FINISH_PATH
+    ) {
+      return this.handleOpaqueLoginFinish(
         request
       )
     }
