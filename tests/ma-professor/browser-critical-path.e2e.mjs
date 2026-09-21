@@ -515,7 +515,7 @@ async function configureMinimumSetup(page) {
     name: 'Adicionar UFCD / módulo',
     exact: true
   }).click()
-  await waitText(page, 'UFCD ou módulo aplicado a 1 turma.')
+  await page.getByText('10385 — Expressão Dramática', { exact: true }).last().waitFor({ state: 'visible', timeout: 20_000 })
   await page.getByRole('button', {
     name: 'Continuar para o horário semanal',
     exact: true
