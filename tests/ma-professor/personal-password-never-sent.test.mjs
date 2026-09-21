@@ -285,7 +285,7 @@ test(
 
     assert.match(
       backupPreferenceSource,
-      /Nas cópias com proteção v3[\s\S]*?não recebe a sua password pessoal[\s\S]*?não guarda no servidor o material necessário para decifrar os dados/
+      /Nas cópias com proteção v3[\s\S]*?não recebe a sua password pessoal[\s\S]*?nem guarda no servidor o material necessário para decifrar os dados/
     )
     assert.match(
       backupPreferenceSource,
