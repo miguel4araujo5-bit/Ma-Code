@@ -2071,279 +2071,42 @@ export class MaProfessorAccessDurableObject {
   ) {
     if (
       request.method !==
-      'POST'
+        'POST'
     ) {
       return this.existing.fetch(
         request
       )
     }
 
-    let requestBody:
-      JsonObject
-
     try {
-      requestBody =
+      const requestBody =
         await readJson(
           request.clone()
         )
+
+      if (
+        'accountPassword' in
+          requestBody
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'O fluxo antigo de password pessoal foi descontinuado. A password é criada apenas no dispositivo durante a ativação protegida.'
+          },
+          400
+        )
+      }
     } catch {
       return this.existing.fetch(
         request
       )
     }
 
-    const requestedEmail =
-      normalizeEmail(
-        requestBody.email
-      )
-
-    const accountPassword =
-      normalizePassword(
-        requestBody.accountPassword
-      )
-
-    const shouldDefinePersonalPassword =
-      accountPassword.length >
-      0
-
-    let authState:
-      StoredAccountAuthState |
-      null =
-      null
-
-    if (
-      shouldDefinePersonalPassword
-    ) {
-      if (
-        !isValidEmail(
-          requestedEmail
-        )
-      ) {
-        return json(
-          {
-            success:
-              false,
-            message:
-              'Introduza um endereço de email válido.'
-          },
-          400
-        )
-      }
-
-      if (
-        !isValidPersonalPassword(
-          accountPassword
-        )
-      ) {
-        return json(
-          {
-            success:
-              false,
-            message:
-              'A password pessoal deve ter entre 6 e 128 caracteres.'
-          },
-          400
-        )
-      }
-
-      authState =
-        normalizeAccountAuthState(
-          await this.state.storage.get<StoredAccountAuthState>(
-            ACCOUNT_AUTH_STORAGE_KEY
-          )
-        )
-
-      const existingCredential =
-        authState.credentials[
-          requestedEmail
-        ]
-
-      if (
-        existingCredential
-      ) {
-        const passwordMatches =
-          await verifyAccountPassword(
-            existingCredential,
-            accountPassword
-          )
-
-        if (
-          !passwordMatches
-        ) {
-          return json(
-            {
-              success:
-                false,
-              message:
-                'Já existe uma password pessoal definida para esta conta. Introduza a mesma password pessoal ou utilize “Já tenho acesso”.'
-            },
-            409
-          )
-        }
-      }
-    }
-
-    let delegatedRequest =
+    return this.existing.fetch(
       request
-
-    if (
-      shouldDefinePersonalPassword
-    ) {
-      const delegatedHeaders =
-        new Headers(
-          request.headers
-        )
-
-      delegatedHeaders.delete(
-        'content-length'
-      )
-
-      delegatedHeaders.set(
-        'Content-Type',
-        'application/json'
-      )
-
-      delegatedRequest =
-        new Request(
-          request.url,
-          {
-            method:
-              'POST',
-            headers:
-              delegatedHeaders,
-            body:
-              JSON.stringify({
-                email:
-                  requestedEmail
-              })
-          }
-        )
-    }
-
-    const response =
-      await this.existing.fetch(
-        delegatedRequest
-      )
-
-    if (
-      !response.ok
-    ) {
-      return response
-    }
-
-    const body =
-      await readResponseJson(
-        response
-      )
-
-    if (
-      !body ||
-      body.success !==
-        true
-    ) {
-      return response
-    }
-
-    const requestSummary =
-      body.request &&
-      typeof body.request ===
-        'object' &&
-      !Array.isArray(
-        body.request
-      )
-        ? body.request as JsonObject
-        : null
-
-    const email =
-      normalizeEmail(
-        requestSummary?.email ??
-        requestedEmail
-      )
-
-    if (
-      !email
-    ) {
-      return response
-    }
-
-    if (
-      !authState
-    ) {
-      authState =
-        normalizeAccountAuthState(
-          await this.state.storage.get<StoredAccountAuthState>(
-            ACCOUNT_AUTH_STORAGE_KEY
-          )
-        )
-    }
-
-    const requestStatus =
-      requestSummary?.status
-
-    if (
-      shouldDefinePersonalPassword &&
-      (
-        requestStatus ===
-          'pending' ||
-        requestStatus ===
-          'approved'
-      ) &&
-      !authState.credentials[
-        email
-      ]
-    ) {
-      authState.credentials[
-        email
-      ] =
-        await createAccountCredential(
-          email,
-          accountPassword
-        )
-
-      authState.updatedAt =
-        Date.now()
-
-      await this.state.storage.put(
-        ACCOUNT_AUTH_STORAGE_KEY,
-        authState
-      )
-    }
-
-    const hasPersonalPassword =
-      Boolean(
-        authState.credentials[
-          email
-        ]
-      )
-
-    let message =
-      typeof body.message ===
-        'string'
-        ? body.message
-        : undefined
-
-    if (
-      body.canActivate ===
-        true
-    ) {
-      message =
-        hasPersonalPassword
-          ? 'O seu pedido está aprovado e a sua password pessoal já está definida. Utilize agora apenas a senha de ativação recebida por email.'
-          : 'O pedido foi aprovado, mas esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso”, defina a sua password pessoal e depois utilize a senha de ativação recebida.'
-    } else if (
-      shouldDefinePersonalPassword &&
-      requestStatus ===
-        'pending'
-    ) {
-      message =
-        'Pedido recebido. A sua password pessoal ficou definida. Guarde-a: será usada sempre que entrar no MA-Professor. Aguarde o email da MA-CODE com a decisão.'
-    }
-
-    return json({
-      ...body,
-      hasPersonalPassword,
-      message
-    })
+    )
   }
 
   private async handleCommerceStatus(
