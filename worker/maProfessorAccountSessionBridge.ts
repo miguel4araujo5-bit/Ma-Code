@@ -14,6 +14,9 @@ const STORAGE_KEY =
 const PUBLIC_LOGIN_PATH =
   '/api/ma-professor/access/login'
 
+const PUBLIC_OPAQUE_LOGIN_FINISH_PATH =
+  '/api/ma-professor/access/opaque/login/finish'
+
 const PUBLIC_ACCOUNT_VERIFY_PATH =
   '/api/ma-professor/access/account/verify'
 
@@ -880,7 +883,9 @@ export class MaProfessorAccessDurableObject {
 
     if (
       pathname ===
-        PUBLIC_LOGIN_PATH
+        PUBLIC_LOGIN_PATH ||
+      pathname ===
+        PUBLIC_OPAQUE_LOGIN_FINISH_PATH
     ) {
       return this.handleLogin(request)
     }
