@@ -25,7 +25,7 @@ import {
   downloadCompatibleMAProfessorCloudBackup,
   inspectMAProfessorCloudBackup,
   MAProfessorCloudBackupRevisionConflictError,
-  uploadAndVerifyMAProfessorCloudBackup
+  uploadAndVerifyCompatibleMAProfessorCloudBackup
 } from './cloudBackupService'
 
 import {
@@ -401,7 +401,7 @@ export default function AutomaticCloudBackup() {
         }
 
         const result =
-          await uploadAndVerifyMAProfessorCloudBackup(
+          await uploadAndVerifyCompatibleMAProfessorCloudBackup(
             session,
             backup,
             {
