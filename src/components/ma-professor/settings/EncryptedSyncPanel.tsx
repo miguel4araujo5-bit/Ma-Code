@@ -175,7 +175,8 @@ export function EncryptedSyncPanel() {
 
         if (
           currentStatus.cryptoVersion === 2 &&
-          currentStatus.backup.found
+          currentStatus.backup.found &&
+          currentStatus.backup.recordRevision !== null
         ) {
           const migrated =
             await migrateMAProfessorCloudBackupV2ToV3(
