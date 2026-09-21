@@ -381,6 +381,25 @@ async function postJson(
   return data
 }
 
+function isValidV3Protection(
+  value: unknown
+): value is import('./cloudBackupV3Crypto').MAProfessorBackupV3WrappedMasterKey {
+  return (
+    isObject(value) &&
+    value.cryptoVersion === 3 &&
+    value.recoveryKdfAlgorithm === 'OPAQUE-RFC9807-EXPORT-HKDF-SHA256' &&
+    typeof value.recoveryKdfSalt === 'string' &&
+    value.recoveryKdfSalt.length > 0 &&
+    typeof value.recoveryKdfParameters === 'string' &&
+    value.recoveryKdfParameters.length > 0 &&
+    value.recoveryKeyWrapAlgorithm === 'AES-256-GCM' &&
+    typeof value.recoveryWrappedMasterKey === 'string' &&
+    value.recoveryWrappedMasterKey.length > 0 &&
+    typeof value.recoveryWrappedMasterKeyNonce === 'string' &&
+    value.recoveryWrappedMasterKeyNonce.length > 0
+  )
+}
+
 function parseStatus(
   value: unknown
 ): MAProfessorCloudBackupStatus {
@@ -412,7 +431,7 @@ function parseStatus(
     ) ||
     (
       value.cryptoVersion === 3
-        ? !isObject(value.protection)
+        ? !isValidV3Protection(value.protection)
         : value.protection !== null
     )
   ) {
