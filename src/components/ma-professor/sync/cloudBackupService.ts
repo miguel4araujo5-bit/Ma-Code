@@ -1231,6 +1231,29 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   }
 }
 
+export async function downloadCompatibleMAProfessorCloudBackup(
+  session: MAProfessorAccessSession
+): Promise<MAProfessorDownloadedCloudBackup | null> {
+  const status =
+    await readStatus(session)
+
+  if (status.cryptoVersion === 3) {
+    return downloadMAProfessorCloudBackupV3(
+      session
+    )
+  }
+
+  if (status.cryptoVersion === 2) {
+    return downloadMAProfessorCloudBackup(
+      session
+    )
+  }
+
+  throw new Error(
+    'A cópia online utiliza uma versão de proteção não suportada.'
+  )
+}
+
 export async function downloadMAProfessorCloudBackupV3(
   session: MAProfessorAccessSession
 ): Promise<MAProfessorDownloadedCloudBackup | null> {
