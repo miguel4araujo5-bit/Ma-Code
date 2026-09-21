@@ -101,9 +101,9 @@ function bytesToBase64Url(
 
   return globalThis
     .btoa(binary)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '')
+    .split('+').join('-')
+    .split('/').join('_')
+    .split('=').join('')
 }
 
 function base64UrlToBytes(
@@ -140,8 +140,8 @@ function base64UrlToBytes(
     binary =
       globalThis.atob(
         normalized
-          .replaceAll('-', '+')
-          .replaceAll('_', '/') +
+          .split('-').join('+')
+          .split('_').join('/') +
         padding
       )
   } catch {
