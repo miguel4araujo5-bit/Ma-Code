@@ -293,6 +293,21 @@ test(
 )
 
 test(
+  'legacy v2 download detects v3 before requesting the server-held v2 key',
+  () => {
+    const start = client.indexOf('export async function downloadMAProfessorCloudBackup')
+    const download = client.slice(start)
+    const versionGuard = download.indexOf('remote.cryptoVersion !== 2')
+    const keyRead = download.indexOf('await importBackupKey(session)')
+
+    assert.ok(versionGuard >= 0)
+    assert.ok(keyRead > versionGuard)
+    assert.match(download, /não pode ser aberta pelo fluxo legado v2/)
+    assert.match(worker, /cryptoVersion: profile\.crypto_version/)
+  }
+)
+
+test(
   'legacy v2 push remains fail-closed after a profile has moved to v3',
   () => {
     const start = worker.indexOf('async function handlePush')
