@@ -221,7 +221,7 @@ test('v3 preparation validates locally and never contacts the server', async t =
     'let bytes;',
     'export const createMAProfessorBackupV3KeyMaterial = async key => ({ masterKey: { key }, wrapped: { cryptoVersion: 3 } })',
     'export const encryptMAProfessorBackupV3Data = async (_key, value, context) => { bytes = value; return { encryptionVersion: 3, encryptionAlgorithm: "AES-256-GCM", nonce: "nonce", ciphertext: "ciphertext", ciphertextHash: "hash", context } }',
-    'export const decryptMAProfessorBackupV3Data = async (_key, _encrypted, context) => { if (context !== "database-v1") throw new Error("wrong context"); return bytes }'
+    'export const decryptMAProfessorBackupV3Data = async (_key, _encrypted, context) => { if (context !== "database-v1") throw new Error("wrong context"); return bytes }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
