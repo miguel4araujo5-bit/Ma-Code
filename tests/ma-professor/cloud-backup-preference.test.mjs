@@ -194,7 +194,7 @@ test('v3 preparation fails closed without an in-memory OPAQUE export key and per
   await files.write('cloud-backup-v3-crypto.mjs', [
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("must not run") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }',
-    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }'
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
@@ -248,7 +248,7 @@ test('explicit v3 promotion sends only the prepared envelope with CAS revision',
   await files.write('cloud-backup-v3-crypto.mjs', [
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
-    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
@@ -288,7 +288,7 @@ test('v3 promotion exposes a typed conflict on 409 and does not retry or fall ba
   await files.write('cloud-backup-v3-crypto.mjs', [
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
-    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
@@ -323,7 +323,7 @@ test('v3 promotion rejects an invalid record revision before making a request', 
   await files.write('cloud-backup-v3-crypto.mjs', [
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
-    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
@@ -352,7 +352,7 @@ test('revoking the choice while encryption is in progress prevents push; manual 
   await files.write('cloud-backup-v3-crypto.mjs', [
     'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
     'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
-    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
     'export const unwrapMAProfessorBackupV3MasterKey = async () => { throw new Error("unused") }',
   ].join('\n'))
   const service = await files.load()
