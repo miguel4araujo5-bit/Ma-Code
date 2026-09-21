@@ -400,46 +400,44 @@ async function responseBody(response) {
 }
 
 test(
-  'missing login credential consumes one dummy PBKDF2 pass while an existing credential does not add a second bridge-local pass',
+  'legacy login is delegated without bridge-local personal-password verification',
   async t => {
     const staged =
       await stageBridge()
     t.after(staged.dispose)
 
+    staged.lower.resetCalls()
     staged.lower.setResponse(
-      401,
+      410,
       {
-        success: false,
-        message: 'lower failure'
+        success:
+          false,
+        message:
+          'O login legado foi descontinuado. Utilize o login protegido.'
       }
     )
 
-    const missingStorage =
-      new MemoryStorage({
-        [ACCOUNT_AUTH_KEY]: {
-          schemaVersion: 1,
-          credentials: {}
-        }
-      })
+    const storage =
+      new MemoryStorage()
 
-    const missingAccess =
+    const access =
       instantiate(
         staged.runtime,
-        missingStorage
+        storage
       )
 
-    const beforeMissing =
+    const before =
       deriveBitsCalls
 
-    const missingResponse =
-      await missingAccess.fetch(
+    const response =
+      await access.fetch(
         postRequest(
           '/api/ma-professor/access/login',
           {
             email:
-              'missing@example.com',
+              'legacy@example.com',
             password:
-              'password-123',
+              'must-not-be-verified-here',
             deviceId:
               'device-123456789'
           }
@@ -447,59 +445,18 @@ test(
       )
 
     assert.equal(
-      missingResponse.status,
-      401
+      response.status,
+      410
     )
     assert.equal(
       deriveBitsCalls -
-        beforeMissing,
-      1,
-      'A ausência de credencial deve suportar o mesmo custo PBKDF2 do caminho de password incorreta.'
-    )
-
-    const existingStorage =
-      new MemoryStorage({
-        [ACCOUNT_AUTH_KEY]: {
-          schemaVersion: 1,
-          credentials: {
-            'known@example.com': {}
-          }
-        }
-      })
-
-    const existingAccess =
-      instantiate(
-        staged.runtime,
-        existingStorage
-      )
-
-    const beforeExisting =
-      deriveBitsCalls
-
-    const existingResponse =
-      await existingAccess.fetch(
-        postRequest(
-          '/api/ma-professor/access/login',
-          {
-            email:
-              'known@example.com',
-            password:
-              'password-123',
-            deviceId:
-              'device-123456789'
-          }
-        )
-      )
-
-    assert.equal(
-      existingResponse.status,
-      401
-    )
-    assert.equal(
-      deriveBitsCalls -
-        beforeExisting,
+        before,
       0,
-      'A camada exterior não deve duplicar o PBKDF2 que o autenticador real já executa para uma credencial existente.'
+      'A bridge pública já não deve executar PBKDF2 sobre passwords pessoais.'
+    )
+    assert.equal(
+      staged.lower.calls.length,
+      1
     )
   }
 )
