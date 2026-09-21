@@ -12,9 +12,12 @@ import ProductIntroPanel from './ProductIntroPanel'
 
 import {
   activateMAProfessorAccessPeriod,
-  loginMAProfessorAccess,
   requestMAProfessorAccess
 } from './accessApi'
+
+import {
+  loginMAProfessorPreferOpaque
+} from './opaqueAccess'
 
 import {
   MA_PROFESSOR_ACCESS_SESSION_EVENT,
@@ -472,8 +475,10 @@ export default function MAProfessorAuthGate({
         const deviceId =
           getOrCreateMAProfessorDeviceId()
 
-        const response =
-          await loginMAProfessorAccess(
+        const {
+          response
+        } =
+          await loginMAProfessorPreferOpaque(
             normalizedEmail,
             personalPassword,
             deviceId
