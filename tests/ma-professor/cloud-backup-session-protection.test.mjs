@@ -447,6 +447,18 @@ test(
 )
 
 test(
+  'restore re-reads the compatible v3 copy and rejects revision drift before local mutation',
+  () => {
+    assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup\( session \)/)
+    assert.match(restoreService, /freshRemote\.serverRevision !== preview\.serverRevision/)
+    assert.match(restoreService, /freshRemote\.recordRevision !== preview\.recordRevision/)
+    const drift = restoreService.indexOf('freshRemote.serverRevision !==')
+    const mutate = restoreService.indexOf('restoreMAProfessorDatabaseSnapshotIfLocalUnchanged')
+    assert.ok(drift >= 0 && mutate > drift)
+  }
+)
+
+test(
   'restore and trust reconciliation use the compatible v2 v3 reader while uploads remain legacy-gated',
   async () => {
     const restore = await readFile('src/components/ma-professor/sync/cloudBackupRestoreService.ts', 'utf8')
