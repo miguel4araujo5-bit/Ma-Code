@@ -832,6 +832,209 @@ function parseV3PromotionProfile(
   }
 }
 
+async function handlePromoteV3(
+  body: JsonBody,
+  env: MaProfessorCloudBackupEnv
+) {
+  const recordId =
+    normalizeId(body.recordId, 80)
+
+  if (recordId !== RECORD_ID) {
+    throw new CloudBackupApiError(
+      'O identificador da cópia não é válido.',
+      400
+    )
+  }
+
+  const expectedServerRevision =
+    parseExpectedRevision(
+      body.expectedServerRevision
+    )
+  const profileV3 =
+    parseV3PromotionProfile(
+      body.profile
+    )
+  const encrypted =
+    parseEncryptedPayload(
+      body.encrypted
+    )
+  const authenticated =
+    await verifyAccessSession(body, env)
+  const profile =
+    await readProfile(
+      authenticated.accountId,
+      env
+    )
+
+  if (!profile) {
+    throw new CloudBackupApiError(
+      'A proteção v2 da cópia online não está disponível.',
+      409
+    )
+  }
+
+  assertSessionProfile(profile)
+
+  if (
+    profile.server_revision !==
+      expectedServerRevision
+  ) {
+    throw new CloudBackupApiError(
+      'Existe uma cópia online mais recente. Atualize o estado antes de voltar a guardar.',
+      409,
+      {
+        currentServerRevision:
+          profile.server_revision
+      }
+    )
+  }
+
+  const existing =
+    await readExistingRecord(
+      authenticated.accountId,
+      env
+    )
+  const nextServerRevision =
+    expectedServerRevision + 1
+  const nextRecordRevision =
+    (existing?.record_revision ?? 0) + 1
+  const timestamp = Date.now()
+  const sourceDeviceIdHash =
+    await hashDeviceId(
+      authenticated.deviceId
+    )
+
+  const results =
+    await env.MA_PROFESSOR_DB.batch([
+      env.MA_PROFESSOR_DB
+        .prepare(
+          `
+            INSERT INTO ma_professor_encrypted_records (
+              account_id, record_id, server_revision, record_revision,
+              source_device_id_hash, encryption_version,
+              encryption_algorithm, nonce, ciphertext, ciphertext_hash,
+              created_at, updated_at, deleted_at
+            )
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL
+            FROM ma_professor_sync_profiles
+            WHERE account_id = ?
+              AND server_revision = ?
+              AND crypto_version = ?
+              AND recovery_kdf_algorithm = ?
+              AND recovery_key_wrap_algorithm = ?
+              AND deleted_at IS NULL
+            ON CONFLICT(account_id, record_id)
+            DO UPDATE SET
+              server_revision = excluded.server_revision,
+              record_revision = excluded.record_revision,
+              source_device_id_hash = excluded.source_device_id_hash,
+              encryption_version = excluded.encryption_version,
+              encryption_algorithm = excluded.encryption_algorithm,
+              nonce = excluded.nonce,
+              ciphertext = excluded.ciphertext,
+              ciphertext_hash = excluded.ciphertext_hash,
+              updated_at = excluded.updated_at,
+              deleted_at = NULL
+          `
+        )
+        .bind(
+          authenticated.accountId,
+          RECORD_ID,
+          nextServerRevision,
+          nextRecordRevision,
+          sourceDeviceIdHash,
+          encrypted.encryptionVersion,
+          encrypted.encryptionAlgorithm,
+          encrypted.nonce,
+          encrypted.ciphertext,
+          encrypted.ciphertextHash,
+          timestamp,
+          timestamp,
+          authenticated.accountId,
+          expectedServerRevision,
+          CRYPTO_VERSION,
+          SESSION_KDF_MARKER,
+          SESSION_KEY_MARKER
+        ),
+      env.MA_PROFESSOR_DB
+        .prepare(
+          `
+            UPDATE ma_professor_sync_profiles
+            SET
+              server_revision = ?,
+              crypto_version = ?,
+              recovery_kdf_algorithm = ?,
+              recovery_kdf_salt = ?,
+              recovery_kdf_parameters = ?,
+              recovery_key_wrap_algorithm = ?,
+              recovery_wrapped_master_key = ?,
+              recovery_wrapped_master_key_nonce = ?,
+              updated_at = ?
+            WHERE account_id = ?
+              AND server_revision = ?
+              AND crypto_version = ?
+              AND recovery_kdf_algorithm = ?
+              AND recovery_key_wrap_algorithm = ?
+              AND deleted_at IS NULL
+          `
+        )
+        .bind(
+          nextServerRevision,
+          profileV3.cryptoVersion,
+          profileV3.recoveryKdfAlgorithm,
+          profileV3.recoveryKdfSalt,
+          profileV3.recoveryKdfParameters,
+          profileV3.recoveryKeyWrapAlgorithm,
+          profileV3.recoveryWrappedMasterKey,
+          profileV3.recoveryWrappedMasterKeyNonce,
+          timestamp,
+          authenticated.accountId,
+          expectedServerRevision,
+          CRYPTO_VERSION,
+          SESSION_KDF_MARKER,
+          SESSION_KEY_MARKER
+        )
+    ])
+
+  const recordChanged =
+    results[0]?.success === true &&
+    results[0]?.meta?.changes === 1
+  const profileChanged =
+    results[1]?.success === true &&
+    results[1]?.meta?.changes === 1
+
+  if (!recordChanged || !profileChanged) {
+    const latest =
+      await readProfile(
+        authenticated.accountId,
+        env
+      )
+
+    throw new CloudBackupApiError(
+      'A promoção segura da cópia v3 não foi concluída. A proteção anterior foi preservada.',
+      409,
+      {
+        currentServerRevision:
+          latest?.server_revision ??
+          profile.server_revision
+      }
+    )
+  }
+
+  return json({
+    success: true,
+    cryptoVersion:
+      V3_CRYPTO_VERSION,
+    recordId: RECORD_ID,
+    serverRevision:
+      nextServerRevision,
+    recordRevision:
+      nextRecordRevision,
+    updatedAt:
+      new Date(timestamp).toISOString()
+  })
+}
+
 async function handleStatus(
   body: JsonBody,
   env: MaProfessorCloudBackupEnv
@@ -1262,6 +1465,8 @@ export async function handleMAProfessorCloudBackupApiRequest(
         return await handleKey(body, env)
       case '/get':
         return await handleGet(body, env)
+      case '/promote-v3':
+        return await handlePromoteV3(body, env)
       case '/push':
         return await handlePush(body, env)
       default:
