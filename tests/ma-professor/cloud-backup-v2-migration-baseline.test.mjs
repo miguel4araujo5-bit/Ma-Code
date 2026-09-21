@@ -150,9 +150,17 @@ test(
       worker,
       /case '\/promote-v3': return await handlePromoteV3\(body, env\)/
     )
-    assert.doesNotMatch(
+    assert.match(
       client,
-      /\/promote-v3/
+      /export async function promotePreparedMAProfessorCloudBackupV3/
+    )
+    assert.match(
+      client,
+      /postJson\( '\/promote-v3'/
+    )
+    assert.doesNotMatch(
+      preference,
+      /promotePreparedMAProfessorCloudBackupV3|prepareMAProfessorCloudBackupV3Promotion/
     )
     assert.match(
       client,
