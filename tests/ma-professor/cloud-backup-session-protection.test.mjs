@@ -506,6 +506,20 @@ test(
 )
 
 test(
+  'migration verifies the exact promoted revision before reporting success',
+  () => {
+    const start = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
+    const end = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup', start)
+    const migration = client.slice(start, end)
+
+    assert.match(migration, /verified\.serverRevision !== promoted\.serverRevision/)
+    assert.match(migration, /verified\.recordRevision !== promoted\.recordRevision/)
+    assert.match(migration, /verified\.plaintextHash !== prepared\.plaintextHash/)
+    assert.ok(migration.indexOf('downloadMAProfessorCloudBackupV3') > migration.indexOf('promotePreparedMAProfessorCloudBackupV3'))
+  }
+)
+
+test(
   'compatible download dispatches only from the declared profile crypto version',
   () => {
     const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
