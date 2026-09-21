@@ -2055,9 +2055,9 @@ export class MaProfessorAccessDurableObject {
         body.email
       )
 
-    const password =
+    const activationPassword =
       normalizePassword(
-        body.password
+        body.activationPassword
       )
 
     const deviceId =
@@ -2083,9 +2083,9 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
-      password.length <
+      activationPassword.length <
         PASSWORD_MIN_LENGTH ||
-      password.length >
+      activationPassword.length >
         PASSWORD_MAX_LENGTH
     ) {
       return json(
@@ -2219,7 +2219,7 @@ export class MaProfessorAccessDurableObject {
 
     const passwordMatches =
       await verifyPassword(
-        password,
+        activationPassword,
         credential
       )
 
