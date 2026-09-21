@@ -964,27 +964,24 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const authState =
-      normalizeAccountAuthState(
-        await this.state.storage.get<StoredAccountAuthState>(
-          ACCOUNT_AUTH_STORAGE_KEY
+    const opaqueState =
+      createOpaqueAuthProtocolState(
+        await this.state.storage.get<MAProfessorOpaqueAuthState>(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY
         )
       )
 
-    const existingPersonalCredential =
-      authState.credentials[
+    if (
+      !opaqueState.registrations[
         email
       ]
-
-    if (
-      !existingPersonalCredential
     ) {
       return json(
         {
           success:
             false,
           message:
-            'Esta conta ainda não tem uma password pessoal definida. Volte a “Pedir acesso”, defina a sua password pessoal e depois utilize novamente esta senha de ativação.'
+            'Crie primeiro a sua password pessoal neste dispositivo para concluir a ativação protegida.'
         },
         409
       )
@@ -1080,7 +1077,7 @@ export class MaProfessorAccessDurableObject {
     return json({
       ...delegatedBody,
       message:
-        'Período de acesso ativado. A sua password pessoal continua a ser a credencial de entrada no MA-Professor.'
+        'Período de acesso ativado. A sua password pessoal permanece apenas no seu dispositivo e é usada pelo login protegido.'
     })
   }
 
@@ -1120,9 +1117,8 @@ export class MaProfessorAccessDurableObject {
     ] ?? null
   }
 
-  private async validateOpaqueEnrollmentIdentity(
-    body: JsonObject,
-    requirePassword: boolean
+  private async validateOpaqueEnrollmentActivation(
+    body: JsonObject
   ) {
     const email =
       normalizeEmail(
@@ -1134,9 +1130,9 @@ export class MaProfessorAccessDurableObject {
         body.deviceId
       )
 
-    const token =
-      normalizeSessionToken(
-        body.token
+    const activationPassword =
+      normalizePassword(
+        body.activationPassword
       )
 
     if (
@@ -1144,7 +1140,7 @@ export class MaProfessorAccessDurableObject {
         email
       ) ||
       !deviceId ||
-      !token
+      !activationPassword
     ) {
       return {
         response:
@@ -1153,7 +1149,7 @@ export class MaProfessorAccessDurableObject {
               success:
                 false,
               message:
-                'A sessão da conta não é válida.'
+                'O email, a senha de ativação ou o dispositivo não são válidos.'
             },
             401
           )
@@ -1165,105 +1161,49 @@ export class MaProfessorAccessDurableObject {
         STORAGE_KEY
       )
 
-    if (
-      !accessState
-    ) {
-      return {
-        response:
-          json(
-            {
-              success:
-                false,
-              message:
-                'A sessão da conta não é válida.'
-            },
-            401
-          )
-      } as const
-    }
-
-    const session =
-      await this.findAccountSession(
-        accessState,
-        token
-      )
-
-    if (
-      !session ||
-      session.revokedAt !==
-        null ||
-      session.email !==
-        email ||
-      session.deviceId !==
-        deviceId
-    ) {
-      return {
-        response:
-          json(
-            {
-              success:
-                false,
-              message:
-                'A sessão da conta não é válida.'
-            },
-            401
-          )
-      } as const
-    }
-
-    if (requirePassword) {
-      const password =
-        normalizePassword(
-          body.password
-        )
-
-      if (!password) {
-        return {
-          response:
-            json(
-              {
-                success:
-                  false,
-                message:
-                  'Confirme a sua password pessoal para preparar a autenticação protegida.'
-              },
-              400
-            )
-        } as const
-      }
-
-      const authState =
-        normalizeAccountAuthState(
-          await this.state.storage.get<StoredAccountAuthState>(
-            ACCOUNT_AUTH_STORAGE_KEY
-          )
-        )
-
-      const credential =
-        authState.credentials[
+    const credential =
+      accessState
+        ?.credentials?.[
           email
         ]
 
-      if (
-        !credential ||
-        !await verifyAccountPassword(
-          credential,
-          password
-        )
-      ) {
-        return {
-          response:
-            json(
-              {
-                success:
-                  false,
-                message:
-                  'A sessão ou a password pessoal não são válidas.'
-              },
-              401
-            )
-        } as const
-      }
+    if (
+      !accessState ||
+      !credential
+    ) {
+      return {
+        response:
+          json(
+            {
+              success:
+                false,
+              message:
+                'O email ou a senha de ativação não são válidos.'
+            },
+            401
+          )
+      } as const
+    }
+
+    const activationMatches =
+      await verifyAccountPassword(
+        credential,
+        activationPassword
+      )
+
+    if (!activationMatches) {
+      return {
+        response:
+          json(
+            {
+              success:
+                false,
+              message:
+                'O email ou a senha de ativação não são válidos.'
+            },
+            401
+          )
+      } as const
     }
 
     return {
@@ -1316,9 +1256,8 @@ export class MaProfessorAccessDurableObject {
     }
 
     const identity =
-      await this.validateOpaqueEnrollmentIdentity(
-        body,
-        true
+      await this.validateOpaqueEnrollmentActivation(
+        body
       )
 
     if (
@@ -1461,18 +1400,31 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const identity =
-      await this.validateOpaqueEnrollmentIdentity(
-        body,
-        false
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    const deviceId =
+      normalizeDeviceId(
+        body.deviceId
       )
 
     if (
-      'response' in
-        identity
+      !isValidEmail(
+        email
+      ) ||
+      !deviceId
     ) {
-      return identity
-        .response
+      return json(
+        {
+          success:
+            false,
+          message:
+            'Registo OPAQUE inválido.'
+        },
+        400
+      )
     }
 
     const enrollmentId =
@@ -1511,14 +1463,12 @@ export class MaProfessorAccessDurableObject {
       finishOpaqueEnrollment(
         opaqueState,
         {
-          email:
-            identity.email,
-          deviceId:
-            identity.deviceId,
+          email,
+          deviceId,
           enrollmentId,
           registrationRecord,
           migratedFromV2:
-            true
+            false
         }
       )
 
@@ -1531,7 +1481,7 @@ export class MaProfessorAccessDurableObject {
         success:
           true,
         message:
-          'Autenticação protegida preparada. O login atual mantém-se disponível durante a migração.'
+          'Autenticação protegida preparada.'
       })
     } catch (
       error
@@ -1550,7 +1500,7 @@ export class MaProfessorAccessDurableObject {
             message ===
               'OPAQUE_ALREADY_ENROLLED'
               ? 'A autenticação protegida desta conta já foi preparada.'
-              : 'O registo OPAQUE expirou, já foi utilizado ou não corresponde a esta sessão.'
+              : 'O registo OPAQUE expirou, já foi utilizado ou não corresponde a este dispositivo.'
         },
         message ===
           'OPAQUE_ALREADY_ENROLLED'
