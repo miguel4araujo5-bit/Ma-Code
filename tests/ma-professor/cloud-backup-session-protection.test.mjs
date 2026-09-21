@@ -396,6 +396,7 @@ test(
   () => {
     assert.match(syncPanelSource, /currentStatus\.cryptoVersion === 2/)
     assert.match(syncPanelSource, /currentStatus\.backup\.found/)
+    assert.match(syncPanelSource, /currentStatus\.backup\.recordRevision !== null/)
     assert.match(syncPanelSource, /await migrateMAProfessorCloudBackupV2ToV3\( session \)/)
     assert.match(syncPanelSource, /serverRevision: migrated\.serverRevision/)
     assert.match(syncPanelSource, /recordRevision: migrated\.recordRevision/)
