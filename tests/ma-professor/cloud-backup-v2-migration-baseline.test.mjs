@@ -32,7 +32,7 @@ const authWorker = compact(authWorkerSource)
 const accessApi = compact(accessApiSource)
 
 test(
-  'v2 baseline remains explicit until the password-protected v3 migration is implemented',
+  'v2 compatibility remains explicit while the v3 protection is active',
   () => {
     assert.match(
       worker,
@@ -74,7 +74,11 @@ test(
 
     assert.match(
       preference,
-      /a chave é gerida pelos servidores da MA-CODE, que têm capacidade técnica para decifrar a cópia/
+      /Nas cópias com proteção v3, a MA-CODE não recebe a sua password pessoal nem guarda no servidor o material necessário para decifrar os dados/
+    )
+    assert.match(
+      preference,
+      /Enquanto uma conta ainda tiver uma cópia v2, mantém-se a proteção anterior até à migração explícita/
     )
   }
 )
