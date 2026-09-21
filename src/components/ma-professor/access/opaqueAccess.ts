@@ -5,6 +5,7 @@ import type {
 import {
   finishMAProfessorOpaqueEnrollment,
   finishMAProfessorOpaqueLogin,
+  loginMAProfessorAccess,
   startMAProfessorOpaqueEnrollment,
   startMAProfessorOpaqueLogin
 } from './accessApi'
@@ -104,5 +105,83 @@ export async function loginMAProfessorOpaque(
     response,
     exportKey:
       clientFinish.exportKey
+  }
+}
+
+
+export interface MAProfessorPreferredLoginResult {
+  response:
+    MAProfessorAccessResponse
+  exportKey:
+    string | null
+  authMode:
+    | 'opaque'
+    | 'legacy'
+  migratedToOpaque:
+    boolean
+}
+
+export async function loginMAProfessorPreferOpaque(
+  email: string,
+  password: string,
+  deviceId: string
+): Promise<MAProfessorPreferredLoginResult> {
+  const opaque =
+    await loginMAProfessorOpaque(
+      email,
+      password,
+      deviceId
+    )
+
+  if (opaque) {
+    return {
+      response:
+        opaque.response,
+      exportKey:
+        opaque.exportKey,
+      authMode:
+        'opaque',
+      migratedToOpaque:
+        false
+    }
+  }
+
+  const response =
+    await loginMAProfessorAccess(
+      email,
+      password,
+      deviceId
+    )
+
+  let exportKey:
+    string | null =
+    null
+  let migratedToOpaque =
+    false
+
+  try {
+    const enrolled =
+      await enrollMAProfessorOpaqueFromLegacySession(
+        email,
+        password,
+        deviceId,
+        response.token
+      )
+
+    exportKey =
+      enrolled.exportKey
+    migratedToOpaque =
+      true
+  } catch {
+    // A migração OPAQUE não deve bloquear uma sessão v2 válida.
+    // O login legado permanece disponível enquanto durar a transição.
+  }
+
+  return {
+    response,
+    exportKey,
+    authMode:
+      'legacy',
+    migratedToOpaque
   }
 }
