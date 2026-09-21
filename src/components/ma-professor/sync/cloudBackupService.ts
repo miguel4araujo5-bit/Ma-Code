@@ -1101,6 +1101,24 @@ export async function promotePreparedMAProfessorCloudBackupV3(
   )
 }
 
+export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup,
+  options: MAProfessorCloudBackupUploadOptions = {}
+): Promise<MAProfessorUploadedCloudBackup> {
+  const status = await readStatus(session)
+
+  if (status.cryptoVersion === 3) {
+    return uploadAndVerifyMAProfessorCloudBackupV3(session, backup, options)
+  }
+
+  if (status.cryptoVersion === 2) {
+    return uploadAndVerifyMAProfessorCloudBackup(session, backup, options)
+  }
+
+  throw new Error('A cópia online utiliza uma versão de proteção não suportada.')
+}
+
 export async function uploadAndVerifyMAProfessorCloudBackupV3(
   session: MAProfessorAccessSession,
   backup: MAProfessorBackup,
