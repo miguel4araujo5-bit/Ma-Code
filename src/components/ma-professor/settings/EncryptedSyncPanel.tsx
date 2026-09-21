@@ -212,6 +212,14 @@ export function EncryptedSyncPanel() {
           )
         }
 
+        if (
+          currentStatus.cryptoVersion === 2 &&
+          !currentStatus.backup.found
+        ) {
+          // A primeira cópia mantém o caminho v2 existente. A migração
+          // só transforma uma cópia v2 que já exista e possa ser validada.
+        }
+
         const backup =
           await createMAProfessorBackup()
 
