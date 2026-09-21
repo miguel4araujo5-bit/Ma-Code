@@ -832,6 +832,56 @@ function parseV3PromotionProfile(
   }
 }
 
+function parseV3EncryptedPayload(
+  value: unknown
+): EncryptedPayload {
+  if (
+    !isObject(value) ||
+    value.encryptionVersion !== V3_CRYPTO_VERSION ||
+    value.encryptionAlgorithm !== ENCRYPTION_ALGORITHM ||
+    typeof value.nonce !== 'string' ||
+    typeof value.ciphertext !== 'string' ||
+    !value.ciphertext ||
+    typeof value.ciphertextHash !== 'string'
+  ) {
+    throw new CloudBackupApiError(
+      'A cópia cifrada v3 enviada não é válida.',
+      400
+    )
+  }
+
+  if (
+    base64UrlByteLength(value.nonce) !== NONCE_BYTES ||
+    base64UrlByteLength(value.ciphertextHash) !== HASH_BYTES
+  ) {
+    throw new CloudBackupApiError(
+      'A cópia cifrada v3 enviada tem parâmetros inválidos.',
+      400
+    )
+  }
+
+  const ciphertextBytes =
+    base64UrlByteLength(value.ciphertext)
+
+  if (
+    ciphertextBytes < 16 ||
+    ciphertextBytes > MAX_CIPHERTEXT_BYTES
+  ) {
+    throw new CloudBackupApiError(
+      'A cópia cifrada v3 ultrapassa o limite permitido.',
+      413
+    )
+  }
+
+  return {
+    encryptionVersion: V3_CRYPTO_VERSION,
+    encryptionAlgorithm: ENCRYPTION_ALGORITHM,
+    nonce: value.nonce,
+    ciphertext: value.ciphertext,
+    ciphertextHash: value.ciphertextHash
+  }
+}
+
 async function handlePromoteV3(
   body: JsonBody,
   env: MaProfessorCloudBackupEnv
@@ -855,7 +905,7 @@ async function handlePromoteV3(
       body.profile
     )
   const encrypted =
-    parseEncryptedPayload(
+    parseV3EncryptedPayload(
       body.encrypted
     )
   const authenticated =
