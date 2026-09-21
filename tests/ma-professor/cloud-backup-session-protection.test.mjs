@@ -173,6 +173,22 @@ test(
 )
 
 test(
+  'v3 profile promotion depends on the record write produced by the same batch',
+  () => {
+    const start = worker.indexOf('async function handlePromoteV3')
+    const end = worker.indexOf('async function handleStatus', start)
+    const promote = worker.slice(start, end)
+
+    assert.match(promote, /AND EXISTS \( SELECT 1 FROM ma_professor_encrypted_records/)
+    assert.match(promote, /server_revision = \? AND record_revision = \? AND encryption_version = \? AND ciphertext_hash = \?/)
+    assert.match(
+      promote,
+      /SESSION_KEY_MARKER, authenticated\.accountId, RECORD_ID, nextServerRevision, nextRecordRevision, encrypted\.encryptionVersion, encrypted\.ciphertextHash/
+    )
+  }
+)
+
+test(
   'v3 promotion is isolated, CAS-bound and does not replace the active v2 routes',
   () => {
     const start = worker.indexOf(
