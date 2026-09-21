@@ -447,6 +447,19 @@ test(
 )
 
 test(
+  'automatic backup reaches the v3 writer through the compatible dispatcher without migration',
+  () => {
+    assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
+    const start = client.indexOf('export async function uploadAndVerifyCompatibleMAProfessorCloudBackup')
+    const end = client.indexOf('export async function uploadAndVerifyMAProfessorCloudBackupV3', start)
+    const dispatcher = client.slice(start, end)
+    assert.match(dispatcher, /status\.cryptoVersion === 3/)
+    assert.match(dispatcher, /uploadAndVerifyMAProfessorCloudBackupV3\(session, backup, forwardedOptions\)/)
+  }
+)
+
+test(
   'restore re-reads the compatible v3 copy and rejects revision drift before local mutation',
   () => {
     assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup\( session \)/)
