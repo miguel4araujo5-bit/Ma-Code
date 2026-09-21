@@ -79,6 +79,33 @@ test(
   }
 )
 
+
+test(
+  'v3 promotion remains additive until the client migration is explicitly enabled',
+  () => {
+    assert.match(
+      worker,
+      /const V3_CRYPTO_VERSION = 3/
+    )
+    assert.match(
+      worker,
+      /case '\/promote-v3': return await handlePromoteV3\(body, env\)/
+    )
+    assert.doesNotMatch(
+      client,
+      /\/promote-v3/
+    )
+    assert.match(
+      client,
+      /postJson\( '\/key', sessionBody\(session\)/
+    )
+    assert.match(
+      client,
+      /postJson\( '\/push'/
+    )
+  }
+)
+
 test(
   'public account flows no longer submit the personal password while backup v2 remains isolated',
   () => {
