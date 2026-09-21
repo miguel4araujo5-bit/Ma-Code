@@ -430,7 +430,7 @@ test(
     assert.match(authGate, /await loginMAProfessorOpaqueOnly\(/)
     assert.match(authGate, /saveMAProfessorOpaqueExportKey\( normalizedEmail, exportKey \)/)
     assert.match(accessStorage, /let memoryOpaqueExportKey:/)
-    assert.match(accessStorage, /memoryOpaqueExportKey = \{ email: normalizeEmail\(email\), exportKey \}/)
+    assert.match(accessStorage, /memoryOpaqueExportKey = \{ email: normalizedEmail, exportKey: normalizedExportKey \}/)
     assert.doesNotMatch(accessStorage, /localStorage.*exportKey|sessionStorage.*exportKey/)
   }
 )
@@ -490,9 +490,9 @@ test(
     assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup\( session \)/)
     assert.match(restoreService, /freshRemote\.serverRevision !== options\.expectedServerRevision/)
     assert.match(restoreService, /freshRemote\.recordRevision !== options\.expectedRecordRevision/)
-    const drift = restoreService.indexOf('freshRemote.serverRevision !==')
-    const mutate = restoreService.indexOf('restoreMAProfessorDatabaseSnapshotIfLocalUnchanged')
-    assert.ok(drift >= 0 && mutate > drift)
+    const drift = restoreService.indexOf('freshRemote.serverRevision !== options.expectedServerRevision')
+    const restoreCall = restoreService.lastIndexOf('restoreMAProfessorDatabaseSnapshotIfLocalUnchanged')
+    assert.ok(drift >= 0 && restoreCall > drift)
   }
 )
 
