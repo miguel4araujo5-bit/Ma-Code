@@ -565,6 +565,20 @@ export async function decryptMAProfessorBackupV3Data(
     )
   }
 
+  const actualCiphertextHash =
+    await sha256Base64Url(
+      ciphertext
+    )
+
+  if (
+    actualCiphertextHash !==
+      encrypted.ciphertextHash
+  ) {
+    throw new Error(
+      'A assinatura da cópia cifrada não corresponde ao conteúdo recebido.'
+    )
+  }
+
   try {
     const plaintext =
       await globalThis.crypto.subtle.decrypt(
