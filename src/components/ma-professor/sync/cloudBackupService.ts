@@ -363,6 +363,15 @@ async function postJson(
         ? data.message.trim()
         : fallbackMessage
 
+    if (
+      response.status === 409 &&
+      path === '/promote-v3'
+    ) {
+      throw new MAProfessorCloudBackupRevisionConflictError(
+        message
+      )
+    }
+
     throw new Error(message)
   }
 
