@@ -314,7 +314,7 @@ export default function MAProfessorAccountMaintenance({
     ) => {
       const confirmed =
         window.confirm(
-          `Cortar o acesso de ${email}?\n\nA licença será revogada e todas as sessões ativas serão terminadas imediatamente. A conta, a password, a configuração e a cópia cifrada dos dados escolares na cloud são preservadas.`
+          `Cortar o acesso de ${email}?\n\nA licença será revogada e todas as sessões ativas serão terminadas imediatamente. A conta, o registo de autenticação protegido, a configuração e a cópia cifrada dos dados escolares na cloud são preservados.`
         )
 
       if (!confirmed) {
