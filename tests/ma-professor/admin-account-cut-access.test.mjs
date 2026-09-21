@@ -93,7 +93,7 @@ test(
     )
     assert.match(
       handler,
-      /A conta, a password, a configuração e a cópia cifrada dos dados escolares na cloud são preservadas\./
+      /A conta, o registo de autenticação protegido, a configuração e a cópia cifrada dos dados escolares na cloud são preservados\./
     )
     assert.doesNotMatch(
       handler,
