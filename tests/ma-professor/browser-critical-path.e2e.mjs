@@ -1,17 +1,26 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 import { chromium } from 'playwright'
 
+import initOpaque, {
+  createServerRegistrationResponse,
+  createServerSetup,
+  finishServerLogin,
+  startServerLogin
+} from '../../worker/vendor/ma-professor-opaque/opaque.js'
+
 const HOST = '127.0.0.1'
 const PORT = 4173
 const BASE_URL = `http://${HOST}:${PORT}`
 const EMAIL = 'e2e.professor@example.test'
 const TOKEN = 'e2e-browser-session-token'
-const ACTIVATION_PASSWORD = 'E2E-ACTIVATE'
+const ACTIVATION_PASSWORD = 'MP-E2E-ACTIVATE'
+const PERSONAL_PASSWORD = 'E2E-personal-password-12B!'
 const SUMMARY = 'Sumário E2E persistido após reload.'
 const FIXED_NOW = '2026-09-21T09:30:00+01:00'
 
@@ -20,6 +29,22 @@ const root = join(
   '..',
   '..'
 )
+
+await initOpaque({
+  module_or_path:
+    await readFile(
+      join(
+        root,
+        'worker',
+        'vendor',
+        'ma-professor-opaque',
+        'opaque_bg.wasm'
+      )
+    )
+})
+
+const opaqueServerSetup =
+  createServerSetup()
 
 const license = {
   email: EMAIL,
@@ -97,22 +122,300 @@ function fulfilJson(route, body, status = 200) {
 
 async function installOfflineApi(page) {
   const requests = []
+  let registrationRecord = null
+  let pendingEnrollment = null
+  let pendingLogin = null
 
   await page.route('**/api/ma-professor/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
-    requests.push({ method: request.method(), path })
 
-    if (path === '/api/ma-professor/access/activate') {
+    let body = {}
+
+    if (
+      request.method() === 'POST' &&
+      request.postData()
+    ) {
+      try {
+        body = request.postDataJSON()
+      } catch {
+        body = {}
+      }
+    }
+
+    const bodyKeys =
+      body &&
+      typeof body === 'object' &&
+      !Array.isArray(body)
+        ? Object.keys(body)
+        : []
+
+    requests.push({
+      method:
+        request.method(),
+      path,
+      bodyKeys
+    })
+
+    for (
+      const forbiddenKey of [
+        'password',
+        'accountPassword',
+        'personalPassword'
+      ]
+    ) {
+      assert.equal(
+        bodyKeys.includes(
+          forbiddenKey
+        ),
+        false,
+        `O browser não pode enviar ${forbiddenKey} para ${path}.`
+      )
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/request'
+    ) {
+      assert.equal(
+        body.email,
+        EMAIL
+      )
+
       return fulfilJson(route, {
         success: true,
-        token: TOKEN,
-        email: EMAIL,
+        request: {
+          email:
+            EMAIL,
+          status:
+            'pending',
+          requestedAt:
+            '2026-09-01T00:00:00.000Z',
+          approvedAt:
+            null,
+          rejectedAt:
+            null,
+          activatedAt:
+            null
+        },
+        canActivate:
+          false,
+        message:
+          'Pedido recebido.'
+      })
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/opaque/enroll/start'
+    ) {
+      assert.equal(
+        body.email,
+        EMAIL
+      )
+      assert.equal(
+        body.activationPassword,
+        ACTIVATION_PASSWORD
+      )
+      assert.equal(
+        typeof body.registrationRequest,
+        'string'
+      )
+
+      const started =
+        createServerRegistrationResponse({
+          serverSetup:
+            opaqueServerSetup,
+          userIdentifier:
+            EMAIL,
+          registrationRequest:
+            body.registrationRequest
+        })
+
+      pendingEnrollment = {
+        id:
+          'e2e-enrollment',
+        email:
+          body.email,
+        deviceId:
+          body.deviceId
+      }
+
+      return fulfilJson(route, {
+        success:
+          true,
+        enrollmentId:
+          pendingEnrollment.id,
+        registrationResponse:
+          started.registrationResponse,
+        expiresAt:
+          '2099-12-31T23:59:59.999Z'
+      })
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/opaque/enroll/finish'
+    ) {
+      assert.ok(
+        pendingEnrollment,
+        'O finish de enrollment exige um start válido.'
+      )
+      assert.equal(
+        body.enrollmentId,
+        pendingEnrollment.id
+      )
+      assert.equal(
+        body.email,
+        pendingEnrollment.email
+      )
+      assert.equal(
+        body.deviceId,
+        pendingEnrollment.deviceId
+      )
+      assert.equal(
+        typeof body.registrationRecord,
+        'string'
+      )
+
+      registrationRecord =
+        body.registrationRecord
+      pendingEnrollment =
+        null
+
+      return fulfilJson(route, {
+        success:
+          true,
+        message:
+          'Registo OPAQUE concluído.'
+      })
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/activate'
+    ) {
+      assert.ok(
+        registrationRecord,
+        'A ativação só pode acontecer depois do enrollment OPAQUE.'
+      )
+      assert.equal(
+        body.email,
+        EMAIL
+      )
+      assert.equal(
+        body.activationPassword,
+        ACTIVATION_PASSWORD
+      )
+
+      return fulfilJson(route, {
+        success:
+          true,
+        token:
+          TOKEN,
+        email:
+          EMAIL,
         license
       })
     }
 
-    if (path === '/api/ma-professor/access/account/verify') {
+    if (
+      path ===
+        '/api/ma-professor/access/opaque/login/start'
+    ) {
+      assert.ok(
+        registrationRecord,
+        'O login OPAQUE exige um registration record.'
+      )
+      assert.equal(
+        body.email,
+        EMAIL
+      )
+      assert.equal(
+        typeof body.startLoginRequest,
+        'string'
+      )
+
+      const started =
+        startServerLogin({
+          serverSetup:
+            opaqueServerSetup,
+          userIdentifier:
+            EMAIL,
+          registrationRecord,
+          startLoginRequest:
+            body.startLoginRequest
+        })
+
+      pendingLogin = {
+        id:
+          'e2e-login',
+        email:
+          body.email,
+        deviceId:
+          body.deviceId,
+        serverLoginState:
+          started.serverLoginState
+      }
+
+      return fulfilJson(route, {
+        success:
+          true,
+        loginId:
+          pendingLogin.id,
+        loginResponse:
+          started.loginResponse,
+        expiresAt:
+          '2099-12-31T23:59:59.999Z'
+      })
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/opaque/login/finish'
+    ) {
+      assert.ok(
+        pendingLogin,
+        'O finish de login exige um start válido.'
+      )
+      assert.equal(
+        body.loginId,
+        pendingLogin.id
+      )
+      assert.equal(
+        body.email,
+        pendingLogin.email
+      )
+      assert.equal(
+        body.deviceId,
+        pendingLogin.deviceId
+      )
+
+      finishServerLogin({
+        serverLoginState:
+          pendingLogin.serverLoginState,
+        finishLoginRequest:
+          body.finishLoginRequest
+      })
+
+      pendingLogin =
+        null
+
+      return fulfilJson(route, {
+        success:
+          true,
+        token:
+          TOKEN,
+        email:
+          EMAIL,
+        license
+      })
+    }
+
+    if (
+      path ===
+        '/api/ma-professor/access/account/verify'
+    ) {
       return fulfilJson(route, {
         success: true,
         email: EMAIL,
@@ -310,6 +613,61 @@ try {
   page.on('pageerror', error => pageErrors.push(error.message))
   apiRequests = await installOfflineApi(page)
 
+  await page.goto(
+    `${BASE_URL}/produtos/ma-professor`,
+    {
+      waitUntil:
+        'domcontentloaded'
+    }
+  )
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          'Pedir acesso gratuito',
+        exact:
+          true
+      }
+    )
+    .first()
+    .click()
+
+  await waitHeading(
+    page,
+    'Pedir acesso'
+  )
+
+  await page
+    .getByLabel(
+      'Email',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      EMAIL
+    )
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          'Pedir acesso',
+        exact:
+          true
+      }
+    )
+    .click()
+
+  await waitHeading(
+    page,
+    'O pedido foi registado'
+  )
+
   const activationUrl =
     `${BASE_URL}/produtos/ma-professor?acesso=ativar&email=${encodeURIComponent(EMAIL)}` +
     `#senha=${encodeURIComponent(ACTIVATION_PASSWORD)}`
@@ -325,6 +683,53 @@ try {
   assert.equal(cleanUrl.searchParams.has('acesso'), false)
   assert.equal(cleanUrl.searchParams.has('email'), false)
   assert.equal(cleanUrl.hash, '')
+
+  await waitHeading(
+    page,
+    'Ativar período de acesso'
+  )
+
+  await page
+    .getByLabel(
+      'Criar password pessoal',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      PERSONAL_PASSWORD
+    )
+
+  await page
+    .getByLabel(
+      'Confirmar password pessoal',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      PERSONAL_PASSWORD
+    )
+
+  await page
+    .getByRole(
+      'checkbox'
+    )
+    .check()
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          'Ativar período',
+        exact:
+          true
+      }
+    )
+    .click()
 
   await selectSchool(page)
   await configureMinimumSetup(page)
@@ -355,8 +760,143 @@ try {
   assert.equal(afterReload.lesson?.summary, SUMMARY)
   assert.equal(afterReload.lesson?.status, 'taught')
 
+  await page.evaluate(async () => {
+    const {
+      clearMAProfessorStoredAccess,
+      readMAProfessorStoredAccess
+    } = await import(
+      '/src/components/ma-professor/access/accessStorage.ts'
+    )
+
+    const {
+      logoutMAProfessorAccess
+    } = await import(
+      '/src/components/ma-professor/access/accessApi.ts'
+    )
+
+    const stored =
+      readMAProfessorStoredAccess()
+
+    if (!stored) {
+      throw new Error(
+        'A sessão E2E devia existir antes do logout.'
+      )
+    }
+
+    await logoutMAProfessorAccess(
+      stored.token,
+      stored.deviceId
+    )
+
+    clearMAProfessorStoredAccess()
+  })
+
+  await page.reload({
+    waitUntil:
+      'domcontentloaded'
+  })
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          'Já tenho acesso',
+        exact:
+          true
+      }
+    )
+    .first()
+    .click()
+
+  await waitHeading(
+    page,
+    'Aceder à sua conta MA-Professor'
+  )
+
+  await page
+    .getByLabel(
+      'Email',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      EMAIL
+    )
+
+  await page
+    .getByLabel(
+      'Password pessoal',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      PERSONAL_PASSWORD
+    )
+
+  await page
+    .getByRole(
+      'button',
+      {
+        name:
+          'Entrar',
+        exact:
+          true
+      }
+    )
+    .click()
+
+  await page.waitForFunction(
+    () =>
+      Boolean(
+        window.localStorage.getItem(
+          'ma-professor-access-v1'
+        )
+      )
+  )
+
+  const afterOpaqueLogin =
+    await persistedLesson(
+      page
+    )
+
+  assert.equal(
+    afterOpaqueLogin.matchCount,
+    1
+  )
+  assert.equal(
+    afterOpaqueLogin.duplicates,
+    1
+  )
+  assert.equal(
+    afterOpaqueLogin.lesson?.summary,
+    SUMMARY
+  )
+
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/request'
+  ))
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/opaque/enroll/start'
+  ))
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/opaque/enroll/finish'
+  ))
   assert.ok(apiRequests.some(item =>
     item.path === '/api/ma-professor/access/activate'
+  ))
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/logout'
+  ))
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/opaque/login/start'
+  ))
+  assert.ok(apiRequests.some(item =>
+    item.path === '/api/ma-professor/access/opaque/login/finish'
   ))
   assert.ok(apiRequests.some(item =>
     item.path === '/api/ma-professor/access/account/verify'
