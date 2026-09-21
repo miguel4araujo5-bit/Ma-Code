@@ -140,6 +140,25 @@ test(
 
 
 test(
+  'v3 record upsert applies recordRevision CAS inside the atomic batch',
+  () => {
+    const promoteStart = worker.indexOf('async function handlePromoteV3')
+    const promoteEnd = worker.indexOf('async function handleStatus', promoteStart)
+    const promote = worker.slice(promoteStart, promoteEnd)
+
+    assert.match(
+      promote,
+      /WHERE ma_professor_encrypted_records\.record_revision = \?/
+    )
+    assert.match(
+      promote,
+      /SESSION_KEY_MARKER,\s*expectedRecordRevision\s*\)/
+    )
+    assert.match(promote, /MA_PROFESSOR_DB\.batch\(\[/)
+  }
+)
+
+test(
   'v3 promotion is isolated, CAS-bound and does not replace the active v2 routes',
   () => {
     const start = worker.indexOf(
