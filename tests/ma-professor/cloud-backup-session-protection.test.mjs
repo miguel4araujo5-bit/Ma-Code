@@ -423,7 +423,7 @@ test(
   () => {
     assert.match(syncPanelSource, /let migratedTrust:/)
     assert.match(syncPanelSource, /migratedTrust = \{/)
-    assert.match(syncPanelSource, /writeMAProfessorCloudBackupTrust\( session, migratedTrust \)/)
+    assert.match(syncPanelSource, /writeMAProfessorCloudBackupTrust\(\s*session,\s*migratedTrust\s*\)/)
     assert.match(syncPanelSource, /catch \(error\) \{ if \(migratedTrust\)/)
     assert.match(syncPanelSource, /await uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
   }
@@ -471,7 +471,7 @@ test(
 
     assert.match(upload, /await readStatus\(session\)/)
     assert.match(upload, /status\.cryptoVersion !== 3/)
-    assert.match(upload, /readMAProfessorOpaqueExportKey\(session\.email\)/)
+    assert.match(upload, /readMAProfessorOpaqueExportKey\(\s*session\.email\s*\)/)
     assert.match(upload, /unwrapMAProfessorBackupV3MasterKey\(exportKey, status\.protection\)/)
     assert.match(upload, /encryptMAProfessorBackupV3Data\(masterKey, compressed, RECORD_ID\)/)
     assert.match(upload, /postJson\('\/push-v3'/)
