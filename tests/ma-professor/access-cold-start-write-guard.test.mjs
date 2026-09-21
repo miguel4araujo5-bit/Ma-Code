@@ -350,9 +350,7 @@ test(
           '/api/ma-professor/access/request',
           {
             email:
-              'novo@example.com',
-            accountPassword:
-              'password-segura'
+              'novo@example.com'
           }
         )
       )
