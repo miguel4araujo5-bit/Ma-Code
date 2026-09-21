@@ -832,3 +832,153 @@ test(
     )
   }
 )
+
+
+test(
+  'interrupted activation can restart OPAQUE enrollment without destroying the previous record before finish',
+  async t => {
+    const staged =
+      await stageAuthBridge()
+
+    t.after(
+      staged.dispose
+    )
+
+    const email =
+      'retry-enrollment@example.com'
+    const activationPassword =
+      'MP-RETRY-1234'
+    const deviceId =
+      'device-retry-opaque'
+    const now =
+      Date.now()
+
+    const storage =
+      await createStorage({
+        email,
+        activationPassword
+      })
+
+    await storage.put(
+      OPAQUE_KEY,
+      {
+        schemaVersion:
+          1,
+        protocol:
+          'OPAQUE-RFC9807',
+        serverSetup:
+          'server-setup',
+        registrations: {
+          [email]: {
+            email,
+            registrationRecord:
+              'previous-registration-record',
+            createdAt:
+              now,
+            updatedAt:
+              now,
+            migratedFromV2At:
+              null
+          }
+        },
+        pendingEnrollments:
+          {},
+        pendingLogins:
+          {},
+        createdAt:
+          now,
+        updatedAt:
+          now
+      }
+    )
+
+    const access =
+      createAccess(
+        staged.runtime,
+        storage
+      )
+
+    const startResponse =
+      await access.fetch(
+        post(
+          '/api/ma-professor/access/opaque/enroll/start',
+          {
+            email,
+            activationPassword,
+            deviceId,
+            registrationRequest:
+              'retry-registration-request'
+          }
+        )
+      )
+
+    assert.equal(
+      startResponse.status,
+      200
+    )
+
+    const startBody =
+      await responseBody(
+        startResponse
+      )
+
+    const afterStart =
+      storage.snapshot(
+        OPAQUE_KEY
+      )
+
+    assert.equal(
+      afterStart.registrations[
+        email
+      ].registrationRecord,
+      'previous-registration-record',
+      'O start do retry não pode destruir o registo OPAQUE anterior.'
+    )
+
+    assert.equal(
+      afterStart.pendingEnrollments[
+        startBody.enrollmentId
+      ].replaceExisting,
+      true
+    )
+
+    const finishResponse =
+      await access.fetch(
+        post(
+          '/api/ma-professor/access/opaque/enroll/finish',
+          {
+            email,
+            deviceId,
+            enrollmentId:
+              startBody.enrollmentId,
+            registrationRecord:
+              'replacement-registration-record'
+          }
+        )
+      )
+
+    assert.equal(
+      finishResponse.status,
+      200
+    )
+
+    const afterFinish =
+      storage.snapshot(
+        OPAQUE_KEY
+      )
+
+    assert.equal(
+      afterFinish.registrations[
+        email
+      ].registrationRecord,
+      'replacement-registration-record'
+    )
+
+    assert.equal(
+      afterFinish.pendingEnrollments[
+        startBody.enrollmentId
+      ],
+      undefined
+    )
+  }
+)
