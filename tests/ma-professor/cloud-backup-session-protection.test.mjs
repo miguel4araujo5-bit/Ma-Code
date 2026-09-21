@@ -154,6 +154,28 @@ test(
 )
 
 test(
+  'v3 push keeps profile and record revisions under symmetric CAS without legacy key material',
+  () => {
+    const start = worker.indexOf('async function handlePushV3')
+    const end = worker.indexOf('async function handlePush', start + 20)
+    const push = worker.slice(start, end)
+
+    assert.ok(start >= 0)
+    assert.match(push, /readExistingProfile/)
+    assert.match(push, /profile\.crypto_version !== V3_CRYPTO_VERSION/)
+    assert.match(push, /currentRecordRevision !== expectedRecordRevision/)
+    assert.match(push, /UPDATE ma_professor_encrypted_records/)
+    assert.match(push, /record_revision = \? AND encryption_version = \?/)
+    assert.match(push, /UPDATE ma_professor_sync_profiles/)
+    assert.match(push, /AND EXISTS \( SELECT 1 FROM ma_professor_encrypted_records/)
+    assert.match(push, /results\[0\]\?\.meta\?\.changes === 1/)
+    assert.match(push, /results\[1\]\?\.meta\?\.changes === 1/)
+    assert.doesNotMatch(push, /ensureSessionProfile|SESSION_KEY_MARKER|RAW-AES|\/key/)
+    assert.match(worker, /case '\/push-v3': return await handlePushV3\(body, env\)/)
+  }
+)
+
+test(
   'v3 record upsert applies recordRevision CAS inside the atomic batch',
   () => {
     const promoteStart = worker.indexOf('async function handlePromoteV3')
