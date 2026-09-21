@@ -1354,6 +1354,14 @@ export class MaProfessorAccessDurableObject {
         )
       )
 
+    const hadPendingEnrollment =
+      Boolean(
+        opaqueState
+          .pendingEnrollments[
+            enrollmentId
+          ]
+      )
+
     try {
       finishOpaqueEnrollment(
         opaqueState,
@@ -1381,6 +1389,21 @@ export class MaProfessorAccessDurableObject {
     } catch (
       error
     ) {
+      /*
+       * O protocolo consome um enrollmentId conhecido antes de validar
+       * email/dispositivo. Persistir esse consumo impede replay depois
+       * de uma tentativa divergente, sem criar uma escrita para IDs
+       * completamente inexistentes.
+       */
+      if (
+        hadPendingEnrollment
+      ) {
+        await this.state.storage.put(
+          MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
+          opaqueState
+        )
+      }
+
       const message =
         error instanceof
           Error
