@@ -20,7 +20,9 @@ const [
   restorePanelSource,
   dailySource,
   accessSource,
-  automaticSource
+  automaticSource,
+  authGateSource,
+  accessStorageSource
 ] = await Promise.all([
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
   read('src/components/ma-professor/sync/cloudBackupRestoreService.ts'),
@@ -30,7 +32,9 @@ const [
   read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
   read('src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx'),
   read('worker/maProfessorAccess.ts'),
-  read('src/components/ma-professor/sync/AutomaticCloudBackup.tsx')
+  read('src/components/ma-professor/sync/AutomaticCloudBackup.tsx'),
+  read('src/components/ma-professor/access/MAProfessorAuthGate.tsx'),
+  read('src/components/ma-professor/access/accessStorage.ts')
 ])
 
 const client = compact(clientSource)
@@ -39,6 +43,8 @@ const worker = compact(workerSource)
 const entry = compact(entrySource)
 const access = compact(accessSource)
 const automatic = compact(automaticSource)
+const authGate = compact(authGateSource)
+const accessStorage = compact(accessStorageSource)
 const syncPanel = compact(syncPanelSource)
 const restorePanel = compact(restorePanelSource)
 const daily = compact(dailySource)
@@ -415,6 +421,17 @@ test(
     const migrationCall = syncPanel.indexOf('await migrateMAProfessorCloudBackupV2ToV3')
     const conditionStart = syncPanel.indexOf('currentStatus.cryptoVersion === 2')
     assert.ok(conditionStart >= 0 && migrationCall > conditionStart)
+  }
+)
+
+test(
+  'a fresh OPAQUE login restores the in-memory export key required by v3 after reload',
+  () => {
+    assert.match(authGate, /await loginMAProfessorOpaqueOnly\(/)
+    assert.match(authGate, /saveMAProfessorOpaqueExportKey\( normalizedEmail, exportKey \)/)
+    assert.match(accessStorage, /let memoryOpaqueExportKey:/)
+    assert.match(accessStorage, /memoryOpaqueExportKey = \{ email: normalizeEmail\(email\), exportKey \}/)
+    assert.doesNotMatch(accessStorage, /localStorage.*exportKey|sessionStorage.*exportKey/)
   }
 )
 
