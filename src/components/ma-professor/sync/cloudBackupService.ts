@@ -1018,7 +1018,9 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     plaintextBytes:
       plaintext.byteLength,
     encryptedBytes:
-      encrypted.ciphertext.length
+      Math.floor(
+        encrypted.ciphertext.length * 3 / 4
+      )
   }
 }
 
