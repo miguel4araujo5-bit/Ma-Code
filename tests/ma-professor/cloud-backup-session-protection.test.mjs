@@ -270,6 +270,29 @@ test(
 )
 
 test(
+  'v3 status and get can read the promoted profile while key remains strictly v2-only',
+  () => {
+    const statusStart = worker.indexOf('async function handleStatus')
+    const keyStart = worker.indexOf('async function handleKey')
+    const getStart = worker.indexOf('async function handleGet')
+    const pushStart = worker.indexOf('async function handlePush')
+    const status = worker.slice(statusStart, keyStart)
+    const key = worker.slice(keyStart, getStart)
+    const get = worker.slice(getStart, pushStart)
+
+    assert.match(status, /readExistingProfile\(/)
+    assert.doesNotMatch(status, /ensureSessionProfile\(/)
+    assert.doesNotMatch(status, /assertSessionProfile\(/)
+    assert.match(get, /readExistingProfile\(/)
+    assert.doesNotMatch(get, /ensureSessionProfile\(/)
+    assert.doesNotMatch(get, /assertSessionProfile\(/)
+    assert.match(key, /readExistingProfile\(/)
+    assert.match(key, /assertSessionProfile\(profile\)/)
+    assert.doesNotMatch(key, /ensureSessionProfile\(/)
+  }
+)
+
+test(
   'online backup keeps automatic and manual saves while restore keeps local and remote race guards',
   () => {
     assert.match(
