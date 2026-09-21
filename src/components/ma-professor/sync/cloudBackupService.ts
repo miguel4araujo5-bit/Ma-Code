@@ -1101,6 +1101,68 @@ export async function promotePreparedMAProfessorCloudBackupV3(
   )
 }
 
+export async function uploadAndVerifyMAProfessorCloudBackupV3(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup,
+  options: MAProfessorCloudBackupUploadOptions = {}
+): Promise<MAProfessorUploadedCloudBackup> {
+  const assertUploadAllowed = () => {
+    if (options.canUpload && !options.canUpload()) {
+      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
+    }
+  }
+
+  assertUploadAllowed()
+  const status = await readStatus(session)
+
+  if (status.cryptoVersion !== 3 || !status.protection || !status.backup.found ||
+      !isNonNegativeInteger(status.backup.recordRevision)) {
+    throw new Error('A proteção v3 da cópia online não está pronta para receber novos dados.')
+  }
+
+  if (options.expectedServerRevision !== undefined &&
+      status.serverRevision !== options.expectedServerRevision) {
+    throw new MAProfessorCloudBackupRevisionConflictError()
+  }
+
+  const exportKey = readMAProfessorOpaqueExportKey(session.email)
+  if (!exportKey) {
+    throw new Error('A sessão OPAQUE necessária para guardar a cópia v3 já não está disponível. Inicie sessão novamente.')
+  }
+
+  assertUploadAllowed()
+  const masterKey = await unwrapMAProfessorBackupV3MasterKey(exportKey, status.protection)
+  const plaintext = textEncoder.encode(JSON.stringify(backup))
+  const compressed = zlibSync(plaintext, { level: 6 })
+  const plaintextHash = await sha256Base64(plaintext)
+  const encrypted = await encryptMAProfessorBackupV3Data(masterKey, compressed, RECORD_ID)
+  assertUploadAllowed()
+
+  const pushed = parsePromoteV3Result(
+    await postJson('/push-v3', {
+      ...sessionBody(session), recordId: RECORD_ID,
+      expectedServerRevision: status.serverRevision,
+      expectedRecordRevision: status.backup.recordRevision,
+      encrypted
+    }, 'Não foi possível guardar a cópia cifrada v3.')
+  )
+
+  const verified = await downloadMAProfessorCloudBackupV3(session)
+  if (!verified || verified.serverRevision !== pushed.serverRevision ||
+      verified.recordRevision !== pushed.recordRevision ||
+      verified.plaintextHash !== plaintextHash) {
+    throw new Error('A cópia v3 foi enviada, mas a verificação local não corresponde aos dados enviados.')
+  }
+
+  return {
+    serverRevision: pushed.serverRevision,
+    recordRevision: pushed.recordRevision,
+    updatedAt: pushed.updatedAt,
+    plaintextBytes: plaintext.byteLength,
+    encryptedBytes: Math.floor(encrypted.ciphertext.length * 3 / 4)
+  }
+}
+
 export async function uploadAndVerifyMAProfessorCloudBackup(
   session:
     MAProfessorAccessSession,
