@@ -392,6 +392,24 @@ test(
 )
 
 test(
+  'compatible upload dispatches by profile version and forwards the observed CAS revision',
+  () => {
+    const start = client.indexOf('export async function uploadAndVerifyCompatibleMAProfessorCloudBackup')
+    const end = client.indexOf('export async function uploadAndVerifyMAProfessorCloudBackupV3', start)
+    const dispatcher = client.slice(start, end)
+
+    assert.match(dispatcher, /await readStatus\(session\)/)
+    assert.match(dispatcher, /status\.serverRevision !== options\.expectedServerRevision/)
+    assert.match(dispatcher, /expectedServerRevision: status\.serverRevision/)
+    assert.match(dispatcher, /status\.cryptoVersion === 3/)
+    assert.match(dispatcher, /uploadAndVerifyMAProfessorCloudBackupV3/)
+    assert.match(dispatcher, /status\.cryptoVersion === 2/)
+    assert.match(dispatcher, /uploadAndVerifyMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(dispatcher, /promote-v3|\/key/)
+  }
+)
+
+test(
   'v3 client upload unwraps locally, uses push-v3 and verifies by downloading v3',
   () => {
     const start = client.indexOf('export async function uploadAndVerifyMAProfessorCloudBackupV3')
