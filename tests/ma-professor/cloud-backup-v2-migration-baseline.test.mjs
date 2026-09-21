@@ -80,23 +80,23 @@ test(
 )
 
 test(
-  'v3 must change authentication as well as backup key storage because the current public flows submit the personal password',
+  'public account flows no longer submit the personal password while backup v2 remains isolated',
   () => {
-    assert.match(
+    assert.doesNotMatch(
       accessApi,
-      /body\.accountPassword = accountPassword/
+      /accountPassword/
     )
-    assert.match(
+    assert.doesNotMatch(
       accessApi,
-      /postJson<MAProfessorAccessResponse>\( '\/login', \{ email, password, deviceId \}/
+      /export async function loginMAProfessorAccess/
     )
     assert.match(
       authWorker,
-      /const password = normalizePassword\( body\.password \)/
+      /O login legado foi descontinuado\. Utilize o login protegido\./
     )
     assert.match(
       authWorker,
-      /verifyAccountPassword\( credential, password \)/
+      /O fluxo antigo de password pessoal foi descontinuado/
     )
   }
 )
