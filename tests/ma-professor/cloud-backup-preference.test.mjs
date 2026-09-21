@@ -208,6 +208,33 @@ test('v3 preparation fails closed without an in-memory OPAQUE export key and per
   assert.equal(fetchMock.mock.callCount(), 0)
 })
 
+test('v3 preparation validates locally and never contacts the server', async t => {
+  const files = await stage(t, 'sync/cloudBackupService.ts', {
+    '../settings/backupRepository': './validation.mjs',
+    '../access/accessStorage': './access-storage.mjs',
+    './cloudBackupV3Crypto': './cloud-backup-v3-crypto.mjs'
+  })
+  await files.write('validation.mjs', 'export const validateMAProfessorBackup = value => ({ valid: value?.product === "ma-professor" })')
+  await files.write('access-storage.mjs', 'export const readMAProfessorOpaqueExportKey = () => "opaque-export-key"')
+  await files.write('cloud-backup-v3-crypto.mjs', [
+    'let bytes;',
+    'export const createMAProfessorBackupV3KeyMaterial = async key => ({ masterKey: { key }, wrapped: { cryptoVersion: 3 } })',
+    'export const encryptMAProfessorBackupV3Data = async (_key, value, context) => { bytes = value; return { encryptionVersion: 3, encryptionAlgorithm: "AES-256-GCM", nonce: "nonce", ciphertext: "ciphertext", ciphertextHash: "hash", context } }',
+    'export const decryptMAProfessorBackupV3Data = async (_key, _encrypted, context) => { if (context !== "database-v1") throw new Error("wrong context"); return bytes }'
+  ].join('\\n'))
+  const service = await files.load()
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('network must not run')
+  })
+  const backup = { product: 'ma-professor', data: { students: [{ name: 'Private student' }] } }
+  const prepared = await service.prepareMAProfessorCloudBackupV3Promotion(session, backup)
+  assert.equal(prepared.profile.cryptoVersion, 3)
+  assert.equal(prepared.encrypted.encryptionVersion, 3)
+  assert.equal(prepared.encrypted.context, 'database-v1')
+  assert.equal(prepared.plaintextBytes > 0, true)
+  assert.equal(fetchMock.mock.callCount(), 0)
+})
+
 test('revoking the choice while encryption is in progress prevents push; manual upload still encrypts and verifies', async t => {
   const files = await stage(t, 'sync/cloudBackupService.ts', {
     '../settings/backupRepository': './validation.mjs',
