@@ -454,38 +454,6 @@ export function finishOpaqueEnrollment(
     )
   }
 
-  const pending =
-    state.pendingEnrollments[
-      enrollmentId
-    ]
-
-  if (!pending) {
-    throw new Error(
-      'OPAQUE_ENROLLMENT_INVALID'
-    )
-  }
-
-  delete state
-    .pendingEnrollments[
-      enrollmentId
-    ]
-
-  state.updatedAt =
-    now
-
-  if (
-    pending.expiresAt <=
-      now ||
-    pending.email !==
-      email ||
-    pending.deviceId !==
-      deviceId
-  ) {
-    throw new Error(
-      'OPAQUE_ENROLLMENT_INVALID'
-    )
-  }
-
   state.registrations[
     email
   ] = {
