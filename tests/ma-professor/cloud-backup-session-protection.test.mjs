@@ -441,7 +441,7 @@ test(
     assert.match(syncPanelSource, /let migratedTrust:/)
     assert.match(syncPanelSource, /migratedTrust = \{/)
     assert.match(syncPanelSource, /writeMAProfessorCloudBackupTrust\(\s*session,\s*migratedTrust\s*\)/)
-    assert.match(syncPanelSource, /catch \(error\) \{ if \(migratedTrust\)/)
+    assert.match(syncPanelSource, /catch \(error\) \{\s*if \(migratedTrust\)/)
     assert.match(syncPanelSource, /await uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
   }
 )
@@ -488,8 +488,8 @@ test(
   'restore re-reads the compatible v3 copy and rejects revision drift before local mutation',
   () => {
     assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup\( session \)/)
-    assert.match(restoreService, /freshRemote\.serverRevision !== preview\.serverRevision/)
-    assert.match(restoreService, /freshRemote\.recordRevision !== preview\.recordRevision/)
+    assert.match(restoreService, /freshRemote\.serverRevision !== options\.expectedServerRevision/)
+    assert.match(restoreService, /freshRemote\.recordRevision !== options\.expectedRecordRevision/)
     const drift = restoreService.indexOf('freshRemote.serverRevision !==')
     const mutate = restoreService.indexOf('restoreMAProfessorDatabaseSnapshotIfLocalUnchanged')
     assert.ok(drift >= 0 && mutate > drift)
