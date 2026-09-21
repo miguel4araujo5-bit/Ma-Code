@@ -408,6 +408,17 @@ test(
 )
 
 test(
+  'manual migration preserves v3 trust if the following upload fails',
+  () => {
+    assert.match(syncPanelSource, /let migratedTrust:/)
+    assert.match(syncPanelSource, /migratedTrust = \{/)
+    assert.match(syncPanelSource, /writeMAProfessorCloudBackupTrust\( session, migratedTrust \)/)
+    assert.match(syncPanelSource, /catch \(error\) \{ if \(migratedTrust\)/)
+    assert.match(syncPanelSource, /await uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
+  }
+)
+
+test(
   'restore and trust reconciliation use the compatible v2 v3 reader while uploads remain legacy-gated',
   async () => {
     const restore = await readFile('src/components/ma-professor/sync/cloudBackupRestoreService.ts', 'utf8')
