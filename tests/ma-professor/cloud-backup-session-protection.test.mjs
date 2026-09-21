@@ -306,6 +306,21 @@ test(
 )
 
 test(
+  'restore and trust reconciliation use the compatible v2 v3 reader while uploads remain legacy-gated',
+  async () => {
+    const restore = await readFile('src/components/ma-professor/sync/cloudBackupRestoreService.ts', 'utf8')
+    const automatic = await readFile('src/components/ma-professor/sync/AutomaticCloudBackup.tsx', 'utf8')
+
+    assert.match(restore, /downloadCompatibleMAProfessorCloudBackup/)
+    assert.doesNotMatch(restore, /\bdownloadMAProfessorCloudBackup\(/)
+    assert.match(automatic, /downloadCompatibleMAProfessorCloudBackup/)
+    assert.doesNotMatch(automatic, /\bdownloadMAProfessorCloudBackup\(/)
+    assert.match(automatic, /uploadAndVerifyMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(automatic, /promotePreparedMAProfessorCloudBackupV3|prepareMAProfessorCloudBackupV3Promotion/)
+  }
+)
+
+test(
   'compatible download dispatches only from the declared profile crypto version',
   () => {
     const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
