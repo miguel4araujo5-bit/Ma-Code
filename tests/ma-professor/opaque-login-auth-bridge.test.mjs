@@ -278,7 +278,7 @@ async function stageAuthBridge() {
           if (
             !state.registrationRecord ||
             finishLoginRequest !==
-              `proof:${state.registrationRecord}`
+              'proof:' + state.registrationRecord
           ) {
             throw new Error(
               'invalid opaque proof'
