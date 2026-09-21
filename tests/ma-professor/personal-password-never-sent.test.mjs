@@ -18,7 +18,11 @@ const [
   authWorkerSource,
   privacyWorkerSource,
   requestGuardSource,
-  baseAccessSource
+  baseAccessSource,
+  backupPreferenceSource,
+  setupConfirmationSource,
+  founderOfferSource,
+  adminMaintenanceSource
 ] =
   await Promise.all([
     read(
@@ -41,6 +45,18 @@ const [
     ),
     read(
       'worker/maProfessorAccess.ts'
+    ),
+    read(
+      'src/components/ma-professor/sync/cloudBackupPreference.ts'
+    ),
+    read(
+      'src/components/ma-professor/setup/SetupConfirmationStep.tsx'
+    ),
+    read(
+      'src/components/ma-professor/access/FounderAccessOffer.tsx'
+    ),
+    read(
+      'src/components/admin/ma-professor/MAProfessorAccountMaintenance.tsx'
     )
   ])
 
@@ -250,6 +266,65 @@ test(
     assert.match(
       method,
       /createGenericAccessRequestResponse\(\s*email\s*\)/
+    )
+  }
+)
+
+
+test(
+  'public privacy copy reflects OPAQUE and distinguishes v3 from legacy v2 protection',
+  () => {
+    assert.match(
+      authGateSource,
+      /password pessoal[\s\S]*?nunca é enviada à MA-CODE/
+    )
+    assert.match(
+      authGateSource,
+      /não é enviada nem guardada pela MA-CODE/
+    )
+
+    assert.match(
+      backupPreferenceSource,
+      /Nas cópias com proteção v3[\s\S]*?não recebe a sua password pessoal[\s\S]*?não guarda no servidor o material necessário para decifrar os dados/
+    )
+    assert.match(
+      backupPreferenceSource,
+      /cópia v2[\s\S]*?proteção anterior[\s\S]*?migração explícita/
+    )
+
+    assert.match(
+      setupConfirmationSource,
+      /proteção v3[\s\S]*?não guarda no servidor o material necessário para decifrar os dados/
+    )
+    assert.match(
+      setupConfirmationSource,
+      /ainda em v2[\s\S]*?migração explícita/
+    )
+
+    assert.doesNotMatch(
+      founderOfferSource,
+      /password pessoal continua a ser utilizada apenas para entrar/
+    )
+    assert.match(
+      founderOfferSource,
+      /A senha MP serve apenas para ativar o período/
+    )
+    assert.match(
+      founderOfferSource,
+      /password pessoal é usada no login protegido e nunca é enviada à MA-CODE/
+    )
+
+    assert.doesNotMatch(
+      adminMaintenanceSource,
+      /remove[\s\S]*?password pessoal, renovações/
+    )
+    assert.match(
+      adminMaintenanceSource,
+      /registo de autenticação OPAQUE/
+    )
+    assert.match(
+      adminMaintenanceSource,
+      /A MA-CODE não guarda a password pessoal do professor/
     )
   }
 )
