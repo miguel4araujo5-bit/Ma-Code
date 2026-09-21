@@ -297,7 +297,10 @@ async function installOfflineApi(page) {
     ) {
       assert.ok(
         registrationRecord,
-        'A ativação só pode acontecer depois do enrollment OPAQUE.'
+        'A ativação só pode acontecer depois do enrollment OPAQUE. Sequência observada: ' +
+          requests
+            .map(item => item.path)
+            .join(' -> ')
       )
       assert.equal(
         body.email,
