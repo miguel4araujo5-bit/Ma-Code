@@ -1217,6 +1217,14 @@ export async function downloadMAProfessorCloudBackup(
     return null
   }
 
+  if (
+    remote.cryptoVersion !== 2
+  ) {
+    throw new Error(
+      'Esta cópia online usa proteção v3 e não pode ser aberta pelo fluxo legado v2.'
+    )
+  }
+
   const key =
     await importBackupKey(session)
   const decrypted =
