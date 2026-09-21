@@ -407,9 +407,14 @@ function parseStatus(
   }
 
   if (
-    value.cryptoVersion === 3
-      ? !isObject(value.protection)
-      : value.protection !== null
+    ![2, 3].includes(
+      value.cryptoVersion
+    ) ||
+    (
+      value.cryptoVersion === 3
+        ? !isObject(value.protection)
+        : value.protection !== null
+    )
   ) {
     throw new Error(
       'O serviço devolveu uma proteção de cópia incompatível com a versão criptográfica.'
