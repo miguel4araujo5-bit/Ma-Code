@@ -1147,6 +1147,24 @@ async function handleStatus(
       profile.server_revision,
     cryptoVersion:
       profile.crypto_version,
+    protection:
+      profile.crypto_version === V3_CRYPTO_VERSION
+        ? {
+            cryptoVersion: V3_CRYPTO_VERSION,
+            recoveryKdfAlgorithm:
+              profile.recovery_kdf_algorithm,
+            recoveryKdfSalt:
+              profile.recovery_kdf_salt,
+            recoveryKdfParameters:
+              profile.recovery_kdf_parameters,
+            recoveryKeyWrapAlgorithm:
+              profile.recovery_key_wrap_algorithm,
+            recoveryWrappedMasterKey:
+              profile.recovery_wrapped_master_key,
+            recoveryWrappedMasterKeyNonce:
+              profile.recovery_wrapped_master_key_nonce
+          }
+        : null,
     updatedAt:
       new Date(
         profile.updated_at
