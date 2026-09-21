@@ -11,7 +11,7 @@ const PORT = 4175
 const BASE_URL = `http://${HOST}:${PORT}`
 const EMAIL = 'e2e.professor@example.test'
 const TOKEN = 'e2e-browser-session-token'
-const ACTIVATION_PASSWORD = 'E2E-ACTIVATE'
+const DEVICE_ID = 'e2e-unified-navigation-device'
 const SUMMARY = 'Sumário E2E persistido após reload.'
 const FIXED_NOW = '2026-09-21T09:30:00+01:00'
 
@@ -331,7 +331,45 @@ try {
   page.setDefaultTimeout(20_000)
   page.on('pageerror', error => pageErrors.push(error.message))
   apiRequests = await installOfflineApi(page)
-  await page.goto(`${BASE_URL}/produtos/ma-professor?acesso=ativar&email=${encodeURIComponent(EMAIL)}#senha=${encodeURIComponent(ACTIVATION_PASSWORD)}`)
+
+  await page.addInitScript(
+    ({
+      token,
+      email,
+      deviceId,
+      storedLicense
+    }) => {
+      window.localStorage.setItem(
+        'ma-professor-access-v1',
+        JSON.stringify({
+          token,
+          email,
+          deviceId,
+          license:
+            storedLicense
+        })
+      )
+    },
+    {
+      token:
+        TOKEN,
+      email:
+        EMAIL,
+      deviceId:
+        DEVICE_ID,
+      storedLicense:
+        license
+    }
+  )
+
+  await page.goto(
+    `${BASE_URL}/produtos/ma-professor`,
+    {
+      waitUntil:
+        'domcontentloaded'
+    }
+  )
+
   await selectSchool(page)
   await openDestination(page, 'Definições', 1366)
   await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
