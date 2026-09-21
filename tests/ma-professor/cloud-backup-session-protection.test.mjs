@@ -190,6 +190,14 @@ test(
       /results\[1\]\?\.meta\?\.changes === 1/
     )
     assert.match(
+      promote,
+      /parseV3EncryptedPayload\(\s*body\.encrypted\s*\)/
+    )
+    assert.doesNotMatch(
+      promote,
+      /parseEncryptedPayload\(\s*body\.encrypted\s*\)/
+    )
+    assert.match(
       worker,
       /case '\/promote-v3': return await handlePromoteV3\(body, env\)/
     )
