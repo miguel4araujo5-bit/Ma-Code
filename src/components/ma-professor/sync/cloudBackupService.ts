@@ -1011,13 +1011,17 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
 export async function promotePreparedMAProfessorCloudBackupV3(
   session: MAProfessorAccessSession,
   prepared: MAProfessorPreparedCloudBackupV3Promotion,
-  expectedServerRevision: number
+  expectedServerRevision: number,
+  expectedRecordRevision: number
 ) {
   assertSession(session)
 
   if (
     !isNonNegativeInteger(
       expectedServerRevision
+    ) ||
+    !isNonNegativeInteger(
+      expectedRecordRevision
     )
   ) {
     throw new Error(
@@ -1033,6 +1037,7 @@ export async function promotePreparedMAProfessorCloudBackupV3(
         recordId:
           RECORD_ID,
         expectedServerRevision,
+        expectedRecordRevision,
         profile:
           prepared.profile,
         encrypted:
