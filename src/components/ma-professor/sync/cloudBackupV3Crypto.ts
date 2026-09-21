@@ -4,6 +4,9 @@ const CRYPTO_VERSION =
 const MASTER_KEY_BYTES =
   32
 
+const OPAQUE_EXPORT_KEY_BYTES =
+  64
+
 const KDF_SALT_BYTES =
   32
 
@@ -177,11 +180,11 @@ function readExportKey(
     )
 
   if (
-    bytes.byteLength <
-      32
+    bytes.byteLength !==
+      OPAQUE_EXPORT_KEY_BYTES
   ) {
     throw new Error(
-      'A chave de autenticação protegida não tem entropia suficiente.'
+      'A chave de autenticação protegida não tem o tamanho esperado.'
     )
   }
 
