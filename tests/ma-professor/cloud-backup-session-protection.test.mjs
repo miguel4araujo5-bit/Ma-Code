@@ -293,6 +293,23 @@ test(
 )
 
 test(
+  'v3 download uses OPAQUE client material and never requests the legacy server key',
+  () => {
+    const start = client.indexOf('export async function downloadMAProfessorCloudBackupV3')
+    const end = client.indexOf('export async function downloadMAProfessorCloudBackup(', start)
+    const downloadV3 = client.slice(start, end)
+
+    assert.match(downloadV3, /readMAProfessorOpaqueExportKey\(/)
+    assert.match(downloadV3, /unwrapMAProfessorBackupV3MasterKey\(/)
+    assert.match(downloadV3, /decryptMAProfessorBackupV3Data\(/)
+    assert.match(downloadV3, /validateMAProfessorBackup\(backup\)/)
+    assert.match(downloadV3, /status\.serverRevision !== remote\.serverRevision/)
+    assert.match(downloadV3, /status\.backup\.recordRevision !== remote\.recordRevision/)
+    assert.doesNotMatch(downloadV3, /importBackupKey|readKey|\/key/)
+  }
+)
+
+test(
   'legacy v2 download detects v3 before requesting the server-held v2 key',
   () => {
     const start = client.indexOf('export async function downloadMAProfessorCloudBackup')
