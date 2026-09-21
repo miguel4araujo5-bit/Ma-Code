@@ -293,6 +293,22 @@ test(
 )
 
 test(
+  'compatible download dispatches only from the declared profile crypto version',
+  () => {
+    const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
+    const end = client.indexOf('export async function downloadMAProfessorCloudBackupV3', start)
+    const dispatcher = client.slice(start, end)
+
+    assert.match(dispatcher, /await readStatus\(session\)/)
+    assert.match(dispatcher, /status\.cryptoVersion === 3/)
+    assert.match(dispatcher, /downloadMAProfessorCloudBackupV3\(/)
+    assert.match(dispatcher, /status\.cryptoVersion === 2/)
+    assert.match(dispatcher, /downloadMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(dispatcher, /\/key|importBackupKey|promote-v3|upload/)
+  }
+)
+
+test(
   'v3 download uses OPAQUE client material and never requests the legacy server key',
   () => {
     const start = client.indexOf('export async function downloadMAProfessorCloudBackupV3')
