@@ -267,7 +267,7 @@ test(
         /AND recovery_key_wrap_algorithm = \?/g
       ) || []
 
-    assert.equal(recordCas.length, 2)
+    assert.equal(recordCas.length, 3)
     assert.equal(versionCas.length, 2)
     assert.equal(kdfCas.length, 2)
     assert.equal(wrapCas.length, 2)
