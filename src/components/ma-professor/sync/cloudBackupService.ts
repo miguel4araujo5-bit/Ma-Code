@@ -1266,6 +1266,15 @@ export async function migrateMAProfessorCloudBackupV2ToV3(
     return null
   }
 
+  if (!isNonNegativeInteger(status.backup.recordRevision)) {
+    throw new Error(
+      'A revisão da cópia v2 não é válida para iniciar a migração.'
+    )
+  }
+
+  const expectedRecordRevision =
+    status.backup.recordRevision
+
   const legacy =
     await downloadMAProfessorCloudBackup(
       session
@@ -1279,7 +1288,7 @@ export async function migrateMAProfessorCloudBackupV2ToV3(
 
   if (
     legacy.serverRevision !== status.serverRevision ||
-    legacy.recordRevision !== status.backup.recordRevision
+    legacy.recordRevision !== expectedRecordRevision
   ) {
     throw new MAProfessorCloudBackupRevisionConflictError(
       'A cópia v2 mudou durante a preparação da migração.'
