@@ -103,15 +103,6 @@ async function installOfflineApi(page) {
     const path = new URL(request.url()).pathname
     requests.push({ method: request.method(), path })
 
-    if (path === '/api/ma-professor/access/activate') {
-      return fulfilJson(route, {
-        success: true,
-        token: TOKEN,
-        email: EMAIL,
-        license
-      })
-    }
-
     if (path === '/api/ma-professor/access/account/verify') {
       return fulfilJson(route, {
         success: true,
