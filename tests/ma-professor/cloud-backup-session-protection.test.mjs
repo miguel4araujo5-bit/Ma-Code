@@ -65,6 +65,7 @@ test(
       'handleKey',
       'handleGet',
       'handlePromoteV3',
+      'handlePushV3',
       'handlePush'
     ]) {
       const start = worker.indexOf(
