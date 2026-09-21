@@ -440,3 +440,129 @@ test(
     )
   }
 )
+
+
+test(
+  'v3 encrypts and decrypts backup data with the client master key and dedicated data domain',
+  async () => {
+    const created =
+      await cryptoV3
+        .createMAProfessorBackupV3KeyMaterial(
+          randomExportKey()
+        )
+
+    const plaintext =
+      new TextEncoder().encode(
+        JSON.stringify({
+          product: 'ma-professor',
+          schemaVersion: 1,
+          exportedAt: '2026-09-21T12:00:00.000Z',
+          data: {
+            lessons: []
+          }
+        })
+      )
+
+    const encrypted =
+      await cryptoV3
+        .encryptMAProfessorBackupV3Data(
+          created.masterKey,
+          plaintext,
+          'database-v1'
+        )
+
+    assert.equal(
+      encrypted.encryptionVersion,
+      3
+    )
+    assert.equal(
+      encrypted.encryptionAlgorithm,
+      'AES-256-GCM'
+    )
+    assert.equal(
+      fromBase64Url(
+        encrypted.nonce
+      ).byteLength,
+      12
+    )
+    assert.equal(
+      JSON.stringify(
+        encrypted
+      ).includes(
+        new TextDecoder().decode(
+          plaintext
+        )
+      ),
+      false
+    )
+
+    const decrypted =
+      await cryptoV3
+        .decryptMAProfessorBackupV3Data(
+          created.masterKey,
+          encrypted,
+          'database-v1'
+        )
+
+    assert.deepEqual(
+      decrypted,
+      plaintext
+    )
+  }
+)
+
+test(
+  'v3 data encryption binds ciphertext to its context and rejects tampering',
+  async () => {
+    const created =
+      await cryptoV3
+        .createMAProfessorBackupV3KeyMaterial(
+          randomExportKey()
+        )
+
+    const encrypted =
+      await cryptoV3
+        .encryptMAProfessorBackupV3Data(
+          created.masterKey,
+          new TextEncoder().encode(
+            'backup-v3'
+          ),
+          'database-v1'
+        )
+
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .decryptMAProfessorBackupV3Data(
+            created.masterKey,
+            encrypted,
+            'different-record'
+          ),
+      /Não foi possível decifrar/
+    )
+
+    const ciphertext =
+      fromBase64Url(
+        encrypted.ciphertext
+      )
+
+    ciphertext[0] ^= 1
+
+    await assert.rejects(
+      () =>
+        cryptoV3
+          .decryptMAProfessorBackupV3Data(
+            created.masterKey,
+            {
+              ...encrypted,
+              ciphertext:
+                toBase64Url(
+                  ciphertext
+                )
+            },
+            'database-v1'
+          ),
+      /Não foi possível decifrar/
+    )
+  }
+)
