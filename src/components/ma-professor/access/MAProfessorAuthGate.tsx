@@ -636,7 +636,7 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Introduza o seu email para pedir acesso. A password pessoal só será criada no seu dispositivo depois de o pedido ser aprovado.
+            Introduza o seu email para pedir acesso. A password pessoal só será definida no seu dispositivo depois de o pedido ser aprovado e nunca é enviada à MA-CODE.
           </p>
 
           <form
