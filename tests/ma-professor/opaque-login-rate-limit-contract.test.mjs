@@ -31,6 +31,12 @@ test(
       /url\.pathname ===\s*PUBLIC_LOGIN_PATH\s*\|\|\s*url\.pathname ===\s*PUBLIC_OPAQUE_LOGIN_FINISH_PATH/
     )
 
+
+    assert.match(
+      source,
+      /opaque\s*\? 'Não foi possível iniciar sessão com estas credenciais\.'\s*: 'Email ou password pessoal incorretos\.'/
+    )
+
     assert.match(
       source,
       /recordFailedAttempt\(\s*guardState,\s*originKey,\s*LOGIN_GUARD_MAX_ORIGIN_FAILURES/
