@@ -140,7 +140,7 @@ test(
 )
 
 test(
-  'v2 authentication storage and v3 OPAQUE storage remain distinct in the production source',
+  'production auth bridge removes legacy personal-password storage and uses only OPAQUE plus MP activation state',
   async () => {
     const authBridge =
       await readFile(
@@ -151,7 +151,7 @@ test(
         'utf8'
       )
 
-    assert.match(
+    assert.doesNotMatch(
       authBridge,
       /ma-professor-account-auth-v1/
     )
@@ -159,9 +159,13 @@ test(
       source,
       /ma-professor-account-auth-v1/
     )
-    assert.doesNotMatch(
+    assert.match(
       authBridge,
-      /ma-professor-opaque-auth-v1/
+      /MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY/
+    )
+    assert.match(
+      authBridge,
+      /activationPassword/
     )
   }
 )
@@ -184,7 +188,7 @@ test(
     )
     assert.match(
       authBridge,
-      /return this\.issueAccountSession\(\s*email,\s*deviceId\s*\)/
+      /return this\.issueAccountSession\(\s*authenticated\.email,\s*authenticated\.deviceId\s*\)/
     )
 
     const tokenCreationCount =
