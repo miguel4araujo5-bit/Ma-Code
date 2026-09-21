@@ -486,6 +486,12 @@ test(
       12
     )
     assert.equal(
+      fromBase64Url(
+        encrypted.ciphertextHash
+      ).byteLength,
+      32
+    )
+    assert.equal(
       JSON.stringify(
         encrypted
       ).includes(
