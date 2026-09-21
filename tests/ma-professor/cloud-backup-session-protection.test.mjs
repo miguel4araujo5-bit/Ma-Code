@@ -526,7 +526,7 @@ test(
     const migrationEnd = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup', migrationStart)
     const migration = client.slice(migrationStart, migrationEnd)
 
-    assert.match(prepare, /readMAProfessorOpaqueExportKey\(session\.email\)/)
+    assert.match(prepare, /readMAProfessorOpaqueExportKey\(\s*session\.email\s*\)/)
     assert.match(prepare, /if \(!exportKey\)/)
     assert.ok(migration.indexOf('prepareMAProfessorCloudBackupV3Promotion') < migration.indexOf('promotePreparedMAProfessorCloudBackupV3'))
     assert.doesNotMatch(prepare, /readKey|\/key|activationPassword|personalPassword/)
