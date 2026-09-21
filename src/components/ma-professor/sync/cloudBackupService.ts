@@ -27,6 +27,10 @@ import {
   unwrapMAProfessorBackupV3MasterKey
 } from './cloudBackupV3Crypto'
 
+import type {
+  MAProfessorBackupV3EncryptedData
+} from './cloudBackupV3Crypto'
+
 const API_PREFIX =
   '/api/ma-professor/cloud-backup'
 
@@ -98,7 +102,8 @@ interface CloudBackupGetFound {
   recordRevision: number
   updatedAt: string
   encrypted:
-    EncryptedCloudBackupRecord
+    | EncryptedCloudBackupRecord
+    | MAProfessorBackupV3EncryptedData
 }
 
 type CloudBackupGetResult =
@@ -567,6 +572,34 @@ function parseEncryptedRecord(
   }
 }
 
+function parseV3EncryptedRecord(
+  value: unknown
+): MAProfessorBackupV3EncryptedData {
+  if (
+    !isObject(value) ||
+    value.encryptionVersion !== 3 ||
+    value.encryptionAlgorithm !== ENCRYPTION_ALGORITHM ||
+    typeof value.nonce !== 'string' ||
+    !value.nonce ||
+    typeof value.ciphertext !== 'string' ||
+    !value.ciphertext ||
+    typeof value.ciphertextHash !== 'string' ||
+    !value.ciphertextHash
+  ) {
+    throw new Error(
+      'O serviço devolveu uma cópia v3 cifrada inválida.'
+    )
+  }
+
+  return {
+    encryptionVersion: 3,
+    encryptionAlgorithm: ENCRYPTION_ALGORITHM,
+    nonce: value.nonce,
+    ciphertext: value.ciphertext,
+    ciphertextHash: value.ciphertextHash
+  }
+}
+
 function parseGetResult(
   value: unknown
 ): CloudBackupGetResult {
@@ -624,9 +657,13 @@ function parseGetResult(
     updatedAt:
       value.updatedAt,
     encrypted:
-      parseEncryptedRecord(
-        value.encrypted
-      )
+      value.cryptoVersion === 3
+        ? parseV3EncryptedRecord(
+            value.encrypted
+          )
+        : parseEncryptedRecord(
+            value.encrypted
+          )
   }
 }
 
@@ -1493,7 +1530,7 @@ export async function downloadMAProfessorCloudBackupV3(
   const decrypted =
     await decryptMAProfessorBackupV3Data(
       masterKey,
-      remote.encrypted as import('./cloudBackupV3Crypto').MAProfessorBackupV3EncryptedData,
+      remote.encrypted as MAProfessorBackupV3EncryptedData,
       RECORD_ID
     )
 
