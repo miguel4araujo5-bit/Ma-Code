@@ -933,9 +933,16 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
       decrypted
     )
 
-  validateMAProfessorBackup(
-    parsed
-  )
+  const validation =
+    validateMAProfessorBackup(
+      parsed
+    )
+
+  if (!validation.valid) {
+    throw new Error(
+      'A validação local da cópia v3 encontrou dados incompatíveis. A cópia online anterior foi preservada.'
+    )
+  }
 
   return {
     profile:
