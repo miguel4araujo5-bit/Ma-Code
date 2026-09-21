@@ -293,6 +293,19 @@ test(
 )
 
 test(
+  'legacy v2 push remains fail-closed after a profile has moved to v3',
+  () => {
+    const start = worker.indexOf('async function handlePush')
+    const end = worker.indexOf('function getErrorDetails', start)
+    const push = worker.slice(start, end)
+
+    assert.match(push, /ensureSessionProfile\(/)
+    assert.match(worker, /return assertSessionProfile\(existing\)/)
+    assert.match(worker, /profile\.crypto_version !== CRYPTO_VERSION/)
+  }
+)
+
+test(
   'online backup keeps automatic and manual saves while restore keeps local and remote race guards',
   () => {
     assert.match(
