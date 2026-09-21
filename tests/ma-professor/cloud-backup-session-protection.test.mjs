@@ -408,6 +408,17 @@ test(
 )
 
 test(
+  'first manual backup does not invoke migration when no remote copy exists',
+  () => {
+    const condition = /currentStatus\.cryptoVersion === 2 && currentStatus\.backup\.found && currentStatus\.backup\.recordRevision !== null/
+    assert.match(syncPanel, condition)
+    const migrationCall = syncPanel.indexOf('await migrateMAProfessorCloudBackupV2ToV3')
+    const conditionStart = syncPanel.indexOf('currentStatus.cryptoVersion === 2')
+    assert.ok(conditionStart >= 0 && migrationCall > conditionStart)
+  }
+)
+
+test(
   'manual migration preserves v3 trust if the following upload fails',
   () => {
     assert.match(syncPanelSource, /let migratedTrust:/)
