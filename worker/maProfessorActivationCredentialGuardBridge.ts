@@ -368,7 +368,7 @@ function createGenericAccessRequestResponse(
     },
     canActivate: false,
     message:
-      'Pedido recebido ou já em processamento. Por segurança, o estado exato da conta não é apresentado nesta confirmação. Utilize novamente o mesmo email e a mesma password pessoal para consultar o estado.'
+      'Pedido recebido ou já em processamento. Por segurança, o estado exato da conta não é apresentado nesta confirmação. Se o pedido for aprovado, receberá as instruções de ativação no email indicado.'
   })
 }
 
