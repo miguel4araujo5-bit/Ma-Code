@@ -900,6 +900,10 @@ async function handlePromoteV3(
     parseExpectedRevision(
       body.expectedServerRevision
     )
+  const expectedRecordRevision =
+    parseExpectedRevision(
+      body.expectedRecordRevision
+    )
   const profileV3 =
     parseV3PromotionProfile(
       body.profile
@@ -944,10 +948,28 @@ async function handlePromoteV3(
       authenticated.accountId,
       env
     )
+  const currentRecordRevision =
+    existing?.record_revision ?? 0
+
+  if (
+    currentRecordRevision !==
+      expectedRecordRevision
+  ) {
+    throw new CloudBackupApiError(
+      'Existe uma cópia online mais recente. Atualize o estado antes de voltar a promover.',
+      409,
+      {
+        currentServerRevision:
+          profile.server_revision,
+        currentRecordRevision
+      }
+    )
+  }
+
   const nextServerRevision =
     expectedServerRevision + 1
   const nextRecordRevision =
-    (existing?.record_revision ?? 0) + 1
+    expectedRecordRevision + 1
   const timestamp = Date.now()
   const sourceDeviceIdHash =
     await hashDeviceId(
