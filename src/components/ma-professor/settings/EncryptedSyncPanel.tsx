@@ -167,6 +167,14 @@ export function EncryptedSyncPanel() {
       setBusy(true)
       setFeedback(null)
 
+      let migratedTrust:
+        {
+          serverRevision: number
+          recordRevision: number
+          updatedAt: string
+        } | null =
+          null
+
       try {
         const currentStatus =
           await inspectMAProfessorCloudBackup(
@@ -189,16 +197,18 @@ export function EncryptedSyncPanel() {
             )
           }
 
+          migratedTrust = {
+            serverRevision:
+              migrated.serverRevision,
+            recordRevision:
+              migrated.recordRevision,
+            updatedAt:
+              migrated.updatedAt
+          }
+
           writeMAProfessorCloudBackupTrust(
             session,
-            {
-              serverRevision:
-                migrated.serverRevision,
-              recordRevision:
-                migrated.recordRevision,
-              updatedAt:
-                migrated.updatedAt
-            }
+            migratedTrust
           )
         }
 
@@ -231,6 +241,13 @@ export function EncryptedSyncPanel() {
 
         await refreshStatus()
       } catch (error) {
+        if (migratedTrust) {
+          writeMAProfessorCloudBackupTrust(
+            session,
+            migratedTrust
+          )
+        }
+
         setFeedback({
           tone: 'error',
           message:
