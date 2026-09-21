@@ -536,6 +536,29 @@ test(
 )
 
 test(
+  'v3 data encryption rejects an altered data nonce',
+  async () => {
+    const created = await cryptoV3.createMAProfessorBackupV3KeyMaterial(randomExportKey())
+    const encrypted = await cryptoV3.encryptMAProfessorBackupV3Data(
+      created.masterKey,
+      new TextEncoder().encode('backup-v3'),
+      'database-v1'
+    )
+    const nonce = fromBase64Url(encrypted.nonce)
+    nonce[0] ^= 1
+
+    await assert.rejects(
+      () => cryptoV3.decryptMAProfessorBackupV3Data(
+        created.masterKey,
+        { ...encrypted, nonce: toBase64Url(nonce) },
+        'database-v1'
+      ),
+      /Não foi possível decifrar/
+    )
+  }
+)
+
+test(
   'v3 data encryption binds ciphertext to its context and rejects tampering',
   async () => {
     const created =
