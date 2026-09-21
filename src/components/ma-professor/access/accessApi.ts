@@ -265,6 +265,94 @@ export async function loginMAProfessorAccess(
   )
 }
 
+
+export interface MAProfessorOpaqueEnrollmentStartResponse {
+  success: true
+  enrollmentId: string
+  registrationResponse: string
+  expiresAt: string
+}
+
+export interface MAProfessorOpaqueLoginStartResponse {
+  success: true
+  loginId: string
+  loginResponse: string
+  expiresAt: string
+}
+
+export async function startMAProfessorOpaqueEnrollment(
+  email: string,
+  password: string,
+  deviceId: string,
+  token: string,
+  registrationRequest: string
+) {
+  return postJson<MAProfessorOpaqueEnrollmentStartResponse>(
+    '/opaque/enroll/start',
+    {
+      email,
+      password,
+      deviceId,
+      token,
+      registrationRequest
+    }
+  )
+}
+
+export async function finishMAProfessorOpaqueEnrollment(
+  email: string,
+  deviceId: string,
+  token: string,
+  enrollmentId: string,
+  registrationRecord: string
+) {
+  return postJson<{
+    success: true
+    message?: string
+  }>(
+    '/opaque/enroll/finish',
+    {
+      email,
+      deviceId,
+      token,
+      enrollmentId,
+      registrationRecord
+    }
+  )
+}
+
+export async function startMAProfessorOpaqueLogin(
+  email: string,
+  deviceId: string,
+  startLoginRequest: string
+) {
+  return postJson<MAProfessorOpaqueLoginStartResponse>(
+    '/opaque/login/start',
+    {
+      email,
+      deviceId,
+      startLoginRequest
+    }
+  )
+}
+
+export async function finishMAProfessorOpaqueLogin(
+  email: string,
+  deviceId: string,
+  loginId: string,
+  finishLoginRequest: string
+) {
+  return postJson<MAProfessorAccessResponse>(
+    '/opaque/login/finish',
+    {
+      email,
+      deviceId,
+      loginId,
+      finishLoginRequest
+    }
+  )
+}
+
 export async function verifyMAProfessorAccountSession(
   token: string,
   deviceId: string
