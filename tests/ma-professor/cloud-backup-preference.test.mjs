@@ -130,7 +130,10 @@ async function automaticHarness(t, initialize) {
 
 test('no automatic network access before a choice; enabling protects existing local data and disabling cancels queued work', async t => {
   const { preference, service, dexie, tick } = await automaticHarness(t)
-  assert.match(document.body.textContent, /capacidade técnica para decifrar/)
+  assert.match(document.body.textContent, /proteção v3/)
+  assert.match(document.body.textContent, /não recebe a sua password pessoal/)
+  assert.match(document.body.textContent, /cópia v2/)
+  assert.match(document.body.textContent, /migração explícita/)
   assert.match(document.body.textContent, /Continuar sem cópia automática/)
   dexie.mutate()
   await tick(15 * 60 * 1000)
