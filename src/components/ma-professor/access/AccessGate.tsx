@@ -644,7 +644,6 @@ export function AccessGate({
         const response =
           await requestMAProfessorAccess(
             session.email,
-            undefined,
             plan
           )
 
