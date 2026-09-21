@@ -338,6 +338,24 @@ test(
 )
 
 test(
+  'v3 refuses an altered wrapped-master-key nonce',
+  async () => {
+    const exportKey = randomExportKey()
+    const created = await cryptoV3.createMAProfessorBackupV3KeyMaterial(exportKey)
+    const nonce = fromBase64Url(created.wrapped.recoveryWrappedMasterKeyNonce)
+    nonce[0] ^= 1
+
+    await assert.rejects(
+      () => cryptoV3.unwrapMAProfessorBackupV3MasterKey(
+        exportKey,
+        { ...created.wrapped, recoveryWrappedMasterKeyNonce: toBase64Url(nonce) }
+      ),
+      /Não foi possível abrir a chave de cópia/
+    )
+  }
+)
+
+test(
   'v3 rejects a truncated wrapped master key before decrypt',
   async () => {
     const exportKey =
