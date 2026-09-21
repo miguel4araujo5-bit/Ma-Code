@@ -1,6 +1,6 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado: passo 13 implementado na `main`, sujeito ao gate final de CI. A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
+Estado: passo 13 implementado na `main`. O gate final exige uma execução integral do workflow (não apenas um run documental com passos condicionais ignorados). A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
 
 ## Objetivo
 
@@ -212,7 +212,7 @@ Implementado:
 - testes de adulteração de ciphertext, hash, wrapped master key e nonces;
 - endpoint legado `/key` permanece restrito a perfis v2.
 
-O passo só deve ser marcado operacionalmente como fechado quando o HEAD final tiver build e suite completa verdes.
+O passo só deve ser marcado operacionalmente como fechado quando existir uma execução integral do workflow com build e suite completa efetivamente executados e verdes; um commit apenas documental pode produzir um run verde com esses passos ignorados e não satisfaz este gate.
 
 ## Gates antes de ativar v3
 
