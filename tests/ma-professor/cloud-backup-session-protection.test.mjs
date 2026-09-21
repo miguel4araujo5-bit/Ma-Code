@@ -293,6 +293,19 @@ test(
 )
 
 test(
+  'restore preview and guarded restore use the compatible v2-v3 reader',
+  () => {
+    assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup/)
+    assert.doesNotMatch(restoreService, /\bdownloadMAProfessorCloudBackup\b/)
+    assert.match(restoreService, /expectedServerRevision/)
+    assert.match(restoreService, /expectedRecordRevision/)
+    assert.match(restoreService, /expectedCiphertextHash/)
+    assert.match(restoreService, /expectedPlaintextHash/)
+    assert.match(restoreService, /restoreMAProfessorDatabaseSnapshotIfLocalUnchanged/)
+  }
+)
+
+test(
   'compatible download dispatches only from the declared profile crypto version',
   () => {
     const start = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup')
