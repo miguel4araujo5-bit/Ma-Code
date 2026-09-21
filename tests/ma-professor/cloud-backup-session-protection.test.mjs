@@ -542,7 +542,7 @@ test(
     )
     assert.match(
       syncPanel,
-      /uploadAndVerifyMAProfessorCloudBackup\( session, backup \)/
+      /uploadAndVerifyCompatibleMAProfessorCloudBackup\( session, backup \)/
     )
     assert.match(
       restorePanel,
