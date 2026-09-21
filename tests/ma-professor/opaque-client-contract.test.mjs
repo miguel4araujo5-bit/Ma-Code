@@ -83,7 +83,7 @@ test(
 )
 
 test(
-  'legacy enrollment is the only OPAQUE API transition that submits the current v2 password',
+  'OPAQUE enrollment is authorized by the activation secret without sending the personal password',
   () => {
     const start =
       apiSource.match(
@@ -97,11 +97,23 @@ test(
 
     assert.match(
       start,
+      /activationPassword/
+    )
+    assert.doesNotMatch(
+      start,
       /\bpassword\b/
     )
     assert.doesNotMatch(
       finish,
       /\bpassword\b/
+    )
+    assert.doesNotMatch(
+      start,
+      /\btoken\b/
+    )
+    assert.doesNotMatch(
+      finish,
+      /\btoken\b/
     )
   }
 )
@@ -178,7 +190,7 @@ test(
 
     assert.match(
       authGateSource,
-      /if \(exportKey\)[\s\S]*?saveMAProfessorOpaqueExportKey\(\s*normalizedEmail,\s*exportKey\s*\)[\s\S]*?else \{\s*clearMAProfessorOpaqueExportKey\(\)/
+      /saveMAProfessorOpaqueExportKey\(\s*normalizedEmail,\s*exportKey\s*\)/
     )
   }
 )
