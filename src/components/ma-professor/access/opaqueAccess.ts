@@ -5,7 +5,6 @@ import type {
 import {
   finishMAProfessorOpaqueEnrollment,
   finishMAProfessorOpaqueLogin,
-  loginMAProfessorAccess,
   startMAProfessorOpaqueEnrollment,
   startMAProfessorOpaqueLogin
 } from './accessApi'
@@ -24,11 +23,11 @@ export interface MAProfessorOpaqueLoginResult {
     string
 }
 
-export async function enrollMAProfessorOpaqueFromLegacySession(
+export async function enrollMAProfessorOpaqueForActivation(
   email: string,
   password: string,
-  deviceId: string,
-  token: string
+  activationPassword: string,
+  deviceId: string
 ) {
   const clientStart =
     await startMAProfessorOpaqueClientRegistration(
@@ -38,9 +37,8 @@ export async function enrollMAProfessorOpaqueFromLegacySession(
   const serverStart =
     await startMAProfessorOpaqueEnrollment(
       email,
-      password,
+      activationPassword,
       deviceId,
-      token,
       clientStart.registrationRequest
     )
 
@@ -54,7 +52,6 @@ export async function enrollMAProfessorOpaqueFromLegacySession(
   await finishMAProfessorOpaqueEnrollment(
     email,
     deviceId,
-    token,
     serverStart.enrollmentId,
     clientFinish.registrationRecord
   )
@@ -109,23 +106,11 @@ export async function loginMAProfessorOpaque(
 }
 
 
-export interface MAProfessorPreferredLoginResult {
-  response:
-    MAProfessorAccessResponse
-  exportKey:
-    string | null
-  authMode:
-    | 'opaque'
-    | 'legacy'
-  migratedToOpaque:
-    boolean
-}
-
-export async function loginMAProfessorPreferOpaque(
+export async function loginMAProfessorOpaqueOnly(
   email: string,
   password: string,
   deviceId: string
-): Promise<MAProfessorPreferredLoginResult> {
+): Promise<MAProfessorOpaqueLoginResult> {
   const opaque =
     await loginMAProfessorOpaque(
       email,
@@ -133,55 +118,11 @@ export async function loginMAProfessorPreferOpaque(
       deviceId
     )
 
-  if (opaque) {
-    return {
-      response:
-        opaque.response,
-      exportKey:
-        opaque.exportKey,
-      authMode:
-        'opaque',
-      migratedToOpaque:
-        false
-    }
-  }
-
-  const response =
-    await loginMAProfessorAccess(
-      email,
-      password,
-      deviceId
+  if (!opaque) {
+    throw new Error(
+      'Não foi possível iniciar sessão com estas credenciais.'
     )
-
-  let exportKey:
-    string | null =
-    null
-  let migratedToOpaque =
-    false
-
-  try {
-    const enrolled =
-      await enrollMAProfessorOpaqueFromLegacySession(
-        email,
-        password,
-        deviceId,
-        response.token
-      )
-
-    exportKey =
-      enrolled.exportKey
-    migratedToOpaque =
-      true
-  } catch {
-    // A migração OPAQUE não deve bloquear uma sessão v2 válida.
-    // O login legado permanece disponível enquanto durar a transição.
   }
 
-  return {
-    response,
-    exportKey,
-    authMode:
-      'legacy',
-    migratedToOpaque
-  }
+  return opaque
 }
