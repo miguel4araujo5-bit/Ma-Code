@@ -10,22 +10,27 @@ Referência: 20/09/2026. Este documento não declara a auditoria encerrada.
 - Aviso inicial curto, dentro do layout do produto. A explicação completa e a ativação estão em Segurança e recuperação.
 - Retenção de pedidos pendentes e rejeitados abandonados após 180 dias, com proteção de relações de acesso e comerciais. Ver limites em `MA_PROFESSOR_ACCESS_STORAGE_ARCHITECTURE.md`.
 
-## Opção B: pendente
+## OPAQUE integrado; backup v3 ainda pendente
 
-É possível usar a password pessoal de login para proteger as cópias sem exigir uma segunda password ou uma chave que o professor tenha de guardar separadamente. A ausência de uma chave separada **não exige** que o servidor consiga decifrar as cópias. Essa justificação anterior estava errada.
+A autenticação deixou de ser o bloqueio arquitetural inicial:
 
-O código integrado ainda usa a versão 2: o servidor guarda a chave AES e fornece-a mediante uma sessão autorizada. O aviso de privacidade deve continuar a descrevê-lo até a migração estar efetivamente concluída.
+- o pedido público é email-only;
+- a password pessoal é criada no browser apenas depois da aprovação;
+- o enrollment e o login usam OPAQUE;
+- a password pessoal não é enviada nos payloads públicos de pedido, ativação ou login;
+- a senha MP continua separada e serve apenas para autorizar/ativar o período.
 
-Há duas dependências que têm de ser resolvidas em conjunto:
+Isto **não torna por si só a cópia cloud ponta-a-ponta nem zero-knowledge**.
 
-1. O registo (`/request`) e o login (`/login`) atuais enviam a password pessoal ao servidor por HTTPS. Derivar localmente uma chave dessa mesma password, mantendo estes pedidos, não elimina a capacidade técnica do servidor para obter a chave. A autenticação tem de passar a usar uma prova que não revele a password nem material que permita derivar a chave das cópias.
-2. As cópias e sessões existentes têm de continuar utilizáveis durante a transição. A senha MP ativa o período de acesso e pode abrir uma sessão sem o professor voltar a escrever a password pessoal; não pode ser reutilizada como segredo das cópias.
+O backup ativo continua na versão 2: o servidor mantém material suficiente para recuperar a chave AES da cópia através de uma sessão autorizada. O aviso de privacidade atual deve continuar a descrever essa realidade até a promoção efetiva para v3.
+
+O trabalho restante é do domínio do backup: usar a `exportKey` OPAQUE exclusivamente no cliente para derivar a wrapping key, criar uma master key v3 aleatória, cifrar a cópia localmente, validar o envelope e promover v2 -> v3 de forma atómica sem destruir a revisão anterior em caso de falha. O restauro noutro dispositivo com a mesma password pessoal também tem de ser validado antes de reforçar a promessa pública de privacidade.
 
 ## Contrato para implementar e validar a migração
 
 - Manter a password pessoal, a senha MP, a licença e o tratamento administrativo como responsabilidades distintas.
-- Utilizar um protocolo de autenticação estabelecido e derivação independente para autenticação e cifragem; não criar uma prova criptográfica improvisada. As especificações [SCRAM](https://www.rfc-editor.org/rfc/rfc5802.html) e [SCRAM-SHA-256](https://www.rfc-editor.org/rfc/rfc7677.html) são referências de avaliação, não uma implementação já escolhida ou integrada.
-- Criar uma nova chave aleatória no cliente. Guardar no servidor apenas essa chave cifrada com uma chave derivada localmente da password, com salt e parâmetros versionados.
+- Manter OPAQUE conforme RFC 9807 como protocolo de autenticação estabelecido e usar derivação independente para o domínio do backup; não criar provas criptográficas próprias nem reutilizar a senha MP.
+- Criar uma nova master key aleatória no cliente. Guardar no servidor apenas essa chave cifrada com uma wrapping key derivada localmente da `exportKey` OPAQUE, com salt/contexto e parâmetros versionados.
 - Preservar o opt-in e as verificações de revisão. A migração não autoriza um novo envio de dados locais nem a substituição de uma cópia remota divergente.
 - Migrar chave e conteúdo de forma atómica, mantendo a revisão anterior utilizável até a nova cópia ter sido preparada e verificada. Prever interrupções, concorrência entre dispositivos e clientes antigos.
 - Permitir o restauro noutro dispositivo com a mesma password pessoal. Resolver explicitamente as sessões antigas e a ativação MP sem guardar a password em texto nem introduzir uma segunda password.
