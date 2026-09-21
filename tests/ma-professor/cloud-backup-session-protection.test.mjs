@@ -58,6 +58,7 @@ test(
       'handleStatus',
       'handleKey',
       'handleGet',
+      'handlePromoteV3',
       'handlePush'
     ]) {
       const start = worker.indexOf(
@@ -133,6 +134,76 @@ test(
     assert.match(
       worker,
       /results\[1\]\?\.meta\?\.changes === 1/
+    )
+  }
+)
+
+
+test(
+  'v3 promotion is isolated, CAS-bound and does not replace the active v2 routes',
+  () => {
+    const start = worker.indexOf(
+      'async function handlePromoteV3'
+    )
+    const end = worker.indexOf(
+      'async function ',
+      start + 20
+    )
+    const promote = worker.slice(
+      start,
+      end === -1
+        ? worker.length
+        : end
+    )
+
+    assert.ok(start >= 0)
+    assert.match(
+      promote,
+      /assertSessionProfile\(profile\)/
+    )
+    assert.match(
+      promote,
+      /profile\.server_revision !== expectedServerRevision/
+    )
+    assert.match(
+      promote,
+      /MA_PROFESSOR_DB\.batch\(\[/
+    )
+    assert.match(
+      promote,
+      /crypto_version = \?/
+    )
+    assert.match(
+      promote,
+      /recovery_kdf_algorithm = \?/
+    )
+    assert.match(
+      promote,
+      /recovery_key_wrap_algorithm = \?/
+    )
+    assert.match(
+      promote,
+      /results\[0\]\?\.meta\?\.changes === 1/
+    )
+    assert.match(
+      promote,
+      /results\[1\]\?\.meta\?\.changes === 1/
+    )
+    assert.match(
+      worker,
+      /case '\/promote-v3': return await handlePromoteV3\(body, env\)/
+    )
+    assert.match(
+      worker,
+      /case '\/key': return await handleKey\(body, env\)/
+    )
+    assert.match(
+      worker,
+      /case '\/get': return await handleGet\(body, env\)/
+    )
+    assert.match(
+      worker,
+      /case '\/push': return await handlePush\(body, env\)/
     )
   }
 )
