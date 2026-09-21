@@ -1024,6 +1024,7 @@ async function handlePromoteV3(
               ciphertext_hash = excluded.ciphertext_hash,
               updated_at = excluded.updated_at,
               deleted_at = NULL
+            WHERE ma_professor_encrypted_records.record_revision = ?
           `
         )
         .bind(
@@ -1043,7 +1044,8 @@ async function handlePromoteV3(
           expectedServerRevision,
           CRYPTO_VERSION,
           SESSION_KDF_MARKER,
-          SESSION_KEY_MARKER
+          SESSION_KEY_MARKER,
+          expectedRecordRevision
         ),
       env.MA_PROFESSOR_DB
         .prepare(
