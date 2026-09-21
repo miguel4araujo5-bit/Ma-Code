@@ -1067,6 +1067,17 @@ async function handlePromoteV3(
               AND recovery_kdf_algorithm = ?
               AND recovery_key_wrap_algorithm = ?
               AND deleted_at IS NULL
+              AND EXISTS (
+                SELECT 1
+                FROM ma_professor_encrypted_records
+                WHERE account_id = ?
+                  AND record_id = ?
+                  AND server_revision = ?
+                  AND record_revision = ?
+                  AND encryption_version = ?
+                  AND ciphertext_hash = ?
+                  AND deleted_at IS NULL
+              )
           `
         )
         .bind(
@@ -1083,7 +1094,13 @@ async function handlePromoteV3(
           expectedServerRevision,
           CRYPTO_VERSION,
           SESSION_KDF_MARKER,
-          SESSION_KEY_MARKER
+          SESSION_KEY_MARKER,
+          authenticated.accountId,
+          RECORD_ID,
+          nextServerRevision,
+          nextRecordRevision,
+          encrypted.encryptionVersion,
+          encrypted.ciphertextHash
         )
     ])
 
