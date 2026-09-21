@@ -9,9 +9,6 @@ import type {
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
 
-const ACCOUNT_AUTH_STORAGE_KEY =
-  'ma-professor-account-auth-v1'
-
 const REQUEST_GUARD_STORAGE_KEY =
   'ma-professor-access-request-guard-v1'
 
@@ -52,14 +49,6 @@ interface AccessStateSnapshot {
   credentials?: Record<
     string,
     StoredAccessCredentialSnapshot
-  >
-}
-
-interface StoredAccountAuthStateSnapshot {
-  schemaVersion?: number
-  credentials?: Record<
-    string,
-    unknown
   >
 }
 
@@ -821,30 +810,29 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const accountPassword =
-      typeof body.accountPassword ===
-        'string'
-        ? body.accountPassword
-        : ''
-
-    if (!accountPassword) {
-      return createGenericAccessRequestResponse(
-        email
+    if (
+      'accountPassword' in
+        body
+    ) {
+      return new Response(
+        JSON.stringify({
+          success:
+            false,
+          message:
+            'O fluxo antigo de password pessoal foi descontinuado.'
+        }),
+        {
+          status:
+            400,
+          headers: {
+            'Content-Type':
+              'application/json; charset=utf-8',
+            'Cache-Control':
+              'no-store'
+          }
+        }
       )
     }
-
-    const authState =
-      await this.state.storage.get<StoredAccountAuthStateSnapshot>(
-        ACCOUNT_AUTH_STORAGE_KEY
-      )
-
-    const hadPersonalPassword =
-      Boolean(
-        authState
-          ?.credentials?.[
-            email
-          ]
-      )
 
     const response =
       await this.existing.fetch(
@@ -852,28 +840,16 @@ export class MaProfessorAccessDurableObject {
       )
 
     if (
-      hadPersonalPassword
+      response.ok ||
+      response.status ===
+        409
     ) {
-      if (
-        response.ok ||
-        response.status !==
-          409
-      ) {
-        return response
-      }
-
       return createGenericAccessRequestResponse(
         email
       )
     }
 
-    if (!response.ok) {
-      return response
-    }
-
-    return createGenericAccessRequestResponse(
-      email
-    )
+    return response
   }
 
   private async handleRequest(
