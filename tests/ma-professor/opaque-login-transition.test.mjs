@@ -21,84 +21,61 @@ const authGate =
   )
 
 test(
-  'login UI uses the OPAQUE-first transition helper instead of calling legacy login directly',
+  'login UI uses OPAQUE only and contains no legacy password fallback',
   () => {
     assert.match(
       authGate,
-      /loginMAProfessorPreferOpaque/
+      /loginMAProfessorOpaqueOnly/
     )
 
     assert.doesNotMatch(
       authGate,
-      /loginMAProfessorAccess/
+      /loginMAProfessorAccess|loginMAProfessorPreferOpaque/
     )
 
     assert.match(
       authGate,
-      /await loginMAProfessorPreferOpaque\(\s*normalizedEmail,\s*personalPassword,\s*deviceId\s*\)/
+      /await loginMAProfessorOpaqueOnly\(\s*normalizedEmail,\s*personalPassword,\s*deviceId\s*\)/
     )
   }
 )
 
 test(
-  'transition helper falls back to v2 only after an OPAQUE proof returns null',
+  'OPAQUE-only login fails closed instead of falling back to v2',
   () => {
-    const opaqueCall =
-      opaqueAccess.indexOf(
-        'await loginMAProfessorOpaque('
-      )
-
-    const opaqueSuccess =
-      opaqueAccess.indexOf(
-        'if (opaque)',
-        opaqueCall
-      )
-
-    const legacyCall =
-      opaqueAccess.indexOf(
-        'await loginMAProfessorAccess(',
-        opaqueSuccess
-      )
-
-    assert.ok(
-      opaqueCall >= 0 &&
-      opaqueSuccess > opaqueCall &&
-      legacyCall > opaqueSuccess
+    assert.match(
+      opaqueAccess,
+      /export async function loginMAProfessorOpaqueOnly/
     )
 
-    const beforeLegacy =
-      opaqueAccess.slice(
-        opaqueCall,
-        legacyCall
-      )
+    assert.match(
+      opaqueAccess,
+      /if \(!opaque\)[\s\S]*?throw new Error/
+    )
 
     assert.doesNotMatch(
-      beforeLegacy,
-      /catch\s*\(/
-    )
-    assert.doesNotMatch(
-      beforeLegacy,
-      /catch\s*\{/
+      opaqueAccess,
+      /loginMAProfessorAccess|authMode:\s*'legacy'|migratedToOpaque/
     )
   }
 )
 
 test(
-  'a valid legacy session survives an OPAQUE enrollment failure during migration',
+  'first password registration happens during MP activation and never through a legacy session',
   () => {
     assert.match(
       opaqueAccess,
-      /const response =\s*await loginMAProfessorAccess\(/
+      /export async function enrollMAProfessorOpaqueForActivation/
     )
 
     assert.match(
       opaqueAccess,
-      /try\s*\{[\s\S]*await enrollMAProfessorOpaqueFromLegacySession\([\s\S]*\}\s*catch\s*\{[\s\S]*migração OPAQUE não deve bloquear uma sessão v2 válida/
+      /startMAProfessorOpaqueEnrollment\(\s*email,\s*activationPassword,\s*deviceId,/
     )
 
-    assert.match(
+    assert.doesNotMatch(
       opaqueAccess,
-      /return \{\s*response,\s*exportKey,\s*authMode:\s*'legacy',\s*migratedToOpaque/
+      /enrollMAProfessorOpaqueFromLegacySession/
     )
   }
 )
