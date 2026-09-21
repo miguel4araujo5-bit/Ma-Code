@@ -1293,6 +1293,130 @@ async function handleGet(
   })
 }
 
+async function handlePushV3(
+  body: JsonBody,
+  env: MaProfessorCloudBackupEnv
+) {
+  const recordId =
+    normalizeId(body.recordId, 80)
+
+  if (recordId !== RECORD_ID) {
+    throw new CloudBackupApiError(
+      'O identificador da cópia não é válido.',
+      400
+    )
+  }
+
+  const expectedServerRevision =
+    parseExpectedRevision(body.expectedServerRevision)
+  const expectedRecordRevision =
+    parseExpectedRevision(body.expectedRecordRevision)
+  const encrypted =
+    parseV3EncryptedPayload(body.encrypted)
+  const authenticated =
+    await verifyAccessSession(body, env)
+  const profile =
+    await readExistingProfile(authenticated.accountId, env)
+
+  if (
+    profile.crypto_version !== V3_CRYPTO_VERSION ||
+    profile.recovery_kdf_algorithm !== V3_KDF_ALGORITHM ||
+    profile.recovery_key_wrap_algorithm !== V3_KEY_WRAP_ALGORITHM
+  ) {
+    throw new CloudBackupApiError(
+      'A proteção v3 da cópia online não está disponível.',
+      409
+    )
+  }
+
+  if (profile.server_revision !== expectedServerRevision) {
+    throw new CloudBackupApiError(
+      'Existe uma cópia online mais recente. Atualize o estado antes de voltar a guardar.',
+      409,
+      { currentServerRevision: profile.server_revision }
+    )
+  }
+
+  const existing =
+    await readExistingRecord(authenticated.accountId, env)
+  const currentRecordRevision =
+    existing?.record_revision ?? 0
+
+  if (currentRecordRevision !== expectedRecordRevision) {
+    throw new CloudBackupApiError(
+      'Existe uma versão mais recente dos dados cifrados. Atualize o estado antes de voltar a guardar.',
+      409,
+      { currentRecordRevision }
+    )
+  }
+
+  const nextServerRevision = expectedServerRevision + 1
+  const nextRecordRevision = expectedRecordRevision + 1
+  const timestamp = Date.now()
+  const sourceDeviceIdHash =
+    await hashDeviceId(authenticated.deviceId)
+
+  const results =
+    await env.MA_PROFESSOR_DB.batch([
+      env.MA_PROFESSOR_DB.prepare(
+        `UPDATE ma_professor_encrypted_records
+         SET server_revision = ?, record_revision = ?, source_device_id_hash = ?,
+             encryption_version = ?, encryption_algorithm = ?, nonce = ?, ciphertext = ?,
+             ciphertext_hash = ?, updated_at = ?, deleted_at = NULL
+         WHERE account_id = ? AND record_id = ? AND server_revision = ?
+           AND record_revision = ? AND encryption_version = ? AND deleted_at IS NULL`
+      ).bind(
+        nextServerRevision, nextRecordRevision, sourceDeviceIdHash,
+        encrypted.encryptionVersion, encrypted.encryptionAlgorithm,
+        encrypted.nonce, encrypted.ciphertext, encrypted.ciphertextHash,
+        timestamp, authenticated.accountId, RECORD_ID,
+        expectedServerRevision, expectedRecordRevision, V3_CRYPTO_VERSION
+      ),
+      env.MA_PROFESSOR_DB.prepare(
+        `UPDATE ma_professor_sync_profiles
+         SET server_revision = ?, updated_at = ?
+         WHERE account_id = ? AND server_revision = ? AND crypto_version = ?
+           AND recovery_kdf_algorithm = ? AND recovery_key_wrap_algorithm = ?
+           AND deleted_at IS NULL
+           AND EXISTS (
+             SELECT 1 FROM ma_professor_encrypted_records
+             WHERE account_id = ? AND record_id = ? AND server_revision = ?
+               AND record_revision = ? AND encryption_version = ?
+               AND ciphertext_hash = ? AND deleted_at IS NULL
+           )`
+      ).bind(
+        nextServerRevision, timestamp, authenticated.accountId,
+        expectedServerRevision, V3_CRYPTO_VERSION, V3_KDF_ALGORITHM,
+        V3_KEY_WRAP_ALGORITHM, authenticated.accountId, RECORD_ID,
+        nextServerRevision, nextRecordRevision,
+        encrypted.encryptionVersion, encrypted.ciphertextHash
+      )
+    ])
+
+  const recordChanged =
+    results[0]?.success === true && results[0]?.meta?.changes === 1
+  const profileChanged =
+    results[1]?.success === true && results[1]?.meta?.changes === 1
+
+  if (!recordChanged || !profileChanged) {
+    const latest =
+      await readProfile(authenticated.accountId, env)
+    throw new CloudBackupApiError(
+      'Existe uma cópia online mais recente. Atualize o estado antes de voltar a guardar.',
+      409,
+      { currentServerRevision: latest?.server_revision ?? profile.server_revision }
+    )
+  }
+
+  return json({
+    success: true,
+    recordId: RECORD_ID,
+    serverRevision: nextServerRevision,
+    recordRevision: nextRecordRevision,
+    updatedAt: new Date(timestamp).toISOString()
+  })
+}
+
 async function handlePush(
   body: JsonBody,
   env: MaProfessorCloudBackupEnv
@@ -1597,6 +1721,8 @@ export async function handleMAProfessorCloudBackupApiRequest(
         return await handleGet(body, env)
       case '/promote-v3':
         return await handlePromoteV3(body, env)
+      case '/push-v3':
+        return await handlePushV3(body, env)
       case '/push':
         return await handlePush(body, env)
       default:
