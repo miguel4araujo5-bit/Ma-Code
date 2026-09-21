@@ -506,6 +506,23 @@ test(
 )
 
 test(
+  'migration cannot promote when the in-memory OPAQUE export key is unavailable',
+  () => {
+    const start = client.indexOf('export async function prepareMAProfessorCloudBackupV3Promotion')
+    const end = client.indexOf('export async function promotePreparedMAProfessorCloudBackupV3', start)
+    const prepare = client.slice(start, end)
+    const migrationStart = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
+    const migrationEnd = client.indexOf('export async function downloadCompatibleMAProfessorCloudBackup', migrationStart)
+    const migration = client.slice(migrationStart, migrationEnd)
+
+    assert.match(prepare, /readMAProfessorOpaqueExportKey\(session\.email\)/)
+    assert.match(prepare, /if \(!exportKey\)/)
+    assert.ok(migration.indexOf('prepareMAProfessorCloudBackupV3Promotion') < migration.indexOf('promotePreparedMAProfessorCloudBackupV3'))
+    assert.doesNotMatch(prepare, /readKey|\/key|activationPassword|personalPassword/)
+  }
+)
+
+test(
   'migration verifies the exact promoted revision before reporting success',
   () => {
     const start = client.indexOf('export async function migrateMAProfessorCloudBackupV2ToV3')
