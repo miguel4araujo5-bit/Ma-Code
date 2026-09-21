@@ -29,6 +29,14 @@ const MAX_CIPHERTEXT_BYTES = 1_000_000
 const KEY_BYTES = 32
 const NONCE_BYTES = 12
 const HASH_BYTES = 32
+const V3_KDF_SALT_BYTES = 32
+const V3_WRAPPED_MASTER_KEY_BYTES = 48
+const V3_KDF_PARAMETERS = JSON.stringify({
+  version: 1,
+  hash: 'SHA-256',
+  context:
+    'MA-CODE/MA-Professor/cloud-backup/v3/wrapping-key'
+})
 
 type JsonBody =
   Record<string, unknown>
@@ -284,6 +292,34 @@ function base64ByteLength(
 ) {
   try {
     return atob(value).length
+  } catch {
+    return -1
+  }
+}
+
+function base64UrlByteLength(
+  value: string
+) {
+  const normalized = value.trim()
+
+  if (
+    !normalized ||
+    !/^[A-Za-z0-9_-]+$/.test(normalized)
+  ) {
+    return -1
+  }
+
+  const padding = '='.repeat(
+    (4 - (normalized.length % 4)) % 4
+  )
+
+  try {
+    return atob(
+      normalized
+        .split('-').join('+')
+        .split('_').join('/') +
+      padding
+    ).length
   } catch {
     return -1
   }
@@ -773,7 +809,11 @@ function parseV3PromotionProfile(
     typeof value.recoveryWrappedMasterKey !== 'string' ||
     !value.recoveryWrappedMasterKey ||
     typeof value.recoveryWrappedMasterKeyNonce !== 'string' ||
-    !value.recoveryWrappedMasterKeyNonce
+    !value.recoveryWrappedMasterKeyNonce ||
+    value.recoveryKdfParameters !== V3_KDF_PARAMETERS ||
+    base64UrlByteLength(value.recoveryKdfSalt) !== V3_KDF_SALT_BYTES ||
+    base64UrlByteLength(value.recoveryWrappedMasterKey) !== V3_WRAPPED_MASTER_KEY_BYTES ||
+    base64UrlByteLength(value.recoveryWrappedMasterKeyNonce) !== NONCE_BYTES
   ) {
     throw new CloudBackupApiError(
       'O perfil criptográfico v3 enviado não é válido.',
