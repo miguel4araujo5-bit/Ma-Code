@@ -22,7 +22,7 @@ import {
 } from '../settings/backupRepository'
 
 import {
-  downloadMAProfessorCloudBackup,
+  downloadCompatibleMAProfessorCloudBackup,
   inspectMAProfessorCloudBackup,
   MAProfessorCloudBackupRevisionConflictError,
   uploadAndVerifyMAProfessorCloudBackup
@@ -202,7 +202,7 @@ export default function AutomaticCloudBackup() {
         local
       ] =
         await Promise.all([
-          downloadMAProfessorCloudBackup(
+          downloadCompatibleMAProfessorCloudBackup(
             session
           ),
           createMAProfessorBackup()
