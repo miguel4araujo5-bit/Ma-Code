@@ -1235,6 +1235,8 @@ async function handleGet(
     recordId: RECORD_ID,
     serverRevision:
       profile.server_revision,
+    cryptoVersion:
+      profile.crypto_version,
     recordRevision:
       record.record_revision,
     updatedAt:
