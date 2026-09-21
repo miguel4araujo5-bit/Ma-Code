@@ -177,8 +177,27 @@ export function EncryptedSyncPanel() {
           currentStatus.cryptoVersion === 2 &&
           currentStatus.backup.found
         ) {
-          await migrateMAProfessorCloudBackupV2ToV3(
-            session
+          const migrated =
+            await migrateMAProfessorCloudBackupV2ToV3(
+              session
+            )
+
+          if (!migrated) {
+            throw new Error(
+              'A cópia v2 deixou de estar disponível antes da migração. Atualize o estado e tente novamente.'
+            )
+          }
+
+          writeMAProfessorCloudBackupTrust(
+            session,
+            {
+              serverRevision:
+                migrated.serverRevision,
+              recordRevision:
+                migrated.recordRevision,
+              updatedAt:
+                migrated.updatedAt
+            }
           )
         }
 
