@@ -447,6 +447,19 @@ test(
 )
 
 test(
+  'v3 automatic writer fails on stale CAS instead of overwriting a newer remote copy',
+  () => {
+    const start = worker.indexOf('async function handlePushV3')
+    const end = worker.indexOf('async function handlePush', start + 20)
+    const push = worker.slice(start, end)
+    assert.match(push, /profile\.server_revision !== expectedServerRevision/)
+    assert.match(push, /currentRecordRevision !== expectedRecordRevision/)
+    assert.match(push, /throw new CloudBackupApiError\([^]*409/)
+    assert.match(push, /WHERE account_id = \? AND record_id = \? AND server_revision = \? AND record_revision = \? AND encryption_version = \?/)
+  }
+)
+
+test(
   'automatic backup reaches the v3 writer through the compatible dispatcher without migration',
   () => {
     assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
