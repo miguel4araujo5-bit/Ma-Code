@@ -928,10 +928,20 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     )
   }
 
-  const parsed =
-    parseBackupBytes(
-      decrypted
+  let parsed: unknown
+
+  try {
+    parsed =
+      JSON.parse(
+        textDecoder.decode(
+          decrypted
+        )
+      )
+  } catch {
+    throw new Error(
+      'A validação local da cópia v3 não encontrou dados JSON válidos. A cópia online anterior foi preservada.'
     )
+  }
 
   const validation =
     validateMAProfessorBackup(
