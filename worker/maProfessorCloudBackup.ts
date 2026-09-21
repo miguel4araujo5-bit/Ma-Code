@@ -12,6 +12,11 @@ const ACCESS_DURABLE_OBJECT_NAME =
 const RECORD_ID =
   'database-v1'
 const CRYPTO_VERSION = 2
+const V3_CRYPTO_VERSION = 3
+const V3_KDF_ALGORITHM =
+  'OPAQUE-RFC9807-EXPORT-HKDF-SHA256'
+const V3_KEY_WRAP_ALGORITHM =
+  'AES-256-GCM'
 const SESSION_KDF_MARKER =
   'SESSION-AUTH-V1'
 const SESSION_KEY_MARKER =
@@ -89,8 +94,11 @@ interface SessionProfileRow {
   server_revision: number
   crypto_version: number
   recovery_kdf_algorithm: string
+  recovery_kdf_salt: string
+  recovery_kdf_parameters: string
   recovery_key_wrap_algorithm: string
   recovery_wrapped_master_key: string
+  recovery_wrapped_master_key_nonce: string
   updated_at: number
 }
 
@@ -498,8 +506,11 @@ async function readProfile(
           server_revision,
           crypto_version,
           recovery_kdf_algorithm,
+          recovery_kdf_salt,
+          recovery_kdf_parameters,
           recovery_key_wrap_algorithm,
           recovery_wrapped_master_key,
+          recovery_wrapped_master_key_nonce,
           updated_at
         FROM ma_professor_sync_profiles
         WHERE account_id = ?
@@ -734,6 +745,50 @@ function parseEncryptedPayload(
     ciphertext: value.ciphertext,
     ciphertextHash:
       value.ciphertextHash
+  }
+}
+
+interface V3PromotionProfile {
+  cryptoVersion: typeof V3_CRYPTO_VERSION
+  recoveryKdfAlgorithm: typeof V3_KDF_ALGORITHM
+  recoveryKdfSalt: string
+  recoveryKdfParameters: string
+  recoveryKeyWrapAlgorithm: typeof V3_KEY_WRAP_ALGORITHM
+  recoveryWrappedMasterKey: string
+  recoveryWrappedMasterKeyNonce: string
+}
+
+function parseV3PromotionProfile(
+  value: unknown
+): V3PromotionProfile {
+  if (
+    !isObject(value) ||
+    value.cryptoVersion !== V3_CRYPTO_VERSION ||
+    value.recoveryKdfAlgorithm !== V3_KDF_ALGORITHM ||
+    typeof value.recoveryKdfSalt !== 'string' ||
+    !value.recoveryKdfSalt ||
+    typeof value.recoveryKdfParameters !== 'string' ||
+    !value.recoveryKdfParameters ||
+    value.recoveryKeyWrapAlgorithm !== V3_KEY_WRAP_ALGORITHM ||
+    typeof value.recoveryWrappedMasterKey !== 'string' ||
+    !value.recoveryWrappedMasterKey ||
+    typeof value.recoveryWrappedMasterKeyNonce !== 'string' ||
+    !value.recoveryWrappedMasterKeyNonce
+  ) {
+    throw new CloudBackupApiError(
+      'O perfil criptográfico v3 enviado não é válido.',
+      400
+    )
+  }
+
+  return {
+    cryptoVersion: V3_CRYPTO_VERSION,
+    recoveryKdfAlgorithm: V3_KDF_ALGORITHM,
+    recoveryKdfSalt: value.recoveryKdfSalt,
+    recoveryKdfParameters: value.recoveryKdfParameters,
+    recoveryKeyWrapAlgorithm: V3_KEY_WRAP_ALGORITHM,
+    recoveryWrappedMasterKey: value.recoveryWrappedMasterKey,
+    recoveryWrappedMasterKeyNonce: value.recoveryWrappedMasterKeyNonce
   }
 }
 
