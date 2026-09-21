@@ -14,6 +14,9 @@ import * as ts from 'typescript'
 const ACCESS_KEY =
   'ma-professor-access-state-v1'
 
+const OPAQUE_KEY =
+  'ma-professor-opaque-auth-v1'
+
 const MODULE_NAMES = [
   'maProfessorAccess',
   'maProfessorPaidAccess',
@@ -276,7 +279,7 @@ async function hashTokenLegacyHex(token) {
 }
 
 test(
-  'production chain keeps login, activation, account verification and renewal on one session contract',
+  'production chain keeps protected activation, account verification and renewal on one session contract',
   async t => {
     const {
       runtime,
@@ -296,8 +299,6 @@ test(
 
     const email =
       'session-contract@example.com'
-    const personalPassword =
-      'Personal-pass-123!'
     const deviceId =
       'device-session-contract-01'
 
@@ -306,9 +307,7 @@ test(
         request(
           '/api/ma-professor/access/request',
           {
-            email,
-            accountPassword:
-              personalPassword
+            email
           }
         )
       )
@@ -327,10 +326,6 @@ test(
       accessRequestBody.request.status,
       'pending'
     )
-    assert.equal(
-      accessRequestBody.hasPersonalPassword,
-      true
-    )
 
     const approvalResponse =
       await access.fetch(
@@ -338,7 +333,8 @@ test(
           '/__internal/ma-professor/admin/requests/approve-explicit',
           {
             email,
-            approvalPlan: 'free'
+            approvalPlan:
+              'free'
           }
         )
       )
@@ -366,50 +362,42 @@ test(
       'string'
     )
 
-    const loginResponse =
-      await access.fetch(
-        request(
-          '/api/ma-professor/access/login',
-          {
+    /*
+     * O login OPAQUE tem integração própria. Aqui semeamos apenas o
+     * registration record já concluído para isolar o contrato comum de
+     * sessão: ativação -> verify -> renew.
+     */
+    await storage.put(
+      OPAQUE_KEY,
+      {
+        schemaVersion:
+          1,
+        protocol:
+          'OPAQUE-RFC9807',
+        serverSetup:
+          'server-setup',
+        registrations: {
+          [email]: {
             email,
-            password:
-              personalPassword,
-            deviceId
+            registrationRecord:
+              'opaque-registration-record',
+            createdAt:
+              Date.now(),
+            updatedAt:
+              Date.now(),
+            migratedFromV2At:
+              null
           }
-        )
-      )
-
-    assert.equal(
-      loginResponse.status,
-      200,
-      'Um login pessoal válido deve emitir uma sessão mesmo antes da ativação do período aprovado.'
-    )
-
-    const loginBody =
-      await body(loginResponse)
-    const personalToken =
-      loginBody.token
-
-    assert.equal(
-      typeof personalToken,
-      'string'
-    )
-
-    const verifyPersonalResponse =
-      await access.fetch(
-        request(
-          '/api/ma-professor/access/account/verify',
-          {
-            token: personalToken,
-            deviceId
-          }
-        )
-      )
-
-    assert.equal(
-      verifyPersonalResponse.status,
-      200,
-      'A sessão emitida pelo login pessoal tem de ser reconhecida por /account/verify.'
+        },
+        pendingEnrollments:
+          {},
+        pendingLogins:
+          {},
+        createdAt:
+          Date.now(),
+        updatedAt:
+          Date.now()
+      }
     )
 
     const activationResponse =
@@ -427,11 +415,13 @@ test(
     assert.equal(
       activationResponse.status,
       200,
-      'A senha MP aprovada tem de conseguir ativar o período na mesma cadeia de produção.'
+      'A senha MP aprovada deve ativar o período apenas depois de existir o registo OPAQUE.'
     )
 
     const activationBody =
-      await body(activationResponse)
+      await body(
+        activationResponse
+      )
     const activationToken =
       activationBody.token
 
@@ -445,7 +435,8 @@ test(
         request(
           '/api/ma-professor/access/account/verify',
           {
-            token: activationToken,
+            token:
+              activationToken,
             deviceId
           }
         )
@@ -454,7 +445,7 @@ test(
     assert.equal(
       verifyActivationResponse.status,
       200,
-      'A sessão devolvida pela ativação MP tem de usar o mesmo contrato de /account/verify.'
+      'A sessão devolvida pela ativação protegida tem de usar o contrato canónico de /account/verify.'
     )
 
     const renewalResponse =
@@ -462,7 +453,8 @@ test(
         request(
           '/api/ma-professor/access/renew',
           {
-            token: personalToken,
+            token:
+              activationToken,
             deviceId,
             requestedPlan:
               'paid_30_days'
@@ -473,7 +465,7 @@ test(
     assert.equal(
       renewalResponse.status,
       200,
-      'A sessão real emitida pelo login pessoal tem de chegar à lógica de renovação.'
+      'A sessão real emitida pela ativação deve chegar à lógica de renovação.'
     )
 
     const renewalState =
@@ -484,10 +476,12 @@ test(
     assert.equal(
       renewalState.renewals.some(
         renewal =>
-          renewal.email === email &&
+          renewal.email ===
+            email &&
           renewal.requestedPlan ===
             'paid_30_days' &&
-          renewal.status === 'pending'
+          renewal.status ===
+            'pending'
       ),
       true,
       'O 200 de /renew só é válido se o pedido correspondente tiver sido realmente registado.'
@@ -498,7 +492,8 @@ test(
         request(
           '/api/ma-professor/access/renew',
           {
-            token: personalToken,
+            token:
+              activationToken,
             deviceId,
             requestedPlan:
               'school_year'
@@ -537,7 +532,8 @@ test(
         request(
           '/api/ma-professor/access/renew',
           {
-            token: personalToken,
+            token:
+              activationToken,
             deviceId:
               'device-session-contract-other',
             requestedPlan:
@@ -557,18 +553,11 @@ test(
         ACCESS_KEY
       )
 
-    const personalBase64Hash =
-      await hashTokenBase64(
-        personalToken
-      )
     const activationBase64Hash =
       await hashTokenBase64(
         activationToken
       )
-    const personalLegacyHexHash =
-      await hashTokenLegacyHex(
-        personalToken
-      )
+
     const activationLegacyHexHash =
       await hashTokenLegacyHex(
         activationToken
@@ -576,22 +565,11 @@ test(
 
     assert.ok(
       finalState.sessions[
-        personalBase64Hash
-      ],
-      'A sessão do login pessoal deve usar o hash SHA-256 Base64 canónico.'
-    )
-    assert.ok(
-      finalState.sessions[
         activationBase64Hash
       ],
-      'A sessão da ativação deve usar o mesmo hash SHA-256 Base64 canónico.'
+      'A sessão da ativação deve usar o hash SHA-256 Base64 canónico.'
     )
-    assert.equal(
-      finalState.sessions[
-        personalLegacyHexHash
-      ],
-      undefined
-    )
+
     assert.equal(
       finalState.sessions[
         activationLegacyHexHash
