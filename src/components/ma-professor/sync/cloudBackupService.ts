@@ -92,6 +92,7 @@ interface CloudBackupGetFound {
   found: true
   recordId: string
   serverRevision: number
+  cryptoVersion: number
   recordRevision: number
   updatedAt: string
   encrypted:
@@ -554,6 +555,9 @@ function parseGetResult(
 
   if (
     !isPositiveInteger(
+      value.cryptoVersion
+    ) ||
+    !isPositiveInteger(
       value.recordRevision
     ) ||
     typeof value.updatedAt !== 'string' ||
@@ -571,6 +575,8 @@ function parseGetResult(
       RECORD_ID,
     serverRevision:
       value.serverRevision,
+    cryptoVersion:
+      value.cryptoVersion,
     recordRevision:
       value.recordRevision,
     updatedAt:
