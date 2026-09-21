@@ -570,7 +570,7 @@ test(
       'string'
     )
     assert.equal(
-      finishBody.email,
+      finishBody.license?.email,
       email
     )
 
