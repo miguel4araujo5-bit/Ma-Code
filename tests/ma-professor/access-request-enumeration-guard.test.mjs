@@ -366,9 +366,13 @@ test(
       payload.request.approvedAt,
       null
     )
+    assert.match(
+      payload.message,
+      /o estado exato da conta não é apresentado/i
+    )
     assert.doesNotMatch(
       payload.message,
-      /aprovado|rejeitado/i
+      /^Pedido aprovado\.?$/i
     )
     assert.equal(
       lower.delegatedRequests.length,
