@@ -462,9 +462,7 @@ test(
             '/api/ma-professor/access/request',
             {
               email:
-                `docente-${index}@example.com`,
-              accountPassword:
-                'password-segura'
+                `docente-${index}@example.com`
             },
             'POST',
             {
@@ -486,9 +484,7 @@ test(
           '/api/ma-professor/access/request',
           {
             email:
-              'bloqueado@example.com',
-            accountPassword:
-              'password-segura'
+              'bloqueado@example.com'
           },
           'POST',
           {
@@ -586,9 +582,7 @@ test(
           '/api/ma-professor/access/request',
           {
             email:
-              `limite-${index}@example.com`,
-            accountPassword:
-              'password-segura'
+              `limite-${index}@example.com`
           },
           'POST',
           headers
@@ -605,9 +599,7 @@ test(
           '/api/ma-professor/access/request',
           {
             email:
-              'outra@example.com',
-            accountPassword:
-              'password-segura'
+              'outra@example.com'
           },
           'POST',
           headers
@@ -650,7 +642,7 @@ test(
     assert.equal(
       lower.delegatedRequests.length,
       31,
-      'Os 30 pedidos iniciais e o fluxo sem accountPassword devem continuar a ser delegados.'
+      'Os 30 pedidos iniciais email-only e o fluxo autenticado devem continuar a ser delegados.'
     )
   }
 )
@@ -694,9 +686,7 @@ test(
             '/api/ma-professor/access/request',
             {
               email:
-                `rotacao-${index}@example.com`,
-              accountPassword:
-                'password-segura'
+                `rotacao-${index}@example.com`
             },
             'POST',
             {
