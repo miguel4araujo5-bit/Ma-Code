@@ -406,6 +406,16 @@ function parseStatus(
     )
   }
 
+  if (
+    value.cryptoVersion === 3
+      ? !isObject(value.protection)
+      : value.protection !== null
+  ) {
+    throw new Error(
+      'O serviço devolveu uma proteção de cópia incompatível com a versão criptográfica.'
+    )
+  }
+
   const backup =
     value.backup
   const found =
