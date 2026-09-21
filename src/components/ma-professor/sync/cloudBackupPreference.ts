@@ -10,7 +10,7 @@ const STORAGE_PREFIX = 'ma-professor-cloud-backup-choice-v1'
 const PREFERENCE_EVENT = 'ma-professor-cloud-backup-choice-changed'
 
 export const CLOUD_BACKUP_PRIVACY_NOTICE =
-  'A cópia online inclui os dados escolares guardados neste dispositivo, como nomes de alunos, faltas, avaliações e sumários. É cifrada antes do envio, mas a chave é gerida pelos servidores da MA-CODE, que têm capacidade técnica para decifrar a cópia. O restauro é feito através da sua conta.'
+  'A cópia online inclui os dados escolares guardados neste dispositivo, como nomes de alunos, faltas, avaliações e sumários. É cifrada neste dispositivo antes do envio. Nas cópias com proteção v3, a MA-CODE não recebe a sua password pessoal nem guarda no servidor o material necessário para decifrar os dados. Enquanto uma conta ainda tiver uma cópia v2, mantém-se a proteção anterior até à migração explícita. O restauro é feito através da sua conta.'
 
 function storageKey(session: BackupIdentity) {
   return [
