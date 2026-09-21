@@ -183,6 +183,31 @@ test('reopening an enabled and clean device makes no redundant upload; re-enabli
   assert.equal(service.calls.upload, 1)
 })
 
+test('v3 preparation fails closed without an in-memory OPAQUE export key and performs no request', async t => {
+  const files = await stage(t, 'sync/cloudBackupService.ts', {
+    '../settings/backupRepository': './validation.mjs',
+    '../access/accessStorage': './access-storage.mjs',
+    './cloudBackupV3Crypto': './cloud-backup-v3-crypto.mjs'
+  })
+  await files.write('validation.mjs', 'export const validateMAProfessorBackup = () => ({ valid: true })')
+  await files.write('access-storage.mjs', 'export const readMAProfessorOpaqueExportKey = () => null')
+  await files.write('cloud-backup-v3-crypto.mjs', [
+    'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("must not run") }',
+    'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }',
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("must not run") }'
+  ].join('\\n'))
+  const service = await files.load()
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('network must not run')
+  })
+  const backup = { product: 'ma-professor', data: { students: [] } }
+  await assert.rejects(
+    service.prepareMAProfessorCloudBackupV3Promotion(session, backup),
+    /sessão OPAQUE necessária/
+  )
+  assert.equal(fetchMock.mock.callCount(), 0)
+})
+
 test('revoking the choice while encryption is in progress prevents push; manual upload still encrypts and verifies', async t => {
   const files = await stage(t, 'sync/cloudBackupService.ts', {
     '../settings/backupRepository': './validation.mjs',
