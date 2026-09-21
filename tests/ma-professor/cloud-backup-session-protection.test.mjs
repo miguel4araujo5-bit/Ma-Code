@@ -384,7 +384,7 @@ test(
   'manual and automatic saves use compatible upload without activating migration',
   () => {
     assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
-    assert.doesNotMatch(automatic, /\\buploadAndVerifyMAProfessorCloudBackup\\(/)
+    assert.doesNotMatch(automatic, /\buploadAndVerifyMAProfessorCloudBackup\(/)
     assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
     assert.match(syncPanelSource, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(syncPanelSource, /\buploadAndVerifyMAProfessorCloudBackup\(/)
