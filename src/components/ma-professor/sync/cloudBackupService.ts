@@ -1214,6 +1214,103 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
   }
 }
 
+export async function downloadMAProfessorCloudBackupV3(
+  session: MAProfessorAccessSession
+): Promise<MAProfessorDownloadedCloudBackup | null> {
+  const [status, remote] =
+    await Promise.all([
+      readStatus(session),
+      getEncryptedBackup(session)
+    ])
+
+  if (remote.found === false) {
+    return null
+  }
+
+  if (
+    status.cryptoVersion !== 3 ||
+    remote.cryptoVersion !== 3 ||
+    !status.protection
+  ) {
+    throw new Error(
+      'A cópia online não utiliza uma proteção v3 válida.'
+    )
+  }
+
+  if (
+    status.serverRevision !== remote.serverRevision ||
+    status.backup.recordRevision !== remote.recordRevision
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError(
+      'A cópia online mudou durante a leitura. Atualize o estado antes de voltar a abrir.'
+    )
+  }
+
+  const exportKey =
+    readMAProfessorOpaqueExportKey(
+      session.email
+    )
+
+  if (!exportKey) {
+    throw new Error(
+      'A sessão OPAQUE necessária para abrir a cópia v3 já não está disponível. Inicie sessão novamente.'
+    )
+  }
+
+  const masterKey =
+    await unwrapMAProfessorBackupV3MasterKey(
+      exportKey,
+      status.protection
+    )
+  const decrypted =
+    await decryptMAProfessorBackupV3Data(
+      masterKey,
+      remote.encrypted as import('./cloudBackupV3Crypto').MAProfessorBackupV3EncryptedData,
+      RECORD_ID
+    )
+
+  let plaintext: Uint8Array
+
+  try {
+    plaintext = unzlibSync(decrypted)
+  } catch {
+    throw new Error(
+      'A cópia v3 decifrada não contém dados comprimidos válidos.'
+    )
+  }
+
+  let backup: MAProfessorBackup
+
+  try {
+    backup = JSON.parse(
+      textDecoder.decode(plaintext)
+    ) as MAProfessorBackup
+  } catch {
+    throw new Error(
+      'A cópia v3 decifrada não contém JSON válido.'
+    )
+  }
+
+  const validation =
+    validateMAProfessorBackup(backup)
+
+  if (!validation.valid) {
+    throw new Error(
+      'A cópia v3 decifrada não passou a validação estrutural.'
+    )
+  }
+
+  return {
+    backup,
+    validation,
+    serverRevision: remote.serverRevision,
+    recordRevision: remote.recordRevision,
+    updatedAt: remote.updatedAt,
+    ciphertextHash: remote.encrypted.ciphertextHash,
+    plaintextHash: await sha256Base64(plaintext)
+  }
+}
+
 export async function downloadMAProfessorCloudBackup(
   session:
     MAProfessorAccessSession
