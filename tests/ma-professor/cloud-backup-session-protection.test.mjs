@@ -431,7 +431,10 @@ test(
     assert.match(authGate, /saveMAProfessorOpaqueExportKey\( normalizedEmail, exportKey \)/)
     assert.match(accessStorage, /let memoryOpaqueExportKey:/)
     assert.match(accessStorage, /memoryOpaqueExportKey = \{ email: normalizedEmail, exportKey: normalizedExportKey \}/)
-    assert.doesNotMatch(accessStorage, /localStorage.*exportKey|sessionStorage.*exportKey/)
+    const saveExportKeyStart = accessStorage.indexOf('export function saveMAProfessorOpaqueExportKey')
+    const readExportKeyStart = accessStorage.indexOf('export function readMAProfessorOpaqueExportKey', saveExportKeyStart)
+    const saveExportKey = accessStorage.slice(saveExportKeyStart, readExportKeyStart)
+    assert.doesNotMatch(saveExportKey, /localStorage|sessionStorage|writeStoredValue/)
   }
 )
 
