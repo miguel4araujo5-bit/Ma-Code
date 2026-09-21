@@ -214,6 +214,77 @@ Implementado:
 
 O passo só deve ser marcado operacionalmente como fechado quando existir uma execução integral do workflow com build e suite completa efetivamente executados e verdes; um commit apenas documental pode produzir um run verde com esses passos ignorados e não satisfaz este gate.
 
+## Fecho operacional do passo 13
+
+O gate final foi satisfeito no commit `214df54bc20f3049beae37261902474ef611c347`, workflow Build Check #2724:
+
+- `Build project`: executado e verde;
+- `Run MA-Professor tests`: executado e verde;
+- instalação do runtime browser: executada e verde;
+- `Run MA-Professor browser critical paths`: executado e verde.
+
+O passo 13 fica, por isso, tecnicamente e operacionalmente fechado.
+
+## Passo 14 — auditoria Cloudflare Free para 20 professores
+
+Auditoria fechada em 21/09/2026 contra os limites Cloudflare publicados nessa data.
+
+Limites relevantes do plano Free:
+
+- Workers: 100 000 requests/dia, 10 ms de CPU por invocação, 128 MB de memória e 50 subrequests por invocação;
+- D1: 5 000 000 rows read/dia, 100 000 rows written/dia, 500 MB por base de dados e 5 GB por conta;
+- Durable Objects SQLite: 100 000 requests/dia, 13 000 GB-s/dia, 5 000 000 rows read/dia, 100 000 rows written/dia e 5 GB de armazenamento por conta;
+- o `MaProfessorAccessDurableObject` está declarado em `new_sqlite_classes`, compatível com Workers Free.
+
+Fontes de referência: documentação oficial Cloudflare Workers Limits/Pricing, D1 Limits/Pricing e Durable Objects Limits/Pricing, consultadas em 21/09/2026.
+
+### Custo do fluxo v3 atual
+
+Um upload v3 normal e bem-sucedido executa cinco requests Worker de cloud backup:
+
+1. leitura de estado no dispatcher compatível;
+2. nova leitura de estado no uploader v3 para preservar CAS;
+3. `/push-v3`;
+4. leitura de estado durante a verificação;
+5. `/get` durante a verificação.
+
+Cada request cloud valida a sessão no Durable Object. A verificação atualiza `lastSeenAt`, pelo que o orçamento conservador considera aproximadamente cinco requests e cinco escritas DO por upload em estado quente.
+
+Um `/push-v3` bem-sucedido altera duas linhas D1: o registo cifrado e o perfil de sincronização. As leituras do fluxo são point lookups por `account_id`/`record_id`, apoiadas pelas chaves/índices existentes; o orçamento conservador usa 10–12 rows read por upload.
+
+O backup automático possui um intervalo mínimo de 10 minutos, protegido também por teste automático.
+
+### Cenário de stress deliberadamente excessivo
+
+Assumindo 20 professores com dados continuamente alterados durante 24 horas, sempre a atingir o intervalo mínimo de 10 minutos:
+
+- 144 uploads/professor/dia;
+- 2 880 uploads/dia no total;
+- cerca de 14 400 requests Worker/dia para o fluxo v3 — 14,4% do limite diário;
+- cerca de 14 400 requests/escritas DO/dia em estado quente — 14,4% do limite diário de cada métrica;
+- 5 760 rows written D1/dia — 5,76% do limite diário;
+- aproximadamente 34 560 rows read D1/dia usando 12 leituras/upload — cerca de 0,69% do limite diário.
+
+Somando o orçamento anterior de autenticação OPAQUE (800 requests/dia), o cenário MA-Professor fica em cerca de 15 200 requests Worker/dia, aproximadamente 15,2% do limite Free. Mesmo reservando uma margem adicional de 2x para cold starts, verificações e operações auxiliares do DO, o volume projetado continua abaixo de um terço dos 100 000 requests/escritas diários.
+
+### Armazenamento
+
+O Worker limita o ciphertext a 1 000 000 bytes. Vinte cópias simultaneamente no tamanho máximo representam cerca de 20 MB de ciphertext binário; em base64/base64url armazenado no D1 ficam na ordem dos 26,7 MB, antes de pequeno overhead de índices/metadados. Isto permanece muito abaixo dos 500 MB permitidos por base D1 Free.
+
+O estado de acesso/OPAQUE de 20 professores é também muito inferior aos 5 GB de Durable Objects. A arquitetura atual usa um único objeto global e valores agregados; isto é aceitável para a escala de 20 professores, embora deva ser revisto antes de crescimento para centenas/milhares de contas por causa do limite de tamanho por valor e da serialização num único DO.
+
+### CPU e limites partilhados
+
+A CPU é a métrica menos demonstrável por análise estática. O Workers Free limita a 10 ms de CPU por invocação. A compressão, HKDF, AES-GCM e operações de chave do backup v3 acontecem no cliente; o Worker fica sobretudo com parsing/validação, hashing leve, D1 e encaminhamento. As operações OPAQUE servidor correm no Durable Object, cujo limite específico é substancialmente superior por request.
+
+Não há justificação para alterar a arquitetura apenas por projeção. Antes e durante a entrada dos primeiros utilizadores deve ser observado no dashboard Cloudflare o CPU time e a existência de erros 1102. Como limiar operacional, CPU sustentada próxima de 8 ms p95 ou qualquer ocorrência repetida de 1102 obriga a reabrir esta auditoria antes de aumentar utilizadores.
+
+Os 100 000 requests Workers e os limites DO são partilhados pela conta. O Conquistador atual usa WebSocket e possui teste que impede o regresso ao POST periódico de estado, reduzindo o risco histórico de polling. O cron configurado é horário. Tráfego real de outros produtos continua a dever ser observado a nível da conta; esta auditoria certifica a capacidade projetada do MA-Professor para 20 professores, não tráfego externo ilimitado.
+
+### Decisão do passo 14
+
+Para 20 professores, o MA-Professor permanece com margem confortável no Workers Free, D1 Free e Durable Objects Free. Não é necessária nenhuma alteração de arquitetura nem redução funcional para cumprir o orçamento projetado. O passo 14 fica fechado; a confirmação de métricas reais de produção integra a auditoria final pré-utilizadores do passo 17.
+
 ## Gates antes de ativar v3
 
 1. package/runtime OPAQUE compila no browser e Worker;
