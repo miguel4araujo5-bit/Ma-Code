@@ -19,7 +19,8 @@ const [
   syncPanelSource,
   restorePanelSource,
   dailySource,
-  accessSource
+  accessSource,
+  automaticSource
 ] = await Promise.all([
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
   read('src/components/ma-professor/sync/cloudBackupRestoreService.ts'),
@@ -28,7 +29,8 @@ const [
   read('src/components/ma-professor/settings/EncryptedSyncPanel.tsx'),
   read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
   read('src/components/ma-professor/daily/DailyWorkspaceWithDuties.tsx'),
-  read('worker/maProfessorAccess.ts')
+  read('worker/maProfessorAccess.ts'),
+  read('src/components/ma-professor/sync/AutomaticCloudBackup.tsx')
 ])
 
 const client = compact(clientSource)
@@ -36,6 +38,7 @@ const restoreService = compact(restoreServiceSource)
 const worker = compact(workerSource)
 const entry = compact(entrySource)
 const access = compact(accessSource)
+const automatic = compact(automaticSource)
 const syncPanel = compact(syncPanelSource)
 const restorePanel = compact(restorePanelSource)
 const daily = compact(dailySource)
@@ -373,6 +376,18 @@ test(
     assert.match(restoreService, /expectedCiphertextHash/)
     assert.match(restoreService, /expectedPlaintextHash/)
     assert.match(restoreService, /restoreMAProfessorDatabaseSnapshotIfLocalUnchanged/)
+  }
+)
+
+test(
+  'manual and automatic saves use compatible upload without activating migration',
+  () => {
+    assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
+    assert.doesNotMatch(automatic, /\\buploadAndVerifyMAProfessorCloudBackup\\(/)
+    assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.match(syncPanelSource, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
+    assert.doesNotMatch(syncPanelSource, /\buploadAndVerifyMAProfessorCloudBackup\(/)
+    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
   }
 )
 
