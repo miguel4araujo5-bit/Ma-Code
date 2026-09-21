@@ -50,6 +50,11 @@ export default function MAProfessorActivationLinkGate({
       []
     )
 
+  /*
+   * Sem sessão local correspondente, este gate não consome nem limpa
+   * o link MP: o MAProfessorAuthGate precisa dele para criar primeiro
+   * a password local e concluir o enrollment OPAQUE.
+   */
   const hasMatchingStoredAccess =
     useMemo(
       () => {
