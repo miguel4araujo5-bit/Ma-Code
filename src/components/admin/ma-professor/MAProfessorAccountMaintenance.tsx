@@ -761,7 +761,7 @@ export default function MAProfessorAccountMaintenance({
             Cortar acesso
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-400">
-            Revoga a licença e termina imediatamente todas as sessões ativas. Mantém a conta, a password, a configuração e os dados escolares cifrados guardados na cloud.
+            Revoga a licença e termina imediatamente todas as sessões ativas. Mantém a conta, o registo de autenticação protegido, a configuração e os dados escolares cifrados guardados na cloud.
           </p>
         </div>
 
@@ -821,7 +821,7 @@ export default function MAProfessorAccountMaintenance({
             </div>
 
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Esta operação remove pedidos, licenças, sessões, senhas de ativação, password pessoal, renovações, autorizações e os dados cifrados guardados na cloud para os emails selecionados.
+              Esta operação remove pedidos, licenças, sessões, senhas de ativação, o registo de autenticação OPAQUE, renovações, autorizações e os dados cifrados guardados na cloud para os emails selecionados. A MA-CODE não guarda a password pessoal do professor.
             </p>
 
             <div className="mt-4 max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-slate-900/60 p-3">
