@@ -361,7 +361,7 @@ export default function MAProfessorAccountMaintenance({
     ) => {
       const confirmed =
         window.confirm(
-          `Repor o acesso de ${email}?\n\nEsta ação remove pedido, licença, sessões, senhas de ativação, password pessoal, renovações e autorizações de acesso. A cópia cifrada dos dados escolares na cloud não é eliminada.`
+          `Repor o acesso de ${email}?\n\nEsta ação remove pedido, licença, sessões, senhas de ativação, registo de autenticação protegido, renovações e autorizações de acesso. A cópia cifrada dos dados escolares na cloud não é eliminada.`
         )
 
       if (!confirmed) {
