@@ -235,6 +235,44 @@ test('v3 preparation validates locally and never contacts the server', async t =
   assert.equal(fetchMock.mock.callCount(), 0)
 })
 
+test('explicit v3 promotion sends only the prepared envelope with CAS revision', async t => {
+  const files = await stage(t, 'sync/cloudBackupService.ts', {
+    '../settings/backupRepository': './validation.mjs',
+    '../access/accessStorage': './access-storage.mjs',
+    './cloudBackupV3Crypto': './cloud-backup-v3-crypto.mjs'
+  })
+  await files.write('validation.mjs', 'export const validateMAProfessorBackup = () => ({ valid: true })')
+  await files.write('access-storage.mjs', 'export const readMAProfessorOpaqueExportKey = () => null')
+  await files.write('cloud-backup-v3-crypto.mjs', [
+    'export const createMAProfessorBackupV3KeyMaterial = async () => { throw new Error("unused") }',
+    'export const encryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }',
+    'export const decryptMAProfessorBackupV3Data = async () => { throw new Error("unused") }'
+  ].join('\\n'))
+  const service = await files.load()
+  const prepared = {
+    profile: { cryptoVersion: 3, recoveryKdfAlgorithm: 'OPAQUE-RFC9807-EXPORT-HKDF-SHA256' },
+    encrypted: { encryptionVersion: 3, encryptionAlgorithm: 'AES-256-GCM', nonce: 'nonce', ciphertext: 'ciphertext', ciphertextHash: 'hash' },
+    plaintextHash: 'local-only', plaintextBytes: 123, encryptedBytes: 456
+  }
+  const fetchMock = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url.endsWith('/promote-v3'), true)
+    const body = JSON.parse(options.body)
+    assert.deepEqual(body, {
+      token: session.token,
+      deviceId: session.deviceId,
+      recordId: 'database-v1',
+      expectedServerRevision: 7,
+      profile: prepared.profile,
+      encrypted: prepared.encrypted
+    })
+    assert.equal(JSON.stringify(body).includes('local-only'), false)
+    return Response.json({ success: true, cryptoVersion: 3, recordId: 'database-v1', serverRevision: 8, recordRevision: 4, updatedAt: '2026-09-21T13:00:00Z' })
+  })
+  const result = await service.promotePreparedMAProfessorCloudBackupV3(session, prepared, 7)
+  assert.deepEqual(result, { cryptoVersion: 3, serverRevision: 8, recordRevision: 4, updatedAt: '2026-09-21T13:00:00Z' })
+  assert.equal(fetchMock.mock.callCount(), 1)
+})
+
 test('revoking the choice while encryption is in progress prevents push; manual upload still encrypts and verifies', async t => {
   const files = await stage(t, 'sync/cloudBackupService.ts', {
     '../settings/backupRepository': './validation.mjs',
