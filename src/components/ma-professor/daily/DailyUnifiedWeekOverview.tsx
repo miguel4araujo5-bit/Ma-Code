@@ -966,7 +966,10 @@ export default function DailyUnifiedWeekOverview({
                 </div>
               ) : timeSlots.length > 0 ? (
                 timeSlots.map(
-                  slot => (
+                  (
+                    slot,
+                    slotIndex
+                  ) => (
                     <div
                       key={slot.key}
                       className="grid grid-cols-[6.5rem_repeat(5,minmax(9rem,1fr))] border-b border-white/[0.07] last:border-b-0"
@@ -1013,6 +1016,38 @@ export default function DailyUnifiedWeekOverview({
                                   currentMinute
                                 )
                               : null
+
+                          const nextTimeSlot =
+                            timeSlots[
+                              slotIndex + 1
+                            ] ?? null
+
+                          const slotEndMinute =
+                            timeToMinuteOfDay(
+                              slot.endTime
+                            )
+
+                          const nextSlotStartMinute =
+                            nextTimeSlot
+                              ? timeToMinuteOfDay(
+                                  nextTimeSlot.startTime
+                                )
+                              : null
+
+                          const showIntervalLine =
+                            date ===
+                              today &&
+                            !isWeekendToday &&
+                            day.date ===
+                              today &&
+                            slotEndMinute !==
+                              null &&
+                            nextSlotStartMinute !==
+                              null &&
+                            currentMinute >
+                              slotEndMinute &&
+                            currentMinute <
+                              nextSlotStartMinute
 
                           const isLastTimeSlot =
                             timeSlots[
@@ -1074,7 +1109,10 @@ export default function DailyUnifiedWeekOverview({
                                 />
                               ) : null}
 
-                              {showEndOfDayLine ? (
+                              {(
+                                showIntervalLine ||
+                                showEndOfDayLine
+                              ) ? (
                                 <div
                                   aria-hidden="true"
                                   className="pointer-events-none absolute inset-x-0 bottom-0 z-20 border-t-2 border-rose-400"
