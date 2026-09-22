@@ -771,7 +771,7 @@ export default function MAProfessorAuthGate({
                     Importante: guarde esta password num local seguro.
                   </p>
                   <p className="mt-2 text-xs leading-6 text-amber-50/90">
-                    A password não é enviada nem guardada pela MA-CODE. O pedido de acesso enviado ao servidor contém apenas o email e os dados técnicos necessários à gestão e proteção do serviço. Quando concluir a ativação protegida, a password será usada localmente pelo protocolo OPAQUE.
+                    A password não é enviada nem guardada pela MA-CODE. Por esse motivo, não conseguimos recuperá-la se a esquecer. O pedido de acesso enviado ao servidor contém apenas o email e os dados técnicos necessários à gestão e proteção do serviço. Quando concluir a ativação protegida, a password será utilizada localmente pelo protocolo OPAQUE e ficará associada à proteção criptográfica do seu acesso e das cópias online com proteção v3. Se perder a password, os dados que permanecem neste dispositivo não são apagados, mas deixará de conseguir iniciar uma nova sessão ou restaurar uma cópia online protegida.
                   </p>
                 </div>
               </div>
