@@ -96,8 +96,8 @@ function SidebarPanel({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <img
-            src="/ma-code.png"
-            alt="MA-Code"
+            src="/ma-professor/logo.svg"
+            alt="MA-Professor"
             className="h-11 w-11 shrink-0 rounded-xl object-contain"
           />
 
@@ -243,7 +243,7 @@ export function ProductNavigation({
             aria-expanded={sidebarOpen}
           >
             <img
-              src="/ma-code.png"
+              src="/ma-professor/logo.svg"
               alt=""
               aria-hidden="true"
               className="h-9 w-9 rounded-xl object-contain"
