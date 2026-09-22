@@ -539,7 +539,7 @@ export default function MAProfessorAuthGate({
 
       if (!passwordNoticeConfirmed) {
         setError(
-          'Confirme que leu o aviso e guardou a sua password num local seguro.'
+          'Confirme que leu o aviso, os termos e as regras aplicáveis à utilização de dados reais de alunos.'
         )
         return
       }
@@ -648,13 +648,20 @@ export default function MAProfessorAuthGate({
           </p>
 
           <p className="mt-3 text-xs leading-6 text-slate-400">
-            Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço.{' '}
+            Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço. Consulte a{' '}
             <a
               href="/privacidade/ma-professor"
               className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
             >
-              Consultar informação de privacidade
-            </a>
+              informação de privacidade
+            </a>{' '}
+            e os{' '}
+            <a
+              href="/termos/ma-professor"
+              className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+            >
+              Termos do MA-Professor
+            </a>.
           </p>
 
           <form
@@ -982,7 +989,20 @@ export default function MAProfessorAuthGate({
                 className="mt-1 h-4 w-4 shrink-0 accent-amber-300"
               />
               <span>
-                Confirmo que li este aviso e guardei a minha password num local seguro.
+                Confirmo que guardei a minha password, li a{' '}
+                <a
+                  href="/privacidade/ma-professor"
+                  className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
+                >
+                  informação de privacidade
+                </a>{' '}
+                e os{' '}
+                <a
+                  href="/termos/ma-professor"
+                  className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
+                >
+                  Termos do MA-Professor
+                </a>. Se introduzir dados reais de alunos, confirmo que a utilização da ferramenta está autorizada pela entidade responsável no meu contexto profissional.
               </span>
             </label>
 
