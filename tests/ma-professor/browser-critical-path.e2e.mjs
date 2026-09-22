@@ -943,7 +943,7 @@ try {
 
   await page.reload({ waitUntil: 'domcontentloaded' })
 
-  // Password confirmation must never return as a global bar over the product.
+  // Password confirmation belongs inside Segurança e recuperação, never as a global bar over the product.
   assert.equal(
     await page.getByRole('complementary', { name: 'Confirmar password para cópias online' }).count(),
     0
