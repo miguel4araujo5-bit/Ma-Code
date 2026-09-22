@@ -37,6 +37,8 @@ const products:
     status:
       'Disponível',
     badge: 'PDF',
+    badgeLogoSrc:
+      '/ma-pdf/logo.svg',
     highlights: [
       'Juntar PDF',
       'Comprimir PDF',
