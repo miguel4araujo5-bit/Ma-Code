@@ -27,7 +27,7 @@ type ProductCard = {
 const products:
   ProductCard[] = [
   {
-    name: 'MA-Pdf',
+    name: 'MA-PDF',
     eyebrow:
       'Ferramentas PDF',
     description:
