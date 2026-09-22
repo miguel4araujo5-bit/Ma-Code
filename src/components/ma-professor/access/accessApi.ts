@@ -19,6 +19,9 @@ import {
 const MA_PROFESSOR_ACCESS_API_PREFIX =
   '/api/ma-professor/access'
 
+export const MA_PROFESSOR_TERMS_VERSION =
+  '2026-09-22'
+
 interface ApiErrorBody {
   success?: boolean
   message?: string
@@ -224,14 +227,20 @@ export async function submitMAProfessorAccessRequest(
 export async function activateMAProfessorAccessPeriod(
   email: string,
   activationPassword: string,
-  deviceId: string
+  deviceId: string,
+  termsVersion?: string
 ) {
   return postJson<MAProfessorAccessResponse>(
     '/activate',
     {
       email,
       activationPassword,
-      deviceId
+      deviceId,
+      ...(termsVersion
+        ? {
+            termsVersion
+          }
+        : {})
     }
   )
 }
