@@ -20,6 +20,7 @@ type ProductCard = {
   status: ProductStatus
   highlights: string[]
   badge: string
+  badgeLogoSrc?: string
   badgeClassName?: string
 }
 
@@ -134,6 +135,8 @@ const products:
     status:
       'Brevemente disponível',
     badge: 'MP',
+    badgeLogoSrc:
+      '/ma-professor/logo.svg',
     badgeClassName:
       'border-emerald-300/30 bg-emerald-300/10 text-emerald-100 shadow-emerald-950/30',
     highlights: [
@@ -325,7 +328,16 @@ function ProductCardItem({
                 : ''
             }`}
           >
-            {product.badge}
+            {product.badgeLogoSrc ? (
+              <img
+                src={product.badgeLogoSrc}
+                alt=""
+                aria-hidden="true"
+                className="h-10 w-10 object-contain"
+              />
+            ) : (
+              product.badge
+            )}
           </div>
         </div>
 
