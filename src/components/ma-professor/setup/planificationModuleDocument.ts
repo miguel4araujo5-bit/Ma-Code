@@ -189,6 +189,12 @@ function isVerticalMergeContinuation(cell: Element) {
   return value === '' || value === 'continue'
 }
 
+function hasStructuredCurricularUnitCode(value: string) {
+  return /\b(?:UFCD\s*\d{3,6}|UC\s*\d{3,6})\b/i.test(
+    value
+  )
+}
+
 function genericWordLines(dom: Document) {
   const result: PlanificationPdfLine[] = []
 
@@ -231,8 +237,11 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
       if (/^avalia[çc][ãa]o$/i.test(cells[0]?.trim() ?? '')) {
         lines.push(line(cells))
         continuesUfcdRow = false
-      } else if (cells.some(c => /\bUFCD\s*\d{3,6}\b/i.test(c))) {
-        if (cells.length !== 6 || !/\bUFCD\s*\d{3,6}\b/i.test(cells[1])) {
+      } else if (cells.some(hasStructuredCurricularUnitCode)) {
+        if (
+          cells.length !== 6 ||
+          !hasStructuredCurricularUnitCode(cells[1])
+        ) {
           throw new Error('A tabela de UFCD não tem as seis colunas esperadas. Reveja o documento antes de importar.')
         }
         lines.push(...expandedStructuredRowLines(cellElements))

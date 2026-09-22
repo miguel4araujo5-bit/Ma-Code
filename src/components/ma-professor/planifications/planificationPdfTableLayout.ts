@@ -55,7 +55,7 @@ export function readRuledPlanificationTable(
       const cells = xs.slice(0, -1).map((left, index) => textInCell(
         band.filter(item => item.transform[4] >= left - 1 && item.transform[4] < xs[index + 1] - 1)
       ))
-      if (/UFCD/i.test(cells[1]) && /temas|conte[úu]dos/i.test(cells[2])) {
+      if (/UFCD|\bUC\b/i.test(cells[1]) && /temas|conte[úu]dos/i.test(cells[2])) {
         recognized = true
         lines.push(makeLine(['Período Letivo', 'UFCD', 'Temas/Conteúdos',
           'Objetivos/Competências', 'Estratégias/Metodologias',

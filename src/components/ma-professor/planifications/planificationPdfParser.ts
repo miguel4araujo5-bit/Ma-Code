@@ -96,7 +96,7 @@ const HEADER_KIND_PATTERNS: Array<{
   },
   {
     kind: 'module',
-    pattern: /^ufcd(?:\s*\(\s*horas?\s*\))?$/i
+    pattern: /^(?:ufcd|uc)(?:\s*\(\s*horas?\s*\))?$/i
   },
   {
     kind: 'contents',
@@ -187,10 +187,18 @@ function isEvaluationLabel(value: string) {
     normalized === 'avaliação'
 }
 
+// UC = Unidade de Competência, ex.: “UC00033”.
+const UC_CODE_PATTERN =
+  /\buc\s*[.:#-]?\s*(\d{3,6})\b/i
+
 function hasUfcdCode(value: string) {
-  return /\bufcd\s*[.:#-]?\s*\d{3,6}\b/i.test(
+  const normalized =
     normalizeSpaces(value)
-  )
+
+  return /\bufcd\s*[.:#-]?\s*\d{3,6}\b/i.test(
+    normalized
+  ) ||
+    UC_CODE_PATTERN.test(normalized)
 }
 
 function getCellProbeX(cell: PlanificationPdfCell) {
@@ -382,11 +390,24 @@ function createSection(
 }
 
 function extractCode(value: string) {
-  const direct = normalizeSpaces(value).match(
+  const normalized =
+    normalizeSpaces(value)
+  const direct = normalized.match(
     /\bufcd\s*[.:#-]?\s*(\d{3,6})\b/i
   )
 
-  return direct?.[1] ?? null
+  if (direct) {
+    return direct[1]
+  }
+
+  const unit =
+    normalized.match(
+      UC_CODE_PATTERN
+    )
+
+  return unit
+    ? `UC${unit[1]}`
+    : null
 }
 
 function extractLeadingCode(value: string) {
@@ -444,7 +465,9 @@ function cleanModuleName(
     normalizeSpaces(moduleText)
       .replace(
         new RegExp(
-          `\\bufcd\\s*[.:#-]?\\s*${code}\\b`,
+          /^UC\d+$/.test(code)
+            ? `\\buc\\s*[.:#-]?\\s*${code.slice(2)}\\b`
+            : `\\bufcd\\s*[.:#-]?\\s*${code}\\b`,
           'i'
         ),
         ' '

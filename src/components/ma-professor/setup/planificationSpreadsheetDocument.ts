@@ -134,6 +134,8 @@ function headerKind(
   if (
     normalized === 'ufcd' ||
     normalized.startsWith('ufcd ') ||
+    normalized === 'uc' ||
+    normalized.startsWith('uc ') ||
     normalized === 'modulo' ||
     normalized.startsWith('modulo ')
   ) {
@@ -407,6 +409,11 @@ function moduleDescriptor(
       /\bm[oó]dulo\s*(?:n[.ºo°]*\s*)?[.:#-]?\s*([A-Za-z0-9][A-Za-z0-9._/-]{0,15})\b/i
     )
 
+  const competenceUnit =
+    normalized.match(
+      /\buc\s*[.:#-]?\s*(\d{3,6})\b/i
+    )
+
   const leadingNumeric =
     normalized.match(
       /^(\d{3,6})(?:\b|(?=\s*\())/
@@ -420,6 +427,11 @@ function moduleDescriptor(
   const code =
     ufcd?.[1] ??
     explicitModule?.[1] ??
+    (
+      competenceUnit
+        ? `UC${competenceUnit[1]}`
+        : undefined
+    ) ??
     leadingNumeric?.[1] ??
     leadingAlphaNumeric?.[1] ??
     ''
@@ -441,6 +453,12 @@ function moduleDescriptor(
     name =
       name.replace(
         explicitModule[0],
+        ' '
+      )
+  } else if (competenceUnit) {
+    name =
+      name.replace(
+        competenceUnit[0],
         ' '
       )
   } else {
