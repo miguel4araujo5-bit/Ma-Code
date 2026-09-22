@@ -802,7 +802,7 @@ function getStatusMessage(
     status ===
       'pending'
   ) {
-    return 'O seu pedido continua em análise pela MA-CODE.'
+    return 'O seu pedido está em análise. Quando for aprovado, receberá por email as instruções para ativar o acesso às ferramentas.'
   }
 
   if (
@@ -813,7 +813,7 @@ function getStatusMessage(
   }
 
   if (canActivate) {
-    return 'O seu pedido foi aprovado. Utilize a senha de ativação recebida para iniciar o período de acesso.'
+    return 'O seu pedido foi aprovado. Utilize a senha recebida por email para ativar o acesso às ferramentas.'
   }
 
   if (
@@ -823,7 +823,7 @@ function getStatusMessage(
     return 'O pedido está aprovado e o período anterior já foi ativado. Se precisar de um novo período de acesso, escolha uma das opções disponíveis.'
   }
 
-  return 'O pedido foi aprovado, mas a senha de ativação ainda não está disponível.'
+  return 'O seu pedido foi aprovado. Aguarde o email da MA-CODE com a senha para ativar o acesso às ferramentas.'
 }
 
 export class MaProfessorAccessDurableObject {

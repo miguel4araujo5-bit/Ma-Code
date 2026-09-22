@@ -1994,7 +1994,7 @@ export class MaProfessorAccessDurableObject {
               .credentials[
               email
             ]
-              ? 'O seu pedido já foi aprovado. Introduza a senha recebida por email para ativar a conta.'
+              ? 'O seu pedido já foi aprovado. Introduza a senha recebida por email para ativar o acesso às ferramentas.'
               : 'O pedido foi aprovado, mas a senha ainda não está disponível. Aguarde o email da MA-CODE.'
         })
       }
@@ -2075,7 +2075,7 @@ export class MaProfessorAccessDurableObject {
         false,
 
       message:
-        'Pedido recebido. A MA-CODE irá analisar o pedido e, após aprovação, enviará por email a senha necessária para ativar a conta.'
+        'Pedido recebido. A MA-CODE irá analisar o pedido e, após aprovação, enviará por email a senha necessária para ativar o acesso às ferramentas.'
     })
   }
 

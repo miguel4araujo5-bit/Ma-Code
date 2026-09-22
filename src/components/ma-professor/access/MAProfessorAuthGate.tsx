@@ -909,7 +909,7 @@ export default function MAProfessorAuthGate({
             {message}
           </p>
           <p className="mt-3 text-xs leading-6 text-slate-400">
-            A sua conta foi criada. Pode entrar para consultar o pedido e as opções de acesso. As ferramentas ficam disponíveis após a aprovação e ativação da licença.
+            Entre com o seu email e a password pessoal para acompanhar o pedido e consultar as opções de acesso.
           </p>
           <button
             type="button"

@@ -110,7 +110,25 @@ function requestStatusLabel(
       return 'Pedido em análise'
 
     default:
-      return 'Conta autenticada'
+      return 'Estado do pedido por confirmar'
+  }
+}
+
+function requestStatusMessage(
+  status: MAProfessorAccessRequestStatus | null
+) {
+  switch (status) {
+    case 'pending':
+      return 'O seu pedido está em análise. Quando for aprovado, receberá por email as instruções para ativar o acesso às ferramentas.'
+
+    case 'approved':
+      return 'O seu pedido foi aprovado. Consulte o email da MA-CODE com as instruções para ativar o acesso às ferramentas.'
+
+    case 'rejected':
+      return 'O seu pedido não foi aprovado. Contacte a MA-CODE se pretender esclarecer ou voltar a solicitar acesso.'
+
+    default:
+      return 'Utilize “Verificar novamente” para consultar o estado do seu pedido.'
   }
 }
 
@@ -935,18 +953,18 @@ export function AccessGate({
     return (
       <LockedShell>
         <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
-          Conta autenticada
+          A sua conta
         </p>
 
         <h1 className="mt-3 text-3xl font-black">
-          A sua conta está autenticada.
+          Bem-vindo ao MA-Professor
         </h1>
 
         <p className="mt-3 text-sm leading-7 text-slate-300">
-          Entrou corretamente como{' '}
+          Entrou com{' '}
           <strong className="text-white">
             {session.email}
-          </strong>. Ainda não existe um período de acesso ativo, por isso as ferramentas e os dados do MA-Professor permanecem bloqueados.
+          </strong>.
         </p>
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/55 p-5">
@@ -956,16 +974,16 @@ export function AccessGate({
             )}
           </p>
 
-          {requestMessage ? (
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              {requestMessage}
-            </p>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              O seu pedido mantém-se na fila de análise. Pode aguardar a decisão ou escolher um acesso Fundador prioritário.
-            </p>
-          )}
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            {requestMessage || requestStatusMessage(requestStatus)}
+          </p>
         </div>
+
+        {requestStatus === 'pending' || requestStatus === 'approved' ? (
+          <p className="mt-4 text-sm leading-6 text-slate-400">
+            Pode acompanhar o estado do pedido nesta página ou consultar abaixo as opções de Apoio Fundador.
+          </p>
+        ) : null}
 
         <FounderAccessOffer
           requestStatus={requestStatus}

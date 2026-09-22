@@ -371,7 +371,7 @@ function createGenericAccessRequestResponse(
     },
     canActivate: false,
     message:
-      'Pedido recebido ou já em processamento. Por segurança, o estado exato da conta não é apresentado nesta confirmação. Se o pedido for aprovado, receberá as instruções de ativação no email indicado.'
+      'Pedido recebido. Se for aprovado, receberá por email as instruções para ativar o acesso às ferramentas.'
   })
 }
 

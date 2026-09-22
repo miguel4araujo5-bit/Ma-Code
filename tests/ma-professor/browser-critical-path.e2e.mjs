@@ -205,8 +205,9 @@ async function installOfflineApi(page) {
         },
         canActivate:
           false,
-        message:
-          'Pedido recebido.'
+        message: path.endsWith('/status')
+          ? 'O seu pedido está em análise. Quando for aprovado, receberá por email as instruções para ativar o acesso às ferramentas.'
+          : 'Pedido recebido.'
       })
     }
 
@@ -756,15 +757,18 @@ try {
   await page.getByRole('button', { name: 'Entrar na minha conta', exact: true }).click()
   await page.getByLabel('Password pessoal', { exact: true }).fill(PERSONAL_PASSWORD)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
-  await waitHeading(page, 'A sua conta está autenticada.')
+  await waitHeading(page, 'Bem-vindo ao MA-Professor')
   await waitHeading(page, 'Quer abolir a espera?')
   await waitText(page, 'Pagamento por MB WAY')
   assert.equal(await page.getByRole('button', { name: 'Guardar', exact: true }).count(), 0)
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await waitHeading(page, 'A sua conta está autenticada.')
+  await waitHeading(page, 'Bem-vindo ao MA-Professor')
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 })
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    if (process.env.MA_ACCESS_SCREENSHOTS) {
+      await page.screenshot({ path: `/tmp/ma-welcome-${width}.png`, fullPage: true })
+    }
     await page.locator('img[src="/mbway.svg"]').evaluate(image => {
       if (!image.complete || image.naturalWidth === 0) throw new Error('O logótipo MB WAY deve estar carregado.')
     })
@@ -775,6 +779,34 @@ try {
   }
   await page.setViewportSize({ width: 1366, height: 900 })
   assert.deepEqual(apiRequests.filter(item => item.plan).map(item => item.plan), ['paid_30_days', 'school_year', 'paid_30_days', 'school_year'])
+
+  // Each account state keeps its own next step; a failed status request must
+  // never look like a pending or approved application.
+  const statusUrl = '**/api/ma-professor/access/status'
+  for (const scenario of [
+    { status: 'approved', canActivate: true, message: 'O seu pedido foi aprovado. Utilize a senha recebida por email para ativar o acesso às ferramentas.', label: 'Pedido aprovado' },
+    { status: 'approved', canActivate: false, message: 'O seu pedido foi aprovado. Aguarde o email da MA-CODE com a senha para ativar o acesso às ferramentas.', label: 'Pedido aprovado' },
+    { status: 'rejected', message: '', label: 'Pedido não aprovado' },
+    { status: null, message: '', label: 'Estado do pedido por confirmar' }
+  ]) {
+    await page.route(statusUrl, route => fulfilJson(route, scenario.status
+      ? { success: true, request: { email: EMAIL, status: scenario.status }, canActivate: scenario.canActivate ?? false, message: scenario.message }
+      : { success: false, message: 'Serviço temporariamente indisponível.' }, scenario.status ? 200 : 503))
+    await page.getByRole('button', { name: 'Verificar novamente', exact: true }).click()
+    await waitText(page, scenario.label)
+    if (scenario.message) await waitText(page, scenario.message)
+    if (scenario.status === 'rejected') {
+      await waitText(page, 'O seu pedido não foi aprovado. Contacte a MA-CODE se pretender esclarecer ou voltar a solicitar acesso.')
+      assert.equal(await page.getByRole('button').filter({ hasText: 'Selecionar 30 dias' }).count(), 0)
+    }
+    if (!scenario.status) await waitText(page, 'Utilize “Verificar novamente” para consultar o estado do seu pedido.')
+    if (scenario.status !== 'approved') {
+      assert.equal(await page.getByText('Pode acompanhar o estado do pedido nesta página ou consultar abaixo as opções de Apoio Fundador.', { exact: true }).count(), 0)
+    }
+    await page.unroute(statusUrl)
+  }
+  await page.getByRole('button', { name: 'Verificar novamente', exact: true }).click()
+  await waitText(page, 'Pedido em análise')
 
   await page.getByRole('button', { name: 'Terminar sessão', exact: true }).click()
   await page.getByRole('button', { name: 'Já tenho acesso', exact: true }).first().waitFor({ state: 'visible' })

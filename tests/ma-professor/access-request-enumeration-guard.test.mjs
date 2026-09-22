@@ -368,7 +368,7 @@ test(
     )
     assert.match(
       payload.message,
-      /o estado exato da conta não é apresentado/i
+      /se for aprovado/i
     )
     assert.doesNotMatch(
       payload.message,
