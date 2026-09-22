@@ -973,19 +973,13 @@ export default function MACarteiraPage() {
               <div className="absolute inset-x-8 bottom-0 h-16 rounded-full bg-emerald-300/20 blur-3xl" />
 
               <div className="relative rounded-[2rem] border border-emerald-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-emerald-950/30 backdrop-blur">
-                <div className="flex aspect-square flex-col items-center justify-center rounded-[1.6rem] border border-emerald-200/25 bg-emerald-300/[0.06] text-center">
-                  <span className="text-6xl">
-                    ◈
-                  </span>
-
-                  <strong className="mt-4 text-3xl tracking-tight text-white">
-                    MA
-                  </strong>
-
-                  <span className="text-lg font-semibold text-emerald-200">
-                    Carteira
-                  </span>
-                </div>
+                <img
+                  src="/ma-carteira/logo.svg"
+                  alt=""
+                  className="aspect-square w-full rounded-[1.6rem] object-contain"
+                  loading="eager"
+                  decoding="async"
+                />
               </div>
             </div>
           </div>
