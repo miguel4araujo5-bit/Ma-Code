@@ -77,7 +77,7 @@ test(
     )
     assert.match(
       syncPanel,
-      /setStatusError\( '' \)/
+      /setStatusError\(''\)/
     )
     assert.doesNotMatch(
       syncPanel,
