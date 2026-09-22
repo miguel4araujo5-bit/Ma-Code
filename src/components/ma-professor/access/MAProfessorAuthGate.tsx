@@ -917,10 +917,10 @@ export default function MAProfessorAuthGate({
                 required
                 className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
               />
-              <span className="mt-2 block text-[0.7rem] leading-5 text-slate-500">
-                Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
-              </span>
             </label>
+            <p className="-mt-2 text-[0.7rem] leading-5 text-slate-500">
+              Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
+            </p>
 
             <label className="block">
               <span className="text-xs font-bold text-slate-300">
