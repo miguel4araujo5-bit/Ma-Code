@@ -105,7 +105,7 @@ function getEffectiveCompletedSteps(snapshot: SetupSnapshot) {
 }
 
 function getFirstIncompleteStep(snapshot: SetupSnapshot): SetupStepId {
-  const completedSteps = getEffectiveCompletedSteps(snapshot)
+  const completedSteps = getCurrentCompletedSteps(snapshot)
 
   return setupSteps.find(step =>
     !completedSteps.has(step.id)
@@ -264,6 +264,62 @@ function hasStudentCoverage(snapshot: SetupSnapshot) {
   return activeGroupIds.every(groupId =>
     groupsWithStudents.has(groupId)
   )
+}
+
+function getCurrentCompletedSteps(snapshot: SetupSnapshot) {
+  const completed =
+    getEffectiveCompletedSteps(snapshot)
+
+  const checks:
+    Array<[SetupStepId, boolean]> = [
+      [
+        'groups',
+        snapshot.groups.some(
+          group => group.active
+        )
+      ],
+      [
+        'subjects',
+        activeAssignmentIds(snapshot).length > 0
+      ],
+      [
+        'modules',
+        hasModuleCoverage(snapshot)
+      ],
+      [
+        'weekly_schedule',
+        hasCompleteScheduleCoverage(snapshot)
+      ],
+      [
+        'assessment_criteria',
+        hasCriteriaCoverage(snapshot)
+      ],
+      [
+        'planifications',
+        hasPlanificationCoverage(snapshot)
+      ],
+      [
+        'students',
+        hasStudentCoverage(snapshot)
+      ],
+      [
+        'confirmation',
+        Boolean(
+          snapshot.academicYear.setupCompletedAt ||
+          snapshot.progress?.completedAt
+        )
+      ]
+    ]
+
+  for (const [stepId, ready] of checks) {
+    if (ready) {
+      completed.add(stepId)
+    } else {
+      completed.delete(stepId)
+    }
+  }
+
+  return completed
 }
 
 function hasGuidedSetupCoverage(snapshot: SetupSnapshot) {
@@ -441,14 +497,8 @@ export default function SetupWizard({
   }, [advancedMode, guidedStage, activeStep])
 
   const completedSteps = useMemo(
-    () => getEffectiveCompletedSteps(snapshot),
-    [
-      snapshot.progress?.completedSteps,
-      snapshot.groups.length,
-      snapshot.subjects.length,
-      snapshot.teachingAssignments.length,
-      snapshot.weeklyScheduleSlots.length
-    ]
+    () => getCurrentCompletedSteps(snapshot),
+    [snapshot]
   )
   const readiness = getMAProfessorSetupReadiness(snapshot)
   const scheduleReady = hasCompleteScheduleCoverage(snapshot)
@@ -687,7 +737,7 @@ export default function SetupWizard({
         {guidedStage === 'planifications' ? (
           <div className="mt-6 space-y-5">
             <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">2 · Planificações</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Configuração rápida · Etapa 2 de 4</p>
               <h2 className="mt-2 text-xl font-black">Agora já conhecemos a estrutura do seu horário.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
                 Adicione uma planificação de cada vez. O MA-Professor tenta reconhecer a disciplina e o destino; só abre os detalhes que realmente precisam de correção.
@@ -737,7 +787,7 @@ export default function SetupWizard({
         {guidedStage === 'criteria' ? (
           <div className="mt-6 space-y-5">
             <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">3 · Critérios</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Configuração rápida · Etapa 3 de 4</p>
               <h2 className="mt-2 text-xl font-black">Adicione os critérios que já tiver.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
                 As disciplinas e respetivas componentes curriculares já preparadas tornam a correspondência mais segura. Pode usar PDF ou Word; as ponderações vêm sempre do documento e nunca são inventadas.
@@ -780,10 +830,10 @@ export default function SetupWizard({
         {guidedStage === 'students' ? (
           <div className="mt-6 space-y-5">
             <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 text-white shadow-xl shadow-black/15 sm:p-6">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">4 · Alunos</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Configuração rápida · Etapa 4 de 4</p>
               <h2 className="mt-2 text-xl font-black">Adicione os alunos antes de concluir a configuração rápida.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Use a mesma página de alunos da configuração avançada. Pode introduzir os alunos manualmente ou colar uma lista; todas as turmas ativas têm de ficar com alunos antes de avançar para a confirmação final.
+                Use a mesma página de alunos da configuração avançada. Pode introduzir os alunos manualmente ou colar uma lista. Se ainda não tiver todas as pautas, pode avançar e completar as turmas em falta mais tarde.
               </p>
             </section>
 
@@ -791,6 +841,7 @@ export default function SetupWizard({
               snapshot={snapshot}
               onSnapshotChange={onSnapshotChange}
               onCompleted={handleGuidedStudentsCompleted}
+              allowIncompleteContinue
             />
           </div>
         ) : null}
