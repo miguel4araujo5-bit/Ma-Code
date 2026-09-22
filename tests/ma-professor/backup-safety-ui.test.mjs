@@ -490,15 +490,27 @@ test(
 
 
 test(
-  'persistent browser storage helper permits a later retry when the browser does not grant persistence',
+  'persistent storage is requested on database open and only retried explicitly from Security',
   () => {
     assert.match(
       dbSource,
-      /requestPersistentMAProfessorStorage/
+      /export async function openMAProfessorDatabase\([\s\S]*await requestPersistentMAProfessorStorage\(\)/
     )
     assert.match(
       dbSource,
-      /if \(\s*result !== true[\s\S]*persistentStorageRequest ===\s*request[\s\S]*persistentStorageRequest =\s*null/
+      /options: \{[\s\S]*forceRetry\?: boolean/
+    )
+    assert.match(
+      dbSource,
+      /options\.forceRetry[\s\S]*persistentStorageRequest =\s*null/
+    )
+    assert.doesNotMatch(
+      dbSource,
+      /result !== true[\s\S]*persistentStorageRequest =\s*null/
+    )
+    assert.match(
+      safetySource,
+      /requestPersistentMAProfessorStorage\(\{[\s\S]*forceRetry: true/
     )
   }
 )
