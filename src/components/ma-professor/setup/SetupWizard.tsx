@@ -307,7 +307,8 @@ function getCurrentCompletedSteps(snapshot: SetupSnapshot) {
         Boolean(
           snapshot.academicYear.setupCompletedAt ||
           snapshot.progress?.completedAt
-        )
+        ) &&
+          hasCompleteScheduleCoverage(snapshot)
       ]
     ]
 
