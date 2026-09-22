@@ -180,6 +180,13 @@ export async function requestPersistentMAProfessorStorage(
     return null
   }
 
+  /*
+   * As chamadas automáticas reutilizam também uma recusa/indisponibilidade
+   * durante esta sessão. Alguns repositórios chamam initialize() dentro de
+   * transações Dexie; repetir aí navigator.storage.persist() introduziria uma
+   * Promise nativa capaz de fechar a transação prematuramente. Só a área de
+   * Segurança pede forceRetry fora dessas transações.
+   */
   if (
     options.forceRetry &&
     persistentStorageRequest
