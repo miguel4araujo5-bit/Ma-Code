@@ -666,7 +666,7 @@ try {
 
   await page
     .getByLabel(
-      'Criar password pessoal',
+      'Criar password',
       {
         exact:
           true
@@ -678,7 +678,7 @@ try {
 
   await page
     .getByLabel(
-      'Confirmar password pessoal',
+      'Confirmar password',
       {
         exact:
           true
@@ -689,8 +689,22 @@ try {
     )
 
   await page
-    .getByRole(
-      'checkbox'
+    .getByLabel(
+      'Guardei a minha password num local seguro',
+      {
+        exact:
+          true
+      }
+    )
+    .check()
+
+  await page
+    .getByLabel(
+      'Li a Informação de privacidade e aceito os Termos do MA-Professor',
+      {
+        exact:
+          true
+      }
     )
     .check()
 
