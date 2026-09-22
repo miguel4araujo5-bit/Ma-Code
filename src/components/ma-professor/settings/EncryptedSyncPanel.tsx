@@ -1,6 +1,9 @@
 import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 import CloudBackupReauthentication from '../sync/CloudBackupReauthentication'
-import { useCloudBackupPreference } from '../sync/cloudBackupPreference'
+import {
+  useCloudBackupPreference,
+  writeCloudBackupPreference
+} from '../sync/cloudBackupPreference'
 
 import {
   MA_PROFESSOR_OPAQUE_KEY_EVENT,
@@ -148,6 +151,41 @@ export function EncryptedSyncPanel() {
         updateKeyAvailability
       )
   }, [session.email])
+
+  const [
+    enableAfterUnlock,
+    setEnableAfterUnlock
+  ] =
+    useState(false)
+
+  useEffect(() => {
+    if (
+      !keyAvailable ||
+      !enableAfterUnlock
+    ) {
+      return
+    }
+
+    const saved =
+      writeCloudBackupPreference(
+        session,
+        'enabled'
+      )
+
+    setEnableAfterUnlock(false)
+
+    if (!saved) {
+      setFeedback({
+        tone: 'error',
+        message:
+          'A password foi confirmada, mas não foi possível guardar a opção de cópia automática neste browser.'
+      })
+    }
+  }, [
+    enableAfterUnlock,
+    keyAvailable,
+    session
+  ])
 
   const [
     status,
@@ -324,26 +362,33 @@ export function EncryptedSyncPanel() {
         Cria uma cópia dos dados atuais, cifra-a neste dispositivo e só depois a envia para a nuvem. No final, o MA-Professor confirma que a cópia ficou guardada corretamente.
       </p>
 
-      {status ? (
-        <p className="mt-3 text-xs leading-6 text-slate-300">
-          {status.cryptoVersion === 2
-            ? 'Esta conta utiliza proteção v2: a MA-CODE conserva material técnico que permite decifrar a cópia. Ao fazer uma cópia manual, a cópia existente será migrada para v3 antes de guardar os dados atuais.'
-            : status.cryptoVersion === 3
-              ? 'Proteção v3: a MA-CODE não guarda no servidor material suficiente para decifrar esta cópia.'
-              : 'A primeira cópia desta conta será criada com proteção v3.'}
-        </p>
-      ) : null}
-
       <div className="mt-4">
         <CloudBackupPreferencePanel
           canEnable={
             keyAvailable
+          }
+          onEnableBlocked={
+            () =>
+              setEnableAfterUnlock(
+                true
+              )
+          }
+          onChoice={
+            () =>
+              setEnableAfterUnlock(
+                false
+              )
           }
         />
       </div>
 
       {!keyAvailable ? (
         <div className="mt-4">
+          {enableAfterUnlock ? (
+            <p className="mb-3 text-xs font-bold leading-5 text-violet-100">
+              Confirme a password abaixo para ativar a cópia automática.
+            </p>
+          ) : null}
           <CloudBackupReauthentication
             forceRequired
             embedded

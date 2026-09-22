@@ -69,11 +69,27 @@ test(
     )
     assert.match(
       preferencePanel,
+      /onEnableBlocked\?\.\(\)/
+    )
+    assert.match(
+      preferencePanel,
+      /preference !== 'enabled' \?/
+    )
+    assert.doesNotMatch(
+      preferencePanel,
       /preference !== 'enabled' && canEnable/
     )
     assert.match(
       reauthentication,
       /!forceRequired && !required/
+    )
+    assert.match(
+      reauthentication,
+      /name="username" autoComplete="username"/
+    )
+    assert.match(
+      reauthentication,
+      /name="password" type="password" autoComplete="current-password"/
     )
   }
 )

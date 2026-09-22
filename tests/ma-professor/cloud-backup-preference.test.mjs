@@ -148,7 +148,7 @@ test('no automatic network access before a choice; enabling protects existing lo
   assert.match(document.body.textContent, /não recebe a sua password pessoal/)
   assert.match(document.body.textContent, /proteção v2/)
   assert.match(document.body.textContent, /material técnico que permite decifrá-las/)
-  assert.match(document.body.textContent, /Continuar sem cópia automática/)
+  assert.match(document.body.textContent, /Manter desativada/)
   dexie.mutate()
   await tick(15 * 60 * 1000)
   assert.deepEqual(service.calls, { inspect: 0, upload: 0, download: 0 })
@@ -433,7 +433,7 @@ test('reload with v3 loses only the memory key: show unlock, stop retries, prese
     storage.setKey(null)
     preference.writeCloudBackupPreference(session, 'enabled')
   })
-  assert.match(document.body.textContent, /A cópia protegida precisa da sua password/)
+  assert.match(document.body.textContent, /Confirme a sua password/)
   const initialCalls = { ...service.calls }
   dexie.mutate()
   await tick(60 * 60 * 1000)

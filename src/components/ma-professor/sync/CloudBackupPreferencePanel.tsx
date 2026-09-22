@@ -10,11 +10,15 @@ import {
 export default function CloudBackupPreferencePanel({
   onlyUnanswered = false,
   onOpenSettings,
-  canEnable = true
+  canEnable = true,
+  onEnableBlocked,
+  onChoice
 }: {
   onlyUnanswered?: boolean
   onOpenSettings?: () => void
   canEnable?: boolean
+  onEnableBlocked?: () => void
+  onChoice?: (enabled: boolean) => void
 }) {
   const { session } = useMAProfessorAccess()
   const preference = useCloudBackupPreference(session)
@@ -25,13 +29,28 @@ export default function CloudBackupPreferencePanel({
   }
 
   function choose(enabled: boolean) {
-    if (enabled && !canEnable) return
+    if (
+      enabled &&
+      !canEnable
+    ) {
+      onEnableBlocked?.()
+      return
+    }
 
     const saved = writeCloudBackupPreference(
       session,
       enabled ? 'enabled' : 'disabled'
     )
-    setError(saved ? '' : 'Não foi possível guardar a escolha. Verifique se o armazenamento do browser está disponível e tente novamente.')
+
+    setError(
+      saved
+        ? ''
+        : 'Não foi possível guardar a escolha. Verifique se o armazenamento do browser está disponível e tente novamente.'
+    )
+
+    if (saved) {
+      onChoice?.(enabled)
+    }
   }
 
   if (onOpenSettings) {
@@ -88,7 +107,7 @@ export default function CloudBackupPreferencePanel({
         Consultar informação de privacidade
       </a>
       <div className="mt-3 flex flex-wrap gap-3">
-        {preference !== 'enabled' && canEnable ? (
+        {preference !== 'enabled' ? (
           <button
             type="button"
             onClick={() => choose(true)}
@@ -103,7 +122,7 @@ export default function CloudBackupPreferencePanel({
             onClick={() => choose(false)}
             className="rounded-xl border border-white/15 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/5"
           >
-            {preference === 'enabled' ? 'Desativar cópia automática' : 'Continuar sem cópia automática'}
+            {preference === 'enabled' ? 'Desativar cópia automática' : 'Manter desativada'}
           </button>
         ) : null}
       </div>
