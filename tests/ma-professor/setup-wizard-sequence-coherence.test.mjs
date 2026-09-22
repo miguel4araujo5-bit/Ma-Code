@@ -286,3 +286,82 @@ test(
     )
   }
 )
+
+
+test(
+  'guided students can be left pending without marking the advanced students step as complete',
+  () => {
+    assert.match(
+      wizardSource,
+      /<StudentsSetupStep[\s\S]*allowIncompleteContinue/
+    )
+    assert.match(
+      stepSources.get('students'),
+      /allowIncompleteContinue\?: boolean/
+    )
+    assert.match(
+      stepSources.get('students'),
+      /studentsIncomplete[\s\S]*allowIncompleteContinue[\s\S]*onCompleted\(\s*snapshot\s*\)/
+    )
+    assert.match(
+      stepSources.get('students'),
+      /Continuar e completar alunos mais tarde/
+    )
+  }
+)
+
+test(
+  'guided numbering is explicitly distinct from the nine-step advanced sequence',
+  () => {
+    assert.match(
+      wizardSource,
+      /Configuração rápida · Etapa 2 de 4/
+    )
+    assert.match(
+      wizardSource,
+      /Configuração rápida · Etapa 3 de 4/
+    )
+    assert.match(
+      wizardSource,
+      /Configuração rápida · Etapa 4 de 4/
+    )
+    assert.match(
+      wizardSource,
+      /Passo \{activeStepDefinition\.number\} de \{totalSetupSteps\}/
+    )
+  }
+)
+
+test(
+  'advanced completion indicators are recomputed from current setup data',
+  () => {
+    assert.match(
+      wizardSource,
+      /function getCurrentCompletedSteps\(snapshot: SetupSnapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasModuleCoverage\(snapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasCompleteScheduleCoverage\(snapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasCriteriaCoverage\(snapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasPlanificationCoverage\(snapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /hasStudentCoverage\(snapshot\)/
+    )
+    assert.match(
+      wizardSource,
+      /getFirstIncompleteStep[\s\S]*getCurrentCompletedSteps\(snapshot\)/
+    )
+  }
+)
