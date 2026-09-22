@@ -490,15 +490,19 @@ test(
 
 
 test(
-  'persistent browser storage is requested as soon as the authenticated product mounts',
+  'persistent browser storage is requested before the initial IndexedDB-backed setup read',
   () => {
     assert.match(
       productSource,
-      /requestPersistentMAProfessorStorage/
+      /await requestPersistentMAProfessorStorage\(\)/
     )
     assert.match(
       productSource,
-      /useEffect\([\s\S]*void requestPersistentMAProfessorStorage\(\)[\s\S]*\[\]/
+      /await requestPersistentMAProfessorStorage\(\)[\s\S]*await refreshAcademicYear\(/
+    )
+    assert.match(
+      dbSource,
+      /if \(\s*result !== true[\s\S]*persistentStorageRequest ===\s*request[\s\S]*persistentStorageRequest =\s*null/
     )
   }
 )
