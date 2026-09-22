@@ -280,7 +280,7 @@ test(
   () => {
     assert.match(
       authGateSource,
-      /password pessoal[\s\S]*?nunca é enviada à MA-CODE/
+      /password pessoal[\s\S]*?nunca é enviada nem guardada pela MA-CODE/
     )
     assert.match(
       authGateSource,
