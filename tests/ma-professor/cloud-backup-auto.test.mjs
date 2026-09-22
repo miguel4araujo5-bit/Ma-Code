@@ -77,7 +77,7 @@ test(
     )
     assert.match(
       service,
-      /response\.status === 401 && authEmail/
+      /response\.status === 401 && authSession/
     )
     assert.match(
       syncPanel,

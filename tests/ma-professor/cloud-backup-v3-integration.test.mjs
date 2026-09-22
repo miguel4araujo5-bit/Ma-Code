@@ -156,3 +156,41 @@ test('existing v2 stays readable and writable until explicit migration; the old 
   assert.equal((await f.post('/key', session)).status, 409)
   assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)).serverRevision, 3)
 })
+
+test('cloud authentication failures identify the originating session and preserve renewed credentials', async t => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const target = new EventTarget()
+  target.CustomEvent = CustomEvent
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: target })
+  t.after(() => {
+    runtime.clearMAProfessorAccessSession()
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+    else delete globalThis.window
+  })
+  const notifications = []
+  target.addEventListener(runtime.MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, event => notifications.push(event.detail))
+  const rejected = () => Response.json({ message: 'A sessão já não é válida.' }, { status: 401 })
+  const renewed = { ...session, token: 'renewed-token' }
+  runtime.saveMAProfessorAccessSession(session)
+  runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
+
+  t.mock.method(globalThis, 'fetch', async () => rejected())
+  await assert.rejects(runtime.inspectMAProfessorCloudBackup(session), runtime.MAProfessorCloudBackupAuthenticationRequiredError)
+  assert.deepEqual(notifications, [session], 'The notification must identify the request session, not just the account.')
+
+  notifications.length = 0
+  let release
+  t.mock.method(globalThis, 'fetch', () => new Promise(resolve => { release = resolve }))
+  const pending = runtime.inspectMAProfessorCloudBackup(session)
+  runtime.saveMAProfessorAccessSession(renewed)
+  release(rejected())
+  await assert.rejects(pending, runtime.MAProfessorCloudBackupAuthenticationRequiredError)
+  assert.deepEqual(notifications, [session], 'A late failure must retain its old token so the UI can ignore it.')
+  assert.equal(runtime.readMAProfessorAccessSession().token, renewed.token)
+  assert.equal(runtime.readMAProfessorOpaqueExportKey(session.email), exportKey)
+
+  notifications.length = 0
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ message: 'Serviço indisponível.' }, { status: 503 }))
+  await assert.rejects(runtime.inspectMAProfessorCloudBackup(renewed), /Serviço indisponível/)
+  assert.deepEqual(notifications, [], 'A service failure must not be treated as a wrong password.')
+})

@@ -163,16 +163,27 @@ export class MAProfessorCloudBackupRevisionConflictError
 
 export const MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT = 'ma-professor-backup-auth-required'
 
+export interface MAProfessorCloudBackupAuthenticationRequiredDetail {
+  email: string
+  token?: string
+  deviceId?: string
+}
+
 export class MAProfessorCloudBackupAuthenticationRequiredError extends Error {
   constructor(
     email: string,
     message =
-      'Confirme novamente a sua password em Segurança e recuperação para continuar a usar as cópias online.'
+      'Confirme novamente a sua password em Segurança e recuperação para continuar a usar as cópias online.',
+    requestSession?: MAProfessorAccessSession
   ) {
     super(message)
     this.name = 'MAProfessorCloudBackupAuthenticationRequiredError'
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new window.CustomEvent(MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, { detail: email }))
+      // Consumers compare against their mounted session, including in other tabs.
+      window.dispatchEvent(new window.CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>(
+        MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
+        { detail: { email, token: requestSession?.token, deviceId: requestSession?.deviceId } }
+      ))
     }
   }
 }
@@ -328,7 +339,7 @@ async function postJson(
   path: string,
   body: Record<string, unknown>,
   fallbackMessage: string,
-  authEmail?: string
+  authSession?: MAProfessorAccessSession
 ) {
   const serialized =
     JSON.stringify(body)
@@ -390,11 +401,12 @@ async function postJson(
 
     if (
       response.status === 401 &&
-      authEmail
+      authSession
     ) {
       throw new MAProfessorCloudBackupAuthenticationRequiredError(
-        authEmail,
-        message
+        authSession.email,
+        message,
+        authSession
       )
     }
 
@@ -766,7 +778,7 @@ async function readStatus(
       '/status',
       sessionBody(session),
       'Não foi possível verificar a cópia online.',
-      session.email
+      session
     )
 
   return parseStatus(data)
@@ -781,7 +793,7 @@ async function readKey(
       '/key',
       sessionBody(session),
       'Não foi possível abrir a proteção da cópia.',
-      session.email
+      session
     )
 
   return parseKey(data)
@@ -1006,7 +1018,7 @@ async function getEncryptedBackup(
           RECORD_ID
       },
       'Não foi possível descarregar a cópia cifrada.',
-      session.email
+      session
     )
 
   return parseGetResult(data)
@@ -1031,7 +1043,7 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     )
 
   if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
   }
 
   const plaintext =
@@ -1159,7 +1171,7 @@ export async function promotePreparedMAProfessorCloudBackupV3(
           prepared.encrypted
       },
       'Não foi possível promover a cópia protegida para v3.',
-      session.email
+      session
     )
 
   return parsePromoteV3Result(
@@ -1216,7 +1228,7 @@ async function initializeAndVerifyMAProfessorCloudBackupV3(
     ...sessionBody(session), recordId: RECORD_ID,
     expectedServerRevision: 0, expectedRecordRevision: 0,
     profile: prepared.profile, encrypted: prepared.encrypted
-  }, 'Não foi possível criar a primeira cópia protegida.', session.email))
+  }, 'Não foi possível criar a primeira cópia protegida.', session))
   const verified = await downloadMAProfessorCloudBackupV3(session)
   if (!verified || verified.serverRevision !== pushed.serverRevision ||
       verified.recordRevision !== pushed.recordRevision ||
@@ -1254,7 +1266,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
 
   const exportKey = readMAProfessorOpaqueExportKey(session.email)
   if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
   }
 
   assertUploadAllowed()
@@ -1271,7 +1283,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
       expectedServerRevision: status.serverRevision,
       expectedRecordRevision: status.backup.recordRevision,
       encrypted
-    }, 'Não foi possível guardar a cópia cifrada v3.', session.email)
+    }, 'Não foi possível guardar a cópia cifrada v3.', session)
   )
 
   const verified = await downloadMAProfessorCloudBackupV3(session)
@@ -1364,7 +1376,7 @@ export async function uploadAndVerifyMAProfessorCloudBackup(
               prepared.encrypted
           },
           'Não foi possível guardar a cópia cifrada.',
-          session.email
+          session
         )
       )
   } catch (error) {
@@ -1590,7 +1602,7 @@ export async function downloadMAProfessorCloudBackupV3(
     )
 
   if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
   }
 
   const masterKey =

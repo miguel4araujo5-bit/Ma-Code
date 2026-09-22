@@ -26,6 +26,7 @@ import {
   MAProfessorCloudBackupAuthenticationRequiredError,
   migrateMAProfessorCloudBackupV2ToV3,
   uploadAndVerifyCompatibleMAProfessorCloudBackup,
+  type MAProfessorCloudBackupAuthenticationRequiredDetail,
   type MAProfessorCloudBackupStatus
 } from '../sync/cloudBackupService'
 
@@ -158,9 +159,15 @@ export function EncryptedSyncPanel() {
 
     const requireReauthentication =
       (event: Event) => {
+        const detail =
+          (event as CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>).detail
+
         if (
-          (event as CustomEvent<string>).detail ===
-            session.email
+          detail.email === session.email &&
+          (detail.token === undefined || (
+            detail.token === session.token &&
+            detail.deviceId === session.deviceId
+          ))
         ) {
           setReauthenticationRequired(
             true
@@ -189,7 +196,7 @@ export function EncryptedSyncPanel() {
         requireReauthentication
       )
     }
-  }, [session.email])
+  }, [session.deviceId, session.email, session.token])
 
   const [
     automaticUnlockRequested,
@@ -491,16 +498,18 @@ export function EncryptedSyncPanel() {
             </strong>{' '}
             {checking
               ? 'A verificar…'
-              : found
-                ? 'cópia online disponível'
-                : 'sem cópia online'}
+              : !status
+                ? 'por confirmar'
+                : found
+                  ? 'cópia online disponível'
+                  : 'sem cópia online'}
           </span>
 
           <span>
             <strong className="text-slate-200">
               Última cópia:
             </strong>{' '}
-            {checking
+            {checking || !status
               ? '—'
               : formatDateTime(
                   status?.backup.updatedAt ?? null

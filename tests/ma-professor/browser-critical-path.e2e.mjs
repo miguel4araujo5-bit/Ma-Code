@@ -961,20 +961,84 @@ try {
 
   const unlock = page.getByRole('complementary', { name: 'Confirmar password para cópias online' })
   await unlock.waitFor({ state: 'visible' })
+  const cloudPanel = page.getByRole('heading', {
+    name: 'Fazer cópia de segurança para a nuvem', exact: true
+  }).locator('..')
+  const manualBackupButton = page.getByRole('button', {
+    name: 'Fazer cópia de segurança para a nuvem', exact: true
+  })
+  const readCloudSession = () => page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
+    const session = storage.readMAProfessorAccessSession()
+    return { token: session.token, keyAvailable: Boolean(storage.readMAProfessorOpaqueExportKey(session.email)),
+      preference: preference.readCloudBackupPreference(session) }
+  })
+  const beforeUnlock = await readCloudSession()
+  assert.equal(beforeUnlock.keyAvailable, false)
+  assert.equal(await manualBackupButton.count(), 0)
+  assert.equal(await unlock.getByLabel('Password pessoal').getAttribute('autocomplete'), 'current-password')
+  assert.equal(await unlock.locator('input[name=username]').getAttribute('autocomplete'), 'username')
+  // Opt-out must remain available even while the memory key is missing.
+  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
+  await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).click()
+  assert.equal((await readCloudSession()).preference, 'disabled', 'A blocked activation must not silently opt in.')
+
   await unlock.getByLabel('Password pessoal').fill('Wrong-password-123!')
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.getByRole('alert').waitFor({ state: 'visible' })
   assert.equal(await unlock.getByLabel('Password pessoal').inputValue(), '')
+  assert.equal((await readCloudSession()).token, beforeUnlock.token, 'A wrong password must preserve the existing session.')
+  assert.deepEqual(await persistedLesson(page), first, 'A failed confirmation must preserve the saved lesson.')
+
+  // Keep an old-session request in flight until the new password is confirmed.
+  const statusRoute = '**/api/ma-professor/cloud-backup/status'
+  let releaseOldStatus
+  let oldStatusReceived
+  const oldStatusStarted = new Promise(resolve => { oldStatusReceived = resolve })
+  const holdOldStatus = async route => {
+    if (route.request().postDataJSON().token !== beforeUnlock.token) return route.fallback()
+    await new Promise(resolve => { releaseOldStatus = resolve; oldStatusReceived() })
+    return fulfilJson(route, { success: false, message: 'A sessão já não é válida.' }, 401)
+  }
+  await page.route(statusRoute, holdOldStatus)
+  await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    window.__lateCloudStatus = service.inspectMAProfessorCloudBackup(storage.readMAProfessorAccessSession())
+      .catch(error => error.name)
+  })
+  await Promise.race([
+    oldStatusStarted,
+    delay(20_000, null, { ref: false }).then(() => { throw new Error('The old-session status request did not start.') })
+  ])
   await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
 
-  const manualBackupButton = page.getByRole('button', {
-    name: 'Fazer cópia de segurança para a nuvem',
-    exact: true
-  })
+  assert.notEqual(
+    (await readCloudSession()).token,
+    beforeUnlock.token,
+    'OPAQUE reauthentication must rotate the account session token.'
+  )
+  assert.equal((await readCloudSession()).preference, 'disabled', 'Password confirmation only unlocks the controls.')
   await manualBackupButton.waitFor({ state: 'visible' })
   assert.equal(await manualBackupButton.isEnabled(), true)
+  releaseOldStatus()
+  assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
+  await page.unroute(statusRoute, holdOldStatus)
+  assert.equal(await unlock.count(), 0, 'A late 401 must not relock the new session.')
+  assert.equal(await manualBackupButton.isEnabled(), true)
+
+  // A temporary status failure must not claim the existing backup is absent or disable retry.
+  const unavailableStatus = route => fulfilJson(route, { message: 'Serviço temporariamente indisponível.' }, 503)
+  await page.route(statusRoute, unavailableStatus)
+  await manualBackupButton.click()
+  await cloudPanel.getByRole('alert').waitFor({ state: 'visible' })
+  assert.match(await cloudPanel.innerText(), /por confirmar/)
+  assert.doesNotMatch(await cloudPanel.innerText(), /sem cópia online/)
+  assert.equal(await manualBackupButton.isEnabled(), true)
+  await page.unroute(statusRoute, unavailableStatus)
   await manualBackupButton.click()
   await page.getByText(
     'Cópia de segurança cifrada, enviada e verificada com sucesso.',
@@ -1000,6 +1064,46 @@ try {
   assert.equal(afterReload.duplicates, 1)
   assert.equal(afterReload.lesson?.summary, SUMMARY)
   assert.equal(afterReload.lesson?.status, 'taught')
+
+  await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).click()
+  assert.equal((await readCloudSession()).preference, 'enabled')
+  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
+  assert.equal((await readCloudSession()).preference, 'disabled')
+
+  // Reopening must lose only the memory key and preserve the explicit choice.
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.getByRole('complementary', { name: 'Navegação completa do MA-Professor' })
+    .getByRole('button').filter({ hasText: 'Definições' }).click()
+  await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
+  await unlock.waitFor({ state: 'visible' })
+  const beforeSecondUnlock = await readCloudSession()
+  assert.equal(beforeSecondUnlock.keyAvailable, false)
+  assert.equal(beforeSecondUnlock.preference, 'disabled')
+  await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
+  await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
+  await unlock.waitFor({ state: 'hidden' })
+  assert.notEqual((await readCloudSession()).token, beforeSecondUnlock.token)
+  assert.equal((await readCloudSession()).preference, 'disabled')
+  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal(await page.getByText('A sessão já não é válida.', { exact: true }).count(), 0)
+  assert.deepEqual(await persistedLesson(page), afterReload)
+
+  // Another tab may replace persisted credentials before this mounted tab catches up.
+  // Its genuine 401 must still open confirmation for the session used by its controls.
+  const otherTabToken = 'session-from-another-tab'
+  await page.evaluate(async token => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    storage.saveMAProfessorAccessSession({ ...storage.readMAProfessorAccessSession(), token })
+  }, otherTabToken)
+  cloudWorker.setToken(otherTabToken)
+  await manualBackupButton.click()
+  await unlock.waitFor({ state: 'visible' })
+  await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
+  await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
+  await unlock.waitFor({ state: 'hidden' })
+  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal((await readCloudSession()).preference, 'disabled')
+  assert.deepEqual(await persistedLesson(page), afterReload)
 
   await page.evaluate(async () => {
     const {

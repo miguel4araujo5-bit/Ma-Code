@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
-import { MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT } from './cloudBackupService'
+import { MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, type MAProfessorCloudBackupAuthenticationRequiredDetail } from './cloudBackupService'
 
 interface CloudBackupReauthenticationProps {
   forceRequired?: boolean
@@ -21,7 +21,10 @@ export default function CloudBackupReauthentication({
 
   useEffect(() => {
     const request = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === session.email) setRequired(true)
+      const detail = (event as CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>).detail
+      if (detail.email === session.email && (detail.token === undefined || (
+        detail.token === session.token && detail.deviceId === session.deviceId
+      ))) setRequired(true)
     }
     const unlocked = () => {
       if (readMAProfessorOpaqueExportKey(session.email)) {
@@ -36,7 +39,7 @@ export default function CloudBackupReauthentication({
       window.removeEventListener(MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, request)
       window.removeEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, unlocked)
     }
-  }, [session.email])
+  }, [session.deviceId, session.email, session.token])
 
   async function unlock(event: FormEvent) {
     event.preventDefault()
