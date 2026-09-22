@@ -333,7 +333,7 @@ function ProductCardItem({
                 src={product.badgeLogoSrc}
                 alt=""
                 aria-hidden="true"
-                className="h-10 w-10 object-contain"
+                className="h-full w-full rounded-2xl object-contain"
               />
             ) : (
               product.badge
