@@ -810,7 +810,7 @@ export default function MAProfessorAuthGate({
                   <strong className="text-white">
                     Cópias online (opcionais):
                   </strong>{' '}
-                  os dados escolares são cifrados no seu dispositivo antes de serem enviados. As novas cópias usam proteção v3, pelo que o servidor não guarda o necessário para os decifrar.
+                  os dados escolares são cifrados no seu dispositivo antes de serem enviados. A MA-CODE não recebe a sua password pessoal nem guarda no servidor o necessário para ler a cópia.
                 </p>
               </div>
             </details>
@@ -1152,7 +1152,7 @@ export default function MAProfessorAuthGate({
                     Importante: guarde esta password num local seguro.
                   </p>
                   <p className="mt-2 text-xs leading-6 text-amber-50/90">
-                    A password é utilizada localmente pelo protocolo de autenticação protegido e <strong>não é enviada nem guardada pela MA-CODE</strong>. Se a esquecer, não a conseguimos recuperar. Os dados que continuarem neste dispositivo não são apagados por isso, mas uma cópia online v3 deixa de poder ser restaurada quando a chave OPAQUE já não estiver disponível no dispositivo.
+                    A password é utilizada localmente pelo protocolo de autenticação protegido e <strong>não é enviada nem guardada pela MA-CODE</strong>. Se a esquecer, não a conseguimos recuperar. Os dados que continuarem neste dispositivo não são apagados por isso, mas a cópia online deixa de poder ser restaurada quando a chave OPAQUE necessária já não estiver disponível no dispositivo.
                   </p>
                 </div>
               </div>

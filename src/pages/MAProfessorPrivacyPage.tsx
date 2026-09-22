@@ -183,15 +183,11 @@ export default function MAProfessorPrivacyPage() {
             </p>
 
             <p>
-              Antes do envio, os dados escolares são cifrados no dispositivo. Nas cópias com <strong className="text-white">proteção v3</strong>, a password pessoal não é enviada à MA-CODE e o servidor não guarda material suficiente para decifrar a cópia.
+              Antes do envio, os dados escolares são cifrados no dispositivo. A password pessoal não é enviada à MA-CODE e o servidor não guarda material suficiente para decifrar a cópia.
             </p>
 
             <p>
-              Contas antigas que ainda mantenham uma cópia com <strong className="text-white">proteção v2</strong> conservam temporariamente o modelo anterior, no qual existe material técnico no servidor que permite decifrar essa cópia, até ocorrer a migração explícita para v3.
-            </p>
-
-            <p>
-              Se a password pessoal for esquecida, a MA-CODE não a consegue recuperar. Os dados que continuem guardados localmente no dispositivo não são apagados por esse motivo, mas uma cópia v3 deixa de poder ser restaurada quando a chave OPAQUE necessária já não estiver disponível.
+              Se a password pessoal for esquecida, a MA-CODE não a consegue recuperar. Os dados que continuem guardados localmente no dispositivo não são apagados por esse motivo, mas a cópia online deixa de poder ser restaurada quando a chave OPAQUE necessária já não estiver disponível.
             </p>
           </Section>
 

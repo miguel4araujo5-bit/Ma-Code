@@ -156,7 +156,7 @@ export default function MAProfessorTermsPage() {
               Cada professor é responsável por proteger o acesso ao seu dispositivo, ao seu email e à sua password pessoal. A password pessoal não é enviada nem guardada pela MA-CODE.
             </p>
             <p>
-              Nas cópias online com proteção v3, os dados pedagógicos são cifrados no dispositivo antes do envio e o servidor não conserva material suficiente para os decifrar sem a chave derivada do processo OPAQUE no dispositivo do utilizador.
+              Nas cópias online, os dados pedagógicos são cifrados no dispositivo antes do envio e o servidor não conserva material suficiente para os decifrar sem a chave derivada do processo OPAQUE no dispositivo do utilizador.
             </p>
           </Section>
 
