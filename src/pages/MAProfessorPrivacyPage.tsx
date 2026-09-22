@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 const siteUrl =
   'https://ma-code.pt'
@@ -67,7 +67,7 @@ function Section({
   children
 }: {
   title: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-950/65 p-5 shadow-xl shadow-black/10 sm:p-7">
