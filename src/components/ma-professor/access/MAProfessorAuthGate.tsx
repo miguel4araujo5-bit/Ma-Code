@@ -45,6 +45,12 @@ interface MAProfessorAuthGateProps {
   children: ReactNode
 }
 
+const PERSONAL_PASSWORD_MIN_LENGTH =
+  15
+
+const PERSONAL_PASSWORD_MAX_LENGTH =
+  128
+
 function getErrorMessage(
   error: unknown
 ) {
@@ -510,11 +516,13 @@ export default function MAProfessorAuthGate({
       }
 
       if (
-        personalPassword.length < 6 ||
-        personalPassword.length > 128
+        personalPassword.length <
+          PERSONAL_PASSWORD_MIN_LENGTH ||
+        personalPassword.length >
+          PERSONAL_PASSWORD_MAX_LENGTH
       ) {
         setError(
-          'A password pessoal deve ter entre 6 e 128 caracteres.'
+          `A password pessoal deve ter entre ${PERSONAL_PASSWORD_MIN_LENGTH} e ${PERSONAL_PASSWORD_MAX_LENGTH} caracteres.`
         )
         return
       }
@@ -894,11 +902,14 @@ export default function MAProfessorAuthGate({
                     )
                 }
                 autoComplete="new-password"
-                minLength={6}
-                maxLength={128}
+                minLength={PERSONAL_PASSWORD_MIN_LENGTH}
+                maxLength={PERSONAL_PASSWORD_MAX_LENGTH}
                 required
                 className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
               />
+              <span className="mt-2 block text-[0.7rem] leading-5 text-slate-500">
+                Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
+              </span>
             </label>
 
             <label className="block">
@@ -915,8 +926,8 @@ export default function MAProfessorAuthGate({
                     )
                 }
                 autoComplete="new-password"
-                minLength={6}
-                maxLength={128}
+                minLength={PERSONAL_PASSWORD_MIN_LENGTH}
+                maxLength={PERSONAL_PASSWORD_MAX_LENGTH}
                 required
                 className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/50"
               />
@@ -930,7 +941,7 @@ export default function MAProfessorAuthGate({
                     Importante: guarde esta password num local seguro.
                   </p>
                   <p className="mt-2 text-xs leading-6 text-amber-50/90">
-                    A password é utilizada localmente pelo protocolo de autenticação protegido e <strong>não é enviada nem guardada pela MA-CODE</strong>. Se a esquecer, não a conseguimos recuperar.
+                    A password é utilizada localmente pelo protocolo de autenticação protegido e <strong>não é enviada nem guardada pela MA-CODE</strong>. Se a esquecer, não a conseguimos recuperar. Os dados que continuarem neste dispositivo não são apagados por isso, mas uma cópia online v3 deixa de poder ser restaurada quando a chave OPAQUE já não estiver disponível no dispositivo.
                   </p>
                 </div>
               </div>
@@ -939,6 +950,12 @@ export default function MAProfessorAuthGate({
             <div className="rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-xs leading-6 text-slate-300">
               <p>{CLOUD_BACKUP_PRIVACY_NOTICE}</p>
               <p className="mt-2">A cópia automática é opcional e só começa depois de a ativar no MA-Professor. Pode desativá-la em Segurança e recuperação.</p>
+              <a
+                href="/privacidade/ma-professor"
+                className="mt-2 inline-block font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+              >
+                Informação de privacidade do MA-Professor
+              </a>
             </div>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-amber-300/30">
