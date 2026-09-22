@@ -1204,9 +1204,11 @@ export default function StudentsSetupStep({
   ) {
     return (
       <div className="rounded-[1.75rem] border border-amber-300/20 bg-amber-300/[0.06] p-6">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-200">
-          Passo 8 de 9
-        </p>
+        {!allowIncompleteContinue ? (
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-200">
+            Passo 8 de 9
+          </p>
+        ) : null}
 
         <h2 className="mt-3 text-2xl font-black text-white">
           Não existem turmas ativas.
@@ -1231,9 +1233,11 @@ export default function StudentsSetupStep({
         }
         className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-xl shadow-black/20 sm:p-6"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
-          Passo 8 de 9
-        </p>
+        {!allowIncompleteContinue ? (
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
+            Passo 8 de 9
+          </p>
+        ) : null}
 
         <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
           Alunos
