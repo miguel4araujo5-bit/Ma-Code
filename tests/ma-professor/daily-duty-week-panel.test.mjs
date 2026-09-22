@@ -266,6 +266,24 @@ test(
 )
 
 test(
+  'Today timeline remains visible during breaks between timetable slots',
+  () => {
+    assert.match(
+      unifiedSource,
+      /timeSlots\.map\([\s\S]*slotIndex/
+    )
+    assert.match(
+      unifiedSource,
+      /const showIntervalLine =[\s\S]*slotEndMinute[\s\S]*nextSlotStartMinute[\s\S]*currentMinute >[\s\S]*slotEndMinute[\s\S]*currentMinute <[\s\S]*nextSlotStartMinute/
+    )
+    assert.match(
+      unifiedSource,
+      /showIntervalLine \|\|[\s\S]*showEndOfDayLine/
+    )
+  }
+)
+
+test(
   'temporary Today timeline test controls and URL override are removed',
   () => {
     assert.doesNotMatch(
