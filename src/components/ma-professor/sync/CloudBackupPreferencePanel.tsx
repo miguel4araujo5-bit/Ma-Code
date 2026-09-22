@@ -92,13 +92,13 @@ export default function CloudBackupPreferencePanel({
       className="rounded-2xl border border-violet-300/20 bg-slate-900 p-4 text-sm text-slate-200"
     >
       <p className="font-black text-white">
-        Cópia automática neste dispositivo: {preference === 'enabled' ? 'ativa' : 'desativada'}
+        Cópia automática: {preference === 'enabled' ? 'ativa' : 'desativada'}
       </p>
       <p className="mt-2 text-xs leading-6 text-slate-300">
         {CLOUD_BACKUP_PRIVACY_NOTICE}
       </p>
       <p className="mt-2 text-xs leading-6 text-slate-400">
-        Esta escolha aplica-se à sua conta neste dispositivo. Desativar impede novos envios automáticos e mantém as cópias já guardadas, o restauro e as cópias manuais.
+        Pode ativar ou desativar a cópia automática a qualquer momento. Desativar não apaga as cópias já guardadas nem impede o restauro ou uma cópia manual.
       </p>
       <a
         href="/privacidade/ma-professor"
