@@ -48,7 +48,7 @@ const serviceCards = [
 
 const featuredProducts = [
   {
-    name: 'MA-Pdf',
+    name: 'MA-PDF',
     eyebrow: 'Ferramentas PDF',
     description:
       'Junte, divida, comprima, converta, edite e assine documentos PDF.',
