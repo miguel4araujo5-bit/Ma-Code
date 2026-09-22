@@ -720,7 +720,7 @@ export default function MAProfessorAuthGate({
 
             <label className="block">
               <span className="text-xs font-bold text-slate-300">
-                Password pessoal
+                Criar password pessoal
               </span>
               <input
                 type="password"
@@ -739,7 +739,7 @@ export default function MAProfessorAuthGate({
               />
             </label>
             <p className="-mt-2 text-[0.7rem] leading-5 text-slate-500">
-              Introduza a password escolhida no pedido de acesso. Use pelo menos 15 caracteres; uma frase-passe longa é recomendada.
+              Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
             </p>
 
             <label className="block">
@@ -1034,7 +1034,7 @@ export default function MAProfessorAuthGate({
 
             <label className="block">
               <span className="text-xs font-bold text-slate-300">
-                Criar password pessoal
+                Password pessoal
               </span>
               <input
                 type="password"
@@ -1045,7 +1045,7 @@ export default function MAProfessorAuthGate({
                       event.target.value
                     )
                 }
-                autoComplete="new-password"
+                autoComplete="current-password"
                 minLength={PERSONAL_PASSWORD_MIN_LENGTH}
                 maxLength={PERSONAL_PASSWORD_MAX_LENGTH}
                 required
@@ -1053,7 +1053,7 @@ export default function MAProfessorAuthGate({
               />
             </label>
             <p className="-mt-2 text-[0.7rem] leading-5 text-slate-500">
-              Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
+              Introduza a password que escolheu quando pediu acesso. Se chegou diretamente a esta etapa, pode escolhê-la agora. Mínimo de 15 caracteres.
             </p>
 
             <label className="block">
