@@ -50,6 +50,14 @@ const encryptedSyncSource = await readFile(
   'utf8'
 )
 
+const cloudPreferenceSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/sync/CloudBackupPreferencePanel.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const productMenuSource = await readFile(
   new URL(
     '../../src/components/ma-professor/product/ProductMenuWorkspace.tsx',
@@ -476,6 +484,31 @@ test(
     assert.match(
       safetySource,
       /incluem o armazenamento da origem, não apenas o MA-Professor/
+    )
+  }
+)
+
+
+test(
+  'persistent browser storage is requested as soon as the authenticated product mounts',
+  () => {
+    assert.match(
+      productSource,
+      /requestPersistentMAProfessorStorage/
+    )
+    assert.match(
+      productSource,
+      /useEffect\([\s\S]*void requestPersistentMAProfessorStorage\(\)[\s\S]*\[\]/
+    )
+  }
+)
+
+test(
+  'cloud-backup controls link to the MA-Professor privacy information',
+  () => {
+    assert.match(
+      cloudPreferenceSource,
+      /href="\/privacidade\/ma-professor"/
     )
   }
 )
