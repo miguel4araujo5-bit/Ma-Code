@@ -172,6 +172,23 @@ function rowCells(row: Element) {
   )
 }
 
+// Célula que continua uma célula unida verticalmente no Word
+// (<w:vMerge/> sem val, ou val="continue").
+function isVerticalMergeContinuation(cell: Element) {
+  const properties = Array.from(cell.children).find(child =>
+    child.namespaceURI === WORD_NS && child.localName === 'tcPr'
+  )
+  const merge = properties && Array.from(properties.children).find(child =>
+    child.namespaceURI === WORD_NS && child.localName === 'vMerge'
+  )
+  if (!merge) return false
+  const value =
+    merge.getAttributeNS(WORD_NS, 'val') ||
+    merge.getAttribute('w:val') ||
+    ''
+  return value === '' || value === 'continue'
+}
+
 function genericWordLines(dom: Document) {
   const result: PlanificationPdfLine[] = []
 
@@ -206,18 +223,30 @@ export function parseModuleDocxXml(xml: string, name: string): Omit<ModuleDocume
   const lines = [line(headers)]
   let found = 0
   for (const table of Array.from(dom.getElementsByTagNameNS(WORD_NS, 'tbl'))) {
+    let continuesUfcdRow = false
     for (const row of tableRows(table)) {
       const cellElements = rowCells(row)
       const cells = cellElements.map(paragraphs)
       if (cells.some(c => /temas\s*\/\s*conte[úu]dos/i.test(c))) continue
       if (/^avalia[çc][ãa]o$/i.test(cells[0]?.trim() ?? '')) {
         lines.push(line(cells))
+        continuesUfcdRow = false
       } else if (cells.some(c => /\bUFCD\s*\d{3,6}\b/i.test(c))) {
         if (cells.length !== 6 || !/\bUFCD\s*\d{3,6}\b/i.test(cells[1])) {
           throw new Error('A tabela de UFCD não tem as seis colunas esperadas. Reveja o documento antes de importar.')
         }
         lines.push(...expandedStructuredRowLines(cellElements))
         found++
+        continuesUfcdRow = true
+      } else if (
+        continuesUfcdRow &&
+        cellElements.length === 6 &&
+        isVerticalMergeContinuation(cellElements[1])
+      ) {
+        // Linha seguinte da mesma UFCD (célula UFCD unida verticalmente).
+        lines.push(...expandedStructuredRowLines(cellElements))
+      } else {
+        continuesUfcdRow = false
       }
     }
   }

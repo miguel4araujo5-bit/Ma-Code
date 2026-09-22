@@ -688,19 +688,40 @@ export function parsePlanificationPdfDocument(
         continue
       }
 
+      // A linha “Avaliação” da tabela tem o rótulo na primeira coluna.
+      // “Avaliação diagnóstica/formativa” dentro de conteúdos, objetivos
+      // ou estratégias é conteúdo da UFCD e não fecha a secção.
+      const firstColumnKind =
+        anchors[0]?.kind ?? null
+      const isInFirstColumn = (
+        cell: PlanificationPdfCell
+      ) =>
+        !firstColumnKind ||
+        getColumnKind(cell, anchors) === firstColumnKind
+      const leadingCell =
+        positioned
+          .filter(cell => normalizeSpaces(cell.text))
+          .sort((left, right) => left.x - right.x)[0]
+      const startsWithEvaluation =
+        positioned.length === 0
+          ? /^\s*avalia[cç][aã]o\b/i.test(line.text)
+          : Boolean(
+              leadingCell &&
+              isInFirstColumn(leadingCell) &&
+              /^\s*avalia[cç][aã]o\b/i.test(leadingCell.text)
+            )
       const evaluationCells =
         positioned.filter(
           cell =>
             isEvaluationLabel(
               cell.text
-            )
+            ) &&
+            isInFirstColumn(cell)
         )
 
       if (
         evaluationCells.length > 0 ||
-        /^\s*avalia[cç][aã]o\b/i.test(
-          line.text
-        )
+        startsWithEvaluation
       ) {
         if (current) {
           const values =
