@@ -64,6 +64,26 @@ test(
       /busy \|\| !keyAvailable/
     )
     assert.match(
+      syncPanel,
+      /disabled=\{ busy \}/
+    )
+    assert.match(
+      syncPanel,
+      /const requestId = \+\+statusRequestId\.current/
+    )
+    assert.match(
+      syncPanel,
+      /statusRequestId\.current !== requestId/
+    )
+    assert.match(
+      syncPanel,
+      /setStatusError\( '' \)/
+    )
+    assert.doesNotMatch(
+      syncPanel,
+      /writeCloudBackupPreference/
+    )
+    assert.match(
       preferencePanel,
       /enabled && !canEnable/
     )

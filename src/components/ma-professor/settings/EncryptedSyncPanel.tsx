@@ -1,8 +1,7 @@
 import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 import CloudBackupReauthentication from '../sync/CloudBackupReauthentication'
 import {
-  useCloudBackupPreference,
-  writeCloudBackupPreference
+  useCloudBackupPreference
 } from '../sync/cloudBackupPreference'
 
 import {
@@ -13,6 +12,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -153,39 +153,16 @@ export function EncryptedSyncPanel() {
   }, [session.email])
 
   const [
-    enableAfterUnlock,
-    setEnableAfterUnlock
+    automaticUnlockRequested,
+    setAutomaticUnlockRequested
   ] =
     useState(false)
 
   useEffect(() => {
-    if (
-      !keyAvailable ||
-      !enableAfterUnlock
-    ) {
-      return
+    if (keyAvailable) {
+      setAutomaticUnlockRequested(false)
     }
-
-    const saved =
-      writeCloudBackupPreference(
-        session,
-        'enabled'
-      )
-
-    setEnableAfterUnlock(false)
-
-    if (!saved) {
-      setFeedback({
-        tone: 'error',
-        message:
-          'A password foi confirmada, mas não foi possível guardar a opção de cópia automática neste browser.'
-      })
-    }
-  }, [
-    enableAfterUnlock,
-    keyAvailable,
-    session
-  ])
+  }, [keyAvailable])
 
   const [
     status,
@@ -211,26 +188,61 @@ export function EncryptedSyncPanel() {
   ] =
     useState<Feedback | null>(null)
 
+  const [
+    statusError,
+    setStatusError
+  ] =
+    useState('')
+
+  const statusRequestId =
+    useRef(0)
+
   const refreshStatus =
     useCallback(
       async () => {
+        const requestId =
+          ++statusRequestId.current
+
         setChecking(true)
 
         try {
-          setStatus(
+          const nextStatus =
             await inspectMAProfessorCloudBackup(
               session
             )
+
+          if (
+            statusRequestId.current !==
+              requestId
+          ) {
+            return
+          }
+
+          setStatus(
+            nextStatus
           )
+          setStatusError('')
         } catch (error) {
+          if (
+            statusRequestId.current !==
+              requestId
+          ) {
+            return
+          }
+
           setStatus(null)
-          setFeedback({
-            tone: 'error',
-            message:
-              getErrorMessage(error)
-          })
+          setStatusError(
+            getErrorMessage(
+              error
+            )
+          )
         } finally {
-          setChecking(false)
+          if (
+            statusRequestId.current ===
+              requestId
+          ) {
+            setChecking(false)
+          }
         }
       },
       [session]
@@ -369,13 +381,13 @@ export function EncryptedSyncPanel() {
           }
           onEnableBlocked={
             () =>
-              setEnableAfterUnlock(
+              setAutomaticUnlockRequested(
                 true
               )
           }
           onChoice={
             () =>
-              setEnableAfterUnlock(
+              setAutomaticUnlockRequested(
                 false
               )
           }
@@ -384,9 +396,9 @@ export function EncryptedSyncPanel() {
 
       {!keyAvailable ? (
         <div className="mt-4">
-          {enableAfterUnlock ? (
+          {automaticUnlockRequested ? (
             <p className="mb-3 text-xs font-bold leading-5 text-violet-100">
-              Confirme a password abaixo para ativar a cópia automática.
+              Confirme primeiro a password abaixo. Depois poderá ativar a cópia automática.
             </p>
           ) : null}
           <CloudBackupReauthentication
@@ -398,9 +410,7 @@ export function EncryptedSyncPanel() {
         <button
           type="button"
           disabled={
-            busy ||
-            checking ||
-            !status
+            busy
           }
           onClick={() =>
             void handleUpload()
@@ -455,6 +465,15 @@ export function EncryptedSyncPanel() {
             : 'A cópia automática está desativada neste dispositivo. O botão acima envia apenas uma cópia manual.'}
         </p>
       </div>
+
+      {statusError ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200"
+        >
+          {statusError}
+        </p>
+      ) : null}
 
       {feedback ? (
         <p

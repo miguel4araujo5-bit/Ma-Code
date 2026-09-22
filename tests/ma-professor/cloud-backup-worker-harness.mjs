@@ -5,6 +5,8 @@ import { build } from 'esbuild'
 
 // Run the production Worker and SQL in browser tests; only D1/DO bindings are local.
 export async function createCloudBackupWorkerHarness(email, token) {
+  let acceptedToken = token
+
   const output = await build({ entryPoints: [fileURLToPath(new URL('../../worker/maProfessorCloudBackup.ts', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'node' })
   const worker = await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`)
   const db = new DatabaseSync(':memory:')
@@ -32,8 +34,12 @@ export async function createCloudBackupWorkerHarness(email, token) {
   const env = { MA_PROFESSOR_DB: binding, MA_PROFESSOR_ACCESS: {
     idFromName: name => name, get: () => ({ fetch: async request => {
       const body = await request.json()
-      return Response.json(body.token === token ? { success: true, license: { email, status: 'active' } } : { success: false }, { status: body.token === token ? 200 : 401 })
+      return Response.json(body.token === acceptedToken ? { success: true, license: { email, status: 'active' } } : { success: false }, { status: body.token === acceptedToken ? 200 : 401 })
     } })
   } }
-  return { handle: request => worker.handleMAProfessorCloudBackupApiRequest(request, env), close: () => db.close() }
+  return {
+    handle: request => worker.handleMAProfessorCloudBackupApiRequest(request, env),
+    setToken: value => { acceptedToken = value },
+    close: () => db.close()
+  }
 }

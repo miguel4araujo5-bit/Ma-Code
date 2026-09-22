@@ -126,6 +126,8 @@ function fulfilJson(route, body, status = 200) {
 async function installOfflineApi(page) {
   const requests = []
   let activated = false
+  let activeToken = TOKEN
+  let opaqueLoginSequence = 0
   let registrationRecord = null
   let pendingEnrollment = null
   let pendingLogin = null
@@ -185,7 +187,7 @@ async function installOfflineApi(page) {
       path === '/api/ma-professor/access/status'
     ) {
       if (path.endsWith('/request')) assert.equal(body.email, EMAIL)
-      else assert.equal(body.token, TOKEN)
+      else assert.equal(body.token, activeToken)
 
       return fulfilJson(route, {
         success: true,
@@ -321,12 +323,16 @@ async function installOfflineApi(page) {
       )
 
       activated = true
+      activeToken = TOKEN
+      cloudWorker.setToken(
+        activeToken
+      )
 
       return fulfilJson(route, {
         success:
           true,
         token:
-          TOKEN,
+          activeToken,
         email:
           EMAIL,
         license
@@ -415,11 +421,18 @@ async function installOfflineApi(page) {
       pendingLogin =
         null
 
+      opaqueLoginSequence += 1
+      activeToken =
+        `${TOKEN}-opaque-${opaqueLoginSequence}`
+      cloudWorker.setToken(
+        activeToken
+      )
+
       return fulfilJson(route, {
         success:
           true,
         token:
-          TOKEN,
+          activeToken,
         email:
           EMAIL,
         license: activated ? license : null
@@ -430,6 +443,20 @@ async function installOfflineApi(page) {
       path ===
         '/api/ma-professor/access/account/verify'
     ) {
+      if (
+        body.token !== activeToken
+      ) {
+        return fulfilJson(
+          route,
+          {
+            success: false,
+            message:
+              'A sessão da conta já não é válida.'
+          },
+          401
+        )
+      }
+
       return fulfilJson(route, {
         success: true,
         email: EMAIL,
@@ -438,7 +465,7 @@ async function installOfflineApi(page) {
     }
 
     if (path === '/api/ma-professor/access/renew') {
-      assert.equal(body.token, TOKEN)
+      assert.equal(body.token, activeToken)
       return fulfilJson(route, { success: true, license, message: 'Pedido de renovação registado.' })
     }
 
@@ -908,6 +935,12 @@ try {
   assert.equal(protectedCopy.cryptoVersion, 3)
   assert.equal(protectedCopy.backup.found, true)
 
+  // Simulate the cloud session becoming invalid before the password is
+  // confirmed again. Reauthentication must rotate the token and recover.
+  cloudWorker.setToken(
+    'expired-before-reauthentication'
+  )
+
   await page.reload({ waitUntil: 'domcontentloaded' })
   const unlock = page.getByRole('complementary', { name: 'Confirmar password para cópias online' })
   await unlock.waitFor({ state: 'visible' })
@@ -921,6 +954,11 @@ try {
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
   assert.equal(await unsavedEditor.textarea.inputValue(), 'Edição local ainda por guardar.', 'Reauthentication must preserve unsaved edits')
+  assert.notEqual(
+    activeToken,
+    TOKEN,
+    'OPAQUE reauthentication must rotate the account session token.'
+  )
   await unsavedEditor.textarea.fill(SUMMARY)
   const restoredCopy = await page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
