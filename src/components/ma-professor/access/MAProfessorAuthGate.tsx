@@ -647,6 +647,16 @@ export default function MAProfessorAuthGate({
             Introduza o seu email para pedir acesso. A password pessoal só será definida no seu dispositivo depois de o pedido ser aprovado e nunca é enviada à MA-CODE.
           </p>
 
+          <p className="mt-3 text-xs leading-6 text-slate-400">
+            Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço.{' '}
+            <a
+              href="/privacidade/ma-professor"
+              className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+            >
+              Consultar informação de privacidade
+            </a>
+          </p>
+
           <form
             onSubmit={handleRequest}
             className="mt-6 space-y-4"
