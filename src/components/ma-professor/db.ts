@@ -198,10 +198,17 @@ export async function requestPersistentMAProfessorStorage(): Promise<
       })()
   }
 
-  const result =
-    await persistentStorageRequest
+  const request =
+    persistentStorageRequest
 
-  if (result !== true) {
+  const result =
+    await request
+
+  if (
+    result !== true &&
+    persistentStorageRequest ===
+      request
+  ) {
     persistentStorageRequest =
       null
   }
