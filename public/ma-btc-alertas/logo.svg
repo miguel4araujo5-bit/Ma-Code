@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MA-BTC ALERTAS">
+  <title>MA-BTC ALERTAS</title>
+  <defs>
+    <linearGradient id="maBtcTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#maBtcTile)"/>
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#f7931a" stroke-opacity="0.3" stroke-width="6"/>
+
+  <rect x="112" y="288" width="60" height="96" rx="22" fill="#f7931a" fill-opacity="0.3"/>
+  <rect x="200" y="240" width="60" height="144" rx="22" fill="#f7931a" fill-opacity="0.45"/>
+  <rect x="288" y="176" width="60" height="208" rx="22" fill="#f7931a"/>
+  <circle cx="374" cy="150" r="26" fill="#f7931a"/>
+</svg>
