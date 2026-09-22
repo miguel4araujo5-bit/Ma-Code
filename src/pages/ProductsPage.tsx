@@ -39,6 +39,8 @@ const products:
     badge: 'PDF',
     badgeLogoSrc:
       '/ma-pdf/logo.svg',
+    badgeClassName:
+      'border-red-300/30 bg-red-300/10 text-red-100 shadow-red-950/30',
     highlights: [
       'Juntar PDF',
       'Comprimir PDF',
@@ -59,6 +61,8 @@ const products:
     badge: 'WAL',
     badgeLogoSrc:
       '/ma-carteira/logo.svg',
+    badgeClassName:
+      'border-violet-300/30 bg-violet-300/10 text-violet-100 shadow-violet-950/30',
     highlights: [
       'Watch wallet',
       'Histórico',
@@ -104,7 +108,7 @@ const products:
     badgeLogoSrc:
       '/ma-recortes/logo.svg',
     badgeClassName:
-      'border-violet-300/30 bg-violet-300/10 text-violet-100 shadow-violet-950/30',
+      'border-sky-300/30 bg-sky-300/10 text-sky-100 shadow-sky-950/30',
     highlights: [
       'Recorte automático',
       'Correção manual',
@@ -127,7 +131,7 @@ const products:
     badgeLogoSrc:
       '/ma-quadro/logo.svg',
     badgeClassName:
-      'border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30',
+      'border-amber-300/30 bg-amber-300/10 text-amber-100 shadow-amber-950/30',
     highlights: [
       'Modelos',
       'Camadas',
@@ -148,7 +152,7 @@ const products:
     badgeLogoSrc:
       '/ma-professor/logo.svg',
     badgeClassName:
-      'border-emerald-300/30 bg-emerald-300/10 text-emerald-100 shadow-emerald-950/30',
+      'border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30',
     highlights: [
       'Sumários',
       'Disciplinas e UFCD',
