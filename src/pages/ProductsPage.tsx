@@ -116,6 +116,8 @@ const products:
     status:
       'Em desenvolvimento',
     badge: '▦',
+    badgeLogoSrc:
+      '/ma-quadro/logo.svg',
     badgeClassName:
       'border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-cyan-950/30',
     highlights: [
