@@ -8,25 +8,13 @@ function PdfHeroIcon() {
       className="relative mx-auto hidden max-w-[17rem] lg:block"
       aria-hidden="true"
     >
-      <div className="absolute inset-x-8 bottom-0 h-12 rounded-full bg-cyan-300/20 blur-2xl" />
-
-      <div className="relative rounded-[2rem] border border-cyan-300/20 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/40 backdrop-blur">
-        <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_50%_0%,rgba(103,232,249,0.16),transparent_50%)]" />
-
-        <div className="relative aspect-[4/5] rounded-[1.55rem] border border-cyan-200/35 bg-cyan-300/[0.06] p-5 shadow-inner shadow-cyan-200/10">
-          <div className="absolute right-5 top-5 h-12 w-12 rounded-bl-3xl border-b border-l border-cyan-200/30 bg-cyan-200/10" />
-
-          <div className="flex h-full items-end justify-center gap-3 text-center">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-              MA
-            </span>
-
-            <span className="text-5xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(103,232,249,0.35)]">
-              PDF
-            </span>
-          </div>
-        </div>
-      </div>
+      <img
+        src="/ma-pdf/logo.svg"
+        alt=""
+        className="h-auto w-full rounded-[2rem] object-contain"
+        loading="eager"
+        decoding="async"
+      />
     </div>
   )
 }
