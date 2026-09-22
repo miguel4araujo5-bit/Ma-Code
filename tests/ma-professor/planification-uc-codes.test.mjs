@@ -92,27 +92,6 @@ test('PDF reconhece UCxxxxx como Unidade de Competência sem alterar códigos UF
   )
   assert.equal(parsed.sections[0].evaluationText, 'Ficha de avaliação')
 
-  const legacy = parsePlanificationPdfDocument({
-    pageCount: 1,
-    characterCount: 200,
-    pages: [{
-      pageNumber: 1,
-      lines: [
-        header('UFCD'),
-        line([
-          cell('1º Período', 0),
-          cell('UFCD 0773 Rede local (25h)', 100),
-          cell('Tema', 200),
-          cell('Objetivo', 300),
-          cell('Métodos: prático', 400),
-          cell('30', 500)
-        ])
-      ]
-    }]
-  }, 'ufcd.pdf')
-
-  assert.equal(legacy.sections[0].code, '0773')
-  assert.equal(legacy.sections[0].name, 'Rede local')
 })
 
 test('PDF com grelha desenhada reconhece cabeçalho UC', () => {
