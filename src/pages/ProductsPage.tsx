@@ -55,6 +55,8 @@ const products:
     status:
       'Em desenvolvimento',
     badge: 'WAL',
+    badgeLogoSrc:
+      '/ma-carteira/logo.svg',
     highlights: [
       'Watch wallet',
       'Histórico',
