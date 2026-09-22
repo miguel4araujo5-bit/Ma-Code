@@ -479,7 +479,7 @@ test(
     )
     assert.match(
       safetySource,
-      /requestPersistentMAProfessorStorage\(\)/
+      /requestPersistentMAProfessorStorage\(/
     )
     assert.match(
       safetySource,
