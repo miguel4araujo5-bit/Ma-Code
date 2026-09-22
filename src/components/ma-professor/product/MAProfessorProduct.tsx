@@ -21,10 +21,6 @@ import {
 } from '../daily/dailyScheduledLessonPreparation'
 
 import {
-  requestPersistentMAProfessorStorage
-} from '../db'
-
-import {
   maProfessorRepository
 } from '../repository'
 
@@ -385,43 +381,20 @@ function ProductContent() {
     )
 
   useEffect(() => {
-    let cancelled =
-      false
-
-    void (async () => {
-      // Resolve o pedido nativo antes de abrir/consultar o IndexedDB.
-      // Evita sobrepor uma Promise externa às transações Dexie do arranque.
-      await requestPersistentMAProfessorStorage()
-
-      if (cancelled) {
-        return
+    void refreshAcademicYear({
+      showLoading: true
+    }).then(
+      state => {
+        if (
+          !state?.academicYear ||
+          !state.operationalReady
+        ) {
+          setWorkspace(
+            'menu'
+          )
+        }
       }
-
-      const state =
-        await refreshAcademicYear({
-          showLoading: true
-        })
-
-      if (
-        cancelled
-      ) {
-        return
-      }
-
-      if (
-        !state?.academicYear ||
-        !state.operationalReady
-      ) {
-        setWorkspace(
-          'menu'
-        )
-      }
-    })()
-
-    return () => {
-      cancelled =
-        true
-    }
+    )
   }, [
     refreshAcademicYear
   ])
