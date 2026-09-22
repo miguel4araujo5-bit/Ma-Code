@@ -389,6 +389,8 @@ function ProductContent() {
       false
 
     void (async () => {
+      // Resolve o pedido nativo antes de abrir/consultar o IndexedDB.
+      // Evita sobrepor uma Promise externa às transações Dexie do arranque.
       await requestPersistentMAProfessorStorage()
 
       if (cancelled) {
