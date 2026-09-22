@@ -48,7 +48,7 @@ const serviceCards = [
 
 const featuredProducts = [
   {
-    name: 'MA PDF',
+    name: 'MA-Pdf',
     eyebrow: 'Ferramentas PDF',
     description:
       'Junte, divida, comprima, converta, edite e assine documentos PDF.',
@@ -833,89 +833,20 @@ function ProductIcon({
     | 'quadro'
     | 'recortes'
 }) {
-  if (type === 'pdf') {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <path d="M8 3.8h6.2l3.8 3.8v10.6A2.1 2.1 0 0 1 15.9 20H8a2.1 2.1 0 0 1-2.1-2.1V5.9A2.1 2.1 0 0 1 8 3.8Z" />
-
-        <path d="M14.2 3.8V8H18M8.5 15.2h7M8.5 12.2h7" />
-      </svg>
-    )
-  }
-
-  if (type === 'professor') {
-    return (
-      <img
-        src="/ma-professor/logo.svg"
-        alt=""
-        aria-hidden="true"
-        className="h-9 w-9 rounded-xl object-contain"
-      />
-    )
-  }
-
-  if (type === 'quadro') {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <rect
-          x="4.5"
-          y="4.5"
-          width="6.2"
-          height="6.2"
-          rx="1.4"
-        />
-
-        <rect
-          x="13.3"
-          y="4.5"
-          width="6.2"
-          height="6.2"
-          rx="1.4"
-        />
-
-        <rect
-          x="4.5"
-          y="13.3"
-          width="6.2"
-          height="6.2"
-          rx="1.4"
-        />
-
-        <rect
-          x="13.3"
-          y="13.3"
-          width="6.2"
-          height="6.2"
-          rx="1.4"
-        />
-      </svg>
-    )
-  }
+  const logoSrc = {
+    pdf: '/ma-pdf/logo.svg',
+    professor: '/ma-professor/logo.svg',
+    quadro: '/ma-quadro/logo.svg',
+    recortes: '/ma-recortes/logo.svg'
+  }[type]
 
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-7 w-7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M7.2 6.2v11.6M16.8 6.2v11.6M6.2 7.2h11.6M6.2 16.8h11.6" />
-
-      <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
-    </svg>
+    <img
+      src={logoSrc}
+      alt=""
+      aria-hidden="true"
+      className="h-full w-full rounded-2xl object-contain"
+    />
   )
 }
 
