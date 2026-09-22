@@ -678,23 +678,6 @@ export default function MAProfessorAuthGate({
             Introduza o seu email e escolha a password pessoal que irá utilizar para entrar na sua conta MA-Professor. A password é tratada apenas no seu dispositivo e nunca é enviada nem guardada pela MA-CODE.
           </p>
 
-          <p className="mt-3 text-xs leading-6 text-slate-400">
-            Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço. Consulte a{' '}
-            <a
-              href="/privacidade/ma-professor"
-              className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
-            >
-              informação de privacidade
-            </a>{' '}
-            e os{' '}
-            <a
-              href="/termos/ma-professor"
-              className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
-            >
-              Termos do MA-Professor
-            </a>.
-          </p>
-
           <form
             onSubmit={handleRequest}
             className="mt-6 space-y-4"
@@ -770,12 +753,44 @@ export default function MAProfessorAuthGate({
                   <p className="font-black leading-6 text-amber-100">
                     Importante: guarde esta password num local seguro.
                   </p>
-                  <p className="mt-2 text-xs leading-6 text-amber-50/90">
-                    A password não é enviada nem guardada pela MA-CODE. Por esse motivo, não conseguimos recuperá-la se a esquecer. O pedido de acesso enviado ao servidor contém apenas o email e os dados técnicos necessários à gestão e proteção do serviço. Quando concluir a ativação protegida, a password será utilizada localmente pelo protocolo OPAQUE e ficará associada à proteção criptográfica do seu acesso e das cópias online com proteção v3. Se perder a password, os dados que permanecem neste dispositivo não são apagados, mas deixará de conseguir iniciar uma nova sessão ou restaurar uma cópia online protegida.
-                  </p>
+
+                  <div className="mt-2 space-y-2 text-xs leading-6 text-amber-50/90">
+                    <p>
+                      A sua password permanece no seu dispositivo: não é enviada nem guardada pela MA-CODE. Por esse motivo, não conseguimos recuperá-la se a esquecer.
+                    </p>
+
+                    <p>
+                      Na ativação e no início de sessão, a password é processada localmente pelo protocolo OPAQUE. A MA-CODE recebe apenas os dados criptográficos necessários ao processo de autenticação, nunca a sua password.
+                    </p>
+
+                    <p>
+                      Se ativar as cópias online, os dados escolares da cópia são cifrados no seu dispositivo antes de serem enviados. Nas cópias com proteção v3, a MA-CODE não guarda no servidor o material necessário para decifrar esses dados.
+                    </p>
+
+                    <p className="font-bold text-amber-100">
+                      Se perder a password, os dados que permanecem neste dispositivo não são apagados, mas deixará de conseguir iniciar uma nova sessão ou restaurar uma cópia online protegida.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <p className="text-xs leading-6 text-slate-400">
+              Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço. Consulte a{' '}
+              <a
+                href="/privacidade/ma-professor"
+                className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+              >
+                informação de privacidade
+              </a>{' '}
+              e os{' '}
+              <a
+                href="/termos/ma-professor"
+                className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+              >
+                Termos do MA-Professor
+              </a>.
+            </p>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-amber-300/30">
               <input
