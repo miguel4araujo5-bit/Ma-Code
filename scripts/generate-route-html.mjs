@@ -348,6 +348,26 @@ const routes = [
   },
   {
     route:
+      '/termos/ma-professor',
+    title:
+      'Termos do MA-Professor | MA-CODE',
+    description:
+      'Termos de utilização e condições de tratamento de dados do MA-Professor.',
+    keywords:
+      'MA-Professor, termos de utilização, RGPD, tratamento de dados, subcontratante, artigo 28, MA-CODE',
+    robots:
+      'noindex, nofollow, noarchive',
+    ogTitle:
+      'Termos do MA-Professor | MA-CODE',
+    ogDescription:
+      'Termos de utilização e condições de tratamento de dados do MA-Professor.',
+    twitterTitle:
+      'Termos do MA-Professor | MA-CODE',
+    twitterDescription:
+      'Termos de utilização e condições de tratamento de dados do MA-Professor.'
+  },
+  {
+    route:
       '/produtos/ma-quadro',
     title:
       'MA-Quadro | Editor de design local da MA-Code',
