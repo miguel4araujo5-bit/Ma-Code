@@ -164,7 +164,11 @@ export function normalizeMAProfessorStorageError(
       )
 }
 
-export async function requestPersistentMAProfessorStorage(): Promise<
+export async function requestPersistentMAProfessorStorage(
+  options: {
+    forceRetry?: boolean
+  } = {}
+): Promise<
   boolean | null
 > {
   if (
@@ -174,6 +178,21 @@ export async function requestPersistentMAProfessorStorage(): Promise<
       'function'
   ) {
     return null
+  }
+
+  if (
+    options.forceRetry &&
+    persistentStorageRequest
+  ) {
+    const currentResult =
+      await persistentStorageRequest
+
+    if (currentResult === true) {
+      return true
+    }
+
+    persistentStorageRequest =
+      null
   }
 
   if (!persistentStorageRequest) {
@@ -198,22 +217,7 @@ export async function requestPersistentMAProfessorStorage(): Promise<
       })()
   }
 
-  const request =
-    persistentStorageRequest
-
-  const result =
-    await request
-
-  if (
-    result !== true &&
-    persistentStorageRequest ===
-      request
-  ) {
-    persistentStorageRequest =
-      null
-  }
-
-  return result
+  return persistentStorageRequest
 }
 
 export async function getMAProfessorStorageStatus(): Promise<
