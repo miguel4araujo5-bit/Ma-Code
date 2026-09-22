@@ -942,10 +942,25 @@ try {
   )
 
   await page.reload({ waitUntil: 'domcontentloaded' })
+
+  // Password confirmation must never return as a global bar over the product.
+  assert.equal(
+    await page.getByRole('complementary', { name: 'Confirmar password para cópias online' }).count(),
+    0
+  )
+
+  await page
+    .getByRole('complementary', { name: 'Navegação completa do MA-Professor' })
+    .getByRole('button')
+    .filter({ hasText: 'Definições' })
+    .click()
+
+  await page
+    .getByRole('button', { name: /Segurança e recuperação/ })
+    .click()
+
   const unlock = page.getByRole('complementary', { name: 'Confirmar password para cópias online' })
   await unlock.waitFor({ state: 'visible' })
-  const unsavedEditor = await summaryEditor(page)
-  await unsavedEditor.textarea.fill('Edição local ainda por guardar.')
   await unlock.getByLabel('Password pessoal').fill('Wrong-password-123!')
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.getByRole('alert').waitFor({ state: 'visible' })
@@ -953,13 +968,29 @@ try {
   await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
-  assert.equal(await unsavedEditor.textarea.inputValue(), 'Edição local ainda por guardar.', 'Reauthentication must preserve unsaved edits')
+
   assert.notEqual(
     activeToken,
     TOKEN,
     'OPAQUE reauthentication must rotate the account session token.'
   )
-  await unsavedEditor.textarea.fill(SUMMARY)
+
+  const manualBackupButton = page.getByRole('button', {
+    name: 'Fazer cópia de segurança para a nuvem',
+    exact: true
+  })
+  await manualBackupButton.waitFor({ state: 'visible' })
+  assert.equal(await manualBackupButton.isEnabled(), true)
+  await manualBackupButton.click()
+  await page.getByText(
+    'Cópia de segurança cifrada, enviada e verificada com sucesso.',
+    { exact: true }
+  ).waitFor({ state: 'visible' })
+  assert.equal(
+    await page.getByText('A sessão já não é válida.', { exact: true }).count(),
+    0
+  )
+
   const restoredCopy = await page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
     const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
@@ -970,9 +1001,6 @@ try {
   })
   assert.equal(restoredCopy.summary, SUMMARY)
   assert.equal(restoredCopy.secretPersisted, false)
-  const reopened = await summaryEditor(page)
-  assert.equal(await reopened.textarea.inputValue(), SUMMARY)
-
   const afterReload = await persistedLesson(page)
   assert.equal(afterReload.matchCount, 1)
   assert.equal(afterReload.duplicates, 1)

@@ -41,7 +41,6 @@ import {
 } from './cloudBackupTrust'
 
 import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
-import CloudBackupReauthentication from './CloudBackupReauthentication'
 
 const AUTO_BACKUP_DEBOUNCE_MS =
   90 * 1000
@@ -617,5 +616,5 @@ export default function AutomaticCloudBackup() {
     session.token
   ])
 
-  return <CloudBackupReauthentication />
+  return null
 }

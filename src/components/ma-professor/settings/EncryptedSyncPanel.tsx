@@ -22,6 +22,8 @@ import {
 
 import {
   inspectMAProfessorCloudBackup,
+  MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
+  MAProfessorCloudBackupAuthenticationRequiredError,
   migrateMAProfessorCloudBackupV2ToV3,
   uploadAndVerifyCompatibleMAProfessorCloudBackup,
   type MAProfessorCloudBackupStatus
@@ -127,16 +129,44 @@ export function EncryptedSyncPanel() {
         )
     )
 
+  const [
+    reauthenticationRequired,
+    setReauthenticationRequired
+  ] =
+    useState(false)
+
   useEffect(() => {
     const updateKeyAvailability =
-      () =>
-        setKeyAvailable(
+      () => {
+        const available =
           Boolean(
             readMAProfessorOpaqueExportKey(
               session.email
             )
           )
+
+        setKeyAvailable(
+          available
         )
+
+        if (available) {
+          setReauthenticationRequired(
+            false
+          )
+        }
+      }
+
+    const requireReauthentication =
+      (event: Event) => {
+        if (
+          (event as CustomEvent<string>).detail ===
+            session.email
+        ) {
+          setReauthenticationRequired(
+            true
+          )
+        }
+      }
 
     updateKeyAvailability()
 
@@ -144,12 +174,21 @@ export function EncryptedSyncPanel() {
       MA_PROFESSOR_OPAQUE_KEY_EVENT,
       updateKeyAvailability
     )
+    window.addEventListener(
+      MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
+      requireReauthentication
+    )
 
-    return () =>
+    return () => {
       window.removeEventListener(
         MA_PROFESSOR_OPAQUE_KEY_EVENT,
         updateKeyAvailability
       )
+      window.removeEventListener(
+        MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
+        requireReauthentication
+      )
+    }
   }, [session.email])
 
   const [
@@ -197,6 +236,10 @@ export function EncryptedSyncPanel() {
   const statusRequestId =
     useRef(0)
 
+  const needsReauthentication =
+    !keyAvailable ||
+    reauthenticationRequired
+
   const refreshStatus =
     useCallback(
       async () => {
@@ -231,6 +274,15 @@ export function EncryptedSyncPanel() {
           }
 
           setStatus(null)
+
+          if (
+            error instanceof
+              MAProfessorCloudBackupAuthenticationRequiredError
+          ) {
+            setStatusError('')
+            return
+          }
+
           setStatusError(
             getErrorMessage(
               error
@@ -256,7 +308,7 @@ export function EncryptedSyncPanel() {
     async () => {
       if (
         busy ||
-        !keyAvailable
+        needsReauthentication
       ) {
         return
       }
@@ -345,6 +397,14 @@ export function EncryptedSyncPanel() {
           )
         }
 
+        if (
+          error instanceof
+            MAProfessorCloudBackupAuthenticationRequiredError
+        ) {
+          setFeedback(null)
+          return
+        }
+
         setFeedback({
           tone: 'error',
           message:
@@ -377,7 +437,7 @@ export function EncryptedSyncPanel() {
       <div className="mt-4">
         <CloudBackupPreferencePanel
           canEnable={
-            keyAvailable
+            !needsReauthentication
           }
           onEnableBlocked={
             () =>
@@ -394,7 +454,7 @@ export function EncryptedSyncPanel() {
         />
       </div>
 
-      {!keyAvailable ? (
+      {needsReauthentication ? (
         <div className="mt-4">
           {automaticUnlockRequested ? (
             <p className="mb-3 text-xs font-bold leading-5 text-violet-100">
@@ -466,7 +526,8 @@ export function EncryptedSyncPanel() {
         </p>
       </div>
 
-      {statusError ? (
+      {statusError &&
+      !needsReauthentication ? (
         <p
           role="alert"
           className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200"

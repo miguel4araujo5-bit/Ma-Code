@@ -49,15 +49,35 @@ test(
     )
     assert.match(
       syncPanel,
+      /MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT/
+    )
+    assert.match(
+      syncPanel,
+      /!keyAvailable \|\| reauthenticationRequired/
+    )
+    assert.match(
+      syncPanel,
       /readMAProfessorOpaqueExportKey\( session\.email \)/
     )
     assert.match(
       syncPanel,
-      /<CloudBackupPreferencePanel canEnable=\{ keyAvailable \}/
+      /<CloudBackupPreferencePanel canEnable=\{ !needsReauthentication \}/
     )
     assert.match(
       syncPanel,
       /<CloudBackupReauthentication forceRequired embedded/
+    )
+    assert.doesNotMatch(
+      automatic,
+      /CloudBackupReauthentication/
+    )
+    assert.match(
+      automatic,
+      /return null/
+    )
+    assert.match(
+      service,
+      /response\.status === 401 && authEmail/
     )
     assert.match(
       syncPanel,
