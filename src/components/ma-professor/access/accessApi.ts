@@ -296,6 +296,18 @@ export async function finishMAProfessorOpaqueEnrollment(
   )
 }
 
+export async function startMAProfessorOpaqueAccountEnrollment(
+  email: string,
+  deviceId: string,
+  registrationRequest: string
+) {
+  return postJson<MAProfessorOpaqueEnrollmentStartResponse>(
+    '/opaque/enroll/start',
+    { email, deviceId, registrationRequest, accountRequest: true,
+      termsVersion: MA_PROFESSOR_TERMS_VERSION }
+  )
+}
+
 export async function startMAProfessorOpaqueLogin(
   email: string,
   deviceId: string,

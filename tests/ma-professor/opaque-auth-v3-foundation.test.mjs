@@ -140,7 +140,7 @@ test(
 )
 
 test(
-  'production auth bridge removes legacy personal-password storage and uses only OPAQUE plus MP activation state',
+  'production auth bridge uses OPAQUE without a legacy personal-password verifier',
   async () => {
     const authBridge =
       await readFile(
@@ -153,7 +153,7 @@ test(
 
     assert.doesNotMatch(
       authBridge,
-      /ma-professor-account-auth-v1/
+      /verifyAccountPassword|createAccountPasswordCredential|ACCOUNT_PASSWORD_HASH/
     )
     assert.doesNotMatch(
       source,

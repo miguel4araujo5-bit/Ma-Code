@@ -141,6 +141,8 @@ async function stageAuthBridge() {
       )
     )
 
+  await writeFile(join(directory, 'maProfessorAccess.mjs'), "export const CURRENT_TERMS_VERSION = '2026-09-22'\n")
+
   for (
     const moduleName of [
       'maProfessorOpaqueAuthState',
@@ -159,6 +161,7 @@ async function stageAuthBridge() {
 
     for (
       const dependency of [
+        'maProfessorAccess',
         'maProfessorAccessAdminBridge',
         'maProfessorOpaqueAuthState',
         'maProfessorOpaqueAuthProtocol',

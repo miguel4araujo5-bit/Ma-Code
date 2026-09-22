@@ -29,6 +29,8 @@ import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
 
+import { CURRENT_TERMS_VERSION } from './maProfessorAccess'
+
 const STORAGE_KEY =
   'ma-professor-access-state-v1'
 
@@ -93,6 +95,10 @@ interface StoredSessionSnapshot {
 interface StoredAccessRequestSnapshot {
   email: string
   activatedAt: number | null
+  status?: string
+  approvedAt?: number | null
+  termsVersionAccepted?: string | null
+  termsAcceptedAt?: number | null
 }
 
 interface StoredAccessCredentialSnapshot {
@@ -1166,10 +1172,10 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const identity =
-      await this.validateOpaqueEnrollmentActivation(
-        body
-      )
+    const accountRequest = body.accountRequest === true
+    const identity = accountRequest
+      ? { email: normalizeEmail(body.email), deviceId: normalizeDeviceId(body.deviceId) }
+      : await this.validateOpaqueEnrollmentActivation(body)
 
     if (
       'response' in
@@ -1177,6 +1183,11 @@ export class MaProfessorAccessDurableObject {
     ) {
       return identity
         .response
+    }
+
+    if (!isValidEmail(identity.email) || !identity.deviceId ||
+        (accountRequest && body.termsVersion !== CURRENT_TERMS_VERSION)) {
+      return json({ success: false, message: 'Verifique o email, o dispositivo e a aceitação dos termos.' }, 400)
     }
 
     const registrationRequest =
@@ -1216,7 +1227,11 @@ export class MaProfessorAccessDurableObject {
               identity.email,
             deviceId:
               identity.deviceId,
-            registrationRequest
+            registrationRequest,
+            ...(accountRequest ? {
+              accountRequest: true,
+              termsVersion: CURRENT_TERMS_VERSION
+            } : {})
           }
         )
 
@@ -1378,6 +1393,27 @@ export class MaProfessorAccessDurableObject {
           ]
       )
 
+    const pendingEnrollment = opaqueState.pendingEnrollments[enrollmentId]
+    const accountRequest = pendingEnrollment?.accountRequest === true
+    const accessState = accountRequest
+      ? await this.state.storage.get<AccessStateSnapshot>(STORAGE_KEY)
+      : undefined
+    const accessRequest = accessState?.accessRequests?.[email]
+    const legacyAuth = accountRequest
+      ? await this.state.storage.get<{ credentials?: Record<string, unknown> }>('ma-professor-account-auth-v1')
+      : undefined
+    // Signup creates only a new, pending account. Existing or already
+    // approved accounts still require their password or the MP invitation.
+    // Return the same enrollment response in all cases to avoid enumeration.
+    const canCreateAccount = accountRequest &&
+      !opaqueState.registrations[email] &&
+      !legacyAuth?.credentials?.[email] &&
+      accessRequest?.status === 'pending' &&
+      accessRequest.approvedAt == null &&
+      accessRequest.activatedAt == null &&
+      !accessState?.credentials?.[email] &&
+      !accessState?.licenses?.[email]
+
     try {
       finishOpaqueEnrollment(
         opaqueState,
@@ -1386,15 +1422,22 @@ export class MaProfessorAccessDurableObject {
           deviceId,
           enrollmentId,
           registrationRecord,
+          skipRegistration: accountRequest && !canCreateAccount,
           migratedFromV2:
             false
         }
       )
 
-      await this.state.storage.put(
-        MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
-        opaqueState
-      )
+      if (canCreateAccount && accessState && accessRequest) {
+        accessRequest.termsVersionAccepted = pendingEnrollment.termsVersion
+        accessRequest.termsAcceptedAt = Date.now()
+        await this.state.storage.put({
+          [MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY]: opaqueState,
+          [STORAGE_KEY]: accessState
+        })
+      } else {
+        await this.state.storage.put(MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY, opaqueState)
+      }
 
       return json({
         success:

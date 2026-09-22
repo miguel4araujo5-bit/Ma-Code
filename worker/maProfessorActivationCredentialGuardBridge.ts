@@ -15,6 +15,9 @@ const REQUEST_GUARD_STORAGE_KEY =
 const PUBLIC_ACCESS_REQUEST_PATH =
   '/api/ma-professor/access/request'
 
+const PUBLIC_OPAQUE_ENROLL_START_PATH =
+  '/api/ma-professor/access/opaque/enroll/start'
+
 const INTERNAL_CREDENTIAL_GENERATE_PATH =
   '/__internal/ma-professor/admin/credentials/generate'
 
@@ -597,13 +600,13 @@ export class MaProfessorAccessDurableObject {
   private async enforceAccessRequestRateLimit(
     request: Request
   ) {
+    const accountEnrollment = new URL(request.url).pathname === PUBLIC_OPAQUE_ENROLL_START_PATH
     if (
       request.method !==
         'POST' ||
       new URL(
         request.url
-      ).pathname !==
-        PUBLIC_ACCESS_REQUEST_PATH
+      ).pathname !== PUBLIC_ACCESS_REQUEST_PATH && !accountEnrollment
     ) {
       return null
     }
@@ -615,9 +618,9 @@ export class MaProfessorAccessDurableObject {
 
     if (
       !body ||
-      hasSessionToken(
+      (!accountEnrollment && hasSessionToken(
         body
-      )
+      ))
     ) {
       return null
     }
@@ -637,7 +640,7 @@ export class MaProfessorAccessDurableObject {
 
     const key =
       await hashRequestOrigin(
-        connectingIp
+        accountEnrollment ? `${connectingIp}:opaque-account` : connectingIp
       )
 
     const now =
@@ -859,6 +862,15 @@ export class MaProfessorAccessDurableObject {
       new URL(
         request.url
       ).pathname
+
+    if (pathname === PUBLIC_OPAQUE_ENROLL_START_PATH) {
+      const body = await readRequestBody(request)
+      if (body?.accountRequest === true) {
+        const limited = await this.enforceAccessRequestRateLimit(request)
+        if (limited) return limited
+      }
+      return this.existing.fetch(request)
+    }
 
     if (
       pathname ===

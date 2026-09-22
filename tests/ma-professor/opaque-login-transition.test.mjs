@@ -61,7 +61,7 @@ test(
 )
 
 test(
-  'first password registration happens during MP activation and never through a legacy session',
+  'MP invitation registration remains available without a legacy password fallback',
   () => {
     assert.match(
       opaqueAccess,

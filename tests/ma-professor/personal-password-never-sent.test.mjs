@@ -212,13 +212,13 @@ test(
 
     assert.doesNotMatch(
       authWorkerSource,
-      /ma-professor-account-auth-v1/
+      /verifyAccountPassword|createAccountPasswordCredential|ACCOUNT_PASSWORD_HASH/
     )
   }
 )
 
 test(
-  'Worker OPAQUE enrollment uses only the MP activation secret as server-side authorization',
+  'MP invitation enrollment still requires its activation secret',
   () => {
     const validator =
       authWorkerSource.match(

@@ -281,6 +281,8 @@ export function startOpaqueEnrollment(
     email: string
     deviceId: string
     registrationRequest: string
+    accountRequest?: boolean
+    termsVersion?: string
   },
   now = Date.now()
 ) {
@@ -310,7 +312,7 @@ export function startOpaqueEnrollment(
   }
 
   if (
-    state.registrations[
+    !input.accountRequest && state.registrations[
       email
     ]
   ) {
@@ -353,7 +355,11 @@ export function startOpaqueEnrollment(
       now,
     expiresAt:
       now +
-      PENDING_ENROLLMENT_TTL_MS
+      PENDING_ENROLLMENT_TTL_MS,
+    ...(input.accountRequest ? {
+      accountRequest: true,
+      termsVersion: input.termsVersion
+    } : {})
   }
 
   state.updatedAt =
@@ -378,6 +384,7 @@ export function finishOpaqueEnrollment(
     enrollmentId: string
     registrationRecord: string
     migratedFromV2?: boolean
+    skipRegistration?: boolean
   },
   now = Date.now()
 ) {
@@ -443,6 +450,10 @@ export function finishOpaqueEnrollment(
       'OPAQUE_ENROLLMENT_INVALID'
     )
   }
+
+  // Public signup must not reveal or replace an existing account. The
+  // bridge decides this from stored state, never from the finish payload.
+  if (input.skipRegistration) return
 
   if (
     state.registrations[

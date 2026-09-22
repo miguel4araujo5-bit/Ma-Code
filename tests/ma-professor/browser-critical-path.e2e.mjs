@@ -125,6 +125,7 @@ function fulfilJson(route, body, status = 200) {
 
 async function installOfflineApi(page) {
   const requests = []
+  let activated = false
   let registrationRecord = null
   let pendingEnrollment = null
   let pendingLogin = null
@@ -157,7 +158,9 @@ async function installOfflineApi(page) {
       method:
         request.method(),
       path,
-      bodyKeys
+      bodyKeys,
+      plan: body.plan,
+      requestedPlan: body.requestedPlan
     })
 
     for (
@@ -178,12 +181,11 @@ async function installOfflineApi(page) {
 
     if (
       path ===
-        '/api/ma-professor/access/request'
+        '/api/ma-professor/access/request' ||
+      path === '/api/ma-professor/access/status'
     ) {
-      assert.equal(
-        body.email,
-        EMAIL
-      )
+      if (path.endsWith('/request')) assert.equal(body.email, EMAIL)
+      else assert.equal(body.token, TOKEN)
 
       return fulfilJson(route, {
         success: true,
@@ -216,10 +218,13 @@ async function installOfflineApi(page) {
         body.email,
         EMAIL
       )
-      assert.equal(
-        body.activationPassword,
-        ACTIVATION_PASSWORD
-      )
+      if (body.accountRequest) {
+        assert.equal(body.activationPassword, undefined)
+        assert.equal(body.termsVersion, '2026-09-22')
+      } else {
+        assert.equal(body.activationPassword, ACTIVATION_PASSWORD)
+        if (registrationRecord) return fulfilJson(route, { success: false, message: 'Já registada.' }, 409)
+      }
       assert.equal(
         typeof body.registrationRequest,
         'string'
@@ -313,6 +318,8 @@ async function installOfflineApi(page) {
         body.activationPassword,
         ACTIVATION_PASSWORD
       )
+
+      activated = true
 
       return fulfilJson(route, {
         success:
@@ -414,7 +421,7 @@ async function installOfflineApi(page) {
           TOKEN,
         email:
           EMAIL,
-        license
+        license: activated ? license : null
       })
     }
 
@@ -425,8 +432,13 @@ async function installOfflineApi(page) {
       return fulfilJson(route, {
         success: true,
         email: EMAIL,
-        license
+        license: activated ? license : null
       })
+    }
+
+    if (path === '/api/ma-professor/access/renew') {
+      assert.equal(body.token, TOKEN)
+      return fulfilJson(route, { success: true, license, message: 'Pedido de renovação registado.' })
     }
 
     if (path.startsWith('/api/ma-professor/cloud-backup/')) {
@@ -589,6 +601,22 @@ async function persistedLesson(page) {
   }, SUMMARY)
 }
 
+async function checkPaymentDialog(page, amount, width) {
+  const dialog = page.getByRole('dialog')
+  await dialog.waitFor({ state: 'visible' })
+  await dialog.getByText(amount, { exact: true }).waitFor({ state: 'visible' })
+  await dialog.getByText('936 840 619', { exact: true }).waitFor({ state: 'visible' })
+  assert.match(await dialog.innerText(), /confirmação por\s+email/)
+  assert.match(await dialog.innerText(), /ativação é feita manualmente/)
+  assert.equal(await dialog.locator('img[src="/mbway.svg"]').evaluate(image => image.complete && image.naturalWidth > 0), true)
+  const bounds = await dialog.boundingBox()
+  assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 900)
+  if (process.env.MA_ACCESS_SCREENSHOTS) {
+    await page.screenshot({ path: `/tmp/ma-access-mbway-${width}.png` })
+  }
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+}
+
 async function diagnostic(page, apiRequests, pageErrors) {
   let body = '<body indisponível>'
   try {
@@ -725,10 +753,35 @@ try {
     'O pedido foi registado'
   )
 
+  await page.getByRole('button', { name: 'Entrar na minha conta', exact: true }).click()
+  await page.getByLabel('Password pessoal', { exact: true }).fill(PERSONAL_PASSWORD)
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await waitHeading(page, 'A sua conta está autenticada.')
+  await waitHeading(page, 'Quer abolir a espera?')
+  await waitText(page, 'Pagamento por MB WAY')
+  assert.equal(await page.getByRole('button', { name: 'Guardar', exact: true }).count(), 0)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitHeading(page, 'A sua conta está autenticada.')
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    await page.locator('img[src="/mbway.svg"]').evaluate(image => {
+      if (!image.complete || image.naturalWidth === 0) throw new Error('O logótipo MB WAY deve estar carregado.')
+    })
+    for (const [label, amount] of [['Selecionar 30 dias', '3,49 €'], ['Selecionar ano letivo', '15 €']]) {
+      await page.getByRole('button').filter({ hasText: label }).click()
+      await checkPaymentDialog(page, amount, width)
+    }
+  }
+  await page.setViewportSize({ width: 1366, height: 900 })
+  assert.deepEqual(apiRequests.filter(item => item.plan).map(item => item.plan), ['paid_30_days', 'school_year', 'paid_30_days', 'school_year'])
+
+  await page.getByRole('button', { name: 'Terminar sessão', exact: true }).click()
+  await page.getByRole('button', { name: 'Já tenho acesso', exact: true }).first().waitFor({ state: 'visible' })
+
   const activationUrl =
     `${BASE_URL}/produtos/ma-professor?acesso=ativar&email=${encodeURIComponent(EMAIL)}` +
     `#senha=${encodeURIComponent(ACTIVATION_PASSWORD)}`
-
   await page.goto(activationUrl, { waitUntil: 'domcontentloaded' })
   await page.waitForFunction(() =>
     !window.location.search.includes('acesso=ativar') &&
@@ -972,6 +1025,26 @@ try {
     afterOpaqueLogin.lesson?.summary,
     SUMMARY
   )
+
+  await page.getByRole('complementary', { name: 'Navegação completa do MA-Professor' })
+    .getByRole('button').filter({ hasText: 'Definições' }).click()
+  await page.getByRole('button', { name: 'Licença Acesso, validade e renovação', exact: true }).click()
+  await waitHeading(page, 'Escolha o período de acesso')
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    await page.getByRole('button').filter({ hasText: 'Continuar gratuitamente' }).click()
+    await waitHeading(page, 'Pedido de acesso gratuito enviado')
+    await page.getByRole('dialog').getByRole('button', { name: 'OK', exact: true }).click()
+    for (const [label, amount] of [['Apoio Fundador · 30 dias', '3,49 €'], ['Apoio Fundador · Ano letivo', '15 €']]) {
+      await page.getByRole('button').filter({ hasText: label }).click()
+      await checkPaymentDialog(page, amount, width)
+    }
+  }
+  assert.deepEqual(apiRequests.filter(item => item.requestedPlan).map(item => item.requestedPlan), [
+    'courtesy_30_days', 'paid_30_days', 'school_year',
+    'courtesy_30_days', 'paid_30_days', 'school_year'
+  ])
 
   assert.ok(apiRequests.some(item =>
     item.path === '/api/ma-professor/access/request'

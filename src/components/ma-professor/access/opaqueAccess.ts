@@ -7,6 +7,7 @@ import {
   finishMAProfessorOpaqueEnrollment,
   finishMAProfessorOpaqueLogin,
   startMAProfessorOpaqueEnrollment,
+  startMAProfessorOpaqueAccountEnrollment,
   startMAProfessorOpaqueLogin
 } from './accessApi'
 
@@ -22,6 +23,25 @@ export interface MAProfessorOpaqueLoginResult {
     MAProfessorAccessResponse
   exportKey:
     string
+}
+
+export async function registerMAProfessorOpaqueAccount(
+  email: string,
+  password: string,
+  deviceId: string
+): Promise<void> {
+  const clientStart = await startMAProfessorOpaqueClientRegistration(password)
+  const serverStart = await startMAProfessorOpaqueAccountEnrollment(
+    email, deviceId, clientStart.registrationRequest
+  )
+  const clientFinish = await finishMAProfessorOpaqueClientRegistration(
+    password, clientStart.clientRegistrationState, serverStart.registrationResponse
+  )
+  await finishMAProfessorOpaqueEnrollment(
+    email, deviceId, serverStart.enrollmentId, clientFinish.registrationRecord
+  )
+  // Login separately proves the password and obtains the account's exportKey.
+  // An anonymous repeated request never replaces the existing credential.
 }
 
 export async function enrollMAProfessorOpaqueForActivation(

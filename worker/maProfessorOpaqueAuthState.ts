@@ -21,6 +21,8 @@ export interface MAProfessorOpaquePendingEnrollment {
   deviceId: string
   createdAt: number
   expiresAt: number
+  accountRequest?: boolean
+  termsVersion?: string
 }
 
 export interface MAProfessorOpaquePendingLogin {

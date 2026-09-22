@@ -7,7 +7,7 @@ Este documento descreve o contrato de privacidade efetivamente implementado apó
 ## Estado atual
 
 - O pedido público enviado ao servidor contém apenas o email e os dados técnicos necessários ao serviço.
-- O professor escolhe a password pessoal no formulário de pedido; a password permanece no dispositivo, não integra o payload do pedido e não é enviada nem guardada pela MA-CODE. O registo OPAQUE é concluído na ativação protegida.
+- O professor escolhe a password pessoal no formulário de pedido; a password permanece no dispositivo e não é enviada nem guardada pela MA-CODE. O pedido inicial cria o registo OPAQUE para permitir entrar na conta pendente, consultar o pedido e selecionar Apoio Fundador. As ferramentas continuam dependentes da aprovação e ativação da licença.
 - O enrollment e o login usam OPAQUE; o servidor mantém apenas o material criptográfico necessário ao protocolo, não a password pessoal.
 - A senha MP permanece separada: autoriza a ativação/licenciamento e não substitui a password pessoal nem deriva chaves de backup.
 - As cópias automáticas começam desligadas e exigem escolha explícita por conta e dispositivo.

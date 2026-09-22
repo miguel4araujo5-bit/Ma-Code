@@ -18,6 +18,7 @@ import {
 
 import {
   enrollMAProfessorOpaqueForActivation,
+  registerMAProfessorOpaqueAccount,
   loginMAProfessorOpaqueOnly
 } from './opaqueAccess'
 
@@ -462,10 +463,12 @@ export default function MAProfessorAuthGate({
           return
         }
 
-        setMessage(
-          response.message ||
-          'Pedido recebido.'
+        const deviceId = getOrCreateMAProfessorDeviceId()
+        await registerMAProfessorOpaqueAccount(
+          normalizedEmail, personalPassword, deviceId
         )
+        clearPersonalPassword()
+        setMessage(response.message || 'Pedido recebido.')
         setMode('request-sent')
       } catch (
         requestError
@@ -906,7 +909,7 @@ export default function MAProfessorAuthGate({
             {message}
           </p>
           <p className="mt-3 text-xs leading-6 text-slate-400">
-            A password que escolheu não foi enviada à MA-CODE. Guarde-a: quando receber a senha de ativação poderá ter de a introduzir novamente para concluir a ativação protegida.
+            A sua conta foi criada. Pode entrar para consultar o pedido e as opções de acesso. As ferramentas ficam disponíveis após a aprovação e ativação da licença.
           </p>
           <button
             type="button"

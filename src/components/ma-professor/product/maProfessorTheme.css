@@ -87,6 +87,11 @@
   color: #64748b !important;
 }
 
+.ma-professor-product[data-theme='light']
+  [aria-labelledby='license-request-title'] [class~='text-amber-100'] {
+  color: #92400e !important;
+}
+
 .ma-professor-product[data-theme='light'] [class~='text-slate-600'] {
   color: #94a3b8 !important;
 }

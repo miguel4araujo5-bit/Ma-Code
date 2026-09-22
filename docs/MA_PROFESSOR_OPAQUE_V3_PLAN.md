@@ -29,9 +29,9 @@ Não instalar a dependência em produção antes de existir um spike de build/ru
 ## Separação de segredos
 
 - Password pessoal: é usada apenas no cliente pelo protocolo OPAQUE e não faz parte dos payloads públicos de pedido, ativação ou login.
-- O pedido enviado ao servidor continua a ser email-only. O professor escolhe a password pessoal no formulário inicial, mas essa password permanece apenas no dispositivo e não faz parte do pedido enviado; o registo OPAQUE só é concluído durante a ativação protegida por senha MP.
+- `/request` continua a receber apenas o email. No formulário inicial, a password é usada localmente para concluir o registo OPAQUE da conta pendente, sem transmitir a password. O professor pode depois entrar na conta e consultar os quadros de pedido, Apoio Fundador e MB WAY antes da aprovação.
 - Os caminhos públicos legados que recebiam password pessoal/PBKDF2 foram descontinuados; o login público é exclusivamente OPAQUE.
-- Senha MP: apenas autoriza a criação inicial do registo OPAQUE e ativa/licencia o período; nunca deriva chaves.
+- Senha MP: ativa/licencia o período e permite o primeiro registo OPAQUE de convites já aprovados que ainda não tenham credencial. Nunca substitui uma credencial existente nem deriva chaves.
 - OPAQUE export key: apenas cliente.
 - Master key do backup: aleatória, 256 bits, criada no cliente.
 - Wrapping key v3: derivada no cliente da OPAQUE export key com HKDF-SHA-256 e contexto versionado.
@@ -116,10 +116,12 @@ O corte de autenticação deixou de manter uma migração pública PBKDF2 -> OPA
 
 Contas novas:
 - fazem o pedido apenas com email;
-- depois da aprovação recebem uma senha MP;
-- criam a password pessoal localmente durante o enrollment OPAQUE;
+- criam a credencial OPAQUE com a password escolhida localmente no pedido inicial;
 - o servidor guarda o `registrationRecord` OPAQUE, nunca a password pessoal;
-- a ativação do período só é concluída depois de existir esse registo OPAQUE.
+- podem entrar na conta pendente e escolher um plano, sem acesso às ferramentas;
+- depois da aprovação recebem uma senha MP para ativar o período.
+
+O registo público só cria credenciais para pedidos pendentes sem aprovação, licença, senha MP ou credencial anterior. A elegibilidade é novamente verificada no fim do protocolo. Pedidos repetidos têm resposta genérica e nunca substituem um registo existente; só o login prova a password e emite a sessão. A versão dos termos é guardada com o primeiro registo. A senha MP continua disponível para convites anteriores já aprovados.
 
 Login:
 - usa exclusivamente OPAQUE;
@@ -136,10 +138,12 @@ Este corte de autenticação **não promove automaticamente o backup para v3**. 
 O fluxo público atual preserva a mesma cadeia de proteção administrativa, mas separa responsabilidades:
 
 - `/request`: pedido email-only; campos antigos de password pessoal são rejeitados;
-- `/opaque/enroll/start` e `/opaque/enroll/finish`: criação do registo OPAQUE autorizada pela senha MP;
+- `/opaque/enroll/start` e `/opaque/enroll/finish`: registo da conta pendente (`accountRequest`) ou primeiro registo por convite MP; ambos preservam credenciais existentes, proteção contra repetição e vínculo ao email/dispositivo;
 - `/activate`: ativa o período apenas depois de existir o registo OPAQUE;
 - `/opaque/login/start` e `/opaque/login/finish`: login protegido sem transmitir a password pessoal;
 - `/login` legado: não é um caminho válido para autenticação pessoal.
+
+O registo público reutiliza o limite por origem dos pedidos, com contador separado para permitir 20 professores na mesma rede. Não aceita um token arbitrário para dispensar esse limite. Não acrescenta polling, recursos Cloudflare ou tabelas D1. O percurso inicial usa três pedidos (email e duas etapas OPAQUE), mais dois no login; 20 professores representam 100 pedidos, ou 1000 com margem de 10×, face ao limite Free de 100000/dia. As operações reutilizam o mesmo Wasm e armazenamento; não alteram a cifragem das cópias.
 
 Continuam obrigatórios:
 - rate limiting;

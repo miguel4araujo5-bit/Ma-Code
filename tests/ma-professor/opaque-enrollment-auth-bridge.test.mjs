@@ -145,6 +145,8 @@ async function stageAuthBridge() {
       )
     )
 
+  await writeFile(join(directory, 'maProfessorAccess.mjs'), "export const CURRENT_TERMS_VERSION = '2026-09-22'\n")
+
   const files = [
     'maProfessorOpaqueAuthState',
     'maProfessorOpaqueAuthProtocol',
@@ -166,6 +168,7 @@ async function stageAuthBridge() {
 
     source =
       source
+        .replaceAll("'./maProfessorAccess'", "'./maProfessorAccess.mjs'")
         .replaceAll(
           "'./maProfessorAccessAdminBridge'",
           "'./maProfessorAccessAdminBridge.mjs'"
