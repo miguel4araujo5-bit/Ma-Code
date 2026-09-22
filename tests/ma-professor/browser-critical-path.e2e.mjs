@@ -665,6 +665,36 @@ try {
     )
 
   await page
+    .getByLabel(
+      'Criar password pessoal',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      PERSONAL_PASSWORD
+    )
+
+  await page
+    .getByLabel(
+      'Confirmar password pessoal',
+      {
+        exact:
+          true
+      }
+    )
+    .fill(
+      PERSONAL_PASSWORD
+    )
+
+  await page
+    .getByRole(
+      'checkbox'
+    )
+    .check()
+
+  await page
     .getByRole(
       'button',
       {
@@ -704,7 +734,7 @@ try {
 
   await page
     .getByLabel(
-      'Criar password pessoal',
+      'Password pessoal',
       {
         exact:
           true
