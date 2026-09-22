@@ -63,7 +63,9 @@ export function BackupLocalSafetyPanel() {
     let active = true
 
     void (async () => {
-      await requestPersistentMAProfessorStorage()
+      await requestPersistentMAProfessorStorage({
+        forceRetry: true
+      })
 
       const nextStatus =
         await getMAProfessorStorageStatus()
