@@ -21,6 +21,10 @@ import {
 } from '../daily/dailyScheduledLessonPreparation'
 
 import {
+  requestPersistentMAProfessorStorage
+} from '../db'
+
+import {
   maProfessorRepository
 } from '../repository'
 
@@ -166,6 +170,13 @@ function describeDailyPreparationError(
 }
 
 function ProductContent() {
+  useEffect(
+    () => {
+      void requestPersistentMAProfessorStorage()
+    },
+    []
+  )
+
   const [
     workspace,
     setWorkspace
