@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MA-Professor">
+  <title>MA-Professor</title>
+  <defs>
+    <linearGradient id="pautaTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#pautaTile)"/>
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#22d3ee" stroke-opacity="0.28" stroke-width="6"/>
+
+  <rect x="96" y="128" width="320" height="256" rx="36" fill="#020617" stroke="#22d3ee" stroke-opacity="0.4" stroke-width="7"/>
+
+  <g fill="#22d3ee" fill-opacity="0.32">
+    <rect x="132" y="168" width="152" height="28" rx="14"/>
+    <rect x="132" y="242" width="152" height="28" rx="14"/>
+    <rect x="132" y="316" width="152" height="28" rx="14"/>
+  </g>
+
+  <rect x="316" y="156" width="52" height="52" rx="16" fill="#67e8f9"/>
+  <rect x="316" y="230" width="52" height="52" rx="16" fill="#67e8f9"/>
+  <rect x="319.5" y="307.5" width="45" height="45" rx="13" fill="none" stroke="#22d3ee" stroke-opacity="0.5" stroke-width="7"/>
+</svg>
