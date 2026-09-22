@@ -328,3 +328,30 @@ test(
     )
   }
 )
+
+
+test(
+  'new personal passwords require at least 15 characters without changing the OPAQUE transport contract',
+  () => {
+    assert.match(
+      authGateSource,
+      /const PERSONAL_PASSWORD_MIN_LENGTH =\s*15/
+    )
+    assert.match(
+      authGateSource,
+      /minLength=\{PERSONAL_PASSWORD_MIN_LENGTH\}/
+    )
+    assert.match(
+      authGateSource,
+      /personalPassword\.length <\s*PERSONAL_PASSWORD_MIN_LENGTH/
+    )
+    assert.match(
+      authGateSource,
+      /Use pelo menos 15 caracteres/
+    )
+    assert.match(
+      authGateSource,
+      /href="\/privacidade\/ma-professor"/
+    )
+  }
+)
