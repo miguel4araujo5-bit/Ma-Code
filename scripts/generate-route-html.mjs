@@ -328,6 +328,26 @@ const routes = [
   },
   {
     route:
+      '/privacidade/ma-professor',
+    title:
+      'Privacidade do MA-Professor | MA-CODE',
+    description:
+      'Informação sobre o tratamento de dados pessoais, segurança, cópias cifradas e direitos dos utilizadores do MA-Professor.',
+    keywords:
+      'MA-Professor, privacidade, proteção de dados, RGPD, cópia cifrada, MA-CODE',
+    robots:
+      'noindex, nofollow, noarchive',
+    ogTitle:
+      'Privacidade do MA-Professor | MA-CODE',
+    ogDescription:
+      'Informação sobre privacidade, segurança e tratamento de dados no MA-Professor.',
+    twitterTitle:
+      'Privacidade do MA-Professor | MA-CODE',
+    twitterDescription:
+      'Informação sobre privacidade, segurança e tratamento de dados no MA-Professor.'
+  },
+  {
+    route:
       '/produtos/ma-quadro',
     title:
       'MA-Quadro | Editor de design local da MA-Code',
