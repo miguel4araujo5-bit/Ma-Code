@@ -1826,6 +1826,14 @@ export default function MARecortesPage() {
                 : 'opacity-0'
             }`}
           >
+            <img
+              src="/ma-recortes/logo.svg"
+              alt=""
+              className="mb-5 h-20 w-20 rounded-[1.75rem] object-contain"
+              loading="eager"
+              decoding="async"
+            />
+
             <div className="hero-topline">
               <span className="hero-topline__dot" />
 
