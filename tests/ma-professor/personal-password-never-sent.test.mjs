@@ -276,7 +276,7 @@ test(
 
 
 test(
-  'public privacy copy reflects OPAQUE and distinguishes v3 from legacy v2 protection',
+  'public privacy copy reflects OPAQUE without exposing internal backup versions',
   () => {
     assert.match(
       authGateSource,
@@ -288,25 +288,25 @@ test(
     )
     assert.match(
       authGateSource,
-      /novas cópias usam proteção v3[\s\S]*?servidor não guarda o necessário para os decifrar/
+      /A MA-CODE não recebe a sua password pessoal nem guarda no servidor o necessário para ler a cópia/
     )
 
     assert.match(
       backupPreferenceSource,
-      /Nas cópias com proteção v3[\s\S]*?não recebe a sua password pessoal[\s\S]*?nem guarda no servidor o material necessário para decifrar os dados/
+      /A MA-CODE não recebe a sua password pessoal nem guarda no servidor o material necessário para ler a cópia/
     )
-    assert.match(
+    assert.doesNotMatch(
       backupPreferenceSource,
-      /proteção v2[\s\S]*?material técnico que permite decifrá-las/
+      /proteção v[23]/
     )
 
     assert.match(
       setupConfirmationSource,
-      /proteção v3[\s\S]*?não guarda no servidor o material necessário para decifrar os dados/
+      /A MA-CODE não recebe a minha password pessoal nem guarda no servidor o material necessário para ler os dados/
     )
-    assert.match(
+    assert.doesNotMatch(
       setupConfirmationSource,
-      /proteção v2[\s\S]*?material técnico que permite decifrá-las/
+      /proteção v[23]/
     )
 
     assert.doesNotMatch(

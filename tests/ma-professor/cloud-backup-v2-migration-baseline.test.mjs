@@ -69,11 +69,11 @@ test(
 
     assert.match(
       preference,
-      /Nas cópias com proteção v3, a MA-CODE não recebe a sua password pessoal nem guarda no servidor o material necessário para decifrar os dados/
+      /A MA-CODE não recebe a sua password pessoal nem guarda no servidor o material necessário para ler a cópia/
     )
-    assert.match(
+    assert.doesNotMatch(
       preference,
-      /proteção v2, os servidores da MA-CODE conservam material técnico que permite decifrá-las/
+      /proteção v[23]/
     )
   }
 )

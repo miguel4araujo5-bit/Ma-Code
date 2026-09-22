@@ -69,11 +69,15 @@ test(
     )
     assert.match(
       privacySource,
-      /proteção v3/
+      /password pessoal não é enviada à MA-CODE/
     )
     assert.match(
       privacySource,
-      /proteção v2/
+      /servidor não guarda material suficiente para decifrar a cópia/
+    )
+    assert.doesNotMatch(
+      privacySource,
+      /proteção v[23]/
     )
     assert.match(
       privacySource,
