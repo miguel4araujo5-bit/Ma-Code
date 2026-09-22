@@ -12,6 +12,7 @@ import ProductIntroPanel from './ProductIntroPanel'
 
 import {
   activateMAProfessorAccessPeriod,
+  MA_PROFESSOR_TERMS_VERSION,
   submitMAProfessorAccessRequest
 } from './accessApi'
 
@@ -564,7 +565,8 @@ export default function MAProfessorAuthGate({
           await activateMAProfessorAccessPeriod(
             normalizedEmail,
             activationPassword.trim(),
-            deviceId
+            deviceId,
+            MA_PROFESSOR_TERMS_VERSION
           )
 
         if (!response.license) {
