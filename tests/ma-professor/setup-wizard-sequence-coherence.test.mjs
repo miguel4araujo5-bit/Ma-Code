@@ -363,5 +363,9 @@ test(
       wizardSource,
       /getFirstIncompleteStep[\s\S]*getCurrentCompletedSteps\(snapshot\)/
     )
+    assert.match(
+      wizardSource,
+      /'confirmation',[\s\S]*setupCompletedAt[\s\S]*hasCompleteScheduleCoverage\(snapshot\)/
+    )
   }
 )
