@@ -816,6 +816,17 @@ export class MaProfessorAccessDurableObject {
         body.deviceId
       )
 
+    const termsVersion =
+      typeof body.termsVersion ===
+        'string'
+        ? body.termsVersion
+            .trim()
+            .slice(
+              0,
+              32
+            )
+        : ''
+
     if (
       !isValidEmail(
         email
@@ -909,7 +920,12 @@ export class MaProfessorAccessDurableObject {
             JSON.stringify({
               email,
               activationPassword,
-              deviceId
+              deviceId,
+              ...(termsVersion
+                ? {
+                    termsVersion
+                  }
+                : {})
             })
         }
       )
