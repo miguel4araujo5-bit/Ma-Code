@@ -1912,7 +1912,7 @@ export default function MAQuadroHome({
             aria-label="MA-Code.pt"
           >
             <img
-              src="/ma-code.png"
+              src="/ma-quadro/logo.svg"
               alt=""
             />
 
