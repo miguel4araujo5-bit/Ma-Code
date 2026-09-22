@@ -3,7 +3,15 @@ import { useMAProfessorAccess } from '../access/AccessGate'
 import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
 import { MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT } from './cloudBackupService'
 
-export default function CloudBackupReauthentication() {
+interface CloudBackupReauthenticationProps {
+  forceRequired?: boolean
+  embedded?: boolean
+}
+
+export default function CloudBackupReauthentication({
+  forceRequired = false,
+  embedded = false
+}: CloudBackupReauthenticationProps = {}) {
   const { session, reauthenticate } = useMAProfessorAccess()
   const [required, setRequired] = useState(false)
   const [password, setPassword] = useState('')
@@ -46,10 +54,17 @@ export default function CloudBackupReauthentication() {
     }
   }
 
-  if (!required) return null
+  if (!forceRequired && !required) return null
 
   return (
-    <aside aria-label="Desbloquear cópia protegida" className="mx-3 my-3 rounded-xl border border-amber-300/30 bg-slate-900 px-4 py-3 text-sm text-slate-200 sm:mx-5">
+    <aside
+      aria-label="Desbloquear cópia protegida"
+      className={
+        embedded
+          ? 'rounded-xl border border-amber-300/30 bg-slate-950/60 px-4 py-3 text-sm text-slate-200'
+          : 'mx-3 my-3 rounded-xl border border-amber-300/30 bg-slate-900 px-4 py-3 text-sm text-slate-200 sm:mx-5'
+      }
+    >
       <p role="status" className="font-bold text-amber-100">A cópia protegida precisa da sua password.</p>
       <p className="mt-1">Volte a introduzir a sua password para retomar a cópia protegida. Pode continuar a trabalhar: os dados permanecem guardados neste dispositivo.</p>
       <form onSubmit={unlock} className="mt-3 flex flex-wrap items-end gap-3">

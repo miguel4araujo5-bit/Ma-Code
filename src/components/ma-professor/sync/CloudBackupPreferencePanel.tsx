@@ -9,10 +9,12 @@ import {
 
 export default function CloudBackupPreferencePanel({
   onlyUnanswered = false,
-  onOpenSettings
+  onOpenSettings,
+  canEnable = true
 }: {
   onlyUnanswered?: boolean
   onOpenSettings?: () => void
+  canEnable?: boolean
 }) {
   const { session } = useMAProfessorAccess()
   const preference = useCloudBackupPreference(session)
@@ -23,6 +25,8 @@ export default function CloudBackupPreferencePanel({
   }
 
   function choose(enabled: boolean) {
+    if (enabled && !canEnable) return
+
     const saved = writeCloudBackupPreference(
       session,
       enabled ? 'enabled' : 'disabled'
@@ -84,7 +88,7 @@ export default function CloudBackupPreferencePanel({
         Consultar informação de privacidade
       </a>
       <div className="mt-3 flex flex-wrap gap-3">
-        {preference !== 'enabled' ? (
+        {preference !== 'enabled' && canEnable ? (
           <button
             type="button"
             onClick={() => choose(true)}

@@ -17,14 +17,18 @@ const [
   serviceSource,
   syncPanelSource,
   restorePanelSource,
-  reporterSource
+  reporterSource,
+  reauthenticationSource,
+  preferencePanelSource
 ] = await Promise.all([
   read('src/components/ma-professor/sync/AutomaticCloudBackup.tsx'),
   read('src/components/ma-professor/sync/cloudBackupTrust.ts'),
   read('src/components/ma-professor/sync/cloudBackupService.ts'),
   read('src/components/ma-professor/settings/EncryptedSyncPanel.tsx'),
   read('src/components/ma-professor/settings/OnlineRestorePanel.tsx'),
-  read('src/components/ma-professor/setup/OperationalReadinessReporter.tsx')
+  read('src/components/ma-professor/setup/OperationalReadinessReporter.tsx'),
+  read('src/components/ma-professor/sync/CloudBackupReauthentication.tsx'),
+  read('src/components/ma-professor/sync/CloudBackupPreferencePanel.tsx')
 ])
 
 const automatic = compact(automaticSource)
@@ -33,6 +37,46 @@ const service = compact(serviceSource)
 const syncPanel = compact(syncPanelSource)
 const restorePanel = compact(restorePanelSource)
 const reporter = compact(reporterSource)
+const reauthentication = compact(reauthenticationSource)
+const preferencePanel = compact(preferencePanelSource)
+
+test(
+  'manual v3 backup is gated by the in-memory OPAQUE key and reuses the existing reauthentication flow',
+  () => {
+    assert.match(
+      syncPanel,
+      /MA_PROFESSOR_OPAQUE_KEY_EVENT/
+    )
+    assert.match(
+      syncPanel,
+      /readMAProfessorOpaqueExportKey\( session\.email \)/
+    )
+    assert.match(
+      syncPanel,
+      /<CloudBackupPreferencePanel canEnable=\{ keyAvailable \}/
+    )
+    assert.match(
+      syncPanel,
+      /<CloudBackupReauthentication forceRequired embedded/
+    )
+    assert.match(
+      syncPanel,
+      /busy \|\| !keyAvailable/
+    )
+    assert.match(
+      preferencePanel,
+      /enabled && !canEnable/
+    )
+    assert.match(
+      preferencePanel,
+      /preference !== 'enabled' && canEnable/
+    )
+    assert.match(
+      reauthentication,
+      /!forceRequired && !required/
+    )
+  }
+)
 
 test(
   'automatic backup observes IndexedDB mutations without polling',

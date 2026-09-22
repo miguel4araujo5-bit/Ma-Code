@@ -1,5 +1,11 @@
 import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
+import CloudBackupReauthentication from '../sync/CloudBackupReauthentication'
 import { useCloudBackupPreference } from '../sync/cloudBackupPreference'
+
+import {
+  MA_PROFESSOR_OPAQUE_KEY_EVENT,
+  readMAProfessorOpaqueExportKey
+} from '../access/accessStorage'
 
 import {
   useCallback,
@@ -106,6 +112,44 @@ export function EncryptedSyncPanel() {
   const preference = useCloudBackupPreference(session)
 
   const [
+    keyAvailable,
+    setKeyAvailable
+  ] =
+    useState(
+      () =>
+        Boolean(
+          readMAProfessorOpaqueExportKey(
+            session.email
+          )
+        )
+    )
+
+  useEffect(() => {
+    const updateKeyAvailability =
+      () =>
+        setKeyAvailable(
+          Boolean(
+            readMAProfessorOpaqueExportKey(
+              session.email
+            )
+          )
+        )
+
+    updateKeyAvailability()
+
+    window.addEventListener(
+      MA_PROFESSOR_OPAQUE_KEY_EVENT,
+      updateKeyAvailability
+    )
+
+    return () =>
+      window.removeEventListener(
+        MA_PROFESSOR_OPAQUE_KEY_EVENT,
+        updateKeyAvailability
+      )
+  }, [session.email])
+
+  const [
     status,
     setStatus
   ] =
@@ -160,7 +204,10 @@ export function EncryptedSyncPanel() {
 
   const handleUpload =
     async () => {
-      if (busy) {
+      if (
+        busy ||
+        !keyAvailable
+      ) {
         return
       }
 
@@ -288,25 +335,38 @@ export function EncryptedSyncPanel() {
       ) : null}
 
       <div className="mt-4">
-        <CloudBackupPreferencePanel />
+        <CloudBackupPreferencePanel
+          canEnable={
+            keyAvailable
+          }
+        />
       </div>
 
-      <button
-        type="button"
-        disabled={
-          busy ||
-          checking ||
-          !status
-        }
-        onClick={() =>
-          void handleUpload()
-        }
-        className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-      >
-        {busy
-          ? 'A cifrar, enviar e verificar…'
-          : 'Fazer cópia de segurança para a nuvem'}
-      </button>
+      {!keyAvailable ? (
+        <div className="mt-4">
+          <CloudBackupReauthentication
+            forceRequired
+            embedded
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={
+            busy ||
+            checking ||
+            !status
+          }
+          onClick={() =>
+            void handleUpload()
+          }
+          className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+        >
+          {busy
+            ? 'A cifrar, enviar e verificar…'
+            : 'Fazer cópia de segurança para a nuvem'}
+        </button>
+      )}
 
       <div className="mt-5 border-t border-white/10 pt-4">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
