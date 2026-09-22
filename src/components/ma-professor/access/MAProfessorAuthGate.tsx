@@ -179,6 +179,16 @@ export default function MAProfessorAuthGate({
   ] = useState(false)
 
   const [
+    requestPasswordStoredConfirmed,
+    setRequestPasswordStoredConfirmed
+  ] = useState(false)
+
+  const [
+    requestLegalConfirmed,
+    setRequestLegalConfirmed
+  ] = useState(false)
+
+  const [
     activationPassword,
     setActivationPassword
   ] = useState('')
@@ -341,6 +351,8 @@ export default function MAProfessorAuthGate({
       setPersonalPassword('')
       setPersonalPasswordConfirm('')
       setPasswordNoticeConfirmed(false)
+      setRequestPasswordStoredConfirmed(false)
+      setRequestLegalConfirmed(false)
     }
 
   const goLogin =
@@ -419,9 +431,16 @@ export default function MAProfessorAuthGate({
         return
       }
 
-      if (!passwordNoticeConfirmed) {
+      if (!requestPasswordStoredConfirmed) {
         setError(
-          'Confirme que guardou a sua password e leu a informação de privacidade e os Termos do MA-Professor.'
+          'Confirme que guardou a sua password num local seguro.'
+        )
+        return
+      }
+
+      if (!requestLegalConfirmed) {
+        setError(
+          'Confirme que leu a Informação de privacidade e aceita os Termos do MA-Professor.'
         )
         return
       }
@@ -675,7 +694,7 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Introduza o seu email e escolha a password pessoal que irá utilizar para entrar na sua conta MA-Professor. A password é tratada apenas no seu dispositivo e nunca é enviada nem guardada pela MA-CODE.
+            Indique o seu email e crie a password que vai usar para entrar no MA-Professor.
           </p>
 
           <form
@@ -703,7 +722,7 @@ export default function MAProfessorAuthGate({
 
             <label className="block">
               <span className="text-xs font-bold text-slate-300">
-                Criar password pessoal
+                Criar password
               </span>
               <input
                 type="password"
@@ -721,13 +740,14 @@ export default function MAProfessorAuthGate({
                 className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
               />
             </label>
+
             <p className="-mt-2 text-[0.7rem] leading-5 text-slate-500">
-              Use pelo menos 15 caracteres. Uma frase-passe longa é recomendada; não são exigidas combinações específicas de maiúsculas, números ou símbolos.
+              Use pelo menos 15 caracteres. Sugestão: junte várias palavras ao acaso, fáceis de lembrar para si. Não precisa de usar maiúsculas, números nem símbolos.
             </p>
 
             <label className="block">
               <span className="text-xs font-bold text-slate-300">
-                Confirmar password pessoal
+                Confirmar password
               </span>
               <input
                 type="password"
@@ -749,56 +769,61 @@ export default function MAProfessorAuthGate({
             <div className="rounded-2xl border border-amber-300/35 bg-amber-300/[0.08] p-4 text-sm text-amber-50 shadow-lg shadow-amber-950/10">
               <div className="flex items-start gap-4">
                 <PasswordWarningIcon />
+
                 <div className="min-w-0">
                   <p className="font-black leading-6 text-amber-100">
-                    Importante: guarde esta password num local seguro.
+                    Importante: guarde esta password num local seguro, por exemplo no gestor de passwords do seu telemóvel ou computador.
                   </p>
 
-                  <div className="mt-2 space-y-2 text-xs leading-6 text-amber-50/90">
-                    <p>
-                      A sua password permanece no seu dispositivo: não é enviada nem guardada pela MA-CODE. Por esse motivo, não conseguimos recuperá-la se a esquecer.
-                    </p>
-
-                    <p>
-                      Na ativação e no início de sessão, a password é processada localmente pelo protocolo OPAQUE. A MA-CODE recebe apenas os dados criptográficos necessários ao processo de autenticação, nunca a sua password.
-                    </p>
-
-                    <p>
-                      Se ativar as cópias online, os dados escolares da cópia são cifrados no seu dispositivo antes de serem enviados. Nas cópias com proteção v3, a MA-CODE não guarda no servidor o material necessário para decifrar esses dados.
-                    </p>
-
-                    <p className="font-bold text-amber-100">
-                      Se perder a password, os dados que permanecem neste dispositivo não são apagados, mas deixará de conseguir iniciar uma nova sessão ou restaurar uma cópia online protegida.
-                    </p>
-                  </div>
+                  <p className="mt-2 text-xs leading-6 text-amber-50/90">
+                    Nunca recebemos nem guardamos a sua password, por isso não a conseguimos recuperar. Se a esquecer, deixa de conseguir voltar a entrar na conta ou restaurar uma cópia online. Isso não apaga os dados deste dispositivo.
+                  </p>
                 </div>
               </div>
             </div>
 
+            <details className="group rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-black text-cyan-100">
+                <span className="flex items-center justify-between gap-3">
+                  Como protegemos os seus dados
+                  <span
+                    aria-hidden="true"
+                    className="text-lg leading-none text-cyan-300 transition group-open:rotate-45"
+                  >
+                    +
+                  </span>
+                </span>
+              </summary>
+
+              <div className="mt-3 space-y-3 border-t border-cyan-300/10 pt-3 text-xs leading-6 text-slate-300">
+                <p>
+                  <strong className="text-white">
+                    Password:
+                  </strong>{' '}
+                  é processada apenas no seu dispositivo, através do protocolo OPAQUE. O servidor recebe só os dados criptográficos necessários para confirmar a sua identidade.
+                </p>
+
+                <p>
+                  <strong className="text-white">
+                    Cópias online (opcionais):
+                  </strong>{' '}
+                  os dados escolares são cifrados no seu dispositivo antes de serem enviados. As novas cópias usam proteção v3, pelo que o servidor não guarda o necessário para os decifrar.
+                </p>
+              </div>
+            </details>
+
             <p className="text-xs leading-6 text-slate-400">
-              Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço. Consulte a{' '}
-              <a
-                href="/privacidade/ma-professor"
-                className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
-              >
-                informação de privacidade
-              </a>{' '}
-              e os{' '}
-              <a
-                href="/termos/ma-professor"
-                className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
-              >
-                Termos do MA-Professor
-              </a>.
+              Ao enviar o pedido, a MA-CODE trata o seu email e os dados técnicos necessários para gerir o acesso e proteger o serviço.
             </p>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-amber-300/30">
               <input
                 type="checkbox"
-                checked={passwordNoticeConfirmed}
+                aria-label="Guardei a minha password num local seguro"
+                checked={requestPasswordStoredConfirmed}
                 onChange={
                   event =>
-                    setPasswordNoticeConfirmed(
+                    setRequestPasswordStoredConfirmed(
                       event.target.checked
                     )
                 }
@@ -806,14 +831,33 @@ export default function MAProfessorAuthGate({
                 className="mt-1 h-4 w-4 shrink-0 accent-amber-300"
               />
               <span>
-                Confirmo que guardei a minha password, li a{' '}
+                Guardei a minha password num local seguro.
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-cyan-300/30">
+              <input
+                type="checkbox"
+                aria-label="Li a Informação de privacidade e aceito os Termos do MA-Professor"
+                checked={requestLegalConfirmed}
+                onChange={
+                  event =>
+                    setRequestLegalConfirmed(
+                      event.target.checked
+                    )
+                }
+                required
+                className="mt-1 h-4 w-4 shrink-0 accent-cyan-300"
+              />
+              <span>
+                Li a{' '}
                 <a
                   href="/privacidade/ma-professor"
                   className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
                 >
-                  informação de privacidade
+                  Informação de privacidade
                 </a>{' '}
-                e os{' '}
+                e aceito os{' '}
                 <a
                   href="/termos/ma-professor"
                   className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
@@ -822,6 +866,10 @@ export default function MAProfessorAuthGate({
                 </a>.
               </span>
             </label>
+
+            <p className="text-xs leading-6 text-slate-400">
+              Depois de enviar, vamos analisar o pedido. Se for aprovado, receberá por email a senha e o link para ativar o acesso.
+            </p>
 
             {error ? (
               <p className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
@@ -833,7 +881,8 @@ export default function MAProfessorAuthGate({
               type="submit"
               disabled={
                 busy ||
-                !passwordNoticeConfirmed
+                !requestPasswordStoredConfirmed ||
+                !requestLegalConfirmed
               }
               className="w-full rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
