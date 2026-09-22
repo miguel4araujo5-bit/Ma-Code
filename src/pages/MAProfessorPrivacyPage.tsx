@@ -132,7 +132,7 @@ export default function MAProfessorPrivacyPage() {
         <div className="mt-6 space-y-5">
           <Section title="1. Responsável e contacto">
             <p>
-              Para os dados de conta, acesso, segurança, administração do piloto e funcionamento técnico do serviço, o responsável pelo tratamento é a <strong className="text-white">MA-CODE</strong>.
+              Para os dados de conta, acesso, segurança, administração do piloto e funcionamento técnico do serviço, o responsável pelo tratamento é a <strong className="text-white">MA-CODE</strong>, atividade exercida em nome individual.
             </p>
 
             <p>
@@ -146,7 +146,16 @@ export default function MAProfessorPrivacyPage() {
             </p>
 
             <p className="text-slate-400">
-              Os dados pedagógicos introduzidos pelo professor podem estar sujeitos às regras e responsabilidades da escola, agrupamento ou entidade em cujo contexto profissional são utilizados. A MA-CODE não determina as finalidades pedagógicas desses dados.
+              Nos dados pedagógicos, a escola, agrupamento ou outra entidade que determine as finalidades e os meios essenciais do tratamento será normalmente o responsável pelo tratamento no respetivo contexto profissional. Quando a MA-CODE tratar esses dados por conta dessa entidade, aplicam-se as condições de subcontratação publicadas nos Termos do MA-Professor.
+            </p>
+
+            <p>
+              <a
+                href="/termos/ma-professor"
+                className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
+              >
+                Consultar os Termos de utilização e tratamento de dados
+              </a>
             </p>
           </Section>
 
@@ -224,11 +233,15 @@ export default function MAProfessorPrivacyPage() {
 
           <Section title="6. Prestadores e transferências">
             <p>
-              O MA-Professor utiliza infraestrutura da <strong className="text-white">Cloudflare</strong> para disponibilização do serviço, autenticação, armazenamento técnico e, quando ativadas, cópias cifradas online.
+              O MA-Professor utiliza infraestrutura da <strong className="text-white">Cloudflare</strong> para disponibilização do serviço, autenticação, proteção, armazenamento técnico e, quando ativadas, cópias cifradas online.
             </p>
 
             <p>
-              A Cloudflare é uma empresa global e pode processar dados fora do Espaço Económico Europeu. A sua documentação contratual prevê mecanismos de proteção para transferências internacionais, incluindo cláusulas contratuais-tipo quando aplicáveis.
+              O serviço utiliza <strong className="text-white">Resend</strong> para emails operacionais relacionados com pedidos de acesso, aprovação, rejeição e ativação. Para esses envios, a Resend pode receber o endereço de email do destinatário, o conteúdo da mensagem e informação técnica de entrega.
+            </p>
+
+            <p>
+              Cloudflare e Resend disponibilizam acordos de tratamento de dados e mecanismos para transferências internacionais, incluindo cláusulas contratuais-tipo quando aplicáveis. A lista funcional de subcontratantes e as condições aplicáveis ao MA-Professor constam também dos Termos de utilização e tratamento de dados.
             </p>
 
             <p>
