@@ -170,13 +170,6 @@ function describeDailyPreparationError(
 }
 
 function ProductContent() {
-  useEffect(
-    () => {
-      void requestPersistentMAProfessorStorage()
-    },
-    []
-  )
-
   const [
     workspace,
     setWorkspace
@@ -392,20 +385,41 @@ function ProductContent() {
     )
 
   useEffect(() => {
-    void refreshAcademicYear({
-      showLoading: true
-    }).then(
-      state => {
-        if (
-          !state?.academicYear ||
-          !state.operationalReady
-        ) {
-          setWorkspace(
-            'menu'
-          )
-        }
+    let cancelled =
+      false
+
+    void (async () => {
+      await requestPersistentMAProfessorStorage()
+
+      if (cancelled) {
+        return
       }
-    )
+
+      const state =
+        await refreshAcademicYear({
+          showLoading: true
+        })
+
+      if (
+        cancelled
+      ) {
+        return
+      }
+
+      if (
+        !state?.academicYear ||
+        !state.operationalReady
+      ) {
+        setWorkspace(
+          'menu'
+        )
+      }
+    })()
+
+    return () => {
+      cancelled =
+        true
+    }
   }, [
     refreshAcademicYear
   ])
