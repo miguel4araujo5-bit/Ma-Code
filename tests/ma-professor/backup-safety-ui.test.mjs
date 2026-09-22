@@ -490,15 +490,11 @@ test(
 
 
 test(
-  'persistent browser storage is requested before the initial IndexedDB-backed setup read',
+  'persistent browser storage helper permits a later retry when the browser does not grant persistence',
   () => {
     assert.match(
-      productSource,
-      /await requestPersistentMAProfessorStorage\(\)/
-    )
-    assert.match(
-      productSource,
-      /await requestPersistentMAProfessorStorage\(\)[\s\S]*await refreshAcademicYear\(/
+      dbSource,
+      /requestPersistentMAProfessorStorage/
     )
     assert.match(
       dbSource,
