@@ -27,6 +27,7 @@ type StudentsSetupStepProps = {
   onCompleted: (
     snapshot: SetupSnapshot
   ) => void
+  allowIncompleteContinue?: boolean
 }
 
 type StudentFormRow = {
@@ -304,7 +305,8 @@ function GroupStatus({
 export default function StudentsSetupStep({
   snapshot,
   onSnapshotChange,
-  onCompleted
+  onCompleted,
+  allowIncompleteContinue = false
 }: StudentsSetupStepProps) {
   const rootRef =
     useRef<HTMLDivElement>(null)
@@ -1118,6 +1120,20 @@ export default function StudentsSetupStep({
       return
     }
 
+    const studentsIncomplete =
+      totalStudents === 0 ||
+      groupsWithoutStudents.length > 0
+
+    if (
+      studentsIncomplete &&
+      allowIncompleteContinue
+    ) {
+      onCompleted(
+        snapshot
+      )
+      return
+    }
+
     if (
       totalStudents ===
       0
@@ -1791,12 +1807,15 @@ export default function StudentsSetupStep({
 
         <div className="mt-6 rounded-2xl border border-violet-300/15 bg-violet-300/[0.055] p-4">
           <p className="text-sm font-bold text-violet-100">
-            Todas as turmas devem ter alunos.
+            {allowIncompleteContinue
+              ? 'Pode completar as listas de alunos mais tarde.'
+              : 'Todas as turmas devem ter alunos.'}
           </p>
 
           <p className="mt-2 text-xs leading-6 text-violet-100/65">
-            O número do aluno é utilizado para manter o mesmo registo
-            quando o nome ou as observações são atualizados.
+            {allowIncompleteContinue
+              ? 'No assistente rápido pode avançar sem marcar este passo como concluído. A configuração avançada continuará disponível para completar as turmas em falta.'
+              : 'O número do aluno é utilizado para manter o mesmo registo quando o nome ou as observações são atualizados.'}
           </p>
         </div>
 
@@ -1832,17 +1851,26 @@ export default function StudentsSetupStep({
           type="button"
           disabled={
             busy ||
-            totalStudents ===
-              0 ||
-            groupsWithoutStudents.length >
-              0
+            (
+              !allowIncompleteContinue &&
+              (
+                totalStudents === 0 ||
+                groupsWithoutStudents.length > 0
+              )
+            )
           }
           onClick={() =>
             void handleContinue()
           }
           className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-cyan-200/45 bg-gradient-to-r from-cyan-300 via-sky-300 to-cyan-200 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
         >
-          Guardar alunos e continuar
+          {allowIncompleteContinue &&
+          (
+            totalStudents === 0 ||
+            groupsWithoutStudents.length > 0
+          )
+            ? 'Continuar e completar alunos mais tarde'
+            : 'Guardar alunos e continuar'}
         </button>
       </section>
     </div>
