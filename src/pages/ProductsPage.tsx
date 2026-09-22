@@ -27,7 +27,7 @@ type ProductCard = {
 const products:
   ProductCard[] = [
   {
-    name: 'MA PDF',
+    name: 'MA-Pdf',
     eyebrow:
       'Ferramentas PDF',
     description:
@@ -47,7 +47,7 @@ const products:
     ]
   },
   {
-    name: 'MA Carteira',
+    name: 'MA-Carteira',
     eyebrow:
       'Carteira digital',
     description:
@@ -68,7 +68,7 @@ const products:
   },
   {
     name:
-      'MA-BTC ALERTAS',
+      'MA-Btc Alertas',
     eyebrow:
       'Alertas Bitcoin',
     description:
