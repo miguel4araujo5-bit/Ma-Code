@@ -706,9 +706,13 @@ export default function MABtcAlertsPage() {
               </div>
 
               <div className="flex items-center gap-5">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.75rem] border border-orange-300/30 bg-[#f7931a]/15 text-5xl font-black text-orange-100 shadow-[0_24px_70px_rgba(247,147,26,0.18)] sm:h-24 sm:w-24 sm:text-6xl">
-                  ₿
-                </div>
+                <img
+                  src="/ma-btc-alertas/logo.svg"
+                  alt=""
+                  className="h-20 w-20 shrink-0 rounded-[1.75rem] object-contain shadow-[0_24px_70px_rgba(247,147,26,0.18)] sm:h-24 sm:w-24"
+                  loading="eager"
+                  decoding="async"
+                />
 
                 <div>
                   <p className="text-sm font-bold uppercase tracking-[0.18em] text-slate-400">
