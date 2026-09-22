@@ -16,6 +16,9 @@ const [
   privacySource,
   termsSource,
   authGateSource,
+  accessApiSource,
+  accessWorkerSource,
+  opaqueBridgeSource,
   preferenceSource,
   routeGeneratorSource
 ] =
@@ -24,6 +27,9 @@ const [
     read('src/pages/MAProfessorPrivacyPage.tsx'),
     read('src/pages/MAProfessorTermsPage.tsx'),
     read('src/components/ma-professor/access/MAProfessorAuthGate.tsx'),
+    read('src/components/ma-professor/access/accessApi.ts'),
+    read('worker/maProfessorAccess.ts'),
+    read('worker/maProfessorAccessAuthBridge.ts'),
     read('src/components/ma-professor/sync/CloudBackupPreferencePanel.tsx'),
     read('scripts/generate-route-html.mjs')
   ])
@@ -171,6 +177,41 @@ test(
     assert.match(
       authGateSource,
       /autorizada pela entidade responsável/
+    )
+  }
+)
+
+
+test(
+  'accepted terms version is carried by the existing activation request and persisted with a timestamp',
+  () => {
+    assert.match(
+      accessApiSource,
+      /MA_PROFESSOR_TERMS_VERSION\s*=\s*\n\s*'2026-09-22'/
+    )
+    assert.match(
+      authGateSource,
+      /activateMAProfessorAccessPeriod\([\s\S]*MA_PROFESSOR_TERMS_VERSION/
+    )
+    assert.match(
+      accessApiSource,
+      /termsVersion\?: string[\s\S]*\.\.\.\(termsVersion/
+    )
+    assert.match(
+      opaqueBridgeSource,
+      /const termsVersion =[\s\S]*body\.termsVersion[\s\S]*JSON\.stringify\(\{[\s\S]*termsVersion/
+    )
+    assert.match(
+      accessWorkerSource,
+      /CURRENT_TERMS_VERSION\s*=\s*\n\s*'2026-09-22'/
+    )
+    assert.match(
+      accessWorkerSource,
+      /termsVersionAccepted\?:[\s\S]*termsAcceptedAt\?:/
+    )
+    assert.match(
+      accessWorkerSource,
+      /termsVersion ===\s*CURRENT_TERMS_VERSION[\s\S]*request\.termsVersionAccepted[\s\S]*request\.termsAcceptedAt/
     )
   }
 )
