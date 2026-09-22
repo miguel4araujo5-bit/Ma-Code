@@ -835,7 +835,7 @@ test(
 
 
 test(
-  'interrupted activation can restart OPAQUE enrollment without destroying the previous record before finish',
+  'interrupted activation cannot replace an existing OPAQUE registration',
   async t => {
     const staged =
       await stageAuthBridge()
@@ -912,73 +912,9 @@ test(
         )
       )
 
-    assert.equal(
-      startResponse.status,
-      200
-    )
-
-    const startBody =
-      await responseBody(
-        startResponse
-      )
-
-    const afterStart =
-      storage.snapshot(
-        OPAQUE_KEY
-      )
-
-    assert.equal(
-      afterStart.registrations[
-        email
-      ].registrationRecord,
-      'previous-registration-record',
-      'O start do retry não pode destruir o registo OPAQUE anterior.'
-    )
-
-    assert.equal(
-      afterStart.pendingEnrollments[
-        startBody.enrollmentId
-      ].replaceExisting,
-      true
-    )
-
-    const finishResponse =
-      await access.fetch(
-        post(
-          '/api/ma-professor/access/opaque/enroll/finish',
-          {
-            email,
-            deviceId,
-            enrollmentId:
-              startBody.enrollmentId,
-            registrationRecord:
-              'replacement-registration-record'
-          }
-        )
-      )
-
-    assert.equal(
-      finishResponse.status,
-      200
-    )
-
-    const afterFinish =
-      storage.snapshot(
-        OPAQUE_KEY
-      )
-
-    assert.equal(
-      afterFinish.registrations[
-        email
-      ].registrationRecord,
-      'replacement-registration-record'
-    )
-
-    assert.equal(
-      afterFinish.pendingEnrollments[
-        startBody.enrollmentId
-      ],
-      undefined
-    )
+    assert.equal(startResponse.status, 409)
+    const afterStart = storage.snapshot(OPAQUE_KEY)
+    assert.equal(afterStart.registrations[email].registrationRecord, 'previous-registration-record')
+    assert.deepEqual(afterStart.pendingEnrollments, {})
   }
 )

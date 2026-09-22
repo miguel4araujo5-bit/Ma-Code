@@ -6,7 +6,8 @@ import {
 } from './cloudBackupPreference'
 
 import {
-  useEffect
+  useEffect,
+  useState
 } from 'react'
 
 import {
@@ -25,6 +26,7 @@ import {
   downloadCompatibleMAProfessorCloudBackup,
   inspectMAProfessorCloudBackup,
   MAProfessorCloudBackupRevisionConflictError,
+  MAProfessorCloudBackupAuthenticationRequiredError,
   uploadAndVerifyCompatibleMAProfessorCloudBackup
 } from './cloudBackupService'
 
@@ -37,6 +39,9 @@ import {
   writeMAProfessorCloudBackupTrust,
   type MAProfessorCloudBackupTrust
 } from './cloudBackupTrust'
+
+import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
+import CloudBackupReauthentication from './CloudBackupReauthentication'
 
 const AUTO_BACKUP_DEBOUNCE_MS =
   90 * 1000
@@ -93,6 +98,14 @@ export default function AutomaticCloudBackup() {
     useMAProfessorAccess()
 
   const preference = useCloudBackupPreference(session)
+  const [keyAvailable, setKeyAvailable] = useState(() => Boolean(readMAProfessorOpaqueExportKey(session.email)))
+
+  useEffect(() => {
+    const update = () => setKeyAvailable(Boolean(readMAProfessorOpaqueExportKey(session.email)))
+    update()
+    window.addEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, update)
+    return () => window.removeEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, update)
+  }, [session.email])
 
   useEffect(() => {
     if (preference !== 'enabled') {
@@ -125,6 +138,7 @@ export default function AutomaticCloudBackup() {
 
     let blockedByDivergence =
       false
+    let blockedByAuthentication = false
 
     let retryNotBefore =
       0
@@ -170,6 +184,10 @@ export default function AutomaticCloudBackup() {
 
       if (!canRun()) {
         return null
+      }
+
+      if (status.cryptoVersion !== 2 && !readMAProfessorOpaqueExportKey(session.email)) {
+        throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
       }
 
       if (
@@ -261,6 +279,7 @@ export default function AutomaticCloudBackup() {
         !canRun() ||
         running ||
         blockedByDivergence ||
+        blockedByAuthentication ||
         dirtySince === null
       ) {
         return
@@ -332,6 +351,7 @@ export default function AutomaticCloudBackup() {
         !canRun() ||
         running ||
         blockedByDivergence ||
+        blockedByAuthentication ||
         dirtySince === null
       ) {
         return
@@ -436,6 +456,12 @@ export default function AutomaticCloudBackup() {
         })
       } catch (error) {
         if (!canRun()) {
+          return
+        }
+
+        if (error instanceof MAProfessorCloudBackupAuthenticationRequiredError) {
+          blockedByAuthentication = true
+          clearTimer()
           return
         }
 
@@ -553,7 +579,11 @@ export default function AutomaticCloudBackup() {
 
         scheduleBackup()
       })
-      .catch(() => {
+      .catch(error => {
+        if (error instanceof MAProfessorCloudBackupAuthenticationRequiredError) {
+          blockedByAuthentication = true
+          clearTimer()
+        }
         // A cópia automática nunca bloqueia o trabalho local.
       })
 
@@ -580,11 +610,12 @@ export default function AutomaticCloudBackup() {
       )
     }
   }, [
+    keyAvailable,
     preference,
     session.deviceId,
     session.email,
     session.token
   ])
 
-  return null
+  return <CloudBackupReauthentication />
 }

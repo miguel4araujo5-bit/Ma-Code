@@ -15,6 +15,9 @@ const ACTIVATION_GUARD_STORAGE_KEY =
 const PUBLIC_ACTIVATE_PATH =
   '/api/ma-professor/access/activate'
 
+const PUBLIC_OPAQUE_ENROLL_START_PATH =
+  '/api/ma-professor/access/opaque/enroll/start'
+
 const PUBLIC_COMMERCE_STATUS_PATH =
   '/api/ma-professor/access/commerce/status'
 
@@ -947,8 +950,8 @@ export class MaProfessorAccessDurableObject {
 
     if (
       request.method === 'POST' &&
-      url.pathname ===
-        PUBLIC_ACTIVATE_PATH
+      (url.pathname === PUBLIC_ACTIVATE_PATH ||
+        url.pathname === PUBLIC_OPAQUE_ENROLL_START_PATH)
     ) {
       return this.handleActivation(
         request

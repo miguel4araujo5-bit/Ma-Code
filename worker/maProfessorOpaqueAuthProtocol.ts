@@ -281,7 +281,6 @@ export function startOpaqueEnrollment(
     email: string
     deviceId: string
     registrationRequest: string
-    replaceExisting?: boolean
   },
   now = Date.now()
 ) {
@@ -313,8 +312,7 @@ export function startOpaqueEnrollment(
   if (
     state.registrations[
       email
-    ] &&
-    !input.replaceExisting
+    ]
   ) {
     throw new Error(
       'OPAQUE_ALREADY_ENROLLED'
@@ -355,13 +353,7 @@ export function startOpaqueEnrollment(
       now,
     expiresAt:
       now +
-      PENDING_ENROLLMENT_TTL_MS,
-    ...(input.replaceExisting
-      ? {
-          replaceExisting:
-            true
-        }
-      : {})
+      PENDING_ENROLLMENT_TTL_MS
   }
 
   state.updatedAt =
@@ -455,8 +447,7 @@ export function finishOpaqueEnrollment(
   if (
     state.registrations[
       email
-    ] &&
-    !pending.replaceExisting
+    ]
   ) {
     throw new Error(
       'OPAQUE_ALREADY_ENROLLED'

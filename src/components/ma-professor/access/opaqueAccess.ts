@@ -3,6 +3,7 @@ import type {
 } from './accessTypes'
 
 import {
+  MAProfessorAccessApiError,
   finishMAProfessorOpaqueEnrollment,
   finishMAProfessorOpaqueLogin,
   startMAProfessorOpaqueEnrollment,
@@ -34,13 +35,18 @@ export async function enrollMAProfessorOpaqueForActivation(
       password
     )
 
-  const serverStart =
-    await startMAProfessorOpaqueEnrollment(
-      email,
-      activationPassword,
-      deviceId,
-      clientStart.registrationRequest
+  let serverStart
+  try {
+    serverStart = await startMAProfessorOpaqueEnrollment(
+      email, activationPassword, deviceId, clientStart.registrationRequest
     )
+  } catch (error) {
+    if (!(error instanceof MAProfessorAccessApiError) || error.status !== 409) throw error
+    // An interrupted activation may already have enrolled this password.
+    // Prove knowledge through login; never replace the existing registration.
+    const authenticated = await loginMAProfessorOpaqueOnly(email, password, deviceId)
+    return { exportKey: authenticated.exportKey }
+  }
 
   const clientFinish =
     await finishMAProfessorOpaqueClientRegistration(

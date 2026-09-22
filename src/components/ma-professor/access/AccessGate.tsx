@@ -25,8 +25,11 @@ import {
 import {
   clearMAProfessorAccessSession,
   readMAProfessorAccessSession,
-  saveMAProfessorAccessSession
+  saveMAProfessorAccessSession,
+  saveMAProfessorOpaqueExportKey
 } from './accessStorage'
+
+import { loginMAProfessorOpaqueOnly } from './opaqueAccess'
 
 import FounderAccessOffer from './FounderAccessOffer'
 
@@ -56,6 +59,7 @@ interface AccessContextValue {
     plan: RenewableLicensePlan
   ) => Promise<string>
   signOut: () => Promise<void>
+  reauthenticate: (password: string) => Promise<void>
 }
 
 const AccessContext =
@@ -756,6 +760,20 @@ export function AccessGate({
       }
     }
 
+  const reauthenticate = useCallback(async (password: string) => {
+    if (!session) throw new Error('A sessão não está disponível.')
+    const result = await loginMAProfessorOpaqueOnly(session.email, password, session.deviceId)
+    const email = result.response.email ?? result.response.license?.email
+    if (!email || email.trim().toLowerCase() !== session.email.trim().toLowerCase() ||
+        !isLicenseUsable(result.response.license)) {
+      throw new Error('Não foi possível confirmar o acesso desta conta.')
+    }
+    // Preserve the mounted workspace and unsaved edits while replacing the session.
+    persistSession({ ...session, token: result.response.token, email,
+      license: result.response.license, checkedAt: new Date().toISOString() })
+    saveMAProfessorOpaqueExportKey(email, result.exportKey)
+  }, [session, persistSession])
+
   const contextValue =
     useMemo<AccessContextValue | null>(
       () => {
@@ -779,6 +797,7 @@ export function AccessGate({
           refresh,
           refreshSyncStatus,
           requestRenewal,
+          reauthenticate,
           signOut
         }
       },
@@ -787,6 +806,7 @@ export function AccessGate({
         refreshing,
         refreshSyncStatus,
         requestRenewal,
+        reauthenticate,
         session,
         signOut,
         syncChecking,

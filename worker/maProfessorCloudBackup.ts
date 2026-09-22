@@ -325,14 +325,6 @@ function base64UrlByteLength(
   }
 }
 
-function createSessionKey() {
-  const bytes =
-    new Uint8Array(KEY_BYTES)
-  globalThis.crypto
-    .getRandomValues(bytes)
-  return bytesToBase64(bytes)
-}
-
 async function createAccountId(
   email: string
 ) {
@@ -595,64 +587,6 @@ async function readExistingProfile(
   }
 
   return existing
-}
-
-async function ensureSessionProfile(
-  accountId: string,
-  env: MaProfessorCloudBackupEnv
-) {
-  const existing =
-    await readProfile(accountId, env)
-
-  if (existing) {
-    return assertSessionProfile(existing)
-  }
-
-  const timestamp = Date.now()
-  const sessionKey = createSessionKey()
-
-  await env.MA_PROFESSOR_DB
-    .prepare(
-      `
-        INSERT OR IGNORE INTO ma_professor_sync_profiles (
-          account_id,
-          server_revision,
-          crypto_version,
-          recovery_kdf_algorithm,
-          recovery_kdf_salt,
-          recovery_kdf_parameters,
-          recovery_key_wrap_algorithm,
-          recovery_wrapped_master_key,
-          recovery_wrapped_master_key_nonce,
-          created_at,
-          updated_at,
-          deleted_at
-        ) VALUES (
-          ?, 0, ?, ?, '', '{}', ?, ?, '', ?, ?, NULL
-        )
-      `
-    )
-    .bind(
-      accountId,
-      CRYPTO_VERSION,
-      SESSION_KDF_MARKER,
-      SESSION_KEY_MARKER,
-      sessionKey,
-      timestamp,
-      timestamp
-    )
-    .run()
-
-  const created =
-    await readProfile(accountId, env)
-
-  if (!created) {
-    throw new Error(
-      'A proteção da cópia online não ficou disponível.'
-    )
-  }
-
-  return assertSessionProfile(created)
 }
 
 async function readRecordMetadata(
@@ -1143,6 +1077,52 @@ async function handlePromoteV3(
   })
 }
 
+// Both inserts run in one D1 transaction. A duplicate profile or record rolls
+// back the whole batch: concurrent first copies can never replace each other.
+async function handleInitializeV3(body: JsonBody, env: MaProfessorCloudBackupEnv) {
+  const authenticated = await verifyAccessSession(body, env)
+  if (normalizeId(body.recordId, 80) !== RECORD_ID ||
+      parseExpectedRevision(body.expectedServerRevision) !== 0 ||
+      parseExpectedRevision(body.expectedRecordRevision) !== 0) {
+    throw new CloudBackupApiError('A revisão inicial da cópia não é válida.', 400)
+  }
+  const profile = parseV3PromotionProfile(body.profile)
+  const encrypted = parseV3EncryptedPayload(body.encrypted)
+  const timestamp = Date.now()
+  const deviceHash = await hashDeviceId(authenticated.deviceId)
+  try {
+    await env.MA_PROFESSOR_DB.batch([
+      env.MA_PROFESSOR_DB.prepare(`
+        INSERT INTO ma_professor_sync_profiles (
+          account_id, server_revision, crypto_version, recovery_kdf_algorithm,
+          recovery_kdf_salt, recovery_kdf_parameters, recovery_key_wrap_algorithm,
+          recovery_wrapped_master_key, recovery_wrapped_master_key_nonce,
+          created_at, updated_at, deleted_at
+        ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      `).bind(authenticated.accountId, profile.cryptoVersion,
+        profile.recoveryKdfAlgorithm, profile.recoveryKdfSalt, profile.recoveryKdfParameters,
+        profile.recoveryKeyWrapAlgorithm, profile.recoveryWrappedMasterKey,
+        profile.recoveryWrappedMasterKeyNonce, timestamp, timestamp),
+      env.MA_PROFESSOR_DB.prepare(`
+        INSERT INTO ma_professor_encrypted_records (
+          account_id, record_id, server_revision, record_revision, source_device_id_hash,
+          encryption_version, encryption_algorithm, nonce, ciphertext, ciphertext_hash,
+          created_at, updated_at, deleted_at
+        ) VALUES (?, ?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      `).bind(authenticated.accountId, RECORD_ID, deviceHash, encrypted.encryptionVersion,
+        encrypted.encryptionAlgorithm, encrypted.nonce, encrypted.ciphertext,
+        encrypted.ciphertextHash, timestamp, timestamp)
+    ])
+  } catch (error) {
+    if (error instanceof Error && /UNIQUE constraint|PRIMARY KEY/i.test(error.message)) {
+      throw new CloudBackupApiError('Já existe uma proteção online para esta conta. Atualize o estado antes de voltar a guardar.', 409)
+    }
+    throw error
+  }
+  return json({ success: true, cryptoVersion: V3_CRYPTO_VERSION, recordId: RECORD_ID,
+    serverRevision: 1, recordRevision: 1, updatedAt: new Date(timestamp).toISOString() })
+}
+
 async function handleStatus(
   body: JsonBody,
   env: MaProfessorCloudBackupEnv
@@ -1150,10 +1130,21 @@ async function handleStatus(
   const authenticated =
     await verifyAccessSession(body, env)
   const profile =
-    await readExistingProfile(
+    await readProfile(
       authenticated.accountId,
       env
     )
+
+  if (!profile) {
+    return json({
+      success: true,
+      serverRevision: 0,
+      cryptoVersion: null,
+      protection: null,
+      updatedAt: null,
+      backup: { found: false, recordRevision: null, updatedAt: null, ciphertextBytes: null }
+    })
+  }
   const metadata =
     await readRecordMetadata(
       authenticated.accountId,
@@ -1364,13 +1355,21 @@ async function handlePushV3(
              encryption_version = ?, encryption_algorithm = ?, nonce = ?, ciphertext = ?,
              ciphertext_hash = ?, updated_at = ?, deleted_at = NULL
          WHERE account_id = ? AND record_id = ? AND server_revision = ?
-           AND record_revision = ? AND encryption_version = ? AND deleted_at IS NULL`
+           AND record_revision = ? AND encryption_version = ? AND deleted_at IS NULL
+           AND EXISTS (
+             SELECT 1 FROM ma_professor_sync_profiles
+             WHERE account_id = ? AND server_revision = ? AND crypto_version = ?
+               AND recovery_kdf_algorithm = ? AND recovery_key_wrap_algorithm = ?
+               AND deleted_at IS NULL
+           )`
       ).bind(
         nextServerRevision, nextRecordRevision, sourceDeviceIdHash,
         encrypted.encryptionVersion, encrypted.encryptionAlgorithm,
         encrypted.nonce, encrypted.ciphertext, encrypted.ciphertextHash,
         timestamp, authenticated.accountId, RECORD_ID,
-        expectedServerRevision, expectedRecordRevision, V3_CRYPTO_VERSION
+        expectedServerRevision, expectedRecordRevision, V3_CRYPTO_VERSION,
+        authenticated.accountId, expectedServerRevision, V3_CRYPTO_VERSION,
+        V3_KDF_ALGORITHM, V3_KEY_WRAP_ALGORITHM
       ),
       env.MA_PROFESSOR_DB.prepare(
         `UPDATE ma_professor_sync_profiles
@@ -1411,6 +1410,7 @@ async function handlePushV3(
   return json({
     success: true,
     recordId: RECORD_ID,
+    cryptoVersion: V3_CRYPTO_VERSION,
     serverRevision: nextServerRevision,
     recordRevision: nextRecordRevision,
     updatedAt: new Date(timestamp).toISOString()
@@ -1440,7 +1440,7 @@ async function handlePush(
   const authenticated =
     await verifyAccessSession(body, env)
   const profile =
-    await ensureSessionProfile(
+    await readExistingProfile(
       authenticated.accountId,
       env
     )
@@ -1458,6 +1458,8 @@ async function handlePush(
       }
     )
   }
+
+  assertSessionProfile(profile)
 
   const existing =
     await readExistingRecord(
@@ -1719,6 +1721,8 @@ export async function handleMAProfessorCloudBackupApiRequest(
         return await handleKey(body, env)
       case '/get':
         return await handleGet(body, env)
+      case '/initialize-v3':
+        return await handleInitializeV3(body, env)
       case '/promote-v3':
         return await handlePromoteV3(body, env)
       case '/push-v3':

@@ -77,13 +77,22 @@ async function automaticHarness(t, initialize) {
     dexie: './dexie.mjs', '../access/AccessGate': './access.mjs', '../db': './db.mjs',
     '../settings/backupRepository': './backup.mjs', './cloudBackupService': './service.mjs',
     './cloudBackupTrust': './trust.mjs', './cloudBackupPreference': './preference.mjs',
-    './CloudBackupPreferencePanel': './panel.mjs'
+    './CloudBackupPreferencePanel': './panel.mjs',
+    '../access/accessStorage': './access-storage.mjs',
+    './CloudBackupReauthentication': './reauth.mjs'
   }
   const files = await stage(t, 'sync/AutomaticCloudBackup.tsx', replacements)
   await files.compile('sync/cloudBackupPreference.ts', 'preference.mjs')
   await files.compile('sync/CloudBackupPreferencePanel.tsx', 'panel.mjs')
   await files.compile('sync/cloudBackupTrust.ts', 'trust.mjs')
-  await files.write('access.mjs', `export const useMAProfessorAccess = () => ({ session: ${JSON.stringify(session)} })`)
+  await files.compile('sync/CloudBackupReauthentication.tsx', 'reauth.mjs')
+  await files.write('access-storage.mjs', `
+    let key = 'memory-key'
+    export const MA_PROFESSOR_OPAQUE_KEY_EVENT = 'opaque-key-change'
+    export const readMAProfessorOpaqueExportKey = () => key
+    export function setKey(value) { key = value; window.dispatchEvent(new Event(MA_PROFESSOR_OPAQUE_KEY_EVENT)) }
+  `)
+  await files.write('access.mjs', `import { setKey } from './access-storage.mjs'; export const useMAProfessorAccess = () => ({ session: ${JSON.stringify(session)}, reauthenticate: async password => { if (password !== 'correct-password') throw new Error('wrong password'); setKey('memory-key') } })`)
   await files.write('db.mjs', "export const MA_PROFESSOR_DATABASE_NAME = 'ma-professor'")
   await files.write('backup.mjs', "export async function createMAProfessorBackup() { return { product: 'ma-professor', schemaVersion: 1, data: { students: [{ name: 'Test' }] } } }")
   await files.write('dexie.mjs', `
@@ -100,11 +109,15 @@ async function automaticHarness(t, initialize) {
     let revision = 0
     export function setRevision(value) { revision = value }
     export function holdStatus(promise) { waitForStatus = promise }
+    export const MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT = 'backup-auth-required'
+    export class MAProfessorCloudBackupAuthenticationRequiredError extends Error {
+      constructor(email) { super('unlock required'); window.dispatchEvent(new window.CustomEvent(MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, { detail: email })) }
+    }
     export class MAProfessorCloudBackupRevisionConflictError extends Error {}
     export async function inspectMAProfessorCloudBackup() {
       calls.inspect++
       if (waitForStatus) await waitForStatus
-      return { serverRevision: revision, backup: { found: revision > 0 } }
+      return { cryptoVersion: 3, serverRevision: revision, backup: { found: revision > 0 } }
     }
     export async function downloadMAProfessorCloudBackup() { calls.download++; return null }
     export async function downloadCompatibleMAProfessorCloudBackup() { calls.download++; return null }
@@ -119,21 +132,22 @@ async function automaticHarness(t, initialize) {
     files.load(), files.load('preference.mjs'), files.load('service.mjs'), files.load('dexie.mjs'), files.load('panel.mjs')
   ])
   const trust = await files.load('trust.mjs')
-  if (initialize) initialize({ preference, service, trust })
+  const storage = await files.load('access-storage.mjs')
+  if (initialize) initialize({ preference, service, trust, storage })
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(React.createElement(React.Fragment, null,
     React.createElement(subject.default),
     React.createElement(panel.default, { onlyUnanswered: true })
   )))
-  return { preference, service, dexie, tick: async ms => act(async () => t.mock.timers.tick(ms)) }
+  return { preference, service, dexie, storage, tick: async ms => act(async () => t.mock.timers.tick(ms)) }
 }
 
 test('no automatic network access before a choice; enabling protects existing local data and disabling cancels queued work', async t => {
   const { preference, service, dexie, tick } = await automaticHarness(t)
   assert.match(document.body.textContent, /proteção v3/)
   assert.match(document.body.textContent, /não recebe a sua password pessoal/)
-  assert.match(document.body.textContent, /cópia v2/)
-  assert.match(document.body.textContent, /migração explícita/)
+  assert.match(document.body.textContent, /proteção v2/)
+  assert.match(document.body.textContent, /material técnico que permite decifrá-las/)
   assert.match(document.body.textContent, /Continuar sem cópia automática/)
   dexie.mutate()
   await tick(15 * 60 * 1000)
@@ -412,4 +426,33 @@ test('revoking the choice while encryption is in progress prevents push; manual 
   assert.doesNotMatch(JSON.stringify(encrypted), /Private student/)
   const downloaded = await service.downloadMAProfessorCloudBackup(session)
   assert.deepEqual(downloaded.backup, backup)
+})
+
+test('reload with v3 loses only the memory key: show unlock, stop retries, preserve local edits and resume after password', async t => {
+  const { service, dexie, storage, tick } = await automaticHarness(t, ({ preference, storage }) => {
+    storage.setKey(null)
+    preference.writeCloudBackupPreference(session, 'enabled')
+  })
+  assert.match(document.body.textContent, /A cópia protegida precisa da sua password/)
+  const initialCalls = { ...service.calls }
+  dexie.mutate()
+  await tick(60 * 60 * 1000)
+  assert.deepEqual(service.calls, initialCalls, 'No silent retry requests while locked')
+  const input = document.querySelector('input[type=password]')
+  const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  await act(async () => {
+    setValue.call(input, 'wrong-password')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  // Exercise the form with React's native change tracker in jsdom.
+  await act(async () => document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  assert.match(document.body.textContent, /Não foi possível confirmar a password/)
+  assert.equal(document.querySelector('input[type=password]').value, '')
+  assert.equal(service.calls.upload, 0)
+  await act(async () => storage.setKey('memory-key'))
+  assert.doesNotMatch(document.body.textContent, /A cópia protegida precisa da sua password/)
+  await tick(90 * 1000)
+  assert.equal(service.calls.upload, 1)
+  assert.equal(Object.values(window.localStorage).some(value => value.includes('memory-key')), false)
 })

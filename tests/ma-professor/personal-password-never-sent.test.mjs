@@ -289,7 +289,7 @@ test(
     )
     assert.match(
       backupPreferenceSource,
-      /cópia v2[\s\S]*?proteção anterior[\s\S]*?migração explícita/
+      /proteção v2[\s\S]*?material técnico que permite decifrá-las/
     )
 
     assert.match(
@@ -298,7 +298,7 @@ test(
     )
     assert.match(
       setupConfirmationSource,
-      /ainda em v2[\s\S]*?migração explícita/
+      /proteção v2[\s\S]*?material técnico que permite decifrá-las/
     )
 
     assert.doesNotMatch(

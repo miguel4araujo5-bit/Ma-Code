@@ -277,6 +277,16 @@ export function EncryptedSyncPanel() {
         Cria uma cópia dos dados atuais, cifra-a neste dispositivo e só depois a envia para a nuvem. No final, o MA-Professor confirma que a cópia ficou guardada corretamente.
       </p>
 
+      {status ? (
+        <p className="mt-3 text-xs leading-6 text-slate-300">
+          {status.cryptoVersion === 2
+            ? 'Esta conta utiliza proteção v2: a MA-CODE conserva material técnico que permite decifrar a cópia. Ao fazer uma cópia manual, a cópia existente será migrada para v3 antes de guardar os dados atuais.'
+            : status.cryptoVersion === 3
+              ? 'Proteção v3: a MA-CODE não guarda no servidor material suficiente para decifrar esta cópia.'
+              : 'A primeira cópia desta conta será criada com proteção v3.'}
+        </p>
+      ) : null}
+
       <div className="mt-4">
         <CloudBackupPreferencePanel />
       </div>

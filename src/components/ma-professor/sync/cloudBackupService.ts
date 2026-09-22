@@ -58,8 +58,8 @@ const textDecoder =
 export interface MAProfessorCloudBackupStatus {
   success: true
   serverRevision: number
-  cryptoVersion: number
-  updatedAt: string
+  cryptoVersion: number | null
+  updatedAt: string | null
   protection: import('./cloudBackupV3Crypto').MAProfessorBackupV3WrappedMasterKey | null
   backup: {
     found: boolean
@@ -158,6 +158,18 @@ export class MAProfessorCloudBackupRevisionConflictError
     super(message)
     this.name =
       'MAProfessorCloudBackupRevisionConflictError'
+  }
+}
+
+export const MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT = 'ma-professor-backup-auth-required'
+
+export class MAProfessorCloudBackupAuthenticationRequiredError extends Error {
+  constructor(email: string) {
+    super('A sessão OPAQUE necessária para proteger a cópia já não está disponível. Volte a introduzir a sua password para retomar a cópia protegida.')
+    this.name = 'MAProfessorCloudBackupAuthenticationRequiredError'
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new window.CustomEvent(MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, { detail: email }))
+    }
   }
 }
 
@@ -373,7 +385,7 @@ async function postJson(
 
     if (
       response.status === 409 &&
-      path === '/promote-v3'
+      ['/promote-v3', '/initialize-v3', '/push-v3'].includes(path)
     ) {
       throw new MAProfessorCloudBackupRevisionConflictError(
         message
@@ -414,11 +426,8 @@ function parseStatus(
     !isNonNegativeInteger(
       value.serverRevision
     ) ||
-    !isPositiveInteger(
-      value.cryptoVersion
-    ) ||
-    typeof value.updatedAt !== 'string' ||
-    !value.updatedAt ||
+    !(value.cryptoVersion === null || isPositiveInteger(value.cryptoVersion)) ||
+    !(value.updatedAt === null || (typeof value.updatedAt === 'string' && value.updatedAt)) ||
     !(
       value.protection === null ||
       isObject(value.protection)
@@ -431,9 +440,7 @@ function parseStatus(
   }
 
   if (
-    ![2, 3].includes(
-      value.cryptoVersion
-    ) ||
+    !(value.cryptoVersion === null || [2, 3].includes(value.cryptoVersion)) ||
     (
       value.cryptoVersion === 3
         ? !isValidV3Protection(value.protection)
@@ -476,6 +483,11 @@ function parseStatus(
     throw new Error(
       'O serviço devolveu metadados de cópia inválidos.'
     )
+  }
+
+  if (value.cryptoVersion === null && (value.serverRevision !== 0 || value.updatedAt !== null ||
+      found || recordRevision !== null || backupUpdatedAt !== null || ciphertextBytes !== null)) {
+    throw new Error('O estado inicial da cópia online não é válido.')
   }
 
   return {
@@ -1001,9 +1013,7 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     )
 
   if (!exportKey) {
-    throw new Error(
-      'A sessão OPAQUE necessária para proteger a cópia v3 já não está disponível. Inicie sessão novamente antes de migrar a cópia.'
-    )
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
   }
 
   const plaintext =
@@ -1155,6 +1165,10 @@ export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(
     expectedServerRevision: status.serverRevision
   }
 
+  if (status.cryptoVersion === null) {
+    return initializeAndVerifyMAProfessorCloudBackupV3(session, backup, forwardedOptions)
+  }
+
   if (status.cryptoVersion === 3) {
     return uploadAndVerifyMAProfessorCloudBackupV3(session, backup, forwardedOptions)
   }
@@ -1164,6 +1178,35 @@ export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(
   }
 
   throw new Error('A cópia online utiliza uma versão de proteção não suportada.')
+}
+
+async function initializeAndVerifyMAProfessorCloudBackupV3(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup,
+  options: MAProfessorCloudBackupUploadOptions
+): Promise<MAProfessorUploadedCloudBackup> {
+  const assertAllowed = () => {
+    if (options.canUpload && !options.canUpload()) {
+      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
+    }
+  }
+  assertAllowed()
+  const prepared = await prepareMAProfessorCloudBackupV3Promotion(session, backup)
+  assertAllowed()
+  const pushed = parsePromoteV3Result(await postJson('/initialize-v3', {
+    ...sessionBody(session), recordId: RECORD_ID,
+    expectedServerRevision: 0, expectedRecordRevision: 0,
+    profile: prepared.profile, encrypted: prepared.encrypted
+  }, 'Não foi possível criar a primeira cópia protegida.'))
+  const verified = await downloadMAProfessorCloudBackupV3(session)
+  if (!verified || verified.serverRevision !== pushed.serverRevision ||
+      verified.recordRevision !== pushed.recordRevision ||
+      verified.plaintextHash !== prepared.plaintextHash) {
+    throw new MAProfessorCloudBackupRevisionConflictError('A primeira cópia foi enviada, mas mudou durante a verificação. Atualize o estado antes de continuar.')
+  }
+  return { serverRevision: pushed.serverRevision, recordRevision: pushed.recordRevision,
+    updatedAt: pushed.updatedAt, plaintextBytes: prepared.plaintextBytes,
+    encryptedBytes: prepared.encryptedBytes }
 }
 
 export async function uploadAndVerifyMAProfessorCloudBackupV3(
@@ -1192,7 +1235,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
 
   const exportKey = readMAProfessorOpaqueExportKey(session.email)
   if (!exportKey) {
-    throw new Error('A sessão OPAQUE necessária para guardar a cópia v3 já não está disponível. Inicie sessão novamente.')
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
   }
 
   assertUploadAllowed()
@@ -1216,7 +1259,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
   if (!verified || verified.serverRevision !== pushed.serverRevision ||
       verified.recordRevision !== pushed.recordRevision ||
       verified.plaintextHash !== plaintextHash) {
-    throw new Error('A cópia v3 foi enviada, mas a verificação local não corresponde aos dados enviados.')
+    throw new MAProfessorCloudBackupRevisionConflictError('A cópia v3 foi enviada, mas a verificação local não corresponde aos dados enviados.')
   }
 
   return {
@@ -1468,6 +1511,10 @@ export async function downloadCompatibleMAProfessorCloudBackup(
   const status =
     await readStatus(session)
 
+  if (status.cryptoVersion === null) {
+    return null
+  }
+
   if (status.cryptoVersion === 3) {
     return downloadMAProfessorCloudBackupV3(
       session
@@ -1523,9 +1570,7 @@ export async function downloadMAProfessorCloudBackupV3(
     )
 
   if (!exportKey) {
-    throw new Error(
-      'A sessão OPAQUE necessária para abrir a cópia v3 já não está disponível. Inicie sessão novamente.'
-    )
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
   }
 
   const masterKey =

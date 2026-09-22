@@ -38,14 +38,9 @@ test(
       worker,
       /const CRYPTO_VERSION = 2/
     )
-    assert.match(
-      worker,
-      /function createSessionKey\(\)/
-    )
-    assert.match(
-      worker,
-      /const sessionKey = createSessionKey\(\)/
-    )
+    assert.doesNotMatch(worker, /function createSessionKey|ensureSessionProfile/)
+    assert.match(worker, /handleInitializeV3/)
+    assert.match(worker, /assertSessionProfile\(profile\)/)
     assert.match(
       worker,
       /recovery_wrapped_master_key/
@@ -78,7 +73,7 @@ test(
     )
     assert.match(
       preference,
-      /Enquanto uma conta ainda tiver uma cópia v2, mantém-se a proteção anterior até à migração explícita/
+      /proteção v2, os servidores da MA-CODE conservam material técnico que permite decifrá-las/
     )
   }
 )
@@ -94,7 +89,7 @@ test(
     )
     assert.match(
       client,
-      /if \(!exportKey\) \{[\s\S]*?Inicie sessão novamente antes de migrar a cópia\./
+      /if \(!exportKey\) \{[\s\S]*?MAProfessorCloudBackupAuthenticationRequiredError/
     )
 
     const start = client.indexOf(

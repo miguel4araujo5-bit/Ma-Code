@@ -1,6 +1,6 @@
 # MA-Professor — estado da privacidade das cópias
 
-Referência: 21/09/2026.
+Referência: 22/09/2026.
 
 Este documento descreve o contrato de privacidade efetivamente implementado após o fecho técnico do backup v3. Não substitui os testes nem o plano arquitetural em `MA_PROFESSOR_OPAQUE_V3_PLAN.md`.
 
@@ -15,18 +15,21 @@ Este documento descreve o contrato de privacidade efetivamente implementado apó
 - A cópia online é cifrada no dispositivo antes do envio.
 - Nas cópias com proteção v3, a OPAQUE export key, a master key e a wrapping key permanecem no cliente; o Worker/D1 recebem apenas ciphertext, envelope público de proteção, hashes e metadados/revisões.
 - Por essa razão, para uma cópia v3 a MA-CODE não guarda no servidor material suficiente para decifrar os dados.
-- A compatibilidade v2 é mantida para contas ainda não migradas. Uma cópia v2 conserva a proteção anterior até à migração explícita e atómica para v3.
+- A primeira cópia de uma conta sem perfil é criada diretamente em v3, com perfil e ciphertext na mesma transação. O servidor deixou de gerar chaves v2 para novas contas.
+- A compatibilidade v2 é mantida para contas antigas: o servidor conserva material técnico que permite decifrar essas cópias até à migração explícita e atómica para v3.
 - A migração v2 -> v3 é acionada apenas pela ação manual de cópia; não ocorre por login, abertura da aplicação, restauro ou backup automático.
 - A migração preserva `serverRevision`, `recordRevision`, CAS/409 e a cópia v2 se a promoção não for concluída.
 - O endpoint legado `/key` permanece restrito a perfis v2 e não abre cópias v3.
 - Um novo login OPAQUE repõe a export key apenas em memória para permitir abrir uma cópia v3; não existe persistência dessa chave em `localStorage`, `sessionStorage`, D1 ou Durable Objects.
+
+Após recarregar a página, a sessão pode continuar válida sem a export key. A cópia protegida mostra um pedido de reautenticação, suspende tentativas automáticas e retoma após login OPAQUE, sem fechar o trabalho local. Password e export key não são persistidas. A senha MP não permite substituir um registo OPAQUE existente; uma ativação interrompida retoma através da password já registada.
 
 ## Contrato de texto público
 
 Os textos apresentados ao professor devem distinguir claramente duas situações:
 
 1. **Proteção v3** — a MA-CODE não recebe a password pessoal e não possui no servidor material suficiente para decifrar a cópia.
-2. **Compatibilidade v2** — uma conta que ainda tenha uma cópia v2 mantém temporariamente a proteção anterior até à migração explícita.
+2. **Compatibilidade v2** — o servidor conserva material técnico que permite decifrar as cópias antigas até à migração explícita. Esta limitação deve estar escrita no consentimento.
 
 Enquanto puder existir uma cópia v2, não se deve apresentar uma promessa genérica de “zero-knowledge”, “ponta-a-ponta” ou equivalente para todas as contas.
 

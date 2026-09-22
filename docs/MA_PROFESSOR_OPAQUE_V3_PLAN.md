@@ -1,6 +1,6 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado: passo 13 implementado na `main`. O gate final exige uma execução integral do workflow (não apenas um run documental com passos condicionais ignorados). A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
+Estado atualizado em 22/09/2026: primeira cópia diretamente v3, reautenticação após reload e privacidade v2 explícita. Passo 13 implementado na `main`.  O gate final exige uma execução integral do workflow (não apenas um run documental com passos condicionais ignorados). A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
 
 ## Objetivo
 
@@ -42,7 +42,7 @@ No caminho OPAQUE/backup v3, o servidor não recebe:
 - master key v3;
 - wrapping key v3.
 
-No fluxo público atual, a password pessoal não é enviada ao servidor. Esta garantia aplica-se à autenticação OPAQUE; não deve ser confundida com a garantia do backup v3, que só existe depois de a cópia ativa ter sido efetivamente migrada.
+No fluxo público atual, a password pessoal não é enviada ao servidor. Esta garantia aplica-se à autenticação OPAQUE; não deve ser confundida com a garantia do backup v3, que se aplica às primeiras cópias criadas diretamente em v3 e às cópias antigas efetivamente migradas.
 
 ## Separação formal de domínios — passo 12
 
@@ -311,3 +311,28 @@ Para 20 professores, o MA-Professor permanece com margem confortável no Workers
 - não remover 409/revisões;
 - não alterar `wrangler.jsonc` ou `package.json` antes do spike compatível;
 - não declarar cifragem ponta-a-ponta enquanto existir uma chave servidor capaz de abrir a cópia ativa.
+
+
+## Fecho da reauditoria — 22/09/2026
+
+- NOVO-01: `/status` representa uma conta sem perfil sem criar dados. `/initialize-v3` insere perfil e ciphertext numa transação D1; colisão devolve 409 e uma falha reverte a transação. `/push` e `/key` só servem perfis v2 já existentes.
+- NOVO-03: perda da export key é um erro específico, com aviso e formulário de password. O automático suspende tentativas enquanto está bloqueado; um login OPAQUE repõe a chave apenas em memória e preserva edições locais ainda por guardar.
+- NOVO-02: os avisos e Segurança e recuperação explicam que a MA-CODE conserva material capaz de decifrar v2. Identificam separadamente v3 e a primeira cópia de contas novas.
+- O contrato de resposta `/push-v3` inclui `cryptoVersion: 3`; 409 de escrita é tipado para suspender o automático. A escrita do registo verifica também a revisão/versão do perfil dentro da transação.
+- A retoma de ativação prova a password existente através de login. Nenhuma senha MP ou enrollment pendente antigo pode substituir um registo OPAQUE concluído. `/opaque/enroll/start` partilha o limite de tentativas de senha MP.
+
+### Gate de consumo antes das alterações
+
+Confirmados os limites oficiais Workers/D1/DO em 21/09/2026:
+https://developers.cloudflare.com/workers/platform/limits/
+https://developers.cloudflare.com/workers/platform/pricing/
+https://developers.cloudflare.com/d1/platform/pricing/
+https://developers.cloudflare.com/durable-objects/platform/pricing/
+
+Sem novo serviço, binding, migration, polling ou tarefa agendada. Primeira cópia: duas inserções, uma única vez por conta, em vez de criar v2 e promover depois. A reautenticação usa os dois pedidos OPAQUE existentes e só ocorre por ação do professor. Assumindo 20 professores e 10 reautenticações/dia: +400 pedidos/dia; a pausa elimina os retries de 5 minutos sem chave. Mantém-se o intervalo mínimo de 10 minutos dos backups.
+
+A contagem anterior de duas escritas por upload não inclui índices nem os triggers de histórico. Para margem, reservar até 20 linhas escritas por upload (incluindo rotação e índices): 2.880 uploads/dia × 20 = 57.600 linhas/dia; somar margem para os restantes fluxos da conta. O código não mede CPU real em produção, nem o consumo agregado de outros produtos. Estes limites operacionais continuam a exigir observação do painel Cloudflare.
+
+### Evidência de regressão
+
+Testes de integração executam o cliente, primitivas v3, SQL real e Worker: conta nova, primeira cópia, update, ausência de chave, outro dispositivo, conflito concorrente, rollback, v2 e migração explícita. O teste OPAQUE usa Wasm real para pedido/aprovação/ativação/retoma/login noutro dispositivo/eliminação administrativa e limitação de tentativas. O E2E crítico usa também Worker/SQLite reais para a cópia v3 e verifica reload, password incorreta/correta e preservação de edição não guardada. O resultado do CI deve ser confirmado no SHA entregue; build não equivale a publicação.

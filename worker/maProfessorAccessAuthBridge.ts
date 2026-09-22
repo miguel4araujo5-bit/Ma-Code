@@ -1200,9 +1200,7 @@ export class MaProfessorAccessDurableObject {
               identity.email,
             deviceId:
               identity.deviceId,
-            registrationRequest,
-            replaceExisting:
-              true
+            registrationRequest
           }
         )
 

@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 import { chromium } from 'playwright'
+import { createCloudBackupWorkerHarness } from './cloud-backup-worker-harness.mjs'
 
 import initOpaque, {
   createServerRegistrationResponse,
@@ -45,6 +46,8 @@ await initOpaque({
 
 const opaqueServerSetup =
   createServerSetup()
+
+const cloudWorker = await createCloudBackupWorkerHarness(EMAIL, TOKEN)
 
 const license = {
   email: EMAIL,
@@ -426,6 +429,13 @@ async function installOfflineApi(page) {
       })
     }
 
+    if (path.startsWith('/api/ma-professor/cloud-backup/')) {
+      const response = await cloudWorker.handle(new Request(`https://ma-code.pt${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://ma-code.pt' }, body: JSON.stringify(body)
+      }))
+      return route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() })
+    }
+
     if (path === '/api/ma-professor/sync/status') {
       return fulfilJson(route, {
         success: true,
@@ -753,7 +763,46 @@ try {
   assert.equal(first.lesson?.origin, 'scheduled')
   assert.ok(first.lesson?.scheduleSlotId)
 
+  // A real new account has no D1 profile. Its first backup must be born v3.
+  const protectedCopy = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    const repository = await import('/src/components/ma-professor/settings/backupRepository.ts')
+    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
+    const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
+    const session = storage.readMAProfessorAccessSession()
+    const result = await service.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, await repository.createMAProfessorBackup())
+    preference.writeCloudBackupPreference(session, 'enabled')
+    trust.writeMAProfessorCloudBackupTrust(session, result)
+    return await service.inspectMAProfessorCloudBackup(session)
+  })
+  assert.equal(protectedCopy.cryptoVersion, 3)
+  assert.equal(protectedCopy.backup.found, true)
+
   await page.reload({ waitUntil: 'domcontentloaded' })
+  const unlock = page.getByRole('complementary', { name: 'Desbloquear cópia protegida' })
+  await unlock.waitFor({ state: 'visible' })
+  const unsavedEditor = await summaryEditor(page)
+  await unsavedEditor.textarea.fill('Edição local ainda por guardar.')
+  await unlock.getByLabel('Password pessoal').fill('Wrong-password-123!')
+  await unlock.getByRole('button', { name: 'Desbloquear cópia protegida', exact: true }).click()
+  await unlock.getByRole('alert').waitFor({ state: 'visible' })
+  assert.equal(await unlock.getByLabel('Password pessoal').inputValue(), '')
+  await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
+  await unlock.getByRole('button', { name: 'Desbloquear cópia protegida', exact: true }).click()
+  await unlock.waitFor({ state: 'hidden' })
+  assert.equal(await unsavedEditor.textarea.inputValue(), 'Edição local ainda por guardar.', 'Reauthentication must preserve unsaved edits')
+  await unsavedEditor.textarea.fill(SUMMARY)
+  const restoredCopy = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    const session = storage.readMAProfessorAccessSession()
+    const remote = await service.downloadCompatibleMAProfessorCloudBackup(session)
+    return { summary: remote.backup.data.lessons.find(lesson => lesson.summary)?.summary,
+      secretPersisted: JSON.stringify({ ...localStorage, ...sessionStorage }).includes(storage.readMAProfessorOpaqueExportKey(session.email)) }
+  })
+  assert.equal(restoredCopy.summary, SUMMARY)
+  assert.equal(restoredCopy.secretPersisted, false)
   const reopened = await summaryEditor(page)
   assert.equal(await reopened.textarea.inputValue(), SUMMARY)
 
@@ -919,4 +968,5 @@ try {
 } finally {
   if (browser) await browser.close()
   await stopVite(server.child)
+  cloudWorker.close()
 }

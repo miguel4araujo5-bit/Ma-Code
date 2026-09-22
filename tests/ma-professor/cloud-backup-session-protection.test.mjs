@@ -68,6 +68,7 @@ test(
   () => {
     for (const handler of [
       'handleStatus',
+      'handleInitializeV3',
       'handleKey',
       'handleGet',
       'handlePromoteV3',
@@ -361,7 +362,7 @@ test(
     const key = worker.slice(keyStart, getStart)
     const get = worker.slice(getStart, pushStart)
 
-    assert.match(status, /readExistingProfile\(/)
+    assert.match(status, /readProfile\(/)
     assert.doesNotMatch(status, /ensureSessionProfile\(/)
     assert.doesNotMatch(status, /assertSessionProfile\(/)
     assert.match(get, /readExistingProfile\(/)
@@ -672,8 +673,8 @@ test(
     const end = worker.indexOf('function getErrorDetails', start)
     const push = worker.slice(start, end)
 
-    assert.match(push, /ensureSessionProfile\(/)
-    assert.match(worker, /return assertSessionProfile\(existing\)/)
+    assert.match(push, /readExistingProfile\(/)
+    assert.match(push, /assertSessionProfile\(profile\)/)
     assert.match(worker, /profile\.crypto_version !== CRYPTO_VERSION/)
   }
 )

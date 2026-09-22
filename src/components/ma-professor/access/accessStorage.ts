@@ -16,6 +16,12 @@ const DEVICE_STORAGE_KEY =
 export const MA_PROFESSOR_ACCESS_SESSION_EVENT =
   'ma-professor-access-session-change'
 
+export const MA_PROFESSOR_OPAQUE_KEY_EVENT = 'ma-professor-opaque-key-change'
+
+function notifyOpaqueKeyChange() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(MA_PROFESSOR_OPAQUE_KEY_EVENT))
+}
+
 let memoryAccess:
   MAProfessorStoredAccess | null = null
 
@@ -291,6 +297,7 @@ export function saveMAProfessorOpaqueExportKey(
   ) {
     memoryOpaqueExportKey =
       null
+    notifyOpaqueKeyChange()
     return
   }
 
@@ -300,6 +307,7 @@ export function saveMAProfessorOpaqueExportKey(
     exportKey:
       normalizedExportKey
   }
+  notifyOpaqueKeyChange()
 }
 
 export function readMAProfessorOpaqueExportKey(
@@ -325,6 +333,7 @@ export function readMAProfessorOpaqueExportKey(
 export function clearMAProfessorOpaqueExportKey() {
   memoryOpaqueExportKey =
     null
+  notifyOpaqueKeyChange()
 }
 
 export function clearMAProfessorStoredAccess() {
