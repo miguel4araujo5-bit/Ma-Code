@@ -65,7 +65,7 @@ const featuredProducts = [
     href: '/produtos/ma-professor',
     icon: 'professor' as const,
     accentClassName:
-      'border-emerald-400/30 bg-emerald-500/[0.15] text-emerald-100 shadow-[0_12px_34px_rgba(34,197,94,0.16)]'
+      'border-cyan-400/30 bg-cyan-500/[0.15] text-cyan-100 shadow-[0_12px_34px_rgba(6,182,212,0.16)]'
   },
   {
     name: 'MA-Quadro',
